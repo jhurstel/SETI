@@ -1,0 +1,516 @@
+/* Reset et base */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #0a0e1a;
+  color: #e0e0e0;
+  overflow-x: hidden;
+}
+
+/* Layout principal */
+.seti-root {
+  height: 100vh;
+  width: 100vw;
+  padding: 10px;
+  background: linear-gradient(135deg, #0a0e1a 0%, #1a1f2e 100%);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.seti-root-inner {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Layout du plateau (3 colonnes) */
+.seti-board-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 1.6fr 1.1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Panneaux génériques */
+.seti-panel {
+  background: rgba(20, 25, 40, 0.8);
+  border: 2px solid rgba(100, 150, 255, 0.3);
+  border-radius: 8px;
+  padding: 8px;
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  /* Debug: montrer le conteneur */
+  border: 2px solid yellow;
+}
+
+/* Exception pour le panel du système solaire : permettre le scroll vertical */
+.seti-panel.seti-solar-system-container {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: 100%;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.seti-panel-title {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #78a0ff;
+  margin-bottom: 8px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+/* Système solaire - maintenant directement dans le panel */
+.seti-solar-system-container {
+  /* Le conteneur système solaire est maintenant le panel lui-même */
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Scrollbar personnalisée pour le système solaire */
+.seti-solar-system-container::-webkit-scrollbar {
+  width: 10px;
+}
+
+.seti-solar-system-container::-webkit-scrollbar-track {
+  background: rgba(20, 25, 40, 0.5);
+  border-radius: 5px;
+}
+
+.seti-solar-system-container::-webkit-scrollbar-thumb {
+  background: rgba(100, 150, 255, 0.5);
+  border-radius: 5px;
+  border: 1px solid rgba(20, 25, 40, 0.5);
+}
+
+.seti-solar-system-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 160, 255, 0.7);
+}
+
+/* Firefox */
+.seti-solar-system-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 150, 255, 0.5) rgba(20, 25, 40, 0.5);
+}
+
+/* Soleil au centre */
+.seti-sun {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8%; /* Diamètre du soleil (rayon 4% * 2) - correspond aux calculs */
+  height: 8%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffdd66, #cc9933);
+  box-shadow: 0 0 20px rgba(255, 221, 102, 0.6);
+  z-index: 10;
+  aspect-ratio: 1; /* Force un cercle parfait */
+}
+
+/* Disques concentriques (A-E) */
+.seti-solar-disk {
+  transition: transform 0.5s ease-in-out;
+}
+
+.seti-disk-label {
+  text-shadow: 0 0 4px rgba(120, 160, 255, 0.8);
+}
+
+/* Indicateur de rotation au centre */
+.seti-rotation-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  pointer-events: none;
+}
+
+.seti-rotation-icon {
+  width: 24px;
+  height: 24px;
+  opacity: 0.6;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.8));
+}
+
+/* Secteurs colorés */
+.seti-solar-sector {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.04);
+  transform-origin: center;
+  pointer-events: none;
+}
+
+.seti-solar-sector-label {
+  font-size: 0.6rem;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+.seti-sector-color-BLUE { color: #66aaff; }
+.seti-sector-color-RED { color: #ff6666; }
+.seti-sector-color-YELLOW { color: #ffdd66; }
+.seti-sector-color-BLACK { color: #aaaaaa; }
+
+/* Planètes */
+.seti-planets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.seti-planet-card {
+  background: rgba(30, 40, 60, 0.6);
+  border: 1px solid rgba(100, 150, 255, 0.2);
+  border-radius: 6px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.seti-planet-name {
+  font-weight: bold;
+  color: #78a0ff;
+  margin-bottom: 4px;
+  font-size: 0.85rem;
+}
+
+.seti-planet-details {
+  font-size: 0.75rem;
+}
+
+.seti-planet-pv {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.seti-planet-satellites {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.seti-satellites-title {
+  font-size: 0.75rem;
+  color: #aaa;
+  margin-bottom: 2px;
+}
+
+.seti-satellite {
+  font-size: 0.7rem;
+  color: #ccc;
+  margin-left: 8px;
+}
+
+/* Technologies */
+.seti-media-track {
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.seti-media-track-label {
+  font-size: 0.75rem;
+  color: #aaa;
+  margin-bottom: 4px;
+}
+
+.seti-media-track-bar {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.seti-media-track-mark {
+  flex: 1;
+  text-align: center;
+  font-size: 0.65rem;
+  color: #888;
+  padding: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.seti-rotation-token {
+  margin-bottom: 8px;
+  padding: 8px;
+  background: rgba(30, 40, 60, 0.6);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.seti-rotation-token-label {
+  font-size: 0.75rem;
+  color: #aaa;
+  margin-bottom: 2px;
+}
+
+.seti-rotation-token-info {
+  font-size: 0.85rem;
+  color: #78a0ff;
+  font-weight: bold;
+}
+
+.seti-tech-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.seti-tech-category {
+  background: rgba(30, 40, 60, 0.6);
+  border-radius: 6px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.seti-tech-category-title {
+  font-weight: bold;
+  color: #78a0ff;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+}
+
+.seti-tech-slots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.seti-tech-slot {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  padding: 4px;
+  text-align: center;
+  font-size: 0.7rem;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Plateau joueur */
+.seti-player-panel {
+  background: rgba(20, 25, 40, 0.9);
+  border: 2px solid rgba(100, 150, 255, 0.4);
+  border-radius: 8px;
+  padding: 10px;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+  max-height: 35vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.seti-player-panel-title {
+  font-size: 1rem;
+  font-weight: bold;
+  color: #78a0ff;
+  margin-bottom: 10px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.seti-player-layout {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+
+.seti-player-section {
+  background: rgba(30, 40, 60, 0.6);
+  border: 1px solid rgba(100, 150, 255, 0.2);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.seti-player-section-title {
+  font-weight: bold;
+  color: #78a0ff;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.seti-player-resources {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.seti-res-badge {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.seti-res-badge strong {
+  color: #ffdd66;
+  font-size: 0.9rem;
+}
+
+.seti-player-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.seti-player-action-available {
+  padding: 4px 8px;
+  background: rgba(100, 200, 100, 0.2);
+  border: 1px solid rgba(100, 200, 100, 0.4);
+  border-radius: 3px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.seti-player-action-available:hover {
+  background: rgba(100, 200, 100, 0.3);
+  transform: translateX(2px);
+}
+
+.seti-player-action-unavailable {
+  padding: 4px 8px;
+  background: rgba(60, 60, 60, 0.3);
+  border: 1px solid rgba(100, 100, 100, 0.2);
+  border-radius: 3px;
+  font-size: 0.75rem;
+  color: #666;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.seti-player-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.seti-player-list-item {
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.seti-player-list-empty {
+  padding: 4px;
+  color: #666;
+  font-size: 0.7rem;
+  font-style: italic;
+}
+
+.seti-card-name {
+  font-weight: bold;
+  color: #78a0ff;
+  margin-bottom: 2px;
+  font-size: 0.75rem;
+}
+
+.seti-card-description {
+  font-size: 0.65rem;
+  color: #aaa;
+  margin-top: 2px;
+}
+
+/* Planètes sur le système solaire */
+.seti-planet {
+  position: relative;
+}
+
+.seti-planet-tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  /* transform géré par le style inline pour compenser la rotation des plateaux */
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.9);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: bold;
+  border-radius: 4px;
+  border: 1px solid rgba(100, 150, 255, 0.5);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 100;
+}
+
+.seti-planet-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.9);
+}
+
+.seti-planet:hover .seti-planet-tooltip {
+  opacity: 1;
+}
+
