@@ -80,7 +80,7 @@ export enum SectorColor {
 
 export enum TechnologyCategory {
   EXPLORATION = "EXPLORATION",
-  INFORMATION = "INFORMATION",
+  OBSERVATION = "OBSERVATION",
   COMPUTING = "COMPUTING"
 }
 
@@ -251,6 +251,7 @@ export interface Technology {
   effects: TechnologyEffect[];
   bonus: TechnologyBonus;
   ownerId?: string;
+  description?: string; // Description détaillée de la technologie
 }
 
 export interface TechnologyEffect {

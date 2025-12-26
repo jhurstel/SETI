@@ -14,7 +14,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game }) =>
 
   const categoryNames: Record<TechnologyCategory, string> = {
     [TechnologyCategory.EXPLORATION]: 'Exploration',
-    [TechnologyCategory.INFORMATION]: 'Information',
+    [TechnologyCategory.OBSERVATION]: 'Observation',
     [TechnologyCategory.COMPUTING]: 'Informatique',
   };
 
@@ -52,8 +52,18 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game }) =>
             <div className="seti-tech-slots">
               {Array.from({ length: 4 }).map((_, i) => {
                 const tech = slot.technologies[i];
+                const tooltip = tech 
+                  ? `${tech.name}${tech.description ? '\n\n' + tech.description : ''}`
+                  : 'Emplacement vide';
                 return (
-                  <div key={i} className="seti-tech-slot">
+                  <div 
+                    key={i} 
+                    className="seti-tech-slot"
+                    title={tooltip}
+                    style={{
+                      cursor: tech ? 'help' : 'default',
+                    }}
+                  >
                     {tech ? tech.name : '—'}
                   </div>
                 );

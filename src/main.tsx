@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BoardUI } from './ui/BoardUI';
-import { Game, SolarRing, SolarRingSector, SectorColor, RotationDisk, Planet, Satellite, Technology, TechnologyCategory, Card } from './core/types';
+import { Game, SolarRing, SolarRingSector, SectorColor, RotationDisk, Planet, Satellite, Technology, TechnologyCategory, TechnologyType, Card } from './core/types';
 import './ui/styles.css';
 
 /**
@@ -173,20 +173,145 @@ function createMockGame(): Game {
     },
   ];
 
-  // Technologies mock
-  const tech1: Technology = {
-    id: 'tech1',
-    name: 'Propulsion avancée',
-    type: 0 as any,
-    effects: [],
-    bonus: { energy: 1 },
+  // Technologies d'exploration (utiliser celles définies dans Board.ts)
+  const exploration1: Technology = {
+    id: 'exploration-1',
+    name: 'Exploration Niveau 1',
+    type: TechnologyType.SPECIAL,
+    effects: [
+      { type: 'MAX_PROBES_IN_SYSTEM', value: 2 },
+      { type: 'FREE_LAUNCH_PROBE', value: true },
+    ],
+    bonus: {},
+    description: 'Augmente la capacité maximale de sondes dans le système solaire à 2. Permet de lancer une sonde gratuitement (sans coût en crédits).',
   };
-  const tech2: Technology = {
-    id: 'tech2',
-    name: 'Télécommunications',
-    type: 0 as any,
-    effects: [],
-    bonus: { media: 1 },
+
+  const exploration2: Technology = {
+    id: 'exploration-2',
+    name: 'Exploration Niveau 2',
+    type: TechnologyType.SPECIAL,
+    effects: [
+      { type: 'ASTEROID_MEDIA_BONUS', value: 1 },
+      { type: 'ASTEROID_EXIT_COST', value: 1 },
+    ],
+    bonus: {},
+    description: 'Lorsqu\'une sonde visite un champ d\'astéroïdes, le joueur gagne +1 point de couverture médiatique. Permet de quitter un champ d\'astéroïdes avec seulement 1 point de déplacement au lieu du coût normal.',
+  };
+
+  const exploration3: Technology = {
+    id: 'exploration-3',
+    name: 'Exploration Niveau 3',
+    type: TechnologyType.SPECIAL,
+    effects: [
+      { type: 'LAND_COST_REDUCTION', value: 1 },
+    ],
+    bonus: {},
+    description: 'Réduit le coût en crédits pour poser une sonde sur une planète de 1 crédit. Cette réduction s\'applique en plus des autres réductions (par exemple, si un orbiteur est déjà présent sur la planète, le coût passe de 2 à 1 crédit au lieu de 3 à 2).',
+  };
+
+  const exploration4: Technology = {
+    id: 'exploration-4',
+    name: 'Exploration Niveau 4',
+    type: TechnologyType.SPECIAL,
+    effects: [
+      { type: 'ALLOW_LAND_ON_SATELLITES', value: true },
+    ],
+    bonus: {},
+    description: 'Autorise le joueur à poser des sondes sur les lunes (satellites) des planètes. Sans cette technologie, seules les planètes principales peuvent recevoir des sondes en atterrissage.',
+  };
+
+  // Technologies d'observation
+  const observation1: Technology = {
+    id: 'observation-1',
+    name: 'Observation Niveau 1',
+    type: TechnologyType.SPECIAL,
+    effects: [
+      { type: 'SCAN_MARK_ADJACENT_EARTH', value: true },
+      { type: 'SCAN_DATA_BONUS', value: 2 },
+    ],
+    bonus: {},
+    description: 'Lors d\'un scan, permet de marquer un signal dans un secteur adjacent à celui de la Terre. De plus, gagnez 2 jetons de données supplémentaires lors du scan.',
+  };
+
+  const observation2: Technology = {
+    id: 'observation-2',
+    name: 'Observation Niveau 2',
+    type: TechnologyType.SPECIAL,
+    effects: [
+      { type: 'SCAN_MARK_MERCURY', value: true },
+      { type: 'SCAN_MERCURY_MEDIA_COST', value: 1 },
+    ],
+    bonus: {},
+    description: 'Lors d\'un scan, vous pouvez payer 1 point de couverture médiatique pour marquer un signal supplémentaire dans le secteur de Mercure.',
+  };
+
+  const observation3: Technology = {
+    id: 'observation-3',
+    name: 'Observation Niveau 3',
+    type: TechnologyType.SPECIAL,
+    effects: [
+      { type: 'SCAN_DISCARD_CARD_MARK_SIGNAL', value: true },
+    ],
+    bonus: {},
+    description: 'Lors d\'un scan, vous pouvez défausser une carte de votre main pour marquer un signal supplémentaire dans un secteur correspondant à la couleur indiquée dans le coin supérieur droit de la carte défaussée.',
+  };
+
+  const observation4: Technology = {
+    id: 'observation-4',
+    name: 'Observation Niveau 4',
+    type: TechnologyType.SPECIAL,
+    effects: [
+      { type: 'SCAN_LAUNCH_PROBE_OR_MOVEMENT', value: true },
+      { type: 'SCAN_LAUNCH_PROBE_ENERGY_COST', value: 1 },
+      { type: 'SCAN_MOVEMENT_BONUS', value: 1 },
+    ],
+    bonus: {},
+    description: 'Lors d\'un scan, vous pouvez choisir : soit payer 1 énergie pour lancer une sonde, soit gagner 1 point de déplacement supplémentaire.',
+  };
+
+  // Technologies informatiques
+  const computing1: Technology = {
+    id: 'computing-1',
+    name: 'Informatique Niveau 1',
+    type: TechnologyType.SPECIAL,
+    effects: [
+      { type: 'TECH_TRACK_BONUS', value: { points: 2, credits: 1 } },
+    ],
+    bonus: {},
+    description: 'Ajoutez cette carte à la piste de technologie pour gagner 2 points de victoire + 1 crédit.',
+  };
+
+  const computing2: Technology = {
+    id: 'computing-2',
+    name: 'Informatique Niveau 2',
+    type: TechnologyType.SPECIAL,
+    effects: [
+      { type: 'TECH_TRACK_BONUS', value: { points: 2, cards: 1 } },
+    ],
+    bonus: {},
+    description: 'Ajoutez cette carte à la piste de technologie pour gagner 2 points de victoire + 1 carte.',
+  };
+
+  const computing3: Technology = {
+    id: 'computing-3',
+    name: 'Informatique Niveau 3',
+    type: TechnologyType.SPECIAL,
+    effects: [
+      { type: 'TECH_TRACK_BONUS', value: { points: 2, energy: 1 } },
+    ],
+    bonus: {},
+    description: 'Ajoutez cette carte à la piste de technologie pour gagner 2 points de victoire + 1 énergie.',
+  };
+
+  const computing4: Technology = {
+    id: 'computing-4',
+    name: 'Informatique Niveau 4',
+    type: TechnologyType.SPECIAL,
+    effects: [
+      { type: 'TECH_TRACK_BONUS', value: { points: 2, media: 2 } },
+    ],
+    bonus: {},
+    description: 'Ajoutez cette carte à la piste de technologie pour gagner 2 points de victoire + 2 points de couverture médiatique.',
   };
 
   // Cartes mock
@@ -238,7 +363,7 @@ function createMockGame(): Game {
         energy: 3,
         mediaCoverage: 2,
         probes: [],
-        technologies: [tech1],
+        technologies: [],
         cards,
         missions: [],
         dataComputer: { topRow: [], bottomRow: [], canAnalyze: false },
@@ -252,7 +377,20 @@ function createMockGame(): Game {
         tiles: [],
         rotationDisks,
         currentRotation: 0,
-        probes: [],
+        probes: [
+          {
+            id: 'probe_test_1',
+            ownerId: 'player1',
+            position: { x: 0, y: 0 },
+            solarPosition: {
+              disk: 'A',
+              sector: 1,
+            },
+            state: 0 as any, // IN_SOLAR_SYSTEM
+            isOrbiter: false,
+            isLander: false,
+          },
+        ],
         rings: [],
         solarTiles: [],
         // Positions initiales des plateaux rotatifs
@@ -267,7 +405,7 @@ function createMockGame(): Game {
       sectors: [],
       planets,
       technologyBoard: {
-        available: [tech2],
+        available: [],
         researched: [],
         mediaTrackMax: 10,
         rotationTokenPosition: 0,
@@ -275,15 +413,15 @@ function createMockGame(): Game {
         categorySlots: [
           {
             category: TechnologyCategory.EXPLORATION,
-            technologies: [tech1, tech2],
+            technologies: [exploration1, exploration2, exploration3, exploration4],
           },
           {
-            category: TechnologyCategory.INFORMATION,
-            technologies: [],
+            category: TechnologyCategory.OBSERVATION,
+            technologies: [observation1, observation2, observation3, observation4],
           },
           {
             category: TechnologyCategory.COMPUTING,
-            technologies: [],
+            technologies: [computing1, computing2, computing3, computing4],
           },
         ],
       },

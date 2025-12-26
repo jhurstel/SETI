@@ -218,34 +218,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               >
                 Tourner Niveau 3
               </button>
-              <button
-                onClick={() => solarSystemRef.current?.openFullscreen()}
-                style={{
-                  backgroundColor: '#4a9eff',
-                  color: '#fff',
-                  border: '2px solid #6bb3ff',
-                  borderRadius: '6px',
-                  padding: '8px 16px',
-                  fontSize: '0.9rem',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#6bb3ff';
-                  target.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#4a9eff';
-                  target.style.transform = 'scale(1)';
-                }}
-                title="Voir le plateau en grand"
-              >
-                🔍 Plein écran
-              </button>
             </div>
           </div>
           <PlanetsBoard game={game} />

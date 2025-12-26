@@ -1,5 +1,4 @@
 import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { Game, Probe, DiskName, SectorNumber } from '../core/types';
 import { 
   createRotationState, 
@@ -34,6 +33,7 @@ const DISK_NAMES = ['A', 'B', 'C', 'D', 'E'];
 export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoardProps>(({ game, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1 }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
+  const [hoveredProbe, setHoveredProbe] = useState<string | null>(null);
   
   // État pour gérer la sonde sélectionnée et les cases accessibles
   const [selectedProbeId, setSelectedProbeId] = useState<string | null>(null);
@@ -47,8 +47,6 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
   const [showLevel2, setShowLevel2] = useState<boolean>(true);
   const [showLevel3, setShowLevel3] = useState<boolean>(true);
 
-  // État pour gérer l'affichage en plein écran
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   // Calculer l'angle initial basé sur le secteur (1-8)
   // Secteurs numérotés de droite à gauche (sens horaire) en partant de 12h : 1, 2, 3, 4, 5, 6, 7, 8
@@ -64,6 +62,93 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
     // Rotation inverse : on additionne au lieu de soustraire
     const relativeIndex = (absoluteIndex + sectorsRotated + 8) % 8;
     return indexToSector[relativeIndex];
+  };
+
+  // Fonction helper pour déterminer le niveau d'une sonde selon son disque
+  // Retourne le niveau du conteneur rotatif où placer la sonde, ou null si fixe
+  const getProbeLevel = (disk: DiskName): number | null => {
+    // Disques D et E sont fixes (niveau 0)
+    if (disk === 'D' || disk === 'E') return null; // Fixe, pas de conteneur rotatif
+    // Disque C est uniquement dans le niveau 1
+    if (disk === 'C') return 1;
+    // Disque B peut être dans le niveau 1 ou 2 - on le met dans le niveau le plus bas (1) pour qu'il soit toujours visible
+    if (disk === 'B') return 1;
+    // Disque A peut être dans le niveau 1, 2 ou 3 - on le met dans le niveau le plus bas (1) pour qu'il soit toujours visible
+    if (disk === 'A') return 1;
+    return null;
+  };
+
+  // Fonction helper pour calculer la position d'une sonde dans un conteneur rotatif
+  const calculateProbePositionInContainer = (
+    disk: DiskName,
+    absoluteSector: SectorNumber,
+    level: number | null
+  ) => {
+    let relativeSector: SectorNumber;
+    
+    if (level === 1) {
+      // Niveau 1 : convertir le secteur absolu en secteur relatif au niveau 1
+      relativeSector = absoluteToRelativeSector(absoluteSector, -rotationAngle1);
+    } else if (level === 2) {
+      // Niveau 2 : rotation totale niveau 2
+      const totalRotation2 = rotationAngle1 + rotationAngle2;
+      relativeSector = absoluteToRelativeSector(absoluteSector, -totalRotation2);
+    } else if (level === 3) {
+      // Niveau 3 : rotation totale niveau 3
+      const totalRotation3 = rotationAngle1 + rotationAngle2 + rotationAngle3;
+      relativeSector = absoluteToRelativeSector(absoluteSector, -totalRotation3);
+    } else {
+      // Niveau 0 (fixe) : pas de conversion
+      relativeSector = absoluteSector;
+    }
+    
+    // Utiliser calculateObjectPosition avec le secteur relatif
+    return calculateObjectPosition(disk, relativeSector);
+  };
+
+  // Fonction helper pour rendre une sonde
+  const renderProbe = (probe: Probe, zIndex: number = 50) => {
+    if (!probe.solarPosition) return null;
+
+    const player = game.players.find(p => p.id === probe.ownerId);
+    const playerName = player?.name || 'Joueur inconnu';
+    const isSelected = selectedProbeId === probe.id;
+    const level = getProbeLevel(probe.solarPosition.disk);
+    const { x, y } = calculateProbePositionInContainer(
+      probe.solarPosition.disk,
+      probe.solarPosition.sector,
+      level
+    );
+
+    return (
+      <div
+        key={probe.id}
+        onClick={() => handleProbeClick(probe)}
+        onMouseEnter={() => setHoveredProbe(probe.id)}
+        onMouseLeave={() => setHoveredProbe(null)}
+        style={{
+          position: 'absolute',
+          top: `calc(50% + ${y}%)`,
+          left: `calc(50% + ${x}%)`,
+          transform: 'translate(-50%, -50%)',
+          width: '20px',
+          height: '20px',
+          borderRadius: '50%',
+          background: isSelected 
+            ? 'radial-gradient(circle, #00ff00, #00cc00)' 
+            : 'radial-gradient(circle, #8888ff, #5555aa)',
+          border: isSelected ? '3px solid #00ff00' : '2px solid #6666cc',
+          boxShadow: isSelected 
+            ? '0 0 12px rgba(0, 255, 0, 0.8)' 
+            : '0 0 6px rgba(136, 136, 255, 0.6)',
+          cursor: 'pointer',
+          zIndex,
+          transition: 'all 0.2s ease',
+          pointerEvents: 'auto',
+        }}
+        title={playerName}
+      />
+    );
   };
 
   // Fonction helper pour déterminer le type de secteur (normal, hollow, empty) pour tous les niveaux
@@ -243,6 +328,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
         border: '2px solid #63b3ed',
         boxShadow: '0 0 8px rgba(74, 144, 226, 0.6)',
         size: 26,
+        hasContinents: true,
       },
       'venus': {
         background: 'radial-gradient(circle, #ffd700, #b8860b)',
@@ -277,6 +363,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           height: `${style.size}px`,
           zIndex,
           cursor: 'pointer',
+          pointerEvents: 'auto',
         }}
         title={obj.name}
         onMouseEnter={() => setHoveredPlanet(obj.id)}
@@ -348,15 +435,23 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
             ))}
           </>
         )}
-        <div
-          className="seti-planet-tooltip"
-          style={{
-            transform: 'translateX(-50%)',
-            transformOrigin: 'center bottom',
-          }}
-        >
-          {obj.name}
-        </div>
+        {style.hasContinents && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: `${(style.size - 4) * 0.6}px`,
+              height: `${(style.size - 4) * 0.5}px`,
+              background: 'rgba(34, 139, 34, 0.7)',
+              borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%',
+              pointerEvents: 'none',
+              clipPath: 'ellipse(60% 50% at 50% 50%)',
+            }}
+          />
+        )}
+
       </div>
     );
   };
@@ -536,18 +631,6 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
     });
   }, [rotationAngle1, rotationAngle2, rotationAngle3]);
 
-
-  // Fonction pour ouvrir le plateau en plein écran (exposée via ref pour être appelée depuis le parent)
-  const openFullscreen = () => {
-    setIsFullscreen(true);
-  };
-
-  // Fonction pour fermer le plein écran
-  const closeFullscreen = () => {
-    setIsFullscreen(false);
-  };
-
-  // Exposer la fonction openFullscreen via ref
   useImperativeHandle(ref, () => ({
     resetRotation1,
     rotateCounterClockwise1,
@@ -555,7 +638,6 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
     rotateCounterClockwise2,
     resetRotation3,
     rotateCounterClockwise3,
-    openFullscreen,
   }));
 
   return (
@@ -931,6 +1013,14 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               );
             })}
 
+            {/* Sondes sur les disques A, B, C (niveau 1) */}
+            {probesInSystem
+              .filter(probe => {
+                if (!probe.solarPosition) return false;
+                const level = getProbeLevel(probe.solarPosition.disk);
+                return level === 1;
+              })
+              .map((probe) => renderProbe(probe, 60))}
 
             {/* Objets célestes sur le plateau rotatif niveau 1 - basés sur INITIAL_ROTATING_LEVEL1_OBJECTS */}
             {INITIAL_ROTATING_LEVEL1_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
@@ -978,6 +1068,15 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               }
               return null;
             })}
+
+            {/* Sondes sur les disques A, B (niveau 2) */}
+            {probesInSystem
+              .filter(probe => {
+                if (!probe.solarPosition) return false;
+                const level = getProbeLevel(probe.solarPosition.disk);
+                return level === 2;
+              })
+              .map((probe) => renderProbe(probe, 60))}
 
             {/* Disque B (extérieur) - 8 secteurs */}
             {Array.from({ length: 8 }).map((_, sectorIndex) => {
@@ -1211,6 +1310,15 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               );
             })}
 
+            {/* Sondes sur le disque A (niveau 3) */}
+            {probesInSystem
+              .filter(probe => {
+                if (!probe.solarPosition) return false;
+                const level = getProbeLevel(probe.solarPosition.disk);
+                return level === 3;
+              })
+              .map((probe) => renderProbe(probe, 60))}
+
           </div>
           )}
 
@@ -1311,6 +1419,80 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
 
           {/* Conteneur fixe pour les tooltips des planètes rotatives */}
           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 100 }}>
+            {/* Tooltip Neptune (niveau 0) */}
+            {(() => {
+              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
+              const diskIndex = 3; // D
+              const sectorNumber = 3;
+              const sectorIndex = sectorToIndex[sectorNumber];
+              const diskWidth = 8;
+              const sunRadius = 4;
+              const innerRadius = sunRadius + (diskIndex * diskWidth);
+              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
+              const planetRadius = (innerRadius + outerRadius) / 2;
+              // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
+              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
+              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
+              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
+              const rotatedAngle = sectorCenterAngle;
+              const radian = rotatedAngle * (Math.PI / 180);
+              const x = Math.cos(radian) * planetRadius;
+              const y = Math.sin(radian) * planetRadius;
+
+              return (
+                <div
+                  className="seti-planet-tooltip"
+                  style={{
+                    position: 'absolute',
+                    bottom: `calc(50% - ${y}% + 18px)`, // Position au-dessus de la planète (18px = demi-taille de la planète + marge)
+                    left: `calc(50% + ${x}%)`,
+                    transform: 'translateX(-50%)',
+                    opacity: hoveredPlanet === 'neptune' ? 1 : 0,
+                    visibility: hoveredPlanet === 'neptune' ? 'visible' : 'hidden',
+                    zIndex: 101,
+                  }}
+                >
+                  Neptune
+                </div>
+              );
+            })()}
+            {/* Tooltip Uranus (niveau 0) */}
+            {(() => {
+              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
+              const diskIndex = 3; // D
+              const sectorNumber = 6;
+              const sectorIndex = sectorToIndex[sectorNumber];
+              const diskWidth = 8;
+              const sunRadius = 4;
+              const innerRadius = sunRadius + (diskIndex * diskWidth);
+              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
+              const planetRadius = (innerRadius + outerRadius) / 2;
+              // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
+              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
+              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
+              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
+              const rotatedAngle = sectorCenterAngle;
+              const radian = rotatedAngle * (Math.PI / 180);
+              const x = Math.cos(radian) * planetRadius;
+              const y = Math.sin(radian) * planetRadius;
+
+              return (
+                <div
+                  className="seti-planet-tooltip"
+                  style={{
+                    position: 'absolute',
+                    bottom: `calc(50% - ${y}% + 18px)`, // Position au-dessus de la planète (18px = demi-taille de la planète + marge)
+                    left: `calc(50% + ${x}%)`,
+                    transform: 'translateX(-50%)',
+                    opacity: hoveredPlanet === 'uranus' ? 1 : 0,
+                    visibility: hoveredPlanet === 'uranus' ? 'visible' : 'hidden',
+                    zIndex: 101,
+                  }}
+                >
+                  Uranus
+                </div>
+              );
+            })()}
             {/* Tooltip Saturne (niveau 1) */}
             {(() => {
               const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
@@ -1341,6 +1523,8 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                     left: `calc(50% + ${x}%)`,
                     transform: 'translateX(-50%)',
                     opacity: hoveredPlanet === 'saturn' ? 1 : 0,
+                    visibility: hoveredPlanet === 'saturn' ? 'visible' : 'hidden',
+                    zIndex: 101,
                   }}
                 >
                   Saturne
@@ -1378,6 +1562,8 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                     left: `calc(50% + ${x}%)`,
                     transform: 'translateX(-50%)',
                     opacity: hoveredPlanet === 'jupiter' ? 1 : 0,
+                    visibility: hoveredPlanet === 'jupiter' ? 'visible' : 'hidden',
+                    zIndex: 101,
                   }}
                 >
                   Jupiter
@@ -1389,7 +1575,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
             {(() => {
               const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
               const diskIndex = 1; // B
-              const sectorNumber = 3;
+              const sectorNumber = 1; // Mars est en B1 selon INITIAL_ROTATING_LEVEL2_OBJECTS
               const sectorIndex = sectorToIndex[sectorNumber];
               const diskWidth = 8;
               const sunRadius = 4;
@@ -1401,8 +1587,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
               const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
               // Appliquer la rotation totale du plateau niveau 2 (tourne avec niveau 1)
-              const totalRotation2 = rotationAngle1 + rotationAngle2;
-              const rotatedAngle = sectorCenterAngle + totalRotation2;
+              const rotatedAngle = sectorCenterAngle + rotationAngle2;
               const radian = rotatedAngle * (Math.PI / 180);
               const x = Math.cos(radian) * planetRadius;
               const y = Math.sin(radian) * planetRadius;
@@ -1416,6 +1601,8 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                     left: `calc(50% + ${x}%)`,
                     transform: 'translateX(-50%)',
                     opacity: hoveredPlanet === 'mars' ? 1 : 0,
+                    visibility: hoveredPlanet === 'mars' ? 'visible' : 'hidden',
+                    zIndex: 101,
                   }}
                 >
                   Mars
@@ -1427,7 +1614,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
             {(() => {
               const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
               const diskIndex = 0; // A
-              const sectorNumber = 1; // Terre en A1
+              const sectorNumber = 2; // Terre est en A2 selon INITIAL_ROTATING_LEVEL3_OBJECTS
               const sectorIndex = sectorToIndex[sectorNumber];
               const diskWidth = 8;
               const sunRadius = 4;
@@ -1439,8 +1626,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
               const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
               // Appliquer la rotation totale du plateau niveau 3 (tourne avec niveaux 1 et 2)
-              const totalRotation3 = rotationAngle1 + rotationAngle2 + rotationAngle3;
-              const rotatedAngle = sectorCenterAngle + totalRotation3;
+              const rotatedAngle = sectorCenterAngle + rotationAngle3;
               const radian = rotatedAngle * (Math.PI / 180);
               const x = Math.cos(radian) * planetRadius;
               const y = Math.sin(radian) * planetRadius;
@@ -1454,6 +1640,8 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                     left: `calc(50% + ${x}%)`,
                     transform: 'translateX(-50%)',
                     opacity: hoveredPlanet === 'earth' ? 1 : 0,
+                    visibility: hoveredPlanet === 'earth' ? 'visible' : 'hidden',
+                    zIndex: 101,
                   }}
                 >
                   Terre
@@ -1465,7 +1653,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
             {(() => {
               const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
               const diskIndex = 0; // A
-              const sectorNumber = 3; // Vénus en A3
+              const sectorNumber = 4; // Vénus est en A4 selon INITIAL_ROTATING_LEVEL3_OBJECTS
               const sectorIndex = sectorToIndex[sectorNumber];
               const diskWidth = 8;
               const sunRadius = 4;
@@ -1477,8 +1665,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
               const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
               // Appliquer la rotation totale du plateau niveau 3 (tourne avec niveaux 1 et 2)
-              const totalRotation3 = rotationAngle1 + rotationAngle2 + rotationAngle3;
-              const rotatedAngle = sectorCenterAngle + totalRotation3;
+              const rotatedAngle = sectorCenterAngle + rotationAngle3;
               const radian = rotatedAngle * (Math.PI / 180);
               const x = Math.cos(radian) * planetRadius;
               const y = Math.sin(radian) * planetRadius;
@@ -1492,6 +1679,8 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                     left: `calc(50% + ${x}%)`,
                     transform: 'translateX(-50%)',
                     opacity: hoveredPlanet === 'venus' ? 1 : 0,
+                    visibility: hoveredPlanet === 'venus' ? 'visible' : 'hidden',
+                    zIndex: 101,
                   }}
                 >
                   Vénus
@@ -1503,7 +1692,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
             {(() => {
               const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
               const diskIndex = 0; // A
-              const sectorNumber = 5; // Mercure en A5
+              const sectorNumber = 6; // Mercure est en A6 selon INITIAL_ROTATING_LEVEL3_OBJECTS
               const sectorIndex = sectorToIndex[sectorNumber];
               const diskWidth = 8;
               const sunRadius = 4;
@@ -1515,8 +1704,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
               const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
               // Appliquer la rotation totale du plateau niveau 3 (tourne avec niveaux 1 et 2)
-              const totalRotation3 = rotationAngle1 + rotationAngle2 + rotationAngle3;
-              const rotatedAngle = sectorCenterAngle + totalRotation3;
+              const rotatedAngle = sectorCenterAngle + rotationAngle3;
               const radian = rotatedAngle * (Math.PI / 180);
               const x = Math.cos(radian) * planetRadius;
               const y = Math.sin(radian) * planetRadius;
@@ -1530,12 +1718,71 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                     left: `calc(50% + ${x}%)`,
                     transform: 'translateX(-50%)',
                     opacity: hoveredPlanet === 'mercury' ? 1 : 0,
+                    visibility: hoveredPlanet === 'mercury' ? 'visible' : 'hidden',
+                    zIndex: 101,
                   }}
                 >
                   Mercure
                 </div>
               );
             })()}
+
+            {/* Tooltips des sondes */}
+            {probesInSystem.map((probe) => {
+              if (!probe.solarPosition) return null;
+
+              const player = game.players.find(p => p.id === probe.ownerId);
+              const playerName = player?.name || 'Joueur inconnu';
+              const level = getProbeLevel(probe.solarPosition.disk);
+              
+              // Calculer la position de la sonde
+              let x: number, y: number;
+              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
+              const diskIndex = ['A', 'B', 'C', 'D', 'E'].indexOf(probe.solarPosition.disk);
+              const sectorIndex = sectorToIndex[probe.solarPosition.sector];
+              const diskWidth = 8;
+              const sunRadius = 4;
+              const innerRadius = sunRadius + (diskIndex * diskWidth);
+              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
+              const probeRadius = (innerRadius + outerRadius) / 2;
+              
+              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
+              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
+              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
+              
+              let rotatedAngle: number;
+              if (level === 1) {
+                rotatedAngle = sectorCenterAngle + rotationAngle1;
+              } else if (level === 2) {
+                rotatedAngle = sectorCenterAngle + rotationAngle2;
+              } else if (level === 3) {
+                rotatedAngle = sectorCenterAngle + rotationAngle3;
+              } else {
+                rotatedAngle = sectorCenterAngle; // Fixe
+              }
+              
+              const radian = rotatedAngle * (Math.PI / 180);
+              x = Math.cos(radian) * probeRadius;
+              y = Math.sin(radian) * probeRadius;
+
+              return (
+                <div
+                  key={`probe-tooltip-${probe.id}`}
+                  className="seti-planet-tooltip"
+                  style={{
+                    position: 'absolute',
+                    bottom: `calc(50% - ${y}% + 12px)`,
+                    left: `calc(50% + ${x}%)`,
+                    transform: 'translateX(-50%)',
+                    opacity: hoveredProbe === probe.id ? 1 : 0,
+                    visibility: hoveredProbe === probe.id ? 'visible' : 'hidden',
+                    zIndex: 101,
+                  }}
+                >
+                  {playerName}
+                </div>
+              );
+            })}
           </div>
 
           {/* Surbrillance des cases accessibles */}
@@ -1577,70 +1824,66 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
             );
           })}
 
-          {/* Affichage des sondes */}
-          {probesInSystem.map((probe) => {
-            if (!probe.solarPosition) return null;
+          {/* Affichage des sondes fixes (disques D et E) */}
+          {probesInSystem
+            .filter(probe => {
+              if (!probe.solarPosition) return false;
+              const level = getProbeLevel(probe.solarPosition.disk);
+              return level === null; // Disques D et E (fixes)
+            })
+            .map((probe) => {
+              if (!probe.solarPosition) return null;
 
-            const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-            const diskIndex = ['A', 'B', 'C', 'D', 'E'].indexOf(probe.solarPosition.disk);
-            const sectorIndex = sectorToIndex[probe.solarPosition.sector];
-            const diskWidth = 8;
-            const sunRadius = 4;
-            const innerRadius = sunRadius + (diskIndex * diskWidth);
-            const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-            const probeRadius = (innerRadius + outerRadius) / 2;
-            const sectorStartAngle = -(360 / 8) * sectorIndex; // 0° = midi (12h), sens horaire (de droite à gauche)
-            const sectorEndAngle = -(360 / 8) * (sectorIndex + 1);
-            const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-            const radian = (sectorCenterAngle - 90) * (Math.PI / 180); // -90° pour avoir 0° = midi en CSS
-            const x = Math.cos(radian) * probeRadius;
-            const y = Math.sin(radian) * probeRadius;
+              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
+              const diskIndex = ['A', 'B', 'C', 'D', 'E'].indexOf(probe.solarPosition.disk);
+              const sectorIndex = sectorToIndex[probe.solarPosition.sector];
+              const diskWidth = 8;
+              const sunRadius = 4;
+              const innerRadius = sunRadius + (diskIndex * diskWidth);
+              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
+              const probeRadius = (innerRadius + outerRadius) / 2;
+              // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
+              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
+              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
+              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
+              const radian = sectorCenterAngle * (Math.PI / 180);
+              const x = Math.cos(radian) * probeRadius;
+              const y = Math.sin(radian) * probeRadius;
 
-            const player = game.players.find(p => p.id === probe.ownerId);
-            const playerName = player?.name || 'Joueur inconnu';
-            const isSelected = selectedProbeId === probe.id;
+              const player = game.players.find(p => p.id === probe.ownerId);
+              const playerName = player?.name || 'Joueur inconnu';
+              const isSelected = selectedProbeId === probe.id;
 
-            return (
-              <div
-                key={probe.id}
-                onClick={() => handleProbeClick(probe)}
-                style={{
-                  position: 'absolute',
-                  top: `calc(50% + ${y}%)`,
-                  left: `calc(50% + ${x}%)`,
-                  transform: 'translate(-50%, -50%)',
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  background: isSelected 
-                    ? 'radial-gradient(circle, #00ff00, #00cc00)' 
-                    : 'radial-gradient(circle, #8888ff, #5555aa)',
-                  border: isSelected ? '3px solid #00ff00' : '2px solid #6666cc',
-                  boxShadow: isSelected 
-                    ? '0 0 12px rgba(0, 255, 0, 0.8)' 
-                    : '0 0 6px rgba(136, 136, 255, 0.6)',
-                  cursor: 'pointer',
-                  zIndex: 50,
-                  transition: 'all 0.2s ease',
-                }}
-                title={playerName}
-              >
+              return (
                 <div
-                  className="seti-planet-tooltip"
+                  key={probe.id}
+                  onClick={() => handleProbeClick(probe)}
+                  onMouseEnter={() => setHoveredProbe(probe.id)}
+                  onMouseLeave={() => setHoveredProbe(null)}
                   style={{
                     position: 'absolute',
-                    bottom: '100%',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    marginBottom: '8px',
-                    opacity: 1,
+                    top: `calc(50% + ${y}%)`,
+                    left: `calc(50% + ${x}%)`,
+                    transform: 'translate(-50%, -50%)',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    background: isSelected 
+                      ? 'radial-gradient(circle, #00ff00, #00cc00)' 
+                      : 'radial-gradient(circle, #8888ff, #5555aa)',
+                    border: isSelected ? '3px solid #00ff00' : '2px solid #6666cc',
+                    boxShadow: isSelected 
+                      ? '0 0 12px rgba(0, 255, 0, 0.8)' 
+                      : '0 0 6px rgba(136, 136, 255, 0.6)',
+                    cursor: 'pointer',
+                    zIndex: 101,
+                    transition: 'all 0.2s ease',
+                    pointerEvents: 'auto',
                   }}
-                >
-                  {playerName}
-                </div>
-              </div>
-            );
-          })}
+                  title={playerName}
+                />
+              );
+            })}
 
           {/* Traits de délimitation des 8 secteurs radiaux - partent du centre du soleil */}
           {Array.from({ length: 8 }).map((_, sectorIndex) => {
@@ -1781,104 +2024,6 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
         </div>
       </div>
 
-      {/* Modal plein écran */}
-      {isFullscreen && typeof document !== 'undefined' && createPortal(
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            backgroundColor: 'rgba(0, 0, 0, 0.95)',
-            zIndex: 10000,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'auto',
-          }}
-          onClick={(e) => {
-            // Fermer si on clique sur le fond (pas sur le plateau)
-            if (e.target === e.currentTarget) {
-              closeFullscreen();
-            }
-          }}
-        >
-          <button
-            onClick={closeFullscreen}
-            style={{
-              position: 'absolute',
-              top: '20px',
-              right: '20px',
-              backgroundColor: '#ff4444',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '12px 24px',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)',
-              zIndex: 10001,
-              transition: 'all 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              const target = e.currentTarget;
-              target.style.backgroundColor = '#ff6666';
-              target.style.transform = 'scale(1.05)';
-            }}
-            onMouseLeave={(e) => {
-              const target = e.currentTarget;
-              target.style.backgroundColor = '#ff4444';
-              target.style.transform = 'scale(1)';
-            }}
-          >
-            ✕ Fermer
-          </button>
-          <div
-            style={{
-              width: '90vw',
-              height: '90vh',
-              maxWidth: '90vh',
-              maxHeight: '90vw',
-              position: 'relative',
-              margin: 'auto',
-              backgroundColor: '#1a1a2e',
-              borderRadius: '12px',
-              padding: '20px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Afficher le contenu du plateau en grand - réutiliser le même contenu */}
-            <div style={{
-              position: 'relative',
-              width: '100%',
-              height: '100%',
-              aspectRatio: '1',
-              overflow: 'visible',
-            }}>
-              {/* Le contenu du plateau sera rendu ici - pour l'instant, on affiche un message */}
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                color: '#fff',
-                fontSize: '1.2rem',
-                textAlign: 'center',
-              }}>
-                <p>Le plateau du système solaire en grand</p>
-                <p style={{ fontSize: '0.9rem', color: '#aaa', marginTop: '10px' }}>
-                  (Le contenu complet sera affiché ici)
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>,
-        typeof document !== 'undefined' ? document.body : null
-      )}
       </div>
     </>
   );
