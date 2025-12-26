@@ -39,7 +39,7 @@ export interface RotationState {
 /**
  * Type d'objet céleste
  */
-export type CelestialObjectType = 'planet' | 'comet' | 'asteroid';
+export type CelestialObjectType = 'planet' | 'comet' | 'asteroid' | 'hollow' | 'empty';
 
 /**
  * Objet céleste avec sa position relative
@@ -86,62 +86,94 @@ const HOLLOW_ZONES = {
 /**
  * Configuration des objets célestes fixes (niveau 0)
  */
-const FIXED_OBJECTS: CelestialObject[] = [
-  { id: 'neptune', type: 'planet', name: 'Neptune', position: { disk: 'D', sector: 6, x: 0, y: 0 }, level: 0 },
-  { id: 'uranus', type: 'planet', name: 'Uranus', position: { disk: 'D', sector: 1, x: 0, y: 0 }, level: 0 },
+export const FIXED_OBJECTS: CelestialObject[] = [
+  { id: 'neptune', type: 'planet', name: 'Neptune', position: { disk: 'D', sector: 3, x: 0, y: 0 }, level: 0 },
+  { id: 'uranus', type: 'planet', name: 'Uranus', position: { disk: 'D', sector: 6, x: 0, y: 0 }, level: 0 },
   // Comètes fixes
-  { id: 'comet-d8', type: 'comet', name: 'Comète D8', position: { disk: 'D', sector: 8, x: 0, y: 0 }, level: 0 },
-  { id: 'comet-d4', type: 'comet', name: 'Comète D4', position: { disk: 'D', sector: 4, x: 0, y: 0 }, level: 0 },
-  { id: 'comet-c7', type: 'comet', name: 'Comète C7', position: { disk: 'C', sector: 7, x: 0, y: 0 }, level: 0 },
-  { id: 'comet-b8', type: 'comet', name: 'Comète B8', position: { disk: 'B', sector: 8, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-d1', type: 'comet', name: 'Comète D1', position: { disk: 'D', sector: 1, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-d7', type: 'comet', name: 'Comète D7', position: { disk: 'D', sector: 7, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-c4', type: 'comet', name: 'Comète C4', position: { disk: 'C', sector: 4, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-b2', type: 'comet', name: 'Comète B2', position: { disk: 'B', sector: 2, x: 0, y: 0 }, level: 0 },
   { id: 'comet-b5', type: 'comet', name: 'Comète B5', position: { disk: 'B', sector: 5, x: 0, y: 0 }, level: 0 },
-  { id: 'comet-a2', type: 'comet', name: 'Comète A2', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 0 },
-  { id: 'comet-a3', type: 'comet', name: 'Comète A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-a5', type: 'comet', name: 'Comète A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-a7', type: 'comet', name: 'Comète A7', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 0 },
   { id: 'comet-a8', type: 'comet', name: 'Comète A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 0 },
   // Nuages d'astéroïdes fixes
-  { id: 'asteroid-c8', type: 'asteroid', name: 'Astéroïdes C8', position: { disk: 'C', sector: 8, x: 0, y: 0 }, level: 0 },
   { id: 'asteroid-c2', type: 'asteroid', name: 'Astéroïdes C2', position: { disk: 'C', sector: 2, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-c3', type: 'asteroid', name: 'Astéroïdes C3', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 0 },
   { id: 'asteroid-c5', type: 'asteroid', name: 'Astéroïdes C5', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-c6', type: 'asteroid', name: 'Astéroïdes C6', position: { disk: 'C', sector: 6, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-b7', type: 'asteroid', name: 'Astéroïdes B7', position: { disk: 'B', sector: 7, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-b3', type: 'asteroid', name: 'Astéroïdes B3', position: { disk: 'B', sector: 3, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-a1', type: 'asteroid', name: 'Astéroïdes A1', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-a5', type: 'asteroid', name: 'Astéroïdes A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-c7', type: 'asteroid', name: 'Astéroïdes C7', position: { disk: 'C', sector: 7, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-b4', type: 'asteroid', name: 'Astéroïdes B4', position: { disk: 'B', sector: 4, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-b8', type: 'asteroid', name: 'Astéroïdes B8', position: { disk: 'B', sector: 8, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-a2', type: 'asteroid', name: 'Astéroïdes A2', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-a3', type: 'asteroid', name: 'Astéroïdes A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 0 },
   { id: 'asteroid-a6', type: 'asteroid', name: 'Astéroïdes A6', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 0 },
 ];
 
 /**
- * Configuration des objets célestes rotatifs (niveau 1)
+ * Configuration initiale des objets célestes rotatifs (niveau 1)
  */
-const ROTATING_LEVEL1_OBJECTS: CelestialObject[] = [
-  { id: 'saturn', type: 'planet', name: 'Saturne', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 },
-  { id: 'jupiter', type: 'planet', name: 'Jupiter', position: { disk: 'C', sector: 7, x: 0, y: 0 }, level: 1 },
-  { id: 'comet-b2-l1', type: 'comet', name: 'Comète B2', position: { disk: 'B', sector: 2, x: 0, y: 0 }, level: 1 },
-  { id: 'comet-a1-l1', type: 'comet', name: 'Comète A1', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-b3-l1', type: 'asteroid', name: 'Astéroïdes B3', position: { disk: 'B', sector: 3, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-b6-l1', type: 'asteroid', name: 'Astéroïdes B6', position: { disk: 'B', sector: 6, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-a3-l1', type: 'asteroid', name: 'Astéroïdes A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-a4-l1', type: 'asteroid', name: 'Astéroïdes A4', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-a8-l1', type: 'asteroid', name: 'Astéroïdes A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 1 },
+export const INITIAL_ROTATING_LEVEL1_OBJECTS: CelestialObject[] = [
+  { id: 'saturn', type: 'planet', name: 'Saturne', position: { disk: 'C', sector: 1, x: 0, y: 0 }, level: 1 },
+  { id: 'jupiter', type: 'planet', name: 'Jupiter', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 1 },
+  { id: 'comet-b8-l1', type: 'comet', name: 'Comète B8', position: { disk: 'B', sector: 8, x: 0, y: 0 }, level: 1 },
+  { id: 'comet-a7-l1', type: 'comet', name: 'Comète A7', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-b1-l1', type: 'asteroid', name: 'Astéroïdes B1', position: { disk: 'B', sector: 1, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-b4-l1', type: 'asteroid', name: 'Astéroïdes B4', position: { disk: 'B', sector: 4, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-a1-l1', type: 'asteroid', name: 'Astéroïdes A1', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-a2-l1', type: 'asteroid', name: 'Astéroïdes A2', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-a6-l1', type: 'asteroid', name: 'Astéroïdes A6', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-c2-l1', type: 'hollow', name: 'Creux C2', position: { disk: 'C', sector: 2, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-c3-l1', type: 'hollow', name: 'Creux C3', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-c4-l1', type: 'empty', name: 'Vide C5', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-c6-l1', type: 'empty', name: 'Vide C6', position: { disk: 'C', sector: 6, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-c7-l1', type: 'hollow', name: 'Creux C7', position: { disk: 'C', sector: 7, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-c8-l1', type: 'hollow', name: 'Creux C8', position: { disk: 'C', sector: 8, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-b2-l1', type: 'hollow', name: 'Creux B2', position: { disk: 'B', sector: 2, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-b3-l1', type: 'empty', name: 'Vide B3', position: { disk: 'B', sector: 3, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-b5-l1', type: 'hollow', name: 'Creux B5', position: { disk: 'B', sector: 5, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-b6-l1', type: 'empty', name: 'Vide B6', position: { disk: 'B', sector: 6, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-b7-l1', type: 'hollow', name: 'Creux B7', position: { disk: 'B', sector: 7, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-a3-l1', type: 'empty', name: 'Vide A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-a4-l1', type: 'hollow', name: 'Creux A4', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-a5-l1', type: 'hollow', name: 'Creux A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-a8-l1', type: 'empty', name: 'Vide A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 1 },
 ];
 
 /**
- * Configuration des objets célestes rotatifs (niveau 2)
+ * Configuration initiale des objets célestes rotatifs (niveau 2)
  */
-const ROTATING_LEVEL2_OBJECTS: CelestialObject[] = [
-  { id: 'mars', type: 'planet', name: 'Mars', position: { disk: 'B', sector: 3, x: 0, y: 0 }, level: 2 },
-  { id: 'asteroid-b7-l2', type: 'asteroid', name: 'Astéroïdes B7', position: { disk: 'B', sector: 7, x: 0, y: 0 }, level: 2 },
-  { id: 'asteroid-a4-l2', type: 'asteroid', name: 'Astéroïdes A4', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 2 },
+export const INITIAL_ROTATING_LEVEL2_OBJECTS: CelestialObject[] = [
+  { id: 'mars', type: 'planet', name: 'Mars', position: { disk: 'B', sector: 1, x: 0, y: 0 }, level: 2 },
+  { id: 'asteroid-b5-l2', type: 'asteroid', name: 'Astéroïdes B5', position: { disk: 'B', sector: 5, x: 0, y: 0 }, level: 2 },
   { id: 'asteroid-a6-l2', type: 'asteroid', name: 'Astéroïdes A6', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 2 },
+  { id: 'asteroid-a8-l2', type: 'asteroid', name: 'Astéroïdes A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 2 },
+  { id: 'hollow-b2-l2', type: 'hollow', name: 'Creux B2', position: { disk: 'B', sector: 2, x: 0, y: 0 }, level: 2 },
+  { id: 'hollow-b3-l2', type: 'hollow', name: 'Creux B3', position: { disk: 'B', sector: 3, x: 0, y: 0 }, level: 2 },
+  { id: 'hollow-b4-l2', type: 'hollow', name: 'Creux B4', position: { disk: 'B', sector: 4, x: 0, y: 0 }, level: 2 },
+  { id: 'hollow-b7-l2', type: 'hollow', name: 'Creux B7', position: { disk: 'B', sector: 7, x: 0, y: 0 }, level: 2 },
+  { id: 'hollow-b8-l2', type: 'hollow', name: 'Creux B8', position: { disk: 'B', sector: 8, x: 0, y: 0 }, level: 2 },
+  { id: 'hollow-a2-l2', type: 'hollow', name: 'Creux A2', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 2 },
+  { id: 'hollow-a3-l2', type: 'hollow', name: 'Creux A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 2 },
+  { id: 'hollow-a4-l2', type: 'hollow', name: 'Creux A4', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 2 },
+  { id: 'empty-b6-l2', type: 'empty', name: 'Vide B6', position: { disk: 'B', sector: 6, x: 0, y: 0 }, level: 2 },
+  { id: 'empty-a1-l2', type: 'empty', name: 'Vide A1', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 2 },
+  { id: 'empty-a5-l2', type: 'empty', name: 'Vide A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 2 },
+  { id: 'empty-a7-l2', type: 'empty', name: 'Vide A7', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 2 },
 ];
 
 /**
- * Configuration des objets célestes rotatifs (niveau 3)
+ * Configuration initiale des objets célestes rotatifs (niveau 3)
  */
-const ROTATING_LEVEL3_OBJECTS: CelestialObject[] = [
-  { id: 'earth', type: 'planet', name: 'Terre', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 3 },
-  { id: 'venus', type: 'planet', name: 'Vénus', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 3 },
-  { id: 'mercury', type: 'planet', name: 'Mercure', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 3 },
+export const INITIAL_ROTATING_LEVEL3_OBJECTS: CelestialObject[] = [
+  { id: 'empty-a1-l3', type: 'empty', name: 'Vide A1', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 3 },
+  { id: 'earth', type: 'planet', name: 'Terre', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-a3-l3', type: 'hollow', name: 'Creux A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 3 },
+  { id: 'venus', type: 'planet', name: 'Vénus', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 3 },
+  { id: 'empty-a5-l3', type: 'empty', name: 'Vide A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 3 },
+  { id: 'mercury', type: 'planet', name: 'Mercure', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-a7-l3', type: 'hollow', name: 'Creux A7', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-a8-l3', type: 'hollow', name: 'Creux A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 3 },
 ];
 
 /**
@@ -165,9 +197,9 @@ export function createRotationState(
 export function getAllCelestialObjects(): CelestialObject[] {
   return [
     ...FIXED_OBJECTS,
-    ...ROTATING_LEVEL1_OBJECTS,
-    ...ROTATING_LEVEL2_OBJECTS,
-    ...ROTATING_LEVEL3_OBJECTS,
+    ...INITIAL_ROTATING_LEVEL1_OBJECTS,
+    ...INITIAL_ROTATING_LEVEL2_OBJECTS,
+    ...INITIAL_ROTATING_LEVEL3_OBJECTS,
   ];
 }
 
@@ -180,8 +212,8 @@ export function getAllCelestialObjects(): CelestialObject[] {
 function rotateSector(relativeSector: SectorNumber, rotationAngle: number): SectorNumber {
   // Conversion secteur -> index (sens trigonométrique/anti-horaire: 1=0, 2=1, 3=2, 4=3, 5=4, 6=5, 7=6, 8=7)
   // Secteur 1 = 0° (en haut), secteur 2 = 45°, secteur 3 = 90°, etc. dans le sens anti-horaire
-  const sectorToIndex: { [key: number]: number } = { 1: 0, 8: 1, 7: 2, 6: 3, 5: 4, 4: 5, 3: 6, 2: 7 };
-  const indexToSector: { [key: number]: SectorNumber } = { 0: 1, 1: 8, 2: 7, 3: 6, 4: 5, 5: 4, 6: 3, 7: 2 };
+  const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
+  const indexToSector: { [key: number]: SectorNumber } = { 0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8 };
   
   const sectorIndex = sectorToIndex[relativeSector];
   // Convertir l'angle en nombre de secteurs (45° par secteur, rotation anti-horaire = négative)
@@ -207,10 +239,10 @@ export function calculateAbsolutePosition(
     absoluteSector = rotateSector(absoluteSector, rotationState.level1Angle);
   } else if (object.level === 2) {
     // Le niveau 2 tourne avec le niveau 1
-    absoluteSector = rotateSector(absoluteSector, rotationState.level1Angle + rotationState.level2Angle);
+    absoluteSector = rotateSector(absoluteSector, rotationState.level2Angle);
   } else if (object.level === 3) {
     // Le niveau 3 tourne avec le niveau 1 et le niveau 2
-    absoluteSector = rotateSector(absoluteSector, rotationState.level1Angle + rotationState.level2Angle + rotationState.level3Angle);
+    absoluteSector = rotateSector(absoluteSector, rotationState.level3Angle);
   }
   // Niveau 0 (fixe) : pas de rotation
   
@@ -288,17 +320,17 @@ export function getAllAbsolutePositions(rotationState: RotationState): Map<strin
   });
   
   // Objets rotatifs niveau 1
-  ROTATING_LEVEL1_OBJECTS.forEach(obj => {
+  INITIAL_ROTATING_LEVEL1_OBJECTS.forEach(obj => {
     positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
   });
   
   // Objets rotatifs niveau 2
-  ROTATING_LEVEL2_OBJECTS.forEach(obj => {
+  INITIAL_ROTATING_LEVEL2_OBJECTS.forEach(obj => {
     positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
   });
   
   // Objets rotatifs niveau 3
-  ROTATING_LEVEL3_OBJECTS.forEach(obj => {
+  INITIAL_ROTATING_LEVEL3_OBJECTS.forEach(obj => {
     positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
   });
   
@@ -331,7 +363,7 @@ export function getAllCells(rotationState: RotationState): Map<string, SolarSyst
       // Vérifier quels objets sont sur cette case
       positions.forEach((pos, objId) => {
         if (pos.disk === disk && pos.absoluteSector === sector && pos.isVisible) {
-          const obj = [...FIXED_OBJECTS, ...ROTATING_LEVEL1_OBJECTS, ...ROTATING_LEVEL2_OBJECTS, ...ROTATING_LEVEL3_OBJECTS]
+          const obj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS]
             .find(o => o.id === objId);
           
           if (obj) {

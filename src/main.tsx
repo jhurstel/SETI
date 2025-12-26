@@ -261,7 +261,7 @@ function createMockGame(): Game {
         initialSectorLevel3: 1,
         // Calculer les angles initiaux
         rotationAngleLevel1: 0, // secteur 1 = index 0 = 0°
-        rotationAngleLevel2: -45, // secteur 1 = index 0 = 0° - 45° (décalé d'un cran)
+        rotationAngleLevel2: 0, // secteur 1 = index 0 = 0°
         rotationAngleLevel3: 0, // secteur 1 = index 0 = 0°
       },
       sectors: [],
