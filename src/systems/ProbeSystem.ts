@@ -93,10 +93,10 @@ export class ProbeSystem {
     const player = updatedGame.players[playerIndex];
 
     // Calculer la position réelle de la Terre
-    // La Terre est sur le plateau niveau 3, en secteur 3 (A3) par rapport au plateau
+    // La Terre est sur le plateau niveau 3, en secteur 2 (A2) par rapport au plateau
     // Utiliser les angles de rotation actuels depuis le jeu
     let earthDisk: DiskName = 'A';
-    let earthSector: SectorNumber = 3;
+    let earthSector: SectorNumber = 2;
     
     if (!earthPosition) {
       // Obtenir les angles de rotation actuels depuis le jeu

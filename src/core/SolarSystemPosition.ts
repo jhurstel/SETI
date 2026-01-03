@@ -79,7 +79,7 @@ const HOLLOW_ZONES = {
     B: [2, 3, 4, 7, 8], // Secteurs creux pour le disque B du niveau 2
   },
   level3: {
-    A: [2, 6, 7], // Secteurs creux pour le disque A du niveau 3
+    A: [3, 7, 8], // Secteurs creux pour le disque A du niveau 3
   },
 };
 

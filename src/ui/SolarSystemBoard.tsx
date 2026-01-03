@@ -78,32 +78,33 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
     return null;
   };
 
-  // Fonction helper pour calculer la position d'une sonde dans un conteneur rotatif
-  const calculateProbePositionInContainer = (
-    disk: DiskName,
+  // Fonction helper pour calculer le secteur relatif d'une sonde selon son niveau
+  // Utilise les angles du jeu pour être synchronisé avec ProbeSystem
+  // absoluteToRelativeSector fait déjà l'inverse de rotateSector, donc on passe l'angle directement (pas négatif)
+  const getProbeRelativeSector = (
     absoluteSector: SectorNumber,
     level: number | null
-  ) => {
-    let relativeSector: SectorNumber;
+  ): SectorNumber => {
+    // Utiliser les angles du jeu (synchronisés avec ProbeSystem) plutôt que les angles locaux
+    const angle1 = game.board.solarSystem.rotationAngleLevel1 ?? rotationAngle1;
+    const angle2 = game.board.solarSystem.rotationAngleLevel2 ?? rotationAngle2;
+    const angle3 = game.board.solarSystem.rotationAngleLevel3 ?? rotationAngle3;
     
-    if (level === 1) {
-      // Niveau 1 : convertir le secteur absolu en secteur relatif au niveau 1
-      relativeSector = absoluteToRelativeSector(absoluteSector, -rotationAngle1);
-    } else if (level === 2) {
-      // Niveau 2 : rotation totale niveau 2
-      const totalRotation2 = rotationAngle1 + rotationAngle2;
-      relativeSector = absoluteToRelativeSector(absoluteSector, -totalRotation2);
-    } else if (level === 3) {
-      // Niveau 3 : rotation totale niveau 3
-      const totalRotation3 = rotationAngle1 + rotationAngle2 + rotationAngle3;
-      relativeSector = absoluteToRelativeSector(absoluteSector, -totalRotation3);
-    } else {
+    if (level === null || level === 0) {
       // Niveau 0 (fixe) : pas de conversion
-      relativeSector = absoluteSector;
+      return absoluteSector;
+    } else if (level === 1) {
+      // Niveau 1 : convertir le secteur absolu en secteur relatif au niveau 1
+      // absoluteToRelativeSector fait l'inverse, donc on passe angle1 directement
+      return absoluteToRelativeSector(absoluteSector, angle1);
+    } else if (level === 2) {
+      // Niveau 2 : convertir le secteur absolu en secteur relatif au niveau 2
+      return absoluteToRelativeSector(absoluteSector, angle2);
+    } else if (level === 3) {
+      // Niveau 3 : convertir le secteur absolu en secteur relatif au niveau 3
+      return absoluteToRelativeSector(absoluteSector, angle3);
     }
-    
-    // Utiliser calculateObjectPosition avec le secteur relatif
-    return calculateObjectPosition(disk, relativeSector);
+    return absoluteSector;
   };
 
   // Fonction helper pour rendre une sonde
@@ -113,12 +114,16 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
     const player = game.players.find(p => p.id === probe.ownerId);
     const playerName = player?.name || 'Joueur inconnu';
     const isSelected = selectedProbeId === probe.id;
-    const level = getProbeLevel(probe.solarPosition.disk);
-    const { x, y } = calculateProbePositionInContainer(
-      probe.solarPosition.disk,
-      probe.solarPosition.sector,
-      level
-    );
+    const plateau = getProbePlateau(probe.solarPosition.disk, probe.solarPosition.sector);
+    
+    // Convertir le niveau du plateau en niveau pour le calcul du secteur relatif
+    const level = plateau === 0 ? null : plateau;
+    
+    // Calculer le secteur relatif au plateau
+    const relativeSector = getProbeRelativeSector(probe.solarPosition.sector, level);
+    
+    // Utiliser calculateObjectPosition avec le secteur relatif, comme pour les planètes
+    const { x, y } = calculateObjectPosition(probe.solarPosition.disk, relativeSector);
 
     return (
       <div
@@ -173,6 +178,85 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
     if (obj?.type === 'hollow') return 'hollow';
     if (obj?.type === 'empty') return 'empty';
     return 'normal';
+  };
+
+  // Configuration des creux (zones transparentes) des plateaux rotatifs
+  // Cette configuration doit correspondre à celle dans SolarSystemPosition.ts
+  const HOLLOW_ZONES = {
+    level1: {
+      A: [4, 5], // Secteurs creux pour le disque A du niveau 1
+      B: [2, 5, 7], // Secteurs creux pour le disque B du niveau 1
+      C: [2, 3, 7, 8], // Secteurs creux pour le disque C du niveau 1
+    },
+    level2: {
+      A: [2, 3, 4], // Secteurs creux pour le disque A du niveau 2
+      B: [2, 3, 4, 7, 8], // Secteurs creux pour le disque B du niveau 2
+    },
+    level3: {
+      A: [3, 7, 8], // Secteurs creux pour le disque A du niveau 3
+    },
+  };
+
+  // Fonction pour déterminer le plateau sur lequel se trouve une sonde
+  // Utilise les angles du jeu pour être synchronisé avec ProbeSystem
+  const getProbePlateau = (disk: DiskName, absoluteSector: SectorNumber): number => {
+    // Utiliser les angles du jeu (synchronisés avec ProbeSystem) plutôt que les angles locaux
+    const angle1 = game.board.solarSystem.rotationAngleLevel1 ?? rotationAngle1;
+    const angle2 = game.board.solarSystem.rotationAngleLevel2 ?? rotationAngle2;
+    const angle3 = game.board.solarSystem.rotationAngleLevel3 ?? rotationAngle3;
+    
+    // Plateau 0 si sur le disque D (ou E)
+    if (disk === 'D' || disk === 'E') {
+      return 0;
+    }
+
+    // Disque C : vérifier si dans un creux du plateau 1
+    if (disk === 'C') {
+      const relativeSector1 = absoluteToRelativeSector(absoluteSector, angle1);
+      if (HOLLOW_ZONES.level1.C.includes(relativeSector1)) {
+        return 0; // Creux niveau 1 → Plateau 0
+      }
+      return 1; // Pas creux → Plateau 1
+    }
+
+    // Disque B : vérifier les creux du niveau 2 et 1 (du plus haut au plus bas)
+    if (disk === 'B') {
+      // Commencer par le niveau 2 (le plus haut pour B)
+      const relativeSector2 = absoluteToRelativeSector(absoluteSector, angle2);
+      if (!HOLLOW_ZONES.level2.B.includes(relativeSector2)) {
+        return 2; // Pas creux niveau 2 → Plateau 2
+      }
+      // Si creux niveau 2, vérifier le niveau 1
+      const relativeSector1 = absoluteToRelativeSector(absoluteSector, angle1);
+      if (!HOLLOW_ZONES.level1.B.includes(relativeSector1)) {
+        return 1; // Pas creux niveau 1 → Plateau 1
+      }
+      // Si creux niveau 1, alors plateau 0
+      return 0; // Creux niveau 1 → Plateau 0
+    }
+
+    // Disque A : vérifier les creux du niveau 3, 2 et 1 (du plus haut au plus bas)
+    if (disk === 'A') {
+      // Commencer par le niveau 3 (le plus haut)
+      const relativeSector3 = absoluteToRelativeSector(absoluteSector, angle3);
+      if (!HOLLOW_ZONES.level3.A.includes(relativeSector3)) {
+        return 3; // Pas creux niveau 3 → Plateau 3
+      }
+      // Si creux niveau 3, vérifier le niveau 2
+      const relativeSector2 = absoluteToRelativeSector(absoluteSector, angle2);
+      if (!HOLLOW_ZONES.level2.A.includes(relativeSector2)) {
+        return 2; // Pas creux niveau 2 → Plateau 2
+      }
+      // Si creux niveau 2, vérifier le niveau 1
+      const relativeSector1 = absoluteToRelativeSector(absoluteSector, angle1);
+      if (!HOLLOW_ZONES.level1.A.includes(relativeSector1)) {
+        return 1; // Pas creux niveau 1 → Plateau 1
+      }
+      // Si creux niveau 1, alors plateau 0
+      return 0; // Creux niveau 1 → Plateau 0
+    }
+
+    return 0; // Par défaut
   };
   
   // Calcul pour le niveau 1
@@ -1013,12 +1097,12 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               );
             })}
 
-            {/* Sondes sur les disques A, B, C (niveau 1) */}
+            {/* Sondes sur le plateau niveau 1 */}
             {probesInSystem
               .filter(probe => {
                 if (!probe.solarPosition) return false;
-                const level = getProbeLevel(probe.solarPosition.disk);
-                return level === 1;
+                const plateau = getProbePlateau(probe.solarPosition.disk, probe.solarPosition.sector);
+                return plateau === 1;
               })
               .map((probe) => renderProbe(probe, 60))}
 
@@ -1069,12 +1153,12 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               return null;
             })}
 
-            {/* Sondes sur les disques A, B (niveau 2) */}
+            {/* Sondes sur le plateau niveau 2 */}
             {probesInSystem
               .filter(probe => {
                 if (!probe.solarPosition) return false;
-                const level = getProbeLevel(probe.solarPosition.disk);
-                return level === 2;
+                const plateau = getProbePlateau(probe.solarPosition.disk, probe.solarPosition.sector);
+                return plateau === 2;
               })
               .map((probe) => renderProbe(probe, 60))}
 
@@ -1250,9 +1334,8 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               // Conversion index → secteur absolu
               const absoluteSector = indexToSector[sectorIndex];
               // Convertir en secteur relatif au plateau niveau 3 (rotation inverse)
-              // Rotation totale niveau 3 = level1Angle + level2Angle + level3Angle
-              const totalRotation3 = rotationAngle1 + rotationAngle2 + rotationAngle3;
-              const relativeSector = absoluteToRelativeSector(absoluteSector, -rotationAngle3);
+              // absoluteToRelativeSector fait déjà l'inverse, donc on passe rotationAngle3 directement
+              const relativeSector = absoluteToRelativeSector(absoluteSector, rotationAngle3);
               // Déterminer le type de secteur à partir de INITIAL_ROTATING_LEVEL3_OBJECTS
               const sectorType = getSectorType(3, 'A', relativeSector);
               const sectorNumber = absoluteSector; // Pour la clé et le debug
@@ -1310,12 +1393,12 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               );
             })}
 
-            {/* Sondes sur le disque A (niveau 3) */}
+            {/* Sondes sur le plateau niveau 3 */}
             {probesInSystem
               .filter(probe => {
                 if (!probe.solarPosition) return false;
-                const level = getProbeLevel(probe.solarPosition.disk);
-                return level === 3;
+                const plateau = getProbePlateau(probe.solarPosition.disk, probe.solarPosition.sector);
+                return plateau === 3;
               })
               .map((probe) => renderProbe(probe, 60))}
 
@@ -1733,7 +1816,9 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
 
               const player = game.players.find(p => p.id === probe.ownerId);
               const playerName = player?.name || 'Joueur inconnu';
-              const level = getProbeLevel(probe.solarPosition.disk);
+              const plateauNumber = getProbePlateau(probe.solarPosition.disk, probe.solarPosition.sector);
+              const level = plateauNumber === 0 ? null : plateauNumber;
+              const position = `${probe.solarPosition.disk}${probe.solarPosition.sector}`;
               
               // Calculer la position de la sonde
               let x: number, y: number;
@@ -1777,9 +1862,13 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                     opacity: hoveredProbe === probe.id ? 1 : 0,
                     visibility: hoveredProbe === probe.id ? 'visible' : 'hidden',
                     zIndex: 101,
+                    whiteSpace: 'normal',
+                    textAlign: 'center',
                   }}
                 >
-                  {playerName}
+                  <div>{playerName}</div>
+                  <div style={{ fontSize: '0.7rem', marginTop: '2px', opacity: 0.9 }}>{position}</div>
+                  <div style={{ fontSize: '0.7rem', marginTop: '2px', opacity: 0.9 }}>Plateau {plateauNumber}</div>
                 </div>
               );
             })}
@@ -1824,12 +1913,12 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
             );
           })}
 
-          {/* Affichage des sondes fixes (disques D et E) */}
+          {/* Affichage des sondes fixes (plateau 0) */}
           {probesInSystem
             .filter(probe => {
               if (!probe.solarPosition) return false;
-              const level = getProbeLevel(probe.solarPosition.disk);
-              return level === null; // Disques D et E (fixes)
+              const plateau = getProbePlateau(probe.solarPosition.disk, probe.solarPosition.sector);
+              return plateau === 0; // Plateau fixe
             })
             .map((probe) => {
               if (!probe.solarPosition) return null;

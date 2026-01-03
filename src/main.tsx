@@ -377,20 +377,7 @@ function createMockGame(): Game {
         tiles: [],
         rotationDisks,
         currentRotation: 0,
-        probes: [
-          {
-            id: 'probe_test_1',
-            ownerId: 'player1',
-            position: { x: 0, y: 0 },
-            solarPosition: {
-              disk: 'A',
-              sector: 1,
-            },
-            state: 0 as any, // IN_SOLAR_SYSTEM
-            isOrbiter: false,
-            isLander: false,
-          },
-        ],
+        probes: [],
         rings: [],
         solarTiles: [],
         // Positions initiales des plateaux rotatifs
