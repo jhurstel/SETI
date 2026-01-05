@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Game, ActionType } from '../core/types';
 import { SolarSystemBoard, SolarSystemBoardRef } from './SolarSystemBoard';
-import { PlanetsBoard } from './PlanetsBoard';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoard } from './PlayerBoard';
 import { LaunchProbeAction } from '../actions/LaunchProbeAction';
@@ -37,6 +36,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const action = new LaunchProbeAction(currentPlayer.id);
       const result = gameEngineRef.current.executeAction(action);
       if (result.success && result.updatedState) {
+        console.log('Sonde lancée, nouvelles sondes:', result.updatedState.board.solarSystem.probes);
         setGame(result.updatedState);
       } else {
         console.error('Erreur lors du lancement de la sonde:', result.error);
@@ -51,14 +51,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const initialSector2 = game.board.solarSystem.initialSectorLevel2 || 1;
   const initialSector3 = game.board.solarSystem.initialSectorLevel3 || 1;
 
-  // Calculer les angles initiaux de la même manière que dans SolarSystemBoard
-  const sectorToIndex: { [key: number]: number } = { 1: 0, 8: 1, 7: 2, 6: 3, 5: 4, 4: 5, 3: 6, 2: 7 };
-  const sectorIndex1 = sectorToIndex[initialSector1] || 0;
-  const initialAngle1 = sectorIndex1 * 45;
-  const sectorIndex2 = sectorToIndex[initialSector2] || 0;
-  const initialAngle2 = sectorIndex2 * 45;
-  const sectorIndex3 = sectorToIndex[initialSector3] || 0;
-  const initialAngle3 = sectorIndex3 * 45;
+  // Utiliser les angles initiaux depuis le jeu
+  const initialAngle1 = game.board.solarSystem.initialAngleLevel1 || 0;
+  const initialAngle2 = game.board.solarSystem.initialAngleLevel2 || 0;
+  const initialAngle3 = game.board.solarSystem.initialAngleLevel3 || 0;
 
   // Obtenir les angles actuels depuis le jeu, ou utiliser les angles initiaux
   const getCurrentAngle1 = () => {
@@ -220,9 +216,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               </button>
             </div>
           </div>
-          <PlanetsBoard game={game} />
         </div>
-                <PlayerBoard game={game} onAction={handleAction} />
+        <PlayerBoard game={game} onAction={handleAction} />
       </div>
     </div>
   );

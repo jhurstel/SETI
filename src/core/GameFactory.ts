@@ -18,7 +18,7 @@ export class GameFactory {
    * Crée une nouvelle partie
    */
   static createGame(playerNames: string[]): Game {
-    if (playerNames.length < 1 || playerNames.length > GAME_CONSTANTS.MAX_PLAYERS) {
+    if (playerNames.length < GAME_CONSTANTS.MIN_PLAYERS || playerNames.length > GAME_CONSTANTS.MAX_PLAYERS) {
       throw new Error(
         `Nombre de joueurs invalide (min ${GAME_CONSTANTS.MIN_PLAYERS}, max ${GAME_CONSTANTS.MAX_PLAYERS})`
       );
@@ -68,9 +68,9 @@ export class GameFactory {
     return {
       id,
       name,
-      credits: 5, // TODO: Ajuster selon les règles exactes
-      energy: 3,  // TODO: Ajuster selon les règles exactes
-      mediaCoverage: 0,
+      credits: GAME_CONSTANTS.INITIAL_CREDITS,
+      energy: GAME_CONSTANTS.INITIAL_ENERGY,
+      mediaCoverage: GAME_CONSTANTS.INITIAL_MEDIA_COVERAGE,
       probes: [],
       technologies: [],
       cards: [],

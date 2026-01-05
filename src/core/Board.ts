@@ -51,11 +51,11 @@ export class BoardManager {
     const initialSector1 = 1;
     const initialSector2 = 1;
     const initialSector3 = 1;
-    const sectorToIndex: { [key: number]: number } = { 1: 0, 8: 1, 7: 2, 6: 3, 5: 4, 4: 5, 3: 6, 2: 7 };
+    const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
     const sectorIndex1 = sectorToIndex[initialSector1] || 0;
     const initialAngle1 = sectorIndex1 * 45;
     const sectorIndex2 = sectorToIndex[initialSector2] || 0;
-    const initialAngle2 = sectorIndex2 * 45 - 45; // Décalé d'un cran (45°) dans le sens anti-horaire
+    const initialAngle2 = sectorIndex2 * 45;
     const sectorIndex3 = sectorToIndex[initialSector3] || 0;
     const initialAngle3 = sectorIndex3 * 45;
 
@@ -67,6 +67,9 @@ export class BoardManager {
       initialSectorLevel1: initialSector1,
       initialSectorLevel2: initialSector2,
       initialSectorLevel3: initialSector3,
+      initialAngleLevel1: initialAngle1,
+      initialAngleLevel2: initialAngle2,
+      initialAngleLevel3: initialAngle3,
       rotationAngleLevel1: initialAngle1, // Angle de rotation initial calculé
       rotationAngleLevel2: initialAngle2, // Angle de rotation initial calculé
       rotationAngleLevel3: initialAngle3, // Angle de rotation initial calculé
@@ -117,7 +120,101 @@ export class BoardManager {
     // Chaque planète a :
     // - Un bonus spécifique
     // - Des lunes (accessibles via effets)
-    return [];
+    // Planètes avec satellites
+    const planets: Planet[] = [
+      {
+        id: 'mercury',
+        name: 'Mercure',
+        orbiters: [],
+        landers: [],
+        orbitFirstBonus: { pv: 3 },
+        orbitNextBonuses: [{ card: 1 }, { planetscan: 2 }, { revenue: 1 }],
+        landFirstBonus: { data: 3 },
+        landNextBonuses: [{ pv: 12 }, { yellowlifetrace: 1 }],
+      },
+      {
+        id: 'venus',
+        name: 'Vénus',
+        orbiters: [],
+        landers: [],
+        orbitFirstBonus: { pv: 3 },
+        orbitNextBonuses: [{ pv: 6 }, { revenue: 1 }],
+        landFirstBonus: { data: 2 },
+        landNextBonuses: [{ pv: 5 }, { yellowlifetrace: 1 }],
+      },
+      {
+        id: 'mars',
+        name: 'Mars',
+        orbiters: [],
+        landers: [],
+        orbitFirstBonus: { pv: 3 },
+        orbitNextBonuses: [{ anycard: 1 }, { planetscan: 1 }, { revenue: 1 }],
+        landFirstBonus: { data: 2 },
+        landSecondBonus: { data: 1 },
+        landNextBonuses: [{ pv: 6 }, { yellowlifetrace: 1 }],
+        satellites: [
+          { id: 'phobosdeimos', name: 'Phobos, Deimos', planetId: 'mars', landers: [], landBonuses: [{ pv: 8 }, { revenue: 2}] },
+        ],
+      },
+      {
+        id: 'jupiter',
+        name: 'Jupiter',
+        orbiters: [],
+        landers: [],
+        orbitFirstBonus: { pv: 3 },
+        orbitNextBonuses: [{ data: 1 }, { planetscan: 1 }, { revenue: 1 }],
+        landFirstBonus: { data: 2 },
+        landNextBonuses: [{ pv: 7 }, { yellowlifetrace: 1 }],
+        satellites: [
+          { id: 'io', name: 'Io', planetId: 'jupiter', landers: [], landBonuses: [{ pv: 10 }, { energy: 4 }] },
+          { id: 'europa', name: 'Europe', planetId: 'jupiter', landers: [], landBonuses: [{ pv: 7 }, { yellowlifetrace: 2 }] },
+          { id: 'ganymede', name: 'Ganymède', planetId: 'jupiter', landers: [], landBonuses: [{ pv: 12 }, { media: 5 }] },
+          { id: 'callisto', name: 'Callisto', planetId: 'jupiter', landers: [], landBonuses: [{ pv: 1 }, { data: 4 }] },
+        ],
+      },
+      {
+        id: 'saturn',
+        name: 'Saturne',
+        orbiters: [],
+        landers: [],
+        orbitFirstBonus: { pv: 3 },
+        orbitNextBonuses: [{ media: 2 }, { planetscan: 1 }, { revenue: 1 }],
+        landFirstBonus: { data: 2 },
+        landNextBonuses: [{ pv: 8 }, { yellowlifetrace: 1 }],
+        satellites: [
+          { id: 'titan', name: 'Titan', planetId: 'saturn', landers: [], landBonuses: [{ pv: 7 }, { anytechnology: 2 }] },
+          { id: 'enceladus', name: 'Encelade', planetId: 'saturn', landers: [], landBonuses: [{ pv: 12 }, { redscan: 1 }, { bluescan: 1 }, { yellowscan: 1 }] },
+        ],
+      },
+      {
+        id: 'uranus',
+        name: 'Uranus',
+        orbiters: [],
+        landers: [],
+        orbitFirstBonus: { pv: 3 },
+        orbitNextBonuses: [{ pv: 8 }, { card: 3 }, { blackscan: 1 }],
+        landFirstBonus: { data: 3 },
+        landNextBonuses: [{ pv: 9 }, { yellowlifetrace: 1 }],
+        satellites: [
+          { id: 'titania', name: 'Titania', planetId: 'uranus', landers: [], landBonuses: [{ pv: 25 }] },
+        ],
+      },
+      {
+        id: 'neptune',
+        name: 'Neptune',
+        orbiters: [],
+        landers: [],
+        orbitFirstBonus: { pv: 3 },
+        orbitNextBonuses: [{ pv: 7 }, { data: 4 }, { blackscan: 1 }],
+        landFirstBonus: { data: 3 },
+        landNextBonuses: [{ pv: 10 }, { yellowlifetrace: 1 }],
+        satellites: [
+          { id: 'triton', name: 'Triton', planetId: 'neptune', landers: [], landBonuses: [{ pv: 26 }] },
+        ],
+      },
+    ];
+
+    return planets as Planet[];
   }
 
   /**
@@ -127,7 +224,7 @@ export class BoardManager {
     // Technologies d'exploration
     const exploration1: Technology = {
       id: 'exploration-1',
-      name: 'Exploration Niveau 1',
+      name: 'I',
       type: TechnologyType.SPECIAL,
       effects: [
         { type: 'MAX_PROBES_IN_SYSTEM', value: 2 },
@@ -139,7 +236,7 @@ export class BoardManager {
 
     const exploration2: Technology = {
       id: 'exploration-2',
-      name: 'Exploration Niveau 2',
+      name: 'II',
       type: TechnologyType.SPECIAL,
       effects: [
         { type: 'ASTEROID_MEDIA_BONUS', value: 1 },
@@ -151,7 +248,7 @@ export class BoardManager {
 
     const exploration3: Technology = {
       id: 'exploration-3',
-      name: 'Exploration Niveau 3',
+      name: 'III',
       type: TechnologyType.SPECIAL,
       effects: [
         { type: 'LAND_COST_REDUCTION', value: 1 },
@@ -162,7 +259,7 @@ export class BoardManager {
 
     const exploration4: Technology = {
       id: 'exploration-4',
-      name: 'Exploration Niveau 4',
+      name: 'IV',
       type: TechnologyType.SPECIAL,
       effects: [
         { type: 'ALLOW_LAND_ON_SATELLITES', value: true },
@@ -174,7 +271,7 @@ export class BoardManager {
     // Technologies d'observation
     const observation1: Technology = {
       id: 'observation-1',
-      name: 'Observation Niveau 1',
+      name: 'I',
       type: TechnologyType.SPECIAL,
       effects: [
         { type: 'SCAN_MARK_ADJACENT_EARTH', value: true },
@@ -186,7 +283,7 @@ export class BoardManager {
 
     const observation2: Technology = {
       id: 'observation-2',
-      name: 'Observation Niveau 2',
+      name: 'II',
       type: TechnologyType.SPECIAL,
       effects: [
         { type: 'SCAN_MARK_MERCURY', value: true },
@@ -198,7 +295,7 @@ export class BoardManager {
 
     const observation3: Technology = {
       id: 'observation-3',
-      name: 'Observation Niveau 3',
+      name: 'III',
       type: TechnologyType.SPECIAL,
       effects: [
         { type: 'SCAN_DISCARD_CARD_MARK_SIGNAL', value: true },
@@ -209,7 +306,7 @@ export class BoardManager {
 
     const observation4: Technology = {
       id: 'observation-4',
-      name: 'Observation Niveau 4',
+      name: 'IV',
       type: TechnologyType.SPECIAL,
       effects: [
         { type: 'SCAN_LAUNCH_PROBE_OR_MOVEMENT', value: true },
@@ -223,7 +320,7 @@ export class BoardManager {
     // Technologies informatiques
     const computing1: Technology = {
       id: 'computing-1',
-      name: 'Informatique Niveau 1',
+      name: 'I',
       type: TechnologyType.SPECIAL,
       effects: [
         { type: 'TECH_TRACK_BONUS', value: { points: 2, credits: 1 } },
@@ -234,7 +331,7 @@ export class BoardManager {
 
     const computing2: Technology = {
       id: 'computing-2',
-      name: 'Informatique Niveau 2',
+      name: 'II',
       type: TechnologyType.SPECIAL,
       effects: [
         { type: 'TECH_TRACK_BONUS', value: { points: 2, cards: 1 } },
@@ -245,7 +342,7 @@ export class BoardManager {
 
     const computing3: Technology = {
       id: 'computing-3',
-      name: 'Informatique Niveau 3',
+      name: 'III',
       type: TechnologyType.SPECIAL,
       effects: [
         { type: 'TECH_TRACK_BONUS', value: { points: 2, energy: 1 } },
@@ -256,7 +353,7 @@ export class BoardManager {
 
     const computing4: Technology = {
       id: 'computing-4',
-      name: 'Informatique Niveau 4',
+      name: 'IV',
       type: TechnologyType.SPECIAL,
       effects: [
         { type: 'TECH_TRACK_BONUS', value: { points: 2, media: 2 } },

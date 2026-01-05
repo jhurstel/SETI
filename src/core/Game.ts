@@ -12,11 +12,7 @@ import {
   Game,
   GamePhase,
   Player,
-  Board,
-  Decks,
-  Species,
   GameState,
-  GAME_CONSTANTS
 } from './types';
 import { BaseAction } from '../actions/Action';
 import { ActionValidator } from '../validation/ActionValidator';

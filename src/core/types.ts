@@ -163,6 +163,10 @@ export interface SolarSystem {
   initialSectorLevel1?: number; // Position initiale du plateau niveau 1 (1-8)
   initialSectorLevel2?: number; // Position initiale du plateau niveau 2 (1-8)
   initialSectorLevel3?: number; // Position initiale du plateau niveau 3 (1-8)
+  // Angles de rotation initiaux (en degrés)
+  initialAngleLevel1?: number; // Angle de rotation initiale du plateau niveau 1 (en degrés)
+  initialAngleLevel2?: number; // Angle de rotation initiale du plateau niveau 2 (en degrés)
+  initialAngleLevel3?: number; // Angle de rotation initiale du plateau niveau 3 (en degrés)
   // Angles de rotation actuels (en degrés)
   rotationAngleLevel1?: number; // Angle de rotation actuel du plateau niveau 1 (en degrés)
   rotationAngleLevel2?: number; // Angle de rotation actuel du plateau niveau 2 (en degrés)
@@ -192,10 +196,11 @@ export interface SystemTile {
 export interface Probe {
   id: string;
   ownerId: string;
-  position: Position; // Position générale (peut être utilisé pour d'autres contextes)
-  solarPosition?: { // Position dans le système solaire
+  position?: Position; // Position générale (peut être utilisé pour d'autres contextes)
+  solarPosition: { // Position dans le système solaire (obligatoire)
     disk: DiskName;
     sector: SectorNumber;
+    level: number;
   };
   state: ProbeState;
   planetId?: string;
@@ -251,7 +256,7 @@ export interface Technology {
   effects: TechnologyEffect[];
   bonus: TechnologyBonus;
   ownerId?: string;
-  description?: string; // Description détaillée de la technologie
+  description?: string;
 }
 
 export interface TechnologyEffect {
@@ -334,11 +339,11 @@ export interface Planet {
   name: string;
   orbiters: Probe[];
   landers: Probe[];
-  bonus: PlanetBonus;
-  orbitFirstPV?: number;
-  orbitNextPV?: number;
-  landFirstPV?: number;
-  landNextPV?: number;
+  orbitFirstBonus?: PlanetBonus;
+  orbitNextBonuses?: PlanetBonus[];
+  landFirstBonus?: PlanetBonus;
+  landSecondBonus?: PlanetBonus;
+  landNextBonuses?: PlanetBonus[];
   satellites?: Satellite[];
 }
 
@@ -346,7 +351,8 @@ export interface Satellite {
   id: string;
   name: string;
   planetId: string;
-  bonus: PlanetBonus;
+  landers: Probe[];
+  landBonuses: PlanetBonus[];
 }
 
 export interface PlanetBonus {
@@ -355,6 +361,18 @@ export interface PlanetBonus {
   media?: number;
   data?: number;
   pv?: number;
+  planetscan?: number;
+  redscan?: number;
+  bluescan?: number;
+  yellowscan?: number;
+  blackscan?: number;
+  card?: number;
+  anycard?: number;
+  yellowlifetrace?: number;
+  redlifetrace?: number;
+  bluelifetrace?: number;
+  revenue?: number;
+  anytechnology?: number;
 }
 
 export interface RotationDisk {
@@ -451,20 +469,32 @@ export interface GameEvent {
 export const GAME_CONSTANTS = {
   MAX_ROUNDS: 5,
   MAX_PLAYERS: 4,
-  MIN_PLAYERS: 1,
+  MIN_PLAYERS: 2,
   MAX_MEDIA_COVERAGE: 10,
-  MAX_PROBES_PER_SYSTEM: 1, // Sans technologie
+  MAX_PROBES_PER_SYSTEM: 1,
+  MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY: 2,
   PROBE_LAUNCH_COST: 2,
   ORBIT_COST_CREDITS: 1,
   ORBIT_COST_ENERGY: 1,
   LAND_COST_ENERGY: 3,
   LAND_COST_ENERGY_WITH_ORBITER: 2,
+  LAND_COST_ENERGY_WITH_TECHNOLOGY: 2,
+  LAND_COST_ENERGY_WITH_TECHNOLOGY_AND_ORBITER: 1,
   SCAN_COST_CREDITS: 1,
   SCAN_COST_ENERGY: 2,
   ANALYZE_COST_ENERGY: 1,
   TECH_RESEARCH_COST_MEDIA: 6,
   SPECIES_DISCOVERY_TRACES: 3,
-  HAND_SIZE_AFTER_PASS: 4
+  HAND_SIZE_AFTER_PASS: 4,
+  INITIAL_CREDITS: 3,
+  INITIAL_ENERGY: 2,
+  INITIAL_MEDIA_COVERAGE: 4,
 } as const;
 
-
+export const DISK_NAMES: Record<DiskName, number> = {
+  A: 0,
+  B: 1,
+  C: 2,
+  D: 3,
+  E: 4,
+} as const;

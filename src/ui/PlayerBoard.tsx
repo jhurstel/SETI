@@ -1,6 +1,5 @@
-import React, { useMemo } from 'react';
 import { Game, ActionType } from '../core/types';
-import { createRotationState, getObjectPosition } from '../core/SolarSystemPosition';
+import { ProbeSystem } from '../systems/ProbeSystem';
 
 interface PlayerBoardProps {
   game: Game;
@@ -23,105 +22,17 @@ const ACTION_NAMES: Record<ActionType, string> = {
 export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction }) => {
   const currentPlayer = game.players[game.currentPlayerIndex];
 
-  // Calculer l'état de rotation actuel
-  const rotationState = useMemo(() => {
-    return createRotationState(
-      game.board.solarSystem.rotationAngleLevel1 || 0,
-      game.board.solarSystem.rotationAngleLevel2 || 0,
-      game.board.solarSystem.rotationAngleLevel3 || 0
-    );
-  }, [
-    game.board.solarSystem.rotationAngleLevel1,
-    game.board.solarSystem.rotationAngleLevel2,
-    game.board.solarSystem.rotationAngleLevel3
-  ]);
-
-  // Vérifier si le joueur a une sonde sur une planète autre que la Terre et obtenir les infos de la planète
-  const probeOnPlanetInfo = useMemo(() => {
-    const playerProbes = game.board.solarSystem.probes.filter(
-      probe => probe.ownerId === currentPlayer.id && probe.solarPosition
-    );
-
-    // Liste des planètes (sans la Terre)
-    const planets = ['venus', 'mercury', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'];
-    
-    for (const probe of playerProbes) {
-      if (!probe.solarPosition) continue;
-      
-      // Vérifier si la sonde est sur une planète
-      for (const planetId of planets) {
-        const planetPos = getObjectPosition(planetId, rotationState);
-        if (planetPos && 
-            planetPos.disk === probe.solarPosition.disk && 
-            planetPos.absoluteSector === probe.solarPosition.sector) {
-          // Trouver la planète dans le jeu pour vérifier les orbiteurs
-          const planet = game.board.planets.find(p => p.id === planetId);
-          const hasOrbiter = planet && planet.orbiters.length > 0;
-          return { hasProbe: true, planetId, hasOrbiter };
-        }
-      }
-    }
-    
-    return { hasProbe: false, planetId: null, hasOrbiter: false };
-  }, [game.board.solarSystem.probes, game.board.planets, currentPlayer.id, rotationState]);
-
-  const hasProbeOnOtherPlanet = probeOnPlanetInfo.hasProbe;
-
-  // Vérifier si le joueur a la technologie exploration 3
-  // La technologie exploration 3 est la 3ème technologie dans la catégorie EXPLORATION du technologyBoard
-  const hasExploration3 = useMemo(() => {
-    const explorationSlot = game.board.technologyBoard.categorySlots?.find(
-      slot => slot.category === 'EXPLORATION'
-    );
-    if (!explorationSlot || explorationSlot.technologies.length < 3) {
-      return false;
-    }
-    // La 3ème technologie d'exploration (index 2)
-    const exploration3Tech = explorationSlot.technologies[2];
-    // Vérifier si le joueur possède cette technologie
-    return currentPlayer.technologies.some(
-      tech => tech.id === exploration3Tech.id
-    );
-  }, [game.board.technologyBoard.categorySlots, currentPlayer.technologies]);
-
-  // Vérification simple de disponibilité des actions
-  const canLaunchProbe = currentPlayer.credits >= 2;
-  const canScan = currentPlayer.credits >= 1 && currentPlayer.energy >= 2;
-  const canResearch = currentPlayer.mediaCoverage >= 6;
-  const canAnalyze = currentPlayer.dataComputer.canAnalyze && currentPlayer.energy >= 1;
-  
-  // ORBIT nécessite : une sonde sur une planète autre que la Terre + crédits >= 1 et énergie >= 1
-  const canOrbit = hasProbeOnOtherPlanet && currentPlayer.credits >= 1 && currentPlayer.energy >= 1;
-  const orbitTooltip = !hasProbeOnOtherPlanet 
-    ? 'Nécessite une sonde sur une planète autre que la Terre'
-    : currentPlayer.credits < 1 
-    ? 'Nécessite 1 crédit (vous avez ' + currentPlayer.credits + ')'
-    : currentPlayer.energy < 1
-    ? 'Nécessite 1 énergie (vous avez ' + currentPlayer.energy + ')'
-    : 'Mettre une sonde en orbite (coût: 1 crédit, 1 énergie)';
-  
-  // LAND nécessite : une sonde sur une planète autre que la Terre + coût variable en crédits
-  // Coût de base : 3 crédits si pas d'orbiteur, 2 crédits si orbiteur présent
-  // Réduction de 1 crédit si technologie exploration 3
-  const landBaseCost = probeOnPlanetInfo.hasOrbiter ? 2 : 3;
-  const landCost = Math.max(0, landBaseCost - (hasExploration3 ? 1 : 0));
-  const canLand = hasProbeOnOtherPlanet && currentPlayer.credits >= landCost;
-  
-  const landTooltip = !hasProbeOnOtherPlanet
-    ? 'Nécessite une sonde sur une planète autre que la Terre'
-    : currentPlayer.credits < landCost
-    ? `Nécessite ${landCost} crédit(s) (vous avez ${currentPlayer.credits})${hasExploration3 ? ' [Réduction exploration 3 appliquée]' : ''}`
-    : `Poser une sonde sur une planète (coût: ${landCost} crédit(s)${probeOnPlanetInfo.hasOrbiter ? ', orbiteur présent' : ''}${hasExploration3 ? ', réduction exploration 3' : ''})`;
+  const hasProbeOnPlanetInfo = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
 
   const actionAvailability: Record<ActionType, boolean> = {
-    [ActionType.LAUNCH_PROBE]: canLaunchProbe,
-    [ActionType.MOVE_PROBE]: currentPlayer.energy > 0,
-    [ActionType.ORBIT]: canOrbit,
-    [ActionType.LAND]: canLand,
-    [ActionType.SCAN_SECTOR]: canScan,
-    [ActionType.ANALYZE_DATA]: canAnalyze,
-    [ActionType.PLAY_CARD]: currentPlayer.cards.length > 0,
-    [ActionType.RESEARCH_TECH]: canResearch,
+    [ActionType.LAUNCH_PROBE]: ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch,
+    [ActionType.MOVE_PROBE]: false,//currentPlayer.probes.some(probe => ProbeSystem.canMoveProbe(game, currentPlayer.id, probe.id, targetPosition).canMove),
+    [ActionType.ORBIT]: currentPlayer.probes.some(probe => ProbeSystem.canOrbit(game, currentPlayer.id, probe.id).canOrbit),
+    [ActionType.LAND]: currentPlayer.probes.some(probe => ProbeSystem.canLand(game, currentPlayer.id, probe.id).canLand),
+    [ActionType.SCAN_SECTOR]: false, // TODO
+    [ActionType.ANALYZE_DATA]: false, // TODO
+    [ActionType.PLAY_CARD]: false, // TODO
+    [ActionType.RESEARCH_TECH]: false, // TODO
     [ActionType.PASS]: true,
     [ActionType.FREE_ACTION]: true,
   };
@@ -142,7 +53,7 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction }) => {
               <span>Média:</span> <strong>{currentPlayer.mediaCoverage}</strong>
             </div>
             <div className="seti-res-badge">
-              <span>Crédits:</span> <strong>{currentPlayer.credits}</strong>
+              <span>Crédit:</span> <strong>{currentPlayer.credits}</strong>
             </div>
             <div className="seti-res-badge">
               <span>Énergie:</span> <strong>{currentPlayer.energy}</strong>
@@ -163,9 +74,19 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction }) => {
                 // Déterminer le tooltip selon l'action
                 let tooltip = '';
                 if (actionType === ActionType.ORBIT) {
-                  tooltip = orbitTooltip;
+                  tooltip = !hasProbeOnPlanetInfo.hasProbe 
+                  ? 'Nécessite une sonde sur une planète autre que la Terre'
+                  : currentPlayer.credits < 1 
+                  ? 'Nécessite 1 crédit (vous avez ' + currentPlayer.credits + ')'
+                  : currentPlayer.energy < 1
+                  ? 'Nécessite 1 énergie (vous avez ' + currentPlayer.energy + ')'
+                  : 'Mettre une sonde en orbite (coût: 1 crédit, 1 énergie)';
                 } else if (actionType === ActionType.LAND) {
-                  tooltip = landTooltip;
+                  tooltip = !hasProbeOnPlanetInfo.hasProbe
+                  ? 'Nécessite une sonde sur une planète autre que la Terre'
+                  : currentPlayer.credits < hasProbeOnPlanetInfo.landCost! || 0
+                  ? `Nécessite ${hasProbeOnPlanetInfo.landCost} crédit(s) (vous avez ${currentPlayer.credits})${hasProbeOnPlanetInfo.hasExploration3 ? ' [Réduction exploration 3 appliquée]' : ''}`
+                  : `Poser une sonde sur une planète (coût: ${hasProbeOnPlanetInfo.landCost} crédit(s)${hasProbeOnPlanetInfo.hasOrbiter ? ', orbiteur présent' : ''}${hasProbeOnPlanetInfo.hasExploration3 ? ', réduction exploration 3' : ''})`;
                 } else if (actionType === ActionType.LAUNCH_PROBE) {
                   tooltip = currentPlayer.credits < 2 
                     ? 'Nécessite 2 crédits (vous avez ' + currentPlayer.credits + ')'
@@ -189,7 +110,7 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction }) => {
                     ? 'Aucune carte en main'
                     : 'Jouer une carte de votre main';
                 }
-                
+
                 return (
                   <div
                     key={action}

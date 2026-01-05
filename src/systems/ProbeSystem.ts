@@ -15,12 +15,11 @@ import {
   Probe,
   ProbeState,
   Position,
-  SystemTile,
   TileType,
-  Board,
   GAME_CONSTANTS,
   DiskName,
-  SectorNumber
+  SectorNumber,
+  PlanetBonus
 } from '../core/types';
 import { BoardManager } from '../core/Board';
 import { getObjectPosition, createRotationState } from '../core/SolarSystemPosition';
@@ -51,8 +50,10 @@ export class ProbeSystem {
       p => p.state === ProbeState.IN_SOLAR_SYSTEM
     );
 
-    // TODO: Vérifier les technologies qui permettent plusieurs sondes
-    const maxProbes = this.getMaxProbesInSystem(player);
+    // Vérifier les technologies qui permettent plusieurs sondes
+    const maxProbes = player.technologies.some(t => t.id === 'exploration-1')
+     ? GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY
+     : GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM;
     
     if (probesInSystem.length >= maxProbes) {
       return { 
@@ -62,19 +63,6 @@ export class ProbeSystem {
     }
 
     return { canLaunch: true };
-  }
-
-  /**
-   * Obtient le nombre maximum de sondes dans le système solaire
-   */
-  private static getMaxProbesInSystem(player: Player): number {
-    // Par défaut : 1 sonde
-    let max = GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM;
-
-    // TODO: Vérifier les technologies qui augmentent cette limite
-    // Exemple : technologie "Flotte de sondes" → max = 2
-
-    return max;
   }
 
   /**
@@ -97,6 +85,7 @@ export class ProbeSystem {
     // Utiliser les angles de rotation actuels depuis le jeu
     let earthDisk: DiskName = 'A';
     let earthSector: SectorNumber = 2;
+    let earthLevel: number = 3;
     
     if (!earthPosition) {
       // Obtenir les angles de rotation actuels depuis le jeu
@@ -105,7 +94,7 @@ export class ProbeSystem {
       const rotationAngle3 = updatedGame.board.solarSystem.rotationAngleLevel3 || 0;
       
       // Utiliser getObjectPosition pour calculer la position absolue avec les angles réels
-      const rotationState = createRotationState(rotationAngle1, rotationAngle2, rotationAngle3);
+      const rotationState = createRotationState(-rotationAngle1, -rotationAngle2, -rotationAngle3);
       const earthPos = getObjectPosition('earth', rotationState);
       
       if (earthPos) {
@@ -120,10 +109,10 @@ export class ProbeSystem {
     const probe: Probe = {
       id: `probe_${Date.now()}_${playerId}`,
       ownerId: playerId,
-      position: { x: 0, y: 0 }, // Position générale (non utilisée pour le système solaire)
       solarPosition: {
         disk: earthDisk,
-        sector: earthSector
+        sector: earthSector,
+        level: earthLevel,
       },
       state: ProbeState.IN_SOLAR_SYSTEM,
       isOrbiter: false,
@@ -182,7 +171,7 @@ export class ProbeSystem {
     }
 
     // Vérifier que la case cible est adjacente
-    if (!this.isAdjacent(probe.position, targetPosition)) {
+    if (!this.isAdjacent(probe.position!, targetPosition)) {
       return { canMove: false, reason: 'Case non adjacente' };
     }
 
@@ -201,7 +190,7 @@ export class ProbeSystem {
     let energyCost = 1; // 1 énergie = 1 déplacement
 
     // Champ d'astéroïdes : coût +1 pour en sortir
-    const currentTile = BoardManager.findTileByPosition(game.board, probe.position);
+    const currentTile = BoardManager.findTileByPosition(game.board, probe.position!);
     if (currentTile?.type === TileType.ASTEROID) {
       energyCost += 1;
     }
@@ -274,7 +263,7 @@ export class ProbeSystem {
     // Mettre à jour les cases
     const currentTile = BoardManager.findTileByPosition(
       updatedGame.board,
-      player.probes[probeIndex].position
+      player.probes[probeIndex].position!
     );
     const targetTile = BoardManager.findTileByPosition(
       updatedGame.board,
@@ -297,6 +286,123 @@ export class ProbeSystem {
     }
 
     return updatedGame;
+  }
+
+  /**
+   * Vérifie si le joueur a une sonde sur une planète autre que la Terre et obtenir les infos de la planète
+   */
+  static probeOnPlanetInfo(
+    game: Game,
+    playerId: string
+  ): {
+    hasProbe: boolean;
+    planetId?: string | null;
+    hasOrbiter?: boolean;
+    hasExploration3?: boolean;
+    landCost?: number;
+  } {
+    const playerProbes = game.board.solarSystem.probes.filter(
+      probe => probe.ownerId === playerId && probe.solarPosition
+    );
+
+    // Liste des planètes (sans la Terre)
+    const planets = ['venus', 'mercury', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'];
+    
+    for (const probe of playerProbes) {
+      if (!probe.solarPosition) continue;
+      
+      // Vérifier si la sonde est sur une planète
+      for (const planetId of planets) {
+        const rotationState = createRotationState(
+          -game.board.solarSystem.rotationAngleLevel1! || 0,
+          -game.board.solarSystem.rotationAngleLevel2! || 0,
+          -game.board.solarSystem.rotationAngleLevel3! || 0
+        );  
+        const planetPos = getObjectPosition(planetId, rotationState);
+        if (planetPos && 
+            planetPos.disk === probe.solarPosition.disk && 
+            planetPos.absoluteSector === probe.solarPosition.sector) {
+
+          // Trouver la planète dans le jeu pour vérifier les orbiteurs et le cout (reduit ou non)
+          const planet = game.board.planets.find(p => p.id === planetId);
+          const hasOrbiter = planet && planet.orbiters.length > 0 ? true : false;
+          const hasExploration3 = game.players.find(p => p.id === playerId)?.technologies.some(t => t.id === 'exploration-3') || false;
+          const landCost = hasExploration3
+            ? (hasOrbiter ? GAME_CONSTANTS.LAND_COST_ENERGY_WITH_TECHNOLOGY_AND_ORBITER : GAME_CONSTANTS.LAND_COST_ENERGY_WITH_TECHNOLOGY)
+            : (hasOrbiter ? GAME_CONSTANTS.LAND_COST_ENERGY_WITH_ORBITER : GAME_CONSTANTS.LAND_COST_ENERGY);
+
+          return { hasProbe: true, planetId, hasOrbiter, hasExploration3, landCost };
+        }
+      }
+    }
+    
+    return { hasProbe: false };
+  }
+  
+  static applyBonus(updatedPlayer: Player, bonus: PlanetBonus) {
+    if (bonus.pv) {
+      updatedPlayer.score += bonus.pv || 0;
+    }
+    if (bonus.credits) {
+      updatedPlayer.credits += bonus.credits || 0;
+    }
+    if (bonus.energy) {
+      updatedPlayer.energy += bonus.energy || 0;
+    }
+    if (bonus.media) {
+      updatedPlayer.mediaCoverage = Math.min(
+        updatedPlayer.mediaCoverage + (bonus.media || 0),
+        GAME_CONSTANTS.MAX_MEDIA_COVERAGE
+      );
+    }
+    if (bonus.data) {
+      // TODO: Ajouter les données à l'ordinateur du joueur
+      //updatedPlayer.dataComputer.topRow.push({ id: `data_${Date.now()}_${playerId}`, type: 'data' });
+    }
+    if (bonus.planetscan) {
+      // TODO: Ajouter les scans rouges à la main du joueur
+      //updatedPlayer.redscan += bonus.redscan;
+    }
+    if (bonus.redscan) {
+      // TODO: Ajouter les scans rouges à la main du joueur
+      //updatedPlayer.redscan += bonus.redscan;
+    }
+    if (bonus.bluescan) {
+      // TODO: Ajouter les scans bleus à la main du joueur
+      //updatedPlayer.bluescan += bonus.bluescan;
+    }
+    if (bonus.yellowscan) {
+      // TODO: Ajouter les scans jaunes à la main du joueur
+      //updatedPlayer.yellowscan += bonus.yellowscan;
+    }
+    if (bonus.card) {
+      // TODO: Ajouter les cartes à la main du joueur
+      //updatedPlayer.cards.push({ id: `card_${Date.now()}_${playerId}`, type: 'card' });
+    }
+    if (bonus.anycard) {
+      // TODO: Ajouter les cartes à la main du joueur
+      //updatedPlayer.cards.push({ id: `card_${Date.now()}_${playerId}`, type: 'card' });
+    }
+    if (bonus.yellowlifetrace) {
+      // TODO: Ajouter les traces jaunes à la main du joueur
+      //updatedPlayer.lifetrace += bonus.yellowlifetrace;
+    }
+    if (bonus.redlifetrace) {
+      // TODO: Ajouter les traces rouges à la main du joueur
+      //updatedPlayer.lifetrace += bonus.redlifetrace;
+    }
+    if (bonus.bluelifetrace) {
+      // TODO: Ajouter les traces bleues à la main du joueur
+      //updatedPlayer.lifetrace += bonus.bluelifetrace;
+    }
+    if (bonus.revenue) {
+      // TODO: Ajouter les revenus au score du joueur
+      //updatedPlayer.score += bonus.revenue;
+    }
+    if (bonus.anytechnology) {
+      // TODO: Ajouter les technologies à la main du joueur
+      //updatedPlayer.technologies.push({ id: `technology_${Date.now()}_${playerId}`, type: 'technology' });
+    }
   }
 
   /**
@@ -325,9 +431,9 @@ export class ProbeSystem {
     }
 
     // Vérifier que la sonde est sur une planète (pas Terre)
-    const tile = BoardManager.findTileByPosition(game.board, probe.position);
-    if (!tile || tile.type !== TileType.PLANET || !tile.planetId) {
-      return { canOrbit: false, reason: 'La sonde doit être sur une planète' };
+    const hasProbeOnPlanetInfo = this.probeOnPlanetInfo(game, playerId);
+    if (!hasProbeOnPlanetInfo.hasProbe) {
+      return { canOrbit: false, reason: 'La sonde doit être sur une planète autre que la Terre' };
     }
 
     // Vérifier les ressources
@@ -369,8 +475,7 @@ export class ProbeSystem {
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
     const probe = player.probes.find(p => p.id === probeId)!;
-    const tile = BoardManager.findTileByPosition(game.board, probe.position)!;
-    const planetId = tile.planetId!;
+    const planetId = probe.planetId!;
 
     // Vérifier si c'est le premier orbiteur
     const planet = updatedGame.board.planets.find(p => p.id === planetId);
@@ -384,14 +489,13 @@ export class ProbeSystem {
       isOrbiter: true
     };
 
+    // Mettre à jour le joueur
     const updatedPlayer = {
       ...player,
       credits: player.credits - GAME_CONSTANTS.ORBIT_COST_CREDITS,
       energy: player.energy - GAME_CONSTANTS.ORBIT_COST_ENERGY,
       probes: player.probes.map(p => p.id === probeId ? updatedProbe : p)
     };
-
-    updatedGame.players[playerIndex] = updatedPlayer;
 
     // Ajouter à la planète
     if (planet) {
@@ -407,32 +511,15 @@ export class ProbeSystem {
       }
     };
 
-    // Retirer de la case
-    tile.probes = tile.probes.filter(p => p.id !== probeId);
-
-    // Bonus : 3 PV si premier orbiteur
-    if (isFirstOrbiter) {
-      updatedPlayer.score += 3;
-    }
-
     // Bonus planète
-    if (planet?.bonus) {
-      if (planet.bonus.credits) {
-        updatedPlayer.credits += planet.bonus.credits;
-      }
-      if (planet.bonus.energy) {
-        updatedPlayer.energy += planet.bonus.energy;
-      }
-      if (planet.bonus.media) {
-        updatedPlayer.mediaCoverage = Math.min(
-          updatedPlayer.mediaCoverage + planet.bonus.media,
-          GAME_CONSTANTS.MAX_MEDIA_COVERAGE
-        );
-      }
-      if (planet.bonus.pv) {
-        updatedPlayer.score += planet.bonus.pv;
-      }
+    if (isFirstOrbiter && planet?.orbitFirstBonus) {
+      this.applyBonus(updatedPlayer, planet.orbitFirstBonus);
     }
+    if (planet?.orbitNextBonuses) {
+      planet.orbitNextBonuses.forEach(bonus => this.applyBonus(updatedPlayer, bonus));
+    }
+
+    updatedGame.players[playerIndex] = updatedPlayer;
 
     return {
       updatedGame,
@@ -450,7 +537,7 @@ export class ProbeSystem {
     probeId: string
   ): {
     canLand: boolean;
-    reason?: string;
+    reason: string;
     energyCost?: number;
   } {
     const player = game.players.find(p => p.id === playerId);
@@ -463,26 +550,25 @@ export class ProbeSystem {
       return { canLand: false, reason: 'Sonde introuvable' };
     }
 
-    if (probe.state !== ProbeState.IN_ORBIT) {
-      return { canLand: false, reason: 'La sonde doit être en orbite' };
+    if (probe.state !== ProbeState.IN_SOLAR_SYSTEM) {
+      return { canLand: false, reason: 'La sonde doit dans le systeme solaire' };
     }
 
-    // Calculer le coût (réduit si orbiteur déjà présent)
-    const planet = game.board.planets.find(p => p.id === probe.planetId);
-    const hasOrbiter = planet ? planet.orbiters.length > 0 : false;
-    const energyCost = hasOrbiter 
-      ? GAME_CONSTANTS.LAND_COST_ENERGY_WITH_ORBITER
-      : GAME_CONSTANTS.LAND_COST_ENERGY;
+    // Vérifier que la sonde est sur une planète (pas Terre)
+    const hasProbeOnPlanetInfo = this.probeOnPlanetInfo(game, playerId);
+    if (!hasProbeOnPlanetInfo.hasProbe) {
+      return { canLand: false, reason: 'La sonde doit être sur une planète autre que la Terre' };
+    }
 
-    if (player.energy < energyCost) {
+    // Vérifier l'énergie disponible
+    if (player.energy < hasProbeOnPlanetInfo.landCost!) {
       return { 
         canLand: false, 
-        reason: `Énergie insuffisante (nécessite ${energyCost})`,
-        energyCost 
+        reason: `Énergie insuffisante (nécessite ${hasProbeOnPlanetInfo.landCost})`,
       };
     }
 
-    return { canLand: true, energyCost };
+    return { canLand: true, reason: 'Atterrissage possible', energyCost: hasProbeOnPlanetInfo.landCost! };
   }
 
   /**
@@ -495,6 +581,7 @@ export class ProbeSystem {
   ): {
     updatedGame: Game;
     isFirstLander: boolean;
+    isSecondLander: boolean;
     planetId: string;
   } {
     const validation = this.canLand(game, playerId, probeId);
@@ -510,37 +597,46 @@ export class ProbeSystem {
 
     const planet = updatedGame.board.planets.find(p => p.id === planetId);
     const isFirstLander = planet ? planet.landers.length === 0 : true;
+    const isSecondLander = planet ? planet.landers.length === 1 : false;
 
     // Mettre à jour la sonde
     const updatedProbe = {
       ...probe,
       state: ProbeState.LANDED,
+      planetId,
       isLander: true
     };
 
+    // Mettre à jour le joueur
     const updatedPlayer = {
       ...player,
-      energy: player.energy - (validation.energyCost || 3),
+      energy: player.energy - (validation.energyCost || GAME_CONSTANTS.LAND_COST_ENERGY),
       probes: player.probes.map(p => p.id === probeId ? updatedProbe : p)
     };
 
-    // Retirer de la liste des orbiteurs
+    // Ajouter à la planete
     if (planet) {
-      planet.orbiters = planet.orbiters.filter(p => p.id !== probeId);
       planet.landers.push(updatedProbe);
     }
 
-    // Bonus : données supplémentaires si premier atterrisseur
-    // TODO: Implémenter le gain de données selon les règles exactes
+    // Retirer du système solaire en préservant tous les champs (y compris les angles de rotation)
+    updatedGame.board = {
+      ...updatedGame.board,
+      solarSystem: {
+        ...updatedGame.board.solarSystem,
+        probes: updatedGame.board.solarSystem.probes.filter(p => p.id !== probeId)
+      }
+    };
 
     // Bonus planète (atterrissage)
-    if (planet?.bonus) {
-      if (planet.bonus.data) {
-        // TODO: Ajouter les données à l'ordinateur du joueur
-      }
-      if (planet.bonus.pv) {
-        updatedPlayer.score += planet.bonus.pv;
-      }
+    if (isFirstLander && planet?.landFirstBonus) {
+      this.applyBonus(updatedPlayer, planet.landFirstBonus);
+    }
+    if (isSecondLander && planet?.landSecondBonus) {
+      this.applyBonus(updatedPlayer, planet.landSecondBonus);
+    }
+    if (planet?.landNextBonuses) {
+      planet.landNextBonuses.forEach(bonus => this.applyBonus(updatedPlayer, bonus));
     }
 
     updatedGame.players[playerIndex] = updatedPlayer;
@@ -548,6 +644,7 @@ export class ProbeSystem {
     return {
       updatedGame,
       isFirstLander,
+      isSecondLander,
       planetId
     };
   }
