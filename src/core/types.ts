@@ -377,8 +377,11 @@ export interface PlanetBonus {
 
 export interface RotationDisk {
   id: string;
-  positions: Position[];
-  currentPosition: number;
+  //positions: Position[];
+  //currentPosition: number;
+  sectorIndex: number;
+  diskName: DiskName;
+  level: number;
 }
 
 export interface TechnologyBoard {

@@ -90,24 +90,24 @@ export const FIXED_OBJECTS: CelestialObject[] = [
   { id: 'neptune', type: 'planet', name: 'Neptune', position: { disk: 'D', sector: 3, x: 0, y: 0 }, level: 0 },
   { id: 'uranus', type: 'planet', name: 'Uranus', position: { disk: 'D', sector: 6, x: 0, y: 0 }, level: 0 },
   // Comètes fixes
-  { id: 'comet-d1', type: 'comet', name: 'Comète D1', position: { disk: 'D', sector: 1, x: 0, y: 0 }, level: 0 },
-  { id: 'comet-d7', type: 'comet', name: 'Comète D7', position: { disk: 'D', sector: 7, x: 0, y: 0 }, level: 0 },
-  { id: 'comet-c4', type: 'comet', name: 'Comète C4', position: { disk: 'C', sector: 4, x: 0, y: 0 }, level: 0 },
-  { id: 'comet-b2', type: 'comet', name: 'Comète B2', position: { disk: 'B', sector: 2, x: 0, y: 0 }, level: 0 },
-  { id: 'comet-b5', type: 'comet', name: 'Comète B5', position: { disk: 'B', sector: 5, x: 0, y: 0 }, level: 0 },
-  { id: 'comet-a5', type: 'comet', name: 'Comète A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 0 },
-  { id: 'comet-a7', type: 'comet', name: 'Comète A7', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 0 },
-  { id: 'comet-a8', type: 'comet', name: 'Comète A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-d1', type: 'comet', name: 'Comète', position: { disk: 'D', sector: 1, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-d7', type: 'comet', name: 'Comète', position: { disk: 'D', sector: 7, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-c4', type: 'comet', name: 'Comète', position: { disk: 'C', sector: 4, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-b2', type: 'comet', name: 'Comète', position: { disk: 'B', sector: 2, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-b5', type: 'comet', name: 'Comète', position: { disk: 'B', sector: 5, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-a5', type: 'comet', name: 'Comète', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-a7', type: 'comet', name: 'Comète', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 0 },
+  { id: 'comet-a8', type: 'comet', name: 'Comète', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 0 },
   // Nuages d'astéroïdes fixes
-  { id: 'asteroid-c2', type: 'asteroid', name: 'Astéroïdes C2', position: { disk: 'C', sector: 2, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-c3', type: 'asteroid', name: 'Astéroïdes C3', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-c5', type: 'asteroid', name: 'Astéroïdes C5', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-c7', type: 'asteroid', name: 'Astéroïdes C7', position: { disk: 'C', sector: 7, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-b4', type: 'asteroid', name: 'Astéroïdes B4', position: { disk: 'B', sector: 4, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-b8', type: 'asteroid', name: 'Astéroïdes B8', position: { disk: 'B', sector: 8, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-a2', type: 'asteroid', name: 'Astéroïdes A2', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-a3', type: 'asteroid', name: 'Astéroïdes A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 0 },
-  { id: 'asteroid-a6', type: 'asteroid', name: 'Astéroïdes A6', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-c2', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'C', sector: 2, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-c3', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-c5', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-c7', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'C', sector: 7, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-b4', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 4, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-b8', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 8, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-a2', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-a3', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 0 },
+  { id: 'asteroid-a6', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 0 },
 ];
 
 /**
@@ -116,13 +116,13 @@ export const FIXED_OBJECTS: CelestialObject[] = [
 export const INITIAL_ROTATING_LEVEL1_OBJECTS: CelestialObject[] = [
   { id: 'saturn', type: 'planet', name: 'Saturne', position: { disk: 'C', sector: 1, x: 0, y: 0 }, level: 1 },
   { id: 'jupiter', type: 'planet', name: 'Jupiter', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 1 },
-  { id: 'comet-b8-l1', type: 'comet', name: 'Comète B8', position: { disk: 'B', sector: 8, x: 0, y: 0 }, level: 1 },
-  { id: 'comet-a7-l1', type: 'comet', name: 'Comète A7', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-b1-l1', type: 'asteroid', name: 'Astéroïdes B1', position: { disk: 'B', sector: 1, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-b4-l1', type: 'asteroid', name: 'Astéroïdes B4', position: { disk: 'B', sector: 4, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-a1-l1', type: 'asteroid', name: 'Astéroïdes A1', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-a2-l1', type: 'asteroid', name: 'Astéroïdes A2', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-a6-l1', type: 'asteroid', name: 'Astéroïdes A6', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 1 },
+  { id: 'comet-b8-l1', type: 'comet', name: 'Comète', position: { disk: 'B', sector: 8, x: 0, y: 0 }, level: 1 },
+  { id: 'comet-a7-l1', type: 'comet', name: 'Comète', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-b1-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 1, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-b4-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 4, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-a1-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-a2-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-a6-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 1 },
   { id: 'hollow-c2-l1', type: 'hollow', name: 'Creux C2', position: { disk: 'C', sector: 2, x: 0, y: 0 }, level: 1 },
   { id: 'hollow-c3-l1', type: 'hollow', name: 'Creux C3', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 },
   { id: 'empty-c4-l1', type: 'empty', name: 'Vide C5', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 1 },
@@ -145,9 +145,9 @@ export const INITIAL_ROTATING_LEVEL1_OBJECTS: CelestialObject[] = [
  */
 export const INITIAL_ROTATING_LEVEL2_OBJECTS: CelestialObject[] = [
   { id: 'mars', type: 'planet', name: 'Mars', position: { disk: 'B', sector: 1, x: 0, y: 0 }, level: 2 },
-  { id: 'asteroid-b5-l2', type: 'asteroid', name: 'Astéroïdes B5', position: { disk: 'B', sector: 5, x: 0, y: 0 }, level: 2 },
-  { id: 'asteroid-a6-l2', type: 'asteroid', name: 'Astéroïdes A6', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 2 },
-  { id: 'asteroid-a8-l2', type: 'asteroid', name: 'Astéroïdes A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 2 },
+  { id: 'asteroid-b5-l2', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 5, x: 0, y: 0 }, level: 2 },
+  { id: 'asteroid-a6-l2', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 2 },
+  { id: 'asteroid-a8-l2', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 2 },
   { id: 'hollow-b2-l2', type: 'hollow', name: 'Creux B2', position: { disk: 'B', sector: 2, x: 0, y: 0 }, level: 2 },
   { id: 'hollow-b3-l2', type: 'hollow', name: 'Creux B3', position: { disk: 'B', sector: 3, x: 0, y: 0 }, level: 2 },
   { id: 'hollow-b4-l2', type: 'hollow', name: 'Creux B4', position: { disk: 'B', sector: 4, x: 0, y: 0 }, level: 2 },
@@ -454,8 +454,8 @@ export function calculateReachableCells(
     
     // Obtenir la case actuelle
     const currentCell = cells.get(currentKey);
-    if (!currentCell || !currentCell.isVisible) {
-      continue; // Case non visible, on ne peut pas y aller
+    if (!currentCell) {
+      continue;
     }
     
     // Trouver les cases adjacentes (même disque, secteurs adjacents, ou disques adjacents)
@@ -465,8 +465,8 @@ export function calculateReachableCells(
       const adjKey = `${adj.disk}${adj.sector}`;
       const adjCell = cells.get(adjKey);
       
-      if (!adjCell || !adjCell.isVisible) {
-        return; // Case non visible
+      if (!adjCell) {
+        return;
       }
       
       // Calculer le coût pour atteindre cette case
@@ -582,4 +582,3 @@ export function getCell(
   const cells = getAllCells(rotationState);
   return cells.get(`${disk}${sector}`) || null;
 }
-

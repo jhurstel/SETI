@@ -94,12 +94,12 @@ export class ProbeSystem {
       const rotationAngle3 = updatedGame.board.solarSystem.rotationAngleLevel3 || 0;
       
       // Utiliser getObjectPosition pour calculer la position absolue avec les angles réels
-      const rotationState = createRotationState(-rotationAngle1, -rotationAngle2, -rotationAngle3);
+      const rotationState = createRotationState(rotationAngle1, rotationAngle2, rotationAngle3);
       const earthPos = getObjectPosition('earth', rotationState);
       
       if (earthPos) {
         earthDisk = earthPos.disk;
-        earthSector = earthPos.absoluteSector;
+        earthSector = earthPos.sector;
       }
     } else {
       earthDisk = earthPosition.disk;
@@ -321,7 +321,7 @@ export class ProbeSystem {
         const planetPos = getObjectPosition(planetId, rotationState);
         if (planetPos && 
             planetPos.disk === probe.solarPosition.disk && 
-            planetPos.absoluteSector === probe.solarPosition.sector) {
+            planetPos.sector === probe.solarPosition.sector) {
 
           // Trouver la planète dans le jeu pour vérifier les orbiteurs et le cout (reduit ou non)
           const planet = game.board.planets.find(p => p.id === planetId);
@@ -649,4 +649,3 @@ export class ProbeSystem {
     };
   }
 }
-

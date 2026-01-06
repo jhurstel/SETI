@@ -1,9 +1,10 @@
 import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk } from '../core/types';
 import { 
   createRotationState, 
   calculateReachableCellsWithEnergy,
   getObjectPosition,
+  calculateAbsolutePosition,
   FIXED_OBJECTS,
   INITIAL_ROTATING_LEVEL1_OBJECTS,
   INITIAL_ROTATING_LEVEL2_OBJECTS,
@@ -29,7 +30,7 @@ export interface SolarSystemBoardRef {
 
 export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoardProps>(({ game, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1 }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
-  const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
+  const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredProbe, setHoveredProbe] = useState<string | null>(null);
   
   // État pour gérer la sonde sélectionnée et les cases accessibles
@@ -56,49 +57,8 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
   const absoluteToRelativeSector = (absoluteSector: SectorNumber, rotationAngle: number): SectorNumber => {
     const absoluteIndex = sectorToIndex[absoluteSector];
     const sectorsRotated = Math.round(rotationAngle / 45);
-    // Rotation inverse : on additionne au lieu de soustraire
-    const relativeIndex = (absoluteIndex + sectorsRotated + 8) % 8;
+    const relativeIndex = (absoluteIndex - sectorsRotated + 8) % 8;
     return indexToSector[relativeIndex];
-  };
-
-  // Fonction helper pour rendre une sonde
-  const renderProbe = (probe: Probe, zIndex: number = 50) => {
-    if (!probe.solarPosition) return null;
-
-    const player = game.players.find(p => p.id === probe.ownerId);
-    const playerName = player?.name || 'Joueur inconnu';
-    const isSelected = selectedProbeId === probe.id;
-    const { x, y } = calculateObjectPosition(probe.solarPosition.disk, probe.solarPosition.sector);
-    
-    return (
-      <div
-        key={probe.id}
-        onClick={() => handleProbeClick(probe)}
-        onMouseEnter={() => setHoveredProbe(probe.id)}
-        onMouseLeave={() => setHoveredProbe(null)}
-        style={{
-          position: 'absolute',
-          top: `calc(50% + ${y}%)`,
-          left: `calc(50% + ${x}%)`,
-          transform: 'translate(-50%, -50%)',
-          width: '20px',
-          height: '20px',
-          borderRadius: '50%',
-          background: isSelected 
-            ? 'radial-gradient(circle, #00ff00, #00cc00)' 
-            : 'radial-gradient(circle, #8888ff, #5555aa)',
-          border: isSelected ? '3px solid #00ff00' : '2px solid #6666cc',
-          boxShadow: isSelected 
-            ? '0 0 12px rgba(0, 255, 0, 0.8)' 
-            : '0 0 6px rgba(136, 136, 255, 0.6)',
-          cursor: 'pointer',
-          zIndex,
-          transition: 'all 0.2s ease',
-          pointerEvents: 'auto',
-        }}
-        title={playerName}
-      />
-    );
   };
 
   // Fonction helper pour déterminer le type de secteur (normal, hollow, empty) pour tous les niveaux
@@ -219,7 +179,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
 
   // Fonction helper pour calculer la position d'un objet céleste
   // Les secteurs sont rendus avec un offset de -90° pour commencer à 12h
-  const calculateObjectPosition = (disk: DiskName, sector: SectorNumber) => {
+  const calculateObjectPosition = (disk: DiskName, sector: SectorNumber, rotationAngle: number = 0) => {
     const diskIndex = DISK_NAMES[disk];
     const sectorIndex = sectorToIndex[sector];
     const diskWidth = 8;
@@ -231,10 +191,97 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
     const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
     const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
     const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-    const radian = sectorCenterAngle * (Math.PI / 180);
+    // Appliquer la rotation
+    const rotatedAngle = sectorCenterAngle + rotationAngle;
+    const radian = rotatedAngle * (Math.PI / 180);
     const x = Math.cos(radian) * objectRadius;
     const y = Math.sin(radian) * objectRadius;
     return { x, y, sectorCenterAngle, diskIndex };
+  };
+
+  // Fonction helper pour rendre un disque rotatif
+  const renderRotationDisk = (obj: RotationDisk, zIndex: number = 30) => {
+    // Conversion index → secteur absolu
+    const absoluteSector = indexToSector[obj.sectorIndex];
+    // Convertir en secteur relatif au plateau niveau 1 (rotation inverse)
+    const relativeSector = absoluteToRelativeSector(absoluteSector, -rotationAngle1);
+    // Déterminer le type de secteur à partir de INITIAL_ROTATING_LEVEL1_OBJECTS
+    const sectorType = getSectorType(obj.level, obj.diskName, relativeSector);
+    const sectorNumber = absoluteSector; // Pour la clé et le debug
+    
+    // Utiliser l'index du secteur relatif pour calculer la position visuelle
+    const relativeSectorIndex = sectorToIndex[relativeSector];
+    
+    const diskIndex = DISK_NAMES[obj.diskName];
+    const diskWidth = 8;
+    const sunRadius = 4;
+    const innerRadius = sunRadius + (diskIndex * diskWidth);; // 4% (bord du soleil)
+    const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth); // 12%
+    
+    const sectorStartAngle = -(360 / 8) * relativeSectorIndex - 90; // 0° = midi (12h), sens horaire (de droite à gauche)
+    const sectorEndAngle = -(360 / 8) * (relativeSectorIndex + 1) - 90;
+    
+    // Conversion en pixels pour le viewBox
+    const innerRadiusPx = (innerRadius / 100) * 200;
+    const outerRadiusPx = (outerRadius / 100) * 200;
+    
+    const innerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
+    const innerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
+    const innerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
+    const innerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
+    const outerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
+    const outerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
+    const outerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
+    const outerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
+    
+    const largeArcFlag = Math.abs(sectorEndAngle - sectorStartAngle) > 180 ? 1 : 0;
+
+    let colorFill: string = "";
+    let colorStroke: string = "";
+    let colorShadow: string = "";
+
+    if (obj.level === 1) {
+      colorFill="rgba(60, 80, 120, 0.8)"
+      colorStroke="rgba(255, 215, 0, 0.8)"
+      colorShadow="rgba(255, 215, 0, 0.5)"
+    } else if (obj.level === 2) {
+      colorFill="rgba(40, 60, 100, 0.8)"
+      colorStroke="rgba(255, 107, 107, 0.8)"
+      colorShadow="rgba(255, 107, 107, 0.5)"
+    } else if (obj.level === 3) {
+      colorFill="rgba(40, 60, 100, 0.8)"
+      colorStroke="rgba(74, 158, 255, 0.8)"
+      colorShadow="rgba(74, 158, 255, 0.5)"
+    }
+
+    // Ne pas afficher les secteurs hollow
+    if (sectorType === 'hollow') return null;
+    
+    return (
+      <svg
+        key={`rotating-sector-c-${sectorNumber}`}
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+          zIndex,
+          transformOrigin: 'center center', // Assurer que la rotation se fait autour du centre
+        }}
+        viewBox="0 0 200 200"
+      >
+        <path
+          d={`M ${innerStartX} ${innerStartY} L ${outerStartX} ${outerStartY} A ${outerRadiusPx} ${outerRadiusPx} 0 ${largeArcFlag} 0 ${outerEndX} ${outerEndY} L ${innerEndX} ${innerEndY} A ${innerRadiusPx} ${innerRadiusPx} 0 ${largeArcFlag} 1 ${innerStartX} ${innerStartY} Z`}
+          fill={colorFill} // Plus clair pour la surbrillance
+          stroke={colorStroke}
+          strokeWidth="1.5" // Bordure plus épaisse
+          style={{ filter: `drop-shadow(0 0 3px ${colorShadow})` }} // Effet de glow
+        />
+      </svg>
+    );
   };
 
   // Fonction helper pour rendre une planète
@@ -316,8 +363,8 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           pointerEvents: 'auto',
         }}
         title={obj.name}
-        onMouseEnter={() => setHoveredPlanet(obj.id)}
-        onMouseLeave={() => setHoveredPlanet(null)}
+        onMouseEnter={() => setHoveredObject(obj)}
+        onMouseLeave={() => setHoveredObject(null)}
       >
         <div
           style={{
@@ -427,7 +474,10 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           height: '20px',
           zIndex,
           cursor: 'pointer',
+          pointerEvents: 'auto',
         }}
+        onMouseEnter={() => setHoveredObject(obj)}
+        onMouseLeave={() => setHoveredObject(null)}
       >
         <div
           style={{
@@ -485,8 +535,11 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           width: `${spread * 2}px`,
           height: `${spread * 2}px`,
           zIndex,
-          pointerEvents: 'none',
+          pointerEvents: 'auto',
+          cursor: 'help',
         }}
+        onMouseEnter={() => setHoveredObject(obj)}
+        onMouseLeave={() => setHoveredObject(null)}
       >
         {Array.from({ length: asteroidCount }).map((_, i) => {
           const angle = (360 / asteroidCount) * i;
@@ -519,6 +572,64 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
     );
   };
 
+  // Fonction helper pour rendre une sonde
+  const renderProbe = (probe: Probe, zIndex: number = 50) => {
+    if (!probe.solarPosition) return null;
+
+    const player = game.players.find(p => p.id === probe.ownerId);
+    const playerName = player?.name || 'Joueur inconnu';
+    const isSelected = selectedProbeId === probe.id;
+    const { x, y } = calculateObjectPosition(probe.solarPosition.disk, probe.solarPosition.sector);
+    
+    return (
+      <div
+        key={probe.id}
+        onClick={() => handleProbeClick(probe)}
+        onMouseEnter={() => setHoveredProbe(probe.id)}
+        onMouseLeave={() => setHoveredProbe(null)}
+        style={{
+          position: 'absolute',
+          top: `calc(50% + ${y}%)`,
+          left: `calc(50% + ${x}%)`,
+          transform: 'translate(-50%, -50%)',
+          width: '20px',
+          height: '20px',
+          borderRadius: '50%',
+          background: isSelected ? 'radial-gradient(circle, #00ff00, #00cc00)' : 'radial-gradient(circle, #8888ff, #5555aa)',
+          border: isSelected ? '3px solid #00ff00' : '2px solid #6666cc',
+          boxShadow: isSelected ? '0 0 12px rgba(0, 255, 0, 0.8)' : '0 0 6px rgba(136, 136, 255, 0.6)',
+          cursor: 'pointer',
+          zIndex,
+          transition: 'all 0.2s ease',
+          pointerEvents: 'auto',
+        }}
+        title={playerName}
+      />
+    );
+  };
+
+  // Fonction helper pour rendre un tooltip de sonde
+  const renderProbeTooltip = (probe: Probe, playerName: string, rotationAngle: number = 0) => {
+    const { x, y } = calculateObjectPosition(probe.solarPosition.disk, probe.solarPosition.sector, rotationAngle);
+    return (
+      <div
+        key={`probe-tooltip-${probe.id}`}
+        className="seti-planet-tooltip"
+        style={{
+          position: 'absolute',
+          bottom: `calc(50% - ${y}% + 12px)`,
+          left: `calc(50% + ${x}%)`,
+          transform: 'translateX(-50%)',
+          opacity: hoveredProbe === probe.id ? 1 : 0,
+          visibility: hoveredProbe === probe.id ? 'visible' : 'hidden',
+          zIndex: 101,
+        }}
+      >
+        {playerName}<br></br>Plateau {probe.solarPosition.level}<br></br>{probe.solarPosition.disk}{probe.solarPosition.sector}
+      </div>
+    );
+  };
+
   // Fonction pour gérer le clic sur une sonde
   const handleProbeClick = (probe: Probe) => {
     if (selectedProbeId === probe.id) {
@@ -535,11 +646,27 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
     if (probe.solarPosition) {
       const currentPlayer = game.players[game.currentPlayerIndex];
       const rotationState = createRotationState(rotationAngle1, rotationAngle2, rotationAngle3);
+      
+      // Calculer la position absolue de la sonde pour le pathfinding
+      // Les sondes sur les plateaux rotatifs ont une position relative, mais le pathfinding travaille en absolu
+      const tempObj: CelestialObject = {
+        id: 'temp',
+        type: 'empty',
+        name: 'temp',
+        position: {
+          disk: probe.solarPosition.disk,
+          sector: probe.solarPosition.sector,
+          x: 0, y: 0
+        },
+        level: (probe.solarPosition.level || 0) as 0 | 1 | 2 | 3
+      };
+      const absPos = calculateAbsolutePosition(tempObj, rotationState);
+
       const reachable = calculateReachableCellsWithEnergy(
         probe.solarPosition.disk,
-        probe.solarPosition.sector,
+        absPos.absoluteSector,
         0, // Pas de déplacements de base (sera géré par l'énergie)
-        currentPlayer.energy, // Utiliser toute l'énergie disponible
+        1, //currentPlayer.energy, // Utiliser toute l'énergie disponible
         rotationState
       );
       setReachableCells(reachable);
@@ -738,6 +865,26 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           {/* Soleil au centre */}
           <div className="seti-sun" style={{ top: '50%' }}></div>
 
+          {/* Objets fixes (niveau 0) - basés sur FIXED_OBJECTS */}
+          {FIXED_OBJECTS.map((obj) => {
+            if (obj.type === 'planet') {
+              return renderPlanet(obj, 35);
+            } else if (obj.type === 'comet') {
+              return renderComet(obj, 20);
+            } else if (obj.type === 'asteroid') {
+              return renderAsteroid(obj, 20);
+            }
+            return null;
+          })}
+
+          {/* Affichage des sondes fixes (disques D et E) */}
+          {probesInSystem.filter(probe => {
+              if (!probe.solarPosition) return false;
+              const level = probe.solarPosition.level;
+              return level === null; // Disques D et E (fixes)
+            }).map((probe) => renderProbe(probe, 50)
+          )}
+
           {/* Plateau rotatif niveau 1 avec 3 disques (A, B, C) - se superpose au plateau fixe */}
           {showLevel1 && (
           <div
@@ -753,213 +900,45 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               zIndex: 24, // Au-dessus du soleil, des objets fixes et des comètes/astéroïdes
               overflow: 'hidden',
               aspectRatio: '1', // Force un cercle parfait
+              pointerEvents: 'none',
               transition: 'transform 0.3s ease-in-out', // Transition fluide pour la rotation
               willChange: 'transform', // Optimisation pour la performance de la rotation
             }}
           >
             {/* Disque C (extérieur) - 8 secteurs */}
             {Array.from({ length: 8 }).map((_, sectorIndex) => {
-              // Conversion index → secteur absolu
-              const absoluteSector = indexToSector[sectorIndex];
-              // Convertir en secteur relatif au plateau niveau 1 (rotation inverse)
-              const relativeSector = absoluteToRelativeSector(absoluteSector, -rotationAngle1);
-              // Déterminer le type de secteur à partir de INITIAL_ROTATING_LEVEL1_OBJECTS
-              const sectorType = getSectorType(1, 'C', relativeSector);
-              const sectorNumber = absoluteSector; // Pour la clé et le debug
-              
-              // Utiliser l'index du secteur relatif pour calculer la position visuelle
-              const relativeSectorIndex = sectorToIndex[relativeSector];
-              
-              const diskIndex = 2; // C
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth); // 20%
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth); // 28%
-              
-              const sectorStartAngle = -(360 / 8) * relativeSectorIndex - 90; // 0° = midi (12h), sens horaire (de droite à gauche)
-              const sectorEndAngle = -(360 / 8) * (relativeSectorIndex + 1) - 90;
-              
-              // Calcul des points pour le secteur (tranche de tarte en forme d'anneau)
-              // Conversion en coordonnées SVG (viewBox 0 0 200 200, centre à 100,100)
-              // Les rayons sont en pourcentage, donc on les convertit : 20% de 200 = 40, 28% de 200 = 56
-              const innerRadiusPx = (innerRadius / 100) * 200;
-              const outerRadiusPx = (outerRadius / 100) * 200;
-              
-              const innerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-              const innerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-              const innerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-              const innerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-              const outerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-              const outerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-              const outerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-              const outerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-              
-              // Flag pour déterminer si l'arc est grand (plus de 180°)
-              const largeArcFlag = Math.abs(sectorEndAngle - sectorStartAngle) > 180 ? 1 : 0;
-              
-              // Ne pas afficher les secteurs hollow
-              if (sectorType === 'hollow') return null;
-              
-              return (
-                <svg
-                  key={`rotating-sector-c-${sectorNumber}`}
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                    zIndex: 24, // Sous les objets célestes mais au-dessus du conteneur
-                    transformOrigin: 'center center', // Assurer que la rotation se fait autour du centre
-                  }}
-                  viewBox="0 0 200 200"
-                >
-                  <path
-                    d={`M ${innerStartX} ${innerStartY} L ${outerStartX} ${outerStartY} A ${outerRadiusPx} ${outerRadiusPx} 0 ${largeArcFlag} 0 ${outerEndX} ${outerEndY} L ${innerEndX} ${innerEndY} A ${innerRadiusPx} ${innerRadiusPx} 0 ${largeArcFlag} 1 ${innerStartX} ${innerStartY} Z`}
-                    fill="rgba(60, 80, 120, 0.8)" // Plus clair pour la surbrillance
-                    stroke="rgba(255, 215, 0, 0.8)" // Bordure jaune pour correspondre au contour
-                    strokeWidth="1.5" // Bordure plus épaisse
-                    style={{ filter: 'drop-shadow(0 0 3px rgba(255, 215, 0, 0.5))' }} // Effet de glow jaune
-                  />
-                </svg>
-              );
+              const obj: RotationDisk = 
+                {
+                  id: 'disk1C',
+                  sectorIndex: sectorIndex,
+                  diskName: 'C',
+                  level: 1,
+                }
+              return renderRotationDisk(obj, 24);
             })}
 
             {/* Disque B (moyen) - 8 secteurs */}
             {Array.from({ length: 8 }).map((_, sectorIndex) => {
-              // Conversion index → secteur absolu
-              const absoluteSector = indexToSector[sectorIndex];
-              // Convertir en secteur relatif au plateau niveau 1 (rotation inverse)
-              const relativeSector = absoluteToRelativeSector(absoluteSector, -rotationAngle1);
-              // Déterminer le type de secteur à partir de INITIAL_ROTATING_LEVEL1_OBJECTS
-              const sectorType = getSectorType(1, 'B', relativeSector);
-              const sectorNumber = absoluteSector; // Pour la clé et le debug
-              
-              // Utiliser l'index du secteur relatif pour calculer la position visuelle
-              const relativeSectorIndex = sectorToIndex[relativeSector];
-              
-              const diskIndex = 1; // B
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth); // 12%
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth); // 20%
-              
-              const sectorStartAngle = -(360 / 8) * relativeSectorIndex - 90; // 0° = midi (12h), sens horaire (de droite à gauche)
-              const sectorEndAngle = -(360 / 8) * (relativeSectorIndex + 1) - 90;
-              
-              // Conversion en pixels pour le viewBox
-              const innerRadiusPx = (innerRadius / 100) * 200;
-              const outerRadiusPx = (outerRadius / 100) * 200;
-              
-              const innerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-              const innerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-              const innerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-              const innerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-              const outerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-              const outerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-              const outerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-              const outerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-              
-              const largeArcFlag = Math.abs(sectorEndAngle - sectorStartAngle) > 180 ? 1 : 0;
-              
-              // Ne pas afficher les secteurs hollow
-              if (sectorType === 'hollow') return null;
-              
-              return (
-                <svg
-                  key={`rotating-sector-b-${sectorNumber}`}
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                    zIndex: 24, // Sous les objets célestes mais au-dessus du conteneur
-                    transformOrigin: 'center center', // Assurer que la rotation se fait autour du centre
-                  }}
-                  viewBox="0 0 200 200"
-                >
-                  <path
-                    d={`M ${innerStartX} ${innerStartY} L ${outerStartX} ${outerStartY} A ${outerRadiusPx} ${outerRadiusPx} 0 ${largeArcFlag} 0 ${outerEndX} ${outerEndY} L ${innerEndX} ${innerEndY} A ${innerRadiusPx} ${innerRadiusPx} 0 ${largeArcFlag} 1 ${innerStartX} ${innerStartY} Z`}
-                    fill="rgba(60, 80, 120, 0.8)" // Plus clair pour la surbrillance
-                    stroke="rgba(255, 215, 0, 0.8)" // Bordure jaune pour correspondre au contour
-                    strokeWidth="1.5" // Bordure plus épaisse
-                    style={{ filter: 'drop-shadow(0 0 3px rgba(255, 215, 0, 0.5))' }} // Effet de glow jaune
-                  />
-                </svg>
-              );
+              const obj: RotationDisk = 
+              {
+                id: 'disk1B',
+                sectorIndex: sectorIndex,
+                diskName: 'B',
+                level: 1,
+              }
+              return renderRotationDisk(obj, 24);
             })}
 
             {/* Disque A (intérieur) - 8 secteurs */}
             {Array.from({ length: 8 }).map((_, sectorIndex) => {
-              // Conversion index → secteur absolu
-              const absoluteSector = indexToSector[sectorIndex];
-              // Convertir en secteur relatif au plateau niveau 1 (rotation inverse)
-              const relativeSector = absoluteToRelativeSector(absoluteSector, -rotationAngle1);
-              // Déterminer le type de secteur à partir de INITIAL_ROTATING_LEVEL1_OBJECTS
-              const sectorType = getSectorType(1, 'A', relativeSector);
-              const sectorNumber = absoluteSector; // Pour la clé et le debug
-              
-              // Utiliser l'index du secteur relatif pour calculer la position visuelle
-              const relativeSectorIndex = sectorToIndex[relativeSector];
-              
-              const diskIndex = 0; // A
-              const diskWidth = 8;
-              const sunRadius = 4;
-              // Le disque A commence au bord du soleil (4%) pour que le centre corresponde au soleil
-              const innerRadius = sunRadius + (diskIndex * diskWidth);; // 4% (bord du soleil)
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth); // 12%
-              
-              const sectorStartAngle = -(360 / 8) * relativeSectorIndex - 90; // 0° = midi (12h), sens horaire (de droite à gauche)
-              const sectorEndAngle = -(360 / 8) * (relativeSectorIndex + 1) - 90;
-              
-              // Conversion en pixels pour le viewBox
-              const innerRadiusPx = (innerRadius / 100) * 200;
-              const outerRadiusPx = (outerRadius / 100) * 200;
-              
-              const innerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-              const innerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-              const innerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-              const innerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-              const outerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-              const outerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-              const outerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-              const outerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-              
-              const largeArcFlag = Math.abs(sectorEndAngle - sectorStartAngle) > 180 ? 1 : 0;
-              
-              // Ne pas afficher les secteurs hollow
-              if (sectorType === 'hollow') return null;
-              
-              return (
-                <svg
-                  key={`rotating-sector-a-${sectorNumber}`}
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                    zIndex: 24, // Sous les objets célestes mais au-dessus du conteneur
-                    transformOrigin: 'center center', // Assurer que la rotation se fait autour du centre
-                  }}
-                  viewBox="0 0 200 200"
-                >
-                  <path
-                    d={`M ${innerStartX} ${innerStartY} L ${outerStartX} ${outerStartY} A ${outerRadiusPx} ${outerRadiusPx} 0 ${largeArcFlag} 0 ${outerEndX} ${outerEndY} L ${innerEndX} ${innerEndY} A ${innerRadiusPx} ${innerRadiusPx} 0 ${largeArcFlag} 1 ${innerStartX} ${innerStartY} Z`}
-                    fill="rgba(60, 80, 120, 0.8)" // Plus clair pour la surbrillance
-                    stroke="rgba(255, 215, 0, 0.8)" // Bordure jaune pour correspondre au contour
-                    strokeWidth="1.5" // Bordure plus épaisse
-                    style={{ filter: 'drop-shadow(0 0 3px rgba(255, 215, 0, 0.5))' }} // Effet de glow jaune
-                  />
-                </svg>
-              );
+              const obj: RotationDisk = 
+              {
+                id: 'disk1A',
+                sectorIndex: sectorIndex,
+                diskName: 'A',
+                level: 1,
+              }
+              return renderRotationDisk(obj, 24);
             })}
 
             {/* Sondes sur les disques A, B, C (niveau 1) */}
@@ -986,7 +965,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           </div>
           )}
 
-          {/* Plateau rotatif niveau 2 avec 2 disques (A, B) - se superpose au plateau fixe et niveau 1 */}
+          {/* Plateau rotatif niveau 2 avec 2 disques (A, B) - se superpose au niveau 1 */}
           {showLevel2 && (
           <div
             className="seti-rotating-overlay seti-rotating-level-2"
@@ -1006,16 +985,28 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               willChange: 'transform', // Optimisation pour la performance de la rotation
             }}
           >
-            {/* Objets célestes sur le plateau rotatif niveau 2 - basés sur INITIAL_ROTATING_LEVEL2_OBJECTS */}
-            {INITIAL_ROTATING_LEVEL2_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
-              if (obj.type === 'planet') {
-                return renderPlanet(obj, 35);
-              } else if (obj.type === 'comet') {
-                return renderComet(obj, 28);
-              } else if (obj.type === 'asteroid') {
-                return renderAsteroid(obj, 28);
+            {/* Disque B (extérieur) - 8 secteurs */}
+            {Array.from({ length: 8 }).map((_, sectorIndex) => {
+              const obj: RotationDisk = 
+              {
+                id: 'disk2B',
+                sectorIndex: sectorIndex,
+                diskName: 'B',
+                level: 2,
               }
-              return null;
+              return renderRotationDisk(obj, 27);
+            })}
+
+            {/* Disque A (intérieur) - 8 secteurs */}
+            {Array.from({ length: 8 }).map((_, sectorIndex) => {
+              const obj: RotationDisk = 
+              {
+                id: 'disk2A',
+                sectorIndex: sectorIndex,
+                diskName: 'A',
+                level: 2,
+              }
+              return renderRotationDisk(obj, 27);
             })}
 
             {/* Sondes sur les disques A, B (niveau 2) */}
@@ -1027,132 +1018,16 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               })
               .map((probe) => renderProbe(probe, 50))}
 
-            {/* Disque B (extérieur) - 8 secteurs */}
-            {Array.from({ length: 8 }).map((_, sectorIndex) => {
-              // Conversion index → secteur absolu
-              const absoluteSector = indexToSector[sectorIndex];
-              // Convertir en secteur relatif au plateau niveau 2 (rotation inverse)
-              const relativeSector = absoluteToRelativeSector(absoluteSector, -rotationAngle2);
-              // Déterminer le type de secteur à partir de INITIAL_ROTATING_LEVEL1_OBJECTS
-              const sectorType = getSectorType(2, 'B', relativeSector);
-              const sectorNumber = absoluteSector; // Pour la clé et le debug
-              
-              // Utiliser l'index du secteur relatif pour calculer la position visuelle
-              const relativeSectorIndex = sectorToIndex[relativeSector];
-              
-              const diskIndex = 1; // B
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth); // 12%
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth); // 20%
-              
-              const sectorStartAngle = -(360 / 8) * relativeSectorIndex - 90; // 0° = midi (12h), sens horaire (de droite à gauche)
-              const sectorEndAngle = -(360 / 8) * (relativeSectorIndex + 1) - 90;
-              
-              const innerRadiusPx = (innerRadius / 100) * 200;
-              const outerRadiusPx = (outerRadius / 100) * 200;
-              
-              const innerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-              const innerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-              const innerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-              const innerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-              const outerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-              const outerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-              const outerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-              const outerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-              
-              const largeArcFlag = Math.abs(sectorEndAngle - sectorStartAngle) > 180 ? 1 : 0;
-              
-              if (sectorType === 'hollow') return null;
-              
-              return (
-                <svg
-                  key={`rotating-level2-sector-b-${sectorNumber}`}
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                    zIndex: 27, // Sous Mars (z-index 35) mais au-dessus du conteneur (z-index 26)
-                  }}
-                  viewBox="0 0 200 200"
-                >
-                  <path
-                    d={`M ${innerStartX} ${innerStartY} L ${outerStartX} ${outerStartY} A ${outerRadiusPx} ${outerRadiusPx} 0 ${largeArcFlag} 0 ${outerEndX} ${outerEndY} L ${innerEndX} ${innerEndY} A ${innerRadiusPx} ${innerRadiusPx} 0 ${largeArcFlag} 1 ${innerStartX} ${innerStartY} Z`}
-                    fill="rgba(40, 60, 100, 0.8)" // Plus clair pour la surbrillance
-                    stroke="rgba(255, 107, 107, 0.8)" // Bordure rouge pour correspondre au contour
-                    strokeWidth="1.5" // Bordure plus épaisse
-                    style={{ filter: 'drop-shadow(0 0 3px rgba(255, 107, 107, 0.5))' }} // Effet de glow
-                  />
-                </svg>
-              );
-            })}
-
-            {/* Disque A (intérieur) - 8 secteurs */}
-            {Array.from({ length: 8 }).map((_, sectorIndex) => {
-              // Conversion index → secteur absolu
-              const absoluteSector = indexToSector[sectorIndex];
-              // Convertir en secteur relatif au plateau niveau 2 (rotation inverse)
-              const relativeSector = absoluteToRelativeSector(absoluteSector, -rotationAngle2);
-              // Déterminer le type de secteur à partir de INITIAL_ROTATING_LEVEL2_OBJECTS
-              const sectorType = getSectorType(2, 'A', relativeSector);
-              const sectorNumber = absoluteSector; // Pour la clé et le debug
-              
-              // Utiliser l'index du secteur relatif pour calculer la position visuelle
-              const relativeSectorIndex = sectorToIndex[relativeSector];
-              
-              const diskIndex = 0; // A
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth);; // 4% (bord du soleil)
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth); // 12%
-              
-              const sectorStartAngle = -(360 / 8) * relativeSectorIndex - 90; // 0° = midi (12h), sens horaire (de droite à gauche)
-              const sectorEndAngle = -(360 / 8) * (relativeSectorIndex + 1) - 90;
-              
-              const innerRadiusPx = (innerRadius / 100) * 200;
-              const outerRadiusPx = (outerRadius / 100) * 200;
-              
-              const innerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-              const innerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-              const innerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-              const innerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-              const outerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-              const outerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-              const outerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-              const outerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-              
-              const largeArcFlag = Math.abs(sectorEndAngle - sectorStartAngle) > 180 ? 1 : 0;
-              
-              if (sectorType === 'hollow') return null;
-              
-              return (
-                <svg
-                  key={`rotating-level2-sector-a-${sectorNumber}`}
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                    zIndex: 27,
-                  }}
-                  viewBox="0 0 200 200"
-                >
-                  <path
-                    d={`M ${innerStartX} ${innerStartY} L ${outerStartX} ${outerStartY} A ${outerRadiusPx} ${outerRadiusPx} 0 ${largeArcFlag} 0 ${outerEndX} ${outerEndY} L ${innerEndX} ${innerEndY} A ${innerRadiusPx} ${innerRadiusPx} 0 ${largeArcFlag} 1 ${innerStartX} ${innerStartY} Z`}
-                    fill="rgba(40, 60, 100, 0.8)"
-                    stroke="rgba(255, 107, 107, 0.8)"
-                    strokeWidth="1.5"
-                    style={{ filter: 'drop-shadow(0 0 3px rgba(255, 107, 107, 0.5))' }}
-                  />
-                </svg>
-              );
+            {/* Objets célestes sur le plateau rotatif niveau 2 - basés sur INITIAL_ROTATING_LEVEL2_OBJECTS */}
+            {INITIAL_ROTATING_LEVEL2_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
+              if (obj.type === 'planet') {
+                return renderPlanet(obj, 35);
+              } else if (obj.type === 'comet') {
+                return renderComet(obj, 28);
+              } else if (obj.type === 'asteroid') {
+                return renderAsteroid(obj, 28);
+              }
+              return null;
             })}
 
           </div>
@@ -1178,6 +1053,26 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               willChange: 'transform', // Optimisation pour la performance de la rotation
             }}
           >
+            {/* Disque A (intérieur) - 8 secteurs */}
+            {Array.from({ length: 8 }).map((_, sectorIndex) => {
+              const obj: RotationDisk = 
+              {
+                id: 'disk3A',
+                sectorIndex: sectorIndex,
+                diskName: 'A',
+                level: 3,
+              }
+              return renderRotationDisk(obj, 29);
+            })}
+
+            {/* Sondes sur le disque A (niveau 3) */}
+            {probesInSystem.filter(probe => {
+                if (!probe.solarPosition) return false;
+                const level = probe.solarPosition.level;
+                return level === 3;
+              }).map((probe) => renderProbe(probe, 50)
+            )}
+
             {/* Objets célestes sur le plateau rotatif niveau 3 - basés sur INITIAL_ROTATING_LEVEL3_OBJECTS */}
             {INITIAL_ROTATING_LEVEL3_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
               if (obj.type === 'planet') {
@@ -1190,95 +1085,11 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               return null;
             })}
 
-            {/* Disque A (intérieur) - 8 secteurs */}
-            {Array.from({ length: 8 }).map((_, sectorIndex) => {
-              // Conversion index → secteur absolu
-              const absoluteSector = indexToSector[sectorIndex];
-              // Convertir en secteur relatif au plateau niveau 3 (rotation inverse)
-              const relativeSector = absoluteToRelativeSector(absoluteSector, -rotationAngle3);
-              // Déterminer le type de secteur à partir de INITIAL_ROTATING_LEVEL3_OBJECTS
-              const sectorType = getSectorType(3, 'A', relativeSector);
-              const sectorNumber = absoluteSector; // Pour la clé et le debug
-              
-              // Utiliser l'index du secteur relatif pour calculer la position visuelle
-              const relativeSectorIndex = sectorToIndex[relativeSector];
-              
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius; // 4% (bord du soleil)
-              const outerRadius = sunRadius + diskWidth; // 12%
-              
-              const sectorStartAngle = -(360 / 8) * relativeSectorIndex - 90; // 0° = midi (12h), sens horaire (de droite à gauche)
-              const sectorEndAngle = -(360 / 8) * (relativeSectorIndex + 1) - 90;
-              
-              const innerRadiusPx = (innerRadius / 100) * 200;
-              const outerRadiusPx = (outerRadius / 100) * 200;
-              
-              const innerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-              const innerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-              const innerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-              const innerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-              const outerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-              const outerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-              const outerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-              const outerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-              
-              const largeArcFlag = Math.abs(sectorEndAngle - sectorStartAngle) > 180 ? 1 : 0;
-              
-              if (sectorType === 'hollow') return null;
-              
-              return (
-                <svg
-                  key={`rotating-level3-sector-a-${sectorNumber}`}
-                  style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                    zIndex: 29,
-                  }}
-                  viewBox="0 0 200 200"
-                >
-                  <path
-                    d={`M ${innerStartX} ${innerStartY} L ${outerStartX} ${outerStartY} A ${outerRadiusPx} ${outerRadiusPx} 0 ${largeArcFlag} 0 ${outerEndX} ${outerEndY} L ${innerEndX} ${innerEndY} A ${innerRadiusPx} ${innerRadiusPx} 0 ${largeArcFlag} 1 ${innerStartX} ${innerStartY} Z`}
-                    fill="rgba(40, 60, 100, 0.8)"
-                    stroke="rgba(74, 158, 255, 0.8)"
-                    strokeWidth="1.5"
-                    style={{ filter: 'drop-shadow(0 0 3px rgba(74, 158, 255, 0.5))' }}
-                  />
-                </svg>
-              );
-            })}
-
-            {/* Sondes sur le disque A (niveau 3) */}
-            {probesInSystem
-              .filter(probe => {
-                if (!probe.solarPosition) return false;
-                const level = probe.solarPosition.level;
-                return level === 3;
-              })
-              .map((probe) => renderProbe(probe, 50))}
-
           </div>
           )}
 
-          {/* Objets fixes (niveau 0) - basés sur FIXED_OBJECTS */}
-          {FIXED_OBJECTS.map((obj) => {
-            if (obj.type === 'planet') {
-              return renderPlanet(obj, 35);
-            } else if (obj.type === 'comet') {
-              return renderComet(obj, 20);
-            } else if (obj.type === 'asteroid') {
-              return renderAsteroid(obj, 20);
-            }
-            return null;
-          })}
-
           {/* Zones invisibles pour détecter le survol des cases */}
-          {Object.keys(DISK_NAMES).map((disk, diskIndex) => {
+          {/*Object.keys(DISK_NAMES).map((disk, diskIndex) => {
             const diskWidth = 8;
             const sunRadius = 4;
             const innerRadius = sunRadius + (diskIndex * diskWidth);
@@ -1314,10 +1125,10 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                 />
               );
             });
-          })}
+          })}*/}
 
           {/* Tooltip pour afficher la position de la case survolée */}
-          {hoveredCell && (() => {
+          {/*hoveredCell && (() => {
             const diskIndex = DISK_NAMES[hoveredCell.disk];
             const diskWidth = 8;
             const sunRadius = 4;
@@ -1358,357 +1169,62 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                 {hoveredCell.disk}{hoveredCell.sector}
               </div>
             );
-          })()}
+          })()*/}
 
           {/* Conteneur fixe pour les tooltips des planètes rotatives */}
           <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 100 }}>
-            {/* Tooltip Neptune (niveau 0) */}
-            {(() => {
-              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-              const diskIndex = 3; // D
-              const sectorNumber = 3;
-              const sectorIndex = sectorToIndex[sectorNumber];
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth);
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-              const planetRadius = (innerRadius + outerRadius) / 2;
-              // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
-              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
-              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
-              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-              const rotatedAngle = sectorCenterAngle;
-              const radian = rotatedAngle * (Math.PI / 180);
-              const x = Math.cos(radian) * planetRadius;
-              const y = Math.sin(radian) * planetRadius;
+            {/* Tooltip dynamique pour l'objet survolé (Planète, Comète, Astéroïde) */}
+            {hoveredObject && (() => {
+              const { disk, sector } = hoveredObject.position;
+              let rotationAngle = 0;
+              if (hoveredObject.level === 1) rotationAngle = rotationAngle1;
+              else if (hoveredObject.level === 2) rotationAngle = rotationAngle2;
+              else if (hoveredObject.level === 3) rotationAngle = rotationAngle3;
+              else rotationAngle = 0;
+              
+              const { x, y } = calculateObjectPosition(disk, sector, rotationAngle);
+              
+              let content = <div style={{ fontWeight: 'bold' }}>{hoveredObject.name}</div>;
+              let subContent = null;
 
-              //const planet = game.board.planets.find(p => p.id === 'neptune');
-              //if (!planet) return null;
-              //const orbitText = `Orbite: ${planet?.orbitFirstPV || 0} / ${planet?.orbitNextPV || 0} PV`;
-              //const landText = `Atterrissage: ${planet.landFirstPV || 0} / ${planet.landNextPV || 0} PV`;
-              //const satellitesText = planet.satellites?.map(s => `${s.name} (+${s.bonus.pv || 0} PV)`).join('<br></br>') || '';
-
-              return (
-                <div
-                  className="seti-planet-tooltip"
-                  style={{
-                    position: 'absolute',
-                    bottom: `calc(50% - ${y}% + 18px)`, // Position au-dessus de la planète (18px = demi-taille de la planète + marge)
-                    left: `calc(50% + ${x}%)`,
-                    transform: 'translateX(-50%)',
-                    opacity: hoveredPlanet === 'neptune' ? 1 : 0,
-                    visibility: hoveredPlanet === 'neptune' ? 'visible' : 'hidden',
-                    zIndex: 101,
-                  }}
-                >
-                  Neptune
-                </div>
-              );
-            })()}
-            {/* Tooltip Uranus (niveau 0) */}
-            {(() => {
-              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-              const diskIndex = 3; // D
-              const sectorNumber = 6;
-              const sectorIndex = sectorToIndex[sectorNumber];
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth);
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-              const planetRadius = (innerRadius + outerRadius) / 2;
-              // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
-              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
-              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
-              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-              const rotatedAngle = sectorCenterAngle;
-              const radian = rotatedAngle * (Math.PI / 180);
-              const x = Math.cos(radian) * planetRadius;
-              const y = Math.sin(radian) * planetRadius;
-
-              //const planet = game.board.planets.find(p => p.id === 'uranus');
-              //if (!planet) return null;
-              //const orbitText = `Orbite: ${planet?.orbitFirstPV || 0} / ${planet?.orbitNextPV || 0} PV`;
-              //const landText = `Atterrissage: ${planet.landFirstPV || 0} / ${planet.landNextPV || 0} PV`;
-              //const satellitesText = planet.satellites?.map(s => `${s.name} (+${s.bonus.pv || 0} PV)`).join('<br></br>') || '';
+              if (hoveredObject.type === 'comet') {
+                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>Vous gagnez 1 media</div>;
+              } else if (hoveredObject.type === 'asteroid') {
+                const currentPlayer = game.players[game.currentPlayerIndex];
+                // Utilisation de exploration-2 qui correspond au bonus d'astéroïdes dans Board.ts
+                const hasTech = currentPlayer.technologies.some(t => t.id === 'exploration-2');
+                subContent = (
+                  <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>
+                    {hasTech ? 'Vous gagnez 1 media' : 'Nécessite 1 déplacement supplémentaire pour quitter'}
+                  </div>
+                );
+              } else if (hoveredObject.type === 'planet') {
+                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>Vous gagnez 1 media</div>;
+              }
 
               return (
                 <div
                   className="seti-planet-tooltip"
                   style={{
                     position: 'absolute',
-                    bottom: `calc(50% - ${y}% + 18px)`, // Position au-dessus de la planète (18px = demi-taille de la planète + marge)
+                    bottom: `calc(50% - ${y}% + 18px)`,
                     left: `calc(50% + ${x}%)`,
                     transform: 'translateX(-50%)',
-                    opacity: hoveredPlanet === 'uranus' ? 1 : 0,
-                    visibility: hoveredPlanet === 'uranus' ? 'visible' : 'hidden',
+                    opacity: 1,
+                    visibility: 'visible',
                     zIndex: 101,
+                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                    padding: '6px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #78a0ff',
+                    color: '#fff',
+                    textAlign: 'center',
+                    minWidth: '120px',
+                    pointerEvents: 'none',
                   }}
                 >
-                  Uranus
-                </div>
-              );
-            })()}
-            {/* Tooltip Saturne (niveau 1) */}
-            {(() => {
-              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-              const diskIndex = 2; // C
-              const sectorNumber = 1; // Saturne est en C1 selon INITIAL_ROTATING_LEVEL1_OBJECTS
-              const sectorIndex = sectorToIndex[sectorNumber];
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth);
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-              const planetRadius = (innerRadius + outerRadius) / 2;
-              // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
-              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
-              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
-              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-              // Appliquer la rotation du plateau niveau 1
-              const rotatedAngle = sectorCenterAngle + rotationAngle1;
-              const radian = rotatedAngle * (Math.PI / 180);
-              const x = Math.cos(radian) * planetRadius;
-              const y = Math.sin(radian) * planetRadius;
-
-              //const planet = game.board.planets.find(p => p.id === 'saturn');
-              //if (!planet) return null;
-              //const orbitText = `Orbite: ${planet?.orbitFirstPV || 0} / ${planet?.orbitNextPV || 0} PV`;
-              //const landText = `Atterrissage: ${planet.landFirstPV || 0} / ${planet.landNextPV || 0} PV`;
-              //const satellitesText = planet.satellites?.map(s => `${s.name} (+${s.bonus.pv || 0} PV)`).join('<br></br>') || '';
-
-              return (
-                <div
-                  className="seti-planet-tooltip"
-                  style={{
-                    position: 'absolute',
-                    bottom: `calc(50% - ${y}% + 18px)`, // Position au-dessus de la planète (18px = demi-taille de la planète + marge)
-                    left: `calc(50% + ${x}%)`,
-                    transform: 'translateX(-50%)',
-                    opacity: hoveredPlanet === 'saturn' ? 1 : 0,
-                    visibility: hoveredPlanet === 'saturn' ? 'visible' : 'hidden',
-                    zIndex: 101,
-                  }}
-                >
-                  Saturne
-                </div>
-              );
-            })()}
-            {/* Tooltip Jupiter (niveau 1) */}
-            {(() => {
-              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-              const diskIndex = 2; // C
-              const sectorNumber = 5; // Jupiter est en C5 selon INITIAL_ROTATING_LEVEL1_OBJECTS
-              const sectorIndex = sectorToIndex[sectorNumber];
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth);
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-              const planetRadius = (innerRadius + outerRadius) / 2;
-              // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
-              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
-              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
-              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-              // Appliquer la rotation du plateau niveau 1
-              const rotatedAngle = sectorCenterAngle + rotationAngle1;
-              const radian = rotatedAngle * (Math.PI / 180);
-              const x = Math.cos(radian) * planetRadius;
-              const y = Math.sin(radian) * planetRadius;
-
-              //const planet = game.board.planets.find(p => p.id === 'jupiter');
-              //if (!planet) return null;
-              //const orbitText = `Orbite: ${planet?.orbitFirstPV || 0} / ${planet?.orbitNextPV || 0} PV`;
-              //const landText = `Atterrissage: ${planet.landFirstPV || 0} / ${planet.landNextPV || 0} PV`;
-              //const satellitesText = planet.satellites?.map(s => `${s.name} (+${s.bonus.pv || 0} PV)`).join('<br></br>') || '';
-
-              return (
-                <div
-                  className="seti-planet-tooltip"
-                  style={{
-                    position: 'absolute',
-                    bottom: `calc(50% - ${y}% + 20px)`,
-                    left: `calc(50% + ${x}%)`,
-                    transform: 'translateX(-50%)',
-                    opacity: hoveredPlanet === 'jupiter' ? 1 : 0,
-                    visibility: hoveredPlanet === 'jupiter' ? 'visible' : 'hidden',
-                    zIndex: 101,
-                  }}
-                >
-                  Jupiter
-                </div>
-              );
-            })()}
-            {/* Tooltip Mars (niveau 2) */}
-            {(() => {
-              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-              const diskIndex = 1; // B
-              const sectorNumber = 1; // Mars est en B1 selon INITIAL_ROTATING_LEVEL2_OBJECTS
-              const sectorIndex = sectorToIndex[sectorNumber];
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth);
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-              const planetRadius = (innerRadius + outerRadius) / 2;
-              // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
-              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
-              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
-              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-              // Appliquer la rotation totale du plateau niveau 2 (tourne avec niveau 1)
-              const rotatedAngle = sectorCenterAngle + rotationAngle2;
-              const radian = rotatedAngle * (Math.PI / 180);
-              const x = Math.cos(radian) * planetRadius;
-              const y = Math.sin(radian) * planetRadius;
-
-              //const planet = game.board.planets.find(p => p.id === 'mars');
-              //if (!planet) return null;
-              //const orbitText = `Orbite: ${planet?.orbitFirstPV || 0} / ${planet?.orbitNextPV || 0} PV`;
-              //const landText = `Atterrissage: ${planet.landFirstPV || 0} / ${planet.landNextPV || 0} PV`;
-              //const satellitesText = planet.satellites?.map(s => `${s.name} (+${s.bonus.pv || 0} PV)`).join('<br></br>') || '';
-
-              return (
-                <div
-                  className="seti-planet-tooltip"
-                  style={{
-                    position: 'absolute',
-                    bottom: `calc(50% - ${y}% + 14px)`,
-                    left: `calc(50% + ${x}%)`,
-                    transform: 'translateX(-50%)',
-                    opacity: hoveredPlanet === 'mars' ? 1 : 0,
-                    visibility: hoveredPlanet === 'mars' ? 'visible' : 'hidden',
-                    zIndex: 101,
-                  }}
-                >
-                  Mars
-                </div>
-              );
-            })()}
-            {/* Tooltip Terre (niveau 3) */}
-            {(() => {
-              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-              const diskIndex = 0; // A
-              const sectorNumber = 2; // Terre est en A2 selon INITIAL_ROTATING_LEVEL3_OBJECTS
-              const sectorIndex = sectorToIndex[sectorNumber];
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth);
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-              const planetRadius = (innerRadius + outerRadius) / 2;
-              // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
-              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
-              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
-              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-              // Appliquer la rotation totale du plateau niveau 3 (tourne avec niveaux 1 et 2)
-              const rotatedAngle = sectorCenterAngle + rotationAngle3;
-              const radian = rotatedAngle * (Math.PI / 180);
-              const x = Math.cos(radian) * planetRadius;
-              const y = Math.sin(radian) * planetRadius;
-
-              //const planet = game.board.planets.find(p => p.id === 'earth');
-              //if (!planet) return null;
-              //const orbitText = `Orbite: ${planet?.orbitFirstPV || 0} / ${planet?.orbitNextPV || 0} PV`;
-              //const landText = `Atterrissage: ${planet.landFirstPV || 0} / ${planet.landNextPV || 0} PV`;
-              //const satellitesText = planet.satellites?.map(s => `${s.name} (+${s.bonus.pv || 0} PV)`).join('<br></br>') || '';
-
-              return (
-                <div
-                  className="seti-planet-tooltip"
-                  style={{
-                    position: 'absolute',
-                    bottom: `calc(50% - ${y}% + 16px)`,
-                    left: `calc(50% + ${x}%)`,
-                    transform: 'translateX(-50%)',
-                    opacity: hoveredPlanet === 'earth' ? 1 : 0,
-                    visibility: hoveredPlanet === 'earth' ? 'visible' : 'hidden',
-                    zIndex: 101,
-                  }}
-                >
-                  Terre
-                </div>
-              );
-            })()}
-            {/* Tooltip Vénus (niveau 3) */}
-            {(() => {
-              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-              const diskIndex = 0; // A
-              const sectorNumber = 4; // Vénus est en A4 selon INITIAL_ROTATING_LEVEL3_OBJECTS
-              const sectorIndex = sectorToIndex[sectorNumber];
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth);
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-              const planetRadius = (innerRadius + outerRadius) / 2;
-              // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
-              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
-              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
-              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-              // Appliquer la rotation totale du plateau niveau 3 (tourne avec niveaux 1 et 2)
-              const rotatedAngle = sectorCenterAngle + rotationAngle3;
-              const radian = rotatedAngle * (Math.PI / 180);
-              const x = Math.cos(radian) * planetRadius;
-              const y = Math.sin(radian) * planetRadius;
-
-              //const planet = game.board.planets.find(p => p.id === 'venus');
-              //if (!planet) return null;
-              //const orbitText = `Orbite: ${planet?.orbitFirstPV || 0} / ${planet?.orbitNextPV || 0} PV`;
-              //const landText = `Atterrissage: ${planet.landFirstPV || 0} / ${planet.landNextPV || 0} PV`;
-              //const satellitesText = planet.satellites?.map(s => `${s.name} (+${s.bonus.pv || 0} PV)`).join('<br></br>') || '';
-
-              return (
-                <div
-                  className="seti-planet-tooltip"
-                  style={{
-                    position: 'absolute',
-                    bottom: `calc(50% - ${y}% + 15px)`,
-                    left: `calc(50% + ${x}%)`,
-                    transform: 'translateX(-50%)',
-                    opacity: hoveredPlanet === 'venus' ? 1 : 0,
-                    visibility: hoveredPlanet === 'venus' ? 'visible' : 'hidden',
-                    zIndex: 101,
-                  }}
-                >
-                  Vénus
-                </div>
-              );
-            })()}
-            {/* Tooltip Mercure (niveau 3) */}
-            {(() => {
-              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-              const diskIndex = 0; // A
-              const sectorNumber = 6; // Mercure est en A6 selon INITIAL_ROTATING_LEVEL3_OBJECTS
-              const sectorIndex = sectorToIndex[sectorNumber];
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth);
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-              const planetRadius = (innerRadius + outerRadius) / 2;
-              // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
-              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
-              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
-              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-              // Appliquer la rotation totale du plateau niveau 3 (tourne avec niveaux 1 et 2)
-              const rotatedAngle = sectorCenterAngle + rotationAngle3;
-              const radian = rotatedAngle * (Math.PI / 180);
-              const x = Math.cos(radian) * planetRadius;
-              const y = Math.sin(radian) * planetRadius;
-
-              //const planet = game.board.planets.find(p => p.id === 'mercury');
-              //if (!planet) return null;
-              //const orbitText = `Orbite: ${planet?.orbitFirstPV || 0} / ${planet?.orbitNextPV || 0} PV`;
-              //const landText = `Atterrissage: ${planet.landFirstPV || 0} / ${planet.landNextPV || 0} PV`;
-              //const satellitesText = planet.satellites?.map(s => `${s.name} (+${s.bonus.pv || 0} PV)`).join('<br></br>') || '';
-
-              return (
-                <div
-                  className="seti-planet-tooltip"
-                  style={{
-                    position: 'absolute',
-                    bottom: `calc(50% - ${y}% + 13px)`,
-                    left: `calc(50% + ${x}%)`,
-                    transform: 'translateX(-50%)',
-                    opacity: hoveredPlanet === 'mercury' ? 1 : 0,
-                    visibility: hoveredPlanet === 'mercury' ? 'visible' : 'hidden',
-                    zIndex: 101,
-                  }}
-                >
-                  Mercure
+                  {content}
+                  {subContent}
                 </div>
               );
             })()}
@@ -1716,64 +1232,25 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
             {/* Tooltips des sondes */}
             {probesInSystem.map((probe) => {
               if (!probe.solarPosition) return null;
-
               const player = game.players.find(p => p.id === probe.ownerId);
               const playerName = player?.name || 'Joueur inconnu';
+              
               const level = probe.solarPosition.level;
-              
-              // Calculer la position de la sonde
-              let x: number, y: number;
-              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-              const diskIndex = DISK_NAMES[probe.solarPosition.disk];
-              const sectorIndex = sectorToIndex[probe.solarPosition.sector];
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth);
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-              const probeRadius = (innerRadius + outerRadius) / 2;
-              
-              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
-              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
-              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-              
-              let rotatedAngle: number;
               if (level === 1) {
-                rotatedAngle = sectorCenterAngle + rotationAngle1;
+                return renderProbeTooltip(probe, playerName, rotationAngle1);
               } else if (level === 2) {
-                rotatedAngle = sectorCenterAngle + rotationAngle2;
+                return renderProbeTooltip(probe, playerName, rotationAngle2);
               } else if (level === 3) {
-                rotatedAngle = sectorCenterAngle + rotationAngle3;
+                return renderProbeTooltip(probe, playerName, rotationAngle3);
               } else {
-                rotatedAngle = sectorCenterAngle; // Fixe
+                return renderProbeTooltip(probe, playerName);
               }
-              
-              const radian = rotatedAngle * (Math.PI / 180);
-              x = Math.cos(radian) * probeRadius;
-              y = Math.sin(radian) * probeRadius;
-
-              return (
-                <div
-                  key={`probe-tooltip-${probe.id}`}
-                  className="seti-planet-tooltip"
-                  style={{
-                    position: 'absolute',
-                    bottom: `calc(50% - ${y}% + 12px)`,
-                    left: `calc(50% + ${x}%)`,
-                    transform: 'translateX(-50%)',
-                    opacity: hoveredProbe === probe.id ? 1 : 0,
-                    visibility: hoveredProbe === probe.id ? 'visible' : 'hidden',
-                    zIndex: 101,
-                  }}
-                >
-                  {playerName}<br></br>Plateau {level}<br></br>{probe.solarPosition.disk}{probe.solarPosition.sector}
-                </div>
-              );
             })}
           </div>
 
           {/* Surbrillance des cases accessibles */}
           {selectedProbeId && Array.from(reachableCells.entries()).map(([cellKey, data]) => {
-            const [disk, sector] = [cellKey[0] as DiskName, parseInt(cellKey[1]) as SectorNumber];
+            const [disk, sector] = [cellKey[0] as DiskName, parseInt(cellKey.substring(1)) as SectorNumber];
             const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
             const diskIndex = ['A', 'B', 'C', 'D', 'E'].indexOf(disk);
             const sectorIndex = sectorToIndex[sector];
@@ -1809,67 +1286,6 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               />
             );
           })}
-
-          {/* Affichage des sondes fixes (disques D et E) */}
-          {probesInSystem
-            .filter(probe => {
-              if (!probe.solarPosition) return false;
-              const level = probe.solarPosition.level;
-              return level === null; // Disques D et E (fixes)
-            })
-            .map((probe) => {
-              if (!probe.solarPosition) return null;
-
-              const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-              const diskIndex = ['A', 'B', 'C', 'D', 'E'].indexOf(probe.solarPosition.disk);
-              const sectorIndex = sectorToIndex[probe.solarPosition.sector];
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (diskIndex * diskWidth);
-              const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-              const probeRadius = (innerRadius + outerRadius) / 2;
-              // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
-              const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
-              const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
-              const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-              const radian = sectorCenterAngle * (Math.PI / 180);
-              const x = Math.cos(radian) * probeRadius;
-              const y = Math.sin(radian) * probeRadius;
-
-              const player = game.players.find(p => p.id === probe.ownerId);
-              const playerName = player?.name || 'Joueur inconnu';
-              const isSelected = selectedProbeId === probe.id;
-
-              return (
-                <div
-                  key={probe.id}
-                  onClick={() => handleProbeClick(probe)}
-                  onMouseEnter={() => setHoveredProbe(probe.id)}
-                  onMouseLeave={() => setHoveredProbe(null)}
-                  style={{
-                    position: 'absolute',
-                    top: `calc(50% + ${y}%)`,
-                    left: `calc(50% + ${x}%)`,
-                    transform: 'translate(-50%, -50%)',
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    background: isSelected 
-                      ? 'radial-gradient(circle, #00ff00, #00cc00)' 
-                      : 'radial-gradient(circle, #8888ff, #5555aa)',
-                    border: isSelected ? '3px solid #00ff00' : '2px solid #6666cc',
-                    boxShadow: isSelected 
-                      ? '0 0 12px rgba(0, 255, 0, 0.8)' 
-                      : '0 0 6px rgba(136, 136, 255, 0.6)',
-                    cursor: 'pointer',
-                    zIndex: 101,
-                    transition: 'all 0.2s ease',
-                    pointerEvents: 'auto',
-                  }}
-                  title={playerName}
-                />
-              );
-            })}
 
           {/* Traits de délimitation des 8 secteurs radiaux - partent du centre du soleil */}
           {Array.from({ length: 8 }).map((_, sectorIndex) => {
@@ -2009,7 +1425,6 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           })}
         </div>
       </div>
-
       </div>
     </>
   );

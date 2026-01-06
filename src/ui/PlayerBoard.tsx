@@ -8,7 +8,6 @@ interface PlayerBoardProps {
 
 const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.LAUNCH_PROBE]: 'Lancer une sonde',
-  [ActionType.MOVE_PROBE]: 'Déplacer une sonde',
   [ActionType.ORBIT]: 'Mettre en orbite',
   [ActionType.LAND]: 'Poser une sonde',
   [ActionType.SCAN_SECTOR]: 'Scanner un secteur',
@@ -16,7 +15,6 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.PLAY_CARD]: 'Jouer une carte',
   [ActionType.RESEARCH_TECH]: 'Rechercher une technologie',
   [ActionType.PASS]: 'Passer',
-  [ActionType.FREE_ACTION]: 'Action gratuite',
 };
 
 export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction }) => {
@@ -26,7 +24,6 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction }) => {
 
   const actionAvailability: Record<ActionType, boolean> = {
     [ActionType.LAUNCH_PROBE]: ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch,
-    [ActionType.MOVE_PROBE]: false,//currentPlayer.probes.some(probe => ProbeSystem.canMoveProbe(game, currentPlayer.id, probe.id, targetPosition).canMove),
     [ActionType.ORBIT]: currentPlayer.probes.some(probe => ProbeSystem.canOrbit(game, currentPlayer.id, probe.id).canOrbit),
     [ActionType.LAND]: currentPlayer.probes.some(probe => ProbeSystem.canLand(game, currentPlayer.id, probe.id).canLand),
     [ActionType.SCAN_SECTOR]: false, // TODO
@@ -34,7 +31,56 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction }) => {
     [ActionType.PLAY_CARD]: false, // TODO
     [ActionType.RESEARCH_TECH]: false, // TODO
     [ActionType.PASS]: true,
-    [ActionType.FREE_ACTION]: true,
+  };
+
+  // Fonction helper pour générer le tooltip basé sur l'état du jeu (Interaction Engine -> UI)
+  const getActionTooltip = (actionType: ActionType, available: boolean): string => {
+    // Si l'action est disponible, on peut retourner une description simple ou rien
+    if (available) {
+       // On pourrait ajouter des descriptions génériques ici si voulu
+       return ACTION_NAMES[actionType];
+    }
+
+    switch (actionType) {
+      case ActionType.ORBIT:
+        if (!hasProbeOnPlanetInfo.hasProbe) return 'Nécessite une sonde sur une planète autre que la Terre';
+        if (currentPlayer.credits < 1) return `Nécessite 1 crédit (vous avez ${currentPlayer.credits})`;
+        if (currentPlayer.energy < 1) return `Nécessite 1 énergie (vous avez ${currentPlayer.energy})`;
+        return 'Mettre une sonde en orbite (coût: 1 crédit, 1 énergie)';
+      
+      case ActionType.LAND:
+        if (!hasProbeOnPlanetInfo.hasProbe) return 'Nécessite une sonde sur une planète autre que la Terre';
+        const cost = hasProbeOnPlanetInfo.landCost || 0;
+        if (currentPlayer.credits < cost) {
+          return `Nécessite ${cost} crédit(s) (vous avez ${currentPlayer.credits})${hasProbeOnPlanetInfo.hasExploration3 ? ' [Réduction exploration 3 appliquée]' : ''}`;
+        }
+        return `Poser une sonde sur une planète (coût: ${cost} crédit(s)${hasProbeOnPlanetInfo.hasOrbiter ? ', orbiteur présent' : ''}${hasProbeOnPlanetInfo.hasExploration3 ? ', réduction exploration 3' : ''})`;
+
+      case ActionType.LAUNCH_PROBE:
+        if (currentPlayer.credits < 2) return `Nécessite 2 crédits (vous avez ${currentPlayer.credits})`;
+        return 'Lancer une sonde depuis la Terre (coût: 2 crédits)';
+
+      case ActionType.SCAN_SECTOR:
+        if (currentPlayer.credits < 1 || currentPlayer.energy < 2) {
+          return `Nécessite 1 crédit et 2 énergies (vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s))`;
+        }
+        return 'Scanner un secteur (coût: 1 crédit, 2 énergies)';
+
+      case ActionType.ANALYZE_DATA:
+        if (!currentPlayer.dataComputer.canAnalyze) return 'Nécessite des données à analyser dans l\'ordinateur de données';
+        if (currentPlayer.energy < 1) return `Nécessite 1 énergie (vous avez ${currentPlayer.energy})`;
+        return 'Analyser des données (coût: 1 énergie)';
+
+      case ActionType.RESEARCH_TECH:
+        if (currentPlayer.mediaCoverage < 6) return `Nécessite 6 points de couverture médiatique (vous avez ${currentPlayer.mediaCoverage})`;
+        return 'Rechercher une technologie (coût: 6 couverture médiatique)';
+
+      case ActionType.PLAY_CARD:
+        return currentPlayer.cards.length === 0 ? 'Aucune carte en main' : 'Jouer une carte de votre main';
+      
+      default:
+        return '';
+    }
   };
 
   return (
@@ -70,47 +116,7 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction }) => {
               .map(([action, name]) => {
                 const available = actionAvailability[action as ActionType];
                 const actionType = action as ActionType;
-                
-                // Déterminer le tooltip selon l'action
-                let tooltip = '';
-                if (actionType === ActionType.ORBIT) {
-                  tooltip = !hasProbeOnPlanetInfo.hasProbe 
-                  ? 'Nécessite une sonde sur une planète autre que la Terre'
-                  : currentPlayer.credits < 1 
-                  ? 'Nécessite 1 crédit (vous avez ' + currentPlayer.credits + ')'
-                  : currentPlayer.energy < 1
-                  ? 'Nécessite 1 énergie (vous avez ' + currentPlayer.energy + ')'
-                  : 'Mettre une sonde en orbite (coût: 1 crédit, 1 énergie)';
-                } else if (actionType === ActionType.LAND) {
-                  tooltip = !hasProbeOnPlanetInfo.hasProbe
-                  ? 'Nécessite une sonde sur une planète autre que la Terre'
-                  : currentPlayer.credits < hasProbeOnPlanetInfo.landCost! || 0
-                  ? `Nécessite ${hasProbeOnPlanetInfo.landCost} crédit(s) (vous avez ${currentPlayer.credits})${hasProbeOnPlanetInfo.hasExploration3 ? ' [Réduction exploration 3 appliquée]' : ''}`
-                  : `Poser une sonde sur une planète (coût: ${hasProbeOnPlanetInfo.landCost} crédit(s)${hasProbeOnPlanetInfo.hasOrbiter ? ', orbiteur présent' : ''}${hasProbeOnPlanetInfo.hasExploration3 ? ', réduction exploration 3' : ''})`;
-                } else if (actionType === ActionType.LAUNCH_PROBE) {
-                  tooltip = currentPlayer.credits < 2 
-                    ? 'Nécessite 2 crédits (vous avez ' + currentPlayer.credits + ')'
-                    : 'Lancer une sonde depuis la Terre (coût: 2 crédits)';
-                } else if (actionType === ActionType.SCAN_SECTOR) {
-                  tooltip = currentPlayer.credits < 1 || currentPlayer.energy < 2
-                    ? 'Nécessite 1 crédit et 2 énergies (vous avez ' + currentPlayer.credits + ' crédit(s) et ' + currentPlayer.energy + ' énergie(s))'
-                    : 'Scanner un secteur (coût: 1 crédit, 2 énergies)';
-                } else if (actionType === ActionType.ANALYZE_DATA) {
-                  tooltip = !currentPlayer.dataComputer.canAnalyze
-                    ? 'Nécessite des données à analyser dans l\'ordinateur de données'
-                    : currentPlayer.energy < 1
-                    ? 'Nécessite 1 énergie (vous avez ' + currentPlayer.energy + ')'
-                    : 'Analyser des données (coût: 1 énergie)';
-                } else if (actionType === ActionType.RESEARCH_TECH) {
-                  tooltip = currentPlayer.mediaCoverage < 6
-                    ? 'Nécessite 6 points de couverture médiatique (vous avez ' + currentPlayer.mediaCoverage + ')'
-                    : 'Rechercher une technologie (coût: 6 couverture médiatique)';
-                } else if (actionType === ActionType.PLAY_CARD) {
-                  tooltip = currentPlayer.cards.length === 0
-                    ? 'Aucune carte en main'
-                    : 'Jouer une carte de votre main';
-                }
-
+                const tooltip = getActionTooltip(actionType, available);
                 return (
                   <div
                     key={action}
@@ -170,4 +176,3 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction }) => {
     </div>
   );
 };
-
