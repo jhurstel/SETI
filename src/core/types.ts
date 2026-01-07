@@ -15,15 +15,13 @@ export enum GamePhase {
 
 export enum ActionType {
   LAUNCH_PROBE = "LAUNCH_PROBE",
-  MOVE_PROBE = "MOVE_PROBE",
   ORBIT = "ORBIT",
   LAND = "LAND",
   SCAN_SECTOR = "SCAN_SECTOR",
   ANALYZE_DATA = "ANALYZE_DATA",
   PLAY_CARD = "PLAY_CARD",
   RESEARCH_TECH = "RESEARCH_TECH",
-  PASS = "PASS",
-  FREE_ACTION = "FREE_ACTION"
+  PASS = "PASS"
 }
 
 export enum TileType {
@@ -59,9 +57,22 @@ export enum SignalType {
 }
 
 export enum CardType {
-  ACTION = "ACTION",
-  MISSION = "MISSION",
-  END_GAME = "END_GAME"
+  ACTION = "Action",
+  CONDITIONAL_MISSION = "Mission Conditionnelle",
+  TRIGGERED_MISSION = "Mission Déclenchable",
+  END_GAME = "Fin de partie"
+}
+
+export enum FreeAction {
+  MOVEMENT = "Déplacement",
+  DATA = "Data",
+  MEDIA = "Média"
+}
+
+export enum RevenueBonus {
+  CREDIT = "Crédit",
+  ENERGY = "Energie",
+  CARD = "Carte"
 }
 
 export enum TechnologyType {
@@ -133,7 +144,10 @@ export interface Player {
   id: string;
   name: string;
   credits: number;
+  revenueCredits: number;
   energy: number;
+  revenueEnergy: number;
+  revenueCards: number;
   mediaCoverage: number;
   probes: Probe[];
   technologies: Technology[];
@@ -143,6 +157,8 @@ export interface Player {
   lifeTraces: LifeTrace[];
   score: number;
   hasPassed: boolean;
+  type: 'human' | 'robot';
+  color: string;
 }
 
 export interface Board {
@@ -276,10 +292,11 @@ export interface Card {
   name: string;
   type: CardType;
   cost: number;
+  freeAction: FreeAction;
+  scanSector: SectorColor;
+  revenue: RevenueBonus;
   effects: CardEffect[];
   ownerId?: string;
-  isMission: boolean;
-  isEndGame: boolean;
   description?: string;
 }
 
@@ -489,9 +506,12 @@ export const GAME_CONSTANTS = {
   TECH_RESEARCH_COST_MEDIA: 6,
   SPECIES_DISCOVERY_TRACES: 3,
   HAND_SIZE_AFTER_PASS: 4,
-  INITIAL_CREDITS: 3,
-  INITIAL_ENERGY: 2,
+  INITIAL_CREDITS: 4,
+  INITIAL_ENERGY: 3,
   INITIAL_MEDIA_COVERAGE: 4,
+  INITIAL_REVENUE_CREDITS: 3,
+  INITIAL_REVENUE_ENERGY: 2,
+  INITIAL_REVENUE_CARDS: 1,
 } as const;
 
 export const DISK_NAMES: Record<DiskName, number> = {

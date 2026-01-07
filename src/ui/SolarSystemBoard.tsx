@@ -14,9 +14,11 @@ import {
 
 interface SolarSystemBoardProps {
   game: Game;
+  onProbeMove?: (probeId: string, targetDisk: DiskName, targetSector: SectorNumber, cost: number, path: string[]) => void;
   initialSector1?: number; // Secteur initial (1-8) pour positionner le plateau niveau 1
   initialSector2?: number; // Secteur initial (1-8) pour positionner le plateau niveau 2
   initialSector3?: number; // Secteur initial (1-8) pour positionner le plateau niveau 3
+  highlightPlayerProbes?: boolean; // Mettre en surbrillance les sondes du joueur courant
 }
 
 export interface SolarSystemBoardRef {
@@ -28,7 +30,7 @@ export interface SolarSystemBoardRef {
   rotateCounterClockwise3: () => void;
 }
 
-export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoardProps>(({ game, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1 }, ref) => {
+export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoardProps>(({ game, onProbeMove, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredProbe, setHoveredProbe] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
   // État pour gérer la sonde sélectionnée et les cases accessibles
   const [selectedProbeId, setSelectedProbeId] = useState<string | null>(null);
   const [reachableCells, setReachableCells] = useState<Map<string, { movements: number; path: string[] }>>(new Map());
+  const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
 
   // État pour gérer la position de la case survolée
   const [hoveredCell, setHoveredCell] = useState<{ disk: DiskName; sector: SectorNumber } | null>(null);
@@ -201,16 +204,14 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
 
   // Fonction helper pour rendre un disque rotatif
   const renderRotationDisk = (obj: RotationDisk, zIndex: number = 30) => {
-    // Conversion index → secteur absolu
-    const absoluteSector = indexToSector[obj.sectorIndex];
-    // Convertir en secteur relatif au plateau niveau 1 (rotation inverse)
-    const relativeSector = absoluteToRelativeSector(absoluteSector, -rotationAngle1);
+    // Le secteur est déjà relatif au plateau car on est dans un conteneur rotatif
+    const relativeSector = indexToSector[obj.sectorIndex];
     // Déterminer le type de secteur à partir de INITIAL_ROTATING_LEVEL1_OBJECTS
     const sectorType = getSectorType(obj.level, obj.diskName, relativeSector);
-    const sectorNumber = absoluteSector; // Pour la clé et le debug
+    const sectorNumber = relativeSector; // Pour la clé et le debug
     
     // Utiliser l'index du secteur relatif pour calculer la position visuelle
-    const relativeSectorIndex = sectorToIndex[relativeSector];
+    const relativeSectorIndex = obj.sectorIndex;
     
     const diskIndex = DISK_NAMES[obj.diskName];
     const diskWidth = 8;
@@ -241,15 +242,15 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
     let colorShadow: string = "";
 
     if (obj.level === 1) {
-      colorFill="rgba(60, 80, 120, 0.8)"
+      colorFill="rgba(60, 80, 120, 1)"
       colorStroke="rgba(255, 215, 0, 0.8)"
       colorShadow="rgba(255, 215, 0, 0.5)"
     } else if (obj.level === 2) {
-      colorFill="rgba(40, 60, 100, 0.8)"
+      colorFill="rgba(40, 60, 100, 1)"
       colorStroke="rgba(255, 107, 107, 0.8)"
       colorShadow="rgba(255, 107, 107, 0.5)"
     } else if (obj.level === 3) {
-      colorFill="rgba(40, 60, 100, 0.8)"
+      colorFill="rgba(40, 60, 100, 1)"
       colorStroke="rgba(74, 158, 255, 0.8)"
       colorShadow="rgba(74, 158, 255, 0.5)"
     }
@@ -278,7 +279,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           fill={colorFill} // Plus clair pour la surbrillance
           stroke={colorStroke}
           strokeWidth="1.5" // Bordure plus épaisse
-          style={{ filter: `drop-shadow(0 0 3px ${colorShadow})` }} // Effet de glow
+          style={{ filter: `drop-shadow(0 0 3px ${colorShadow})`, pointerEvents: 'auto' }} // Effet de glow + bloque les événements
         />
       </svg>
     );
@@ -578,8 +579,17 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
 
     const player = game.players.find(p => p.id === probe.ownerId);
     const playerName = player?.name || 'Joueur inconnu';
+    const playerColor = player?.color || '#8888ff';
     const isSelected = selectedProbeId === probe.id;
     const { x, y } = calculateObjectPosition(probe.solarPosition.disk, probe.solarPosition.sector);
+    
+    // Calculer un décalage aléatoire stable basé sur l'ID de la sonde pour éviter la superposition
+    const seed = probe.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const offsetX = (seededRandom(seed) - 0.5) * 4; // +/- 2%
+    const offsetY = (seededRandom(seed + 42) - 0.5) * 4; // +/- 2%
+
+    const isOwner = probe.ownerId === game.players[game.currentPlayerIndex].id;
+    const shouldHighlight = highlightPlayerProbes && isOwner;
     
     return (
       <div
@@ -589,22 +599,144 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
         onMouseLeave={() => setHoveredProbe(null)}
         style={{
           position: 'absolute',
-          top: `calc(50% + ${y}%)`,
-          left: `calc(50% + ${x}%)`,
+          top: `calc(50% + ${y + offsetY}%)`,
+          left: `calc(50% + ${x + offsetX}%)`,
           transform: 'translate(-50%, -50%)',
-          width: '20px',
-          height: '20px',
-          borderRadius: '50%',
-          background: isSelected ? 'radial-gradient(circle, #00ff00, #00cc00)' : 'radial-gradient(circle, #8888ff, #5555aa)',
-          border: isSelected ? '3px solid #00ff00' : '2px solid #6666cc',
-          boxShadow: isSelected ? '0 0 12px rgba(0, 255, 0, 0.8)' : '0 0 6px rgba(136, 136, 255, 0.6)',
+          width: '24px',
+          height: '24px',
           cursor: 'pointer',
           zIndex,
           transition: 'all 0.2s ease',
           pointerEvents: 'auto',
         }}
         title={playerName}
-      />
+      >
+        {/* Effet de surbrillance (pour action gratuite mouvement) */}
+        {shouldHighlight && (
+           <div style={{
+             position: 'absolute',
+             top: '50%',
+             left: '50%',
+             transform: 'translate(-50%, -50%)',
+             width: '40px',
+             height: '40px',
+             borderRadius: '50%',
+             border: '2px solid #ffeb3b',
+             backgroundColor: 'rgba(255, 235, 59, 0.3)',
+             boxShadow: '0 0 10px #ffeb3b',
+             zIndex: -2,
+             pointerEvents: 'none',
+           }} />
+        )}
+
+        {/* Ombre portée au sol */}
+        <div style={{
+          position: 'absolute',
+          bottom: '-6px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '80%',
+          height: '30%',
+          background: 'rgba(0,0,0,0.6)',
+          borderRadius: '50%',
+          filter: 'blur(2px)',
+          zIndex: -1,
+        }} />
+
+        {/* Structure de la sonde (Type Cassini/Voyager) */}
+        <div style={{
+          position: 'relative',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          filter: isSelected ? 'drop-shadow(0 0 3px #00ff00)' : 'none',
+        }}>
+           {/* Antenne parabolique (Dish) - Partie supérieure */}
+           <div style={{
+             width: '22px',
+             height: '8px',
+             background: 'linear-gradient(to bottom, #e0e0e0, #999)',
+             borderRadius: '50% 50% 0 0 / 100% 100% 0 0', // Demi-ellipse
+             border: '1px solid #666',
+             borderBottom: 'none',
+             position: 'relative',
+             zIndex: 3,
+           }}>
+             {/* Centre de l'antenne */}
+             <div style={{
+               position: 'absolute',
+               bottom: '0',
+               left: '50%',
+               transform: 'translateX(-50%)',
+               width: '6px',
+               height: '3px',
+               backgroundColor: '#444',
+               borderRadius: '50% 50% 0 0',
+             }} />
+           </div>
+
+           {/* Corps principal (Couleur du joueur) */}
+           <div style={{
+             width: '14px',
+             height: '14px',
+             backgroundColor: playerColor,
+             border: '1px solid rgba(255,255,255,0.4)',
+             borderRadius: '2px',
+             position: 'relative',
+             zIndex: 4,
+             boxShadow: 'inset -2px -2px 4px rgba(0,0,0,0.5)',
+             display: 'flex',
+             alignItems: 'center',
+             justifyContent: 'center',
+           }}>
+              {/* Détails dorés (isolation thermique) */}
+              <div style={{
+                width: '80%',
+                height: '60%',
+                backgroundColor: 'rgba(255, 215, 0, 0.3)', // Gold tint
+                border: '1px solid rgba(255, 215, 0, 0.6)',
+                borderRadius: '1px',
+              }} />
+           </div>
+
+           {/* Bras / Instruments (Booms) */}
+           {/* Bras gauche (RTG) */}
+           <div style={{
+             position: 'absolute',
+             top: '60%',
+             left: '-4px',
+             width: '6px',
+             height: '4px',
+             backgroundColor: '#333',
+             borderRadius: '2px',
+             zIndex: 2,
+           }} />
+           {/* Bras droit (Magnétomètre) */}
+           <div style={{
+             position: 'absolute',
+             top: '60%',
+             right: '-8px',
+             width: '10px',
+             height: '1px',
+             backgroundColor: '#888',
+             zIndex: 2,
+           }} />
+           {/* Antenne inférieure */}
+           <div style={{
+             position: 'absolute',
+             bottom: '-2px',
+             left: '50%',
+             transform: 'translateX(-50%)',
+             width: '2px',
+             height: '4px',
+             backgroundColor: '#666',
+             zIndex: 1,
+           }} />
+        </div>
+      </div>
     );
   };
 
@@ -625,7 +757,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           zIndex: 101,
         }}
       >
-        {playerName}<br></br>Plateau {probe.solarPosition.level}<br></br>{probe.solarPosition.disk}{probe.solarPosition.sector}
+        {playerName}
       </div>
     );
   };
@@ -636,6 +768,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
       // Désélectionner si déjà sélectionnée
       setSelectedProbeId(null);
       setReachableCells(new Map());
+      setHighlightedPath([]);
       return;
     }
 
@@ -666,9 +799,14 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
         probe.solarPosition.disk,
         absPos.absoluteSector,
         0, // Pas de déplacements de base (sera géré par l'énergie)
-        1, //currentPlayer.energy, // Utiliser toute l'énergie disponible
+        currentPlayer.energy, // Utiliser toute l'énergie disponible
         rotationState
       );
+
+      // Retirer la case actuelle des cases accessibles
+      const currentKey = `${probe.solarPosition.disk}${absPos.absoluteSector}`;
+      reachable.delete(currentKey);
+      
       setReachableCells(reachable);
     }
   };
@@ -841,6 +979,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           </div>
         ))}
       </div>
+      
       {/* Conteneur pour positionner les éléments directement dans le panel */}
       <div style={{
           position: 'relative',
@@ -868,11 +1007,11 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           {/* Objets fixes (niveau 0) - basés sur FIXED_OBJECTS */}
           {FIXED_OBJECTS.map((obj) => {
             if (obj.type === 'planet') {
-              return renderPlanet(obj, 35);
+              return renderPlanet(obj, 10);
             } else if (obj.type === 'comet') {
-              return renderComet(obj, 20);
+              return renderComet(obj, 10);
             } else if (obj.type === 'asteroid') {
-              return renderAsteroid(obj, 20);
+              return renderAsteroid(obj, 10);
             }
             return null;
           })}
@@ -881,7 +1020,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           {probesInSystem.filter(probe => {
               if (!probe.solarPosition) return false;
               const level = probe.solarPosition.level;
-              return level === null; // Disques D et E (fixes)
+              return level === 0 || level === null; // Disques D et E (fixes)
             }).map((probe) => renderProbe(probe, 50)
           )}
 
@@ -897,7 +1036,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               width: '100%', // Taille ajustée
               height: '100%',
               borderRadius: '50%',
-              zIndex: 24, // Au-dessus du soleil, des objets fixes et des comètes/astéroïdes
+              zIndex: 20, // Au-dessus du niveau 0 (10-18)
               overflow: 'hidden',
               aspectRatio: '1', // Force un cercle parfait
               pointerEvents: 'none',
@@ -914,7 +1053,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                   diskName: 'C',
                   level: 1,
                 }
-              return renderRotationDisk(obj, 24);
+              return renderRotationDisk(obj, 1);
             })}
 
             {/* Disque B (moyen) - 8 secteurs */}
@@ -926,7 +1065,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                 diskName: 'B',
                 level: 1,
               }
-              return renderRotationDisk(obj, 24);
+              return renderRotationDisk(obj, 1);
             })}
 
             {/* Disque A (intérieur) - 8 secteurs */}
@@ -938,7 +1077,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                 diskName: 'A',
                 level: 1,
               }
-              return renderRotationDisk(obj, 24);
+              return renderRotationDisk(obj, 1);
             })}
 
             {/* Sondes sur les disques A, B, C (niveau 1) */}
@@ -953,11 +1092,11 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
             {/* Objets célestes sur le plateau rotatif niveau 1 - basés sur INITIAL_ROTATING_LEVEL1_OBJECTS */}
             {INITIAL_ROTATING_LEVEL1_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
               if (obj.type === 'planet') {
-                return renderPlanet(obj, 35);
+                return renderPlanet(obj, 3);
               } else if (obj.type === 'comet') {
-                return renderComet(obj, 25);
+                return renderComet(obj, 2);
               } else if (obj.type === 'asteroid') {
-                return renderAsteroid(obj, 25);
+                return renderAsteroid(obj, 2);
               }
               return null;
             })}
@@ -977,7 +1116,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               width: '100%',
               height: '100%',
               borderRadius: '50%',
-              zIndex: 26,
+              zIndex: 30, // Au-dessus du niveau 1 (20)
               overflow: 'hidden',
               aspectRatio: '1',
               pointerEvents: 'none',
@@ -994,7 +1133,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                 diskName: 'B',
                 level: 2,
               }
-              return renderRotationDisk(obj, 27);
+              return renderRotationDisk(obj, 1);
             })}
 
             {/* Disque A (intérieur) - 8 secteurs */}
@@ -1006,7 +1145,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                 diskName: 'A',
                 level: 2,
               }
-              return renderRotationDisk(obj, 27);
+              return renderRotationDisk(obj, 1);
             })}
 
             {/* Sondes sur les disques A, B (niveau 2) */}
@@ -1021,11 +1160,11 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
             {/* Objets célestes sur le plateau rotatif niveau 2 - basés sur INITIAL_ROTATING_LEVEL2_OBJECTS */}
             {INITIAL_ROTATING_LEVEL2_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
               if (obj.type === 'planet') {
-                return renderPlanet(obj, 35);
+                return renderPlanet(obj, 3);
               } else if (obj.type === 'comet') {
-                return renderComet(obj, 28);
+                return renderComet(obj, 2);
               } else if (obj.type === 'asteroid') {
-                return renderAsteroid(obj, 28);
+                return renderAsteroid(obj, 2);
               }
               return null;
             })}
@@ -1045,7 +1184,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               width: '100%',
               height: '100%',
               borderRadius: '50%',
-              zIndex: 28, // Au-dessus du niveau 2 (z-index 26)
+              zIndex: 40, // Au-dessus du niveau 2 (30)
               overflow: 'hidden',
               aspectRatio: '1', // Force un cercle parfait
               pointerEvents: 'none', // Ne pas intercepter les événements, sauf sur les objets célestes
@@ -1062,7 +1201,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                 diskName: 'A',
                 level: 3,
               }
-              return renderRotationDisk(obj, 29);
+              return renderRotationDisk(obj, 1);
             })}
 
             {/* Sondes sur le disque A (niveau 3) */}
@@ -1076,11 +1215,11 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
             {/* Objets célestes sur le plateau rotatif niveau 3 - basés sur INITIAL_ROTATING_LEVEL3_OBJECTS */}
             {INITIAL_ROTATING_LEVEL3_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
               if (obj.type === 'planet') {
-                return renderPlanet(obj, 35);
+                return renderPlanet(obj, 3);
               } else if (obj.type === 'comet') {
-                return renderComet(obj, 29);
+                return renderComet(obj, 2);
               } else if (obj.type === 'asteroid') {
-                return renderAsteroid(obj, 29);
+                return renderAsteroid(obj, 2);
               }
               return null;
             })}
@@ -1198,8 +1337,10 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                     {hasTech ? 'Vous gagnez 1 media' : 'Nécessite 1 déplacement supplémentaire pour quitter'}
                   </div>
                 );
-              } else if (hoveredObject.type === 'planet') {
+              } else if (hoveredObject.type === 'planet' && hoveredObject.id !== 'earth') {
                 subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>Vous gagnez 1 media</div>;
+              } else {
+                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>Lancer une sonde</div>;
               }
 
               return (
@@ -1251,24 +1392,29 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           {/* Surbrillance des cases accessibles */}
           {selectedProbeId && Array.from(reachableCells.entries()).map(([cellKey, data]) => {
             const [disk, sector] = [cellKey[0] as DiskName, parseInt(cellKey.substring(1)) as SectorNumber];
-            const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-            const diskIndex = ['A', 'B', 'C', 'D', 'E'].indexOf(disk);
-            const sectorIndex = sectorToIndex[sector];
+            const { x, y, diskIndex } = calculateObjectPosition(disk, sector, 0);
             const diskWidth = 8;
             const sunRadius = 4;
             const innerRadius = sunRadius + (diskIndex * diskWidth);
             const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-            const cellRadius = (innerRadius + outerRadius) / 2;
-            const sectorStartAngle = -(360 / 8) * sectorIndex; // 0° = midi (12h), sens horaire (de droite à gauche)
-            const sectorEndAngle = -(360 / 8) * (sectorIndex + 1);
-            const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-            const radian = (sectorCenterAngle - 90) * (Math.PI / 180); // -90° pour avoir 0° = midi en CSS
-            const x = Math.cos(radian) * cellRadius;
-            const y = Math.sin(radian) * cellRadius;
+
+            const isPathStep = highlightedPath.includes(cellKey);
+            const isTarget = highlightedPath.length > 0 && highlightedPath[highlightedPath.length - 1] === cellKey;
 
             return (
               <div
                 key={`reachable-${cellKey}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onProbeMove && selectedProbeId) {
+                    onProbeMove(selectedProbeId, disk, sector, data.movements, data.path);
+                    setSelectedProbeId(null);
+                    setReachableCells(new Map());
+                    setHighlightedPath([]);
+                  }
+                }}
+                onMouseEnter={() => setHighlightedPath(data.path)}
+                onMouseLeave={() => setHighlightedPath([])}
                 style={{
                   position: 'absolute',
                   top: `calc(50% + ${y}%)`,
@@ -1277,13 +1423,30 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                   width: `${(outerRadius - innerRadius) * 0.8}%`,
                   height: `${(outerRadius - innerRadius) * 0.8}%`,
                   borderRadius: '50%',
-                  border: '2px solid #00ff00',
-                  backgroundColor: 'rgba(0, 255, 0, 0.2)',
-                  pointerEvents: 'none',
-                  zIndex: 40,
+                  border: isTarget ? '2px solid #ffeb3b' : (isPathStep ? '2px solid #ffeb3b' : '2px solid #00ff00'),
+                  backgroundColor: isTarget ? 'rgba(255, 235, 59, 0.5)' : (isPathStep ? 'rgba(255, 235, 59, 0.3)' : 'rgba(0, 255, 0, 0.2)'),
+                  pointerEvents: 'auto',
+                  zIndex: isTarget ? 52 : (isPathStep ? 51 : 50),
+                  cursor: 'pointer',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  transition: 'all 0.2s ease',
                 }}
                 title={`Accessible en ${data.movements} déplacement(s)`}
-              />
+              >
+                {isPathStep && (
+                  <span style={{ 
+                    color: '#fff', 
+                    fontWeight: 'bold', 
+                    textShadow: '0 0 3px #000',
+                    pointerEvents: 'none',
+                    fontSize: '1.2em'
+                  }}>
+                    {highlightedPath.indexOf(cellKey)}
+                  </span>
+                )}
+              </div>
             );
           })}
 
@@ -1336,7 +1499,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                   top: `calc(50% + ${y}%)`,
                   left: `calc(50% + ${x}%)`,
                   transform: 'translate(-50%, -50%)',
-                  fontSize: '0.9rem',
+                  fontSize: '0.75rem',
                   color: '#aaa',
                   fontWeight: 'bold',
                   pointerEvents: 'none',
@@ -1406,7 +1569,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                     top: `calc(50% - ${(innerRadius + outerRadius) / 2}%)`,
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    fontSize: '1rem',
+                    fontSize: '0.75rem',
                     color: '#78a0ff',
                     fontWeight: 'bold',
                     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -1414,7 +1577,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
                     borderRadius: '4px',
                     border: '1px solid #78a0ff',
                     whiteSpace: 'nowrap',
-                    zIndex: 30,
+                    zIndex: 40,
                     pointerEvents: 'none',
                   }}
                 >

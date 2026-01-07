@@ -22,7 +22,14 @@ import {
   PlanetBonus
 } from '../core/types';
 import { BoardManager } from '../core/Board';
-import { getObjectPosition, createRotationState } from '../core/SolarSystemPosition';
+import { 
+  getObjectPosition, 
+  createRotationState, 
+  getVisibleLevel, 
+  getCell, 
+  rotateSector,
+  RotationState 
+} from '../core/SolarSystemPosition';
 
 export class ProbeSystem {
   /**
@@ -150,7 +157,7 @@ export class ProbeSystem {
     game: Game,
     playerId: string,
     probeId: string,
-    targetPosition: Position
+    energyCost: number
   ): {
     canMove: boolean;
     reason?: string;
@@ -170,31 +177,6 @@ export class ProbeSystem {
       return { canMove: false, reason: 'La sonde doit être dans le système solaire' };
     }
 
-    // Vérifier que la case cible est adjacente
-    if (!this.isAdjacent(probe.position!, targetPosition)) {
-      return { canMove: false, reason: 'Case non adjacente' };
-    }
-
-    // Vérifier la case cible
-    const targetTile = BoardManager.findTileByPosition(game.board, targetPosition);
-    if (!targetTile) {
-      return { canMove: false, reason: 'Case invalide' };
-    }
-
-    // Soleil : infranchissable
-    if (targetTile.type === TileType.SUN) {
-      return { canMove: false, reason: 'Le soleil est infranchissable' };
-    }
-
-    // Calculer le coût en énergie
-    let energyCost = 1; // 1 énergie = 1 déplacement
-
-    // Champ d'astéroïdes : coût +1 pour en sortir
-    const currentTile = BoardManager.findTileByPosition(game.board, probe.position!);
-    if (currentTile?.type === TileType.ASTEROID) {
-      energyCost += 1;
-    }
-
     // Vérifier l'énergie disponible
     if (player.energy < energyCost) {
       return { 
@@ -208,24 +190,17 @@ export class ProbeSystem {
   }
 
   /**
-   * Vérifie si deux positions sont adjacentes (pas en diagonale)
-   */
-  private static isAdjacent(pos1: Position, pos2: Position): boolean {
-    const dx = Math.abs(pos1.x - pos2.x);
-    const dy = Math.abs(pos1.y - pos2.y);
-    return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
-  }
-
-  /**
    * Déplace une sonde
    */
   static moveProbe(
     game: Game,
     playerId: string,
     probeId: string,
-    targetPosition: Position
+    energyCost: number,
+    targetDisk: DiskName,
+    targetSector: SectorNumber
   ): Game {
-    const validation = this.canMoveProbe(game, playerId, probeId, targetPosition);
+    const validation = this.canMoveProbe(game, playerId, probeId, energyCost);
     if (!validation.canMove) {
       throw new Error(validation.reason || 'Déplacement impossible');
     }
@@ -235,15 +210,48 @@ export class ProbeSystem {
     const player = updatedGame.players[playerIndex];
     const probeIndex = player.probes.findIndex(p => p.id === probeId);
 
-    // Débiter l'énergie
+    // Calculer le niveau cible en fonction de la rotation actuelle
+    const rotationState = createRotationState(
+      game.board.solarSystem.rotationAngleLevel1 || 0,
+      game.board.solarSystem.rotationAngleLevel2 || 0,
+      game.board.solarSystem.rotationAngleLevel3 || 0
+    );
+    const targetLevel = getVisibleLevel(targetDisk, targetSector, rotationState);
+
+    // Convertir le secteur absolu en secteur relatif pour le stockage
+    let relativeSector = targetSector;
+    if (targetLevel === 1) {
+      relativeSector = rotateSector(targetSector, -rotationState.level1Angle);
+    } else if (targetLevel === 2) {
+      relativeSector = rotateSector(targetSector, -rotationState.level2Angle);
+    } else if (targetLevel === 3) {
+      relativeSector = rotateSector(targetSector, -rotationState.level3Angle);
+    }
+
+    // Vérifier s'il y a une comète sur la case d'arrivée
+    const targetCell = getCell(targetDisk, targetSector, rotationState);
+    let mediaBonus = 0;
+    if (targetCell) {
+      if (targetCell.hasComet) mediaBonus += 1;
+      // La Terre ne donne pas de bonus de média
+      if (targetCell.hasPlanet && targetCell.planetId !== 'earth') mediaBonus += 1;
+      if (targetCell.hasAsteroid && player.technologies.some(t => t.id === 'exploration-2')) mediaBonus += 1;
+    }
+    
+    // Débiter l'énergie et appliquer le bonus de média
     const updatedPlayer = {
       ...player,
       energy: player.energy - (validation.energyCost || 1),
+      mediaCoverage: Math.min(player.mediaCoverage + mediaBonus, GAME_CONSTANTS.MAX_MEDIA_COVERAGE),
       probes: player.probes.map((p, idx) => {
         if (idx === probeIndex) {
           return {
             ...p,
-            position: targetPosition
+            solarPosition: {
+              disk: targetDisk,
+              sector: relativeSector,
+              level: targetLevel
+            }
           };
         }
         return p;
@@ -257,33 +265,13 @@ export class ProbeSystem {
       p => p.id === probeId
     );
     if (systemProbe) {
-      systemProbe.position = targetPosition;
+      systemProbe.solarPosition = {
+        disk: targetDisk,
+        sector: relativeSector,
+        level: targetLevel
+      };
     }
-
-    // Mettre à jour les cases
-    const currentTile = BoardManager.findTileByPosition(
-      updatedGame.board,
-      player.probes[probeIndex].position!
-    );
-    const targetTile = BoardManager.findTileByPosition(
-      updatedGame.board,
-      targetPosition
-    );
-
-    if (currentTile && targetTile) {
-      // Retirer de l'ancienne case
-      currentTile.probes = currentTile.probes.filter(p => p.id !== probeId);
-      // Ajouter à la nouvelle case
-      targetTile.probes.push(updatedPlayer.probes[probeIndex]);
-
-      // Bonus de couverture médiatique si applicable
-    if (targetTile.mediaBonus) {
-      updatedPlayer.mediaCoverage = Math.min(
-        updatedPlayer.mediaCoverage + targetTile.mediaBonus,
-        GAME_CONSTANTS.MAX_MEDIA_COVERAGE
-      );
-    }
-    }
+    // Note: La mise à jour des tiles (currentTile/targetTile) est omise car le système utilise maintenant solarPosition
 
     return updatedGame;
   }
@@ -314,9 +302,9 @@ export class ProbeSystem {
       // Vérifier si la sonde est sur une planète
       for (const planetId of planets) {
         const rotationState = createRotationState(
-          -game.board.solarSystem.rotationAngleLevel1! || 0,
-          -game.board.solarSystem.rotationAngleLevel2! || 0,
-          -game.board.solarSystem.rotationAngleLevel3! || 0
+          game.board.solarSystem.rotationAngleLevel1! || 0,
+          game.board.solarSystem.rotationAngleLevel2! || 0,
+          game.board.solarSystem.rotationAngleLevel3! || 0
         );  
         const planetPos = getObjectPosition(planetId, rotationState);
         if (planetPos && 
@@ -646,6 +634,100 @@ export class ProbeSystem {
       isFirstLander,
       isSecondLander,
       planetId
+    };
+  }
+
+  /**
+   * Met à jour les positions des sondes après une rotation du système solaire
+   */
+  static updateProbesAfterRotation(
+    game: Game,
+    oldRotationState: RotationState,
+    newRotationState: RotationState
+  ): Game {
+    const updatedGame = { ...game };
+    
+    // Mettre à jour les sondes des joueurs
+    updatedGame.players = updatedGame.players.map(player => ({
+      ...player,
+      probes: player.probes.map(probe => {
+        if (probe.state !== ProbeState.IN_SOLAR_SYSTEM || !probe.solarPosition) {
+          return probe;
+        }
+        return this.recalculateProbePosition(probe, oldRotationState, newRotationState);
+      })
+    }));
+
+    // Mettre à jour les sondes du système solaire (copie de celles des joueurs)
+    updatedGame.board = {
+      ...updatedGame.board,
+      solarSystem: {
+        ...updatedGame.board.solarSystem,
+        probes: updatedGame.players.flatMap(p => p.probes.filter(probe => probe.state === ProbeState.IN_SOLAR_SYSTEM))
+      }
+    };
+
+    return updatedGame;
+  }
+
+  private static recalculateProbePosition(
+    probe: Probe,
+    oldRotationState: RotationState,
+    newRotationState: RotationState
+  ): Probe {
+    const pos = probe.solarPosition!;
+    let absoluteSector = pos.sector;
+
+    // 1. Calculer la position absolue "attendue" après rotation
+    // Si la sonde est sur un plateau qui tourne, elle bouge avec lui (isRiding = true)
+    // Si elle est sur un plateau fixe (par rapport à la rotation), elle reste sur place (isRiding = false)
+    
+    let isRiding = false;
+    if (pos.level === 1 && oldRotationState.level1Angle !== newRotationState.level1Angle) isRiding = true;
+    if (pos.level === 2 && oldRotationState.level2Angle !== newRotationState.level2Angle) isRiding = true;
+    if (pos.level === 3 && oldRotationState.level3Angle !== newRotationState.level3Angle) isRiding = true;
+
+    if (isRiding) {
+      // La sonde tourne avec le plateau : son secteur relatif reste le même, mais l'absolu change
+      let angle = 0;
+      if (pos.level === 1) angle = newRotationState.level1Angle;
+      if (pos.level === 2) angle = newRotationState.level2Angle;
+      if (pos.level === 3) angle = newRotationState.level3Angle;
+      absoluteSector = rotateSector(pos.sector, angle);
+    } else {
+      // La sonde ne tourne pas avec le plateau : elle garde sa position absolue
+      let angle = 0;
+      if (pos.level === 1) angle = oldRotationState.level1Angle;
+      if (pos.level === 2) angle = oldRotationState.level2Angle;
+      if (pos.level === 3) angle = oldRotationState.level3Angle;
+      
+      if (pos.level !== 0) {
+        absoluteSector = rotateSector(pos.sector, angle);
+      } else {
+        absoluteSector = pos.sector;
+      }
+    }
+
+    // 2. Recalculer le niveau visible à cette position absolue (elle a peut-être été recouverte ou découverte)
+    const newLevel = getVisibleLevel(pos.disk, absoluteSector, newRotationState);
+
+    // 3. Recalculer le secteur relatif pour ce nouveau niveau
+    let newRelativeSector = absoluteSector;
+    if (newLevel === 1) {
+      newRelativeSector = rotateSector(absoluteSector, -newRotationState.level1Angle);
+    } else if (newLevel === 2) {
+      newRelativeSector = rotateSector(absoluteSector, -newRotationState.level2Angle);
+    } else if (newLevel === 3) {
+      newRelativeSector = rotateSector(absoluteSector, -newRotationState.level3Angle);
+    }
+
+    return {
+      ...probe,
+      solarPosition: {
+        ...pos,
+        sector: newRelativeSector,
+        level: newLevel
+      }
     };
   }
 }

@@ -71,6 +71,9 @@ export class GameFactory {
       credits: GAME_CONSTANTS.INITIAL_CREDITS,
       energy: GAME_CONSTANTS.INITIAL_ENERGY,
       mediaCoverage: GAME_CONSTANTS.INITIAL_MEDIA_COVERAGE,
+      revenueCredits: GAME_CONSTANTS.INITIAL_REVENUE_CREDITS,
+      revenueEnergy: GAME_CONSTANTS.INITIAL_REVENUE_ENERGY,
+      revenueCards: GAME_CONSTANTS.INITIAL_REVENUE_CARDS,
       probes: [],
       technologies: [],
       cards: [],
@@ -78,7 +81,9 @@ export class GameFactory {
       dataComputer: this.createDataComputer(),
       lifeTraces: [],
       score: 0,
-      hasPassed: false
+      hasPassed: false,
+      type: 'human',
+      color: '#4a90e2' as string
     };
   }
 

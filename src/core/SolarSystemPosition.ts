@@ -62,6 +62,7 @@ export interface SolarSystemCell {
   hasComet: boolean; // Contient une comète
   hasPlanet: boolean; // Contient une planète
   planetName?: string; // Nom de la planète si présente
+  planetId?: string; // ID de la planète si présente
   isVisible: boolean; // Si la case est visible (pas recouverte)
 }
 
@@ -209,7 +210,7 @@ export function getAllCelestialObjects(): CelestialObject[] {
  * @param rotationAngle Angle de rotation en degrés (négatif = anti-horaire)
  * @returns Secteur absolu (1-8)
  */
-function rotateSector(relativeSector: SectorNumber, rotationAngle: number): SectorNumber {
+export function rotateSector(relativeSector: SectorNumber, rotationAngle: number): SectorNumber {
   // Conversion secteur -> index (sens trigonométrique/anti-horaire: 1=0, 2=1, 3=2, 4=3, 5=4, 6=5, 7=6, 8=7)
   // Secteur 1 = 0° (en haut), secteur 2 = 45°, secteur 3 = 90°, etc. dans le sens anti-horaire
   const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
@@ -220,7 +221,7 @@ function rotateSector(relativeSector: SectorNumber, rotationAngle: number): Sect
   // L'angle est en degrés, négatif pour rotation anti-horaire
   const sectorsRotated = Math.round(rotationAngle / 45);
   // Calculer le nouvel index en tenant compte de la rotation
-  // On soustrait car rotation anti-horaire décrémente l'index
+  // On soustrait car rotation anti-horaire (négative) doit incrémenter l'index (1->2)
   const newIndex = (sectorIndex - sectorsRotated + 8) % 8;
   return indexToSector[newIndex];
 }
@@ -251,7 +252,7 @@ export function calculateAbsolutePosition(
   const y = 0; // TODO: Calculer en fonction du disque et du secteur
   
   // Vérifier la visibilité
-  const isVisible = checkVisibility(object.position.disk, absoluteSector, rotationState);
+  const isVisible = checkVisibilityAboveLevel(object.level || 0, object.position.disk, absoluteSector, rotationState);
   
   return {
     disk: object.position.disk,
@@ -264,9 +265,53 @@ export function calculateAbsolutePosition(
 }
 
 /**
- * Vérifie si une case est visible (pas recouverte par un plateau opaque)
+ * Détermine le niveau visible (le plus haut plateau) pour une position donnée
+ * @param disk Disque cible
+ * @param absoluteSector Secteur absolu cible
+ * @param rotationState État des rotations
+ * @returns Le niveau du plateau visible (0, 1, 2 ou 3)
  */
-function checkVisibility(
+export function getVisibleLevel(
+  disk: DiskName,
+  absoluteSector: SectorNumber,
+  rotationState: RotationState
+): number {
+  // Niveau 3 (disque A uniquement)
+  if (disk === 'A') {
+    const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
+    if (!HOLLOW_ZONES.level3.A.includes(level3Sector)) {
+      return 3;
+    }
+  }
+  
+  // Niveau 2 (disques A et B)
+  if (disk === 'A' || disk === 'B') {
+    const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
+    const hollowZones = HOLLOW_ZONES.level2[disk];
+    if (hollowZones && !hollowZones.includes(level2Sector)) {
+      return 2;
+    }
+  }
+  
+  // Niveau 1 (disques A, B, C)
+  if (disk === 'A' || disk === 'B' || disk === 'C') {
+    const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
+    const hollowZones = HOLLOW_ZONES.level1[disk];
+    if (hollowZones && !hollowZones.includes(level1Sector)) {
+      return 1;
+    }
+  }
+  
+  // Niveau 0 (fixe) - Disques D, E ou trous dans les niveaux supérieurs
+  return 0;
+}
+
+/**
+ * Vérifie si une position est visible depuis le dessus, en tenant compte du niveau de l'objet
+ * On ne vérifie que si les niveaux SUPÉRIEURS à l'objet le cachent.
+ */
+function checkVisibilityAboveLevel(
+  objectLevel: number,
   disk: DiskName,
   absoluteSector: SectorNumber,
   rotationState: RotationState
@@ -276,20 +321,19 @@ function checkVisibility(
     return true;
   }
   
-  // Pour les disques A, B, C, vérifier les plateaux rotatifs
-  // Un disque est visible si au moins un plateau rotatif a un creux à cet emplacement
-  
   // Niveau 3 (disque A uniquement)
-  if (disk === 'A') {
-    const level3Sector = rotateSector(absoluteSector, -(rotationState.level1Angle + rotationState.level2Angle + rotationState.level3Angle));
+  // Si l'objet est en dessous du niveau 3 (niveau < 3), on vérifie si le niveau 3 le cache
+  if (objectLevel < 3 && disk === 'A') {
+    const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
     if (!HOLLOW_ZONES.level3.A.includes(level3Sector)) {
       return false; // Recouvert par le niveau 3
     }
   }
   
   // Niveau 2 (disques A et B)
-  if (disk === 'A' || disk === 'B') {
-    const level2Sector = rotateSector(absoluteSector, -(rotationState.level1Angle + rotationState.level2Angle));
+  // Si l'objet est en dessous du niveau 2 (niveau < 2), on vérifie si le niveau 2 le cache
+  if (objectLevel < 2 && (disk === 'A' || disk === 'B')) {
+    const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
     const hollowZones = HOLLOW_ZONES.level2[disk];
     if (hollowZones && !hollowZones.includes(level2Sector)) {
       return false; // Recouvert par le niveau 2
@@ -297,7 +341,8 @@ function checkVisibility(
   }
   
   // Niveau 1 (disques A, B, C)
-  if (disk === 'A' || disk === 'B' || disk === 'C') {
+  // Si l'objet est en dessous du niveau 1 (niveau < 1), on vérifie si le niveau 1 le cache
+  if (objectLevel < 1 && (disk === 'A' || disk === 'B' || disk === 'C')) {
     const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
     const hollowZones = HOLLOW_ZONES.level1[disk];
     if (hollowZones && !hollowZones.includes(level1Sector)) {
@@ -306,6 +351,18 @@ function checkVisibility(
   }
   
   return true;
+}
+
+/**
+ * Vérifie si une case est visible (pas recouverte par un plateau opaque)
+ */
+function checkVisibility(
+  disk: DiskName,
+  absoluteSector: SectorNumber,
+  rotationState: RotationState
+): boolean {
+  // Vérifie la visibilité du niveau 0 (le fond du plateau)
+  return checkVisibilityAboveLevel(0, disk, absoluteSector, rotationState);
 }
 
 /**
@@ -370,6 +427,7 @@ export function getAllCells(rotationState: RotationState): Map<string, SolarSyst
             if (obj.type === 'planet') {
               cell.hasPlanet = true;
               cell.planetName = obj.name;
+              cell.planetId = obj.id;
             } else if (obj.type === 'comet') {
               cell.hasComet = true;
             } else if (obj.type === 'asteroid') {
