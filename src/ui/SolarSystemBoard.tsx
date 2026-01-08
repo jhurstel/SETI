@@ -594,7 +594,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
     return (
       <div
         key={probe.id}
-        onClick={() => handleProbeClick(probe)}
+        onClick={() => handleProbeClick(probe, shouldHighlight ? 1 : 0)}
         onMouseEnter={() => setHoveredProbe(probe.id)}
         onMouseLeave={() => setHoveredProbe(null)}
         style={{
@@ -763,7 +763,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
   };
 
   // Fonction pour gérer le clic sur une sonde
-  const handleProbeClick = (probe: Probe) => {
+  const handleProbeClick = (probe: Probe, movementBonus: number = 0) => {
     if (selectedProbeId === probe.id) {
       // Désélectionner si déjà sélectionnée
       setSelectedProbeId(null);
@@ -798,7 +798,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
       const reachable = calculateReachableCellsWithEnergy(
         probe.solarPosition.disk,
         absPos.absoluteSector,
-        0, // Pas de déplacements de base (sera géré par l'énergie)
+        movementBonus,
         currentPlayer.energy, // Utiliser toute l'énergie disponible
         rotationState
       );

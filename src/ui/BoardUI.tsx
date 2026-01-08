@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, CardType, SectorColor, RevenueBonus } from '../core/types';
 import { SolarSystemBoard, SolarSystemBoardRef } from './SolarSystemBoard';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoard } from './PlayerBoard';
@@ -23,6 +23,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // État pour la gestion de la défausse (Action Passer)
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [cardsToDiscard, setCardsToDiscard] = useState<string[]>([]);
+
+  // État pour le mode d'échange de ressources (en plusieurs étapes)
+  const [tradeState, setTradeState] = useState<{ phase: 'inactive' | 'spending' | 'gaining', spend?: { type: string, cardIds?: string[] } }>({ phase: 'inactive' });
 
   // État pour le mode déplacement gratuit (suite à une action gratuite)
   const [isFreeMovementMode, setIsFreeMovementMode] = useState(false);
@@ -233,6 +236,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     let currentGame = game;
     const currentPlayerId = currentGame.players[currentGame.currentPlayerIndex].id;
 
+    let freeMovements = isFreeMovementMode ? 1 : 0;
+
     // Parcourir le chemin étape par étape (en ignorant le point de départ à l'index 0)
     for (let i = 1; i < path.length; i++) {
       const cellKey = path[i];
@@ -259,12 +264,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         stepCost += 1;
       }
 
+      // Appliquer les mouvements gratuits
+      let energyCost = stepCost;
+      if (freeMovements > 0) {
+        const deduction = Math.min(freeMovements, energyCost);
+        freeMovements -= deduction;
+        energyCost -= deduction;
+      }
+
       try {
         const updatedGame = ProbeSystem.moveProbe(
           currentGame,
           currentPlayerId,
           probeId,
-          stepCost,
+          energyCost,
           disk,
           sector
         );
@@ -315,8 +328,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       currentPlayer.mediaCoverage = Math.min(currentPlayer.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
       setToast({ message: "Action gratuite : +1 Média", visible: true });
     } else if (card.freeAction === FreeAction.DATA) {
-      // TODO
-      console.log("Action gratuite Data: TODO");
+      currentPlayer.data = (currentPlayer.data || 0) + 1;
+      setToast({ message: "Action gratuite : +1 Data", visible: true });
     } else if (card.freeAction === FreeAction.MOVEMENT) {
       setIsFreeMovementMode(true);
       setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
@@ -326,6 +339,146 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     currentPlayer.cards = currentPlayer.cards.filter(c => c.id !== cardId);
     
     setGame(updatedGame);
+  };
+
+  // Gestionnaire pour jouer une carte (payer son coût en crédits)
+  const handlePlayCard = (cardId: string) => {
+    const updatedGame = { ...game };
+    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const currentPlayerIndex = updatedGame.currentPlayerIndex;
+    const currentPlayer = updatedGame.players[currentPlayerIndex];
+    
+    const cardIndex = currentPlayer.cards.findIndex(c => c.id === cardId);
+    if (cardIndex === -1) return;
+    const card = currentPlayer.cards[cardIndex];
+
+    if (currentPlayer.credits < card.cost) {
+        setToast({ message: "Crédits insuffisants", visible: true });
+        return;
+    }
+
+    // Payer le coût
+    currentPlayer.credits -= card.cost;
+
+    // Appliquer les effets (TODO: Implémenter les effets spécifiques)
+    // Pour l'instant, on retire juste la carte de la main
+    currentPlayer.cards = currentPlayer.cards.filter(c => c.id !== cardId);
+
+    setGame(updatedGame);
+    setToast({ message: `Carte jouée: ${card.name}`, visible: true });
+  };
+
+  // Gestionnaire pour l'action d'achat de carte avec du média
+  const handleBuyCardAction = () => {
+    const updatedGame = { ...game };
+    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const currentPlayerIndex = updatedGame.currentPlayerIndex;
+    const currentPlayer = updatedGame.players[currentPlayerIndex];
+
+    if (currentPlayer.mediaCoverage < 3) {
+      setToast({ message: "Couverture médiatique insuffisante", visible: true });
+      return;
+    }
+
+    // Débiter le média
+    currentPlayer.mediaCoverage -= 3;
+
+    // Ajouter une carte (Simulation de pioche)
+    const newCard = {
+      id: `card_bought_${Date.now()}`,
+      name: 'Soutien Médiatique',
+      type: CardType.ACTION,
+      cost: 1,
+      freeAction: FreeAction.MEDIA,
+      scanSector: SectorColor.YELLOW,
+      revenue: RevenueBonus.CREDIT,
+      effects: [],
+      description: 'Carte obtenue grâce à votre influence médiatique.',
+    };
+    
+    currentPlayer.cards.push(newCard);
+
+    setGame(updatedGame);
+    setToast({ message: "Carte achetée (-3 Média)", visible: true });
+  };
+
+  // Gestionnaire pour l'échange de ressources
+  const handleTradeResourcesAction = () => {
+    setTradeState({ phase: 'spending' });
+    setToast({ message: "Choisissez une ressource à dépenser (x2)", visible: true });
+  };
+
+  const handleCancelTrade = () => {
+    setTradeState({ phase: 'inactive' });
+    setToast({ message: "Echange annulé", visible: true });
+  };
+
+  // Étape 1 de l'échange : l'utilisateur a choisi quoi dépenser
+  const handleSpendSelection = (spendType: string, cardIds?: string[]) => {
+    setTradeState({ phase: 'gaining', spend: { type: spendType, cardIds } });
+    setToast({ message: "Choisissez une ressource à recevoir (x1)", visible: true });
+  }
+
+  // Étape 2 de l'échange : l'utilisateur a choisi quoi gagner
+  const handleGainSelection = (gainType: string) => {
+    if (!tradeState.spend) {
+      setTradeState({ phase: 'inactive' });
+      return;
+    }
+    
+    const { type: spendType, cardIds } = tradeState.spend;
+
+    const updatedGame = { ...game };
+    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const currentPlayerIndex = updatedGame.currentPlayerIndex;
+    const currentPlayer = updatedGame.players[currentPlayerIndex];
+
+    const normalizedSpend = spendType.toLowerCase().trim().replace('é', 'e');
+    const normalizedGain = gainType.toLowerCase().trim().replace('é', 'e');
+
+    // Vérifier et débiter la ressource dépensée
+    if (normalizedSpend === 'credit') {
+        if (currentPlayer.credits < 2) { alert("Pas assez de crédits"); setTradeState({ phase: 'inactive' }); return; }
+        currentPlayer.credits -= 2;
+    } else if (normalizedSpend === 'energy') {
+        if (currentPlayer.energy < 2) { alert("Pas assez d'énergie"); setTradeState({ phase: 'inactive' }); return; }
+        currentPlayer.energy -= 2;
+    } else if (normalizedSpend === 'card') {
+        if (!cardIds || cardIds.length !== 2) {
+          alert("Erreur: 2 cartes doivent être sélectionnées.");
+          setTradeState({ phase: 'inactive' });
+          return;
+        }
+        currentPlayer.cards = currentPlayer.cards.filter(c => !cardIds.includes(c.id));
+    }
+
+    // Créditer la ressource reçue
+    if (normalizedGain === 'credit') {
+        currentPlayer.credits += 1;
+    } else if (normalizedGain === 'energy') {
+        currentPlayer.energy += 1;
+    } else if (normalizedGain === 'carte') {
+        const newCard = {
+            id: `card_trade_${Date.now()}`,
+            name: 'Ressource échangée',
+            type: CardType.ACTION,
+            cost: 0,
+            freeAction: FreeAction.MEDIA,
+            scanSector: SectorColor.BLUE,
+            revenue: RevenueBonus.CREDIT,
+            effects: [],
+            description: 'Carte obtenue par échange.',
+        };
+        currentPlayer.cards.push(newCard);
+    } else {
+         alert("Type de ressource à recevoir invalide.");
+         setTradeState({ phase: 'inactive' });
+         return;
+    }
+
+    setGame(updatedGame);
+    setToast({ message: "Echange effectué", visible: true });
+    setTradeState({ phase: 'inactive' });
   };
 
   // Utiliser les positions initiales depuis le jeu
@@ -536,6 +689,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           onCardClick={handleCardClick}
           onConfirmDiscard={handleConfirmDiscard}
           onFreeAction={handleFreeAction}
+          onPlayCard={handlePlayCard}
+          onBuyCardAction={handleBuyCardAction}
+          onTradeResourcesAction={handleTradeResourcesAction}
+          tradeState={tradeState}
+          onSpendSelection={handleSpendSelection}
+          onGainSelection={handleGainSelection}
+          onCancelTrade={handleCancelTrade}
         />
       </div>
     </div>

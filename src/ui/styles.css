@@ -427,7 +427,6 @@ body {
 
 .seti-player-action-available:hover {
   background: rgba(100, 200, 100, 0.3);
-  transform: translateX(2px);
 }
 
 .seti-player-action-unavailable {
@@ -516,4 +515,3 @@ body {
 .seti-planet:hover .seti-planet-tooltip {
   opacity: 1;
 }
-

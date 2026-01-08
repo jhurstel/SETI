@@ -228,7 +228,7 @@ export class ProbeSystem {
       relativeSector = rotateSector(targetSector, -rotationState.level3Angle);
     }
 
-    // Vérifier s'il y a une comète sur la case d'arrivée
+    // Vérifier les bonus média
     const targetCell = getCell(targetDisk, targetSector, rotationState);
     let mediaBonus = 0;
     if (targetCell) {
@@ -241,7 +241,7 @@ export class ProbeSystem {
     // Débiter l'énergie et appliquer le bonus de média
     const updatedPlayer = {
       ...player,
-      energy: player.energy - (validation.energyCost || 1),
+      energy: player.energy - (validation.energyCost || 0),
       mediaCoverage: Math.min(player.mediaCoverage + mediaBonus, GAME_CONSTANTS.MAX_MEDIA_COVERAGE),
       probes: player.probes.map((p, idx) => {
         if (idx === probeIndex) {

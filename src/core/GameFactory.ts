@@ -70,6 +70,7 @@ export class GameFactory {
       name,
       credits: GAME_CONSTANTS.INITIAL_CREDITS,
       energy: GAME_CONSTANTS.INITIAL_ENERGY,
+      data: GAME_CONSTANTS.INITIAL_DATA,
       mediaCoverage: GAME_CONSTANTS.INITIAL_MEDIA_COVERAGE,
       revenueCredits: GAME_CONSTANTS.INITIAL_REVENUE_CREDITS,
       revenueEnergy: GAME_CONSTANTS.INITIAL_REVENUE_ENERGY,

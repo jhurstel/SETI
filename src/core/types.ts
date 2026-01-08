@@ -146,6 +146,7 @@ export interface Player {
   credits: number;
   revenueCredits: number;
   energy: number;
+  data: number;
   revenueEnergy: number;
   revenueCards: number;
   mediaCoverage: number;
@@ -508,6 +509,7 @@ export const GAME_CONSTANTS = {
   HAND_SIZE_AFTER_PASS: 4,
   INITIAL_CREDITS: 4,
   INITIAL_ENERGY: 3,
+  INITIAL_DATA: 0,
   INITIAL_MEDIA_COVERAGE: 4,
   INITIAL_REVENUE_CREDITS: 3,
   INITIAL_REVENUE_ENERGY: 2,
