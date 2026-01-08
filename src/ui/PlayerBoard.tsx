@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, FreeAction, ProbeState, Card } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, FreeAction, ProbeState, Card, RevenueBonus } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
+import { DataSystem } from '../systems/DataSystem';
 
 interface PlayerBoardProps {
   game: Game;
@@ -17,6 +18,11 @@ interface PlayerBoardProps {
   onSpendSelection?: (resource: string, cardIds?: string[]) => void;
   onGainSelection?: (resource: string) => void;
   onCancelTrade?: () => void;
+  onGameUpdate?: (game: Game) => void;
+  onDrawCard?: (count: number, source: string) => void;
+  isSelectingComputerSlot?: boolean;
+  onComputerSlotSelect?: (col: number) => void;
+  isAnalyzing?: boolean;
 }
 
 const ACTION_NAMES: Record<ActionType, string> = {
@@ -30,11 +36,223 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.PASS]: 'Passer',
 };
 
-export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onFreeAction, onPlayCard, onBuyCardAction, onTradeResourcesAction, tradeState = { phase: 'inactive' }, onSpendSelection, onGainSelection, onCancelTrade }) => {
+const ComputerSlot = ({ 
+  slot, 
+  onClick, 
+  canFill 
+}: { 
+  slot: any, 
+  onClick: () => void, 
+  canFill: boolean 
+}) => {
+  const isFilled = slot.filled;
+  
+  let tooltip = 'Emplacement vide';
+  if (slot.bonus === 'media') tooltip = '1 Media';
+  else if (slot.bonus === 'reservation') tooltip = '1 Reservation';
+  else if (slot.bonus === '2pv') tooltip = '2 PV';
+  else if (slot.bonus === 'credit') tooltip = '1 Crédit';
+  else if (slot.bonus === 'energy') tooltip = '1 Énergie';
+  else if (slot.bonus === 'card') tooltip = '1 Carte';
+
+  if (isFilled) {
+      tooltip = 'Donnée stockée';
+  } else if (canFill) {
+      tooltip += ' (Cliquer pour placer)';
+  } else {
+      tooltip += ' (Indisponible)';
+  }
+  
+  return (
+    <div
+      onClick={canFill && !isFilled ? onClick : undefined}
+      style={{
+        width: '32px',
+        height: '32px',
+        boxSizing: 'border-box',
+        border: '1px solid #777',
+        backgroundColor: isFilled ? '#4a9eff' : 'transparent',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: canFill && !isFilled ? 'pointer' : 'default',
+        position: 'relative',
+        boxShadow: isFilled ? '0 0 8px rgba(74, 158, 255, 0.6)' : 'none',
+        opacity: !isFilled && !canFill ? 0.4 : 1,
+        transition: 'all 0.2s',
+      }}
+      title={tooltip}
+    >
+      {isFilled && <div style={{ width: '12px', height: '12px', background: '#fff', borderRadius: '50%', boxShadow: '0 0 4px #fff' }} />}
+      {!isFilled && slot.bonus === 'media' && <span style={{ fontSize: '12px', color: '#ffeb3b', fontWeight: 'bold' }}>M</span>}
+      {!isFilled && slot.bonus === 'reservation' && <span style={{ fontSize: '12px', color: '#ff6b6b', fontWeight: 'bold' }}>R</span>}
+      {!isFilled && slot.bonus === '2pv' && <span style={{ fontSize: '10px', color: '#8affc0', fontWeight: 'bold' }}>2PV</span>}
+      {!isFilled && slot.bonus === 'credit' && <span style={{ fontSize: '12px', color: '#4a9eff', fontWeight: 'bold' }}>C</span>}
+      {!isFilled && slot.bonus === 'energy' && <span style={{ fontSize: '12px', color: '#ff6b6b', fontWeight: 'bold' }}>E</span>}
+      {!isFilled && slot.bonus === 'card' && <span style={{ fontSize: '12px', color: '#fff', fontWeight: 'bold' }}>🃏</span>}
+    </div>
+  );
+};
+
+const PlayerComputer = ({ player, onUpdate, onBonus, isSelecting, onColumnSelect, isAnalyzing }: { player: any, onUpdate: () => void, onBonus: (type: string, amount: number) => void, isSelecting?: boolean, onColumnSelect?: (col: number) => void, isAnalyzing?: boolean }) => {
+  // Initialize if needed
+  if (!player.computer) {
+    player.computer = {
+      slots: {
+        '1a': { id: '1a', filled: false, type: 'top', col: 1 },
+        '1b': { id: '1b', filled: false, type: 'bottom', parentId: '1a', col: 1 },
+        '2':  { id: '2', filled: false, type: 'top', bonus: 'media', col: 2 },
+        '3a': { id: '3a', filled: false, type: 'top', col: 3 },
+        '3b': { id: '3b', filled: false, type: 'bottom', parentId: '3a', col: 3 },
+        '4':  { id: '4', filled: false, type: 'top', bonus: 'reservation', col: 4 },
+        '5a': { id: '5a', filled: false, type: 'top', col: 5 },
+        '5b': { id: '5b', filled: false, type: 'bottom', parentId: '5a', col: 5 },
+        '6a': { id: '6a', filled: false, type: 'top', col: 6 },
+        '6b': { id: '6b', filled: false, type: 'bottom', parentId: '6a', col: 6 },
+      }
+    };
+  }
+
+  const slots = player.computer.slots;
+
+  const handleSlotClick = (slotId: string) => {
+    const slot = slots[slotId];
+    if (player.data < 1) return;
+    
+    player.data -= 1;
+    slot.filled = true;
+    
+    if (slot.bonus === 'media') {
+       player.mediaCoverage = Math.min((player.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE || 10);
+    }
+    if (slot.bonus === 'reservation') {
+       onBonus('reservation', 1);
+    }
+    if (slot.bonus === '2pv') {
+       player.score += 2;
+    }
+    if (slot.bonus === 'credit') {
+       player.credits += 1;
+    }
+    if (slot.bonus === 'energy') {
+       player.energy += 1;
+    }
+    if (slot.bonus === 'card') {
+       onBonus('card', 1);
+    }
+
+    // Si la case 6a est remplie, on active la capacité d'analyse
+    if (slotId === '6a' && player.dataComputer) {
+      player.dataComputer.canAnalyze = true;
+    }
+    // Reservation bonus logic would go here
+    
+    onUpdate();
+  };
+
+  const canFill = (slotId: string) => {
+    const slot = slots[slotId];
+    if (slot.filled) return false;
+    if (player.data < 1) return false;
+    if (slot.type === 'bottom' && slot.parentId) {
+      return slots[slot.parentId].filled;
+    }
+    // Contrainte horizontale : remplissage de gauche à droite sur la ligne du haut
+    if (slot.type === 'top' && slot.col > 1) {
+      const prevCol = slot.col - 1;
+      const prevTopSlot = Object.values(slots).find((s: any) => s.col === prevCol && s.type === 'top') as any;
+      if (prevTopSlot && !prevTopSlot.filled) return false;
+    }
+    return true;
+  };
+
+  const columns = [1, 2, 3, 4, 5, 6];
+
+  return (
+    <div style={{ display: 'flex', padding: '12px 24px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', overflowX: 'auto', width: '100%', boxSizing: 'border-box', alignItems: 'flex-start', position: 'relative', overflow: 'hidden' }} className={isAnalyzing ? 'analyzing-container' : ''}>
+      {/* Animation de scan */}
+      {isAnalyzing && <div className="scan-line" />}
+
+      {columns.map((col, index) => {
+        const colSlots = Object.values(slots).filter((s: any) => s.col === col).sort((a: any, b: any) => a.type === 'top' ? -1 : 1);
+        const hasBottom = colSlots.length > 1;
+        const isSelectableColumn = isSelecting && hasBottom; // Only columns with 2 slots (1, 3, 5, 6) are selectable for computing tech
+
+        // Calculate margins for separator to touch circles
+        let separatorLeftMargin = 0;
+        let separatorRightMargin = 0;
+        
+        if (index < columns.length - 1) {
+            const currentPadding = hasBottom ? 12 : 4;
+            const nextCol = columns[index + 1];
+            const nextColSlots = Object.values(slots).filter((s: any) => s.col === nextCol);
+            const nextHasBottom = nextColSlots.length > 1;
+            const nextPadding = nextHasBottom ? 12 : 4;
+            
+            separatorLeftMargin = -currentPadding;
+            separatorRightMargin = -nextPadding;
+        }
+
+        return (
+          <React.Fragment key={col}>
+            <div 
+              onClick={() => isSelectableColumn && onColumnSelect && onColumnSelect(col)}
+              style={{ 
+                display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center', position: 'relative', zIndex: 1,
+                border: isSelectableColumn ? '1px solid #00ff00' : (hasBottom ? '1px solid #555' : '1px solid transparent'),
+                borderRadius: '8px',
+                padding: hasBottom ? '4px 12px' : '4px',
+                cursor: isSelectableColumn ? 'pointer' : 'default',
+                backgroundColor: isSelectableColumn ? 'rgba(0, 255, 0, 0.1)' : 'transparent'
+              }}>
+              {/* Ligne verticale reliant haut et bas */}
+              {hasBottom && (
+                <div style={{
+                  position: 'absolute',
+                  top: '36px',
+                  height: '8px',
+                  width: '2px',
+                  backgroundColor: '#555',
+                  zIndex: 0
+                }} />
+              )}
+              {colSlots.map((slot: any) => (
+                <ComputerSlot 
+                  key={slot.id} 
+                  slot={slot} 
+                  onClick={() => handleSlotClick(slot.id)} 
+                  canFill={canFill(slot.id)} 
+                />
+              ))}
+            </div>
+            {index < columns.length - 1 && (
+              <div style={{
+                flex: 1,
+                height: '2px',
+                backgroundColor: '#555',
+                marginTop: '20px',
+                minWidth: '10px',
+                marginLeft: separatorLeftMargin,
+                marginRight: separatorRightMargin,
+                zIndex: 0,
+                position: 'relative'
+              }} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
+export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onFreeAction, onPlayCard, onBuyCardAction, onTradeResourcesAction, tradeState = { phase: 'inactive' }, onSpendSelection, onGainSelection, onCancelTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing }) => {
   const currentPlayer = game.players[game.currentPlayerIndex];
   const isRobot = (currentPlayer as any).type === 'robot';
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
   const [cardsSelectedForTrade, setCardsSelectedForTrade] = useState<string[]>([]);
+  const [tick, setTick] = useState(0);
+  const [reservationState, setReservationState] = useState<{ active: boolean; count: number }>({ active: false, count: 0 });
 
   // Effect to reset selection when exiting trading mode
   useEffect(() => {
@@ -42,6 +260,21 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDisc
       setCardsSelectedForTrade([]);
     }
   }, [tradeState.phase]);
+
+  const handleComputerBonus = (type: string, amount: number) => {
+    if (type === 'reservation') {
+      setReservationState(prev => ({ active: true, count: prev.count + amount }));
+    } else if (type === 'card' && onDrawCard) {
+      onDrawCard(amount, 'Bonus Ordinateur');
+    }
+  };
+
+  const getTechIcon = (techId: string) => {
+    if (techId.startsWith('exploration')) return '🚀';
+    if (techId.startsWith('observation')) return '🔭';
+    if (techId.startsWith('computing')) return '💻';
+    return '⚙️';
+  };
 
   // Hook personnalisé pour gérer les flashs de ressources
   const useResourceFlash = (value: number, playerId: string) => {
@@ -76,6 +309,9 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDisc
   const creditFlash = useResourceFlash(currentPlayer.credits, currentPlayer.id);
   const energyFlash = useResourceFlash(currentPlayer.energy, currentPlayer.id);
   const dataFlash = useResourceFlash(currentPlayer.data, currentPlayer.id);
+  const revenueCreditFlash = useResourceFlash(currentPlayer.revenueCredits, currentPlayer.id);
+  const revenueEnergyFlash = useResourceFlash(currentPlayer.revenueEnergy, currentPlayer.id);
+  const revenueCardFlash = useResourceFlash(currentPlayer.revenueCards, currentPlayer.id);
 
   // Styles d'animation injectés
   const FlashStyles = () => (
@@ -90,6 +326,30 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDisc
       }
       .flash-gain { animation: flashGreen 0.6s ease-out; }
       .flash-loss { animation: flashRed 0.6s ease-out; }
+
+      /* Animation de scan pour l'ordinateur */
+      @keyframes scan-horizontal {
+        0% { left: -20%; opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { left: 120%; opacity: 0; }
+      }
+      .scan-line {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 60px;
+        background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.6), transparent);
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+        animation: scan-horizontal 1.5s ease-in-out infinite;
+        pointer-events: none;
+        z-index: 20;
+      }
+      .analyzing-container {
+        box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        border: 1px solid rgba(0, 255, 255, 0.5) !important;
+        transition: all 0.3s ease;
+      }
     `}</style>
   );
 
@@ -100,10 +360,10 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDisc
     [ActionType.LAUNCH_PROBE]: !isRobot && ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch,
     [ActionType.ORBIT]: !isRobot && currentPlayer.probes.some(probe => ProbeSystem.canOrbit(game, currentPlayer.id, probe.id).canOrbit),
     [ActionType.LAND]: !isRobot && currentPlayer.probes.some(probe => ProbeSystem.canLand(game, currentPlayer.id, probe.id).canLand),
-    [ActionType.SCAN_SECTOR]: false, // TODO
-    [ActionType.ANALYZE_DATA]: false, // TODO
-    [ActionType.PLAY_CARD]: false, // TODO
-    [ActionType.RESEARCH_TECH]: false, // TODO
+    [ActionType.SCAN_SECTOR]: !isRobot && false, // TODO
+    [ActionType.ANALYZE_DATA]: !isRobot && DataSystem.canAnalyzeData(game, currentPlayer.id).canAnalyze,
+    [ActionType.PLAY_CARD]: !isRobot && false, // TODO
+    [ActionType.RESEARCH_TECH]: !isRobot && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA,
     [ActionType.PASS]: !isRobot,
   };
 
@@ -118,7 +378,7 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDisc
     switch (actionType) {
       case ActionType.LAUNCH_PROBE:
         // si joueur a exploration1, il peut lancer 2 sondes
-        const maxProbes = currentPlayer.technologies.some(tech => tech.id === 'exploration-1')
+        const maxProbes = currentPlayer.technologies.some(tech => tech.id.startsWith('exploration-1'))
           ? GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY
           : GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM;
         if (currentPlayer.probes.length >= maxProbes) return `Limite de sondes atteinte (max ${maxProbes} dans le système solaire)`;
@@ -255,22 +515,25 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDisc
             >
               <span>Énergie:</span> <strong>{currentPlayer.energy}</strong>
             </div>
-            <div
-              key={dataFlash ? `data-${dataFlash.id}` : 'data-static'}
-              className={`seti-res-badge ${dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-            >
-              <span>Donnée:</span> <strong>{currentPlayer.data}</strong>
-            </div>
           </div>
           <div className="seti-player-section-title">Revenues</div>
-          <div className="seti-player-revenues">
-            <div className="seti-res-badge">
+          <div className="seti-player-revenues" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div 
+              key={revenueCreditFlash ? `rev-credit-${revenueCreditFlash.id}` : 'rev-credit-static'}
+              className={`seti-res-badge ${revenueCreditFlash ? (revenueCreditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
+            >
               <span>Crédit:</span> <strong>{currentPlayer.revenueCredits}</strong>
             </div>
-            <div className="seti-res-badge">
+            <div 
+              key={revenueEnergyFlash ? `rev-energy-${revenueEnergyFlash.id}` : 'rev-energy-static'}
+              className={`seti-res-badge ${revenueEnergyFlash ? (revenueEnergyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
+            >
               <span>Énergie:</span> <strong>{currentPlayer.revenueEnergy}</strong>
             </div>
-            <div className="seti-res-badge">
+            <div 
+              key={revenueCardFlash ? `rev-card-${revenueCardFlash.id}` : 'rev-card-static'}
+              className={`seti-res-badge ${revenueCardFlash ? (revenueCardFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
+            >
               <span>Carte:</span> <strong>{currentPlayer.revenueCards}</strong>
             </div>
           </div>
@@ -309,23 +572,46 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDisc
 
         {/* Technologies */}
         <div className="seti-player-section">
-          <div className="seti-player-section-title">Technologies</div>
+          <div className="seti-player-section-title">Technologie</div>
           <div className="seti-player-list">
             {currentPlayer.technologies.length > 0 ? (
               currentPlayer.technologies.map((tech) => (
-                <div key={tech.id} className="seti-player-list-item">
-                  {tech.name}
+                <div key={tech.id} className="seti-player-list-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ fontSize: '1.1em' }} title={tech.id.split('-')[0]}>{getTechIcon(tech.id)}</div>
+                  <div style={{ fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap' }}>{tech.name}</div>
+                  {tech.description && (
+                    <div style={{ fontSize: '0.75em', color: '#ccc', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }} title={tech.description}>
+                      {tech.description}
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
               <div className="seti-player-list-empty">Aucune technologie</div>
             )}
           </div>
-          <div className="seti-player-section-title">Ordinateur</div>
-          <div className="seti-player-list">
-            <div className="seti-player-list-empty">
-              Donnée(s): {currentPlayer.data || 0}
-            </div>
+          <div className="seti-player-section-title" style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+            <span>Ordinateur</span>
+            <span 
+              key={dataFlash ? `data-${dataFlash.id}` : 'data-static'}
+              className={dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
+              style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px' }}
+            >
+              Donnée(s): <strong style={{ color: '#fff' }}>{currentPlayer.data || 0}</strong>
+            </span>
+          </div>
+          <div className="seti-player-list" style={{ padding: '0' }}>
+            <PlayerComputer 
+              player={currentPlayer} 
+              onUpdate={() => {
+                setTick(t => t + 1);
+                if (onGameUpdate) onGameUpdate({ ...game });
+              }}
+              onBonus={handleComputerBonus}
+              isSelecting={isSelectingComputerSlot}
+              onColumnSelect={onComputerSlotSelect}
+              isAnalyzing={isAnalyzing}
+            />
           </div>
         </div>
 
@@ -391,23 +677,74 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDisc
                 const isSelectedForTrade = cardsSelectedForTrade.includes(card.id);
                 const isHighlighted = highlightedCardId === card.id;
                 const isMovementAction = card.freeAction === FreeAction.MOVEMENT;
-                const canPerformFreeAction = !isMovementAction || hasProbesInSystem;
-                const { canPlay, reason: playTooltip } = checkCanPlayCard(card);
+                const isDataAction = card.freeAction === FreeAction.DATA;
+                const isMediaAction = card.freeAction === FreeAction.MEDIA;
                 
+                let canPerformFreeAction = true;
                 let actionTooltip = "";
-                if (!canPerformFreeAction) {
-                  actionTooltip = "Nécessite une sonde dans le système solaire";
-                } else if (card.freeAction === FreeAction.MEDIA) {
-                  actionTooltip = "Vous gagnez 1 media";
-                } else if (card.freeAction === FreeAction.DATA) {
-                  actionTooltip = "Vous gagnez 1 data";
+
+                if (isMovementAction) {
+                  if (!hasProbesInSystem) {
+                    canPerformFreeAction = false;
+                    actionTooltip = "Nécessite une sonde dans le système solaire";
+                  }
+                } else if (isDataAction) {
+                  if ((currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
+                    canPerformFreeAction = false;
+                    actionTooltip = "Nécessite de transférer des données";
+                  } else {
+                    actionTooltip = "Vous gagnez 1 data";
+                  }
+                } else if (isMediaAction) {
+                  if (currentPlayer.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
+                    canPerformFreeAction = false;
+                    actionTooltip = "Média au maximum";
+                  } else {
+                    actionTooltip = "Vous gagnez 1 media";
+                  }
                 }
 
+                const { canPlay, reason: playTooltip } = checkCanPlayCard(card);
+                
                 return (
                   <div 
                     key={card.id} 
                     className="seti-player-list-item"
-                    onClick={() => {
+                    onClick={(e) => {
+                      if (reservationState.active) {
+                        if (card.revenue) {
+                          // Retirer la carte de la main
+                          currentPlayer.cards = currentPlayer.cards.filter(c => c.id !== card.id);
+                          
+                          if (card.revenue === RevenueBonus.CREDIT) {
+                            currentPlayer.revenueCredits += 1;
+                            currentPlayer.credits += 1;
+                          }
+                          else if (card.revenue === RevenueBonus.ENERGY) {
+                            currentPlayer.revenueEnergy += 1;
+                            currentPlayer.energy += 1;
+                          }
+                          else if (card.revenue === RevenueBonus.CARD) {
+                            currentPlayer.revenueCards += 1;
+                          }
+                          
+                          const newCount = reservationState.count - 1;
+                          setReservationState({ active: newCount > 0, count: newCount });
+                          
+                          // Mettre à jour l'affichage et le jeu
+                          setTick(t => t + 1);
+                          
+                          if (card.revenue === RevenueBonus.CARD && onDrawCard) {
+                            onDrawCard(1, 'Bonus immédiat réservation');
+                          } else {
+                            if (onGameUpdate) onGameUpdate({ ...game });
+                          }
+                        } else {
+                          alert("Cette carte n'a pas de bonus de revenu.");
+                        }
+                        return;
+                      }
+
                       if (tradeState.phase === 'spending' && canSpendCards) {
                         if (isSelectedForTrade) {
                           setCardsSelectedForTrade(prev => prev.filter(id => id !== card.id));
@@ -431,7 +768,7 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDisc
                       cursor: 'pointer',
                       border: tradeState.phase === 'spending' && canSpendCards
                         ? (isSelectedForTrade ? '2px solid #ffeb3b' : '1px solid #ffeb3b')
-                        : (isDiscarding 
+                        : (reservationState.active ? '2px solid #ff9800' : isDiscarding 
                           ? (isSelectedForDiscard ? '1px solid #ff6b6b' : '1px solid #444')
                           : (isHighlighted ? '1px solid #4a9eff' : '1px solid #444')),
                       backgroundColor: isDiscarding
@@ -441,7 +778,7 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDisc
                       position: 'relative',
                     }}
                   >
-                    {isHighlighted && tradeState.phase === 'inactive' && !isDiscarding && (
+                    {isHighlighted && tradeState.phase === 'inactive' && !isDiscarding && !reservationState.active && (
                       <>
                       <button
                         onClick={(e) => {

@@ -58,7 +58,7 @@ export class ProbeSystem {
     );
 
     // Vérifier les technologies qui permettent plusieurs sondes
-    const maxProbes = player.technologies.some(t => t.id === 'exploration-1')
+    const maxProbes = player.technologies.some(t => t.id.startsWith('exploration-1'))
      ? GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY
      : GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM;
     
@@ -78,7 +78,8 @@ export class ProbeSystem {
   static launchProbe(
     game: Game, 
     playerId: string,
-    earthPosition?: { disk: DiskName; sector: SectorNumber }
+    earthPosition?: { disk: DiskName; sector: SectorNumber },
+    free: boolean = false
   ): {
     updatedGame: Game;
     probeId: string;
@@ -129,7 +130,7 @@ export class ProbeSystem {
     // Débiter les crédits
     const updatedPlayer = {
       ...player,
-      credits: player.credits - GAME_CONSTANTS.PROBE_LAUNCH_COST,
+      credits: player.credits - (free ? 0 : GAME_CONSTANTS.PROBE_LAUNCH_COST),
       probes: [...player.probes, probe]
     };
 
@@ -235,7 +236,7 @@ export class ProbeSystem {
       if (targetCell.hasComet) mediaBonus += 1;
       // La Terre ne donne pas de bonus de média
       if (targetCell.hasPlanet && targetCell.planetId !== 'earth') mediaBonus += 1;
-      if (targetCell.hasAsteroid && player.technologies.some(t => t.id === 'exploration-2')) mediaBonus += 1;
+      if (targetCell.hasAsteroid && player.technologies.some(t => t.id.startsWith('exploration-2'))) mediaBonus += 1;
     }
     
     // Débiter l'énergie et appliquer le bonus de média

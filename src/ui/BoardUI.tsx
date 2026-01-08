@@ -1,8 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, CardType, SectorColor, RevenueBonus } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, CardType, SectorColor, RevenueBonus, Technology } from '../core/types';
 import { SolarSystemBoard, SolarSystemBoardRef } from './SolarSystemBoard';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoard } from './PlayerBoard';
+import { AlienBoardUI } from './AlienBoardUI';
 import { LaunchProbeAction } from '../actions/LaunchProbeAction';
 import { GameEngine } from '../core/Game';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -11,6 +12,34 @@ import { createRotationState, getCell } from '../core/SolarSystemPosition';
 interface BoardUIProps {
   game: Game;
 }
+
+// Helper pour piocher des cartes (mock ou réel)
+const drawCards = (game: Game, playerId: string, count: number, source: string): Game => {
+  const updatedGame = { ...game };
+  updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+  const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
+  if (playerIndex === -1) return game;
+  
+  const player = updatedGame.players[playerIndex];
+
+  for (let i = 0; i < count; i++) {
+    // Génération de carte mock (factorisée)
+    const newCard: Card = {
+        id: `card_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 5)}`,
+        name: 'Projet SETI',
+        type: CardType.ACTION,
+        cost: Math.floor(Math.random() * 3) + 1,
+        freeAction: [FreeAction.MEDIA, FreeAction.DATA, FreeAction.MOVEMENT][Math.floor(Math.random() * 3)],
+        scanSector: [SectorColor.BLUE, SectorColor.RED, SectorColor.YELLOW, SectorColor.BLACK][Math.floor(Math.random() * 4)],
+        revenue: [RevenueBonus.CREDIT, RevenueBonus.ENERGY, RevenueBonus.CARD][Math.floor(Math.random() * 3)],
+        effects: [],
+        description: source,
+    };
+    player.cards.push(newCard);
+  }
+  
+  return updatedGame;
+};
 
 export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // État pour le jeu
@@ -29,6 +58,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // État pour le mode déplacement gratuit (suite à une action gratuite)
   const [isFreeMovementMode, setIsFreeMovementMode] = useState(false);
+
+  // État pour le mode recherche de technologie
+  const [isResearching, setIsResearching] = useState(false);
+
+  // État pour la sélection d'un emplacement ordinateur lors de l'achat d'une tech informatique
+  const [pendingTechSelection, setPendingTechSelection] = useState<Technology | null>(null);
+
+  // État pour l'animation d'analyse de données
+  const [isAnalyzingData, setIsAnalyzingData] = useState(false);
 
   // Effet pour masquer le toast après 3 secondes
   useEffect(() => {
@@ -66,7 +104,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Si passedPlayersCount vaut 1, c'est que le joueur actuel vient de passer et est le seul
     if (passedPlayersCount === 1) {
       const techBoard = updatedGame.board.technologyBoard;
-      const currentLevel = techBoard.nextRingLevel; // 1, 2 ou 3
+      const currentLevel = techBoard.nextRingLevel || 1; // 1, 2 ou 3
       
       console.log(`Premier joueur à passer. Rotation du niveau ${currentLevel}`);
       setToast({ message: `Rotation du système solaire (Niveau ${currentLevel})`, visible: true });
@@ -211,6 +249,75 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       
       executePass(game);
     }
+    else if (actionType === ActionType.RESEARCH_TECH) {
+      if (isResearching) {
+        setIsResearching(false);
+        setToast({ message: "Recherche annulée", visible: true });
+        return;
+      }
+      // Le coût est vérifié dans PlayerBoard (désactivation du bouton), mais on peut revérifier ici
+      setIsResearching(true);
+      setToast({ message: "Sélectionnez une technologie à acquérir", visible: true });
+    }
+    else if (actionType === ActionType.ANALYZE_DATA) {
+      const currentPlayer = game.players[game.currentPlayerIndex];
+      
+      if (!currentPlayer.dataComputer.canAnalyze) {
+        setToast({ message: "Analyse impossible : Remplissez la ligne du haut", visible: true });
+        return;
+      }
+      if (currentPlayer.energy < 1) {
+        setToast({ message: "Énergie insuffisante", visible: true });
+        return;
+      }
+
+      // Déclencher l'animation
+      setIsAnalyzingData(true);
+      setToast({ message: "Analyse des données en cours...", visible: true });
+
+      // Délai pour l'animation avant d'appliquer les effets
+      setTimeout(() => {
+        const updatedGame = { ...game };
+        updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+        const playerIndex = updatedGame.currentPlayerIndex;
+        const player = updatedGame.players[playerIndex];
+
+        // 1. Dépenser 1 énergie
+        player.energy -= 1;
+
+        // 2. Vider l'ordinateur (haut et bas)
+        const playerAny = player as any;
+        if (playerAny.computer && playerAny.computer.slots) {
+          Object.values(playerAny.computer.slots).forEach((slot: any) => {
+            slot.filled = false;
+          });
+        }
+        player.dataComputer.canAnalyze = false;
+
+        // 3. Placer marqueur sur la piste Alien Bleue (Ordinateur)
+        const alienBoard = updatedGame.board.alienBoard;
+        let bonusMsg = "";
+
+        if (!alienBoard.blue.slot1.playerId) {
+          alienBoard.blue.slot1.playerId = player.id;
+          player.score += 5;
+          player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+          bonusMsg = "+5 PV, +1 Média (1er)";
+        } else if (!alienBoard.blue.slot2.playerId) {
+          alienBoard.blue.slot2.playerId = player.id;
+          player.score += 3;
+          player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+          bonusMsg = "+3 PV, +1 Média (2ème)";
+        } else {
+          player.score += 3;
+          bonusMsg = "+3 PV";
+        }
+
+        setGame(updatedGame);
+        setToast({ message: `Données analysées ! ${bonusMsg}`, visible: true });
+        setIsAnalyzingData(false);
+      }, 1500);
+    }
     // TODO: Gérer les autres actions
   };
 
@@ -261,7 +368,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       // Coût de base = 1 + malus astéroïde éventuel
       let stepCost = 1;
       if (prevCell?.hasAsteroid) {
-        stepCost += 1;
+        // Vérifier la technologie Exploration II (réduit le coût de sortie des astéroïdes)
+        const hasExploration2 = currentGame.players[currentGame.currentPlayerIndex].technologies.some(t => t.id.startsWith('exploration-2'));
+        if (!hasExploration2) {
+          stepCost += 1;
+        }
       }
 
       // Appliquer les mouvements gratuits
@@ -383,22 +494,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Débiter le média
     currentPlayer.mediaCoverage -= 3;
 
-    // Ajouter une carte (Simulation de pioche)
-    const newCard = {
-      id: `card_bought_${Date.now()}`,
-      name: 'Soutien Médiatique',
-      type: CardType.ACTION,
-      cost: 1,
-      freeAction: FreeAction.MEDIA,
-      scanSector: SectorColor.YELLOW,
-      revenue: RevenueBonus.CREDIT,
-      effects: [],
-      description: 'Carte obtenue grâce à votre influence médiatique.',
-    };
-    
-    currentPlayer.cards.push(newCard);
+    // Utiliser le helper pour piocher
+    const finalGame = drawCards(updatedGame, currentPlayer.id, 1, 'Carte obtenue grâce à votre influence médiatique.');
 
-    setGame(updatedGame);
+    setGame(finalGame);
     setToast({ message: "Carte achetée (-3 Média)", visible: true });
   };
 
@@ -428,7 +527,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     
     const { type: spendType, cardIds } = tradeState.spend;
 
-    const updatedGame = { ...game };
+    let updatedGame = { ...game };
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
     const currentPlayerIndex = updatedGame.currentPlayerIndex;
     const currentPlayer = updatedGame.players[currentPlayerIndex];
@@ -458,18 +557,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     } else if (normalizedGain === 'energy') {
         currentPlayer.energy += 1;
     } else if (normalizedGain === 'carte') {
-        const newCard = {
-            id: `card_trade_${Date.now()}`,
-            name: 'Ressource échangée',
-            type: CardType.ACTION,
-            cost: 0,
-            freeAction: FreeAction.MEDIA,
-            scanSector: SectorColor.BLUE,
-            revenue: RevenueBonus.CREDIT,
-            effects: [],
-            description: 'Carte obtenue par échange.',
-        };
-        currentPlayer.cards.push(newCard);
+        updatedGame = drawCards(updatedGame, currentPlayer.id, 1, 'Carte obtenue par échange.');
     } else {
          alert("Type de ressource à recevoir invalide.");
          setTradeState({ phase: 'inactive' });
@@ -479,6 +567,174 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setGame(updatedGame);
     setToast({ message: "Echange effectué", visible: true });
     setTradeState({ phase: 'inactive' });
+  };
+
+  // Fonction interne pour traiter l'achat (commune à l'achat direct et après sélection)
+  const processTechPurchase = (tech: Technology, targetComputerCol?: number) => {
+    let updatedGame = { ...game };
+    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const currentPlayerIndex = updatedGame.currentPlayerIndex;
+    let currentPlayer = updatedGame.players[currentPlayerIndex];
+
+    // Note: Le coût a déjà été vérifié avant l'appel, mais on le redébite ici pour centraliser la logique
+
+    // Vérifier le coût (sécurité)
+    if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) {
+      setToast({ message: "Pas assez de couverture médiatique", visible: true });
+      setIsResearching(false);
+      return;
+    }
+
+    // Payer le coût
+    currentPlayer.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
+
+    // Rotation du système solaire AVANT l'acquisition de la technologie
+    
+    // Cloner le board pour éviter la mutation directe
+    updatedGame.board = {
+      ...updatedGame.board,
+      solarSystem: {
+        ...updatedGame.board.solarSystem
+      },
+      technologyBoard: {
+        ...updatedGame.board.technologyBoard
+      }
+    };
+
+    const techBoard = updatedGame.board.technologyBoard;
+    const currentLevel = techBoard.nextRingLevel || 1;
+    
+    const oldRotationState = createRotationState(
+      updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+    );
+
+    if (currentLevel === 1) {
+      updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+    } else if (currentLevel === 2) {
+      updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+    } else if (currentLevel === 3) {
+      updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+    }
+
+    techBoard.nextRingLevel = (currentLevel % 3) + 1;
+
+    const newRotationState = createRotationState(
+      updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+    );
+
+    // Mettre à jour les sondes après rotation
+    updatedGame = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
+    
+    // Récupérer les références mises à jour
+    currentPlayer = updatedGame.players[currentPlayerIndex];
+    const updatedTechBoard = updatedGame.board.technologyBoard;
+
+    // Retirer la technologie du plateau
+    if (updatedTechBoard.categorySlots) {
+      for (const slot of updatedTechBoard.categorySlots) {
+        const index = slot.technologies.findIndex(t => t.id === tech.id);
+        if (index !== -1) {
+          slot.technologies.splice(index, 1);
+          break;
+        }
+      }
+      // Mettre à jour la liste globale
+      updatedTechBoard.available = updatedTechBoard.categorySlots.flatMap(s => s.technologies);
+    }
+
+    // Ajouter au joueur
+    currentPlayer.technologies.push(tech);
+
+    // Si une colonne d'ordinateur a été ciblée (Tech Informatique)
+    if (targetComputerCol !== undefined) {
+      const slots = currentPlayer.computer.slots;
+      const topSlotId = `${targetComputerCol}a`;
+      const bottomSlotId = `${targetComputerCol}b`;
+      
+      if (slots[topSlotId]) slots[topSlotId].bonus = '2pv';
+      
+      // Déterminer le bonus du bas en fonction de la tech
+      let bottomBonus = '';
+      if (tech.id.startsWith('computing-1')) bottomBonus = 'credit';
+      else if (tech.id.startsWith('computing-2')) bottomBonus = 'card';
+      else if (tech.id.startsWith('computing-3')) bottomBonus = 'energy';
+      else if (tech.id.startsWith('computing-4')) bottomBonus = 'media'; // ou 2media si on gère les valeurs
+
+      if (slots[bottomSlotId] && bottomBonus) slots[bottomSlotId].bonus = bottomBonus;
+    }
+
+    // Appliquer les bonus immédiats
+    if (tech.bonus.pv) currentPlayer.score += tech.bonus.pv;
+    if (tech.bonus.media) currentPlayer.mediaCoverage = Math.min(currentPlayer.mediaCoverage + tech.bonus.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+    if (tech.bonus.energy) currentPlayer.energy += tech.bonus.energy;
+    if (tech.bonus.data) currentPlayer.data = Math.min((currentPlayer.data || 0) + tech.bonus.data, GAME_CONSTANTS.MAX_DATA);
+    if (tech.bonus.card) {
+      updatedGame = drawCards(updatedGame, currentPlayer.id, tech.bonus.card, `Bonus technologie ${tech.name}`);
+    }
+    if (tech.bonus.probe) {
+      // Lancer une sonde gratuitement
+      // On utilise updatedGame qui contient déjà la nouvelle technologie (donc la limite de sondes est augmentée)
+      const result = ProbeSystem.launchProbe(updatedGame, currentPlayer.id, undefined, true);
+      updatedGame.board = result.updatedGame.board;
+      updatedGame.players = result.updatedGame.players;
+    }
+
+    setGame(updatedGame);
+    setIsResearching(false);
+    setToast({ message: `Technologie ${tech.name} acquise !`, visible: true });
+  };
+
+  // Gestionnaire pour l'achat de technologie (clic initial)
+  const handleTechClick = (tech: Technology) => {
+    if (!isResearching) return;
+
+    // Si c'est une technologie informatique, on demande de sélectionner un emplacement
+    if (tech.id.startsWith('computing')) {
+      setPendingTechSelection(tech);
+      setToast({ message: "Sélectionnez une colonne (1, 3, 5, 6) sur l'ordinateur", visible: true });
+      return;
+    }
+
+    // Sinon achat direct
+    processTechPurchase(tech);
+  };
+
+  // Gestionnaire pour la sélection de la colonne ordinateur
+  const handleComputerColumnSelect = (col: number) => {
+    if (!pendingTechSelection) return;
+
+    // Vérifier que c'est une colonne valide (1, 3, 5, 6)
+    if (![1, 3, 5, 6].includes(col)) return;
+
+    // Finaliser l'achat
+    processTechPurchase(pendingTechSelection, col);
+    setPendingTechSelection(null);
+  };
+
+  // Gestionnaire pour la pioche de carte depuis le PlayerBoard (ex: bonus ordinateur)
+  const handleDrawCard = (count: number, source: string) => {
+    const updatedGame = drawCards(game, game.players[game.currentPlayerIndex].id, count, source);
+    setGame(updatedGame);
+  };
+
+  // Gestionnaire pour le clic sur une planète (ex: Terre pour lancer une sonde)
+  const handlePlanetClick = (planetId: string) => {
+    if (planetId === 'earth') {
+      const currentPlayer = game.players[game.currentPlayerIndex];
+      const validation = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
+      if (validation.canLaunch) {
+        handleAction(ActionType.LAUNCH_PROBE);
+      } else {
+        setToast({ message: validation.reason || "Impossible de lancer une sonde", visible: true });
+      }
+    }
   };
 
   // Utiliser les positions initiales depuis le jeu
@@ -551,6 +807,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     );
   };
 
+  const nextRotationLevel = game.board.technologyBoard.nextRingLevel || 1;
+  let nextRotationBackgroundColor = '#ffd700';
+  let nextRotationColor = '#000';
+  let nextRotationBorder = '#ffed4e';
+  if (nextRotationLevel === 2) {
+    nextRotationBackgroundColor = '#ff6b6b';
+    nextRotationColor = '#fff';
+    nextRotationBorder = '#ff8e8e';
+  } else if (nextRotationLevel === 3) {
+    nextRotationBackgroundColor = '#4a9eff';
+    nextRotationColor = '#fff';
+    nextRotationBorder = '#6bb3ff';
+  }
+
   return (
     <div className="seti-root">
       {/* Toast Notification */}
@@ -576,12 +846,17 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       )}
       <div className="seti-root-inner">
         <div className="seti-board-layout">
-          <TechnologyBoardUI game={game} />
-          <div style={{ position: 'relative', height: '100%', width: '100%', overflow: 'visible' }}>
+          <TechnologyBoardUI 
+            game={game} 
+            isResearching={isResearching}
+            onTechClick={handleTechClick}
+          />
+          <div style={{ position: 'relative', height: '100%', width: '100%', overflow: 'auto' }}>
             <SolarSystemBoard 
               ref={solarSystemRef} 
               game={game} 
               onProbeMove={handleProbeMove} 
+              onPlanetClick={handlePlanetClick}
               initialSector1={initialSector1} 
               initialSector2={initialSector2} 
               initialSector3={initialSector3}
@@ -590,14 +865,27 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             {/* Boutons de rotation des plateaux */}
             <div style={{
               position: 'absolute',
-              top: '10px',
-              left: '10px',
+              top: '15px',
+              left: '15px',
               display: 'flex',
               flexDirection: 'column',
               gap: '8px',
               zIndex: 1000,
             }}>
-              <button
+              <div style={{
+                backgroundColor: nextRotationBackgroundColor,
+                color: nextRotationColor,
+                border: `2px solid ${nextRotationBorder}`,
+                borderRadius: '6px',
+                padding: '8px 12px',
+                fontSize: '0.9rem',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+              }}>
+                Prochaine Rotation
+              </div>
+              {/*<button
                 onClick={handleRotateLevel1}
                 style={{
                   backgroundColor: '#ffd700',
@@ -623,8 +911,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 }}
               >
                 Tourner Niveau 1
-              </button>
-              <button
+              </button>*/}
+              {/*<button
                 onClick={handleRotateLevel2}
                 style={{
                   backgroundColor: '#ff6b6b',
@@ -651,7 +939,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               >
                 Tourner Niveau 2
               </button>
-              <button
+              */}
+              {/*<button
                 onClick={handleRotateLevel3}
                 style={{
                   backgroundColor: '#4a9eff',
@@ -678,8 +967,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               >
                 Tourner Niveau 3
               </button>
+              */}
             </div>
           </div>
+          {/*<AlienBoardUI game={game} />*/}
         </div>
         <PlayerBoard 
           game={game} 
@@ -696,6 +987,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           onSpendSelection={handleSpendSelection}
           onGainSelection={handleGainSelection}
           onCancelTrade={handleCancelTrade}
+          onGameUpdate={(newGame) => setGame(newGame)}
+          isSelectingComputerSlot={!!pendingTechSelection}
+          onComputerSlotSelect={handleComputerColumnSelect}
+          onDrawCard={handleDrawCard}
+          isAnalyzing={isAnalyzingData}
         />
       </div>
     </div>

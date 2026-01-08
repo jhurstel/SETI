@@ -1,5 +1,5 @@
 import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, GAME_CONSTANTS } from '../core/types';
 import { 
   createRotationState, 
   calculateReachableCellsWithEnergy,
@@ -15,6 +15,7 @@ import {
 interface SolarSystemBoardProps {
   game: Game;
   onProbeMove?: (probeId: string, targetDisk: DiskName, targetSector: SectorNumber, cost: number, path: string[]) => void;
+  onPlanetClick?: (planetId: string) => void;
   initialSector1?: number; // Secteur initial (1-8) pour positionner le plateau niveau 1
   initialSector2?: number; // Secteur initial (1-8) pour positionner le plateau niveau 2
   initialSector3?: number; // Secteur initial (1-8) pour positionner le plateau niveau 3
@@ -30,7 +31,7 @@ export interface SolarSystemBoardRef {
   rotateCounterClockwise3: () => void;
 }
 
-export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoardProps>(({ game, onProbeMove, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false }, ref) => {
+export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoardProps>(({ game, onProbeMove, onPlanetClick, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredProbe, setHoveredProbe] = useState<string | null>(null);
@@ -279,7 +280,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           fill={colorFill} // Plus clair pour la surbrillance
           stroke={colorStroke}
           strokeWidth="1.5" // Bordure plus épaisse
-          style={{ filter: `drop-shadow(0 0 3px ${colorShadow})`, pointerEvents: 'auto' }} // Effet de glow + bloque les événements
+          style={{ filter: `drop-shadow(0 0 2px ${colorShadow})`, pointerEvents: 'auto' }} // Effet de glow + bloque les événements
         />
       </svg>
     );
@@ -366,6 +367,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
         title={obj.name}
         onMouseEnter={() => setHoveredObject(obj)}
         onMouseLeave={() => setHoveredObject(null)}
+        onClick={() => onPlanetClick && onPlanetClick(obj.id)}
       >
         <div
           style={{
@@ -755,9 +757,14 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
           opacity: hoveredProbe === probe.id ? 1 : 0,
           visibility: hoveredProbe === probe.id ? 'visible' : 'hidden',
           zIndex: 101,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          whiteSpace: 'nowrap',
         }}
       >
-        {playerName}
+        <div style={{ fontWeight: 'bold' }}>{playerName}</div>
+        <div style={{ fontSize: '0.8em', color: '#ccc', marginTop: '2px' }}>Déplacer la sonde</div>
       </div>
     );
   };
@@ -860,7 +867,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
         <div className="seti-panel-title">Système solaire</div>
         
         {/* Boutons pour toggle l'affichage des plateaux */}
-        <div style={{
+        {/*<div style={{
           position: 'absolute',
           top: '10px',
           left: '180px', // Décalé à droite des boutons de rotation
@@ -947,10 +954,10 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
         >
           Niveau 3 {showLevel3 ? '✓' : '✗'}
         </button>
-      </div>
+      </div>*/}
 
       {/* Positions des planètes */}
-      <div style={{
+      {/*<div style={{
         position: 'absolute',
         top: '10px',
         right: '10px',
@@ -978,7 +985,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
             <span>{planet.position}</span>
           </div>
         ))}
-      </div>
+      </div>*/}
       
       {/* Conteneur pour positionner les éléments directement dans le panel */}
       <div style={{
@@ -1331,7 +1338,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               } else if (hoveredObject.type === 'asteroid') {
                 const currentPlayer = game.players[game.currentPlayerIndex];
                 // Utilisation de exploration-2 qui correspond au bonus d'astéroïdes dans Board.ts
-                const hasTech = currentPlayer.technologies.some(t => t.id === 'exploration-2');
+                const hasTech = currentPlayer.technologies.some(t => t.id.startsWith('exploration-2'));
                 subContent = (
                   <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>
                     {hasTech ? 'Vous gagnez 1 media' : 'Nécessite 1 déplacement supplémentaire pour quitter'}
@@ -1340,7 +1347,22 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
               } else if (hoveredObject.type === 'planet' && hoveredObject.id !== 'earth') {
                 subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>Vous gagnez 1 media</div>;
               } else {
-                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>Lancer une sonde</div>;
+                const currentPlayer = game.players[game.currentPlayerIndex];
+                const canLaunch = currentPlayer.credits >= GAME_CONSTANTS.PROBE_LAUNCH_COST;
+                subContent = (
+                  <div style={{ 
+                    fontSize: '0.75em', 
+                    marginTop: '6px', 
+                    color: '#666', 
+                    backgroundColor: 'rgba(74, 158, 255, 0.2)', //canLaunch ? 'rgba(100, 200, 100, 0.2)' : 'rgba(60, 60, 60, 0.3)', 
+                    border: '1px solid #4a9eff', //canLaunch ? '1px solid rgba(100, 200, 100, 0.4)' : '1px solid rgba(100, 100, 100, 0.2)',
+                    borderRadius: '4px', 
+                    padding: '3px 8px',
+                    display: 'inline-block'
+                  }}>
+                    Lancer une sonde
+                  </div>
+                );
               }
 
               return (

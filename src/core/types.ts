@@ -65,7 +65,7 @@ export enum CardType {
 
 export enum FreeAction {
   MOVEMENT = "Déplacement",
-  DATA = "Data",
+  DATA = "Donnée",
   MEDIA = "Média"
 }
 
@@ -90,9 +90,9 @@ export enum SectorColor {
 }
 
 export enum TechnologyCategory {
-  EXPLORATION = "EXPLORATION",
-  OBSERVATION = "OBSERVATION",
-  COMPUTING = "COMPUTING"
+  EXPLORATION = "Exploration",
+  OBSERVATION = "Observation",
+  COMPUTING = "Informatique"
 }
 
 export enum LifeTraceType {
@@ -167,6 +167,7 @@ export interface Board {
   sectors: Sector[];
   planets: Planet[];
   technologyBoard: TechnologyBoard;
+  alienBoard: AlienBoard;
 }
 
 export interface SolarSystem {
@@ -260,10 +261,31 @@ export interface DataToken {
   type: string;
 }
 
+export interface AlienBoard {
+  red: LifeTraceTrack;
+  yellow: LifeTraceTrack;
+  blue: LifeTraceTrack;
+}
+
+export interface LifeTraceTrack {
+  slot1: LifeTraceSlot;
+  slot2: LifeTraceSlot;
+}
+
+export interface LifeTraceSlot {
+  playerId?: string;
+  bonus: LifeTraceBonus;
+}
+
 export interface LifeTrace {
   id: string;
   type: LifeTraceType;
   discoveredAt: number;
+}
+
+export interface LifeTraceBonus {
+  media?: number;
+  pv?: number;
 }
 
 export interface Technology {
@@ -274,6 +296,7 @@ export interface Technology {
   bonus: TechnologyBonus;
   ownerId?: string;
   description?: string;
+  shorttext?: string;
 }
 
 export interface TechnologyEffect {
@@ -282,10 +305,12 @@ export interface TechnologyEffect {
 }
 
 export interface TechnologyBonus {
-  credits?: number;
   energy?: number;
   media?: number;
   pv?: number;
+  card?: number;
+  probe?: number;
+  data?: number;
 }
 
 export interface Card {
@@ -492,6 +517,7 @@ export const GAME_CONSTANTS = {
   MAX_PLAYERS: 4,
   MIN_PLAYERS: 2,
   MAX_MEDIA_COVERAGE: 10,
+  MAX_DATA: 6,
   MAX_PROBES_PER_SYSTEM: 1,
   MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY: 2,
   PROBE_LAUNCH_COST: 2,
@@ -509,7 +535,7 @@ export const GAME_CONSTANTS = {
   HAND_SIZE_AFTER_PASS: 4,
   INITIAL_CREDITS: 4,
   INITIAL_ENERGY: 3,
-  INITIAL_DATA: 0,
+  INITIAL_DATA: 6,
   INITIAL_MEDIA_COVERAGE: 4,
   INITIAL_REVENUE_CREDITS: 3,
   INITIAL_REVENUE_ENERGY: 2,

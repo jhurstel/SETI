@@ -41,7 +41,7 @@ export class DataSystem {
     }
 
     // Vérifier que la ligne supérieure est remplie
-    if (!this.isTopRowFull(player.dataComputer)) {
+    if (!player.dataComputer.canAnalyze) {
       return { 
         canAnalyze: false, 
         reason: 'La ligne supérieure de l\'ordinateur doit être remplie' 
@@ -228,4 +228,3 @@ export class DataSystem {
     return 5; // Exemple
   }
 }
-

@@ -9,7 +9,8 @@ import {
   Decks,
   Species,
   DataComputer,
-  GAME_CONSTANTS
+  GAME_CONSTANTS,
+  Technology
 } from './types';
 import { BoardManager } from './Board';
 
@@ -109,6 +110,9 @@ export class GameFactory {
 
     const updatedGame = { ...game };
 
+    // Mélanger les technologies et appliquer les bonus de pile
+    this.shuffleTechnologies(updatedGame);
+
     // TODO: Implémenter l'initialisation complète :
     // - Distribuer les cartes initiales
     // - Placer les signaux dans les secteurs
@@ -119,5 +123,57 @@ export class GameFactory {
 
     return updatedGame;
   }
-}
 
+  /**
+   * Mélange les piles de technologies et applique le bonus à la première carte
+   */
+  private static shuffleTechnologies(game: Game): void {
+    const shuffle = <T>(array: T[]): T[] => {
+      const newArray = [...array];
+      for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+      }
+      return newArray;
+    };
+
+    if (game.board.technologyBoard.categorySlots) {
+      game.board.technologyBoard.categorySlots.forEach(slot => {
+        const stacks = new Map<string, Technology[]>();
+        
+        // Regrouper les technologies par pile (basé sur l'ID racine, ex: 'exploration-1')
+        slot.technologies.forEach(tech => {
+          const lastDashIndex = tech.id.lastIndexOf('-');
+          const baseId = tech.id.substring(0, lastDashIndex);
+          
+          if (!stacks.has(baseId)) {
+            stacks.set(baseId, []);
+          }
+          stacks.get(baseId)!.push(tech);
+        });
+        
+        const shuffledTechnologies: Technology[] = [];
+        
+        // Mélanger chaque pile et appliquer le bonus
+        stacks.forEach((stack) => {
+          const shuffledStack = shuffle(stack);
+          
+          // La première carte (visible) gagne +2 PV
+          if (shuffledStack.length > 0) {
+            shuffledStack[0].bonus = {
+              ...shuffledStack[0].bonus,
+              pv: (shuffledStack[0].bonus.pv || 0) + 2
+            };
+          }
+          
+          shuffledTechnologies.push(...shuffledStack);
+        });
+        
+        slot.technologies = shuffledTechnologies;
+      });
+      
+      // Mettre à jour la liste globale des technologies disponibles
+      game.board.technologyBoard.available = game.board.technologyBoard.categorySlots.flatMap(s => s.technologies);
+    }
+  }
+}
