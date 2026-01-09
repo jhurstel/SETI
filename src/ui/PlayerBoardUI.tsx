@@ -3,7 +3,7 @@ import { Game, ActionType, GAME_CONSTANTS, FreeAction, ProbeState, Card, Revenue
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { DataSystem } from '../systems/DataSystem';
 
-interface PlayerBoardProps {
+interface PlayerBoardUIProps {
   game: Game;
   onAction?: (actionType: ActionType) => void;
   isDiscarding?: boolean;
@@ -246,7 +246,7 @@ const PlayerComputer = ({ player, onUpdate, onBonus, isSelecting, onColumnSelect
   );
 };
 
-export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onFreeAction, onPlayCard, onBuyCardAction, onTradeResourcesAction, tradeState = { phase: 'inactive' }, onSpendSelection, onGainSelection, onCancelTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onFreeAction, onPlayCard, onBuyCardAction, onTradeResourcesAction, tradeState = { phase: 'inactive' }, onSpendSelection, onGainSelection, onCancelTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing }) => {
   const currentPlayer = game.players[game.currentPlayerIndex];
   const isRobot = (currentPlayer as any).type === 'robot';
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
@@ -370,10 +370,10 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDisc
   // Fonction helper pour générer le tooltip basé sur l'état du jeu (Interaction Engine -> UI)
   const getActionTooltip = (actionType: ActionType, available: boolean): string => {
     // Si l'action est disponible, on peut retourner une description simple ou rien
-    if (available) {
+    //if (available) {
        // On pourrait ajouter des descriptions génériques ici si voulu
-       return ACTION_NAMES[actionType];
-    }
+    //   return ACTION_NAMES[actionType];
+    //}
 
     switch (actionType) {
       case ActionType.LAUNCH_PROBE:
@@ -440,7 +440,7 @@ export const PlayerBoard: React.FC<PlayerBoardProps> = ({ game, onAction, isDisc
     <div className="seti-player-panel" style={{ borderTop: `4px solid ${currentPlayer.color || '#444'}` }}>
       <div className="seti-player-panel-title" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
         <span>
-          Plateau Joueur - {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV
+          {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV
         </span>
       </div>
       

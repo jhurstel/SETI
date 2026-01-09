@@ -13,7 +13,6 @@ import {
   Game,
   GamePhase,
   Player,
-  GAME_CONSTANTS
 } from './types';
 
 export class TurnManager {
@@ -103,9 +102,6 @@ export class TurnManager {
 
     // Bonus des technologies
     player.technologies.forEach(tech => {
-      if (tech.bonus.credits) {
-        baseRevenue.credits += tech.bonus.credits;
-      }
       if (tech.bonus.energy) {
         baseRevenue.energy += tech.bonus.energy;
       }

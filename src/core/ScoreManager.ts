@@ -19,7 +19,8 @@ import {
   Player,
   ScoreCategories,
   LifeTraceType,
-  Species
+  Species,
+  CardType
 } from '../core/types';
 
 export class ScoreManager {
@@ -91,6 +92,8 @@ export class ScoreManager {
   ): number {
     // TODO: Implémenter le calcul des tuiles dorées
     // Basé sur les tuiles collectées pendant la partie
+    player;
+    board;
     return 0;
   }
 
@@ -121,6 +124,7 @@ export class ScoreManager {
   private static calculateReservedRevenue(player: Player): number {
     // TODO: Implémenter le calcul des revenus réservés
     // Basé sur les crédits/énergie non dépensés
+    player;
     return 0;
   }
 
@@ -171,7 +175,7 @@ export class ScoreManager {
    */
   private static calculateMissionEndGamePairs(player: Player): number {
     const completedMissions = player.missions.filter(m => m.completed).length;
-    const endGameCards = player.cards.filter(c => c.isEndGame).length;
+    const endGameCards = player.cards.filter(c => c.type === CardType.END_GAME).length;
 
     const pairs = Math.min(completedMissions, endGameCards);
     
@@ -189,7 +193,8 @@ export class ScoreManager {
     // TODO: Implémenter les bonus selon les règles de chaque espèce
     // Chaque espèce peut avoir des modificateurs de scoring différents
     let bonus = 0;
-
+    player;
+    
     discoveredSpecies.forEach(species => {
       species.scoringModifiers.forEach(modifier => {
         // Appliquer les modificateurs selon leur type

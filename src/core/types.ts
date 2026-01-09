@@ -15,12 +15,19 @@ export enum GamePhase {
 
 export enum ActionType {
   LAUNCH_PROBE = "LAUNCH_PROBE",
+  MOVE_PROBE = "MOVE_PROBE",
   ORBIT = "ORBIT",
   LAND = "LAND",
   SCAN_SECTOR = "SCAN_SECTOR",
   ANALYZE_DATA = "ANALYZE_DATA",
+  TRANSFERE_DATA = "TRANSFERE_DATA",
+  DRAW_CARDS = "DRAW_CARDS",
+  DISCARD_CARDS = "DISCARD_CARDS",
   PLAY_CARD = "PLAY_CARD",
+  RESERVE_CARD = "RESERVE_CARD",
+  BUY_CARD = "BUY_CARD",
   RESEARCH_TECH = "RESEARCH_TECH",
+  TRADE_RESOURCES = "TRADE_RESOURCES",
   PASS = "PASS"
 }
 
@@ -138,6 +145,7 @@ export interface Game {
   species: Species[];
   discoveredSpecies: Species[];
   history: GameState[];
+  isFirstToPass: boolean;
 }
 
 export interface Player {
@@ -168,6 +176,7 @@ export interface Board {
   planets: Planet[];
   technologyBoard: TechnologyBoard;
   alienBoard: AlienBoard;
+  cardRow: Card[];
 }
 
 export interface SolarSystem {
@@ -189,6 +198,7 @@ export interface SolarSystem {
   rotationAngleLevel1?: number; // Angle de rotation actuel du plateau niveau 1 (en degrés)
   rotationAngleLevel2?: number; // Angle de rotation actuel du plateau niveau 2 (en degrés)
   rotationAngleLevel3?: number; // Angle de rotation actuel du plateau niveau 3 (en degrés)
+  nextRingLevel?: number; // Prochain niveau à tourner (1, 2 ou 3)
 }
 
 export interface SolarRing {
@@ -214,7 +224,7 @@ export interface SystemTile {
 export interface Probe {
   id: string;
   ownerId: string;
-  position?: Position; // Position générale (peut être utilisé pour d'autres contextes)
+  position: Position; // Position générale (peut être utilisé pour d'autres contextes)
   solarPosition: { // Position dans le système solaire (obligatoire)
     disk: DiskName;
     sector: SectorNumber;
@@ -420,8 +430,8 @@ export interface PlanetBonus {
 
 export interface RotationDisk {
   id: string;
-  //positions: Position[];
-  //currentPosition: number;
+  positions: Position[]; // To Be Removed
+  currentPosition: number; // To Be Removed
   sectorIndex: number;
   diskName: DiskName;
   level: number;
@@ -432,7 +442,6 @@ export interface TechnologyBoard {
   researched: Technology[];
   mediaTrackMax?: number;
   rotationTokenPosition?: number;
-  nextRingLevel?: number;
   categorySlots?: TechnologyCategorySlots[];
 }
 

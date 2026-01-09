@@ -15,10 +15,9 @@ import {
   GameState,
 } from './types';
 import { BaseAction } from '../actions/Action';
-import { ActionValidator } from '../validation/ActionValidator';
-import { RuleEngine } from '../validation/RuleEngine';
+import { ActionValidator } from './ActionValidator';
 import { TurnManager } from './TurnManager';
-import { ScoreManager } from '../scoring/ScoreManager';
+import { ScoreManager } from './ScoreManager';
 
 export class GameEngine {
   private state: Game;
@@ -86,15 +85,6 @@ export class GameEngine {
     try {
       // Exécuter l'action
       this.state = action.execute(this.state);
-
-      // Appliquer les règles
-      this.state = RuleEngine.applyRules(this.state, action.type);
-
-      // Vérifier les limites
-      const limitsCheck = RuleEngine.checkLimits(this.state, action.playerId);
-      if (!limitsCheck.valid) {
-        console.warn('Limites violées:', limitsCheck.violations);
-      }
 
       return {
         success: true,

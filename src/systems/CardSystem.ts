@@ -12,9 +12,9 @@ import {
   Game,
   Player,
   Card,
-  CardType,
   Mission,
-  GAME_CONSTANTS
+  GAME_CONSTANTS,
+  CardType
 } from '../core/types';
 import { MediaSystem } from './MediaSystem';
 
@@ -44,7 +44,7 @@ export class CardSystem {
     // Vérifier la couverture médiatique
     const mediaValidation = MediaSystem.canSpendMedia(player, card.cost);
     if (!mediaValidation.canSpend) {
-      return mediaValidation;
+      return { canBuy: false, reason: mediaValidation.reason };
     }
 
     return { canBuy: true };
@@ -82,6 +82,7 @@ export class CardSystem {
     }
 
     const updatedGame = { ...game };
+    updatedGame.players = [...game.players];
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
     const card = this.findCard(game, cardId)!;
@@ -152,6 +153,7 @@ export class CardSystem {
     }
 
     const updatedGame = { ...game };
+    updatedGame.players = [...game.players];
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
     const card = player.cards.find(c => c.id === cardId)!;
@@ -162,17 +164,15 @@ export class CardSystem {
     let missionCreated: Mission | undefined;
 
     // Si c'est une mission, créer la mission
-    if (card.isMission) {
+    if (card.type === CardType.CONDITIONAL_MISSION || card.type === CardType.TRIGGERED_MISSION) {
       missionCreated = this.createMission(playerId, card);
       const updatedPlayer = {
         ...player,
         missions: [...player.missions, missionCreated]
       };
       updatedGame.players[playerIndex] = updatedPlayer;
-    }
-
     // Si ce n'est pas une mission ou une carte fin de partie, défausser
-    if (!card.isMission && !card.isEndGame) {
+    } else if (card.type !== CardType.END_GAME) {
       const updatedPlayer = {
         ...player,
         cards: player.cards.filter(c => c.id !== cardId)
@@ -213,6 +213,7 @@ export class CardSystem {
     completedMissions: Mission[];
   } {
     const updatedGame = { ...game };
+    updatedGame.players = [...game.players];
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
 
@@ -267,4 +268,3 @@ export class CardSystem {
     };
   }
 }
-

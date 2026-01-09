@@ -517,7 +517,7 @@ export function calculateReachableCells(
     }
     
     // Trouver les cases adjacentes (même disque, secteurs adjacents, ou disques adjacents)
-    const adjacentCells = getAdjacentCells(current.disk, current.sector, cells);
+    const adjacentCells = getAdjacentCells(current.disk, current.sector);
     
     adjacentCells.forEach(adj => {
       const adjKey = `${adj.disk}${adj.sector}`;
@@ -560,8 +560,7 @@ export function calculateReachableCells(
  */
 function getAdjacentCells(
   disk: DiskName,
-  sector: SectorNumber,
-  cells: Map<string, SolarSystemCell>
+  sector: SectorNumber
 ): Array<{ disk: DiskName; sector: SectorNumber }> {
   const adjacent: Array<{ disk: DiskName; sector: SectorNumber }> = [];
   
@@ -593,8 +592,11 @@ function getAdjacentCells(
  */
 export function getObjectPosition(
   objectId: string,
-  rotationState: RotationState
+  level1Angle: number,
+  level2Angle: number,
+  level3Angle: number
 ): AbsolutePosition | null {
+  const rotationState = createRotationState(level1Angle, level2Angle, level3Angle);
   const allObjects = getAllCelestialObjects();
   const object = allObjects.find(obj => obj.id === objectId);
   

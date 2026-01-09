@@ -12,7 +12,7 @@ import {
   CelestialObject
 } from '../core/SolarSystemPosition';
 
-interface SolarSystemBoardProps {
+interface SolarSystemBoardUIProps {
   game: Game;
   onProbeMove?: (probeId: string, targetDisk: DiskName, targetSector: SectorNumber, cost: number, path: string[]) => void;
   onPlanetClick?: (planetId: string) => void;
@@ -22,7 +22,7 @@ interface SolarSystemBoardProps {
   highlightPlayerProbes?: boolean; // Mettre en surbrillance les sondes du joueur courant
 }
 
-export interface SolarSystemBoardRef {
+export interface SolarSystemBoardUIRef {
   resetRotation1: () => void;
   rotateCounterClockwise1: () => void;
   resetRotation2: () => void;
@@ -31,7 +31,7 @@ export interface SolarSystemBoardRef {
   rotateCounterClockwise3: () => void;
 }
 
-export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoardProps>(({ game, onProbeMove, onPlanetClick, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false }, ref) => {
+export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredProbe, setHoveredProbe] = useState<string | null>(null);
@@ -825,7 +825,6 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
 
   // Calculer la position actuelle de toutes les planètes
   const planetPositions = useMemo(() => {
-    const rotationState = createRotationState(rotationAngle1, rotationAngle2, rotationAngle3);
     const planets = [
       { id: 'earth', name: 'Terre' },
       { id: 'venus', name: 'Vénus' },
@@ -838,7 +837,7 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
     ];
     
     return planets.map(planet => {
-      const pos = getObjectPosition(planet.id, rotationState);
+      const pos = getObjectPosition(planet.id, rotationAngle1, rotationAngle2, rotationAngle3);
       if (pos) {
         return {
           name: planet.name,
@@ -1615,4 +1614,4 @@ export const SolarSystemBoard = forwardRef<SolarSystemBoardRef, SolarSystemBoard
   );
 });
 
-SolarSystemBoard.displayName = 'SolarSystemBoard';
+SolarSystemBoardUI.displayName = 'SolarSystemBoardUI';

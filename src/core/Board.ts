@@ -23,7 +23,12 @@ import {
   TechnologyType,
   AlienBoard,
   LifeTraceTrack,
-  TechnologyBonus
+  TechnologyBonus,
+  Card,
+  CardType,
+  FreeAction,
+  SectorColor,
+  RevenueBonus
 } from './types';
 
 export class BoardManager {
@@ -36,7 +41,8 @@ export class BoardManager {
       sectors: this.createSectors(),
       planets: this.createPlanets(),
       technologyBoard: this.createTechnologyBoard(),
-      alienBoard: this.createAlienBoard()
+      alienBoard: this.createAlienBoard(),
+      cardRow: this.createCardRow()
     };
   }
 
@@ -77,6 +83,7 @@ export class BoardManager {
       rotationAngleLevel1: initialAngle1, // Angle de rotation initial calculé
       rotationAngleLevel2: initialAngle2, // Angle de rotation initial calculé
       rotationAngleLevel3: initialAngle3, // Angle de rotation initial calculé
+      nextRingLevel: 1,
     };
   }
 
@@ -363,8 +370,8 @@ export class BoardManager {
       'IV',
       TechnologyType.SPECIAL,
       [{ type: 'TECH_TRACK_BONUS', value: { points: 2, media: 2 } }],
-      'Ajoutez cette carte à la piste de technologie pour gagner 2 points de victoire + 1 point de couverture médiatique.',
-      '2 PV + 1 Média'
+      'Ajoutez cette carte à la piste de technologie pour gagner 2 points de victoire + 2 point de couverture médiatique.',
+      '2 PV + 2 Média'
     );
 
     const allExploration = [...exploration1, ...exploration2, ...exploration3, ...exploration4];
@@ -374,7 +381,6 @@ export class BoardManager {
     return {
       available: [...allExploration, ...allObservation, ...allComputing],
       researched: [],
-      nextRingLevel: 1,
       categorySlots: [
         {
           category: TechnologyCategory.EXPLORATION,
@@ -449,5 +455,28 @@ export class BoardManager {
       yellow: createTrack(),
       blue: createTrack()
     };
+  }
+
+  /**
+   * Crée la rangée de cartes principale
+   */
+  private static createCardRow(): Card[] {
+    const cards: Card[] = [];
+    const colors = [SectorColor.BLUE, SectorColor.RED, SectorColor.YELLOW, SectorColor.BLACK];
+    
+    for (let i = 0; i < 3; i++) {
+        cards.push({
+            id: `row_card_${i}`,
+            name: `Projet ${i+1}`,
+            type: CardType.ACTION,
+            cost: i + 1,
+            freeAction: FreeAction.DATA,
+            scanSector: colors[i % colors.length],
+            revenue: RevenueBonus.CREDIT,
+            effects: [],
+            description: "Carte disponible à l'achat"
+        });
+    }
+    return cards;
   }
 }

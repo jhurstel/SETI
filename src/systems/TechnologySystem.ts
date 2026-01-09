@@ -76,6 +76,10 @@ export class TechnologySystem {
     }
 
     const updatedGame = { ...game };
+    updatedGame.players = [...game.players];
+    updatedGame.board = { ...game.board };
+    updatedGame.board.technologyBoard = { ...game.board.technologyBoard };
+    updatedGame.board.technologyBoard.researched = [...game.board.technologyBoard.researched];
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
     const technology = game.board.technologyBoard.available.find(
@@ -179,4 +183,3 @@ export class TechnologySystem {
     return player ? player.technologies : [];
   }
 }
-

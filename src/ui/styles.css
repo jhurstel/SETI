@@ -355,7 +355,7 @@ body {
 
 .seti-player-layout {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: 1fr 1fr 2fr 2fr;
   gap: 10px;
   overflow: hidden;
   flex: 1;
@@ -514,4 +514,25 @@ body {
 
 .seti-planet:hover .seti-planet-tooltip {
   opacity: 1;
+}
+
+/* Historique */
+.seti-history-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.seti-history-list {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: #ccc;
+}
+
+.seti-history-item {
+  padding: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }

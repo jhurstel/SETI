@@ -72,6 +72,8 @@ export class SpeciesSystem {
     species: Species;
   } {
     const updatedGame = { ...game };
+    updatedGame.discoveredSpecies = [...game.discoveredSpecies];
+    updatedGame.species = [...game.species];
 
     // Marquer l'espèce comme découverte
     const discoveredSpecies: Species = {
@@ -164,4 +166,3 @@ export class SpeciesSystem {
     return bonus;
   }
 }
-

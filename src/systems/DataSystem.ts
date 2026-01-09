@@ -79,6 +79,8 @@ export class DataSystem {
     }
 
     const updatedGame = { ...game };
+    updatedGame.players = [...game.players];
+    updatedGame.discoveredSpecies = [...game.discoveredSpecies];
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
 

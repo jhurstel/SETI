@@ -1,13 +1,15 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, CardType, SectorColor, RevenueBonus, Technology } from '../core/types';
-import { SolarSystemBoard, SolarSystemBoardRef } from './SolarSystemBoard';
+import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, CardType, SectorColor, RevenueBonus, Technology, Card } from '../core/types';
+import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
-import { PlayerBoard } from './PlayerBoard';
+import { PlayerBoardUI } from './PlayerBoardUI';
 import { AlienBoardUI } from './AlienBoardUI';
 import { LaunchProbeAction } from '../actions/LaunchProbeAction';
+import { MoveProbeAction } from '../actions/MoveProbeAction';
+import { PassAction } from '../actions/PassAction';
 import { GameEngine } from '../core/Game';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { createRotationState, getCell } from '../core/SolarSystemPosition';
+import { createRotationState, getCell, getObjectPosition, rotateSector } from '../core/SolarSystemPosition';
 
 interface BoardUIProps {
   game: Game;
@@ -41,32 +43,62 @@ const drawCards = (game: Game, playerId: string, count: number, source: string):
   return updatedGame;
 };
 
+interface HistoryEntry {
+  id: string;
+  message: string;
+  playerId?: string;
+  previousState?: Game;
+  timestamp: number;
+}
+
 export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
-  // État pour le jeu
+  // États pour le jeu
   const [game, setGame] = useState<Game>(initialGame);
   const gameEngineRef = useRef<GameEngine | null>(null);
-  
-  // État pour les notifications (toasts)
-  const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
 
-  // État pour la gestion de la défausse (Action Passer)
+  // Initialiser le GameEngine
+  if (!gameEngineRef.current) {
+    gameEngineRef.current = new GameEngine(game);
+  }
+  
+  // États pour l'UI
+  const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
+  const [historyLog, setHistoryLog] = useState<HistoryEntry[]>([]);
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [cardsToDiscard, setCardsToDiscard] = useState<string[]>([]);
-
-  // État pour le mode d'échange de ressources (en plusieurs étapes)
   const [tradeState, setTradeState] = useState<{ phase: 'inactive' | 'spending' | 'gaining', spend?: { type: string, cardIds?: string[] } }>({ phase: 'inactive' });
-
-  // État pour le mode déplacement gratuit (suite à une action gratuite)
   const [isFreeMovementMode, setIsFreeMovementMode] = useState(false);
-
-  // État pour le mode recherche de technologie
   const [isResearching, setIsResearching] = useState(false);
-
-  // État pour la sélection d'un emplacement ordinateur lors de l'achat d'une tech informatique
   const [pendingTechSelection, setPendingTechSelection] = useState<Technology | null>(null);
-
-  // État pour l'animation d'analyse de données
   const [isAnalyzingData, setIsAnalyzingData] = useState(false);
+
+  // Ref pour contrôler le plateau solaire
+  const solarSystemRef = useRef<SolarSystemBoardUIRef>(null);
+
+  // Helper pour ajouter une entrée à l'historique
+  const addToHistory = (message: string, playerId?: string, previousState?: Game) => {
+    const entry: HistoryEntry = {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      message,
+      playerId,
+      previousState,
+      timestamp: Date.now()
+    };
+    setHistoryLog(prev => [entry, ...prev]);
+  };
+
+  // Gestionnaire pour annuler une action
+  const handleUndo = () => {
+    if (historyLog.length === 0) return;
+    const lastEntry = historyLog[0];
+    if (lastEntry.previousState) {
+      setGame(lastEntry.previousState);
+      setHistoryLog(prev => prev.slice(1));
+      setToast({ message: "Retour en arrière effectué", visible: true });
+    } else {
+      setToast({ message: "Impossible d'annuler cette action", visible: true });
+    }
+  };
 
   // Effet pour masquer le toast après 3 secondes
   useEffect(() => {
@@ -78,115 +110,53 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   }, [toast]);
 
-  // Initialiser le GameEngine
-  if (!gameEngineRef.current) {
-    gameEngineRef.current = new GameEngine(game);
-  }
+  // Effet pour gérer le tour du joueur Mock
+  useEffect(() => {
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    // Si le joueur est un robot, il passe son tour automatiquement
+    if (currentPlayer && currentPlayer.type === 'robot') {
+      const timer = setTimeout(() => {
+        const cardsToKeep = currentPlayer.cards.slice(0, 4).map(c => c.id);
+        performPass(cardsToKeep);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [game]);
 
-  // Ref pour contrôler le plateau solaire
-  const solarSystemRef = useRef<SolarSystemBoardRef>(null);
-
-  // Logique d'exécution de l'action Passer (après défausse éventuelle)
-  const executePass = (gameToUpdate: Game) => {
-    let updatedGame = { ...gameToUpdate };
-    // Copie des joueurs pour éviter la mutation directe
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
-    const currentPlayerIndex = updatedGame.currentPlayerIndex;
-    const currentPlayer = updatedGame.players[currentPlayerIndex];
-
-    // 1. Marquer le joueur comme ayant passé
-    // Note: On suppose que la propriété hasPassed existe sur Player, sinon on l'ajoute dynamiquement
-    currentPlayer.hasPassed = true;
-
-    // 2. Si c'est le premier joueur à passer, pivoter le système solaire
-    const passedPlayersCount = updatedGame.players.filter(p => p.hasPassed).length;
+  // Helper pour exécuter l'action Passer via PassAction
+  const performPass = (cardsToKeep: string[]) => {
+    if (!gameEngineRef.current) return;
     
-    // Si passedPlayersCount vaut 1, c'est que le joueur actuel vient de passer et est le seul
-    if (passedPlayersCount === 1) {
-      const techBoard = updatedGame.board.technologyBoard;
-      const currentLevel = techBoard.nextRingLevel || 1; // 1, 2 ou 3
-      
-      console.log(`Premier joueur à passer. Rotation du niveau ${currentLevel}`);
-      setToast({ message: `Rotation du système solaire (Niveau ${currentLevel})`, visible: true });
-
-      // Sauvegarder l'ancien état de rotation pour la mise à jour des sondes
-      const oldRotationState = createRotationState(
-        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-      );
-
-      // Copie du board pour éviter la mutation directe
-      updatedGame.board = {
-        ...updatedGame.board,
-        solarSystem: {
-          ...updatedGame.board.solarSystem
+    // Synchroniser l'état
+    gameEngineRef.current.setState(game);
+    
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    const action = new PassAction(currentPlayer.id, cardsToKeep);
+    const result = gameEngineRef.current.executeAction(action);
+    
+    if (result.success && result.updatedState) {
+        const oldGame = game;
+        const newGame = result.updatedState;
+        
+        if (newGame.isFirstToPass) {
+          const currentLevel = oldGame.board.solarSystem.nextRingLevel || 1;
+          setToast({ message: `Rotation du système solaire (Niveau ${currentLevel})`, visible: true });
+          addToHistory(`passe son tour en premier`, currentPlayer.id, oldGame);
+        } else {
+          addToHistory("passe son tour", currentPlayer.id, oldGame);
         }
-      };
 
-      // Pivoter le plateau courant (-45 degrés = sens anti-horaire)
-      // La rotation des niveaux supérieurs entraîne celle des niveaux inférieurs selon la logique physique,
-      // mais ici on applique la règle du jeu : "Pivoter le plateau courant"
-      if (currentLevel === 1) {
-        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-        updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
-      } else if (currentLevel === 2) {
-        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-        updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
-      } else if (currentLevel === 3) {
-        updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
-      }
+        // Détecter la fin de manche (si le numéro de manche a augmenté)
+        if (newGame.currentRound > oldGame.currentRound) {
+          setToast({ message: "Fin de manche : Revenus perçus", visible: true });
+          addToHistory("Fin de manche : Les joueurs récupèrent leurs revenus");
+        }
 
-      // Incrémenter le plateau modulo 3 (1->2, 2->3, 3->1)
-      techBoard.nextRingLevel = (currentLevel % 3) + 1;
-
-      // Nouvel état de rotation
-      const newRotationState = createRotationState(
-        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-      );
-
-      // Mettre à jour les positions des sondes (pour qu'elles restent fixes si elles sont sur un niveau inférieur)
-      updatedGame = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
-    }
-
-    // 3. TODO: Choisissez une carte dans le paquet de fin de manche
-
-    // Vérifier si tout le monde a passé (Fin de manche)
-    const allPassed = updatedGame.players.every(p => p.hasPassed);
-    if (allPassed) {
-      console.log("Fin de manche déclenchée");
-      setToast({ message: "Fin de manche : Revenus perçus", visible: true });
-
-      // 1. Chaque joueur perçoit ses revenus
-      updatedGame.players = updatedGame.players.map(player => {
-        return {
-          ...player,
-          credits: player.credits + player.revenueCredits,
-          energy: player.energy + player.revenueEnergy,
-          // Réinitialiser le statut passé pour la prochaine manche
-          hasPassed: false 
-        };
-      });
-
-      // Passer au joueur suivant pour commencer la nouvelle manche (évite que le dernier joueur rejoue immédiatement)
-      updatedGame.currentPlayerIndex = (currentPlayerIndex + 1) % updatedGame.players.length;
-
-      // TODO: Autres étapes de fin de manche (ordre du tour, etc.)
+        setGame(newGame);
     } else {
-      // Passer au joueur suivant qui n'a pas encore passé
-      let nextIndex = (currentPlayerIndex + 1) % updatedGame.players.length;
-      let loopCount = 0;
-      while (updatedGame.players[nextIndex].hasPassed && loopCount < updatedGame.players.length) {
-        nextIndex = (nextIndex + 1) % updatedGame.players.length;
-        loopCount++;
-      }
-      updatedGame.currentPlayerIndex = nextIndex;
+        console.error("Erreur lors de l'action Passer:", result.error);
+        setToast({ message: "Erreur lors de l'action Passer", visible: true });
     }
-
-    setGame(updatedGame);
   };
 
   // Gestionnaire pour le clic sur une carte en mode défausse
@@ -205,18 +175,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour confirmer la défausse
   const handleConfirmDiscard = () => {
-    const updatedGame = { ...game };
-    const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
-    
-    // Retirer les cartes sélectionnées
-    currentPlayer.cards = currentPlayer.cards.filter(c => !cardsToDiscard.includes(c.id));
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    const cardsToKeep = currentPlayer.cards.filter(c => !cardsToDiscard.includes(c.id)).map(c => c.id);
     
     // Réinitialiser l'état de défausse
     setIsDiscarding(false);
     setCardsToDiscard([]);
     
-    // Exécuter l'action Passer
-    executePass(updatedGame);
+    performPass(cardsToKeep);
   };
 
   // Gestionnaire pour les actions
@@ -234,11 +200,25 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       if (result.success && result.updatedState) {
         console.log('Sonde lancée, nouvelles sondes:', result.updatedState.board.solarSystem.probes);
         setGame(result.updatedState);
+        
+        // Calculer la position de la Terre pour le log
+        const earthPos = getObjectPosition(
+          'earth',
+          game.board.solarSystem.rotationAngleLevel1 || 0,
+          game.board.solarSystem.rotationAngleLevel2 || 0,
+          game.board.solarSystem.rotationAngleLevel3 || 0
+        );
+        const locString = earthPos ? `(${earthPos.disk}${earthPos.absoluteSector})` : '';
+        
+        addToHistory(`lance une sonde depuis la Terre ${locString} pour ${GAME_CONSTANTS.PROBE_LAUNCH_COST} crédits`, currentPlayer.id, game);
       } else {
         console.error('Erreur lors du lancement de la sonde:', result.error);
         alert(result.error || 'Impossible de lancer la sonde');
       }
     }
+    //else if (actionType === ActionType.MOVE_PROBE) {
+      
+    //}
     else if (actionType === ActionType.PASS) {
       // 1. Vérifier la taille de la main
       if (currentPlayer.cards.length > 4) {
@@ -247,7 +227,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         return;
       }
       
-      executePass(game);
+      const cardsToKeep = currentPlayer.cards.map(c => c.id);
+      performPass(cardsToKeep);
     }
     else if (actionType === ActionType.RESEARCH_TECH) {
       if (isResearching) {
@@ -255,13 +236,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         setToast({ message: "Recherche annulée", visible: true });
         return;
       }
-      // Le coût est vérifié dans PlayerBoard (désactivation du bouton), mais on peut revérifier ici
+      // Le coût est vérifié dans PlayerBoardUI (désactivation du bouton), mais on peut revérifier ici
       setIsResearching(true);
       setToast({ message: "Sélectionnez une technologie à acquérir", visible: true });
     }
     else if (actionType === ActionType.ANALYZE_DATA) {
-      const currentPlayer = game.players[game.currentPlayerIndex];
-      
       if (!currentPlayer.dataComputer.canAnalyze) {
         setToast({ message: "Analyse impossible : Remplissez la ligne du haut", visible: true });
         return;
@@ -275,6 +254,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       setIsAnalyzingData(true);
       setToast({ message: "Analyse des données en cours...", visible: true });
 
+      const previousState = game; // Capture state for undo
       // Délai pour l'animation avant d'appliquer les effets
       setTimeout(() => {
         const updatedGame = { ...game };
@@ -315,23 +295,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
         setGame(updatedGame);
         setToast({ message: `Données analysées ! ${bonusMsg}`, visible: true });
+        addToHistory(`analyse des données et gagne ${bonusMsg}`, player.id, previousState);
         setIsAnalyzingData(false);
       }, 1500);
     }
     // TODO: Gérer les autres actions
   };
-
-  // Effet pour gérer le tour du joueur Mock
-  useEffect(() => {
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    // Si le joueur est un robot, il passe son tour automatiquement
-    if (currentPlayer && currentPlayer.type === 'robot') {
-      const timer = setTimeout(() => {
-        executePass(game);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [game]);
 
   // Gestionnaire pour le déplacement des sondes
   const handleProbeMove = async (probeId: string, targetDisk: DiskName, targetSector: SectorNumber, cost: number, path: string[]) => {
@@ -351,68 +320,63 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const disk = cellKey[0] as DiskName;
       const sector = parseInt(cellKey.substring(1)) as SectorNumber;
 
-      // Calculer le coût pour cette étape
-      // On doit regarder la case précédente pour voir si on sort d'un champ d'astéroïdes
-      const prevKey = path[i-1];
-      const prevDisk = prevKey[0] as DiskName;
-      const prevSector = parseInt(prevKey.substring(1)) as SectorNumber;
-
-      const rotationState = createRotationState(
-        currentGame.board.solarSystem.rotationAngleLevel1 || 0,
-        currentGame.board.solarSystem.rotationAngleLevel2 || 0,
-        currentGame.board.solarSystem.rotationAngleLevel3 || 0
-      );
-
-      const prevCell = getCell(prevDisk, prevSector, rotationState);
-      
-      // Coût de base = 1 + malus astéroïde éventuel
-      let stepCost = 1;
-      if (prevCell?.hasAsteroid) {
-        // Vérifier la technologie Exploration II (réduit le coût de sortie des astéroïdes)
-        const hasExploration2 = currentGame.players[currentGame.currentPlayerIndex].technologies.some(t => t.id.startsWith('exploration-2'));
-        if (!hasExploration2) {
-          stepCost += 1;
-        }
-      }
-
-      // Appliquer les mouvements gratuits
-      let energyCost = stepCost;
-      if (freeMovements > 0) {
-        const deduction = Math.min(freeMovements, energyCost);
-        freeMovements -= deduction;
-        energyCost -= deduction;
-      }
-
-      try {
-        const updatedGame = ProbeSystem.moveProbe(
-          currentGame,
-          currentPlayerId,
-          probeId,
-          energyCost,
-          disk,
-          sector
+      // Pour le log, on récupère la position avant le mouvement
+      const probeBeforeMove = currentGame.board.solarSystem.probes.find(p => p.id === probeId);
+      let fromLoc = '?';
+      if (probeBeforeMove?.solarPosition) {
+        const pos = probeBeforeMove.solarPosition;
+        const rotationState = createRotationState(
+          currentGame.board.solarSystem.rotationAngleLevel1 || 0,
+          currentGame.board.solarSystem.rotationAngleLevel2 || 0,
+          currentGame.board.solarSystem.rotationAngleLevel3 || 0
         );
+        
+        let absSector = pos.sector;
+        if (pos.level === 1) absSector = rotateSector(pos.sector, rotationState.level1Angle);
+        else if (pos.level === 2) absSector = rotateSector(pos.sector, rotationState.level2Angle);
+        else if (pos.level === 3) absSector = rotateSector(pos.sector, rotationState.level3Angle);
+        
+        fromLoc = `${pos.disk}${absSector}`;
+      }
+
+      // Utiliser l'action pour effectuer le mouvement
+      const useFree = freeMovements > 0;
+      const action = new MoveProbeAction(currentPlayerId, probeId, { disk, sector }, useFree);
+      const result = gameEngineRef.current.executeAction(action);
+
+      if (result.success && result.updatedState) {
+        const updatedGame = result.updatedState;
 
         // Vérifier le gain de média pour afficher un toast (pour cette étape)
         const updatedPlayer = updatedGame.players.find(p => p.id === currentPlayerId);
         const oldPlayer = currentGame.players.find(p => p.id === currentPlayerId);
         
         if (updatedPlayer && oldPlayer) {
+            // Log du coût (approximatif car calculé dans l'action)
+            const energySpent = oldPlayer.energy - updatedPlayer.energy;
+            addToHistory(`déplace une sonde de ${fromLoc} vers ${disk}${sector} pour ${energySpent} énergie`, currentPlayerId, updatedGame);
+
             const mediaGain = updatedPlayer.mediaCoverage - oldPlayer.mediaCoverage;
             if (mediaGain > 0) {
               setToast({ message: `Gain de média : +${mediaGain}`, visible: true });
+              addToHistory(`gagne ${mediaGain} média pour avoir visité ${disk}${sector}`, currentPlayerId, updatedGame);
             }
         }
 
         currentGame = updatedGame;
         setGame(currentGame);
         
+        // Mettre à jour le compteur de mouvements gratuits
+        if (useFree) {
+          freeMovements--;
+        }
+        
         // Petit délai pour l'animation
         await new Promise(resolve => setTimeout(resolve, 300));
 
-      } catch (error: any) {
-        console.error('Erreur lors du déplacement de la sonde (étape):', error);
-        alert(error.message || 'Impossible de déplacer la sonde');
+      } else {
+        console.error('Erreur lors du déplacement de la sonde (étape):', result.error);
+        setToast({ message: result.error || 'Impossible de déplacer la sonde', visible: true });
         break; // Arrêter le mouvement en cas d'erreur
       }
     }
@@ -438,9 +402,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (card.freeAction === FreeAction.MEDIA) {
       currentPlayer.mediaCoverage = Math.min(currentPlayer.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
       setToast({ message: "Action gratuite : +1 Média", visible: true });
+      addToHistory("utilise une action gratuite : +1 Média", currentPlayer.id, game);
     } else if (card.freeAction === FreeAction.DATA) {
       currentPlayer.data = (currentPlayer.data || 0) + 1;
       setToast({ message: "Action gratuite : +1 Data", visible: true });
+      addToHistory("utilise une action gratuite : +1 Data", currentPlayer.id, game);
     } else if (card.freeAction === FreeAction.MOVEMENT) {
       setIsFreeMovementMode(true);
       setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
@@ -477,6 +443,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     setGame(updatedGame);
     setToast({ message: `Carte jouée: ${card.name}`, visible: true });
+    addToHistory(`joue la carte "${card.name}" pour ${card.cost} crédits`, currentPlayer.id, game);
   };
 
   // Gestionnaire pour l'action d'achat de carte avec du média
@@ -499,6 +466,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     setGame(finalGame);
     setToast({ message: "Carte achetée (-3 Média)", visible: true });
+    addToHistory("achète une carte pour 3 médias", currentPlayer.id, game);
   };
 
   // Gestionnaire pour l'échange de ressources
@@ -566,6 +534,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     setGame(updatedGame);
     setToast({ message: "Echange effectué", visible: true });
+    addToHistory(`échange 2 ${normalizedSpend} contre 1 ${normalizedGain}`, currentPlayer.id, game);
     setTradeState({ phase: 'inactive' });
   };
 
@@ -601,8 +570,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
     };
 
-    const techBoard = updatedGame.board.technologyBoard;
-    const currentLevel = techBoard.nextRingLevel || 1;
+    const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 1;
     
     const oldRotationState = createRotationState(
       updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
@@ -621,7 +589,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
     }
 
-    techBoard.nextRingLevel = (currentLevel % 3) + 1;
+    updatedGame.board.solarSystem.nextRingLevel = (currentLevel % 3) + 1;
 
     const newRotationState = createRotationState(
       updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
@@ -681,7 +649,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (tech.bonus.probe) {
       // Lancer une sonde gratuitement
       // On utilise updatedGame qui contient déjà la nouvelle technologie (donc la limite de sondes est augmentée)
-      const result = ProbeSystem.launchProbe(updatedGame, currentPlayer.id, undefined, true);
+      const result = ProbeSystem.launchProbe(updatedGame, currentPlayer.id, true);
       updatedGame.board = result.updatedGame.board;
       updatedGame.players = result.updatedGame.players;
     }
@@ -689,6 +657,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setGame(updatedGame);
     setIsResearching(false);
     setToast({ message: `Technologie ${tech.name} acquise !`, visible: true });
+    addToHistory(`acquiert la technologie "${tech.name}" pour ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias`, currentPlayer.id, game);
   };
 
   // Gestionnaire pour l'achat de technologie (clic initial)
@@ -718,7 +687,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setPendingTechSelection(null);
   };
 
-  // Gestionnaire pour la pioche de carte depuis le PlayerBoard (ex: bonus ordinateur)
+  // Gestionnaire pour la pioche de carte depuis le PlayerBoardUI (ex: bonus ordinateur)
   const handleDrawCard = (count: number, source: string) => {
     const updatedGame = drawCards(game, game.players[game.currentPlayerIndex].id, count, source);
     setGame(updatedGame);
@@ -784,6 +753,17 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     updateRotationAngles(currentAngle1 - 45, currentAngle2 - 45, currentAngle3 - 45);
   };
 
+  // Helper pour la couleur des secteurs
+  const getSectorColorCode = (color: SectorColor) => {
+    switch(color) {
+        case SectorColor.BLUE: return '#4a9eff';
+        case SectorColor.RED: return '#ff6b6b';
+        case SectorColor.YELLOW: return '#ffd700';
+        case SectorColor.BLACK: return '#aaaaaa';
+        default: return '#fff';
+    }
+  };
+
   const handleRotateLevel2 = () => {
     solarSystemRef.current?.rotateCounterClockwise2();
     // Mettre à jour l'angle dans l'état du jeu
@@ -807,7 +787,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     );
   };
 
-  const nextRotationLevel = game.board.technologyBoard.nextRingLevel || 1;
+  const nextRotationLevel = game.board.solarSystem.nextRingLevel || 1;
   let nextRotationBackgroundColor = '#ffd700';
   let nextRotationColor = '#000';
   let nextRotationBorder = '#ffed4e';
@@ -846,13 +826,59 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       )}
       <div className="seti-root-inner">
         <div className="seti-board-layout">
-          <TechnologyBoardUI 
-            game={game} 
-            isResearching={isResearching}
-            onTechClick={handleTechClick}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '300px' }}>
+            <TechnologyBoardUI 
+              game={game} 
+              isResearching={isResearching}
+              onTechClick={handleTechClick}
+            />
+            {/* Rangée de cartes principale */}
+            <div className="seti-panel" style={{ flex: 1, minHeight: '200px', display: 'flex', flexDirection: 'column' }}>
+               <div className="seti-panel-title">Rangée Principale</div>
+               <div style={{ display: 'flex', gap: '8px', padding: '8px', overflowX: 'auto', flex: 1, alignItems: 'center' }}>
+                 {game.board.cardRow && game.board.cardRow.map(card => (
+                   <div key={card.id} style={{
+                     border: '1px solid #555',
+                     borderRadius: '6px',
+                     padding: '8px',
+                     backgroundColor: 'rgba(0,0,0,0.3)',
+                     minWidth: '120px',
+                     flex: 1,
+                     display: 'flex',
+                     flexDirection: 'column',
+                     gap: '6px',
+                     boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                   }}>
+                     <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#fff' }}>{card.name}</div>
+                     <div style={{ fontSize: '0.8em', color: '#aaa' }}>Coût: {card.cost}</div>
+                     <div style={{ 
+                       marginTop: 'auto', 
+                       padding: '6px', 
+                       backgroundColor: 'rgba(255,255,255,0.05)', 
+                       borderRadius: '4px',
+                       textAlign: 'center',
+                       border: `1px solid ${getSectorColorCode(card.scanSector)}`,
+                       boxShadow: `0 0 5px ${getSectorColorCode(card.scanSector)}40`
+                     }}>
+                       <div style={{ fontSize: '0.7em', textTransform: 'uppercase', color: '#ddd', marginBottom: '2px' }}>Scan</div>
+                       <div style={{ 
+                         color: getSectorColorCode(card.scanSector), 
+                         fontWeight: 'bold',
+                         fontSize: '1.1em'
+                       }}>
+                         {card.scanSector}
+                       </div>
+                     </div>
+                   </div>
+                 ))}
+                 {(!game.board.cardRow || game.board.cardRow.length === 0) && (
+                    <div style={{ color: '#888', fontStyle: 'italic', padding: '10px', width: '100%', textAlign: 'center' }}>Aucune carte disponible</div>
+                 )}
+               </div>
+            </div>
+          </div>
           <div style={{ position: 'relative', height: '100%', width: '100%', overflow: 'auto' }}>
-            <SolarSystemBoard 
+            <SolarSystemBoardUI 
               ref={solarSystemRef} 
               game={game} 
               onProbeMove={handleProbeMove} 
@@ -972,27 +998,55 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           </div>
           {/*<AlienBoardUI game={game} />*/}
         </div>
-        <PlayerBoard 
-          game={game} 
-          onAction={handleAction} 
-          isDiscarding={isDiscarding}
-          selectedCardIds={cardsToDiscard}
-          onCardClick={handleCardClick}
-          onConfirmDiscard={handleConfirmDiscard}
-          onFreeAction={handleFreeAction}
-          onPlayCard={handlePlayCard}
-          onBuyCardAction={handleBuyCardAction}
-          onTradeResourcesAction={handleTradeResourcesAction}
-          tradeState={tradeState}
-          onSpendSelection={handleSpendSelection}
-          onGainSelection={handleGainSelection}
-          onCancelTrade={handleCancelTrade}
-          onGameUpdate={(newGame) => setGame(newGame)}
-          isSelectingComputerSlot={!!pendingTechSelection}
-          onComputerSlotSelect={handleComputerColumnSelect}
-          onDrawCard={handleDrawCard}
-          isAnalyzing={isAnalyzingData}
-        />
+        
+        <div style={{ display: 'flex', gap: '10px', maxHeight: '35vh', flexShrink: 0 }}>
+          <div style={{ flex: 3, minWidth: 0 }}>
+            <PlayerBoardUI 
+              game={game} 
+              onAction={handleAction} 
+              isDiscarding={isDiscarding}
+              selectedCardIds={cardsToDiscard}
+              onCardClick={handleCardClick}
+              onConfirmDiscard={handleConfirmDiscard}
+              onFreeAction={handleFreeAction}
+              onPlayCard={handlePlayCard}
+              onBuyCardAction={handleBuyCardAction}
+              onTradeResourcesAction={handleTradeResourcesAction}
+              tradeState={tradeState}
+              onSpendSelection={handleSpendSelection}
+              onGainSelection={handleGainSelection}
+              onCancelTrade={handleCancelTrade}
+              onGameUpdate={(newGame) => setGame(newGame)}
+              isSelectingComputerSlot={!!pendingTechSelection}
+              onComputerSlotSelect={handleComputerColumnSelect}
+              onDrawCard={handleDrawCard}
+              isAnalyzing={isAnalyzingData}
+            />
+          </div>
+          <div className="seti-panel seti-history-panel" style={{ flex: 1, minWidth: 0 }}>
+            <div className="seti-panel-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Historique</span>
+              {historyLog.length > 0 && historyLog[0].previousState && (
+                <button onClick={handleUndo} style={{ fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', backgroundColor: '#555', border: '1px solid #777', color: '#fff', borderRadius: '4px' }} title="Annuler la dernière action">
+                  ↩ Annuler
+                </button>
+              )}
+            </div>
+            <div className="seti-history-list">
+              {historyLog.length === 0 && <div style={{fontStyle: 'italic', padding: '4px', textAlign: 'center'}}>Aucune action</div>}
+              {historyLog.map((entry) => {
+                const player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
+                const color = player ? (player.color || '#ccc') : '#ccc';
+                return (
+                  <div key={entry.id} className="seti-history-item" style={{ borderLeft: `3px solid ${color}`, paddingLeft: '8px' }}>
+                    {player && <strong style={{ color: color }}>{player.name} </strong>}
+                    <span style={{ color: '#ddd' }}>{entry.message}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

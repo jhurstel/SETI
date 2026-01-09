@@ -10,6 +10,9 @@ export * from './core/Game';
 export * from './core/GameFactory';
 export * from './core/TurnManager';
 export * from './core/Board';
+export * from './core/ActionValidator';
+export * from './core/ScoreManager';
+export * from './core/SolarSystemPosition';
 
 // Systems
 export * from './systems/ProbeSystem';
@@ -32,11 +35,3 @@ export * from './actions/AnalyzeDataAction';
 export * from './actions/PlayCardAction';
 export * from './actions/ResearchTechAction';
 export * from './actions/PassAction';
-
-// Validation
-export * from './validation/ActionValidator';
-export * from './validation/RuleEngine';
-
-// Scoring
-export * from './scoring/ScoreManager';
-

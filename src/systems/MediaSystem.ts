@@ -8,7 +8,6 @@
  */
 
 import {
-  Game,
   Player,
   GAME_CONSTANTS
 } from '../core/types';

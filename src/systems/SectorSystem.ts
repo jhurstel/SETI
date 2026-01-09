@@ -93,6 +93,9 @@ export class SectorSystem {
     }
 
     const updatedGame = { ...game };
+    updatedGame.players = [...game.players];
+    updatedGame.board = { ...game.board };
+    updatedGame.board.sectors = [...game.board.sectors];
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
     const sectorIndex = updatedGame.board.sectors.findIndex(s => s.id === sectorId);
@@ -234,4 +237,3 @@ export class SectorSystem {
     return this.getCoveredSectors(game, playerId).length;
   }
 }
-

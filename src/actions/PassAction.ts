@@ -16,7 +16,8 @@ import {
 import { BaseAction } from './Action';
 import { TurnManager } from '../core/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
-import { SolarSystemRotation } from '../systems/SolarSystemRotation';
+import { ProbeSystem } from '../systems/ProbeSystem';
+import { createRotationState } from '../core/SolarSystemPosition';
 
 export class PassAction extends BaseAction {
   constructor(
@@ -51,6 +52,10 @@ export class PassAction extends BaseAction {
 
   execute(game: Game): Game {
     let updatedGame = { ...game };
+    updatedGame.isFirstToPass = false;
+    // Copie profonde des joueurs et du board pour éviter les mutations
+    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    updatedGame.board = { ...updatedGame.board };
     const playerIndex = updatedGame.players.findIndex(p => p.id === this.playerId);
     const player = updatedGame.players[playerIndex];
 
@@ -67,10 +72,46 @@ export class PassAction extends BaseAction {
     // Vérifier si c'est le premier Pass de la manche
     // (déclenche la rotation du système solaire)
     if (TurnManager.isFirstPassOfRound(updatedGame)) {
-      const rotationResult = SolarSystemRotation.rotate(updatedGame.board.solarSystem);
-      updatedGame.board.solarSystem = rotationResult.rotatedSystem;
+      //const techBoard = { ...updatedGame.board.technologyBoard };
+      //updatedGame.board.technologyBoard = techBoard;
       
-      // TODO: Appliquer les bonus de couverture médiatique de la rotation
+      const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 1;
+      
+      // Sauvegarder l'ancien état de rotation
+      const oldRotationState = createRotationState(
+        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+      );
+
+      // Copie du système solaire
+      updatedGame.board.solarSystem = { ...updatedGame.board.solarSystem };
+
+      // Pivoter le plateau courant (-45 degrés = sens anti-horaire)
+      if (currentLevel === 1) {
+        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+        updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+      } else if (currentLevel === 2) {
+        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+        updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+      } else if (currentLevel === 3) {
+        updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+      }
+
+      // Incrémenter le plateau modulo 3
+      updatedGame.board.solarSystem.nextRingLevel = (currentLevel % 3) + 1;
+      updatedGame.isFirstToPass = true;
+
+      // Nouvel état de rotation
+      const newRotationState = createRotationState(
+        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+      );
+
+      // Mettre à jour les positions des sondes
+      updatedGame = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
     }
 
     // Passer au joueur suivant ou terminer la manche
@@ -79,4 +120,3 @@ export class PassAction extends BaseAction {
     return updatedGame;
   }
 }
-

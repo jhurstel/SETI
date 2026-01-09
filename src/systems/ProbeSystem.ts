@@ -14,14 +14,11 @@ import {
   Player,
   Probe,
   ProbeState,
-  Position,
-  TileType,
   GAME_CONSTANTS,
   DiskName,
   SectorNumber,
   PlanetBonus
 } from '../core/types';
-import { BoardManager } from '../core/Board';
 import { 
   getObjectPosition, 
   createRotationState, 
@@ -78,13 +75,13 @@ export class ProbeSystem {
   static launchProbe(
     game: Game, 
     playerId: string,
-    earthPosition?: { disk: DiskName; sector: SectorNumber },
     free: boolean = false
   ): {
     updatedGame: Game;
     probeId: string;
   } {
     const updatedGame = { ...game };
+    updatedGame.players = [...game.players];
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
 
@@ -95,28 +92,25 @@ export class ProbeSystem {
     let earthSector: SectorNumber = 2;
     let earthLevel: number = 3;
     
-    if (!earthPosition) {
-      // Obtenir les angles de rotation actuels depuis le jeu
-      const rotationAngle1 = updatedGame.board.solarSystem.rotationAngleLevel1 || 0;
-      const rotationAngle2 = updatedGame.board.solarSystem.rotationAngleLevel2 || 0;
-      const rotationAngle3 = updatedGame.board.solarSystem.rotationAngleLevel3 || 0;
-      
-      // Utiliser getObjectPosition pour calculer la position absolue avec les angles réels
-      const rotationState = createRotationState(rotationAngle1, rotationAngle2, rotationAngle3);
-      const earthPos = getObjectPosition('earth', rotationState);
-      
-      if (earthPos) {
-        earthDisk = earthPos.disk;
-        earthSector = earthPos.sector;
-      }
-    } else {
-      earthDisk = earthPosition.disk;
-      earthSector = earthPosition.sector;
+    // Obtenir les angles de rotation actuels depuis le jeu
+    const rotationAngle1 = updatedGame.board.solarSystem.rotationAngleLevel1 || 0;
+    const rotationAngle2 = updatedGame.board.solarSystem.rotationAngleLevel2 || 0;
+    const rotationAngle3 = updatedGame.board.solarSystem.rotationAngleLevel3 || 0;
+    
+    // Utiliser getObjectPosition pour calculer la position absolue avec les angles réels
+    const earthPos = getObjectPosition('earth', rotationAngle1, rotationAngle2, rotationAngle3);
+    if (earthPos) {
+      earthDisk = earthPos.disk;
+      earthSector = earthPos.sector;
     }
 
     const probe: Probe = {
       id: `probe_${Date.now()}_${playerId}`,
       ownerId: playerId,
+      position: {
+        x: 0,
+        y: 0
+      },
       solarPosition: {
         disk: earthDisk,
         sector: earthSector,
@@ -207,6 +201,7 @@ export class ProbeSystem {
     }
 
     const updatedGame = { ...game };
+    updatedGame.players = [...game.players];
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
     const probeIndex = player.probes.findIndex(p => p.id === probeId);
@@ -302,12 +297,12 @@ export class ProbeSystem {
       
       // Vérifier si la sonde est sur une planète
       for (const planetId of planets) {
-        const rotationState = createRotationState(
+        const planetPos = getObjectPosition(
+          planetId,
           game.board.solarSystem.rotationAngleLevel1! || 0,
           game.board.solarSystem.rotationAngleLevel2! || 0,
           game.board.solarSystem.rotationAngleLevel3! || 0
-        );  
-        const planetPos = getObjectPosition(planetId, rotationState);
+        );
         if (planetPos && 
             planetPos.disk === probe.solarPosition.disk && 
             planetPos.sector === probe.solarPosition.sector) {
@@ -461,6 +456,7 @@ export class ProbeSystem {
     }
 
     const updatedGame = { ...game };
+    updatedGame.players = [...game.players];
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
     const probe = player.probes.find(p => p.id === probeId)!;
@@ -579,6 +575,7 @@ export class ProbeSystem {
     }
 
     const updatedGame = { ...game };
+    updatedGame.players = [...game.players];
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
     const probe = player.probes.find(p => p.id === probeId)!;
