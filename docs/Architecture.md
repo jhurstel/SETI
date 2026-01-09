@@ -308,7 +308,7 @@ Le plateau rotatif peut être **tourné** pour modifier la disposition des objet
 
 #### 8.3.1 Paramètre de Position Initiale
 
-Le composant `SolarSystemBoard` accepte deux paramètres optionnels pour définir les positions initiales des plateaux rotatifs :
+Le composant `SolarSystemBoardUI` accepte deux paramètres optionnels pour définir les positions initiales des plateaux rotatifs :
 
 **`initialSector`** (niveau 1) :
 - **Type** : `number` (optionnel, valeur par défaut : `1`)
@@ -325,22 +325,22 @@ Le composant `SolarSystemBoard` accepte deux paramètres optionnels pour défini
 **Exemple d'utilisation :**
 ```typescript
 // Positions initiales par défaut (secteur 1 pour les deux niveaux)
-<SolarSystemBoard game={game} />
+<SolarSystemBoardUI game={game} />
 
 // Position initiale niveau 1 au secteur 5
-<SolarSystemBoard game={game} initialSector={5} />
+<SolarSystemBoardUI game={game} initialSector={5} />
 
 // Positions initiales différentes pour les deux niveaux
-<SolarSystemBoard game={game} initialSector={3} initialSector2={7} />
+<SolarSystemBoardUI game={game} initialSector={3} initialSector2={7} />
 ```
 
 #### 8.3.2 Contrôle de la Rotation via Ref
 
 Le composant expose deux fonctions de contrôle via une référence (`ref`) :
 
-**Interface `SolarSystemBoardRef` :**
+**Interface `SolarSystemBoardUIRef` :**
 ```typescript
-interface SolarSystemBoardRef {
+interface SolarSystemBoardUIRef {
   resetRotation: () => void;        // Niveau 1
   rotateCounterClockwise: () => void; // Niveau 1
   resetRotation2: () => void;       // Niveau 2
@@ -366,10 +366,10 @@ interface SolarSystemBoardRef {
 **Exemple d'utilisation :**
 ```typescript
 import { useRef } from 'react';
-import { SolarSystemBoard, SolarSystemBoardRef } from './SolarSystemBoard';
+import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 
 // Dans votre composant
-const solarSystemRef = useRef<SolarSystemBoardRef>(null);
+const solarSystemRef = useRef<SolarSystemBoardUIRef>(null);
 
 // Réinitialiser la rotation
 solarSystemRef.current?.resetRotation();
@@ -378,7 +378,7 @@ solarSystemRef.current?.resetRotation();
 solarSystemRef.current?.rotateCounterClockwise();
 
 // Dans le JSX
-<SolarSystemBoard ref={solarSystemRef} game={game} initialSector={3} />
+<SolarSystemBoardUI ref={solarSystemRef} game={game} initialSector={3} />
 ```
 
 #### 8.3.3 Caractéristiques Techniques
@@ -453,7 +453,7 @@ Le plateau rotatif niveau 2 peut être **tourné** indépendamment du plateau ni
 
 #### 9.3.1 Paramètre de Position Initiale
 
-Le composant `SolarSystemBoard` accepte un paramètre optionnel `initialSector2` pour définir la position initiale du plateau niveau 2 :
+Le composant `SolarSystemBoardUI` accepte un paramètre optionnel `initialSector2` pour définir la position initiale du plateau niveau 2 :
 
 - **Type** : `number` (optionnel, valeur par défaut : `1`)
 - **Valeurs possibles** : Entier de 1 à 8, correspondant aux secteurs du plateau fixe
@@ -463,19 +463,19 @@ Le composant `SolarSystemBoard` accepte un paramètre optionnel `initialSector2`
 **Exemple d'utilisation :**
 ```typescript
 // Position initiale niveau 2 au secteur 1 (par défaut)
-<SolarSystemBoard game={game} initialSector2={1} />
+<SolarSystemBoardUI game={game} initialSector2={1} />
 
 // Position initiale niveau 2 au secteur 5
-<SolarSystemBoard game={game} initialSector2={5} />
+<SolarSystemBoardUI game={game} initialSector2={5} />
 ```
 
 #### 9.3.2 Contrôle de la Rotation via Ref
 
 Le composant expose deux fonctions de contrôle spécifiques au niveau 2 via la référence (`ref`) :
 
-**Interface `SolarSystemBoardRef` (mise à jour) :**
+**Interface `SolarSystemBoardUIRef` (mise à jour) :**
 ```typescript
-interface SolarSystemBoardRef {
+interface SolarSystemBoardUIRef {
   resetRotation: () => void;        // Niveau 1
   rotateCounterClockwise: () => void; // Niveau 1
   resetRotation2: () => void;       // Niveau 2
@@ -499,10 +499,10 @@ interface SolarSystemBoardRef {
 **Exemple d'utilisation :**
 ```typescript
 import { useRef } from 'react';
-import { SolarSystemBoard, SolarSystemBoardRef } from './SolarSystemBoard';
+import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 
 // Dans votre composant
-const solarSystemRef = useRef<SolarSystemBoardRef>(null);
+const solarSystemRef = useRef<SolarSystemBoardUIRef>(null);
 
 // Réinitialiser la rotation du niveau 2
 solarSystemRef.current?.resetRotation2();
@@ -511,7 +511,7 @@ solarSystemRef.current?.resetRotation2();
 solarSystemRef.current?.rotateCounterClockwise2();
 
 // Dans le JSX
-<SolarSystemBoard ref={solarSystemRef} game={game} initialSector={3} initialSector2={5} />
+<SolarSystemBoardUI ref={solarSystemRef} game={game} initialSector={3} initialSector2={5} />
 ```
 
 #### 9.3.3 Caractéristiques Techniques
@@ -577,7 +577,7 @@ Le plateau rotatif niveau 3 peut être **tourné** indépendamment des autres pl
 
 #### 10.3.1 Paramètre de Position Initiale
 
-Le composant `SolarSystemBoard` accepte un paramètre optionnel `initialSector3` pour définir la position initiale du plateau niveau 3 :
+Le composant `SolarSystemBoardUI` accepte un paramètre optionnel `initialSector3` pour définir la position initiale du plateau niveau 3 :
 
 - **Type** : `number` (optionnel, valeur par défaut : `1`)
 - **Valeurs possibles** : Entier de 1 à 8, correspondant aux secteurs du plateau fixe
@@ -587,19 +587,19 @@ Le composant `SolarSystemBoard` accepte un paramètre optionnel `initialSector3`
 **Exemple d'utilisation :**
 ```typescript
 // Position initiale niveau 3 au secteur 1 (par défaut)
-<SolarSystemBoard game={game} initialSector3={1} />
+<SolarSystemBoardUI game={game} initialSector3={1} />
 
 // Position initiale niveau 3 au secteur 5
-<SolarSystemBoard game={game} initialSector3={5} />
+<SolarSystemBoardUI game={game} initialSector3={5} />
 ```
 
 #### 10.3.2 Contrôle de la Rotation via Ref
 
 Le composant expose deux fonctions de contrôle spécifiques au niveau 3 via la référence (`ref`) :
 
-**Interface `SolarSystemBoardRef` (mise à jour) :**
+**Interface `SolarSystemBoardUIRef` (mise à jour) :**
 ```typescript
-interface SolarSystemBoardRef {
+interface SolarSystemBoardUIRef {
   resetRotation: () => void;        // Niveau 1
   rotateCounterClockwise: () => void; // Niveau 1
   resetRotation2: () => void;       // Niveau 2
@@ -625,10 +625,10 @@ interface SolarSystemBoardRef {
 **Exemple d'utilisation :**
 ```typescript
 import { useRef } from 'react';
-import { SolarSystemBoard, SolarSystemBoardRef } from './SolarSystemBoard';
+import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 
 // Dans votre composant
-const solarSystemRef = useRef<SolarSystemBoardRef>(null);
+const solarSystemRef = useRef<SolarSystemBoardUIRef>(null);
 
 // Réinitialiser la rotation du niveau 3
 solarSystemRef.current?.resetRotation3();
@@ -637,7 +637,7 @@ solarSystemRef.current?.resetRotation3();
 solarSystemRef.current?.rotateCounterClockwise3();
 
 // Dans le JSX
-<SolarSystemBoard ref={solarSystemRef} game={game} initialSector={3} initialSector2={5} initialSector3={1} />
+<SolarSystemBoardUI ref={solarSystemRef} game={game} initialSector={3} initialSector2={5} initialSector3={1} />
 ```
 
 #### 10.3.3 Caractéristiques Techniques
@@ -735,6 +735,6 @@ const handleRotateLevel3 = () => {
 };
 ```
 
-Les boutons sont positionnés dans un conteneur `div` avec position absolue, enveloppant le composant `SolarSystemBoard` pour permettre un positionnement relatif au système solaire.
+Les boutons sont positionnés dans un conteneur `div` avec position absolue, enveloppant le composant `SolarSystemBoardUI` pour permettre un positionnement relatif au système solaire.
 
 
