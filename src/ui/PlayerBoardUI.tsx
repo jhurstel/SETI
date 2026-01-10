@@ -439,6 +439,9 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, onAction, is
   };
 
   const checkCanPlayCard = (card: Card) => {
+    if (hasPerformedMainAction) {
+      return { canPlay: false, reason: "Vous avez déjà effectué une action principale ce tour-ci" };
+    }
     if (currentPlayer.credits < card.cost) {
       return { canPlay: false, reason: `Crédits insuffisants (coût: ${card.cost})` };
     }
