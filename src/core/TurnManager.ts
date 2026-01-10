@@ -87,28 +87,8 @@ export class TurnManager {
   private static calculateRevenues(player: Player): Player {
     const updatedPlayer = { ...player };
     
-    // TODO: Implémenter le calcul des revenus selon les règles
-    // Basé sur :
-    // - Technologies possédées
-    // - Missions accomplies
-    // - Secteurs couverts
-    // - Autres bonus
-    
-    // Exemple simplifié (à remplacer par la logique complète)
-    const baseRevenue = {
-      credits: 2,
-      energy: 1
-    };
-
-    // Bonus des technologies
-    player.technologies.forEach(tech => {
-      if (tech.bonus.energy) {
-        baseRevenue.energy += tech.bonus.energy;
-      }
-    });
-
-    updatedPlayer.credits += baseRevenue.credits;
-    updatedPlayer.energy += baseRevenue.energy;
+    updatedPlayer.credits += player.revenueCredits || 0;
+    updatedPlayer.energy += player.revenueEnergy || 0;
 
     return updatedPlayer;
   }
@@ -157,4 +137,3 @@ export class TurnManager {
     return passedCount === 1;
   }
 }
-
