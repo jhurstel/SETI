@@ -755,16 +755,25 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, onAction, is
                           // Retirer la carte de la main
                           currentPlayer.cards = currentPlayer.cards.filter(c => c.id !== card.id);
                           
+                          let gainMsg = "";
+
                           if (card.revenue === RevenueBonus.CREDIT) {
                             currentPlayer.revenueCredits += 1;
                             currentPlayer.credits += 1;
+                            gainMsg = "1 Crédit";
                           }
                           else if (card.revenue === RevenueBonus.ENERGY) {
                             currentPlayer.revenueEnergy += 1;
                             currentPlayer.energy += 1;
+                            gainMsg = "1 Énergie";
                           }
                           else if (card.revenue === RevenueBonus.CARD) {
                             currentPlayer.revenueCards += 1;
+                            gainMsg = "1 Carte";
+                          }
+                          
+                          if (onHistory) {
+                            onHistory(`réserve la carte "${card.name}" et gagne immédiatement : ${gainMsg}`);
                           }
                           
                           const newCount = reservationState.count - 1;
