@@ -70,17 +70,17 @@ export interface SolarSystemCell {
  * Configuration des creux (zones transparentes) des plateaux rotatifs
  */
 const HOLLOW_ZONES = {
-  level1: {
-    A: [4, 5], // Secteurs creux pour le disque A du niveau 1
-    B: [2, 5, 7], // Secteurs creux pour le disque B du niveau 1
-    C: [2, 3, 7, 8], // Secteurs creux pour le disque C du niveau 1
+  level3: { // Ancien niveau 1 (Jaune)
+    A: [4, 5],
+    B: [2, 5, 7],
+    C: [2, 3, 7, 8],
   },
-  level2: {
-    A: [2, 3, 4], // Secteurs creux pour le disque A du niveau 2
-    B: [2, 3, 4, 7, 8], // Secteurs creux pour le disque B du niveau 2
+  level2: { // Rouge (Inchangé)
+    A: [2, 3, 4],
+    B: [2, 3, 4, 7, 8],
   },
-  level3: {
-    A: [3, 7, 8], // Secteurs creux pour le disque A du niveau 3
+  level1: { // Ancien niveau 3 (Bleu)
+    A: [3, 7, 8],
   },
 };
 
@@ -112,37 +112,37 @@ export const FIXED_OBJECTS: CelestialObject[] = [
 ];
 
 /**
- * Configuration initiale des objets célestes rotatifs (niveau 1)
+ * Configuration initiale des objets célestes rotatifs (niveau 3 - Jaune)
  */
-export const INITIAL_ROTATING_LEVEL1_OBJECTS: CelestialObject[] = [
-  { id: 'saturn', type: 'planet', name: 'Saturne', position: { disk: 'C', sector: 1, x: 0, y: 0 }, level: 1 },
-  { id: 'jupiter', type: 'planet', name: 'Jupiter', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 1 },
-  { id: 'comet-b8-l1', type: 'comet', name: 'Comète', position: { disk: 'B', sector: 8, x: 0, y: 0 }, level: 1 },
-  { id: 'comet-a7-l1', type: 'comet', name: 'Comète', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-b1-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 1, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-b4-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 4, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-a1-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-a2-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 1 },
-  { id: 'asteroid-a6-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 1 },
-  { id: 'hollow-c2-l1', type: 'hollow', name: 'Creux C2', position: { disk: 'C', sector: 2, x: 0, y: 0 }, level: 1 },
-  { id: 'hollow-c3-l1', type: 'hollow', name: 'Creux C3', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 },
-  { id: 'empty-c4-l1', type: 'empty', name: 'Vide C5', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 1 },
-  { id: 'empty-c6-l1', type: 'empty', name: 'Vide C6', position: { disk: 'C', sector: 6, x: 0, y: 0 }, level: 1 },
-  { id: 'hollow-c7-l1', type: 'hollow', name: 'Creux C7', position: { disk: 'C', sector: 7, x: 0, y: 0 }, level: 1 },
-  { id: 'hollow-c8-l1', type: 'hollow', name: 'Creux C8', position: { disk: 'C', sector: 8, x: 0, y: 0 }, level: 1 },
-  { id: 'hollow-b2-l1', type: 'hollow', name: 'Creux B2', position: { disk: 'B', sector: 2, x: 0, y: 0 }, level: 1 },
-  { id: 'empty-b3-l1', type: 'empty', name: 'Vide B3', position: { disk: 'B', sector: 3, x: 0, y: 0 }, level: 1 },
-  { id: 'hollow-b5-l1', type: 'hollow', name: 'Creux B5', position: { disk: 'B', sector: 5, x: 0, y: 0 }, level: 1 },
-  { id: 'empty-b6-l1', type: 'empty', name: 'Vide B6', position: { disk: 'B', sector: 6, x: 0, y: 0 }, level: 1 },
-  { id: 'hollow-b7-l1', type: 'hollow', name: 'Creux B7', position: { disk: 'B', sector: 7, x: 0, y: 0 }, level: 1 },
-  { id: 'empty-a3-l1', type: 'empty', name: 'Vide A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 1 },
-  { id: 'hollow-a4-l1', type: 'hollow', name: 'Creux A4', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 1 },
-  { id: 'hollow-a5-l1', type: 'hollow', name: 'Creux A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 1 },
-  { id: 'empty-a8-l1', type: 'empty', name: 'Vide A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 1 },
+export const INITIAL_ROTATING_LEVEL3_OBJECTS: CelestialObject[] = [
+  { id: 'saturn', type: 'planet', name: 'Saturne', position: { disk: 'C', sector: 1, x: 0, y: 0 }, level: 3 },
+  { id: 'jupiter', type: 'planet', name: 'Jupiter', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 3 },
+  { id: 'comet-b8-l3', type: 'comet', name: 'Comète', position: { disk: 'B', sector: 8, x: 0, y: 0 }, level: 3 },
+  { id: 'comet-a7-l3', type: 'comet', name: 'Comète', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 3 },
+  { id: 'asteroid-b1-l3', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 1, x: 0, y: 0 }, level: 3 },
+  { id: 'asteroid-b4-l3', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 4, x: 0, y: 0 }, level: 3 },
+  { id: 'asteroid-a1-l3', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 3 },
+  { id: 'asteroid-a2-l3', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 3 },
+  { id: 'asteroid-a6-l3', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-c2-l3', type: 'hollow', name: 'Creux C2', position: { disk: 'C', sector: 2, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-c3-l3', type: 'hollow', name: 'Creux C3', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 3 },
+  { id: 'empty-c4-l3', type: 'empty', name: 'Vide C5', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 3 },
+  { id: 'empty-c6-l3', type: 'empty', name: 'Vide C6', position: { disk: 'C', sector: 6, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-c7-l3', type: 'hollow', name: 'Creux C7', position: { disk: 'C', sector: 7, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-c8-l3', type: 'hollow', name: 'Creux C8', position: { disk: 'C', sector: 8, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-b2-l3', type: 'hollow', name: 'Creux B2', position: { disk: 'B', sector: 2, x: 0, y: 0 }, level: 3 },
+  { id: 'empty-b3-l3', type: 'empty', name: 'Vide B3', position: { disk: 'B', sector: 3, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-b5-l3', type: 'hollow', name: 'Creux B5', position: { disk: 'B', sector: 5, x: 0, y: 0 }, level: 3 },
+  { id: 'empty-b6-l3', type: 'empty', name: 'Vide B6', position: { disk: 'B', sector: 6, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-b7-l3', type: 'hollow', name: 'Creux B7', position: { disk: 'B', sector: 7, x: 0, y: 0 }, level: 3 },
+  { id: 'empty-a3-l3', type: 'empty', name: 'Vide A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-a4-l3', type: 'hollow', name: 'Creux A4', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-a5-l3', type: 'hollow', name: 'Creux A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 3 },
+  { id: 'empty-a8-l3', type: 'empty', name: 'Vide A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 3 },
 ];
 
 /**
- * Configuration initiale des objets célestes rotatifs (niveau 2)
+ * Configuration initiale des objets célestes rotatifs (niveau 2 - Rouge)
  */
 export const INITIAL_ROTATING_LEVEL2_OBJECTS: CelestialObject[] = [
   { id: 'mars', type: 'planet', name: 'Mars', position: { disk: 'B', sector: 1, x: 0, y: 0 }, level: 2 },
@@ -164,17 +164,17 @@ export const INITIAL_ROTATING_LEVEL2_OBJECTS: CelestialObject[] = [
 ];
 
 /**
- * Configuration initiale des objets célestes rotatifs (niveau 3)
+ * Configuration initiale des objets célestes rotatifs (niveau 1 - Bleu)
  */
-export const INITIAL_ROTATING_LEVEL3_OBJECTS: CelestialObject[] = [
-  { id: 'empty-a1-l3', type: 'empty', name: 'Vide A1', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 3 },
-  { id: 'earth', type: 'planet', name: 'Terre', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 3 },
-  { id: 'hollow-a3-l3', type: 'hollow', name: 'Creux A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 3 },
-  { id: 'venus', type: 'planet', name: 'Vénus', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 3 },
-  { id: 'empty-a5-l3', type: 'empty', name: 'Vide A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 3 },
-  { id: 'mercury', type: 'planet', name: 'Mercure', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 3 },
-  { id: 'hollow-a7-l3', type: 'hollow', name: 'Creux A7', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 3 },
-  { id: 'hollow-a8-l3', type: 'hollow', name: 'Creux A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 3 },
+export const INITIAL_ROTATING_LEVEL1_OBJECTS: CelestialObject[] = [
+  { id: 'empty-a1-l1', type: 'empty', name: 'Vide A1', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 1 },
+  { id: 'earth', type: 'planet', name: 'Terre', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-a3-l1', type: 'hollow', name: 'Creux A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 1 },
+  { id: 'venus', type: 'planet', name: 'Vénus', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-a5-l1', type: 'empty', name: 'Vide A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 1 },
+  { id: 'mercury', type: 'planet', name: 'Mercure', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-a7-l1', type: 'hollow', name: 'Creux A7', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-a8-l1', type: 'hollow', name: 'Creux A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 1 },
 ];
 
 /**
@@ -198,9 +198,9 @@ export function createRotationState(
 export function getAllCelestialObjects(): CelestialObject[] {
   return [
     ...FIXED_OBJECTS,
-    ...INITIAL_ROTATING_LEVEL1_OBJECTS,
-    ...INITIAL_ROTATING_LEVEL2_OBJECTS,
     ...INITIAL_ROTATING_LEVEL3_OBJECTS,
+    ...INITIAL_ROTATING_LEVEL2_OBJECTS,
+    ...INITIAL_ROTATING_LEVEL1_OBJECTS,
   ];
 }
 
@@ -239,10 +239,10 @@ export function calculateAbsolutePosition(
   if (object.level === 1) {
     absoluteSector = rotateSector(absoluteSector, rotationState.level1Angle);
   } else if (object.level === 2) {
-    // Le niveau 2 tourne avec le niveau 1
+    // Le niveau 2 tourne avec le niveau 3 (Jaune)
     absoluteSector = rotateSector(absoluteSector, rotationState.level2Angle);
   } else if (object.level === 3) {
-    // Le niveau 3 tourne avec le niveau 1 et le niveau 2
+    // Le niveau 3 tourne seul (ou entraine les autres selon la logique physique, ici on applique juste l'angle)
     absoluteSector = rotateSector(absoluteSector, rotationState.level3Angle);
   }
   // Niveau 0 (fixe) : pas de rotation
@@ -276,15 +276,15 @@ export function getVisibleLevel(
   absoluteSector: SectorNumber,
   rotationState: RotationState
 ): number {
-  // Niveau 3 (disque A uniquement)
+  // Niveau 1 (Bleu - Top) - Disque A uniquement
   if (disk === 'A') {
-    const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
-    if (!HOLLOW_ZONES.level3.A.includes(level3Sector)) {
-      return 3;
+    const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
+    if (!HOLLOW_ZONES.level1.A.includes(level1Sector)) {
+      return 1;
     }
   }
   
-  // Niveau 2 (disques A et B)
+  // Niveau 2 (Rouge - Mid) - Disques A et B
   if (disk === 'A' || disk === 'B') {
     const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
     const hollowZones = HOLLOW_ZONES.level2[disk];
@@ -293,12 +293,12 @@ export function getVisibleLevel(
     }
   }
   
-  // Niveau 1 (disques A, B, C)
+  // Niveau 3 (Jaune - Bot) - Disques A, B, C
   if (disk === 'A' || disk === 'B' || disk === 'C') {
-    const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
-    const hollowZones = HOLLOW_ZONES.level1[disk];
-    if (hollowZones && !hollowZones.includes(level1Sector)) {
-      return 1;
+    const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
+    const hollowZones = HOLLOW_ZONES.level3[disk];
+    if (hollowZones && !hollowZones.includes(level3Sector)) {
+      return 3;
     }
   }
   
@@ -321,18 +321,18 @@ function checkVisibilityAboveLevel(
     return true;
   }
   
-  // Niveau 3 (disque A uniquement)
-  // Si l'objet est en dessous du niveau 3 (niveau < 3), on vérifie si le niveau 3 le cache
-  if (objectLevel < 3 && disk === 'A') {
-    const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
-    if (!HOLLOW_ZONES.level3.A.includes(level3Sector)) {
-      return false; // Recouvert par le niveau 3
+  // Niveau 1 (Bleu - Top)
+  // Si l'objet n'est pas niveau 1, on vérifie si le niveau 1 le cache
+  if (objectLevel !== 1 && disk === 'A') {
+    const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
+    if (!HOLLOW_ZONES.level1.A.includes(level1Sector)) {
+      return false; // Recouvert par le niveau 1
     }
   }
   
-  // Niveau 2 (disques A et B)
-  // Si l'objet est en dessous du niveau 2 (niveau < 2), on vérifie si le niveau 2 le cache
-  if (objectLevel < 2 && (disk === 'A' || disk === 'B')) {
+  // Niveau 2 (Rouge - Mid)
+  // Si l'objet est en dessous du niveau 2 (donc 3 ou 0), on vérifie si le niveau 2 le cache
+  if ((objectLevel === 3 || objectLevel === 0) && (disk === 'A' || disk === 'B')) {
     const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
     const hollowZones = HOLLOW_ZONES.level2[disk];
     if (hollowZones && !hollowZones.includes(level2Sector)) {
@@ -340,13 +340,13 @@ function checkVisibilityAboveLevel(
     }
   }
   
-  // Niveau 1 (disques A, B, C)
-  // Si l'objet est en dessous du niveau 1 (niveau < 1), on vérifie si le niveau 1 le cache
-  if (objectLevel < 1 && (disk === 'A' || disk === 'B' || disk === 'C')) {
-    const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
-    const hollowZones = HOLLOW_ZONES.level1[disk];
-    if (hollowZones && !hollowZones.includes(level1Sector)) {
-      return false; // Recouvert par le niveau 1
+  // Niveau 3 (Jaune - Bot)
+  // Si l'objet est en dessous du niveau 3 (donc 0), on vérifie si le niveau 3 le cache
+  if (objectLevel === 0 && (disk === 'A' || disk === 'B' || disk === 'C')) {
+    const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
+    const hollowZones = HOLLOW_ZONES.level3[disk];
+    if (hollowZones && !hollowZones.includes(level3Sector)) {
+      return false; // Recouvert par le niveau 3
     }
   }
   
@@ -376,18 +376,18 @@ export function getAllAbsolutePositions(rotationState: RotationState): Map<strin
     positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
   });
   
-  // Objets rotatifs niveau 1
-  INITIAL_ROTATING_LEVEL1_OBJECTS.forEach(obj => {
+  // Objets rotatifs niveau 3 (Jaune)
+  INITIAL_ROTATING_LEVEL3_OBJECTS.forEach(obj => {
     positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
   });
   
-  // Objets rotatifs niveau 2
+  // Objets rotatifs niveau 2 (Rouge)
   INITIAL_ROTATING_LEVEL2_OBJECTS.forEach(obj => {
     positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
   });
   
-  // Objets rotatifs niveau 3
-  INITIAL_ROTATING_LEVEL3_OBJECTS.forEach(obj => {
+  // Objets rotatifs niveau 1 (Bleu)
+  INITIAL_ROTATING_LEVEL1_OBJECTS.forEach(obj => {
     positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
   });
   
@@ -420,7 +420,7 @@ export function getAllCells(rotationState: RotationState): Map<string, SolarSyst
       // Vérifier quels objets sont sur cette case
       positions.forEach((pos, objId) => {
         if (pos.disk === disk && pos.absoluteSector === sector && pos.isVisible) {
-          const obj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS]
+          const obj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS]
             .find(o => o.id === objId);
           
           if (obj) {

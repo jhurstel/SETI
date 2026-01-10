@@ -23,6 +23,9 @@ interface PlayerBoardUIProps {
   isSelectingComputerSlot?: boolean;
   onComputerSlotSelect?: (col: number) => void;
   isAnalyzing?: boolean;
+  hasPerformedMainAction?: boolean;
+  onNextPlayer?: () => void;
+  onHistory?: (message: string) => void;
 }
 
 const ACTION_NAMES: Record<ActionType, string> = {
@@ -33,7 +36,7 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.ANALYZE_DATA]: 'Analyser des données',
   [ActionType.PLAY_CARD]: 'Jouer une carte',
   [ActionType.RESEARCH_TECH]: 'Rechercher une technologie',
-  [ActionType.PASS]: 'Passer',
+  [ActionType.PASS]: 'Passer définitivement',
 };
 
 const ComputerSlot = ({ 
@@ -95,7 +98,7 @@ const ComputerSlot = ({
   );
 };
 
-const PlayerComputer = ({ player, onUpdate, onBonus, isSelecting, onColumnSelect, isAnalyzing }: { player: any, onUpdate: () => void, onBonus: (type: string, amount: number) => void, isSelecting?: boolean, onColumnSelect?: (col: number) => void, isAnalyzing?: boolean }) => {
+const PlayerComputer = ({ player, onUpdate, onBonus, isSelecting, onColumnSelect, isAnalyzing, onHistory }: { player: any, onUpdate: () => void, onBonus: (type: string, amount: number) => void, isSelecting?: boolean, onColumnSelect?: (col: number) => void, isAnalyzing?: boolean, onHistory?: (message: string) => void }) => {
   // Initialize if needed
   if (!player.computer) {
     player.computer = {
@@ -123,30 +126,43 @@ const PlayerComputer = ({ player, onUpdate, onBonus, isSelecting, onColumnSelect
     player.data -= 1;
     slot.filled = true;
     
+    let gains: string[] = [];
+
     if (slot.bonus === 'media') {
        player.mediaCoverage = Math.min((player.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE || 10);
+       gains.push("1 Média");
     }
     if (slot.bonus === 'reservation') {
        onBonus('reservation', 1);
+       gains.push("1 Réservation");
     }
     if (slot.bonus === '2pv') {
        player.score += 2;
+       gains.push("2 PV");
     }
     if (slot.bonus === 'credit') {
        player.credits += 1;
+       gains.push("1 Crédit");
     }
     if (slot.bonus === 'energy') {
        player.energy += 1;
+       gains.push("1 Énergie");
     }
     if (slot.bonus === 'card') {
        onBonus('card', 1);
+       gains.push("1 Carte");
     }
 
     // Si la case 6a est remplie, on active la capacité d'analyse
     if (slotId === '6a' && player.dataComputer) {
       player.dataComputer.canAnalyze = true;
+      gains.push("Analyse activée");
     }
-    // Reservation bonus logic would go here
+    
+    if (onHistory) {
+        const gainText = gains.length > 0 ? ` et gagne : ${gains.join(', ')}` : '';
+        onHistory(`transfère une donnée vers l'ordinateur (${slotId})${gainText}`);
+    }
     
     onUpdate();
   };
@@ -246,7 +262,7 @@ const PlayerComputer = ({ player, onUpdate, onBonus, isSelecting, onColumnSelect
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onFreeAction, onPlayCard, onBuyCardAction, onTradeResourcesAction, tradeState = { phase: 'inactive' }, onSpendSelection, onGainSelection, onCancelTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onFreeAction, onPlayCard, onBuyCardAction, onTradeResourcesAction, tradeState = { phase: 'inactive' }, onSpendSelection, onGainSelection, onCancelTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory }) => {
   const currentPlayer = game.players[game.currentPlayerIndex];
   const isRobot = (currentPlayer as any).type === 'robot';
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
@@ -357,14 +373,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, onAction, is
   const hasProbesInSystem = (currentPlayer.probes || []).some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
 
   const actionAvailability: Record<ActionType, boolean> = {
-    [ActionType.LAUNCH_PROBE]: !isRobot && ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch,
-    [ActionType.ORBIT]: !isRobot && currentPlayer.probes.some(probe => ProbeSystem.canOrbit(game, currentPlayer.id, probe.id).canOrbit),
-    [ActionType.LAND]: !isRobot && currentPlayer.probes.some(probe => ProbeSystem.canLand(game, currentPlayer.id, probe.id).canLand),
-    [ActionType.SCAN_SECTOR]: !isRobot && false, // TODO
-    [ActionType.ANALYZE_DATA]: !isRobot && DataSystem.canAnalyzeData(game, currentPlayer.id).canAnalyze,
-    [ActionType.PLAY_CARD]: !isRobot && false, // TODO
-    [ActionType.RESEARCH_TECH]: !isRobot && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA,
-    [ActionType.PASS]: !isRobot,
+    [ActionType.LAUNCH_PROBE]: !isRobot && !hasPerformedMainAction && ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch,
+    [ActionType.ORBIT]: !isRobot && !hasPerformedMainAction && currentPlayer.probes.some(probe => ProbeSystem.canOrbit(game, currentPlayer.id, probe.id).canOrbit),
+    [ActionType.LAND]: !isRobot && !hasPerformedMainAction && currentPlayer.probes.some(probe => ProbeSystem.canLand(game, currentPlayer.id, probe.id).canLand),
+    [ActionType.SCAN_SECTOR]: !isRobot && !hasPerformedMainAction && false, // TODO
+    [ActionType.ANALYZE_DATA]: !isRobot && !hasPerformedMainAction && DataSystem.canAnalyzeData(game, currentPlayer.id).canAnalyze,
+    [ActionType.PLAY_CARD]: !isRobot && !hasPerformedMainAction && false, // TODO
+    [ActionType.RESEARCH_TECH]: !isRobot && !hasPerformedMainAction && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA,
+    [ActionType.PASS]: !isRobot && !hasPerformedMainAction,
   };
 
   // Fonction helper pour générer le tooltip basé sur l'état du jeu (Interaction Engine -> UI)
@@ -442,6 +458,25 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, onAction, is
         <span>
           {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV
         </span>
+        <button
+            onClick={onNextPlayer}
+            disabled={!hasPerformedMainAction}
+            title={hasPerformedMainAction ? "Terminer le tour" : "Effectuez une action principale d'abord"}
+            style={{
+                position: 'absolute',
+                right: '10px',
+                backgroundColor: hasPerformedMainAction ? '#4caf50' : '#555',
+                color: hasPerformedMainAction ? 'white' : '#aaa',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '4px 8px',
+                cursor: hasPerformedMainAction ? 'pointer' : 'not-allowed',
+                fontSize: '0.8rem',
+                fontWeight: 'bold'
+            }}
+        >
+            Prochain joueur
+        </button>
       </div>
       
       <div className="seti-player-layout">
@@ -541,7 +576,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, onAction, is
 
         {/* Actions */}
         <div className="seti-player-section">
-          <div className="seti-player-section-title">Actions</div>
+          <div className="seti-player-section-title">Actions principales</div>
           <div className="seti-player-actions">
             {Object.entries(ACTION_NAMES)
               .filter(([action]) => action)
@@ -611,6 +646,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, onAction, is
               isSelecting={isSelectingComputerSlot}
               onColumnSelect={onComputerSlotSelect}
               isAnalyzing={isAnalyzing}
+              onHistory={onHistory}
             />
           </div>
         </div>

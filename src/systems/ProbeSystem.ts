@@ -90,7 +90,7 @@ export class ProbeSystem {
     // Utiliser les angles de rotation actuels depuis le jeu
     let earthDisk: DiskName = 'A';
     let earthSector: SectorNumber = 2;
-    let earthLevel: number = 3;
+    let earthLevel: number = 1; // Terre sur le plateau 1 (Bleu)
     
     // Obtenir les angles de rotation actuels depuis le jeu
     const rotationAngle1 = updatedGame.board.solarSystem.rotationAngleLevel1 || 0;
@@ -216,12 +216,12 @@ export class ProbeSystem {
 
     // Convertir le secteur absolu en secteur relatif pour le stockage
     let relativeSector = targetSector;
-    if (targetLevel === 1) {
-      relativeSector = rotateSector(targetSector, -rotationState.level1Angle);
+    if (targetLevel === 3) {
+      relativeSector = rotateSector(targetSector, -rotationState.level3Angle);
     } else if (targetLevel === 2) {
       relativeSector = rotateSector(targetSector, -rotationState.level2Angle);
-    } else if (targetLevel === 3) {
-      relativeSector = rotateSector(targetSector, -rotationState.level3Angle);
+    } else if (targetLevel === 1) {
+      relativeSector = rotateSector(targetSector, -rotationState.level1Angle);
     }
 
     // Vérifier les bonus média
@@ -681,16 +681,16 @@ export class ProbeSystem {
     // Si elle est sur un plateau fixe (par rapport à la rotation), elle reste sur place (isRiding = false)
     
     let isRiding = false;
-    if (pos.level === 1 && oldRotationState.level1Angle !== newRotationState.level1Angle) isRiding = true;
-    if (pos.level === 2 && oldRotationState.level2Angle !== newRotationState.level2Angle) isRiding = true;
     if (pos.level === 3 && oldRotationState.level3Angle !== newRotationState.level3Angle) isRiding = true;
+    if (pos.level === 2 && oldRotationState.level2Angle !== newRotationState.level2Angle) isRiding = true;
+    if (pos.level === 1 && oldRotationState.level1Angle !== newRotationState.level1Angle) isRiding = true;
 
     if (isRiding) {
       // La sonde tourne avec le plateau : son secteur relatif reste le même, mais l'absolu change
       let angle = 0;
-      if (pos.level === 1) angle = newRotationState.level1Angle;
-      if (pos.level === 2) angle = newRotationState.level2Angle;
       if (pos.level === 3) angle = newRotationState.level3Angle;
+      if (pos.level === 2) angle = newRotationState.level2Angle;
+      if (pos.level === 1) angle = newRotationState.level1Angle;
       absoluteSector = rotateSector(pos.sector, angle);
     } else {
       // La sonde ne tourne pas avec le plateau : elle garde sa position absolue
@@ -711,12 +711,12 @@ export class ProbeSystem {
 
     // 3. Recalculer le secteur relatif pour ce nouveau niveau
     let newRelativeSector = absoluteSector;
-    if (newLevel === 1) {
-      newRelativeSector = rotateSector(absoluteSector, -newRotationState.level1Angle);
+    if (newLevel === 3) {
+      newRelativeSector = rotateSector(absoluteSector, -newRotationState.level3Angle);
     } else if (newLevel === 2) {
       newRelativeSector = rotateSector(absoluteSector, -newRotationState.level2Angle);
-    } else if (newLevel === 3) {
-      newRelativeSector = rotateSector(absoluteSector, -newRotationState.level3Angle);
+    } else if (newLevel === 1) {
+      newRelativeSector = rotateSector(absoluteSector, -newRotationState.level1Angle);
     }
 
     return {

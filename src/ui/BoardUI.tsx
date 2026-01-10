@@ -71,6 +71,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const [isResearching, setIsResearching] = useState(false);
   const [pendingTechSelection, setPendingTechSelection] = useState<Technology | null>(null);
   const [isAnalyzingData, setIsAnalyzingData] = useState(false);
+  const [hasPerformedMainAction, setHasPerformedMainAction] = useState(false);
 
   // Ref pour contrôler le plateau solaire
   const solarSystemRef = useRef<SolarSystemBoardUIRef>(null);
@@ -123,6 +124,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   }, [game]);
 
+  // Gestionnaire pour passer au joueur suivant (fin de tour simple)
+  const handleNextPlayer = () => {
+    if (!gameEngineRef.current) return;
+    gameEngineRef.current.nextPlayer();
+    setGame(gameEngineRef.current.getState());
+    setHasPerformedMainAction(false);
+    setToast({ message: "Au tour du joueur suivant", visible: true });
+  };
+
   // Helper pour exécuter l'action Passer via PassAction
   const performPass = (cardsToKeep: string[]) => {
     if (!gameEngineRef.current) return;
@@ -153,6 +163,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }
 
         setGame(newGame);
+        setHasPerformedMainAction(false); // Réinitialiser pour le prochain joueur
     } else {
         console.error("Erreur lors de l'action Passer:", result.error);
         setToast({ message: "Erreur lors de l'action Passer", visible: true });
@@ -188,6 +199,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour les actions
   const handleAction = (actionType: ActionType) => {
     if (!gameEngineRef.current) return;
+    
+    // Si une action principale a déjà été faite, on ne peut pas en faire d'autre (sauf PASS qui est géré spécifiquement)
+    if (hasPerformedMainAction && actionType !== ActionType.PASS) {
+        return;
+    }
 
     // Synchroniser l'état de GameEngine avec le jeu actuel (pour préserver les angles de rotation)
     gameEngineRef.current.setState(game);
@@ -200,6 +216,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       if (result.success && result.updatedState) {
         console.log('Sonde lancée, nouvelles sondes:', result.updatedState.board.solarSystem.probes);
         setGame(result.updatedState);
+        setHasPerformedMainAction(true);
         
         // Calculer la position de la Terre pour le log
         const earthPos = getObjectPosition(
@@ -232,13 +249,64 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
     else if (actionType === ActionType.RESEARCH_TECH) {
       if (isResearching) {
-        setIsResearching(false);
-        setToast({ message: "Recherche annulée", visible: true });
         return;
       }
-      // Le coût est vérifié dans PlayerBoardUI (désactivation du bouton), mais on peut revérifier ici
+      
+      const currentPlayer = game.players[game.currentPlayerIndex];
+      if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) {
+        setToast({ message: "Pas assez de couverture médiatique", visible: true });
+        return;
+      }
+
+      let updatedGame = { ...game };
+      updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+      const playerIndex = updatedGame.currentPlayerIndex;
+      const player = updatedGame.players[playerIndex];
+
+      // Payer le coût
+      player.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
+
+      // Rotation du système solaire
+      updatedGame.board = {
+        ...updatedGame.board,
+        solarSystem: { ...updatedGame.board.solarSystem },
+        technologyBoard: { ...updatedGame.board.technologyBoard }
+      };
+
+      const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 3;
+      const oldRotationState = createRotationState(
+        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+      );
+
+      if (currentLevel === 3) {
+        updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+      } else if (currentLevel === 2) {
+        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+      } else if (currentLevel === 1) {
+        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+      }
+
+      updatedGame.board.solarSystem.nextRingLevel = currentLevel === 1 ? 3 : currentLevel - 1;
+
+      const newRotationState = createRotationState(
+        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+      );
+
+      updatedGame = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
+      
+      addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias et fait tourner le système solaire (Niveau ${currentLevel}) pour rechercher une technologie`, player.id, game);
+
+      setGame(updatedGame);
       setIsResearching(true);
-      setToast({ message: "Sélectionnez une technologie à acquérir", visible: true });
+      setHasPerformedMainAction(true);
+      setToast({ message: "Système pivoté. Sélectionnez une technologie.", visible: true });
     }
     else if (actionType === ActionType.ANALYZE_DATA) {
       if (!currentPlayer.dataComputer.canAnalyze) {
@@ -294,6 +362,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }
 
         setGame(updatedGame);
+        setHasPerformedMainAction(true);
         setToast({ message: `Données analysées ! ${bonusMsg}`, visible: true });
         addToHistory(`analyse des données et gagne ${bonusMsg}`, player.id, previousState);
         setIsAnalyzingData(false);
@@ -353,13 +422,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         
         if (updatedPlayer && oldPlayer) {
             // Log du coût (approximatif car calculé dans l'action)
+            const object = getCell(disk, sector, createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0));
+            const objectName = object?.hasComet ? "une comète" : object?.hasAsteroid ? "un champ d'astéroïdes" : object?.hasPlanet ? object?.planetName : "une case vide";  
             const energySpent = oldPlayer.energy - updatedPlayer.energy;
-            addToHistory(`déplace une sonde de ${fromLoc} vers ${disk}${sector} pour ${energySpent} énergie`, currentPlayerId, updatedGame);
-
             const mediaGain = updatedPlayer.mediaCoverage - oldPlayer.mediaCoverage;
+            
+            if (energySpent > 0) {
+              addToHistory(`déplace une sonde vers ${disk}${sector} pour ${energySpent} énergie`, currentPlayerId, updatedGame);
+            } else {
+              addToHistory(`déplace une sonde vers ${disk}${sector} gratuitement`, currentPlayerId, updatedGame);
+            }
+
             if (mediaGain > 0) {
               setToast({ message: `Gain de média : +${mediaGain}`, visible: true });
-              addToHistory(`gagne ${mediaGain} média pour avoir visité ${disk}${sector}`, currentPlayerId, updatedGame);
+              addToHistory(`gagne ${mediaGain} média pour avoir visité ${objectName} (${disk}${sector})`, currentPlayerId, updatedGame);
             }
         }
 
@@ -420,6 +496,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour jouer une carte (payer son coût en crédits)
   const handlePlayCard = (cardId: string) => {
+    if (hasPerformedMainAction) return;
+
     const updatedGame = { ...game };
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
     const currentPlayerIndex = updatedGame.currentPlayerIndex;
@@ -442,6 +520,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     currentPlayer.cards = currentPlayer.cards.filter(c => c.id !== cardId);
 
     setGame(updatedGame);
+    setHasPerformedMainAction(true);
     setToast({ message: `Carte jouée: ${card.name}`, visible: true });
     addToHistory(`joue la carte "${card.name}" pour ${card.cost} crédits`, currentPlayer.id, game);
   };
@@ -545,63 +624,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const currentPlayerIndex = updatedGame.currentPlayerIndex;
     let currentPlayer = updatedGame.players[currentPlayerIndex];
 
-    // Note: Le coût a déjà été vérifié avant l'appel, mais on le redébite ici pour centraliser la logique
-
-    // Vérifier le coût (sécurité)
-    if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) {
-      setToast({ message: "Pas assez de couverture médiatique", visible: true });
-      setIsResearching(false);
-      return;
-    }
-
-    // Payer le coût
-    currentPlayer.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
-
-    // Rotation du système solaire AVANT l'acquisition de la technologie
-    
-    // Cloner le board pour éviter la mutation directe
-    updatedGame.board = {
-      ...updatedGame.board,
-      solarSystem: {
-        ...updatedGame.board.solarSystem
-      },
-      technologyBoard: {
-        ...updatedGame.board.technologyBoard
-      }
-    };
-
-    const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 1;
-    
-    const oldRotationState = createRotationState(
-      updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-      updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-      updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-    );
-
-    if (currentLevel === 1) {
-      updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-      updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-      updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
-    } else if (currentLevel === 2) {
-      updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-      updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
-    } else if (currentLevel === 3) {
-      updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
-    }
-
-    updatedGame.board.solarSystem.nextRingLevel = (currentLevel % 3) + 1;
-
-    const newRotationState = createRotationState(
-      updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-      updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-      updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-    );
-
-    // Mettre à jour les sondes après rotation
-    updatedGame = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
-    
-    // Récupérer les références mises à jour
-    currentPlayer = updatedGame.players[currentPlayerIndex];
     const updatedTechBoard = updatedGame.board.technologyBoard;
 
     // Retirer la technologie du plateau
@@ -639,12 +661,30 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     // Appliquer les bonus immédiats
-    if (tech.bonus.pv) currentPlayer.score += tech.bonus.pv;
-    if (tech.bonus.media) currentPlayer.mediaCoverage = Math.min(currentPlayer.mediaCoverage + tech.bonus.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-    if (tech.bonus.energy) currentPlayer.energy += tech.bonus.energy;
-    if (tech.bonus.data) currentPlayer.data = Math.min((currentPlayer.data || 0) + tech.bonus.data, GAME_CONSTANTS.MAX_DATA);
+    let gains: string[] = [];
+    if (tech.bonus.pv) {
+        currentPlayer.score += tech.bonus.pv;
+        gains.push(`${tech.bonus.pv} PV`);
+    }
+    if (tech.bonus.media) {
+        currentPlayer.mediaCoverage = Math.min(currentPlayer.mediaCoverage + tech.bonus.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+        gains.push(`${tech.bonus.media} Média`);
+    }
+    if (tech.bonus.credits) {
+        currentPlayer.credits += tech.bonus.credits;
+        gains.push(`${tech.bonus.credits} Crédit`);
+    }
+    if (tech.bonus.energy) {
+        currentPlayer.energy += tech.bonus.energy;
+        gains.push(`${tech.bonus.energy} Énergie`);
+    }
+    if (tech.bonus.data) {
+        currentPlayer.data = Math.min((currentPlayer.data || 0) + tech.bonus.data, GAME_CONSTANTS.MAX_DATA);
+        gains.push(`${tech.bonus.data} Data`);
+    }
     if (tech.bonus.card) {
       updatedGame = drawCards(updatedGame, currentPlayer.id, tech.bonus.card, `Bonus technologie ${tech.name}`);
+      gains.push(`${tech.bonus.card} Carte`);
     }
     if (tech.bonus.probe) {
       // Lancer une sonde gratuitement
@@ -652,12 +692,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const result = ProbeSystem.launchProbe(updatedGame, currentPlayer.id, true);
       updatedGame.board = result.updatedGame.board;
       updatedGame.players = result.updatedGame.players;
+      gains.push(`1 Sonde gratuite`);
     }
 
     setGame(updatedGame);
     setIsResearching(false);
     setToast({ message: `Technologie ${tech.name} acquise !`, visible: true });
-    addToHistory(`acquiert la technologie "${tech.name}" pour ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias`, currentPlayer.id, game);
+    
+    const gainsText = gains.length > 0 ? ` et gagne : ${gains.join(', ')}` : '';
+    addToHistory(`acquiert la technologie "${tech.name}"${gainsText}`, currentPlayer.id, game);
   };
 
   // Gestionnaire pour l'achat de technologie (clic initial)
@@ -743,16 +786,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }));
   };
 
-  // Handlers pour les boutons de rotation
-  const handleRotateLevel1 = () => {
-    solarSystemRef.current?.rotateCounterClockwise1();
-    // Mettre à jour l'angle dans l'état du jeu
-    const currentAngle1 = getCurrentAngle1();
-    const currentAngle2 = getCurrentAngle2();
-    const currentAngle3 = getCurrentAngle3();
-    updateRotationAngles(currentAngle1 - 45, currentAngle2 - 45, currentAngle3 - 45);
-  };
-
   // Helper pour la couleur des secteurs
   const getSectorColorCode = (color: SectorColor) => {
     switch(color) {
@@ -764,27 +797,33 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   };
 
+  // Handlers pour les boutons de rotation
+  const handleRotateLevel1 = () => {
+    solarSystemRef.current?.rotateCounterClockwise1();
+    updateRotationAngles(
+      getCurrentAngle1() - 45, // Bleu tourne seul
+      getCurrentAngle2(),
+      getCurrentAngle3()
+    );
+  };
+
   const handleRotateLevel2 = () => {
     solarSystemRef.current?.rotateCounterClockwise2();
     // Mettre à jour l'angle dans l'état du jeu
-    const currentAngle2 = getCurrentAngle2();
-    const currentAngle3 = getCurrentAngle3();
     updateRotationAngles(
-      getCurrentAngle1(),
-      currentAngle2 - 45,
-      currentAngle3 - 45
+      getCurrentAngle1() - 45, // Rouge entraine Bleu
+      getCurrentAngle2() - 45,
+      getCurrentAngle3()
     );
   };
 
   const handleRotateLevel3 = () => {
     solarSystemRef.current?.rotateCounterClockwise3();
     // Mettre à jour l'angle dans l'état du jeu
-    const currentAngle3 = getCurrentAngle3();
     updateRotationAngles(
-      getCurrentAngle1(),
-      getCurrentAngle2(),
-      currentAngle3 - 45
-    );
+      getCurrentAngle1() - 45,
+      getCurrentAngle2() - 45,
+      getCurrentAngle3() - 45); // Jaune entraine tout
   };
 
   const nextRotationLevel = game.board.solarSystem.nextRingLevel || 1;
@@ -795,7 +834,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     nextRotationBackgroundColor = '#ff6b6b';
     nextRotationColor = '#fff';
     nextRotationBorder = '#ff8e8e';
-  } else if (nextRotationLevel === 3) {
+  } else if (nextRotationLevel === 1) {
     nextRotationBackgroundColor = '#4a9eff';
     nextRotationColor = '#fff';
     nextRotationBorder = '#6bb3ff';
@@ -911,12 +950,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               }}>
                 Prochaine Rotation
               </div>
-              {/*<button
+              {/*
+              <button
                 onClick={handleRotateLevel1}
                 style={{
-                  backgroundColor: '#ffd700',
-                  color: '#000',
-                  border: '2px solid #ffed4e',
+                  backgroundColor: '#4a9eff',
+                  color: '#fff',
+                  border: '2px solid #6bb3ff',
                   borderRadius: '6px',
                   padding: '8px 16px',
                   fontSize: '0.9rem',
@@ -927,18 +967,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 }}
                 onMouseEnter={(e) => {
                   const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#ffed4e';
+                  target.style.backgroundColor = '#6bb3ff';
                   target.style.transform = 'scale(1.05)';
                 }}
                 onMouseLeave={(e) => {
                   const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#ffd700';
+                  target.style.backgroundColor = '#4a9eff';
                   target.style.transform = 'scale(1)';
                 }}
               >
                 Tourner Niveau 1
-              </button>*/}
-              {/*<button
+              </button>
+              <button
                 onClick={handleRotateLevel2}
                 style={{
                   backgroundColor: '#ff6b6b',
@@ -965,13 +1005,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               >
                 Tourner Niveau 2
               </button>
-              */}
-              {/*<button
+              <button
                 onClick={handleRotateLevel3}
                 style={{
-                  backgroundColor: '#4a9eff',
-                  color: '#fff',
-                  border: '2px solid #6bb3ff',
+                  backgroundColor: '#ffd700',
+                  color: '#000',
+                  border: '2px solid #ffed4e',
                   borderRadius: '6px',
                   padding: '8px 16px',
                   fontSize: '0.9rem',
@@ -982,12 +1021,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 }}
                 onMouseEnter={(e) => {
                   const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#6bb3ff';
+                  target.style.backgroundColor = '#ffed4e';
                   target.style.transform = 'scale(1.05)';
                 }}
                 onMouseLeave={(e) => {
                   const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#4a9eff';
+                  target.style.backgroundColor = '#ffd700';
                   target.style.transform = 'scale(1)';
                 }}
               >
@@ -1021,6 +1060,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               onComputerSlotSelect={handleComputerColumnSelect}
               onDrawCard={handleDrawCard}
               isAnalyzing={isAnalyzingData}
+              hasPerformedMainAction={hasPerformedMainAction}
+              onNextPlayer={handleNextPlayer}
+              onHistory={(message) => addToHistory(message, game.players[game.currentPlayerIndex].id, game)}
             />
           </div>
           <div className="seti-panel seti-history-panel" style={{ flex: 1, minWidth: 0 }}>

@@ -152,11 +152,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   };
 
   // Fonction pour tourner d'un secteur (45°) dans le sens anti-horaire (niveau 1)
-  // Fait aussi tourner les niveaux 2 et 3
   const rotateCounterClockwise1 = () => {
     setRotationAngle1((prevAngle) => prevAngle - 45);
-    setRotationAngle2((prevAngle) => prevAngle - 45); // Niveau 2 tourne aussi
-    setRotationAngle3((prevAngle) => prevAngle - 45); // Niveau 3 tourne aussi
   };
 
   // Fonction pour réinitialiser la rotation à la position initiale (niveau 2)
@@ -165,10 +162,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   };
 
   // Fonction pour tourner d'un secteur (45°) dans le sens anti-horaire (niveau 2)
-  // Fait aussi tourner le niveau 3
+  // Fait aussi tourner le niveau 1
   const rotateCounterClockwise2 = () => {
+    setRotationAngle1((prevAngle) => prevAngle - 45);
     setRotationAngle2((prevAngle) => prevAngle - 45);
-    setRotationAngle3((prevAngle) => prevAngle - 45); // Niveau 3 tourne aussi
   };
 
   // Fonction pour réinitialiser la rotation à la position initiale (niveau 3)
@@ -177,7 +174,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   };
 
   // Fonction pour tourner d'un secteur (45°) dans le sens anti-horaire (niveau 3)
+  // Fait aussi tourner les niveaux 1 et 2
   const rotateCounterClockwise3 = () => {
+    setRotationAngle1((prevAngle) => prevAngle - 45);
+    setRotationAngle2((prevAngle) => prevAngle - 45);
     setRotationAngle3((prevAngle) => prevAngle - 45);
   };
 
@@ -242,7 +242,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     let colorStroke: string = "";
     let colorShadow: string = "";
 
-    if (obj.level === 1) {
+    if (obj.level === 3) {
       colorFill="rgba(60, 80, 120, 1)"
       colorStroke="rgba(255, 215, 0, 0.8)"
       colorShadow="rgba(255, 215, 0, 0.5)"
@@ -250,7 +250,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
       colorFill="rgba(40, 60, 100, 1)"
       colorStroke="rgba(255, 107, 107, 0.8)"
       colorShadow="rgba(255, 107, 107, 0.5)"
-    } else if (obj.level === 3) {
+    } else if (obj.level === 1) {
       colorFill="rgba(40, 60, 100, 1)"
       colorStroke="rgba(74, 158, 255, 0.8)"
       colorShadow="rgba(74, 158, 255, 0.5)"
@@ -878,9 +878,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         <button
           onClick={() => setShowLevel1(!showLevel1)}
           style={{
-            backgroundColor: showLevel1 ? '#ffd700' : '#666',
-            color: showLevel1 ? '#000' : '#fff',
-            border: `2px solid ${showLevel1 ? '#ffed4e' : '#888'}`,
+            backgroundColor: showLevel1 ? '#4a9eff' : '#666',
+            color: showLevel1 ? '#fff' : '#ccc',
+            border: `2px solid ${showLevel1 ? '#6bb3ff' : '#888'}`,
             borderRadius: '6px',
             padding: '6px 12px',
             fontSize: '0.8rem',
@@ -930,9 +930,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         <button
           onClick={() => setShowLevel3(!showLevel3)}
           style={{
-            backgroundColor: showLevel3 ? '#4a9eff' : '#666',
-            color: showLevel3 ? '#fff' : '#ccc',
-            border: `2px solid ${showLevel3 ? '#6bb3ff' : '#888'}`,
+            backgroundColor: showLevel3 ? '#ffd700' : '#666',
+            color: showLevel3 ? '#000' : '#fff',
+            border: `2px solid ${showLevel3 ? '#ffed4e' : '#888'}`,
             borderRadius: '6px',
             padding: '6px 12px',
             fontSize: '0.8rem',
@@ -1030,19 +1030,19 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             }).map((probe) => renderProbe(probe, 50)
           )}
 
-          {/* Plateau rotatif niveau 1 avec 3 disques (A, B, C) - se superpose au plateau fixe */}
-          {showLevel1 && (
+          {/* Plateau rotatif niveau 3 avec 3 disques (A, B, C) - se superpose au plateau fixe */}
+          {showLevel3 && (
           <div
-            className="seti-rotating-overlay seti-rotating-level-1"
+            className="seti-rotating-overlay seti-rotating-level-3"
             style={{
               position: 'absolute',
               top: '50%',
               left: '50%',
-              transform: `translate(-50%, -50%) rotate(${rotationAngle1}deg)`, // Rotation dynamique
+              transform: `translate(-50%, -50%) rotate(${rotationAngle3}deg)`, // Rotation dynamique
               width: '100%', // Taille ajustée
               height: '100%',
               borderRadius: '50%',
-              zIndex: 20, // Au-dessus du niveau 0 (10-18)
+              zIndex: 20, // Au-dessus du niveau 2 (30-38)
               overflow: 'hidden',
               aspectRatio: '1', // Force un cercle parfait
               pointerEvents: 'none',
@@ -1054,10 +1054,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             {Array.from({ length: 8 }).map((_, sectorIndex) => {
               const obj: RotationDisk = 
                 {
-                  id: 'disk1C',
+                  id: 'disk3C',
                   sectorIndex: sectorIndex,
                   diskName: 'C',
-                  level: 1,
+                  level: 3,
                 }
               return renderRotationDisk(obj, 1);
             })}
@@ -1066,10 +1066,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             {Array.from({ length: 8 }).map((_, sectorIndex) => {
               const obj: RotationDisk = 
               {
-                id: 'disk1B',
+                id: 'disk3B',
                 sectorIndex: sectorIndex,
                 diskName: 'B',
-                level: 1,
+                level: 3,
               }
               return renderRotationDisk(obj, 1);
             })}
@@ -1078,25 +1078,25 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             {Array.from({ length: 8 }).map((_, sectorIndex) => {
               const obj: RotationDisk = 
               {
-                id: 'disk1A',
+                id: 'disk3A',
                 sectorIndex: sectorIndex,
                 diskName: 'A',
-                level: 1,
+                level: 3,
               }
               return renderRotationDisk(obj, 1);
             })}
 
-            {/* Sondes sur les disques A, B, C (niveau 1) */}
+            {/* Sondes sur les disques A, B, C (niveau 3) */}
             {probesInSystem
               .filter(probe => {
                 if (!probe.solarPosition) return false;
                 const level = probe.solarPosition.level;
-                return level === 1;
+                return level === 3;
               })
               .map((probe) => renderProbe(probe, 50))}
 
-            {/* Objets célestes sur le plateau rotatif niveau 1 - basés sur INITIAL_ROTATING_LEVEL1_OBJECTS */}
-            {INITIAL_ROTATING_LEVEL1_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
+            {/* Objets célestes sur le plateau rotatif niveau 3 - basés sur INITIAL_ROTATING_LEVEL3_OBJECTS */}
+            {INITIAL_ROTATING_LEVEL3_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
               if (obj.type === 'planet') {
                 return renderPlanet(obj, 3);
               } else if (obj.type === 'comet') {
@@ -1106,7 +1106,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
               }
               return null;
             })}
-
           </div>
           )}
 
@@ -1178,15 +1177,15 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           </div>
           )}
 
-          {/* Plateau rotatif niveau 3 avec 1 disque (A) - se superpose au niveau 2 */}
-          {showLevel3 && (
+          {/* Plateau rotatif niveau 1 avec 1 disque (A) - se superpose au niveau 2 */}
+          {showLevel1 && (
           <div
             className="seti-rotating-overlay seti-rotating-level-3"
             style={{
               position: 'absolute',
               top: '50%',
               left: '50%',
-              transform: `translate(-50%, -50%) rotate(${rotationAngle3}deg)`, // Rotation dynamique
+              transform: `translate(-50%, -50%) rotate(${rotationAngle1}deg)`, // Rotation dynamique
               width: '100%',
               height: '100%',
               borderRadius: '50%',
@@ -1202,10 +1201,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             {Array.from({ length: 8 }).map((_, sectorIndex) => {
               const obj: RotationDisk = 
               {
-                id: 'disk3A',
+                id: 'disk1A',
                 sectorIndex: sectorIndex,
                 diskName: 'A',
-                level: 3,
+                level: 1,
               }
               return renderRotationDisk(obj, 1);
             })}
@@ -1214,12 +1213,12 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             {probesInSystem.filter(probe => {
                 if (!probe.solarPosition) return false;
                 const level = probe.solarPosition.level;
-                return level === 3;
+                return level === 1;
               }).map((probe) => renderProbe(probe, 50)
             )}
 
-            {/* Objets célestes sur le plateau rotatif niveau 3 - basés sur INITIAL_ROTATING_LEVEL3_OBJECTS */}
-            {INITIAL_ROTATING_LEVEL3_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
+            {/* Objets célestes sur le plateau rotatif niveau 1 - basés sur INITIAL_ROTATING_LEVEL1_OBJECTS */}
+            {INITIAL_ROTATING_LEVEL1_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
               if (obj.type === 'planet') {
                 return renderPlanet(obj, 3);
               } else if (obj.type === 'comet') {
@@ -1229,7 +1228,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
               }
               return null;
             })}
-
           </div>
           )}
 
