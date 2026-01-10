@@ -172,6 +172,7 @@ const PlayerComputer = ({ player, onUpdate, onBonus, isSelecting, onColumnSelect
     if (slot.filled) return false;
     if (player.data < 1) return false;
     if (slot.type === 'bottom' && slot.parentId) {
+      if (!slot.bonus) return false;
       return slots[slot.parentId].filled;
     }
     // Contrainte horizontale : remplissage de gauche à droite sur la ligne du haut

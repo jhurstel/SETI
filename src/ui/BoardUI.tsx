@@ -478,11 +478,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (card.freeAction === FreeAction.MEDIA) {
       currentPlayer.mediaCoverage = Math.min(currentPlayer.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
       setToast({ message: "Action gratuite : +1 Média", visible: true });
-      addToHistory("utilise une action gratuite : +1 Média", currentPlayer.id, game);
+      addToHistory("défausse une carte pour gagner +1 Média", currentPlayer.id, game);
     } else if (card.freeAction === FreeAction.DATA) {
       currentPlayer.data = (currentPlayer.data || 0) + 1;
       setToast({ message: "Action gratuite : +1 Data", visible: true });
-      addToHistory("utilise une action gratuite : +1 Data", currentPlayer.id, game);
+      addToHistory("défausse une carte pour gagner +1 Data", currentPlayer.id, game);
     } else if (card.freeAction === FreeAction.MOVEMENT) {
       setIsFreeMovementMode(true);
       setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
@@ -699,8 +699,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setIsResearching(false);
     setToast({ message: `Technologie ${tech.name} acquise !`, visible: true });
     
+    let category = "";
+    if (tech.id.startsWith('exploration')) category = "Exploration";
+    else if (tech.id.startsWith('observation')) category = "Observation";
+    else if (tech.id.startsWith('computing')) category = "Informatique";
+
     const gainsText = gains.length > 0 ? ` et gagne : ${gains.join(', ')}` : '';
-    addToHistory(`acquiert la technologie "${tech.name}"${gainsText}`, currentPlayer.id, game);
+    addToHistory(`acquiert la technologie ${category} "${tech.name}"${gainsText}`, currentPlayer.id, game);
   };
 
   // Gestionnaire pour l'achat de technologie (clic initial)
@@ -724,6 +729,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     // Vérifier que c'est une colonne valide (1, 3, 5, 6)
     if (![1, 3, 5, 6].includes(col)) return;
+
+    // Vérifier si la colonne est déjà occupée par une technologie
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    const playerAny = currentPlayer as any;
+    const topSlotId = `${col}a`;
+    if (playerAny.computer?.slots?.[topSlotId]?.bonus === '2pv') {
+      setToast({ message: "Emplacement déjà occupé par une technologie", visible: true });
+      return;
+    }
 
     // Finaliser l'achat
     processTechPurchase(pendingTechSelection, col);
