@@ -446,6 +446,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         <div className="seti-player-section" style={{ position: 'relative' }}>
           <div className="seti-player-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Ressources</span>
+            <div style={{ display: 'flex', gap: '5px' }}>
             {tradeState.phase === 'inactive' ? (
               <button
                 onClick={onTradeResourcesAction}
@@ -472,6 +473,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                 Annuler
               </button>
             )}
+            </div>
           </div>
 
           {tradeState.phase === 'gaining' && (
@@ -494,7 +496,44 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               key={mediaFlash ? `media-${mediaFlash.id}` : 'media-static'}
               className={`seti-res-badge ${mediaFlash ? (mediaFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
             >
-              <span>Média:</span> <strong>{currentPlayer.mediaCoverage}</strong>
+              <span>Média:</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isCurrentTurn && canBuyCardAction && !isInteractiveMode && onBuyCardAction) {
+                    onBuyCardAction();
+                  }
+                }}
+                title={canBuyCardAction && !isInteractiveMode ? "Vous gagnez 1 carte de la pioche ou de la rangée principale (cout: 3 media)" : "Nécessite 3 couverture médiatique ou action impossible"}
+                disabled={!isCurrentTurn || !canBuyCardAction || isInteractiveMode}
+                style={{
+                  backgroundColor: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '#4a9eff' : '#555',
+                  color: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? 'white' : '#aaa',
+                  border: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '1px solid #6bb3ff' : '1px solid #444',
+                  borderRadius: '4px',
+                  padding: '0px 6px',
+                  fontSize: '0.65rem',
+                  cursor: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? 'pointer' : 'default',
+                  fontWeight: 'normal',
+                  boxShadow: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '0 1px 2px rgba(0,0,0,0.3)' : 'none',
+                  transition: 'all 0.2s',
+                  marginRight: '5px',
+                  marginLeft: 'auto'
+                }}
+                onMouseEnter={(e) => {
+                  if (!isCurrentTurn || !canBuyCardAction || isInteractiveMode) return;
+                  const target = e.currentTarget as HTMLButtonElement;
+                  target.style.backgroundColor = '#6bb3ff';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isCurrentTurn || !canBuyCardAction || isInteractiveMode) return;
+                  const target = e.currentTarget as HTMLButtonElement;
+                  target.style.backgroundColor = '#4a9eff';
+                }}
+              >
+                Acheter
+              </button>
+              <strong>{currentPlayer.mediaCoverage}</strong>
             </div>
             <div 
               key={creditFlash ? `credit-${creditFlash.id}` : 'credit-static'}
@@ -613,42 +652,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         <div className="seti-player-section">
           <div className="seti-player-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Cartes</span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isCurrentTurn && canBuyCardAction && !isInteractiveMode && onBuyCardAction) {
-                  onBuyCardAction();
-                }
-              }}
-              title={canBuyCardAction && !isInteractiveMode ? "Vous gagnez 1 carte de la pioche ou de la rangée principale (cout: 3 media)" : "Nécessite 3 couverture médiatique ou action impossible"}
-              disabled={!isCurrentTurn || !canBuyCardAction || isInteractiveMode}
-              style={{
-                backgroundColor: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '#4a9eff' : '#555',
-                color: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? 'white' : '#aaa',
-                border: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '2px solid #6bb3ff' : '2px solid #444',
-                borderRadius: '6px',
-                padding: '2px 8px',
-                fontSize: '0.7rem',
-                cursor: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? 'pointer' : 'default',
-                fontWeight: 'normal',
-                boxShadow: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                if (!isCurrentTurn || !canBuyCardAction || isInteractiveMode) return;
-                const target = e.currentTarget as HTMLButtonElement;
-                target.style.backgroundColor = '#6bb3ff';
-                target.style.transform = 'scale(1.05)';
-              }}
-              onMouseLeave={(e) => {
-                if (!isCurrentTurn || !canBuyCardAction || isInteractiveMode) return;
-                const target = e.currentTarget as HTMLButtonElement;
-                target.style.backgroundColor = '#4a9eff';
-                target.style.transform = 'scale(1)';
-              }}
-            >
-              Acheter
-            </button>
           </div>
           {isDiscarding && (
             <div style={{ marginBottom: '10px', color: '#ff6b6b', fontSize: '0.9em' }}>
@@ -846,8 +849,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                       </button>
                       </>
                     )}
-                    <div className="seti-card-name" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="seti-card-name">
                       <span>{card.name} ({card.type})</span>
+                    </div>
+                    <div style={{ fontSize: '0.85em', marginTop: '2px' }}>
                       <span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}><strong>Coût:</strong> {card.cost}</span>
                     </div>
                     {card.description && (

@@ -2,9 +2,11 @@ import { Game } from '../core/types';
 import { CardSystem } from './CardSystem';
 
 export class ResourceSystem {
-  static buyCard(game: Game, playerId: string): { updatedGame: Game, error?: string } {
-    const updatedGame = { ...game };
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+  static buyCard(game: Game, playerId: string, cardIdFromRow?: string): { updatedGame: Game, error?: string } {
+    let updatedGame = { ...game };
+    
+    // Copie profonde du joueur et de ses cartes
+    updatedGame.players = updatedGame.players.map(p => p.id === playerId ? { ...p, cards: [...p.cards] } : p);
     const player = updatedGame.players.find(p => p.id === playerId);
     if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
 
@@ -13,9 +15,27 @@ export class ResourceSystem {
     }
 
     player.mediaCoverage -= 3;
-    const finalGame = CardSystem.drawCards(updatedGame, playerId, 1, 'Carte obtenue grâce à votre influence médiatique.');
+    
+    if (cardIdFromRow) {
+      // Copie profonde de la rangée de cartes avant modification
+      updatedGame.board = {
+        ...updatedGame.board,
+        cardRow: [...(updatedGame.board.cardRow || [])]
+      };
 
-    return { updatedGame: finalGame };
+      const cardIndex = updatedGame.board.cardRow.findIndex(c => c.id === cardIdFromRow);
+      if (cardIndex !== -1) {
+        const [card] = updatedGame.board.cardRow.splice(cardIndex, 1);
+        player.cards.push(card);
+        updatedGame = CardSystem.refillCardRow(updatedGame);
+      } else {
+        return { updatedGame: game, error: "Carte non trouvée dans la rangée" };
+      }
+    } else {
+      updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, 'Carte obtenue grâce à votre influence médiatique.');
+    }
+
+    return { updatedGame };
   }
 
   static tradeResources(game: Game, playerId: string, spendType: string, gainType: string, cardIdsToSpend?: string[]): { updatedGame: Game, error?: string } {

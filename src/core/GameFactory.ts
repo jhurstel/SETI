@@ -34,7 +34,7 @@ export class GameFactory {
 
     // Créer les joueurs
     const players: Player[] = playerNames.map((name, index) => 
-      this.createPlayer(`player_${index}`, name)
+      this.createPlayer(`player_${index}`, name, index + 1)
     );
 
     // Créer le plateau
@@ -42,7 +42,7 @@ export class GameFactory {
 
     // Créer les decks
     const decks: Decks = {
-      actionCards: [],
+      actionCards: this.createActionDeck(),
       missionCards: [],
       endGameCards: [],
       speciesCards: []
@@ -82,7 +82,7 @@ export class GameFactory {
   /**
    * Crée un joueur initialisé
    */
-  private static createPlayer(id: string, name: string): Player {
+  private static createPlayer(id: string, name: string, initialScore: number): Player {
     return {
       id,
       name,
@@ -99,7 +99,7 @@ export class GameFactory {
       missions: [],
       dataComputer: this.createDataComputer(),
       lifeTraces: [],
-      score: GAME_CONSTANTS.INITIAL_SCORE,
+      score: initialScore,
       hasPassed: false,
       type: 'human',
       color: '#4a90e2' as string,
@@ -211,6 +211,31 @@ export class GameFactory {
         revenue: RevenueBonus.CREDIT, // Placeholder
         effects: [],
         description: `Carte spéciale de fin de manche ${round}`
+      });
+    }
+    return cards;
+  }
+
+  /**
+   * Crée le paquet de cartes Action initial (mock)
+   */
+  private static createActionDeck(): Card[] {
+    const cards: Card[] = [];
+    const colors = [SectorColor.BLUE, SectorColor.RED, SectorColor.YELLOW, SectorColor.BLACK];
+    const freeActions = [FreeAction.DATA, FreeAction.MEDIA, FreeAction.MOVEMENT];
+    const revenues = [RevenueBonus.CREDIT, RevenueBonus.ENERGY, RevenueBonus.CARD];
+
+    for (let i = 0; i < 10; i++) {
+      cards.push({
+        id: `deck_action_${i}`,
+        name: `Projet ${i + 1}`,
+        type: CardType.ACTION,
+        cost: Math.floor(Math.random() * 5) + 1,
+        freeAction: freeActions[Math.floor(Math.random() * freeActions.length)],
+        scanSector: colors[Math.floor(Math.random() * colors.length)],
+        revenue: revenues[Math.floor(Math.random() * revenues.length)],
+        effects: [],
+        description: "Carte standard"
       });
     }
     return cards;

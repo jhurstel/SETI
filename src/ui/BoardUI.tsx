@@ -31,6 +31,7 @@ type InteractionState =
   | { type: 'ANALYZING' }
   | { type: 'RESERVING_CARD', count: number }
   | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow' }
+  | { type: 'BUYING_CARD' }
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number };
 
 interface HistoryEntry {
@@ -75,6 +76,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   useEffect(() => {
     if (interactionState.type === 'RESEARCHING') {
       setIsTechOpen(true);
+    }
+    if (interactionState.type === 'BUYING_CARD') {
+      setIsRowOpen(true);
     }
   }, [interactionState.type]);
 
@@ -626,20 +630,27 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour l'action d'achat de carte avec du média
   const handleBuyCardAction = () => {
     if (interactionState.type !== 'IDLE') return;
-    const currentPlayerIndex = game.currentPlayerIndex;
-    const currentPlayer = game.players[currentPlayerIndex];
+    setInteractionState({ type: 'BUYING_CARD' });
+    setToast({ message: "Sélectionnez une carte dans la rangée ou la pioche", visible: true });
+  };
 
-    // Utiliser une copie pour éviter la mutation de l'état actuel
-    const gameCopy = structuredClone(game);
-    const result = ResourceSystem.buyCard(gameCopy, currentPlayer.id);
+  const handleCardRowClick = (cardId?: string) => { // cardId undefined means deck
+    if (interactionState.type !== 'BUYING_CARD') return;
+    
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    const result = ResourceSystem.buyCard(game, currentPlayer.id, cardId);
+    
     if (result.error) {
       setToast({ message: result.error, visible: true });
+      // On reste dans l'état BUYING_CARD pour permettre de réessayer ou d'annuler via l'overlay
       return;
     }
 
     setGame(result.updatedGame);
     setToast({ message: "Carte achetée (-3 Média)", visible: true });
-    addToHistory("achète une carte pour 3 médias", currentPlayer.id, game);
+    addToHistory(cardId ? "achète une carte de la rangée pour 3 médias" : "achète une carte de la pioche pour 3 médias", currentPlayer.id, game, { type: 'IDLE' });
+    setInteractionState({ type: 'IDLE' });
+    setIsRowOpen(false);
   };
 
   // Gestionnaire unifié pour les échanges
@@ -1191,6 +1202,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         .seti-foldable-content .seti-panel-title {
           display: none !important;
         }
+        @keyframes cardAppear {
+          from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
       `}</style>
       {/* Toast Notification */}
       {toast && toast.visible && (
@@ -1290,8 +1305,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         </div>
       )}
 
-      {/* Overlay pour la recherche de technologie */}
-      {interactionState.type === 'RESEARCHING' && (
+      {/* Overlay pour la recherche de technologie ou l'achat de carte */}
+      {(interactionState.type === 'RESEARCHING' || interactionState.type === 'BUYING_CARD') && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -1301,7 +1316,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           backgroundColor: 'rgba(0, 0, 0, 0.7)',
           zIndex: 1500,
           backdropFilter: 'blur(2px)'
-        }} onClick={() => setToast({ message: "Veuillez sélectionner une technologie", visible: true })} />
+        }} onClick={() => {
+          if (interactionState.type === 'BUYING_CARD') {
+             setInteractionState({ type: 'IDLE' });
+             setIsRowOpen(false);
+          } else {
+             setToast({ message: "Veuillez sélectionner une technologie", visible: true });
+          }
+        }} />
       )}
 
       <div className="seti-root-inner">
@@ -1384,13 +1406,42 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               </div>
             </div>
             
-            <div className={`seti-foldable-container ${isRowOpen ? 'open' : ''}`}>
+            <div className={`seti-foldable-container ${isRowOpen ? 'open' : ''}`}
+                 style={interactionState.type === 'BUYING_CARD' ? { zIndex: 1501, position: 'relative', borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {}}
+            >
                <div className="seti-foldable-header" onClick={() => setIsRowOpen(!isRowOpen)}>Rangée Principale</div>
                <div className="seti-foldable-content">
-               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', padding: '8px' }}>
-                 {game.board.cardRow && game.board.cardRow.map(card => (
-                   <div key={card.id} style={{
+               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', padding: '8px' }}>
+                 {/* Pile de pioche */}
+                 <div 
+                     onClick={() => handleCardRowClick()}
+                     style={{
                      border: '1px solid #555',
+                     borderRadius: '6px',
+                     padding: '6px',
+                     backgroundColor: 'rgba(30, 30, 40, 0.8)',
+                     boxSizing: 'border-box',
+                     display: 'flex',
+                     flexDirection: 'column',
+                     justifyContent: 'center',
+                     alignItems: 'center',
+                     gap: '4px',
+                     boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                     minHeight: '100px',
+                     fontSize: '0.85em',
+                     backgroundImage: 'repeating-linear-gradient(45deg, #222 0, #222 10px, #2a2a2a 10px, #2a2a2a 20px)',
+                     cursor: interactionState.type === 'BUYING_CARD' ? 'pointer' : 'default',
+                     borderColor: interactionState.type === 'BUYING_CARD' ? '#4a9eff' : '#555'
+                   }}>
+                    <div style={{ fontWeight: 'bold', color: '#aaa', textAlign: 'center' }}>Pioche</div>
+                    <div style={{ fontSize: '0.8em', color: '#888' }}>{game.decks?.actionCards?.length || 0} cartes</div>
+                 </div>
+
+                 {game.board.cardRow && game.board.cardRow.map(card => (
+                   <div key={card.id} 
+                     onClick={() => handleCardRowClick(card.id)}
+                     style={{
+                     border: interactionState.type === 'BUYING_CARD' ? '1px solid #4a9eff' : '1px solid #555',
                      borderRadius: '6px',
                      padding: '6px',
                      backgroundColor: 'rgba(30, 30, 40, 0.8)',
@@ -1400,7 +1451,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                      gap: '4px',
                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
                      minHeight: '100px',
-                     fontSize: '0.85em'
+                     fontSize: '0.85em',
+                     cursor: interactionState.type === 'BUYING_CARD' ? 'pointer' : 'default',
+                     animation: 'cardAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
                    }}>
                      <div style={{ fontWeight: 'bold', color: '#fff', lineHeight: '1.1', marginBottom: '2px' }}>{card.name}</div>
                      <div style={{ fontSize: '0.9em', color: '#aaa' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></div>
@@ -1429,7 +1482,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                    </div>
                  ))}
                  {(!game.board.cardRow || game.board.cardRow.length === 0) && (
-                    <div style={{ gridColumn: '1 / -1', color: '#888', fontStyle: 'italic', padding: '10px', textAlign: 'center' }}>Aucune carte disponible</div>
+                    <div style={{ gridColumn: '2 / -1', color: '#888', fontStyle: 'italic', padding: '10px', textAlign: 'center' }}>Aucune carte disponible</div>
                  )}
                </div>
                </div>
