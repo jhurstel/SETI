@@ -146,6 +146,7 @@ export interface Game {
   discoveredSpecies: Species[];
   history: GameState[];
   isFirstToPass: boolean;
+  roundDecks: { [round: number]: Card[] };
 }
 
 export interface Player {

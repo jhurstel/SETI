@@ -3,9 +3,11 @@ import { Game, LifeTraceSlot, LifeTraceTrack } from '../core/types';
 
 interface AlienBoardUIProps {
   game: Game;
+  onTrackClick?: (color: string) => void;
+  highlightColor?: string;
 }
 
-export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game }) => {
+export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, onTrackClick, highlightColor }) => {
   // On suppose que game.discoveredSpecies existe (basé sur la logique de DataSystem)
   const discoveredSpecies = (game as any).discoveredSpecies || [];
   const alienBoard = game.board.alienBoard;
@@ -42,7 +44,15 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game }) => {
       <div className="seti-tech-categories">
         
         {/* Observation (Red) */}
-        <div className="seti-tech-category">
+        <div 
+          className="seti-tech-category" 
+          onClick={() => onTrackClick && onTrackClick('red')}
+          style={{ 
+            cursor: onTrackClick && highlightColor === 'red' ? 'pointer' : 'default',
+            border: highlightColor === 'red' ? '2px solid #ff6b6b' : '1px solid transparent',
+            boxShadow: highlightColor === 'red' ? '0 0 10px rgba(255, 107, 107, 0.3)' : 'none'
+          }}
+        >
           <div className="seti-tech-category-title" style={{ color: '#ff6b6b' }}>
             Observation
           </div>
@@ -54,7 +64,15 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game }) => {
         </div>
 
         {/* Exploration (Yellow) */}
-        <div className="seti-tech-category">
+        <div 
+          className="seti-tech-category"
+          onClick={() => onTrackClick && onTrackClick('yellow')}
+          style={{ 
+            cursor: onTrackClick && highlightColor === 'yellow' ? 'pointer' : 'default',
+            border: highlightColor === 'yellow' ? '2px solid #ffeb3b' : '1px solid transparent',
+            boxShadow: highlightColor === 'yellow' ? '0 0 10px rgba(255, 235, 59, 0.3)' : 'none'
+          }}
+        >
           <div className="seti-tech-category-title" style={{ color: '#ffeb3b' }}>
             Exploration
           </div>
@@ -66,7 +84,15 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game }) => {
         </div>
 
         {/* Ordinateur (Blue) */}
-        <div className="seti-tech-category">
+        <div 
+          className="seti-tech-category"
+          onClick={() => onTrackClick && onTrackClick('blue')}
+          style={{ 
+            cursor: onTrackClick && highlightColor === 'blue' ? 'pointer' : 'default',
+            border: highlightColor === 'blue' ? '2px solid #4a9eff' : '1px solid transparent',
+            boxShadow: highlightColor === 'blue' ? '0 0 10px rgba(74, 158, 255, 0.3)' : 'none'
+          }}
+        >
           <div className="seti-tech-category-title" style={{ color: '#4a9eff' }}>
             Ordinateur
           </div>

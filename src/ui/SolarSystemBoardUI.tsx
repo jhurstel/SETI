@@ -1209,7 +1209,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
               return renderRotationDisk(obj, 1);
             })}
 
-            {/* Sondes sur le disque A (niveau 3) */}
+            {/* Sondes sur le disque A (niveau 1) */}
             {probesInSystem.filter(probe => {
                 if (!probe.solarPosition) return false;
                 const level = probe.solarPosition.level;
@@ -1344,22 +1344,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
               } else if (hoveredObject.type === 'planet' && hoveredObject.id !== 'earth') {
                 subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>Vous gagnez 1 media</div>;
               } else {
-                const currentPlayer = game.players[game.currentPlayerIndex];
-                const canLaunch = currentPlayer.credits >= GAME_CONSTANTS.PROBE_LAUNCH_COST;
-                subContent = (
-                  <div style={{ 
-                    fontSize: '0.75em', 
-                    marginTop: '6px', 
-                    color: '#666', 
-                    backgroundColor: 'rgba(74, 158, 255, 0.2)', //canLaunch ? 'rgba(100, 200, 100, 0.2)' : 'rgba(60, 60, 60, 0.3)', 
-                    border: '1px solid #4a9eff', //canLaunch ? '1px solid rgba(100, 200, 100, 0.4)' : '1px solid rgba(100, 100, 100, 0.2)',
-                    borderRadius: '4px', 
-                    padding: '3px 8px',
-                    display: 'inline-block'
-                  }}>
-                    Lancer une sonde
-                  </div>
-                );
+                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>Lancez une sonde</div>;
               }
 
               return (

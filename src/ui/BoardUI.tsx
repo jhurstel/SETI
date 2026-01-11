@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, SectorColor, Technology } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, SectorColor, Technology, RevenueBonus } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -19,14 +19,6 @@ interface BoardUIProps {
   game: Game;
 }
 
-interface HistoryEntry {
-  id: string;
-  message: string;
-  playerId?: string;
-  previousState?: Game;
-  timestamp: number;
-}
-
 type InteractionState = 
   | { type: 'IDLE' }
   | { type: 'DISCARDING', cardsToDiscard: string[] }
@@ -35,7 +27,19 @@ type InteractionState =
   | { type: 'FREE_MOVEMENT' }
   | { type: 'RESEARCHING' }
   | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology }
-  | { type: 'ANALYZING' };
+  | { type: 'ANALYZING' }
+  | { type: 'RESERVING_CARD', count: number }
+  | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow' };
+
+interface HistoryEntry {
+  id: string;
+  message: string;
+  playerId?: string;
+  previousState?: Game;
+  previousInteractionState?: InteractionState;
+  previousHasPerformedMainAction?: boolean;
+  timestamp: number;
+}
 
 export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // États pour le jeu
@@ -59,21 +63,33 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const [interactionState, setInteractionState] = useState<InteractionState>({ type: 'IDLE' });
   const [hasPerformedMainAction, setHasPerformedMainAction] = useState(false);
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
+  const [isTechOpen, setIsTechOpen] = useState(false);
+  const [isRowOpen, setIsRowOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  
+  // État pour la modale de sélection de carte de fin de manche
+  const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: any[]; selectedCardId: string | null }>({ visible: false, cards: [], selectedCardId: null });
 
   // Ref pour contrôler le plateau solaire
   const solarSystemRef = useRef<SolarSystemBoardUIRef>(null);
 
+  // Ref pour accéder à l'état d'interaction actuel dans addToHistory sans dépendance
+  const interactionStateRef = useRef(interactionState);
+  useEffect(() => { interactionStateRef.current = interactionState; }, [interactionState]);
+
   // Helper pour ajouter une entrée à l'historique
-  const addToHistory = useCallback((message: string, playerId?: string, previousState?: Game) => {
+  const addToHistory = useCallback((message: string, playerId?: string, previousState?: Game, customInteractionState?: InteractionState) => {
     const entry: HistoryEntry = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       message,
       playerId,
       previousState,
+      previousInteractionState: customInteractionState || interactionStateRef.current,
+      previousHasPerformedMainAction: hasPerformedMainAction,
       timestamp: Date.now()
     };
     setHistoryLog(prev => [entry, ...prev]);
-  }, []);
+  }, [hasPerformedMainAction]);
 
   // Gestionnaire pour annuler une action
   const handleUndo = () => {
@@ -81,7 +97,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const lastEntry = historyLog[0];
     if (lastEntry.previousState) {
       setGame(lastEntry.previousState);
+      if (gameEngineRef.current) {
+        gameEngineRef.current.setState(lastEntry.previousState);
+      }
       setHistoryLog(prev => prev.slice(1));
+      // Restaurer l'état d'interaction précédent s'il existe, sinon IDLE
+      setInteractionState(lastEntry.previousInteractionState || { type: 'IDLE' });
+      
+      // Restaurer hasPerformedMainAction
+      if (lastEntry.previousHasPerformedMainAction !== undefined) {
+        setHasPerformedMainAction(lastEntry.previousHasPerformedMainAction);
+      }
+      
       setToast({ message: "Retour en arrière effectué", visible: true });
     } else {
       setToast({ message: "Impossible d'annuler cette action", visible: true });
@@ -99,7 +126,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   }, [toast]);
 
   // Helper pour exécuter l'action Passer via PassAction
-  const performPass = useCallback((cardsToKeep: string[]) => {
+  const performPass = useCallback((cardsToKeep: string[], selectedCardId?: string) => {
     if (!gameEngineRef.current) return;
     
     // Synchroniser l'état
@@ -110,7 +137,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const engineState = gameEngineRef.current.getState();
     const enginePlayer = engineState.players[engineState.currentPlayerIndex];
     
-    const action = new PassAction(enginePlayer.id, cardsToKeep);
+    const action = new PassAction(enginePlayer.id, cardsToKeep, selectedCardId);
     const result = gameEngineRef.current.executeAction(action);
     
     if (result.success && result.updatedState) {
@@ -120,9 +147,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (newGame.isFirstToPass) {
           const currentLevel = oldGame.board.solarSystem.nextRingLevel || 1;
           setToast({ message: `Rotation du système solaire (Niveau ${currentLevel})`, visible: true });
-          addToHistory(`passe son tour en premier`, enginePlayer.id, oldGame);
+          addToHistory(`passe son tour en premier et choisit une carte à garder`, enginePlayer.id, oldGame);
         } else {
-          addToHistory("passe son tour", enginePlayer.id, oldGame);
+          addToHistory("passe son tour et choisit une carte à garder", enginePlayer.id, oldGame);
         }
 
         // Détecter la fin de manche (si le numéro de manche a augmenté)
@@ -134,11 +161,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           newGame.players.forEach(newPlayer => {
             const oldPlayer = oldGame.players.find(p => p.id === newPlayer.id);
             if (oldPlayer) {
-              const creditsGain = newPlayer.credits - oldPlayer.credits;
-              const energyGain = newPlayer.energy - oldPlayer.energy;
+              const creditsGain = newPlayer.revenueCredits;
+              const energyGain = newPlayer.revenueEnergy;
+              const cardsGain = newPlayer.revenueCards;
               const gains: string[] = [];
               if (creditsGain > 0) gains.push(`${creditsGain} Crédit${creditsGain > 1 ? 's' : ''}`);
               if (energyGain > 0) gains.push(`${energyGain} Énergie${energyGain > 1 ? 's' : ''}`);
+              if (cardsGain > 0) gains.push(`${cardsGain} Carte${cardsGain > 1 ? 's' : ''}`);
               if (gains.length > 0) addToHistory(`perçoit ses revenus : ${gains.join(', ')}`, newPlayer.id, newGame);
             }
           });
@@ -166,7 +195,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (currentPlayer && currentPlayer.type === 'robot') {
       const timer = setTimeout(() => {
         const cardsToKeep = currentPlayer.cards.slice(0, 4).map(c => c.id);
-        performPass(cardsToKeep);
+        
+        // Le robot choisit une carte aléatoire du paquet de manche si disponible
+        let selectedCardId: string | undefined;
+        const roundDeck = game.roundDecks[game.currentRound];
+        if (roundDeck && roundDeck.length > 0) {
+            selectedCardId = roundDeck[0].id; // Prend la première carte simplement
+        }
+        performPass(cardsToKeep, selectedCardId);
       }, 1500);
       return () => clearTimeout(timer);
     }
@@ -207,7 +243,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Réinitialiser l'état de défausse
     setInteractionState({ type: 'IDLE' });
     
-    performPass(cardsToKeep);
+    // Vérifier s'il y a un paquet de manche pour déclencher la modale
+    const roundDeck = game.roundDecks[game.currentRound];
+    if (roundDeck && roundDeck.length > 0) {
+        setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null });
+        // Note: performPass sera appelé après la confirmation dans la modale
+    } else {
+        performPass(cardsToKeep);
+    }
   };
 
   // Gestionnaire pour les actions
@@ -225,9 +268,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     // Synchroniser l'état de GameEngine avec le jeu actuel (pour préserver les angles de rotation)
-    gameEngineRef.current.setState(game);
+    gameEngineRef.current.setState(gameRef.current);
 
-    const currentPlayer = game.players[game.currentPlayerIndex];
+    const currentGame = gameRef.current;
+    const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
     
     if (actionType === ActionType.LAUNCH_PROBE) {
       const action = new LaunchProbeAction(currentPlayer.id);
@@ -268,7 +312,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
       
       const cardsToKeep = currentPlayer.cards.map(c => c.id);
-      performPass(cardsToKeep);
+      
+      // Vérifier s'il y a un paquet de manche pour déclencher la modale
+      const roundDeck = game.roundDecks[game.currentRound];
+      if (roundDeck && roundDeck.length > 0) {
+          setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null });
+      } else {
+          performPass(cardsToKeep);
+      }
     }
     else if (actionType === ActionType.RESEARCH_TECH) {
       
@@ -344,12 +395,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       setInteractionState({ type: 'ANALYZING' });
       setToast({ message: "Analyse des données en cours...", visible: true });
 
-      const previousState = game; // Capture state for undo
+      // Capture state BEFORE analysis for undo (Deep copy to ensure computer data is saved)
+      const previousState = structuredClone(currentGame);
+
       // Délai pour l'animation avant d'appliquer les effets
       setTimeout(() => {
         const currentGame = gameRef.current;
-        const updatedGame = { ...currentGame };
-        updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+        const updatedGame = structuredClone(currentGame);
         const player = updatedGame.players[updatedGame.currentPlayerIndex];
 
         // 1. Dépenser 1 énergie
@@ -358,33 +410,16 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         // 2. Vider l'ordinateur (haut et bas)
         DataSystem.clearComputer(player);
 
-        // 3. Placer marqueur sur la piste Alien Bleue (Ordinateur)
-        const alienBoard = updatedGame.board.alienBoard;
-        let bonusMsg = "";
-
-        if (!alienBoard.blue.slot1.playerId) {
-          alienBoard.blue.slot1.playerId = player.id;
-          player.score += 5;
-          player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-          bonusMsg = "+5 PV, +1 Média (1er)";
-        } else if (!alienBoard.blue.slot2.playerId) {
-          alienBoard.blue.slot2.playerId = player.id;
-          player.score += 3;
-          player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-          bonusMsg = "+3 PV, +1 Média (2ème)";
-        } else {
-          player.score += 3;
-          bonusMsg = "+3 PV";
-        }
-
         setGame(updatedGame);
         if (gameEngineRef.current) {
           gameEngineRef.current.setState(updatedGame);
         }
         setHasPerformedMainAction(true);
-        setToast({ message: `Données analysées ! ${bonusMsg}`, visible: true });
-        addToHistory(`analyse des données et gagne ${bonusMsg}`, player.id, previousState);
-        setInteractionState({ type: 'IDLE' });
+        
+        // 3. Passer en mode placement de trace de vie
+        setInteractionState({ type: 'PLACING_LIFE_TRACE', color: 'blue' });
+        setToast({ message: "Données analysées. Placez une trace de vie sur la piste bleue.", visible: true });
+        addToHistory(`analyse des données et gagne 1 trace de vie bleue`, player.id, previousState, { type: 'IDLE' });
       }, 1500);
     }
   };
@@ -396,7 +431,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Synchroniser l'état de GameEngine avec le jeu actuel
     gameEngineRef.current.setState(game);
 
-    let currentGame = game;
+    let currentGame = gameRef.current; // Utiliser la ref pour avoir l'état le plus frais
     const currentPlayerId = currentGame.players[currentGame.currentPlayerIndex].id;
 
     let freeMovements = interactionState.type === 'FREE_MOVEMENT' ? 1 : 0;
@@ -406,6 +441,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const cellKey = path[i];
       const disk = cellKey[0] as DiskName;
       const sector = parseInt(cellKey.substring(1)) as SectorNumber;
+
+      // Sauvegarder l'état avant le mouvement pour l'historique (copie profonde)
+      const stateBeforeMove = structuredClone(currentGame);
 
       // Pour le log, on récupère la position avant le mouvement
       const probeBeforeMove = currentGame.board.solarSystem.probes.find(p => p.id === probeId);
@@ -445,19 +483,23 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             const energySpent = oldPlayer.energy - updatedPlayer.energy;
             const mediaGain = updatedPlayer.mediaCoverage - oldPlayer.mediaCoverage;
             
+            let message = "";
             if (energySpent > 0) {
-              addToHistory(`déplace une sonde vers ${disk}${sector} pour ${energySpent} énergie`, currentPlayerId, updatedGame);
+              message = `déplace une sonde vers ${disk}${sector} pour ${energySpent} énergie`;
             } else {
-              addToHistory(`déplace une sonde vers ${disk}${sector} gratuitement`, currentPlayerId, updatedGame);
+              message = `déplace une sonde vers ${disk}${sector} gratuitement`;
             }
 
             if (mediaGain > 0) {
               setToast({ message: `Gain de média : +${mediaGain}`, visible: true });
-              addToHistory(`gagne ${mediaGain} média pour avoir visité ${objectName} (${disk}${sector})`, currentPlayerId, updatedGame);
+              message += ` et gagne ${mediaGain} média (${objectName})`;
             }
+            
+            addToHistory(message, currentPlayerId, stateBeforeMove);
         }
 
         currentGame = updatedGame;
+        //gameRef.current = currentGame; // Mettre à jour la ref locale
         setGame(currentGame);
         
         // Mettre à jour le compteur de mouvements gratuits
@@ -542,7 +584,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const currentPlayerIndex = game.currentPlayerIndex;
     const currentPlayer = game.players[currentPlayerIndex];
 
-    const result = ResourceSystem.buyCard(game, currentPlayer.id);
+    // Utiliser une copie pour éviter la mutation de l'état actuel
+    const gameCopy = structuredClone(game);
+    const result = ResourceSystem.buyCard(gameCopy, currentPlayer.id);
     if (result.error) {
       setToast({ message: result.error, visible: true });
       return;
@@ -603,7 +647,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         else if (t === 'credit') label = 'crédit';
         return count > 1 ? `${label}s` : label;
       };
-      addToHistory(`échange 2 ${translateResource(spendType, 2)} contre 1 ${translateResource(gainType, 1)}`, currentPlayer.id, game);
+      addToHistory(`échange 2 ${translateResource(spendType, 2)} contre 1 ${translateResource(gainType, 1)}`, currentPlayer.id, game, { type: 'IDLE' });
       setInteractionState({ type: 'IDLE' });
     }
   };
@@ -673,6 +717,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Note: drawCards est maintenant dans CardSystem
     const updatedGame = CardSystem.drawCards(game, game.players[game.currentPlayerIndex].id, count, source);
     setGame(updatedGame);
+    addToHistory(`pioche ${count} carte${count > 1 ? 's' : ''} (${source})`, game.players[game.currentPlayerIndex].id, game);
   };
 
   // Gestionnaire pour le clic sur une planète (ex: Terre pour lancer une sonde)
@@ -686,6 +731,114 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         setToast({ message: validation.reason || "Impossible de lancer une sonde", visible: true });
       }
     }
+  };
+
+  // Gestionnaire pour les bonus ordinateur (déclenché depuis PlayerBoardUI)
+  const handleComputerBonus = (type: string, amount: number) => {
+    if (type === 'reservation') {
+      setInteractionState({ type: 'RESERVING_CARD', count: amount });
+      setToast({ message: `Réservation active : Sélectionnez ${amount} carte(s) avec revenu`, visible: true });
+    }
+  };
+
+  // Gestionnaire pour la réservation de carte
+  const handleReserveCard = (cardId: string) => {
+    if (interactionState.type !== 'RESERVING_CARD') return;
+
+    const updatedGame = { ...game };
+    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
+    
+    // Copier le tableau de cartes pour éviter de muter l'état précédent (qui est utilisé pour l'historique)
+    currentPlayer.cards = [...currentPlayer.cards];
+
+    const cardIndex = currentPlayer.cards.findIndex(c => c.id === cardId);
+    if (cardIndex === -1) return;
+    const card = currentPlayer.cards[cardIndex];
+
+    if (!card.revenue) {
+      setToast({ message: "Cette carte n'a pas de bonus de revenu", visible: true });
+      return;
+    }
+
+    // Retirer la carte
+    currentPlayer.cards.splice(cardIndex, 1);
+
+    // Appliquer le bonus
+    let gainMsg = "";
+    if (card.revenue === RevenueBonus.CREDIT) {
+      currentPlayer.revenueCredits += 1;
+      currentPlayer.credits += 1;
+      gainMsg = "1 Crédit";
+    } else if (card.revenue === RevenueBonus.ENERGY) {
+      currentPlayer.revenueEnergy += 1;
+      currentPlayer.energy += 1;
+      gainMsg = "1 Énergie";
+    } else if (card.revenue === RevenueBonus.CARD) {
+      currentPlayer.revenueCards += 1;
+      gainMsg = "1 Carte";
+    }
+
+    addToHistory(`réserve la carte "${card.name}" et gagne immédiatement : ${gainMsg}`, currentPlayer.id, game);
+
+    // Si le bonus est une carte, on pioche immédiatement
+    if (card.revenue === RevenueBonus.CARD) {
+       const drawResult = CardSystem.drawCards(updatedGame, currentPlayer.id, 1, 'Bonus immédiat réservation');
+       setGame(drawResult);
+       if (gameEngineRef.current) gameEngineRef.current.setState(drawResult);
+    } else {
+       setGame(updatedGame);
+       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+    }
+
+    // Mettre à jour l'état d'interaction
+    const newCount = interactionState.count - 1;
+    if (newCount > 0) {
+      setInteractionState({ type: 'RESERVING_CARD', count: newCount });
+      setToast({ message: `Encore ${newCount} carte(s) à réserver`, visible: true });
+    } else {
+      setInteractionState({ type: 'IDLE' });
+      setToast({ message: "Réservation terminée", visible: true });
+    }
+  };
+
+  // Gestionnaire pour le clic sur une piste Alien
+  const handleAlienTrackClick = (color: string) => {
+    if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
+    
+    if (interactionState.color !== color) {
+        setToast({ message: `Veuillez placer sur la piste ${interactionState.color === 'blue' ? 'bleue' : interactionState.color}`, visible: true });
+        return;
+    }
+
+    const updatedGame = structuredClone(game);
+    const player = updatedGame.players[updatedGame.currentPlayerIndex];
+    const alienBoard = updatedGame.board.alienBoard;
+    const track = (alienBoard as any)[color]; 
+
+    let bonusMsg = "";
+
+    if (!track.slot1.playerId) {
+      track.slot1.playerId = player.id;
+      player.score += track.slot1.bonus.pv;
+      if (track.slot1.bonus.media) player.mediaCoverage = Math.min(player.mediaCoverage + track.slot1.bonus.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+      bonusMsg = "+5 PV, +1 Média (1er)";
+    } else if (!track.slot2.playerId) {
+      track.slot2.playerId = player.id;
+      player.score += track.slot2.bonus.pv;
+      if (track.slot2.bonus.media) player.mediaCoverage = Math.min(player.mediaCoverage + track.slot2.bonus.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+      bonusMsg = "+3 PV, +1 Média (2ème)";
+    } else {
+      player.score += 3;
+      bonusMsg = "+3 PV";
+    }
+
+    setGame(updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+    
+    addToHistory(`place une trace de vie sur la piste ${color} et gagne ${bonusMsg}`, player.id, game);
+    setInteractionState({ type: 'IDLE' });
+    setToast({ message: `Trace de vie placée ! ${bonusMsg}`, visible: true });
   };
 
   // Utiliser les positions initiales depuis le jeu
@@ -784,6 +937,145 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   return (
     <div className="seti-root">
+      <style>{`
+        .seti-root {
+          height: 100vh;
+          width: 100vw;
+          overflow: hidden;
+          background-color: #1a1a2e;
+          color: #fff;
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .seti-root-inner {
+          display: flex;
+          flex-direction: row;
+          height: 100%;
+          padding: 10px;
+          box-sizing: border-box;
+          gap: 10px;
+        }
+        .seti-left-panel {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          flex: 1;
+          min-width: 300px;
+          height: 100%;
+          overflow-y: auto;
+        }
+        .seti-right-column {
+          display: flex;
+          flex-direction: column;
+          flex: 2;
+          min-width: 0;
+          gap: 10px;
+          height: 100%;
+        }
+        .seti-center-panel {
+          position: relative;
+          flex: 1;
+          height: 100%;
+          width: 100%;
+          overflow: hidden;
+          border-radius: 8px;
+          background-color: rgba(0, 0, 0, 0.2);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+        .seti-bottom-layout {
+          display: flex;
+          gap: 10px;
+          height: 35vh;
+          flex-shrink: 0;
+          min-height: 250px;
+        }
+        .seti-player-area {
+          flex: 3;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+        }
+        .seti-history-area {
+          flex: 1;
+          min-width: 250px;
+          display: flex;
+          flex-direction: column;
+        }
+        @media (max-width: 768px) {
+          .seti-root { height: auto; min-height: 100vh; overflow-y: auto; }
+          .seti-root-inner { flex-direction: column; height: auto; overflow: visible; }
+          .seti-left-panel { width: 100%; min-width: 0; max-width: none; height: auto; }
+          .seti-right-column { height: auto; flex: none; }
+          .seti-center-panel { display: block; height: auto; padding-bottom: 0; overflow: visible; flex: none; }
+          .seti-bottom-layout { flex-direction: column; height: auto; flex: none; }
+          .seti-player-area { width: 100%; flex: none; }
+          .seti-history-area { width: 100%; height: 300px; flex: none; }
+        }
+        
+        /* Styles pour les panneaux repliables */
+        .seti-foldable-container {
+          background-color: rgba(30, 30, 40, 0.9);
+          border: 1px solid #555;
+          border-radius: 6px;
+          overflow: hidden;
+          transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+          max-height: 40px; /* Hauteur du header */
+          display: flex;
+          flex-direction: column;
+          flex-shrink: 0;
+          position: relative;
+          z-index: 10;
+        }
+        .seti-foldable-container:hover, .seti-foldable-container.open {
+          max-height: 80vh; /* Assez grand pour le contenu */
+          box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+          border-color: #4a9eff;
+          z-index: 20;
+        }
+        .seti-foldable-header {
+          padding: 0 10px;
+          color: #fff;
+          font-weight: bold;
+          cursor: pointer;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background-color: #333;
+          height: 40px;
+          min-height: 40px;
+          box-sizing: border-box;
+        }
+        .seti-foldable-header::after {
+          content: '▼';
+          font-size: 0.8em;
+          transition: transform 0.3s;
+        }
+        .seti-foldable-container:hover .seti-foldable-header::after, .seti-foldable-container.open .seti-foldable-header::after {
+          transform: rotate(180deg);
+        }
+        .seti-foldable-content {
+          padding: 10px;
+          overflow-y: auto;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+        .seti-foldable-container:hover .seti-foldable-content, .seti-foldable-container.open .seti-foldable-content {
+          opacity: 1;
+          transition: opacity 0.5s ease 0.1s;
+        }
+        /* Overrides pour les composants internes */
+        .seti-foldable-content .seti-panel {
+          border: none !important;
+          background: transparent !important;
+          padding: 0 !important;
+          box-shadow: none !important;
+          margin: 0 !important;
+        }
+        .seti-foldable-content .seti-panel-title {
+          display: none !important;
+        }
+      `}</style>
       {/* Toast Notification */}
       {toast && toast.visible && (
         <div style={{
@@ -805,26 +1097,110 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           {toast.message}
         </div>
       )}
+      
+      {/* Modale de sélection de carte de fin de manche */}
+      {passModalState.visible && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)',
+          zIndex: 2000,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '20px', color: '#fff' }}>
+            Fin de manche : Choisissez une carte
+          </div>
+          <div style={{ 
+            display: 'flex', 
+            gap: '15px', 
+            flexWrap: 'wrap', 
+            justifyContent: 'center', 
+            maxWidth: '800px',
+            maxHeight: '60vh',
+            overflowY: 'auto',
+            padding: '10px'
+          }}>
+            {passModalState.cards.map(card => (
+              <div 
+                key={card.id}
+                onClick={() => setPassModalState(prev => ({ ...prev, selectedCardId: card.id }))}
+                style={{
+                  width: '140px',
+                  padding: '10px',
+                  backgroundColor: passModalState.selectedCardId === card.id ? 'rgba(74, 158, 255, 0.2)' : 'rgba(255,255,255,0.05)',
+                  border: passModalState.selectedCardId === card.id ? '2px solid #4a9eff' : '1px solid #555',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  transform: passModalState.selectedCardId === card.id ? 'scale(1.05)' : 'scale(1)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '5px'
+                }}
+              >
+                <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>{card.name}</div>
+                <div style={{ fontSize: '0.8rem', color: '#aaa' }}>{card.description}</div>
+              </div>
+            ))}
+          </div>
+          <button
+            disabled={!passModalState.selectedCardId}
+            onClick={() => {
+              if (passModalState.selectedCardId) {
+                const currentPlayer = game.players[game.currentPlayerIndex];
+                // Recalculer les cartes à garder (au cas où on vient de la défausse)
+                // Si on vient de l'action PASS directe, on garde tout (déjà vérifié <= 4)
+                // Si on vient de la défausse, interactionState est déjà IDLE, mais on doit s'assurer de passer les bonnes cartes
+                // Simplification : on suppose que currentPlayer.cards est à jour (<= 4)
+                const cardsToKeep = currentPlayer.cards.map(c => c.id);
+                performPass(cardsToKeep, passModalState.selectedCardId);
+                setPassModalState({ visible: false, cards: [], selectedCardId: null });
+              }
+            }}
+            style={{
+              marginTop: '30px',
+              padding: '10px 30px',
+              fontSize: '1.1rem',
+              backgroundColor: passModalState.selectedCardId ? '#4a9eff' : '#555',
+              color: passModalState.selectedCardId ? '#fff' : '#aaa',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: passModalState.selectedCardId ? 'pointer' : 'not-allowed',
+            }}
+          >
+            Confirmer et Passer
+          </button>
+        </div>
+      )}
       <div className="seti-root-inner">
-        <div className="seti-board-layout">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '300px' }}>
-            <TechnologyBoardUI 
-              game={game} 
-              isResearching={interactionState.type === 'RESEARCHING'}
-              onTechClick={handleTechClick}
-            />
-            {/* Rangée de cartes principale */}
-            <div className="seti-panel" style={{ flex: 1, minHeight: '200px', display: 'flex', flexDirection: 'column' }}>
-               <div className="seti-panel-title">Rangée Principale</div>
-               <div style={{ display: 'flex', gap: '8px', padding: '8px', overflowX: 'auto', flex: 1, alignItems: 'center' }}>
+        <div className="seti-left-panel">
+            <div className={`seti-foldable-container ${isTechOpen ? 'open' : ''}`}>
+              <div className="seti-foldable-header" onClick={() => setIsTechOpen(!isTechOpen)}>Technologies</div>
+              <div className="seti-foldable-content">
+                <TechnologyBoardUI 
+                  game={game} 
+                  isResearching={interactionState.type === 'RESEARCHING'}
+                  onTechClick={handleTechClick}
+                />
+              </div>
+            </div>
+            
+            <div className={`seti-foldable-container ${isRowOpen ? 'open' : ''}`}>
+               <div className="seti-foldable-header" onClick={() => setIsRowOpen(!isRowOpen)}>Rangée Principale</div>
+               <div className="seti-foldable-content">
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px' }}>
                  {game.board.cardRow && game.board.cardRow.map(card => (
                    <div key={card.id} style={{
                      border: '1px solid #555',
                      borderRadius: '6px',
                      padding: '8px',
                      backgroundColor: 'rgba(0,0,0,0.3)',
-                     minWidth: '120px',
-                     flex: 1,
+                     width: '100%',
+                     boxSizing: 'border-box',
                      display: 'flex',
                      flexDirection: 'column',
                      gap: '6px',
@@ -856,9 +1232,50 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     <div style={{ color: '#888', fontStyle: 'italic', padding: '10px', width: '100%', textAlign: 'center' }}>Aucune carte disponible</div>
                  )}
                </div>
+               </div>
             </div>
-          </div>
-          <div style={{ position: 'relative', height: '100%', width: '100%', overflow: 'auto' }}>
+            
+            <div className={`seti-foldable-container ${isHistoryOpen ? 'open' : ''}`}>
+               <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
+                  <span style={{ flex: 1 }}>Historique</span>
+                  {historyLog.length > 0 && historyLog[0].previousState && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleUndo(); }} 
+                      style={{ fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', backgroundColor: '#555', border: '1px solid #777', color: '#fff', borderRadius: '4px', marginRight: '5px' }} 
+                      title="Annuler la dernière action"
+                    >
+                      ↩
+                    </button>
+                  )}
+               </div>
+               <div className="seti-foldable-content">
+                 <div className="seti-history-list">
+                  {historyLog.length === 0 && <div style={{fontStyle: 'italic', padding: '4px', textAlign: 'center'}}>Aucune action</div>}
+                  {historyLog.map((entry) => {
+                    if (entry.message.startsWith('--- FIN DE LA MANCHE')) {
+                      return (
+                        <div key={entry.id} style={{ display: 'flex', alignItems: 'center', margin: '10px 0', color: '#aaa', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
+                          <div style={{ padding: '0 10px' }}>{entry.message.replace(/---/g, '').trim()}</div>
+                          <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
+                        </div>
+                      );
+                    }
+                    const player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
+                    const color = player ? (player.color || '#ccc') : '#ccc';
+                    return (
+                      <div key={entry.id} className="seti-history-item" style={{ borderLeft: `3px solid ${color}`, paddingLeft: '8px', marginBottom: '4px' }}>
+                        {player && <strong style={{ color: color }}>{player.name} </strong>}
+                        <span style={{ color: '#ddd' }}>{entry.message}</span>
+                      </div>
+                    );
+                  })}
+                 </div>
+               </div>
+            </div>
+        </div>
+        <div className="seti-right-column">
+          <div className="seti-center-panel">
             <SolarSystemBoardUI 
               ref={solarSystemRef} 
               game={game} 
@@ -977,11 +1394,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               */}
             </div>
           </div>
-          {/*<AlienBoardUI game={game} />*/}
-        </div>
         
-        <div style={{ display: 'flex', gap: '10px', maxHeight: '35vh', flexShrink: 0 }}>
-          <div style={{ flex: 3, minWidth: 0 }}>
+        <div className="seti-bottom-layout">
+          <div className="seti-player-area">
             <PlayerBoardUI 
               game={game} 
               playerId={currentPlayerIdToDisplay}
@@ -1007,40 +1422,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               hasPerformedMainAction={hasPerformedMainAction}
               onNextPlayer={handleNextPlayer}
               onHistory={(message) => addToHistory(message, game.players[game.currentPlayerIndex].id, game)}
+              onComputerBonus={handleComputerBonus}
+              reservationState={interactionState.type === 'RESERVING_CARD' ? { active: true, count: interactionState.count } : { active: false, count: 0 }}
+              onReserveCard={handleReserveCard}
+              isPlacingLifeTrace={interactionState.type === 'PLACING_LIFE_TRACE'}
             />
           </div>
-          <div className="seti-panel seti-history-panel" style={{ flex: 1, minWidth: 0 }}>
-            <div className="seti-panel-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Historique</span>
-              {historyLog.length > 0 && historyLog[0].previousState && (
-                <button onClick={handleUndo} style={{ fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', backgroundColor: '#555', border: '1px solid #777', color: '#fff', borderRadius: '4px' }} title="Annuler la dernière action">
-                  ↩ Annuler
-                </button>
-              )}
-            </div>
-            <div className="seti-history-list">
-              {historyLog.length === 0 && <div style={{fontStyle: 'italic', padding: '4px', textAlign: 'center'}}>Aucune action</div>}
-              {historyLog.map((entry) => {
-                if (entry.message.startsWith('--- FIN DE LA MANCHE')) {
-                  return (
-                    <div key={entry.id} style={{ display: 'flex', alignItems: 'center', margin: '10px 0', color: '#aaa', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
-                      <div style={{ padding: '0 10px' }}>{entry.message.replace(/---/g, '').trim()}</div>
-                      <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
-                    </div>
-                  );
-                }
-                const player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
-                const color = player ? (player.color || '#ccc') : '#ccc';
-                return (
-                  <div key={entry.id} className="seti-history-item" style={{ borderLeft: `3px solid ${color}`, paddingLeft: '8px' }}>
-                    {player && <strong style={{ color: color }}>{player.name} </strong>}
-                    <span style={{ color: '#ddd' }}>{entry.message}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        </div>
         </div>
       </div>
     </div>

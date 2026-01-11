@@ -29,6 +29,10 @@ interface PlayerBoardUIProps {
   hasPerformedMainAction?: boolean;
   onNextPlayer?: () => void;
   onHistory?: (message: string) => void;
+  onComputerBonus?: (type: string, amount: number) => void;
+  reservationState?: { active: boolean; count: number };
+  onReserveCard?: (cardId: string) => void;
+  isPlacingLifeTrace?: boolean;
 }
 
 const ACTION_NAMES: Record<ActionType, string> = {
@@ -86,7 +90,7 @@ const ComputerSlot = ({
   );
 };
 
-const PlayerComputer = ({ player, onSlotClick, isSelecting, onColumnSelect, isAnalyzing }: { player: any, onSlotClick: (slotId: string) => void, isSelecting?: boolean, onColumnSelect?: (col: number) => void, isAnalyzing?: boolean }) => {
+const PlayerComputer = ({ player, onSlotClick, isSelecting, onColumnSelect, isAnalyzing, disabled }: { player: any, onSlotClick: (slotId: string) => void, isSelecting?: boolean, onColumnSelect?: (col: number) => void, isAnalyzing?: boolean, disabled?: boolean }) => {
   // Initialize if needed
   DataSystem.initializeComputer(player);
   const slots = player.computer.slots;
@@ -133,7 +137,7 @@ const PlayerComputer = ({ player, onSlotClick, isSelecting, onColumnSelect, isAn
                   key={slot.id} 
                   slot={slot} 
                   onClick={() => onSlotClick(slot.id)} 
-                  canFill={DataSystem.canFillSlot(player, slot.id)} 
+                  canFill={!disabled && DataSystem.canFillSlot(player, slot.id)} 
                 />
               ))}
             </div>
@@ -153,7 +157,7 @@ const PlayerComputer = ({ player, onSlotClick, isSelecting, onColumnSelect, isAn
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, onViewPlayer, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeResourcesAction, tradeState = { phase: 'inactive' }, onSpendSelection, onGainSelection, onCancelTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, onViewPlayer, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeResourcesAction, tradeState = { phase: 'inactive' }, onSpendSelection, onGainSelection, onCancelTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, reservationState = { active: false, count: 0 }, onReserveCard, isPlacingLifeTrace = false }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -163,8 +167,9 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
   const [cardsSelectedForTrade, setCardsSelectedForTrade] = useState<string[]>([]);
   const [tick, setTick] = useState(0);
-  const [reservationState, setReservationState] = useState<{ active: boolean; count: number }>({ active: false, count: 0 });
   
+  const isInteractiveMode = isDiscarding || tradeState.phase !== 'inactive' || isSelectingComputerSlot || isAnalyzing || reservationState.active || isPlacingLifeTrace;
+
   // Suivi des changements de ressources pour la notification sur les onglets
   const [tabFlashes, setTabFlashes] = useState<Record<string, boolean>>({});
   const prevResourcesRef = useRef<Record<string, { credits: number, energy: number, media: number, data: number, cards: number }>>({});
@@ -209,14 +214,20 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
 
   const handleComputerBonus = (type: string, amount: number) => {
     if (type === 'reservation') {
-      setReservationState(prev => ({ active: true, count: prev.count + amount }));
+      if (onComputerBonus) onComputerBonus(type, amount);
     } else if (type === 'card' && onDrawCard) {
       onDrawCard(amount, 'Bonus Ordinateur');
     }
   };
 
   const handleComputerSlotClick = (slotId: string) => {
-    const { updatedGame, gains, bonusEffects } = DataSystem.fillSlot(game, currentPlayer.id, slotId);
+    if (isInteractiveMode && !isSelectingComputerSlot) return;
+
+    // Créer une copie profonde pour éviter la mutation de l'état actuel
+    // Cela garantit que 'game' reste valide comme 'previousState' pour l'historique
+    const gameCopy = structuredClone(game);
+
+    const { updatedGame, gains, bonusEffects } = DataSystem.fillSlot(gameCopy, currentPlayer.id, slotId);
     
     bonusEffects.forEach(effect => {
       handleComputerBonus(effect.type, effect.amount);
@@ -361,8 +372,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   const canSpendCredits = tradeState.phase === 'spending' && currentPlayer.credits >= 2;
   const canSpendEnergy = tradeState.phase === 'spending' && currentPlayer.energy >= 2;
   const canSpendCards = tradeState.phase === 'spending' && (currentPlayer.cards || []).length >= 2;
-
-  const isInteractiveMode = isDiscarding || tradeState.phase !== 'inactive' || isSelectingComputerSlot || isAnalyzing;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
@@ -595,6 +604,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               isSelecting={isSelectingComputerSlot}
               onColumnSelect={onComputerSlotSelect}
               isAnalyzing={isAnalyzing}
+              disabled={isInteractiveMode}
             />
           </div>
         </div>
@@ -606,31 +616,32 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (isCurrentTurn && canBuyCardAction && onBuyCardAction) {
+                if (isCurrentTurn && canBuyCardAction && !isInteractiveMode && onBuyCardAction) {
                   onBuyCardAction();
                 }
               }}
-              title={canBuyCardAction ? "Vous gagnez 1 carte de la pioche ou de la rangée principale (cout: 3 media)" : "Nécessite 3 couverture médiatique"}
+              title={canBuyCardAction && !isInteractiveMode ? "Vous gagnez 1 carte de la pioche ou de la rangée principale (cout: 3 media)" : "Nécessite 3 couverture médiatique ou action impossible"}
+              disabled={!isCurrentTurn || !canBuyCardAction || isInteractiveMode}
               style={{
-                backgroundColor: (isCurrentTurn && canBuyCardAction) ? '#4a9eff' : '#555',
-                color: (isCurrentTurn && canBuyCardAction) ? 'white' : '#aaa',
-                border: (isCurrentTurn && canBuyCardAction) ? '2px solid #6bb3ff' : '2px solid #444',
+                backgroundColor: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '#4a9eff' : '#555',
+                color: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? 'white' : '#aaa',
+                border: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '2px solid #6bb3ff' : '2px solid #444',
                 borderRadius: '6px',
                 padding: '2px 8px',
                 fontSize: '0.7rem',
-                cursor: (isCurrentTurn && canBuyCardAction) ? 'pointer' : 'not-allowed',
+                cursor: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? 'pointer' : 'default',
                 fontWeight: 'normal',
-                boxShadow: (isCurrentTurn && canBuyCardAction) ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
+                boxShadow: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
                 transition: 'all 0.2s',
               }}
               onMouseEnter={(e) => {
-                if (!isCurrentTurn || !canBuyCardAction) return;
+                if (!isCurrentTurn || !canBuyCardAction || isInteractiveMode) return;
                 const target = e.currentTarget as HTMLButtonElement;
                 target.style.backgroundColor = '#6bb3ff';
                 target.style.transform = 'scale(1.05)';
               }}
               onMouseLeave={(e) => {
-                if (!isCurrentTurn || !canBuyCardAction) return;
+                if (!isCurrentTurn || !canBuyCardAction || isInteractiveMode) return;
                 const target = e.currentTarget as HTMLButtonElement;
                 target.style.backgroundColor = '#4a9eff';
                 target.style.transform = 'scale(1)';
@@ -700,41 +711,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                     onClick={(e) => {
                       if (reservationState.active) {
                         if (card.revenue) {
-                          // Retirer la carte de la main
-                          currentPlayer.cards = currentPlayer.cards.filter(c => c.id !== card.id);
-                          
-                          let gainMsg = "";
-
-                          if (card.revenue === RevenueBonus.CREDIT) {
-                            currentPlayer.revenueCredits += 1;
-                            currentPlayer.credits += 1;
-                            gainMsg = "1 Crédit";
-                          }
-                          else if (card.revenue === RevenueBonus.ENERGY) {
-                            currentPlayer.revenueEnergy += 1;
-                            currentPlayer.energy += 1;
-                            gainMsg = "1 Énergie";
-                          }
-                          else if (card.revenue === RevenueBonus.CARD) {
-                            currentPlayer.revenueCards += 1;
-                            gainMsg = "1 Carte";
-                          }
-                          
-                          if (onHistory) {
-                            onHistory(`réserve la carte "${card.name}" et gagne immédiatement : ${gainMsg}`);
-                          }
-                          
-                          const newCount = reservationState.count - 1;
-                          setReservationState({ active: newCount > 0, count: newCount });
-                          
-                          // Mettre à jour l'affichage et le jeu
-                          setTick(t => t + 1);
-                          
-                          if (card.revenue === RevenueBonus.CARD && onDrawCard) {
-                            onDrawCard(1, 'Bonus immédiat réservation');
-                          } else {
-                            if (onGameUpdate) onGameUpdate({ ...game });
-                          }
+                          if (onReserveCard) onReserveCard(card.id);
                         } else {
                           alert("Cette carte n'a pas de bonus de revenu.");
                         }

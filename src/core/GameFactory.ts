@@ -10,7 +10,12 @@ import {
   Species,
   DataComputer,
   GAME_CONSTANTS,
-  Technology
+  Technology,
+  Card,
+  CardType,
+  FreeAction,
+  SectorColor,
+  RevenueBonus
 } from './types';
 import { BoardManager } from './Board';
 
@@ -44,6 +49,14 @@ export class GameFactory {
     // Créer les espèces (non découvertes initialement)
     const species: Species[] = [];
 
+    // Créer les paquets de fin de manche (Manches 1 à 4)
+    const roundDecks: { [round: number]: Card[] } = {};
+    const cardsPerDeck = players.length + 1;
+    
+    for (let i = 1; i <= 4; i++) {
+      roundDecks[i] = this.createRoundDeck(i, cardsPerDeck);
+    }
+
     const game: Game = {
       id: `game_${Date.now()}`,
       currentRound: 1,
@@ -57,7 +70,8 @@ export class GameFactory {
       species,
       discoveredSpecies: [],
       history: [],
-      isFirstToPass: false
+      isFirstToPass: false,
+      roundDecks
     };
 
     return game;
@@ -176,5 +190,26 @@ export class GameFactory {
       // Mettre à jour la liste globale des technologies disponibles
       game.board.technologyBoard.available = game.board.technologyBoard.categorySlots.flatMap(s => s.technologies);
     }
+  }
+
+  /**
+   * Crée un paquet de cartes pour une manche spécifique
+   */
+  private static createRoundDeck(round: number, count: number): Card[] {
+    const cards: Card[] = [];
+    for (let i = 0; i < count; i++) {
+      cards.push({
+        id: `round_${round}_card_${i}_${Date.now()}`,
+        name: `Opportunité Manche ${round}`,
+        type: CardType.ACTION,
+        cost: 0, // Souvent gratuit ou coût spécifique
+        freeAction: FreeAction.MEDIA, // Placeholder
+        scanSector: SectorColor.BLUE, // Placeholder
+        revenue: RevenueBonus.CREDIT, // Placeholder
+        effects: [],
+        description: `Carte spéciale de fin de manche ${round}`
+      });
+    }
+    return cards;
   }
 }

@@ -14,6 +14,7 @@ import {
   GamePhase,
   Player,
 } from './types';
+import { CardSystem } from '../systems/CardSystem';
 
 export class TurnManager {
   /**
@@ -51,12 +52,19 @@ export class TurnManager {
    * Termine la manche actuelle
    */
   static endRound(game: Game): Game {
-    const updatedGame = { ...game };
+    let updatedGame = { ...game };
     
     // Calculer les revenus de fin de manche
     updatedGame.players = updatedGame.players.map(player => 
       this.calculateRevenues(player)
     );
+
+    // Distribuer les revenus en cartes
+    updatedGame.players.forEach(player => {
+      if (player.revenueCards > 0) {
+        updatedGame = CardSystem.drawCards(updatedGame, player.id, player.revenueCards, 'Revenus de fin de manche');
+      }
+    });
 
     // Réinitialiser l'état des joueurs
     updatedGame.players = updatedGame.players.map(player => ({

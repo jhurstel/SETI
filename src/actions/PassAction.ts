@@ -23,7 +23,7 @@ export class PassAction extends BaseAction {
   constructor(
     playerId: string,
     public cardIdsToKeep: string[], // Cartes à garder (max 4)
-    public endOfRoundCardId?: string // Carte Fin de manche choisie
+    public selectedCardId?: string // Carte du paquet de manche choisie
   ) {
     super(ActionType.PASS, playerId);
   }
@@ -47,6 +47,17 @@ export class PassAction extends BaseAction {
       return this.createInvalidResult('Certaines cartes sont invalides');
     }
 
+    // Vérifier si une carte de manche doit être choisie
+    const currentRound = game.currentRound;
+    const roundDeck = game.roundDecks[currentRound];
+    
+    // Si le paquet existe et n'est pas vide, une carte doit être sélectionnée (sauf si géré automatiquement pour robot, mais l'action doit valider la cohérence)
+    if (roundDeck && roundDeck.length > 0 && this.selectedCardId) {
+       if (!roundDeck.some(c => c.id === this.selectedCardId)) {
+         return this.createInvalidResult('La carte sélectionnée n\'est pas dans le paquet de la manche');
+       }
+    }
+
     return this.createValidResult();
   }
 
@@ -62,8 +73,21 @@ export class PassAction extends BaseAction {
     // Défausser à 4 cartes
     const updatedPlayer = CardSystem.discardToHandSize(player, this.cardIdsToKeep);
 
-    // TODO: Permettre le choix d'une carte Fin de manche
-    // Si endOfRoundCardId est fourni, l'ajouter
+    // Gérer la carte de fin de manche
+    const currentRound = updatedGame.currentRound;
+    if (updatedGame.roundDecks[currentRound] && updatedGame.roundDecks[currentRound].length > 0) {
+      const deck = updatedGame.roundDecks[currentRound];
+      let cardIndex = -1;
+
+      if (this.selectedCardId) {
+        cardIndex = deck.findIndex(c => c.id === this.selectedCardId);
+      }
+      
+      if (cardIndex !== -1) {
+        const [card] = deck.splice(cardIndex, 1);
+        updatedPlayer.cards.push(card);
+      }
+    }
 
     // Marquer le joueur comme ayant passé
     updatedPlayer.hasPassed = true;
