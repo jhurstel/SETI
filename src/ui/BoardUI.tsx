@@ -1253,173 +1253,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       <div className="seti-root-inner">
         <div className="seti-left-panel">
-            <div className={`seti-foldable-container ${isObjectivesOpen ? 'open' : ''}`}>
-              <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>Objectifs</div>
-              <div className="seti-foldable-content">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  {game.board.objectiveTiles && game.board.objectiveTiles.map(tile => (
-                    <div key={tile.id} 
-                      onClick={() => handleObjectiveClick(tile.id)}
-                      title={`Récompenses : 1er: ${tile.rewards.first} PV, 2ème: ${tile.rewards.second} PV, Autres: ${tile.rewards.others} PV`}
-                      style={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                      border: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '1px solid #4a9eff' : '1px solid #555',
-                      borderRadius: '6px',
-                      padding: '8px',
-                      display: 'flex',
-                      cursor: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? 'pointer' : 'default',
-                      boxShadow: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '0 0 10px rgba(74, 158, 255, 0.3)' : 'none',
-                      flexDirection: 'column',
-                      gap: '4px',
-                      minHeight: '100px'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '0.8em', lineHeight: '1.1' }}>{tile.name}</span>
-                        <span style={{ fontSize: '0.65em', color: '#aaa', border: '1px solid #555', padding: '1px 3px', borderRadius: '3px' }}>{tile.side}</span>
-                      </div>
-                      <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', marginBottom: 'auto' }}>{tile.description}</div>
-                      
-                      {/* Piste de score avec 4 cercles */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', position: 'relative', padding: '0 5px' }}>
-                        {/* Ligne de connexion */}
-                        <div style={{ position: 'absolute', top: '50%', left: '10px', right: '10px', height: '2px', backgroundColor: '#555', zIndex: 0 }}></div>
-                        
-                        {/* Cercles (1er, 2eme, Autre, Autre) */}
-                        {[tile.rewards.first, tile.rewards.second, tile.rewards.others, tile.rewards.others].map((pv, idx) => {
-                          const markerPlayerId = tile.markers[idx];
-                          const player = markerPlayerId ? game.players.find(p => p.id === markerPlayerId) : null;
-                          
-                          const currentPlayer = game.players[game.currentPlayerIndex];
-                          const isPlacingMarker = interactionState.type === 'PLACING_OBJECTIVE_MARKER';
-                          const hasMarkerOnTile = tile.markers.includes(currentPlayer.id);
-                          const isNextAvailable = isPlacingMarker && !hasMarkerOnTile && idx === tile.markers.length;
-
-                          return (
-                            <div key={idx} style={{
-                              width: '22px', height: '22px', borderRadius: '50%',
-                              backgroundColor: player ? (player.color || '#fff') : (isNextAvailable ? 'rgba(74, 158, 255, 0.3)' : '#222'),
-                              border: player ? '2px solid #fff' : (isNextAvailable ? '2px solid #4a9eff' : '1px solid #777'),
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              zIndex: 1, fontSize: '0.75em', fontWeight: 'bold',
-                              color: player ? '#000' : '#fff', 
-                              boxShadow: isNextAvailable ? '0 0 8px #4a9eff' : (player ? '0 0 4px rgba(0,0,0,0.5)' : 'none'),
-                              transform: isNextAvailable ? 'scale(1.2)' : 'scale(1)',
-                              transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                              cursor: isNextAvailable ? 'pointer' : 'default'
-                            }} title={player ? `Occupé par ${player.name}` : `${pv} PV`}>
-                              {player ? '' : pv}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className={`seti-foldable-container ${isTechOpen ? 'open' : ''}`}
-                 style={interactionState.type === 'RESEARCHING' ? { zIndex: 1501, position: 'relative', borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {}}
-            >
-              <div className="seti-foldable-header" onClick={() => setIsTechOpen(!isTechOpen)}>Technologies</div>
-              <div className="seti-foldable-content">
-                <TechnologyBoardUI 
-                  game={game} 
-                  isResearching={interactionState.type === 'RESEARCHING'}
-                  onTechClick={handleTechClick}
-                />
-              </div>
-            </div>
-            
-            <div className={`seti-foldable-container ${isRowOpen ? 'open' : ''}`}
-                 style={interactionState.type === 'BUYING_CARD' ? { zIndex: 1501, position: 'relative', borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {}}
-            >
-               <div className="seti-foldable-header" onClick={() => setIsRowOpen(!isRowOpen)}>Rangée Principale</div>
-               <div className="seti-foldable-content">
-               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', padding: '8px' }}>
-                 {/* Pile de pioche */}
-                 <div 
-                     onClick={() => handleCardRowClick()}
-                     style={{
-                     border: '1px solid #555',
-                     borderRadius: '6px',
-                     padding: '6px',
-                     backgroundColor: 'rgba(30, 30, 40, 0.8)',
-                     boxSizing: 'border-box',
-                     display: 'flex',
-                     flexDirection: 'column',
-                     justifyContent: 'center',
-                     alignItems: 'center',
-                     gap: '4px',
-                     boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                     minHeight: '100px',
-                     fontSize: '0.85em',
-                     backgroundImage: 'repeating-linear-gradient(45deg, #222 0, #222 10px, #2a2a2a 10px, #2a2a2a 20px)',
-                     cursor: interactionState.type === 'BUYING_CARD' ? 'pointer' : 'default',
-                     borderColor: interactionState.type === 'BUYING_CARD' ? '#4a9eff' : '#555'
-                   }}>
-                    <div style={{ fontWeight: 'bold', color: '#aaa', textAlign: 'center' }}>Pioche</div>
-                    <div style={{ fontSize: '0.8em', color: '#888' }}>{game.decks?.actionCards?.length || 0} cartes</div>
-                 </div>
-
-                 {game.board.cardRow && game.board.cardRow.map(card => (
-                   <div key={card.id} 
-                     onClick={() => handleCardRowClick(card.id)}
-                     style={{
-                     border: interactionState.type === 'BUYING_CARD' ? '1px solid #4a9eff' : '1px solid #555',
-                     borderRadius: '6px',
-                     padding: '6px',
-                     backgroundColor: 'rgba(30, 30, 40, 0.8)',
-                     boxSizing: 'border-box',
-                     display: 'flex',
-                     flexDirection: 'column',
-                     gap: '4px',
-                     boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                     minHeight: '100px',
-                     fontSize: '0.85em',
-                     cursor: interactionState.type === 'BUYING_CARD' ? 'pointer' : 'default',
-                     animation: 'cardAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                   }}>
-                     <div style={{ fontWeight: 'bold', color: '#fff', lineHeight: '1.1', marginBottom: '2px' }}>{card.name}</div>
-                     <div style={{ fontSize: '0.9em', color: '#aaa' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></div>
-                     {card.description && <div style={{ fontSize: '0.75em', color: '#ccc', fontStyle: 'italic', margin: '2px 0', lineHeight: '1.2' }}>{card.description}</div>}
-                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', color: '#ddd', marginBottom: '2px' }}>
-                        {card.freeAction && <div>Act: {card.freeAction}</div>}
-                        {card.revenue && <div>Rev: {card.revenue}</div>}
-                     </div>
-                     <div style={{ 
-                       marginTop: 'auto', 
-                       padding: '4px', 
-                       backgroundColor: 'rgba(255,255,255,0.05)', 
-                       borderRadius: '4px',
-                       textAlign: 'center',
-                       border: `1px solid ${getSectorColorCode(card.scanSector)}`,
-                     }}>
-                       <div style={{ fontSize: '0.7em', textTransform: 'uppercase', color: '#ddd', marginBottom: '2px' }}>Scan</div>
-                       <div style={{ 
-                         color: getSectorColorCode(card.scanSector), 
-                         fontWeight: 'bold',
-                         fontSize: '1.1em'
-                       }}>
-                         {card.scanSector}
-                       </div>
-                     </div>
-                   </div>
-                 ))}
-                 {(!game.board.cardRow || game.board.cardRow.length === 0) && (
-                    <div style={{ gridColumn: '2 / -1', color: '#888', fontStyle: 'italic', padding: '10px', textAlign: 'center' }}>Aucune carte disponible</div>
-                 )}
-               </div>
-               </div>
-            </div>
-            
-            <div className={`seti-foldable-container ${isAlienOpen ? 'open' : ''}`}>
-               <div className="seti-foldable-header" onClick={() => setIsAlienOpen(!isAlienOpen)}>Piste Alien</div>
-               <div className="seti-foldable-content">
-                 <AlienBoardUI game={game} onTrackClick={handleAlienTrackClick} />
-               </div>
-            </div>
-            
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
               <PlayerBoardUI 
                 game={game} 
@@ -1465,6 +1298,176 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               initialSector3={initialSector3}
               highlightPlayerProbes={interactionState.type === 'FREE_MOVEMENT'}
             />
+
+            {/* Plateaux annexes en haut à gauche */}
+            <div style={{
+              position: 'absolute',
+              top: '15px',
+              left: '15px',
+              width: '560px',
+              zIndex: (interactionState.type === 'RESEARCHING' || interactionState.type === 'BUYING_CARD') ? 1501 : 1000,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              maxHeight: 'calc(100% - 30px)',
+              overflowY: 'auto',
+              pointerEvents: 'none',
+            }}>
+              <div className={`seti-foldable-container ${isObjectivesOpen ? 'open' : ''}`} style={{ pointerEvents: 'auto' }}>
+                <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>Objectifs</div>
+                <div className="seti-foldable-content">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {game.board.objectiveTiles && game.board.objectiveTiles.map(tile => (
+                      <div key={tile.id} 
+                        onClick={() => handleObjectiveClick(tile.id)}
+                        title={`Récompenses : 1er: ${tile.rewards.first} PV, 2ème: ${tile.rewards.second} PV, Autres: ${tile.rewards.others} PV`}
+                        style={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        border: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '1px solid #4a9eff' : '1px solid #555',
+                        borderRadius: '6px',
+                        padding: '8px',
+                        display: 'flex',
+                        cursor: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? 'pointer' : 'default',
+                        boxShadow: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '0 0 10px rgba(74, 158, 255, 0.3)' : 'none',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        minHeight: '100px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '0.8em', lineHeight: '1.1' }}>{tile.name}</span>
+                          <span style={{ fontSize: '0.65em', color: '#aaa', border: '1px solid #555', padding: '1px 3px', borderRadius: '3px' }}>{tile.side}</span>
+                        </div>
+                        <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', marginBottom: 'auto' }}>{tile.description}</div>
+                        
+                        {/* Piste de score avec 4 cercles */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', position: 'relative', padding: '0 5px' }}>
+                          {/* Ligne de connexion */}
+                          <div style={{ position: 'absolute', top: '50%', left: '10px', right: '10px', height: '2px', backgroundColor: '#555', zIndex: 0 }}></div>
+                          
+                          {/* Cercles (1er, 2eme, Autre, Autre) */}
+                          {[tile.rewards.first, tile.rewards.second, tile.rewards.others, tile.rewards.others].map((pv, idx) => {
+                            const markerPlayerId = tile.markers[idx];
+                            const player = markerPlayerId ? game.players.find(p => p.id === markerPlayerId) : null;
+                            
+                            const currentPlayer = game.players[game.currentPlayerIndex];
+                            const isPlacingMarker = interactionState.type === 'PLACING_OBJECTIVE_MARKER';
+                            const hasMarkerOnTile = tile.markers.includes(currentPlayer.id);
+                            const isNextAvailable = isPlacingMarker && !hasMarkerOnTile && idx === tile.markers.length;
+
+                            return (
+                              <div key={idx} style={{
+                                width: '22px', height: '22px', borderRadius: '50%',
+                                backgroundColor: player ? (player.color || '#fff') : (isNextAvailable ? 'rgba(74, 158, 255, 0.3)' : '#222'),
+                                border: player ? '2px solid #fff' : (isNextAvailable ? '2px solid #4a9eff' : '1px solid #777'),
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                zIndex: 1, fontSize: '0.75em', fontWeight: 'bold',
+                                color: player ? '#000' : '#fff', 
+                                boxShadow: isNextAvailable ? '0 0 8px #4a9eff' : (player ? '0 0 4px rgba(0,0,0,0.5)' : 'none'),
+                                transform: isNextAvailable ? 'scale(1.2)' : 'scale(1)',
+                                transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                                cursor: isNextAvailable ? 'pointer' : 'default'
+                              }} title={player ? `Occupé par ${player.name}` : `${pv} PV`}>
+                                {player ? '' : pv}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className={`seti-foldable-container ${isTechOpen ? 'open' : ''}`}
+                  style={{ 
+                    pointerEvents: 'auto',
+                    ...(interactionState.type === 'RESEARCHING' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
+                  }}
+              >
+                <div className="seti-foldable-header" onClick={() => setIsTechOpen(!isTechOpen)}>Technologies</div>
+                <div className="seti-foldable-content">
+                  <TechnologyBoardUI 
+                    game={game} 
+                    isResearching={interactionState.type === 'RESEARCHING'}
+                    onTechClick={handleTechClick}
+                  />
+                </div>
+              </div>
+              
+              <div className={`seti-foldable-container ${isRowOpen ? 'open' : ''}`}
+                  style={{ 
+                    pointerEvents: 'auto',
+                    ...(interactionState.type === 'BUYING_CARD' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
+                  }}
+              >
+                <div className="seti-foldable-header" onClick={() => setIsRowOpen(!isRowOpen)}>Rangée Principale</div>
+                <div className="seti-foldable-content">
+                <div style={{ display: 'flex', overflowX: 'auto', gap: '8px', padding: '8px' }}>
+                  {/* Pile de pioche */}
+                  <div 
+                      onClick={() => handleCardRowClick()}
+                      className="seti-common-card"
+                      style={{
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: '4px',
+                      backgroundImage: 'repeating-linear-gradient(45deg, #222 0, #222 10px, #2a2a2a 10px, #2a2a2a 20px)',
+                      cursor: interactionState.type === 'BUYING_CARD' ? 'pointer' : 'default',
+                      borderColor: interactionState.type === 'BUYING_CARD' ? '#4a9eff' : '#555'
+                    }}>
+                      <div style={{ fontWeight: 'bold', color: '#aaa', textAlign: 'center' }}>Pioche</div>
+                      <div style={{ fontSize: '0.8em', color: '#888' }}>{game.decks?.actionCards?.length || 0} cartes</div>
+                  </div>
+
+                  {game.board.cardRow && game.board.cardRow.map(card => (
+                    <div key={card.id} 
+                      onClick={() => handleCardRowClick(card.id)}
+                      className="seti-common-card"
+                      style={{
+                      border: interactionState.type === 'BUYING_CARD' ? '1px solid #4a9eff' : '1px solid #555',
+                      cursor: interactionState.type === 'BUYING_CARD' ? 'pointer' : 'default',
+                      animation: 'cardAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                    }}>
+                      <div style={{ fontWeight: 'bold', color: '#fff', lineHeight: '1.1', marginBottom: '4px', fontSize: '0.75rem', height: '2.2em', overflow: 'hidden' }}>{card.name}</div>
+                      <div style={{ fontSize: '0.75em', color: '#aaa' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></div>
+                      {card.description && <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', margin: '4px 0', lineHeight: '1.2', flex: 1, overflowY: 'auto' }}>{card.description}</div>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', color: '#ddd', marginBottom: '2px' }}>
+                          {card.freeAction && <div>Act: {card.freeAction}</div>}
+                          {card.revenue && <div>Rev: {card.revenue}</div>}
+                      </div>
+                      <div style={{ 
+                        marginTop: 'auto', 
+                        padding: '4px', 
+                        backgroundColor: 'rgba(255,255,255,0.05)', 
+                        borderRadius: '4px', 
+                        textAlign: 'center',
+                        border: `1px solid ${getSectorColorCode(card.scanSector)}`,
+                      }}>
+                        <div style={{ fontSize: '0.7em', textTransform: 'uppercase', color: '#ddd', marginBottom: '2px' }}>Scan</div>
+                        <div style={{ 
+                          color: getSectorColorCode(card.scanSector), 
+                          fontWeight: 'bold',
+                          fontSize: '1.1em'
+                        }}>
+                          {card.scanSector}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {(!game.board.cardRow || game.board.cardRow.length === 0) && (
+                      <div style={{ gridColumn: '2 / -1', color: '#888', fontStyle: 'italic', padding: '10px', textAlign: 'center' }}>Aucune carte disponible</div>
+                  )}
+                </div>
+                </div>
+              </div>
+              
+              <div className={`seti-foldable-container ${isAlienOpen ? 'open' : ''}`} style={{ pointerEvents: 'auto' }}>
+                <div className="seti-foldable-header" onClick={() => setIsAlienOpen(!isAlienOpen)}>Piste Alien</div>
+                <div className="seti-foldable-content">
+                  <AlienBoardUI game={game} onTrackClick={handleAlienTrackClick} />
+                </div>
+              </div>
+            </div>
 
             {/* Historique en haut à droite */}
             <div style={{

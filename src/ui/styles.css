@@ -525,3 +525,23 @@ body {
   padding: 4px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
+
+/* Style commun pour toutes les cartes (Main, Missions, Rangée, Pioche) */
+.seti-common-card {
+  width: 120px;
+  height: 160px;
+  min-width: 120px;
+  min-height: 160px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: rgba(30, 30, 40, 0.9);
+  border: 1px solid #555;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+  padding: 6px;
+  box-sizing: border-box;
+  font-size: 0.7rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}

@@ -663,7 +663,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
 
         {/* Cartes */}
         <div className="seti-player-section">
-          <div className="seti-player-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="seti-player-section-title" style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
             <span>Main</span>
             <span 
               key={dataFlash ? `data-${dataFlash.id}` : 'data-static'}
@@ -688,7 +688,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               )}
             </div>
           )}
-          <div className="seti-player-list">
+          <div className="seti-player-list" style={{ flexDirection: 'row', overflowX: 'auto', paddingBottom: '8px', gap: '8px' }}>
             {!isRobot ? (
               currentPlayer.cards.length > 0 ? (
                 currentPlayer.cards.map((card) => {
@@ -730,7 +730,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                 return (
                   <div 
                     key={card.id} 
-                    className="seti-player-list-item"
+                    className="seti-common-card"
                     onClick={(e) => {
                       if (reservationState.active) {
                         if (card.revenue) {
@@ -869,24 +869,23 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                       </button>
                       </>
                     )}
-                    <div className="seti-card-name">
-                      <span>{card.name} ({card.type})</span>
+                    <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}>
+                      <span>{card.name}</span>
                     </div>
-                    <div style={{ fontSize: '0.85em', marginTop: '2px' }}>
-                      <span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}><strong>Coût:</strong> {card.cost}</span>
+                    <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span>
+                      <span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === 'ACTION' ? 'ACT' : (card.type === 'END_GAME' ? 'FIN' : 'MIS')}</span>
                     </div>
                     {card.description && (
-                      <div className="seti-card-description">{card.description}</div>
+                      <div className="seti-card-description" style={{ flex: 1, overflowY: 'auto', margin: '4px 0' }}>{card.description}</div>
                     )}
-                    <div className="seti-card-details" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px', marginTop: '4px' }}>
-                      <div className="seti-card-detail">
-                        {card.freeAction && <><strong>Action:</strong> {card.freeAction}</>}
+                    <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px' }}>
+                      <div className="seti-card-detail" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        {card.freeAction && <span>Act: {card.freeAction}</span>}
+                        {card.scanSector && <span>Scan: {card.scanSector}</span>}
                       </div>
                       <div className="seti-card-detail">
-                        {card.scanSector && <><strong>Scan:</strong> {card.scanSector}</>}
-                      </div>
-                      <div className="seti-card-detail">
-                        {card.revenue && <><strong>Revenu:</strong> {card.revenue}</>}
+                        {card.revenue && <span>Rev: {card.revenue}</span>}
                       </div>
                     </div>
                   </div>
@@ -906,19 +905,19 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         {/* Missions */}
         <div className="seti-player-section">
           <div className="seti-player-section-title">Missions</div>
-          <div className="seti-player-list">
+          <div className="seti-player-list" style={{ flexDirection: 'row', overflowX: 'auto', paddingBottom: '8px', gap: '8px' }}>
             {(currentPlayer.missions && currentPlayer.missions.length > 0) ? (
               currentPlayer.missions.map((mission: any) => (
-                <div key={mission.id} className="seti-player-list-item" style={{ 
+                <div key={mission.id} className="seti-common-card" style={{ 
                   borderLeft: mission.completed ? '3px solid #4caf50' : '3px solid #aaa',
-                  backgroundColor: mission.completed ? 'rgba(76, 175, 80, 0.1)' : 'transparent'
+                  backgroundColor: mission.completed ? 'rgba(76, 175, 80, 0.1)' : 'rgba(30, 30, 40, 0.9)'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontWeight: 'bold', color: '#fff' }}>{mission.name}</div>
-                    {mission.completed && <span style={{ fontSize: '0.8em', color: '#4caf50' }}>✓</span>}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                    <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.75rem', lineHeight: '1.1' }}>{mission.name}</div>
+                    {mission.completed && <span style={{ fontSize: '1em', color: '#4caf50', fontWeight: 'bold' }}>✓</span>}
                   </div>
                   {mission.description && (
-                    <div style={{ fontSize: '0.75em', color: '#ccc', fontStyle: 'italic', marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', overflowY: 'auto', flex: 1 }}>
                       {mission.description}
                     </div>
                   )}
