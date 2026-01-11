@@ -1,5 +1,5 @@
 import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, GAME_CONSTANTS, Planet } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, GAME_CONSTANTS, Planet, PlanetBonus } from '../core/types';
 import { 
   createRotationState, 
   calculateReachableCellsWithEnergy,
@@ -40,9 +40,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   const [selectedProbeId, setSelectedProbeId] = useState<string | null>(null);
   const [reachableCells, setReachableCells] = useState<Map<string, { movements: number; path: string[] }>>(new Map());
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
-
-  // État pour gérer la position de la case survolée
-  const [hoveredCell, setHoveredCell] = useState<{ disk: DiskName; sector: SectorNumber } | null>(null);
 
   // État pour contrôler la visibilité des plateaux rotatifs
   const [showLevel1, setShowLevel1] = useState<boolean>(true);
@@ -357,6 +354,58 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     );
   };
 
+  // Helper pour rendre le contenu du bonus dans le cercle (SVG)
+  const renderBonusContent = (bonus: any) => {
+    if (!bonus) return null;
+    
+    const hasPv = !!bonus.pv;
+    const hasOther = bonus.media || bonus.credits || bonus.energy || bonus.card || bonus.data || bonus.planetscan || bonus.revenue || bonus.anycard || bonus.anytechnology || bonus.yellowlifetrace;
+    
+    return (
+      <>
+        {hasPv && (
+          <text 
+            y={hasOther ? "-5" : "1"} 
+            textAnchor="middle" 
+            dominantBaseline="middle" 
+            fill="#fff" 
+            fontSize="10" 
+            fontWeight="bold"
+          >
+            {bonus.pv}
+          </text>
+        )}
+        {hasOther && (() => {
+           let label = '';
+           let color = '#fff';
+           if (bonus.media) { label = 'M'; color = '#ffeb3b'; }
+           else if (bonus.credits) { label = 'C'; color = '#ffd700'; }
+           else if (bonus.energy) { label = 'E'; color = '#ff6b6b'; }
+           else if (bonus.card) { label = '🃏'; color = '#aaffaa'; }
+           else if (bonus.data) { label = 'D'; color = '#8affc0'; }
+           else if (bonus.planetscan) { label = 'S'; color = '#fff'; }
+           else if (bonus.revenue) { label = 'R'; color = '#fff'; }
+           else if (bonus.anycard) { label = '🃏'; color = '#fff'; }
+           else if (bonus.anytechnology) { label = 'T'; color = '#fff'; }
+           else if (bonus.yellowlifetrace) { label = 'Tr'; color = '#ffd700'; }
+           
+           return (
+             <text 
+               y={hasPv ? "6" : "1"} 
+               textAnchor="middle" 
+               dominantBaseline="middle" 
+               fill={color} 
+               fontSize="10" 
+               fontWeight="bold"
+             >
+               {label}
+             </text>
+           );
+        })()}
+      </>
+    );
+  };
+
   // Fonction helper pour rendre la planète (utilisé dans la hover card)
   const renderPlanetIcon = (id: string, size: number, planetData?: Planet) => {
     const styles: { [key: string]: any } = {
@@ -413,6 +462,21 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
 
     const scale = size / 30;
 
+    // Helper pour fusionner les bonus
+    const mergeBonuses = (...bonuses: (PlanetBonus | undefined)[]): PlanetBonus => {
+      const result: PlanetBonus = {};
+      bonuses.forEach(b => {
+        if (!b) return;
+        (Object.keys(b) as Array<keyof PlanetBonus>).forEach(key => {
+          const k = key as keyof PlanetBonus;
+          if (typeof b[k] === 'number') {
+            result[k] = (result[k] || 0) + (b[k] || 0);
+          }
+        });
+      });
+      return result;
+    };
+
     const renderRings = (isFront: boolean) => (
       <>
         <div
@@ -444,6 +508,100 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         />
       </>
     );
+
+    const renderSatellites = () => {
+      if (!planetData || !planetData.satellites || planetData.satellites.length === 0) return null;
+
+      const count = planetData.satellites.length;
+      // Centre à 5h (environ 60 degrés, car 3h=0°, 6h=90°)
+      const centerAngle = 50;
+      const step = 40;
+      const startAngle = centerAngle - ((count - 1) * step / 2);
+
+      return planetData.satellites.map((satellite, index) => {
+        const satSize = size * 0.25;
+        const angleDeg = startAngle + (index * step);
+        const rad = angleDeg * Math.PI / 180;
+        
+        // Distance du centre: rayon planète + un peu moins pour chevaucher
+        const dist = (size / 2) * 0.85; 
+        
+        const x = Math.cos(rad) * dist;
+        const y = Math.sin(rad) * dist;
+        
+        // Conversion en top/left par rapport au coin haut-gauche (0,0) du conteneur
+        const top = (size / 2) + y - (satSize / 2);
+        const left = (size / 2) + x - (satSize / 2);
+
+        const bonus = mergeBonuses(...(satellite.landBonuses || []));
+        const probe = satellite.landers && satellite.landers[0];
+        const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
+        
+        const bonusText = formatBonus(bonus) || 'Aucun';
+        const tooltipText = player 
+            ? `Atterrisseur de ${player.name} sur ${satellite.name}` 
+            : `Récompenses: ${bonusText}`;
+            
+        const satStyles: { [key: string]: string } = {
+            'phobosdeimos': 'radial-gradient(circle at 30% 30%, #8b7355, #4a3c31)', // Brun rocheux sombre
+            'io': 'radial-gradient(circle at 30% 30%, #fffacd, #ffd700, #ff8c00)', // Jaune soufre volcanique
+            'europa': 'radial-gradient(circle at 30% 30%, #f0f8ff, #b0c4de)', // Blanc glace bleuté
+            'ganymede': 'radial-gradient(circle at 30% 30%, #d3d3d3, #8b8b83)', // Gris/Brun cratérisé
+            'callisto': 'radial-gradient(circle at 30% 30%, #696969, #2f4f4f)', // Gris sombre ancien
+            'titan': 'radial-gradient(circle at 30% 30%, #f4a460, #cd853f)', // Orange atmosphère épaisse
+            'enceladus': 'radial-gradient(circle at 30% 30%, #ffffff, #e0ffff)', // Blanc pur glace
+            'titania': 'radial-gradient(circle at 30% 30%, #dcdcdc, #708090)', // Gris neutre
+            'triton': 'radial-gradient(circle at 30% 30%, #ffe4e1, #bc8f8f)', // Rose pâle glace azote
+        };
+
+        return (
+          <div
+            key={`sat-${index}`}
+            style={{
+              position: 'absolute',
+              top: `${top}px`,
+              left: `${left}px`,
+              width: `${satSize}px`,
+              height: `${satSize}px`,
+              borderRadius: '50%',
+              background: satStyles[satellite.id] || 'radial-gradient(circle at 30% 30%, #d0d0d0, #808080)',
+              border: '1px solid #666',
+              boxShadow: '2px 2px 6px rgba(0,0,0,0.6)',
+              zIndex: 10 + index,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}
+          >
+             <div style={{
+                position: 'absolute',
+                top: '-16px',
+                width: '120px',
+                textAlign: 'center',
+                color: '#fff',
+                fontSize: '12px',
+                fontWeight: 'bold',
+                textShadow: '0 0 3px #000',
+                pointerEvents: 'none'
+             }}>
+               {satellite.name}
+             </div>
+
+             <svg width="100%" height="100%" viewBox="0 0 40 40" style={{ overflow: 'visible' }}>
+                <g transform="translate(20, 20)" style={{ cursor: 'help', pointerEvents: 'auto' }}>
+                  <title>{tooltipText}</title>
+                  <circle r="10" fill={player?.color || 'rgba(0,0,0,0.5)'} stroke="rgba(255,255,255,0.9)" strokeWidth="1.5" />
+                  {!player && (
+                     <g transform="scale(0.8)">
+                       {renderBonusContent(bonus)}
+                     </g>
+                  )}
+                </g>
+             </svg>
+          </div>
+        );
+      });
+    };
 
     return (
       <div style={{ width: `${size}px`, height: `${size}px`, position: 'relative' }}>
@@ -523,10 +681,19 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           >
             {/* Définition des slots */}
             {(() => {
-              const orbitSlots = new Array(5).fill(null);
-              const landSlots = new Array(4).fill(null);
-              //const orbitSlots = [planetData.orbitFirstBonus, ...(planetData.orbitNextBonuses || [])];
-              //const landSlots = [planetData.landFirstBonus, ...(planetData.landNextBonuses || [])];
+              const nextOrbitBonus = mergeBonuses(...(planetData.orbitNextBonuses || []));
+              const nextLandBonus = mergeBonuses(...(planetData.landNextBonuses || []));
+
+              const orbitSlots = new Array(5).fill(null).map((_, i) => {
+                 if (i === 0) return mergeBonuses(planetData.orbitFirstBonus, nextOrbitBonus);
+                 return nextOrbitBonus;
+              });
+
+              const landSlots = new Array(4).fill(null).map((_, i) => {
+                 if (i === 0) return mergeBonuses(planetData.landFirstBonus, nextLandBonus);
+                 if (i === 1) return mergeBonuses(planetData.landSecondBonus, nextLandBonus);
+                 return nextLandBonus;
+              });
               
               const orbiterCircleRadius = 15;
               const orbitRadius = size / 2 + 25;
@@ -656,26 +823,20 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     const pos = orbitPositions[i];
                     const probe = planetData.orbiters[i];
                     const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-                    const label = !player ? getBonusLabel(bonus) : '';
-                    const labelColor = getBonusColor(bonus);
                     const bonusText = formatBonus(bonus) || 'Aucun';
                     const tooltipText = player 
-                        ? `Orbiteur de ${player.name}\nBonus: ${bonusText}` 
-                        : `Emplacement Orbite ${i+1}\nBonus: ${bonusText}`;
+                        ? `Orbiteur de ${player.name}` 
+                        : `Récompenses: ${bonusText}`;
                     
                     const isFirst = i === 0;
 
                     return (
-                      <g key={`orb-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: 'help' }}>
+                      <g key={`orb-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: 'help', pointerEvents: 'auto' }}>
                         <title>{tooltipText}</title>
                         {isFirst ? (
                           <>
                             <circle r={orbiterCircleRadius} fill={player?.color || '#222'} stroke="#fff" strokeWidth="1.5" />
-                            {!player && (
-                          <text y="1" textAnchor="middle" dominantBaseline="middle" fill={labelColor} fontSize="10" fontWeight="bold">
-                            {label}
-                          </text>
-                            )}
+                            {!player && renderBonusContent(bonus)}
                           </>
                         ) : (
                           <circle r={4} fill={player?.color || `url(#corridor-grad-${planetData.id})`} />
@@ -689,26 +850,20 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     const pos = landPositions[i];
                     const probe = planetData.landers[i];
                     const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-                    const label = !player ? getBonusLabel(bonus) : '';
-                    const labelColor = getBonusColor(bonus);
                     const bonusText = formatBonus(bonus) || 'Aucun';
                     const tooltipText = player 
-                        ? `Atterrisseur de ${player.name}\nBonus: ${bonusText}` 
-                        : `Emplacement Atterrissage ${i+1}\nBonus: ${bonusText}`;
+                        ? `Atterrisseur de ${player.name}` 
+                        : `Récompenses: ${bonusText}`;
                     
-                    const isFirst = i === 0;
+                    const isFullSlot = i === 0 || (planetData.id === 'mars' && i === 1);
 
                     return (
-                      <g key={`land-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: 'help' }}>
+                      <g key={`land-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: 'help', pointerEvents: 'auto' }}>
                         <title>{tooltipText}</title>
-                        {isFirst ? (
+                        {isFullSlot ? (
                           <>
                             <circle r={landerCircleRadius} fill={player?.color || 'rgba(0,0,0,0.6)'} stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" />
-                            {!player && (
-                          <text y="1" textAnchor="middle" dominantBaseline="middle" fill={labelColor} fontSize="10" fontWeight="bold">
-                            {label}
-                          </text>
-                            )}
+                            {!player && renderBonusContent(bonus)}
                           </>
                         ) : (
                           <circle r={4} fill={player?.color || `url(#land-corridor-grad-${planetData.id})`} />
@@ -721,6 +876,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             })()}
           </svg>
         )}
+
+        {/* Satellites */}
+        {planetData && renderSatellites()}
       </div>
     );
   };
@@ -733,11 +891,11 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     if (bonus.media) items.push(`${bonus.media} Média`);
     if (bonus.credits) items.push(`${bonus.credits} Crédit`);
     if (bonus.energy) items.push(`${bonus.energy} Énergie`);
-    if (bonus.card) items.push(`${bonus.card} Carte`);
-    if (bonus.data) items.push(`${bonus.data} Data`);
-    if (bonus.planetscan) items.push(`${bonus.planetscan} Scan`);
-    if (bonus.revenue) items.push(`Revenu`);
-    if (bonus.anycard) items.push(`Carte`);
+    if (bonus.card) items.push(`${bonus.card} Pioche`);
+    if (bonus.data) items.push(`${bonus.data} Donnée`);
+    if (bonus.planetscan) items.push(`${bonus.planetscan} Scan (Planète)`);
+    if (bonus.revenue) items.push(`${bonus.revenue} Réservation`);
+    if (bonus.anycard) items.push(`${bonus.anycard} Carte`);
     if (bonus.yellowlifetrace) items.push(`Trace Jaune`);
     if (bonus.anytechnology) items.push(`${bonus.anytechnology} Tech`);
     return items.join(', ');
@@ -1311,34 +1469,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     return game.board.solarSystem.probes || [];
   }, [game.board.solarSystem.probes]);
 
-  // Calculer la position actuelle de toutes les planètes
-  const planetPositions = useMemo(() => {
-    const planets = [
-      { id: 'earth', name: 'Terre' },
-      { id: 'venus', name: 'Vénus' },
-      { id: 'mercury', name: 'Mercure' },
-      { id: 'mars', name: 'Mars' },
-      { id: 'jupiter', name: 'Jupiter' },
-      { id: 'saturn', name: 'Saturne' },
-      { id: 'uranus', name: 'Uranus' },
-      { id: 'neptune', name: 'Neptune' },
-    ];
-    
-    return planets.map(planet => {
-      const pos = getObjectPosition(planet.id, rotationAngle1, rotationAngle2, rotationAngle3);
-      if (pos) {
-        return {
-          name: planet.name,
-          position: `${pos.disk}${pos.absoluteSector}`,
-        };
-      }
-      return {
-        name: planet.name,
-        position: '?',
-      };
-    });
-  }, [rotationAngle1, rotationAngle2, rotationAngle3]);
-
   useImperativeHandle(ref, () => ({
     resetRotation1,
     rotateCounterClockwise1,
@@ -1748,29 +1878,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px' }}>
                         {renderPlanetIcon(planetData.id, 220, planetData)}
                       </div>
-                      {/*                      
-                      <div style={{ fontSize: '0.85em', marginBottom: '4px' }}>
-                        <div style={{ color: '#aaa', fontSize: '0.9em', textTransform: 'uppercase' }}>Orbite</div>
-                        <div style={{ marginLeft: '8px' }}>1er: <span style={{ color: '#ffd700' }}>{formatBonus(planetData.orbitFirstBonus)}</span></div>
-                        {planetData.orbitNextBonuses && planetData.orbitNextBonuses.length > 0 && (
-                          <div style={{ marginLeft: '8px' }}>Suiv: <span style={{ color: '#ccc' }}>{formatBonus(planetData.orbitNextBonuses[0])}</span></div>
-                        )}
-                      </div>
-
-                      <div style={{ fontSize: '0.85em', marginBottom: '4px', marginTop: '8px' }}>
-                        <div style={{ color: '#aaa', fontSize: '0.9em', textTransform: 'uppercase' }}>Atterrissage</div>
-                        <div style={{ marginLeft: '8px' }}>1er: <span style={{ color: '#ffd700' }}>{formatBonus(planetData.landFirstBonus)}</span></div>
-                        {planetData.landNextBonuses && planetData.landNextBonuses.length > 0 && (
-                          <div style={{ marginLeft: '8px' }}>Suiv: <span style={{ color: '#ccc' }}>{formatBonus(planetData.landNextBonuses[0])}</span></div>
-                        )}
-                      </div>
-
-                      {planetData.satellites && planetData.satellites.length > 0 && (
-                         <div style={{ fontSize: '0.8em', color: '#888', marginTop: '6px', fontStyle: 'italic' }}>
-                           Satellites: {planetData.satellites.map(s => s.name).join(', ')}
-                         </div>
-                      )}
-                      */}
                     </div>
                   );
                 }
@@ -1789,7 +1896,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                 const hasTech = currentPlayer.technologies.some(t => t.id.startsWith('exploration-2'));
                 subContent = (
                   <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>
-                    {hasTech ? 'Vous gagnez 1 media' : 'Nécessite 1 déplacement supplémentaire pour quitter'}
+                    {hasTech ? 'Gagnez 1 media en visitant' : 'Nécessite 1 déplacement supplémentaire pour quitter'}
                   </div>
                 );
               } else if (hoveredObject.type === 'planet' && hoveredObject.id !== 'earth') {
