@@ -442,6 +442,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
       </div>
       
       <div className="seti-player-layout">
+
         {/* Ressources */}
         <div className="seti-player-section" style={{ position: 'relative' }}>
           <div className="seti-player-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -552,6 +553,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               <span>Énergie:</span> <strong>{currentPlayer.energy}</strong>
             </div>
           </div>
+        </div>
+
+        {/* Revenues */}
+        <div className="seti-player-section" style={{ position: 'relative' }}>
           <div className="seti-player-section-title">Revenues</div>
           <div className="seti-player-revenues" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <div 
@@ -573,7 +578,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               <span>Carte:</span> <strong>{currentPlayer.revenueCards}</strong>
             </div>
           </div>
-      </div>
+        </div>
 
         {/* Actions */}
         <div className="seti-player-section">
@@ -626,6 +631,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               <div className="seti-player-list-empty">Aucune technologie</div>
             )}
           </div>
+        </div>
+
+        {/* Ordinateur */}
+        <div className="seti-player-section">
           <div className="seti-player-section-title" style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
             <span>Ordinateur</span>
             <span 
@@ -651,7 +660,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         {/* Cartes */}
         <div className="seti-player-section">
           <div className="seti-player-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Cartes</span>
+            <span>Main</span>
+            <span 
+              key={dataFlash ? `data-${dataFlash.id}` : 'data-static'}
+              className={dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
+              style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px' }}
+            >
+              Carte(s): <strong style={{ color: '#fff' }}>{currentPlayer.cards.length || 0}</strong>
+            </span>
           </div>
           {isDiscarding && (
             <div style={{ marginBottom: '10px', color: '#ff6b6b', fontSize: '0.9em' }}>
@@ -882,6 +898,34 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
             )}
           </div>
         </div>
+
+        {/* Missions */}
+        <div className="seti-player-section">
+          <div className="seti-player-section-title">Missions</div>
+          <div className="seti-player-list">
+            {(currentPlayer.missions && currentPlayer.missions.length > 0) ? (
+              currentPlayer.missions.map((mission: any) => (
+                <div key={mission.id} className="seti-player-list-item" style={{ 
+                  borderLeft: mission.completed ? '3px solid #4caf50' : '3px solid #aaa',
+                  backgroundColor: mission.completed ? 'rgba(76, 175, 80, 0.1)' : 'transparent'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontWeight: 'bold', color: '#fff' }}>{mission.name}</div>
+                    {mission.completed && <span style={{ fontSize: '0.8em', color: '#4caf50' }}>✓</span>}
+                  </div>
+                  {mission.description && (
+                    <div style={{ fontSize: '0.75em', color: '#ccc', fontStyle: 'italic', marginTop: '2px' }}>
+                      {mission.description}
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="seti-player-list-empty">Aucune mission jouée</div>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
     </div>
