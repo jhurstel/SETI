@@ -1495,43 +1495,37 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                </div>
             </div>
             
-            <div className={`seti-foldable-container ${isHistoryOpen ? 'open' : ''}`}>
-               <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
-                  <span style={{ flex: 1 }}>Historique</span>
-                  {historyLog.length > 0 && historyLog[0].previousState && (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); handleUndo(); }} 
-                      style={{ fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', backgroundColor: '#555', border: '1px solid #777', color: '#fff', borderRadius: '4px', marginRight: '5px' }} 
-                      title="Annuler la dernière action"
-                    >
-                      ↩
-                    </button>
-                  )}
-               </div>
-               <div className="seti-foldable-content">
-                 <div className="seti-history-list">
-                  {historyLog.length === 0 && <div style={{fontStyle: 'italic', padding: '4px', textAlign: 'center'}}>Aucune action</div>}
-                  {historyLog.map((entry) => {
-                    if (entry.message.startsWith('--- FIN DE LA MANCHE')) {
-                      return (
-                        <div key={entry.id} style={{ display: 'flex', alignItems: 'center', margin: '10px 0', color: '#aaa', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
-                          <div style={{ padding: '0 10px' }}>{entry.message.replace(/---/g, '').trim()}</div>
-                          <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
-                        </div>
-                      );
-                    }
-                    const player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
-                    const color = player ? (player.color || '#ccc') : '#ccc';
-                    return (
-                      <div key={entry.id} className="seti-history-item" style={{ borderLeft: `3px solid ${color}`, paddingLeft: '8px', marginBottom: '4px' }}>
-                        {player && <strong style={{ color: color }}>{player.name} </strong>}
-                        <span style={{ color: '#ddd' }}>{entry.message}</span>
-                      </div>
-                    );
-                  })}
-                 </div>
-               </div>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <PlayerBoardUI 
+                game={game} 
+                playerId={currentPlayerIdToDisplay}
+                onViewPlayer={setViewedPlayerId}
+                onAction={handleAction} 
+                isDiscarding={interactionState.type === 'DISCARDING'}
+                selectedCardIds={interactionState.type === 'DISCARDING' ? interactionState.cardsToDiscard : []}
+                onCardClick={handleCardClick}
+                onConfirmDiscard={handleConfirmDiscard}
+                onDiscardCardAction={handleDiscardCardAction}
+                onPlayCard={handlePlayCard}
+                onBuyCardAction={handleBuyCardAction}
+                onTradeResourcesAction={() => handleTrade('START')}
+                tradeState={{ phase: interactionState.type === 'TRADING_SPEND' ? 'spending' : (interactionState.type === 'TRADING_GAIN' ? 'gaining' : 'inactive'), spend: interactionState.type === 'TRADING_GAIN' ? { type: interactionState.spendType, cardIds: interactionState.spendCardIds } : undefined }}
+                onSpendSelection={(spendType, cardIds) => handleTrade('SPEND', { spendType, cardIds })}
+                onGainSelection={(gainType) => handleTrade('GAIN', { gainType })}
+                onCancelTrade={() => handleTrade('CANCEL')}
+                onGameUpdate={(newGame) => setGame(newGame)}
+                isSelectingComputerSlot={interactionState.type === 'SELECTING_COMPUTER_SLOT'}
+                onComputerSlotSelect={handleComputerColumnSelect}
+                onDrawCard={handleDrawCard}
+                isAnalyzing={interactionState.type === 'ANALYZING'}
+                hasPerformedMainAction={hasPerformedMainAction}
+                onNextPlayer={handleNextPlayer}
+                onHistory={(message) => addToHistory(message, game.players[game.currentPlayerIndex].id, game)}
+                onComputerBonus={handleComputerBonus}
+                reservationState={interactionState.type === 'RESERVING_CARD' ? { active: true, count: interactionState.count } : { active: false, count: 0 }}
+                onReserveCard={handleReserveCard}
+                isPlacingLifeTrace={interactionState.type === 'PLACING_LIFE_TRACE'}
+              />
             </div>
         </div>
         <div className="seti-right-column">
@@ -1653,42 +1647,55 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               </button>
               */}
             </div>
+
+            {/* Historique en haut à droite */}
+            <div style={{
+              position: 'absolute',
+              top: '15px',
+              right: '15px',
+              width: '300px',
+              zIndex: 1000,
+            }}>
+              <div className={`seti-foldable-container ${isHistoryOpen ? 'open' : ''}`} style={{ maxHeight: isHistoryOpen ? '60vh' : '40px' }}>
+               <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
+                  <span style={{ flex: 1 }}>Historique</span>
+                  {historyLog.length > 0 && historyLog[0].previousState && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleUndo(); }} 
+                      style={{ fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', backgroundColor: '#555', border: '1px solid #777', color: '#fff', borderRadius: '4px', marginRight: '5px' }} 
+                      title="Annuler la dernière action"
+                    >
+                      ↩
+                    </button>
+                  )}
+               </div>
+               <div className="seti-foldable-content">
+                 <div className="seti-history-list">
+                  {historyLog.length === 0 && <div style={{fontStyle: 'italic', padding: '4px', textAlign: 'center'}}>Aucune action</div>}
+                  {historyLog.map((entry) => {
+                    if (entry.message.startsWith('--- FIN DE LA MANCHE')) {
+                      return (
+                        <div key={entry.id} style={{ display: 'flex', alignItems: 'center', margin: '10px 0', color: '#aaa', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
+                          <div style={{ padding: '0 10px' }}>{entry.message.replace(/---/g, '').trim()}</div>
+                          <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
+                        </div>
+                      );
+                    }
+                    const player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
+                    const color = player ? (player.color || '#ccc') : '#ccc';
+                    return (
+                      <div key={entry.id} className="seti-history-item" style={{ borderLeft: `3px solid ${color}`, paddingLeft: '8px', marginBottom: '4px' }}>
+                        {player && <strong style={{ color: color }}>{player.name} </strong>}
+                        <span style={{ color: '#ddd' }}>{entry.message}</span>
+                      </div>
+                    );
+                  })}
+                 </div>
+               </div>
+            </div>
+            </div>
           </div>
-        
-        <div className="seti-bottom-layout">
-          <div className="seti-player-area">
-            <PlayerBoardUI 
-              game={game} 
-              playerId={currentPlayerIdToDisplay}
-              onViewPlayer={setViewedPlayerId}
-              onAction={handleAction} 
-              isDiscarding={interactionState.type === 'DISCARDING'}
-              selectedCardIds={interactionState.type === 'DISCARDING' ? interactionState.cardsToDiscard : []}
-              onCardClick={handleCardClick}
-              onConfirmDiscard={handleConfirmDiscard}
-              onDiscardCardAction={handleDiscardCardAction}
-              onPlayCard={handlePlayCard}
-              onBuyCardAction={handleBuyCardAction}
-              onTradeResourcesAction={() => handleTrade('START')}
-              tradeState={{ phase: interactionState.type === 'TRADING_SPEND' ? 'spending' : (interactionState.type === 'TRADING_GAIN' ? 'gaining' : 'inactive'), spend: interactionState.type === 'TRADING_GAIN' ? { type: interactionState.spendType, cardIds: interactionState.spendCardIds } : undefined }}
-              onSpendSelection={(spendType, cardIds) => handleTrade('SPEND', { spendType, cardIds })}
-              onGainSelection={(gainType) => handleTrade('GAIN', { gainType })}
-              onCancelTrade={() => handleTrade('CANCEL')}
-              onGameUpdate={(newGame) => setGame(newGame)}
-              isSelectingComputerSlot={interactionState.type === 'SELECTING_COMPUTER_SLOT'}
-              onComputerSlotSelect={handleComputerColumnSelect}
-              onDrawCard={handleDrawCard}
-              isAnalyzing={interactionState.type === 'ANALYZING'}
-              hasPerformedMainAction={hasPerformedMainAction}
-              onNextPlayer={handleNextPlayer}
-              onHistory={(message) => addToHistory(message, game.players[game.currentPlayerIndex].id, game)}
-              onComputerBonus={handleComputerBonus}
-              reservationState={interactionState.type === 'RESERVING_CARD' ? { active: true, count: interactionState.count } : { active: false, count: 0 }}
-              onReserveCard={handleReserveCard}
-              isPlacingLifeTrace={interactionState.type === 'PLACING_LIFE_TRACE'}
-            />
-          </div>
-        </div>
         </div>
       </div>
     </div>

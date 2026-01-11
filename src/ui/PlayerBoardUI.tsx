@@ -374,7 +374,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   const canSpendCards = tradeState.phase === 'spending' && (currentPlayer.cards || []).length >= 2;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', flex: 1, minHeight: 0 }}>
       {/* Onglets des joueurs */}
       <div className="seti-player-tabs" style={{ display: 'flex', gap: '4px', paddingLeft: '10px', marginBottom: '-1px', zIndex: 1 }}>
         {game.players.map((p, index) => {
@@ -415,7 +415,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         })}
       </div>
 
-    <div className="seti-player-panel" style={{ borderTop: `4px solid ${currentPlayer.color || '#444'}`, borderTopLeftRadius: 0 }}>
+    <div className="seti-player-panel" style={{ borderTop: `4px solid ${currentPlayer.color || '#444'}`, borderTopLeftRadius: 0, flex: 1, minHeight: 0, maxHeight: 'none' }}>
       <div className="seti-player-panel-title" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
         <span>
           {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV
@@ -441,10 +441,11 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         </button>
       </div>
       
-      <div className="seti-player-layout">
+      <div className="seti-player-layout" style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', paddingRight: '5px', flex: 1, minHeight: 0 }}>
 
+        <div style={{ display: 'flex', gap: '10px' }}>
         {/* Ressources */}
-        <div className="seti-player-section" style={{ position: 'relative' }}>
+        <div className="seti-player-section" style={{ position: 'relative', flex: 1 }}>
           <div className="seti-player-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Ressources</span>
             <div style={{ display: 'flex', gap: '5px' }}>
@@ -556,7 +557,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         </div>
 
         {/* Revenues */}
-        <div className="seti-player-section" style={{ position: 'relative' }}>
+        <div className="seti-player-section" style={{ position: 'relative', flex: 1 }}>
           <div className="seti-player-section-title">Revenues</div>
           <div className="seti-player-revenues" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <div 
@@ -579,11 +580,13 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
             </div>
           </div>
         </div>
+        </div>
 
         {/* Actions */}
+        {!isRobot && (
         <div className="seti-player-section">
           <div className="seti-player-section-title">Actions principales</div>
-          <div className="seti-player-actions">
+          <div className="seti-player-actions" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
             {Object.entries(ACTION_NAMES)
               .filter(([action]) => action)
               .map(([action, name]) => {
@@ -610,6 +613,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               })}
           </div>
         </div>
+        )}
 
         {/* Technologies */}
         <div className="seti-player-section">

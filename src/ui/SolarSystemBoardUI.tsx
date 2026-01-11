@@ -1,4 +1,4 @@
-import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect } from 'react';
+import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef } from 'react';
 import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, GAME_CONSTANTS } from '../core/types';
 import { 
   createRotationState, 
@@ -116,6 +116,24 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   
   // État pour gérer l'angle de rotation du plateau niveau 3
   const [rotationAngle3, setRotationAngle3] = useState<number>(() => gameAngle3);
+
+  // Gestion du redimensionnement pour maintenir le ratio carré
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [boardSize, setBoardSize] = useState<number>(0);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setBoardSize(Math.min(width, height));
+      }
+    });
+
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   // Synchroniser les angles avec le jeu seulement lors du montage initial ou si le jeu change de manière significative
   // Utiliser une ref pour suivre les valeurs précédentes
@@ -862,7 +880,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
 
   return (
     <>
-      <div className="seti-panel seti-solar-system-container">
+      <div className="seti-panel seti-solar-system-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
         <div className="seti-panel-title">Système solaire</div>
         
         {/* Boutons pour toggle l'affichage des plateaux */}
@@ -987,25 +1005,24 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
       </div>*/}
       
       {/* Conteneur pour positionner les éléments directement dans le panel */}
-      <div style={{
+      <div 
+        ref={containerRef}
+        style={{
           position: 'relative',
           width: '100%',
           flex: 1,
           minHeight: 0,
-          margin: '0 auto',
-          /* Forcer un carré parfait en utilisant padding-bottom */
-          height: 0,
-          paddingBottom: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          overflow: 'hidden'
         }}>
         {/* Conteneur interne pour positionner les éléments */}
         <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          minHeight: '100%', // S'assurer que le contenu prend au moins 100% de la hauteur
-          overflow: 'visible', // Permettre au contenu de dépasser
+          position: 'relative',
+          width: boardSize ? `${boardSize}px` : '100%',
+          height: boardSize ? `${boardSize}px` : '100%',
+          flexShrink: 0,
         }}>
           {/* Soleil au centre */}
           <div className="seti-sun" style={{ top: '50%' }}></div>

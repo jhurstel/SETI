@@ -336,7 +336,6 @@ body {
   padding: 10px;
   backdrop-filter: blur(10px);
   flex-shrink: 0;
-  max-height: 35vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -369,8 +368,7 @@ body {
   padding: 8px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  min-height: 0;
+  flex-shrink: 0;
 }
 
 .seti-player-section-title {
@@ -385,9 +383,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0;
 }
 
 .seti-res-badge {
@@ -409,9 +404,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 3px;
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0;
 }
 
 .seti-player-action-available {
@@ -444,9 +436,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  overflow-y: auto;
-  flex: 1;
-  min-height: 0;
 }
 
 .seti-player-list-item {
