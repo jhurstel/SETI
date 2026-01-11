@@ -117,6 +117,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   // État pour gérer l'angle de rotation du plateau niveau 3
   const [rotationAngle3, setRotationAngle3] = useState<number>(() => gameAngle3);
 
+  const nextRingLevel = game.board.solarSystem.nextRingLevel || 3;
+
   // Gestion du redimensionnement pour maintenir le ratio carré
   const containerRef = useRef<HTMLDivElement>(null);
   const [boardSize, setBoardSize] = useState<number>(0);
@@ -301,6 +303,55 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           style={{ filter: `drop-shadow(0 0 2px ${colorShadow})`, pointerEvents: 'auto' }} // Effet de glow + bloque les événements
         />
       </svg>
+    );
+  };
+
+  // Fonction pour rendre l'indicateur de rotation (signe >) adossé à la tuile
+  const renderRotationIndicator = (planetId: string, color: string) => {
+    let obj: CelestialObject | undefined;
+    if (planetId === 'saturn') obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'saturn');
+    else if (planetId === 'jupiter') obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'jupiter');
+    else if (planetId === 'mars') obj = INITIAL_ROTATING_LEVEL2_OBJECTS.find(o => o.id === 'mars');
+    else if (planetId === 'earth') obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(o => o.id === 'earth');
+
+    if (!obj) return null;
+
+    const { sectorCenterAngle, diskIndex } = calculateObjectPosition(obj.position.disk, obj.position.sector);
+    
+    // Positionner sur le bord extérieur du disque
+    const diskWidth = 8;
+    const sunRadius = 4;
+    const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
+    const indicatorRadius = outerRadius - 1.7;
+    
+    // Décalage angulaire pour ne pas être centré (vers le bord du secteur)
+    const angleOffset = diskIndex === 0 ? 30 : diskIndex === 1 ? 27 : 25;
+    const indicatorAngle = sectorCenterAngle - angleOffset;
+    
+    const radian = indicatorAngle * (Math.PI / 180);
+    const x = Math.cos(radian) * indicatorRadius;
+    const y = Math.sin(radian) * indicatorRadius;
+
+    return (
+      <div
+        key={`indicator-${planetId}`}
+        style={{
+          position: 'absolute',
+          left: `calc(50% + ${x}%)`,
+          top: `calc(50% + ${y}%)`,
+          transform: `translate(-50%, -50%) rotate(${indicatorAngle + 270}deg)`,
+          color: color,
+          fontSize: '40px',
+          fontWeight: '900',
+          zIndex: 60,
+          pointerEvents: 'none',
+          textShadow: `0 0 5px ${color}, 0 0 2px black`,
+          lineHeight: 1,
+          fontFamily: 'monospace'
+        }}
+      >
+        &gt;
+      </div>
     );
   };
 
@@ -1123,6 +1174,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
               }
               return null;
             })}
+
+            {/* Indicateur de rotation pour Saturne */}
+            {nextRingLevel === 3 && renderRotationIndicator('saturn', '#ffd700')}
           </div>
           )}
 
@@ -1191,6 +1245,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
               return null;
             })}
 
+            {/* Indicateur de rotation pour Mars */}
+            {nextRingLevel === 2 && renderRotationIndicator('mars', '#ff6b6b')}
           </div>
           )}
 
@@ -1245,6 +1301,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
               }
               return null;
             })}
+
+            {/* Indicateur de rotation pour Terre */}
+            {nextRingLevel === 1 && renderRotationIndicator('earth', '#4a9eff')}
           </div>
           )}
 

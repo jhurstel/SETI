@@ -973,38 +973,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const initialSector2 = game.board.solarSystem.initialSectorLevel2 || 1;
   const initialSector3 = game.board.solarSystem.initialSectorLevel3 || 1;
 
-  // Utiliser les angles initiaux depuis le jeu
-  const initialAngle1 = game.board.solarSystem.initialAngleLevel1 || 0;
-  const initialAngle2 = game.board.solarSystem.initialAngleLevel2 || 0;
-  const initialAngle3 = game.board.solarSystem.initialAngleLevel3 || 0;
-
-  // Obtenir les angles actuels depuis le jeu, ou utiliser les angles initiaux
-  const getCurrentAngle1 = () => {
-    return game.board.solarSystem.rotationAngleLevel1 ?? initialAngle1;
-  };
-  const getCurrentAngle2 = () => {
-    return game.board.solarSystem.rotationAngleLevel2 ?? initialAngle2;
-  };
-  const getCurrentAngle3 = () => {
-    return game.board.solarSystem.rotationAngleLevel3 ?? initialAngle3;
-  };
-
-  // Fonction pour mettre à jour les angles de rotation dans l'état du jeu
-  const updateRotationAngles = (level1: number, level2: number, level3: number) => {
-    setGame(prevGame => ({
-      ...prevGame,
-      board: {
-        ...prevGame.board,
-        solarSystem: {
-          ...prevGame.board.solarSystem,
-          rotationAngleLevel1: level1,
-          rotationAngleLevel2: level2,
-          rotationAngleLevel3: level3,
-        }
-      }
-    }));
-  };
-
   // Helper pour la couleur des secteurs
   const getSectorColorCode = (color: SectorColor) => {
     switch(color) {
@@ -1015,50 +983,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         default: return '#fff';
     }
   };
-
-  // Handlers pour les boutons de rotation
-  const handleRotateLevel1 = () => {
-    solarSystemRef.current?.rotateCounterClockwise1();
-    updateRotationAngles(
-      getCurrentAngle1() - 45, // Bleu tourne seul
-      getCurrentAngle2(),
-      getCurrentAngle3()
-    );
-  };
-
-  const handleRotateLevel2 = () => {
-    solarSystemRef.current?.rotateCounterClockwise2();
-    // Mettre à jour l'angle dans l'état du jeu
-    updateRotationAngles(
-      getCurrentAngle1() - 45, // Rouge entraine Bleu
-      getCurrentAngle2() - 45,
-      getCurrentAngle3()
-    );
-  };
-
-  const handleRotateLevel3 = () => {
-    solarSystemRef.current?.rotateCounterClockwise3();
-    // Mettre à jour l'angle dans l'état du jeu
-    updateRotationAngles(
-      getCurrentAngle1() - 45,
-      getCurrentAngle2() - 45,
-      getCurrentAngle3() - 45); // Jaune entraine tout
-  };
-
-  const nextRotationLevel = game.board.solarSystem.nextRingLevel || 1;
-  let nextRotationBackgroundColor = '#ffd700';
-  let nextRotationColor = '#000';
-  let nextRotationBorder = '#ffed4e';
-  if (nextRotationLevel === 2) {
-    nextRotationBackgroundColor = '#ff6b6b';
-    nextRotationColor = '#fff';
-    nextRotationBorder = '#ff8e8e';
-  } else if (nextRotationLevel === 1) {
-    nextRotationBackgroundColor = '#4a9eff';
-    nextRotationColor = '#fff';
-    nextRotationBorder = '#6bb3ff';
-  }
-
+  
   const humanPlayer = game.players.find(p => (p as any).type === 'human');
   const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id;
 
@@ -1540,113 +1465,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               initialSector3={initialSector3}
               highlightPlayerProbes={interactionState.type === 'FREE_MOVEMENT'}
             />
-            {/* Boutons de rotation des plateaux */}
-            <div style={{
-              position: 'absolute',
-              top: '15px',
-              left: '15px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              zIndex: 1000,
-            }}>
-              <div style={{
-                backgroundColor: nextRotationBackgroundColor,
-                color: nextRotationColor,
-                border: `2px solid ${nextRotationBorder}`,
-                borderRadius: '6px',
-                padding: '8px 12px',
-                fontSize: '0.9rem',
-                fontWeight: 'bold',
-                textAlign: 'center',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
-              }}>
-                Prochaine Rotation
-              </div>
-              {/*
-              <button
-                onClick={handleRotateLevel1}
-                style={{
-                  backgroundColor: '#4a9eff',
-                  color: '#fff',
-                  border: '2px solid #6bb3ff',
-                  borderRadius: '6px',
-                  padding: '8px 16px',
-                  fontSize: '0.9rem',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#6bb3ff';
-                  target.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#4a9eff';
-                  target.style.transform = 'scale(1)';
-                }}
-              >
-                Tourner Niveau 1
-              </button>
-              <button
-                onClick={handleRotateLevel2}
-                style={{
-                  backgroundColor: '#ff6b6b',
-                  color: '#fff',
-                  border: '2px solid #ff8e8e',
-                  borderRadius: '6px',
-                  padding: '8px 16px',
-                  fontSize: '0.9rem',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#ff8e8e';
-                  target.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#ff6b6b';
-                  target.style.transform = 'scale(1)';
-                }}
-              >
-                Tourner Niveau 2
-              </button>
-              <button
-                onClick={handleRotateLevel3}
-                style={{
-                  backgroundColor: '#ffd700',
-                  color: '#000',
-                  border: '2px solid #ffed4e',
-                  borderRadius: '6px',
-                  padding: '8px 16px',
-                  fontSize: '0.9rem',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
-                  transition: 'all 0.2s',
-                }}
-                onMouseEnter={(e) => {
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#ffed4e';
-                  target.style.transform = 'scale(1.05)';
-                }}
-                onMouseLeave={(e) => {
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#ffd700';
-                  target.style.transform = 'scale(1)';
-                }}
-              >
-                Tourner Niveau 3
-              </button>
-              */}
-            </div>
 
             {/* Historique en haut à droite */}
             <div style={{
