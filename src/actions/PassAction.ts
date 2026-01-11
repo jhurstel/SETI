@@ -81,6 +81,9 @@ export class PassAction extends BaseAction {
 
       if (this.selectedCardId) {
         cardIndex = deck.findIndex(c => c.id === this.selectedCardId);
+      } else if (deck.length > 0) {
+        // Si aucune carte n'est sélectionnée (ex: Robot), on prend la première
+        cardIndex = 0;
       }
       
       if (cardIndex !== -1) {
@@ -135,7 +138,8 @@ export class PassAction extends BaseAction {
       );
 
       // Mettre à jour les positions des sondes
-      updatedGame = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
+      const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
+      updatedGame = rotationResult.game;
     }
 
     // Passer au joueur suivant ou terminer la manche

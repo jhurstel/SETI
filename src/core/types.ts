@@ -123,6 +123,13 @@ export enum EventType {
   GAME_ENDED = "GAME_ENDED"
 }
 
+export enum ObjectiveCategory {
+  TECHNOLOGY = "TECHNOLOGY",
+  MISSION = "MISSION",
+  REVENUE = "REVENUE",
+  OTHER = "OTHER"
+}
+
 // ============================================================================
 // INTERFACES DE BASE
 // ============================================================================
@@ -169,6 +176,7 @@ export interface Player {
   hasPassed: boolean;
   type: 'human' | 'robot';
   color: string;
+  claimedMilestones: number[];
 }
 
 export interface Board {
@@ -178,6 +186,7 @@ export interface Board {
   technologyBoard: TechnologyBoard;
   alienBoard: AlienBoard;
   cardRow: Card[];
+  objectiveTiles: ObjectiveTile[];
 }
 
 export interface SolarSystem {
@@ -299,6 +308,20 @@ export interface LifeTraceBonus {
   pv?: number;
 }
 
+export interface ObjectiveTile {
+  id: string;
+  category: ObjectiveCategory;
+  side: 'A' | 'B';
+  name: string;
+  description: string;
+  rewards: {
+    first: number;
+    second: number;
+    others: number;
+  };
+  markers: string[]; // IDs des joueurs ayant un marqueur sur cette tuile
+}
+
 export interface Technology {
   id: string;
   name: string;
@@ -335,6 +358,7 @@ export interface Card {
   effects: CardEffect[];
   ownerId?: string;
   description?: string;
+  scoringModifiers?: ScoringModifier[];
 }
 
 export interface CardEffect {
@@ -497,13 +521,8 @@ export interface ValidationWarning {
 // ============================================================================
 
 export interface ScoreCategories {
-  goldenTiles: number;
-  technologySeries: number;
-  completedMissions: number;
-  reservedRevenue: number;
-  lifeTraceSets: number;
-  sectorProbePairs: number;
-  missionEndGamePairs: number;
+  missionEndGame: number;
+  objectiveTiles: number;
   speciesBonuses: number;
   total: number;
 }
@@ -543,9 +562,10 @@ export const GAME_CONSTANTS = {
   TECH_RESEARCH_COST_MEDIA: 6,
   SPECIES_DISCOVERY_TRACES: 3,
   HAND_SIZE_AFTER_PASS: 4,
+  INITIAL_SCORE: 24, // TBC
   INITIAL_CREDITS: 4,
   INITIAL_ENERGY: 3,
-  INITIAL_DATA: 6,
+  INITIAL_DATA: 6, // TBC
   INITIAL_MEDIA_COVERAGE: 4,
   INITIAL_REVENUE_CREDITS: 3,
   INITIAL_REVENUE_ENERGY: 2,

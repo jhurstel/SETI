@@ -20,7 +20,12 @@ import {
   ScoreCategories,
   LifeTraceType,
   Species,
-  CardType
+  Card,
+  CardType,
+  ObjectiveCategory,
+  TechnologyType,
+  GAME_CONSTANTS,
+  ProbeState
 } from '../core/types';
 
 export class ScoreManager {
@@ -34,46 +39,17 @@ export class ScoreManager {
     }
 
     const scores: ScoreCategories = {
-      goldenTiles: 0,
-      technologySeries: 0,
-      completedMissions: 0,
-      reservedRevenue: 0,
-      lifeTraceSets: 0,
-      sectorProbePairs: 0,
-      missionEndGamePairs: 0,
+      missionEndGame: 0,
+      objectiveTiles: 0,
       speciesBonuses: 0,
       total: 0
     };
 
-    // 1. Tuiles Score dorées
-    scores.goldenTiles = this.calculateGoldenTiles(player, game.board);
+    scores.missionEndGame = this.calculateMissionEndGame(player);
 
-    // 2. Séries de technologies
-    scores.technologySeries = this.calculateTechnologySeries(player);
+    scores.speciesBonuses = this.calculateSpeciesBonuses(player, game.discoveredSpecies);
 
-    // 3. Missions accomplies
-    scores.completedMissions = this.calculateCompletedMissions(player);
-
-    // 4. Revenus réservés
-    scores.reservedRevenue = this.calculateReservedRevenue(player);
-
-    // 5. Traces de vie (sets de 3 types)
-    scores.lifeTraceSets = this.calculateLifeTraceSets(player);
-
-    // 6. Paires : secteurs couverts / sondes
-    scores.sectorProbePairs = this.calculateSectorProbePairs(
-      player,
-      game.board
-    );
-
-    // 7. Paires : missions / cartes fin de partie
-    scores.missionEndGamePairs = this.calculateMissionEndGamePairs(player);
-
-    // 8. Effets spécifiques d'espèces
-    scores.speciesBonuses = this.calculateSpeciesBonuses(
-      player,
-      game.discoveredSpecies
-    );
+    scores.objectiveTiles = this.calculateObjectiveTiles(player, game.board);
 
     // Total
     scores.total = Object.values(scores).reduce((sum, val) => 
@@ -84,103 +60,120 @@ export class ScoreManager {
   }
 
   /**
-   * Calcule les points des tuiles Score dorées
-   */
-  private static calculateGoldenTiles(
-    player: Player,
-    board: Game['board']
-  ): number {
-    // TODO: Implémenter le calcul des tuiles dorées
-    // Basé sur les tuiles collectées pendant la partie
-    player;
-    board;
-    return 0;
-  }
-
-  /**
-   * Calcule les points des séries de technologies
-   */
-  private static calculateTechnologySeries(player: Player): number {
-    // TODO: Implémenter le calcul des séries
-    // Grouper les technologies par type et calculer les bonus
-    const techCount = player.technologies.length;
-    
-    // Exemple simplifié : 2 PV par technologie (à ajuster selon règles)
-    return techCount * 2;
-  }
-
-  /**
-   * Calcule les points des missions accomplies
-   */
-  private static calculateCompletedMissions(player: Player): number {
-    const completedMissions = player.missions.filter(m => m.completed);
-    // TODO: Implémenter le calcul exact selon les règles
-    return completedMissions.length * 5; // Exemple
-  }
-
-  /**
-   * Calcule les revenus réservés
-   */
-  private static calculateReservedRevenue(player: Player): number {
-    // TODO: Implémenter le calcul des revenus réservés
-    // Basé sur les crédits/énergie non dépensés
-    player;
-    return 0;
-  }
-
-  /**
-   * Calcule les points des sets de traces de vie
-   */
-  private static calculateLifeTraceSets(player: Player): number {
-    // Compter les traces par type
-    const tracesByType = new Map<LifeTraceType, number>();
-    
-    player.lifeTraces.forEach(trace => {
-      const count = tracesByType.get(trace.type) || 0;
-      tracesByType.set(trace.type, count + 1);
-    });
-
-    // Calculer les sets complets (3 types différents)
-    const types = Array.from(tracesByType.keys());
-    const minCount = Math.min(...types.map(t => tracesByType.get(t) || 0));
-    
-    // Chaque set de 3 types différents = X PV (à ajuster selon règles)
-    return minCount * 10; // Exemple
-  }
-
-  /**
-   * Calcule les points des paires secteurs/sondes
-   */
-  private static calculateSectorProbePairs(
-    player: Player,
-    board: Game['board']
-  ): number {
-    // Compter les secteurs couverts par le joueur
-    const coveredSectors = board.sectors.filter(
-      s => s.coveredBy === player.id
-    ).length;
-
-    // Compter les sondes
-    const probeCount = player.probes.length;
-
-    // Calculer les paires (minimum entre les deux)
-    const pairs = Math.min(coveredSectors, probeCount);
-    
-    // TODO: Ajuster selon les règles exactes
-    return pairs * 3; // Exemple
-  }
-
-  /**
    * Calcule les points des paires missions/cartes fin de partie
    */
-  private static calculateMissionEndGamePairs(player: Player): number {
-    const completedMissions = player.missions.filter(m => m.completed).length;
-    const endGameCards = player.cards.filter(c => c.type === CardType.END_GAME).length;
+  private static calculateMissionEndGame(player: Player): number {
+    // TODO: Implémenter les bonus selon les règles de chaque espèce
+    // Chaque espèce peut avoir des modificateurs de scoring différents
+    let bonus = 0;
+    const endGameCards : Card[] = player.cards.filter(c => c.type === CardType.END_GAME);
 
-    const pairs = Math.min(completedMissions, endGameCards);
-    
-    // TODO: Ajuster selon les règles exactes
-    return pairs * 4; // Exemple
+    endGameCards.forEach(card => {
+      card.scoringModifiers.forEach(modifier => {
+        // Appliquer les modificateurs selon leur type
+        bonus += modifier.value;
+      });
+    });
+
+    return bonus;
+  }
+
+  /**
+   * Calcule les points des tuiles objectifs du plateau
+   */
+  private static calculateObjectiveTiles(player: Player, board: Game['board']): number {
+    let total = 0;
+    if (!board.objectiveTiles) return 0;
+
+    board.objectiveTiles.forEach(tile => {
+      const index = tile.markers.indexOf(player.id);
+      if (index !== -1) {
+        let rewardValue = 0;
+        if (index === 0) rewardValue = tile.rewards.first;
+        else if (index === 1) rewardValue = tile.rewards.second;
+        else rewardValue = tile.rewards.others;
+
+        let count = 0;
+
+        switch (tile.category) {
+          case ObjectiveCategory.TECHNOLOGY:
+            if (tile.side === 'A') {
+              // Série de 3 types de technologies
+              const typeCounts = new Map<TechnologyType, number>();
+              player.technologies.forEach(t => {
+                typeCounts.set(t.type, (typeCounts.get(t.type) || 0) + 1);
+              });
+              
+              const counts = Array.from(typeCounts.values()).sort((a, b) => b - a);
+              while (counts.length < 3) counts.push(0);
+              // Greedy algorithm for sets of 3 distinct types (assuming max 4 types)
+              while (counts.length < 4) counts.push(0);
+
+              let sets = 0;
+              while (counts[2] > 0) {
+                 sets++;
+                 counts[0]--;
+                 counts[1]--;
+                 counts[2]--;
+                 counts.sort((a, b) => b - a);
+              }
+              count = sets;
+            } else {
+              // Paire de technologies
+              count = Math.floor(player.technologies.length / 2);
+            }
+            break;
+
+          case ObjectiveCategory.MISSION:
+            if (tile.side === 'A') {
+              // Mission accomplie
+              count = player.missions.filter(m => m.completed).length;
+            } else {
+              // Paire Mission / Fin de partie
+              const completedMissions = player.missions.filter(m => m.completed).length;
+              const endGameCards = player.cards.filter(c => c.type === CardType.END_GAME).length;
+              count = Math.floor((completedMissions + endGameCards) / 2);
+            }
+            break;
+
+          case ObjectiveCategory.REVENUE:
+            // Revenus réservés (au-delà du départ)
+            const reservedCredits = Math.max(0, player.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS);
+            const reservedEnergy = Math.max(0, player.revenueEnergy - GAME_CONSTANTS.INITIAL_REVENUE_ENERGY);
+            const reservedCards = Math.max(0, player.revenueCards - GAME_CONSTANTS.INITIAL_REVENUE_CARDS);
+
+            if (tile.side === 'A') {
+              // Série de 3 types
+              count = Math.min(reservedCredits, reservedEnergy, reservedCards);
+            } else {
+              // Type le plus réservé
+              count = Math.max(reservedCredits, reservedEnergy, reservedCards);
+            }
+            break;
+
+          case ObjectiveCategory.OTHER:
+            if (tile.side === 'A') {
+              // Série de 3 types de traces de vie
+              const tCounts = new Map<LifeTraceType, number>();
+              player.lifeTraces.forEach(t => tCounts.set(t.type, (tCounts.get(t.type) || 0) + 1));
+              
+              const cA = tCounts.get(LifeTraceType.TYPE_A) || 0;
+              const cB = tCounts.get(LifeTraceType.TYPE_B) || 0;
+              const cC = tCounts.get(LifeTraceType.TYPE_C) || 0;
+              count = Math.min(cA, cB, cC);
+            } else {
+              // Paire secteur couvert / sonde (orbiteur ou atterrisseur)
+              const coveredSectors = board.sectors.filter(s => s.coveredBy === player.id).length;
+              const probes = player.probes.filter(p => p.state === ProbeState.IN_ORBIT || p.state === ProbeState.LANDED).length;
+              count = Math.min(coveredSectors, probes);
+            }
+            break;
+        }
+
+        total += count * rewardValue;
+      }
+    });
+    return total;
   }
 
   /**
@@ -243,5 +236,3 @@ export class ScoreManager {
     return winners;
   }
 }
-
-

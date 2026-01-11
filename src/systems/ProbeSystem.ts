@@ -642,19 +642,110 @@ export class ProbeSystem {
     game: Game,
     oldRotationState: RotationState,
     newRotationState: RotationState
-  ): Game {
+  ): { game: Game; logs: string[] } {
     const updatedGame = { ...game };
+    const logs: string[] = [];
+
+    // Déterminer la direction de la poussée
+    // Si l'angle diminue (rotation anti-horaire), les secteurs avancent (1->2->3)
+    let pushDirection = 0;
+    if (newRotationState.level1Angle < oldRotationState.level1Angle ||
+        newRotationState.level2Angle < oldRotationState.level2Angle ||
+        newRotationState.level3Angle < oldRotationState.level3Angle) {
+      pushDirection = 1;
+    } else if (newRotationState.level1Angle > oldRotationState.level1Angle ||
+               newRotationState.level2Angle > oldRotationState.level2Angle ||
+               newRotationState.level3Angle > oldRotationState.level3Angle) {
+      pushDirection = -1;
+    }
     
     // Mettre à jour les sondes des joueurs
-    updatedGame.players = updatedGame.players.map(player => ({
-      ...player,
-      probes: player.probes.map(probe => {
+    updatedGame.players = updatedGame.players.map(player => {
+      let playerMediaGain = 0;
+
+      const updatedProbes = player.probes.map(probe => {
         if (probe.state !== ProbeState.IN_SOLAR_SYSTEM || !probe.solarPosition) {
           return probe;
         }
-        return this.recalculateProbePosition(probe, oldRotationState, newRotationState);
-      })
-    }));
+        
+        const pos = probe.solarPosition;
+        
+        // Vérifier si la sonde tourne avec son plateau (riding)
+        let isRiding = false;
+        if (pos.level === 3 && oldRotationState.level3Angle !== newRotationState.level3Angle) isRiding = true;
+        if (pos.level === 2 && oldRotationState.level2Angle !== newRotationState.level2Angle) isRiding = true;
+        if (pos.level === 1 && oldRotationState.level1Angle !== newRotationState.level1Angle) isRiding = true;
+
+        if (isRiding) {
+          return this.recalculateProbePosition(probe, oldRotationState, newRotationState);
+        } else {
+          // La sonde ne tourne pas (ex: sur L0). Vérifier si elle est recouverte.
+          let absoluteSector = pos.sector;
+          if (pos.level === 1) absoluteSector = rotateSector(pos.sector, oldRotationState.level1Angle);
+          else if (pos.level === 2) absoluteSector = rotateSector(pos.sector, oldRotationState.level2Angle);
+          else if (pos.level === 3) absoluteSector = rotateSector(pos.sector, oldRotationState.level3Angle);
+          
+          const newVisibleLevel = getVisibleLevel(pos.disk, absoluteSector, newRotationState);
+          
+          // Si recouverte par un niveau supérieur qui a bougé -> Poussée
+          // Note: La hiérarchie visuelle est Level 1 (Haut) > Level 2 > Level 3 > Level 0 (Bas/Fixe)
+          // On est recouvert si le nouveau niveau visible est < au nôtre (ex: 1 couvre 2)
+          // Ou si on est sur le niveau 0 et qu'un niveau > 0 nous couvre
+          const currentLevel = pos.level || 0;
+          const isCovered = newVisibleLevel !== 0 && (currentLevel === 0 || newVisibleLevel < currentLevel);
+
+          if (isCovered && pushDirection !== 0) {
+            const sectorIndex = (absoluteSector - 1 + pushDirection + 8) % 8;
+            const newAbsoluteSector = (sectorIndex + 1) as SectorNumber;
+            
+            const levelAtNewPos = getVisibleLevel(pos.disk, newAbsoluteSector, newRotationState);
+            
+            let newRelativeSector = newAbsoluteSector;
+            if (levelAtNewPos === 3) newRelativeSector = rotateSector(newAbsoluteSector, -newRotationState.level3Angle);
+            else if (levelAtNewPos === 2) newRelativeSector = rotateSector(newAbsoluteSector, -newRotationState.level2Angle);
+            else if (levelAtNewPos === 1) newRelativeSector = rotateSector(newAbsoluteSector, -newRotationState.level1Angle);
+            
+            // Vérifier gains média
+            const cell = getCell(pos.disk, newAbsoluteSector, newRotationState);
+            let mediaGain = 0;
+            let objectName = "";
+            if (cell) {
+              if (cell.hasComet) { mediaGain++; objectName = "Comète"; }
+              if (cell.hasPlanet && cell.planetId !== 'earth') { mediaGain++; objectName = cell.planetName || "Planète"; }
+              if (cell.hasAsteroid && player.technologies.some(t => t.id.startsWith('exploration-2'))) { mediaGain++; objectName = "Astéroïdes"; }
+            }
+
+            if (mediaGain > 0) {
+              playerMediaGain += mediaGain;
+              logs.push(`Sonde de ${player.name} poussée vers ${pos.disk}${newAbsoluteSector} (${objectName}) : +${mediaGain} Média`);
+            } else {
+              logs.push(`Sonde de ${player.name} poussée vers ${pos.disk}${newAbsoluteSector}`);
+            }
+
+            return {
+              ...probe,
+              solarPosition: {
+                disk: pos.disk,
+                sector: newRelativeSector,
+                level: levelAtNewPos
+              }
+            };
+          }
+          
+          return this.recalculateProbePosition(probe, oldRotationState, newRotationState);
+        }
+      });
+
+      if (playerMediaGain > 0) {
+        return {
+          ...player,
+          mediaCoverage: Math.min(player.mediaCoverage + playerMediaGain, GAME_CONSTANTS.MAX_MEDIA_COVERAGE),
+          probes: updatedProbes
+        };
+      }
+
+      return { ...player, probes: updatedProbes };
+    });
 
     // Mettre à jour les sondes du système solaire (copie de celles des joueurs)
     updatedGame.board = {
@@ -665,7 +756,7 @@ export class ProbeSystem {
       }
     };
 
-    return updatedGame;
+    return { game: updatedGame, logs };
   }
 
   private static recalculateProbePosition(

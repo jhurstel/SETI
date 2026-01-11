@@ -28,7 +28,9 @@ import {
   CardType,
   FreeAction,
   SectorColor,
-  RevenueBonus
+  RevenueBonus,
+  ObjectiveTile,
+  ObjectiveCategory
 } from './types';
 
 export class BoardManager {
@@ -42,7 +44,8 @@ export class BoardManager {
       planets: this.createPlanets(),
       technologyBoard: this.createTechnologyBoard(),
       alienBoard: this.createAlienBoard(),
-      cardRow: this.createCardRow()
+      cardRow: this.createCardRow(),
+      objectiveTiles: this.createObjectiveTiles()
     };
   }
 
@@ -478,5 +481,70 @@ export class BoardManager {
         });
     }
     return cards;
+  }
+
+  /**
+   * Crée les tuiles objectifs (4 tuiles, face aléatoire A ou B)
+   */
+  private static createObjectiveTiles(): ObjectiveTile[] {
+    const tiles: ObjectiveTile[] = [];
+    
+    // 1. Technology
+    const techSide = Math.random() > 0.5 ? 'A' : 'B';
+    tiles.push({
+      id: 'obj_tech',
+      category: ObjectiveCategory.TECHNOLOGY,
+      side: techSide,
+      name: 'Technologies',
+      description: techSide === 'A'
+        ? 'Gagnez les PV indiqués pour chaque série de 3 types de technologies'
+        : 'Gagnez les PV indiqués pour chaque paire de technologie que vous possédez',
+      rewards: techSide === 'A' ? { first: 11, second: 8, others: 5 } : { first: 7, second: 5, others: 3 },
+      markers: []
+    });
+
+    // 2. Mission
+    const missionSide = Math.random() > 0.5 ? 'A' : 'B';
+    tiles.push({
+      id: 'obj_mission',
+      category: ObjectiveCategory.MISSION,
+      side: missionSide,
+      name: 'Missions',
+      description: missionSide === 'A'
+        ? 'Gagnez les PV indiqués pour chaque mission que vous avez accomplie'
+        : 'Gagnez les PV indiqués pour chaque paire de cartes Mission accomplies et/ou Fin de partie',
+      rewards: missionSide === 'A' ? { first: 4, second: 3, others: 2 } : { first: 8, second: 6, others: 4 },
+      markers: []
+    });
+
+    // 3. Revenue
+    const revenueSide = Math.random() > 0.5 ? 'A' : 'B';
+    tiles.push({
+      id: 'obj_revenue',
+      category: ObjectiveCategory.REVENUE,
+      side: revenueSide,
+      name: 'Revenus',
+      description: revenueSide === 'A'
+        ? 'Gagnez les PV indiqués pour chaque série de 3 types de cartes réservées sous vos revenus'
+        : 'Gagnez les PV indiqués pour chaque carte du type que vous avez réservé le plus souvent',
+      rewards: revenueSide === 'A' ? { first: 11, second: 8, others: 5 } : { first: 5, second: 4, others: 3 },
+      markers: []
+    });
+
+    // 4. Other
+    const otherSide = Math.random() > 0.5 ? 'A' : 'B';
+    tiles.push({
+      id: 'obj_other',
+      category: ObjectiveCategory.OTHER,
+      side: otherSide,
+      name: 'Autres',
+      description: otherSide === 'A'
+        ? 'Gagnez les PV indiqués pour chaque série de 3 types de traces de vie que vous avez marqués'
+        : 'Gagnez les PV indiqués pour chaque paire secteur couvert / orbiteur ou atterrisseur',
+      rewards: { first: 8, second: 6, others: 4 },
+      markers: []
+    });
+
+    return tiles;
   }
 }

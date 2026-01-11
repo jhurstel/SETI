@@ -14,6 +14,7 @@ import { DataSystem } from '../systems/DataSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
+import { AIBehavior } from '../ai/AIBehavior';
 
 interface BoardUIProps {
   game: Game;
@@ -29,7 +30,8 @@ type InteractionState =
   | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology }
   | { type: 'ANALYZING' }
   | { type: 'RESERVING_CARD', count: number }
-  | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow' };
+  | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow' }
+  | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number };
 
 interface HistoryEntry {
   id: string;
@@ -64,11 +66,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const [hasPerformedMainAction, setHasPerformedMainAction] = useState(false);
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
   const [isTechOpen, setIsTechOpen] = useState(false);
+  const [isObjectivesOpen, setIsObjectivesOpen] = useState(false);
   const [isRowOpen, setIsRowOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isAlienOpen, setIsAlienOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(true);
   
+  // Auto-open tech panel when researching
+  useEffect(() => {
+    if (interactionState.type === 'RESEARCHING') {
+      setIsTechOpen(true);
+    }
+  }, [interactionState.type]);
+
   // État pour la modale de sélection de carte de fin de manche
-  const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: any[]; selectedCardId: string | null }>({ visible: false, cards: [], selectedCardId: null });
+  const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: any[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
 
   // Ref pour contrôler le plateau solaire
   const solarSystemRef = useRef<SolarSystemBoardUIRef>(null);
@@ -191,26 +202,56 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Effet pour gérer le tour du joueur Mock
   useEffect(() => {
     const currentPlayer = game.players[game.currentPlayerIndex];
-    // Si le joueur est un robot, il passe son tour automatiquement
+    // Si le joueur est un robot
     if (currentPlayer && currentPlayer.type === 'robot') {
       const timer = setTimeout(() => {
-        const cardsToKeep = currentPlayer.cards.slice(0, 4).map(c => c.id);
+        // 1. Vérifier les paliers d'objectifs
+        const milestoneClaim = AIBehavior.checkAndClaimMilestone(game, currentPlayer);
         
-        // Le robot choisit une carte aléatoire du paquet de manche si disponible
-        let selectedCardId: string | undefined;
-        const roundDeck = game.roundDecks[game.currentRound];
-        if (roundDeck && roundDeck.length > 0) {
-            selectedCardId = roundDeck[0].id; // Prend la première carte simplement
+        if (milestoneClaim) {
+           const updatedGame = structuredClone(game);
+           const upTile = updatedGame.board.objectiveTiles.find(t => t.id === milestoneClaim.tileId)!;
+           const upPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
+           
+           upTile.markers.push(upPlayer.id);
+           upPlayer.claimedMilestones.push(milestoneClaim.milestone);
+           
+           setGame(updatedGame);
+           if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+           
+           addToHistory(`(Robot) atteint le palier ${milestoneClaim.milestone} PV et place un marqueur sur "${upTile.name}"`, upPlayer.id, game);
+           return; // On attend le prochain cycle pour jouer l'action suivante
         }
-        performPass(cardsToKeep, selectedCardId);
+
+        // 2. Décider de l'action (Passer)
+        const decision = AIBehavior.decideAction(game, currentPlayer);
+        if (decision && decision.action === 'PASS') {
+            performPass(decision.cardsToKeep, decision.selectedCardId);
+        }
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [game, performPass]);
+  }, [game, performPass, addToHistory]);
 
   // Gestionnaire pour passer au joueur suivant (fin de tour simple)
   const handleNextPlayer = () => {
     if (!gameEngineRef.current) return;
+
+    // Vérifier les paliers de score avant de passer au joueur suivant
+    // Utiliser l'état du moteur pour avoir la version la plus à jour
+    const currentState = gameEngineRef.current.getState();
+    const currentPlayer = currentState.players[currentState.currentPlayerIndex];
+    const milestones = [25, 50, 70];
+    
+    for (const m of milestones) {
+      if (currentPlayer.score >= m && !currentPlayer.claimedMilestones.includes(m)) {
+        setInteractionState({ type: 'PLACING_OBJECTIVE_MARKER', milestone: m });
+        setToast({ message: `Palier de ${m} PV atteint ! Placez un marqueur sur un objectif avant de terminer le tour.`, visible: true });
+        setIsObjectivesOpen(true);
+        return; // Interrompre le passage au joueur suivant
+      }
+    }
+
     gameEngineRef.current.nextPlayer();
     setGame(gameEngineRef.current.getState());
     setHasPerformedMainAction(false);
@@ -246,7 +287,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Vérifier s'il y a un paquet de manche pour déclencher la modale
     const roundDeck = game.roundDecks[game.currentRound];
     if (roundDeck && roundDeck.length > 0) {
-        setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null });
+        setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
         // Note: performPass sera appelé après la confirmation dans la modale
     } else {
         performPass(cardsToKeep);
@@ -316,7 +357,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       // Vérifier s'il y a un paquet de manche pour déclencher la modale
       const roundDeck = game.roundDecks[game.currentRound];
       if (roundDeck && roundDeck.length > 0) {
-          setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null });
+          setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
       } else {
           performPass(cardsToKeep);
       }
@@ -370,15 +411,19 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         updatedGame.board.solarSystem.rotationAngleLevel3 || 0
       );
 
-      updatedGame = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
+      const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
+      updatedGame = rotationResult.game;
       
       addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias et fait tourner le système solaire (Niveau ${currentLevel}) pour rechercher une technologie`, player.id, game);
+
+      rotationResult.logs.forEach(log => addToHistory(log));
 
       setGame(updatedGame);
       if (gameEngineRef.current) {
         gameEngineRef.current.setState(updatedGame);
       }
       setInteractionState({ type: 'RESEARCHING' });
+      setIsTechOpen(true);
       setToast({ message: "Système pivoté. Sélectionnez une technologie.", visible: true });
     }
     else if (actionType === ActionType.ANALYZE_DATA) {
@@ -664,6 +709,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       gameEngineRef.current.setState(updatedGame);
     }
     setInteractionState({ type: 'IDLE' });
+    setIsTechOpen(false);
     setHasPerformedMainAction(true);
     setToast({ message: `Technologie ${tech.name} acquise !`, visible: true });
     
@@ -673,7 +719,42 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     else if (tech.id.startsWith('computing')) category = "Informatique";
 
     const gainsText = gains.length > 0 ? ` et gagne : ${gains.join(', ')}` : '';
-    addToHistory(`acquiert la technologie "${category} ${tech.name}"${gainsText}`, currentPlayer.id, game);
+    
+    // Fusionner avec l'entrée d'historique précédente (Rotation) pour que l'annulation
+    // revienne à l'état avant la rotation (et non à la sélection de technologie)
+    setHistoryLog(prev => {
+      // Trouver l'entrée de la rotation (dernière entrée avec un état précédent sauvegardé)
+      const rotationEntryIndex = prev.findIndex(e => e.previousState);
+      
+      if (rotationEntryIndex !== -1) {
+        const rotationEntry = prev[rotationEntryIndex];
+        
+        const newEntry: HistoryEntry = {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          message: `acquiert la technologie "${category} ${tech.name}"${gainsText}`,
+          playerId: currentPlayer.id,
+          previousState: rotationEntry.previousState, // État AVANT la rotation
+          previousInteractionState: rotationEntry.previousInteractionState, // État IDLE
+          previousHasPerformedMainAction: rotationEntry.previousHasPerformedMainAction,
+          timestamp: Date.now()
+        };
+        
+        // Remplacer l'entrée de rotation (et les logs intermédiaires) par la nouvelle entrée
+        return [newEntry, ...prev.slice(rotationEntryIndex + 1)];
+      }
+      
+      // Fallback si pas d'entrée précédente trouvée (ne devrait pas arriver)
+      const fallbackEntry: HistoryEntry = {
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+        message: `acquiert la technologie "${category} ${tech.name}"${gainsText}`,
+        playerId: currentPlayer.id,
+        previousState: currentGame,
+        previousInteractionState: { type: 'IDLE' },
+        previousHasPerformedMainAction: hasPerformedMainAction,
+        timestamp: Date.now()
+      };
+      return [fallbackEntry, ...prev];
+    });
   };
 
   // Gestionnaire pour l'achat de technologie (clic initial)
@@ -839,6 +920,41 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     addToHistory(`place une trace de vie sur la piste ${color} et gagne ${bonusMsg}`, player.id, game);
     setInteractionState({ type: 'IDLE' });
     setToast({ message: `Trace de vie placée ! ${bonusMsg}`, visible: true });
+  };
+
+  // Gestionnaire pour le clic sur un objectif (placement de marqueur de palier)
+  const handleObjectiveClick = (tileId: string) => {
+    if (interactionState.type !== 'PLACING_OBJECTIVE_MARKER') return;
+    
+    const tile = game.board.objectiveTiles.find(t => t.id === tileId);
+    if (!tile) return;
+    
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    
+    // Vérifier si le joueur a déjà un marqueur sur cet objectif
+    if (tile.markers.includes(currentPlayer.id)) {
+      setToast({ message: "Vous avez déjà un marqueur sur cet objectif.", visible: true });
+      return;
+    }
+        
+    // Mettre à jour le jeu
+    const updatedGame = structuredClone(game);
+    const upTile = updatedGame.board.objectiveTiles.find(t => t.id === tileId)!;
+    const upPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
+    
+    upTile.markers.push(upPlayer.id);
+    upPlayer.claimedMilestones.push(interactionState.milestone);
+    
+    setGame(updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+
+    addToHistory(`a atteint le palier ${interactionState.milestone} PV et place un marqueur sur "${tile.name}" (Points fin de partie)`, upPlayer.id, game);
+    
+    setInteractionState({ type: 'IDLE' });
+    setToast({ message: `Marqueur placé !`, visible: true });
+
+    // Continuer la fin de tour (vérifier d'autres paliers ou passer au joueur suivant)
+    handleNextPlayer();
   };
 
   // Utiliser les positions initiales depuis le jeu
@@ -1153,10 +1269,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               if (passModalState.selectedCardId) {
                 const currentPlayer = game.players[game.currentPlayerIndex];
                 // Recalculer les cartes à garder (au cas où on vient de la défausse)
-                // Si on vient de l'action PASS directe, on garde tout (déjà vérifié <= 4)
-                // Si on vient de la défausse, interactionState est déjà IDLE, mais on doit s'assurer de passer les bonnes cartes
-                // Simplification : on suppose que currentPlayer.cards est à jour (<= 4)
-                const cardsToKeep = currentPlayer.cards.map(c => c.id);
+                const cardsToKeep = passModalState.cardsToKeep || currentPlayer.cards.map(c => c.id);
                 performPass(cardsToKeep, passModalState.selectedCardId);
                 setPassModalState({ visible: false, cards: [], selectedCardId: null });
               }
@@ -1176,9 +1289,91 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           </button>
         </div>
       )}
+
+      {/* Overlay pour la recherche de technologie */}
+      {interactionState.type === 'RESEARCHING' && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          zIndex: 1500,
+          backdropFilter: 'blur(2px)'
+        }} onClick={() => setToast({ message: "Veuillez sélectionner une technologie", visible: true })} />
+      )}
+
       <div className="seti-root-inner">
         <div className="seti-left-panel">
-            <div className={`seti-foldable-container ${isTechOpen ? 'open' : ''}`}>
+            <div className={`seti-foldable-container ${isObjectivesOpen ? 'open' : ''}`}>
+              <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>Objectifs</div>
+              <div className="seti-foldable-content">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  {game.board.objectiveTiles && game.board.objectiveTiles.map(tile => (
+                    <div key={tile.id} 
+                      onClick={() => handleObjectiveClick(tile.id)}
+                      title={`Récompenses : 1er: ${tile.rewards.first} PV, 2ème: ${tile.rewards.second} PV, Autres: ${tile.rewards.others} PV`}
+                      style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                      border: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '1px solid #4a9eff' : '1px solid #555',
+                      borderRadius: '6px',
+                      padding: '8px',
+                      display: 'flex',
+                      cursor: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? 'pointer' : 'default',
+                      boxShadow: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '0 0 10px rgba(74, 158, 255, 0.3)' : 'none',
+                      flexDirection: 'column',
+                      gap: '4px',
+                      minHeight: '100px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '0.8em', lineHeight: '1.1' }}>{tile.name}</span>
+                        <span style={{ fontSize: '0.65em', color: '#aaa', border: '1px solid #555', padding: '1px 3px', borderRadius: '3px' }}>{tile.side}</span>
+                      </div>
+                      <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', marginBottom: 'auto' }}>{tile.description}</div>
+                      
+                      {/* Piste de score avec 4 cercles */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', position: 'relative', padding: '0 5px' }}>
+                        {/* Ligne de connexion */}
+                        <div style={{ position: 'absolute', top: '50%', left: '10px', right: '10px', height: '2px', backgroundColor: '#555', zIndex: 0 }}></div>
+                        
+                        {/* Cercles (1er, 2eme, Autre, Autre) */}
+                        {[tile.rewards.first, tile.rewards.second, tile.rewards.others, tile.rewards.others].map((pv, idx) => {
+                          const markerPlayerId = tile.markers[idx];
+                          const player = markerPlayerId ? game.players.find(p => p.id === markerPlayerId) : null;
+                          
+                          const currentPlayer = game.players[game.currentPlayerIndex];
+                          const isPlacingMarker = interactionState.type === 'PLACING_OBJECTIVE_MARKER';
+                          const hasMarkerOnTile = tile.markers.includes(currentPlayer.id);
+                          const isNextAvailable = isPlacingMarker && !hasMarkerOnTile && idx === tile.markers.length;
+
+                          return (
+                            <div key={idx} style={{
+                              width: '22px', height: '22px', borderRadius: '50%',
+                              backgroundColor: player ? (player.color || '#fff') : (isNextAvailable ? 'rgba(74, 158, 255, 0.3)' : '#222'),
+                              border: player ? '2px solid #fff' : (isNextAvailable ? '2px solid #4a9eff' : '1px solid #777'),
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              zIndex: 1, fontSize: '0.75em', fontWeight: 'bold',
+                              color: player ? '#000' : '#fff', 
+                              boxShadow: isNextAvailable ? '0 0 8px #4a9eff' : (player ? '0 0 4px rgba(0,0,0,0.5)' : 'none'),
+                              transform: isNextAvailable ? 'scale(1.2)' : 'scale(1)',
+                              transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                              cursor: isNextAvailable ? 'pointer' : 'default'
+                            }} title={player ? `Occupé par ${player.name}` : `${pv} PV`}>
+                              {player ? '' : pv}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className={`seti-foldable-container ${isTechOpen ? 'open' : ''}`}
+                 style={interactionState.type === 'RESEARCHING' ? { zIndex: 1501, position: 'relative', borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {}}
+            >
               <div className="seti-foldable-header" onClick={() => setIsTechOpen(!isTechOpen)}>Technologies</div>
               <div className="seti-foldable-content">
                 <TechnologyBoardUI 
@@ -1192,30 +1387,35 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             <div className={`seti-foldable-container ${isRowOpen ? 'open' : ''}`}>
                <div className="seti-foldable-header" onClick={() => setIsRowOpen(!isRowOpen)}>Rangée Principale</div>
                <div className="seti-foldable-content">
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '8px' }}>
+               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', padding: '8px' }}>
                  {game.board.cardRow && game.board.cardRow.map(card => (
                    <div key={card.id} style={{
                      border: '1px solid #555',
                      borderRadius: '6px',
-                     padding: '8px',
-                     backgroundColor: 'rgba(0,0,0,0.3)',
-                     width: '100%',
+                     padding: '6px',
+                     backgroundColor: 'rgba(30, 30, 40, 0.8)',
                      boxSizing: 'border-box',
                      display: 'flex',
                      flexDirection: 'column',
-                     gap: '6px',
-                     boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                     gap: '4px',
+                     boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                     minHeight: '100px',
+                     fontSize: '0.85em'
                    }}>
-                     <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#fff' }}>{card.name}</div>
-                     <div style={{ fontSize: '0.8em', color: '#aaa' }}>Coût: {card.cost}</div>
+                     <div style={{ fontWeight: 'bold', color: '#fff', lineHeight: '1.1', marginBottom: '2px' }}>{card.name}</div>
+                     <div style={{ fontSize: '0.9em', color: '#aaa' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></div>
+                     {card.description && <div style={{ fontSize: '0.75em', color: '#ccc', fontStyle: 'italic', margin: '2px 0', lineHeight: '1.2' }}>{card.description}</div>}
+                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', color: '#ddd', marginBottom: '2px' }}>
+                        {card.freeAction && <div>Act: {card.freeAction}</div>}
+                        {card.revenue && <div>Rev: {card.revenue}</div>}
+                     </div>
                      <div style={{ 
                        marginTop: 'auto', 
-                       padding: '6px', 
+                       padding: '4px', 
                        backgroundColor: 'rgba(255,255,255,0.05)', 
                        borderRadius: '4px',
                        textAlign: 'center',
                        border: `1px solid ${getSectorColorCode(card.scanSector)}`,
-                       boxShadow: `0 0 5px ${getSectorColorCode(card.scanSector)}40`
                      }}>
                        <div style={{ fontSize: '0.7em', textTransform: 'uppercase', color: '#ddd', marginBottom: '2px' }}>Scan</div>
                        <div style={{ 
@@ -1229,9 +1429,16 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                    </div>
                  ))}
                  {(!game.board.cardRow || game.board.cardRow.length === 0) && (
-                    <div style={{ color: '#888', fontStyle: 'italic', padding: '10px', width: '100%', textAlign: 'center' }}>Aucune carte disponible</div>
+                    <div style={{ gridColumn: '1 / -1', color: '#888', fontStyle: 'italic', padding: '10px', textAlign: 'center' }}>Aucune carte disponible</div>
                  )}
                </div>
+               </div>
+            </div>
+            
+            <div className={`seti-foldable-container ${isAlienOpen ? 'open' : ''}`}>
+               <div className="seti-foldable-header" onClick={() => setIsAlienOpen(!isAlienOpen)}>Piste Alien</div>
+               <div className="seti-foldable-content">
+                 <AlienBoardUI game={game} onTrackClick={handleAlienTrackClick} />
                </div>
             </div>
             

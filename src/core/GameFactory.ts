@@ -15,7 +15,9 @@ import {
   CardType,
   FreeAction,
   SectorColor,
-  RevenueBonus
+  RevenueBonus,
+  ObjectiveTile,
+  ObjectiveCategory
 } from './types';
 import { BoardManager } from './Board';
 
@@ -97,10 +99,11 @@ export class GameFactory {
       missions: [],
       dataComputer: this.createDataComputer(),
       lifeTraces: [],
-      score: 0,
+      score: GAME_CONSTANTS.INITIAL_SCORE,
       hasPassed: false,
       type: 'human',
-      color: '#4a90e2' as string
+      color: '#4a90e2' as string,
+      claimedMilestones: []
     };
   }
 

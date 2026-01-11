@@ -846,7 +846,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                       </button>
                       </>
                     )}
-                    <div className="seti-card-name">{card.name} ({card.type})</div>
+                    <div className="seti-card-name" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>{card.name} ({card.type})</span>
+                      <span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}><strong>Coût:</strong> {card.cost}</span>
+                    </div>
                     {card.description && (
                       <div className="seti-card-description">{card.description}</div>
                     )}

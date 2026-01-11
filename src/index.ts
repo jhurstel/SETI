@@ -4,6 +4,9 @@
  * Exporte tous les composants principaux du jeu
  */
 
+// Ai
+export * from './ai/AIBehavior';
+
 // Core
 export * from './core/types';
 export * from './core/Game';
