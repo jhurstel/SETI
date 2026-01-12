@@ -1,5 +1,5 @@
 import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, GAME_CONSTANTS, Planet, PlanetBonus } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, GAME_CONSTANTS, Planet, PlanetBonus, ProbeState } from '../core/types';
 import { 
   createRotationState, 
   calculateReachableCellsWithEnergy,
@@ -11,15 +11,19 @@ import {
   INITIAL_ROTATING_LEVEL3_OBJECTS,
   CelestialObject
 } from '../core/SolarSystemPosition';
+import { ProbeSystem } from '../systems/ProbeSystem';
 
 interface SolarSystemBoardUIProps {
   game: Game;
   onProbeMove?: (probeId: string, targetDisk: DiskName, targetSector: SectorNumber, cost: number, path: string[]) => void;
   onPlanetClick?: (planetId: string) => void;
+  onOrbit?: (planetId: string) => void;
+  onLand?: (planetId: string) => void;
   initialSector1?: number; // Secteur initial (1-8) pour positionner le plateau niveau 1
   initialSector2?: number; // Secteur initial (1-8) pour positionner le plateau niveau 2
   initialSector3?: number; // Secteur initial (1-8) pour positionner le plateau niveau 3
   highlightPlayerProbes?: boolean; // Mettre en surbrillance les sondes du joueur courant
+  hasPerformedMainAction?: boolean;
 }
 
 export interface SolarSystemBoardUIRef {
@@ -31,7 +35,7 @@ export interface SolarSystemBoardUIRef {
   rotateCounterClockwise3: () => void;
 }
 
-export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false }, ref) => {
+export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, hasPerformedMainAction = false }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredProbe, setHoveredProbe] = useState<string | null>(null);
@@ -40,6 +44,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   const [selectedProbeId, setSelectedProbeId] = useState<string | null>(null);
   const [reachableCells, setReachableCells] = useState<Map<string, { movements: number; path: string[] }>>(new Map());
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
+
+  // État pour le tooltip personnalisé des slots
+  const [slotTooltip, setSlotTooltip] = useState<{ content: React.ReactNode, x: number, y: number } | null>(null);
 
   // État pour contrôler la visibilité des plateaux rotatifs
   const [showLevel1, setShowLevel1] = useState<boolean>(true);
@@ -354,6 +361,34 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     );
   };
 
+  // Rendu du tooltip personnalisé
+  const renderSlotTooltip = () => {
+    if (!slotTooltip) return null;
+    return (
+      <div
+        style={{
+          position: 'fixed',
+          top: slotTooltip.y - 12,
+          left: slotTooltip.x,
+          transform: 'translate(-50%, -100%)',
+          backgroundColor: 'rgba(10, 15, 30, 0.95)',
+          padding: '8px 12px',
+          borderRadius: '6px',
+          border: '1px solid #78a0ff',
+          color: '#fff',
+          zIndex: 2000,
+          pointerEvents: 'none',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+          whiteSpace: 'nowrap',
+          textAlign: 'center',
+          fontSize: '0.9rem',
+        }}
+      >
+        {slotTooltip.content}
+      </div>
+    );
+  };
+
   // Helper pour rendre le contenu du bonus dans le cercle (SVG)
   const renderBonusContent = (bonus: any) => {
     if (!bonus) return null;
@@ -462,6 +497,44 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
 
     const scale = size / 30;
 
+    // Logique d'interaction (Orbite / Atterrissage)
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    
+    // Vérifier si le joueur a une sonde sur cette planète (via hoveredObject qui est la planète survolée)
+    const playerProbe = hoveredObject && game.board.solarSystem.probes.find(p => 
+        p.ownerId === currentPlayer.id && 
+        p.state === ProbeState.IN_SOLAR_SYSTEM &&
+        p.solarPosition?.disk === hoveredObject.position.disk &&
+        p.solarPosition?.sector === hoveredObject.position.sector &&
+        p.solarPosition?.level === hoveredObject.level
+    );
+
+    let canOrbit = false;
+    let orbitReason = "Nécessite une sonde sur la planète";
+    if (playerProbe) {
+        if (hasPerformedMainAction) {
+            orbitReason = "Action principale déjà effectuée";
+        } else {
+            const check = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id);
+            canOrbit = check.canOrbit;
+            orbitReason = check.canOrbit ? "Cliquez pour mettre en orbite (1 Crédit, 1 Énergie)" : (check.reason || "Impossible");
+        }
+    }
+
+    let canLand = false;
+    let landReason = "Nécessite une sonde sur la planète";
+    if (playerProbe) {
+        if (hasPerformedMainAction) {
+            landReason = "Action principale déjà effectuée";
+        } else {
+            const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id);
+            canLand = check.canLand;
+            landReason = check.canLand ? `Cliquez pour atterrir (Coût: ${check.energyCost} Énergie)` : (check.reason || "Impossible");
+        }
+    }
+
+    const hasExploration4 = currentPlayer.technologies.some(t => t.id.startsWith('exploration-4'));
+
     // Helper pour fusionner les bonus
     const mergeBonuses = (...bonuses: (PlanetBonus | undefined)[]): PlanetBonus => {
       const result: PlanetBonus = {};
@@ -538,9 +611,31 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
         
         const bonusText = formatBonus(bonus) || 'Aucun';
-        const tooltipText = player 
-            ? `Atterrisseur de ${player.name} sur ${satellite.name}` 
-            : `Récompenses: ${bonusText}`;
+        
+        const isOccupied = !!player;
+        let satReason = landReason;
+        let isSatClickable = !isOccupied && canLand && !!onLand;
+
+        if (!hasExploration4) {
+            satReason = "Nécessite la technologie Exploration IV";
+            isSatClickable = false;
+        }
+
+        const tooltipContent = isOccupied ? (
+            <div>Atterrisseur de <span style={{fontWeight: 'bold', color: player?.color}}>{player?.name}</span> sur {satellite.name}</div>
+        ) : (
+            <>
+                <div style={{ marginBottom: '4px', color: isSatClickable ? '#4a9eff' : '#aaa', fontWeight: isSatClickable ? 'bold' : 'normal' }}>
+                    {satReason}
+                </div>
+                <div style={{ fontSize: '0.9em', color: '#ccc' }}>
+                    Récompenses: <span style={{ color: '#ffd700' }}>{bonusText}</span>
+                </div>
+                {!hasExploration4 && (
+                    <div style={{ fontSize: '0.8em', color: '#ff6b6b', marginTop: '4px', fontStyle: 'italic' }}>(Tech Exploration IV requise)</div>
+                )}
+            </>
+        );
             
         const satStyles: { [key: string]: string } = {
             'phobosdeimos': 'radial-gradient(circle at 30% 30%, #8b7355, #4a3c31)', // Brun rocheux sombre
@@ -588,8 +683,16 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
              </div>
 
              <svg width="100%" height="100%" viewBox="0 0 40 40" style={{ overflow: 'visible' }}>
-                <g transform="translate(20, 20)" style={{ cursor: 'help', pointerEvents: 'auto' }}>
-                  <title>{tooltipText}</title>
+                <g transform="translate(20, 20)" style={{ cursor: isSatClickable ? 'pointer' : 'help', pointerEvents: 'auto' }} onClick={(e) => {
+                    if (isSatClickable && onLand) { e.stopPropagation(); onLand(satellite.id); }
+                }}
+                onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setSlotTooltip({ content: tooltipContent, x: rect.left + rect.width / 2, y: rect.top });
+                }}
+                onMouseLeave={() => setSlotTooltip(null)}
+                >
+                  {isSatClickable && <circle r="13" fill="none" stroke="#00ff00" strokeWidth="2" opacity="0.6" />}
                   <circle r="10" fill={player?.color || 'rgba(0,0,0,0.5)'} stroke="rgba(255,255,255,0.9)" strokeWidth="1.5" />
                   {!player && (
                      <g transform="scale(0.8)">
@@ -742,7 +845,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
 
               return (
                 <>
-                  {/* Dégradé pour le couloir */}
+                  {/* Dégradé pour le couloir Orbiteurs */}
                   {orbitPositions.length > 1 && (
                     <defs>
                       <linearGradient id={`corridor-grad-${planetData.id}`} gradientUnits="userSpaceOnUse" x1={orbitPositions[0].x} y1={orbitPositions[0].y} x2={orbitPositions[orbitPositions.length - 1].x} y2={orbitPositions[orbitPositions.length - 1].y}>
@@ -824,15 +927,38 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     const probe = planetData.orbiters[i];
                     const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
                     const bonusText = formatBonus(bonus) || 'Aucun';
-                    const tooltipText = player 
-                        ? `Orbiteur de ${player.name}` 
-                        : `Récompenses: ${bonusText}`;
+                    
+                    const isOccupied = !!player;
+                    const isNextAvailable = i === planetData.orbiters.length;
+                    const isClickable = isNextAvailable && canOrbit && !!onOrbit;
+                    
+                    const tooltipContent = isOccupied ? (
+                        <div>Orbiteur de <span style={{fontWeight: 'bold', color: player?.color}}>{player?.name}</span></div>
+                    ) : (
+                        <>
+                            <div style={{ marginBottom: '4px', color: isClickable ? '#4a9eff' : '#aaa', fontWeight: isClickable ? 'bold' : 'normal' }}>
+                                {orbitReason}
+                            </div>
+                            <div style={{ fontSize: '0.9em', color: '#ccc' }}>
+                                Récompenses: <span style={{ color: '#ffd700' }}>{bonusText}</span>
+                            </div>
+                        </>
+                    );
                     
                     const isFirst = i === 0;
 
                     return (
-                      <g key={`orb-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: 'help', pointerEvents: 'auto' }}>
-                        <title>{tooltipText}</title>
+                      <g key={`orb-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: isClickable ? 'pointer' : 'help', pointerEvents: 'auto' }} 
+                        onClick={(e) => {
+                        if (isClickable && onOrbit && planetData) { e.stopPropagation(); onOrbit(planetData.id); }
+                      }}
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setSlotTooltip({ content: tooltipContent, x: rect.left + rect.width / 2, y: rect.top });
+                      }}
+                      onMouseLeave={() => setSlotTooltip(null)}
+                      >
+                        {isClickable && <circle r={orbiterCircleRadius + 3} fill="none" stroke="#00ff00" strokeWidth="2" opacity="0.6" />}
                         {isFirst ? (
                           <>
                             <circle r={orbiterCircleRadius} fill={player?.color || '#222'} stroke="#fff" strokeWidth="1.5" />
@@ -851,15 +977,38 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     const probe = planetData.landers[i];
                     const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
                     const bonusText = formatBonus(bonus) || 'Aucun';
-                    const tooltipText = player 
-                        ? `Atterrisseur de ${player.name}` 
-                        : `Récompenses: ${bonusText}`;
+                    
+                    const isOccupied = !!player;
+                    const isNextAvailable = i === planetData.landers.length;
+                    const isClickable = isNextAvailable && canLand && !!onLand;
+
+                    const tooltipContent = isOccupied ? (
+                        <div>Atterrisseur de <span style={{fontWeight: 'bold', color: player?.color}}>{player?.name}</span></div>
+                    ) : (
+                        <>
+                            <div style={{ marginBottom: '4px', color: isClickable ? '#4a9eff' : '#aaa', fontWeight: isClickable ? 'bold' : 'normal' }}>
+                                {landReason}
+                            </div>
+                            <div style={{ fontSize: '0.9em', color: '#ccc' }}>
+                                Récompenses: <span style={{ color: '#ffd700' }}>{bonusText}</span>
+                            </div>
+                        </>
+                    );
                     
                     const isFullSlot = i === 0 || (planetData.id === 'mars' && i === 1);
 
                     return (
-                      <g key={`land-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: 'help', pointerEvents: 'auto' }}>
-                        <title>{tooltipText}</title>
+                      <g key={`land-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: isClickable ? 'pointer' : 'help', pointerEvents: 'auto' }} 
+                        onClick={(e) => {
+                        if (isClickable && onLand && planetData) { e.stopPropagation(); onLand(planetData.id); }
+                      }}
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setSlotTooltip({ content: tooltipContent, x: rect.left + rect.width / 2, y: rect.top });
+                      }}
+                      onMouseLeave={() => setSlotTooltip(null)}
+                      >
+                        {isClickable && <circle r={landerCircleRadius + 3} fill="none" stroke="#00ff00" strokeWidth="2" opacity="0.6" />}
                         {isFullSlot ? (
                           <>
                             <circle r={landerCircleRadius} fill={player?.color || 'rgba(0,0,0,0.6)'} stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" />
@@ -899,33 +1048,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     if (bonus.yellowlifetrace) items.push(`Trace Jaune`);
     if (bonus.anytechnology) items.push(`${bonus.anytechnology} Tech`);
     return items.join(', ');
-  };
-
-  const getBonusLabel = (bonus: any) => {
-    if (!bonus) return '';
-    if (bonus.pv) return `${bonus.pv}`;
-    if (bonus.media) return 'M';
-    if (bonus.credits) return 'C';
-    if (bonus.energy) return 'E';
-    if (bonus.card) return '🃏';
-    if (bonus.data) return 'D';
-    if (bonus.planetscan) return 'S';
-    if (bonus.revenue) return 'R';
-    if (bonus.anycard) return '🃏';
-    if (bonus.anytechnology) return 'T';
-    if (bonus.yellowlifetrace) return 'Tr';
-    return '?';
-  };
-
-  const getBonusColor = (bonus: any) => {
-    if (!bonus) return '#aaa';
-    if (bonus.pv) return '#fff';
-    if (bonus.media) return '#ffeb3b';
-    if (bonus.credits) return '#ffd700';
-    if (bonus.energy) return '#ff6b6b';
-    if (bonus.card) return '#aaffaa';
-    if (bonus.data) return '#8affc0';
-    return '#fff';
   };
 
   // Fonction helper pour rendre une planète
@@ -990,9 +1112,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
       boxShadow: '0 0 8px rgba(136, 136, 136, 0.6)',
       size: 24,
     };
-
-    // Récupérer les données de la planète pour les marqueurs
-    const planetData = game.board.planets.find(p => p.id === obj.id);
 
     return (
       <div
@@ -2151,6 +2270,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         </div>
       </div>
       </div>
+      
+      {/* Tooltip personnalisé pour les slots */}
+      {renderSlotTooltip()}
     </>
   );
 });

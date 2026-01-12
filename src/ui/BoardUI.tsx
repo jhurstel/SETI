@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, SectorColor, Technology, RevenueBonus } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, SectorColor, Technology, RevenueBonus, ProbeState } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -27,11 +27,12 @@ type InteractionState =
   | { type: 'TRADING_GAIN', spendType: string, spendCardIds?: string[] }
   | { type: 'FREE_MOVEMENT' }
   | { type: 'RESEARCHING' }
-  | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology }
+  | { type: 'SELECTING_TECH_BONUS' }
+  | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, isBonus?: boolean }
   | { type: 'ANALYZING' }
   | { type: 'RESERVING_CARD', count: number }
   | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow' }
-  | { type: 'BUYING_CARD' }
+  | { type: 'BUYING_CARD', count: number  }
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number };
 
 interface HistoryEntry {
@@ -41,6 +42,7 @@ interface HistoryEntry {
   previousState?: Game;
   previousInteractionState?: InteractionState;
   previousHasPerformedMainAction?: boolean;
+  previousPendingInteractions?: InteractionState[];
   timestamp: number;
 }
 
@@ -64,6 +66,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
   const [historyLog, setHistoryLog] = useState<HistoryEntry[]>([]);
   const [interactionState, setInteractionState] = useState<InteractionState>({ type: 'IDLE' });
+  const [pendingInteractions, setPendingInteractions] = useState<InteractionState[]>([]);
   const [hasPerformedMainAction, setHasPerformedMainAction] = useState(false);
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
   const [isTechOpen, setIsTechOpen] = useState(false);
@@ -74,7 +77,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   
   // Auto-open tech panel when researching
   useEffect(() => {
-    if (interactionState.type === 'RESEARCHING') {
+    if (interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS') {
       setIsTechOpen(true);
     }
     if (interactionState.type === 'BUYING_CARD') {
@@ -91,6 +94,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Ref pour accéder à l'état d'interaction actuel dans addToHistory sans dépendance
   const interactionStateRef = useRef(interactionState);
   useEffect(() => { interactionStateRef.current = interactionState; }, [interactionState]);
+  const pendingInteractionsRef = useRef(pendingInteractions);
+  useEffect(() => { pendingInteractionsRef.current = pendingInteractions; }, [pendingInteractions]);
 
   // Helper pour ajouter une entrée à l'historique
   const addToHistory = useCallback((message: string, playerId?: string, previousState?: Game, customInteractionState?: InteractionState) => {
@@ -101,6 +106,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       previousState,
       previousInteractionState: customInteractionState || interactionStateRef.current,
       previousHasPerformedMainAction: hasPerformedMainAction,
+      previousPendingInteractions: pendingInteractionsRef.current,
       timestamp: Date.now()
     };
     setHistoryLog(prev => [entry, ...prev]);
@@ -124,6 +130,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         setHasPerformedMainAction(lastEntry.previousHasPerformedMainAction);
       }
       
+      if (lastEntry.previousPendingInteractions) {
+        setPendingInteractions(lastEntry.previousPendingInteractions);
+      }
+      
       setToast({ message: "Retour en arrière effectué", visible: true });
     } else {
       setToast({ message: "Impossible d'annuler cette action", visible: true });
@@ -139,6 +149,16 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  // Effet pour traiter la file d'attente des interactions (récompenses en chaîne)
+  useEffect(() => {
+    if (interactionState.type === 'IDLE' && pendingInteractions.length > 0) {
+      const [next, ...rest] = pendingInteractions;
+      setPendingInteractions(rest);
+      setInteractionState(next);
+      // Note: Les toasts spécifiques peuvent être gérés ici ou lors de l'ajout à la file
+    }
+  }, [interactionState, pendingInteractions]);
 
   // Helper pour exécuter l'action Passer via PassAction
   const performPass = useCallback((cardsToKeep: string[], selectedCardId?: string) => {
@@ -473,6 +493,119 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   };
 
+  // Helper pour traiter les bonus (Orbite/Atterrissage)
+  const processBonuses = (bonuses: any, currentGame: Game, playerId: string): { updatedGame: Game, newPendingInteractions: InteractionState[] } => {
+    let updatedGame = currentGame;
+    const newPendingInteractions: InteractionState[] = [];
+
+    if (!bonuses) return { updatedGame, newPendingInteractions };
+
+    // Effets interactifs (File d'attente)
+    // Note: Les ressources simples (PV, Crédits, Energie, Media, Data, Pioche) sont supposées être gérées par ProbeSystem
+    if (bonuses.anycard) {
+      newPendingInteractions.push({ type: 'BUYING_CARD', count: bonuses.anycard });
+    }
+
+    if (bonuses.revenue) {
+        newPendingInteractions.push({ type: 'RESERVING_CARD', count: bonuses.revenue });
+    }
+    
+    if (bonuses.anytechnology) {
+      for (let i = 0; i < bonuses.anytechnology; i++) {
+          newPendingInteractions.push({ type: 'SELECTING_TECH_BONUS' });
+      }
+      setToast({ message: `Bonus : Choisissez ${bonuses.anytechnology} Technologie(s)`, visible: true });
+    }
+
+    if (bonuses.yellowlifetrace) {
+        newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: 'yellow' });
+    }
+    
+    if (bonuses.planetscan || bonuses.redscan || bonuses.bluescan || bonuses.yellowscan || bonuses.blackscan) {
+         // TODO: Implémenter le scan
+         // newPendingInteractions.push({ type: 'SCANNING' });
+         setToast({ message: "Bonus Scan : Fonctionnalité à venir", visible: true });
+    }
+
+    return { updatedGame, newPendingInteractions };
+  };
+
+  // Helper générique pour les interactions avec les planètes (Orbite/Atterrissage)
+  const handlePlanetInteraction = (
+    planetId: string,
+    actionFn: (game: Game, playerId: string, probeId: string, targetId: string) => { updatedGame: Game, bonuses?: any },
+    historyMessagePrefix: string,
+    successMessage: string
+  ) => {
+    if (interactionState.type !== 'IDLE') return;
+    if (hasPerformedMainAction) {
+        setToast({ message: "Action principale déjà effectuée", visible: true });
+        return;
+    }
+
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    
+    // Résolution de l'ID de la planète parente si c'est un satellite
+    let targetPlanetId = planetId;
+    const parentPlanet = game.board.planets.find(p => p.satellites?.some(s => s.id === planetId));
+    if (parentPlanet) {
+        targetPlanetId = parentPlanet.id;
+    }
+
+    // Trouver une sonde du joueur sur cette planète (ou la planète parente du satellite)
+    const probe = currentPlayer.probes.find(p => {
+        if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+        const pos = getObjectPosition(targetPlanetId, game.board.solarSystem.rotationAngleLevel1||0, game.board.solarSystem.rotationAngleLevel2||0, game.board.solarSystem.rotationAngleLevel3||0);
+        return pos && p.solarPosition.disk === pos.disk && p.solarPosition.sector === pos.sector && p.solarPosition.level === pos.level;
+    });
+
+    if (!probe) return;
+
+    // Sauvegarder l'état avant l'action pour l'historique (Undo annulera tout, y compris les bonus)
+    const stateBeforeAction = structuredClone(game);
+
+    try {
+        const result = actionFn(game, currentPlayer.id, probe.id, planetId);
+        
+        // Traiter les bonus
+        const { updatedGame, newPendingInteractions } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id);
+
+        setGame(updatedGame);
+        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+        setHasPerformedMainAction(true);
+        
+        if (newPendingInteractions.length > 0) {
+            setPendingInteractions(newPendingInteractions);
+        }
+
+        addToHistory(`${historyMessagePrefix} ${planetId}`, currentPlayer.id, stateBeforeAction);
+        setToast({ message: successMessage, visible: true });
+    } catch (e: any) {
+        setToast({ message: e.message, visible: true });
+    }
+  };
+
+  // Gestionnaire pour la mise en orbite via la hover card
+  const handleOrbit = (planetId: string) => {
+    handlePlanetInteraction(
+        planetId,
+        (g, pid, prid) => ProbeSystem.orbitProbe(g, pid, prid),
+        "met une sonde en orbite autour de",
+        "Sonde mise en orbite"
+    );
+  };
+
+  // Gestionnaire pour l'atterrissage via la hover card
+  const handleLand = (planetId: string) => {
+    handlePlanetInteraction(
+        planetId,
+        // On passe planetId comme targetId pour supporter l'atterrissage sur les satellites
+        (g, pid, prid, targetId) => ProbeSystem.landProbe(g, pid, prid, targetId),
+        "fait atterrir une sonde sur",
+        "Atterrissage réussi"
+    );
+  };
+
   // Gestionnaire pour le déplacement des sondes
   const handleProbeMove = async (probeId: string, targetDisk: DiskName, targetSector: SectorNumber, cost: number, path: string[]) => {
     if (!gameEngineRef.current) return;
@@ -496,7 +629,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       // Pour le log, on récupère la position avant le mouvement
       const probeBeforeMove = currentGame.board.solarSystem.probes.find(p => p.id === probeId);
-      let fromLoc = '?';
       if (probeBeforeMove?.solarPosition) {
         const pos = probeBeforeMove.solarPosition;
         const rotationState = createRotationState(
@@ -630,7 +762,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour l'action d'achat de carte avec du média
   const handleBuyCardAction = () => {
     if (interactionState.type !== 'IDLE') return;
-    setInteractionState({ type: 'BUYING_CARD' });
+    setInteractionState({ type: 'BUYING_CARD', count: 1});
     setToast({ message: "Sélectionnez une carte dans la rangée ou la pioche", visible: true });
   };
 
@@ -733,6 +865,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     
     // Fusionner avec l'entrée d'historique précédente (Rotation) pour que l'annulation
     // revienne à l'état avant la rotation (et non à la sélection de technologie)
+    // TODO: Gérer pendingInteractions ici aussi si nécessaire
     setHistoryLog(prev => {
       // Trouver l'entrée de la rotation (dernière entrée avec un état précédent sauvegardé)
       const rotationEntryIndex = prev.findIndex(e => e.previousState);
@@ -747,6 +880,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           previousState: rotationEntry.previousState, // État AVANT la rotation
           previousInteractionState: rotationEntry.previousInteractionState, // État IDLE
           previousHasPerformedMainAction: rotationEntry.previousHasPerformedMainAction,
+          previousPendingInteractions: rotationEntry.previousPendingInteractions,
           timestamp: Date.now()
         };
         
@@ -762,6 +896,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         previousState: currentGame,
         previousInteractionState: { type: 'IDLE' },
         previousHasPerformedMainAction: hasPerformedMainAction,
+        previousPendingInteractions: pendingInteractions,
         timestamp: Date.now()
       };
       return [fallbackEntry, ...prev];
@@ -801,7 +936,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     // Finaliser l'achat
-    processTechPurchase(interactionState.tech, col);
+    if (interactionState.isBonus) {
+        processTechBonus(interactionState.tech, col);
+    } else {
+        processTechPurchase(interactionState.tech, col);
+    }
   };
 
   // Gestionnaire pour la pioche de carte depuis le PlayerBoardUI (ex: bonus ordinateur)
@@ -1231,7 +1370,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       )}
 
       {/* Overlay pour la recherche de technologie ou l'achat de carte */}
-      {(interactionState.type === 'RESEARCHING' || interactionState.type === 'BUYING_CARD') && (
+      {(interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS' || interactionState.type === 'BUYING_CARD') && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -1293,10 +1432,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               game={game} 
               onProbeMove={handleProbeMove} 
               onPlanetClick={handlePlanetClick}
+              onOrbit={handleOrbit}
+              onLand={handleLand}
               initialSector1={initialSector1} 
               initialSector2={initialSector2} 
               initialSector3={initialSector3}
               highlightPlayerProbes={interactionState.type === 'FREE_MOVEMENT'}
+              hasPerformedMainAction={hasPerformedMainAction}
             />
 
             {/* Plateaux annexes en haut à gauche */}
@@ -1305,7 +1447,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               top: '15px',
               left: '15px',
               width: '560px',
-              zIndex: (interactionState.type === 'RESEARCHING' || interactionState.type === 'BUYING_CARD') ? 1501 : 1000,
+              zIndex: (interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS' || interactionState.type === 'BUYING_CARD') ? 1501 : 1000,
               display: 'flex',
               flexDirection: 'column',
               gap: '10px',
@@ -1381,14 +1523,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               <div className={`seti-foldable-container ${isTechOpen ? 'open' : ''}`}
                   style={{ 
                     pointerEvents: 'auto',
-                    ...(interactionState.type === 'RESEARCHING' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
+                    ...(interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
                   }}
               >
                 <div className="seti-foldable-header" onClick={() => setIsTechOpen(!isTechOpen)}>Technologies</div>
                 <div className="seti-foldable-content">
                   <TechnologyBoardUI 
                     game={game} 
-                    isResearching={interactionState.type === 'RESEARCHING'}
+                    isResearching={interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS'}
                     onTechClick={handleTechClick}
                   />
                 </div>

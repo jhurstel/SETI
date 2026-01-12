@@ -340,8 +340,10 @@ export class ProbeSystem {
       );
     }
     if (bonus.data) {
-      // TODO: Ajouter les données à l'ordinateur du joueur
-      //updatedPlayer.dataComputer.topRow.push({ id: `data_${Date.now()}_${playerId}`, type: 'data' });
+      updatedPlayer.data = Math.min(
+        updatedPlayer.data + (bonus.data || 0),
+        GAME_CONSTANTS.MAX_DATA
+      );
     }
     if (bonus.planetscan) {
       // TODO: Ajouter les scans rouges à la main du joueur
