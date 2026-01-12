@@ -365,22 +365,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     if (!slotTooltip) return null;
     return (
       <div
+        className="seti-custom-tooltip"
         style={{
-          position: 'fixed',
           top: slotTooltip.y - 12,
           left: slotTooltip.x,
-          transform: 'translate(-50%, -100%)',
-          backgroundColor: 'rgba(10, 15, 30, 0.95)',
-          padding: '8px 12px',
-          borderRadius: '6px',
-          border: '1px solid #78a0ff',
-          color: '#fff',
-          zIndex: 2000,
-          pointerEvents: 'none',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-          whiteSpace: 'nowrap',
-          textAlign: 'center',
-          fontSize: '0.9rem',
         }}
       >
         {slotTooltip.content}
@@ -954,7 +942,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                       }}
                       onMouseLeave={() => setSlotTooltip(null)}
                       >
-                        {isClickable && <circle r={orbiterCircleRadius + 3} fill="none" stroke="#00ff00" strokeWidth="2" opacity="0.6" />}
+                        {isClickable && <circle r={orbiterCircleRadius + 6} fill="none" stroke="#00ff00" strokeWidth="3" opacity="0.6" />}
                         {isFirst ? (
                           <>
                             <circle r={orbiterCircleRadius} fill={player?.color || '#222'} stroke="#fff" strokeWidth="1.5" />
@@ -1004,7 +992,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                       }}
                       onMouseLeave={() => setSlotTooltip(null)}
                       >
-                        {isClickable && <circle r={landerCircleRadius + 3} fill="none" stroke="#00ff00" strokeWidth="2" opacity="0.6" />}
+                        {isClickable && <circle r={landerCircleRadius + 6} fill="none" stroke="#00ff00" strokeWidth="3" opacity="0.6" />}
                         {isFullSlot ? (
                           <>
                             <circle r={landerCircleRadius} fill={player?.color || 'rgba(0,0,0,0.6)'} stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" />
@@ -1109,6 +1097,29 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
       size: 24,
     };
 
+    const planetData = game.board.planets.find(p => p.id === obj.id);
+    const hasOrbiters = planetData && planetData.orbiters && planetData.orbiters.length > 0;
+
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    const playerProbe = game.board.solarSystem.probes.find(p => 
+        p.ownerId === currentPlayer.id && 
+        p.state === ProbeState.IN_SOLAR_SYSTEM &&
+        p.solarPosition?.disk === obj.position.disk &&
+        p.solarPosition?.sector === obj.position.sector &&
+        (p.solarPosition?.level || 0) === (obj.level || 0)
+    );
+
+    let canInteract = false;
+    if (!hasPerformedMainAction) {
+        if (obj.id === 'earth') {
+             canInteract = ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch;
+        } else if (playerProbe) {
+             const canOrbit = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id).canOrbit;
+             const canLand = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id).canLand;
+             canInteract = canOrbit || canLand;
+        }
+    }
+
     return (
       <div
         key={obj.id}
@@ -1128,6 +1139,38 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         onMouseLeave={handleMouseLeaveObject}
         onClick={() => onPlanetClick && onPlanetClick(obj.id)}
       >
+        {hasOrbiters && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: `${style.size + 15}px`,
+              height: `${style.size + 15}px`,
+              borderRadius: '50%',
+              border: '1px dashed rgba(255, 255, 255, 0.6)',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+        {canInteract && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: `${style.size + 12}px`,
+              height: `${style.size + 12}px`,
+              borderRadius: '50%',
+              border: '3px solid #4caf50',
+              pointerEvents: 'none',
+              boxShadow: '0 0 5px #4caf50',
+              animation: 'pulse-green 2s infinite',
+            }}
+          />
+        )}
         <div
           style={{
             position: 'absolute',
@@ -1887,7 +1930,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           {/* Plateau rotatif niveau 1 avec 1 disque (A) - se superpose au niveau 2 */}
           {showLevel1 && (
           <div
-            className="seti-rotating-overlay seti-rotating-level-3"
+            className="seti-rotating-overlay seti-rotating-level-1"
             style={{
               position: 'absolute',
               top: '50%',

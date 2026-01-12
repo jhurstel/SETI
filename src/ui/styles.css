@@ -545,3 +545,26 @@ body {
   overflow: hidden;
   flex-shrink: 0;
 }
+
+/* Tooltip personnalisé pour les slots (Orbite/Atterrissage) */
+.seti-custom-tooltip {
+  position: fixed;
+  transform: translate(-50%, -100%);
+  background-color: rgba(10, 15, 30, 0.95);
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #78a0ff;
+  color: #fff;
+  z-index: 2000;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+@keyframes pulse-green {
+  0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 5px #4caf50; opacity: 0.7; }
+  50% { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 15px #4caf50; opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 5px #4caf50; opacity: 0.7; }
+}

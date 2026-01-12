@@ -42,7 +42,7 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.SCAN_SECTOR]: 'Scanner un secteur',
   [ActionType.ANALYZE_DATA]: 'Analyser des données',
   [ActionType.PLAY_CARD]: 'Jouer une carte',
-  [ActionType.RESEARCH_TECH]: 'Rechercher une technologie',
+  [ActionType.RESEARCH_TECH]: 'Rechercher une tech',
   [ActionType.PASS]: 'Passer définitivement',
 };
 
@@ -587,7 +587,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         {!isRobot && (
         <div className="seti-player-section">
           <div className="seti-player-section-title">Actions principales</div>
-          <div className="seti-player-actions" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px' }}>
+          <div className="seti-player-actions" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px' }}>
             {Object.entries(ACTION_NAMES)
               .filter(([action]) => action)
               .map(([action, name]) => {
