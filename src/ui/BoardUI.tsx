@@ -41,7 +41,7 @@ type InteractionState =
   | { type: 'ANALYZING' }
   | { type: 'RESERVING_CARD', count: number }
   | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow' }
-  | { type: 'BUYING_CARD', count: number  }
+  | { type: 'BUYING_CARD', count: number, isFree?: boolean }
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number };
 
 interface HistoryEntry {
@@ -517,7 +517,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Effets interactifs (File d'attente)
     // Note: Les ressources simples (PV, Crédits, Energie, Media, Data, Pioche) sont supposées être gérées par ProbeSystem
     if (bonuses.anycard) {
-      newPendingInteractions.push({ type: 'BUYING_CARD', count: bonuses.anycard });
+      newPendingInteractions.push({ type: 'BUYING_CARD', count: bonuses.anycard, isFree: true });
     }
 
     if (bonuses.revenue) {
@@ -644,9 +644,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (!gameEngineRef.current) return;
 
     // Synchroniser l'état de GameEngine avec le jeu actuel
-    gameEngineRef.current.setState(game);
+    gameEngineRef.current.setState(gameRef.current);
 
     let currentGame = gameRef.current; // Utiliser la ref pour avoir l'état le plus frais
+    
+    setToast({ message: "Déplacement...", visible: true });
+
     const currentPlayerId = currentGame.players[currentGame.currentPlayerIndex].id;
 
     let freeMovements = interactionState.type === 'FREE_MOVEMENT' ? 1 : 0;
@@ -659,24 +662,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       // Sauvegarder l'état avant le mouvement pour l'historique (copie profonde)
       const stateBeforeMove = structuredClone(currentGame);
-
-      // Pour le log, on récupère la position avant le mouvement
-      const probeBeforeMove = currentGame.board.solarSystem.probes.find(p => p.id === probeId);
-      if (probeBeforeMove?.solarPosition) {
-        const pos = probeBeforeMove.solarPosition;
-        const rotationState = createRotationState(
-          currentGame.board.solarSystem.rotationAngleLevel1 || 0,
-          currentGame.board.solarSystem.rotationAngleLevel2 || 0,
-          currentGame.board.solarSystem.rotationAngleLevel3 || 0
-        );
-        
-        let absSector = pos.sector;
-        if (pos.level === 1) absSector = rotateSector(pos.sector, rotationState.level1Angle);
-        else if (pos.level === 2) absSector = rotateSector(pos.sector, rotationState.level2Angle);
-        else if (pos.level === 3) absSector = rotateSector(pos.sector, rotationState.level3Angle);
-        
-        fromLoc = `${pos.disk}${absSector}`;
-      }
 
       // Utiliser l'action pour effectuer le mouvement
       const useFree = freeMovements > 0;
@@ -713,8 +698,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }
 
         currentGame = updatedGame;
-        //gameRef.current = currentGame; // Mettre à jour la ref locale
+        gameRef.current = currentGame; // Mettre à jour la ref locale pour garantir la fraîcheur
         setGame(currentGame);
+
+        // Mettre à jour l'état du moteur pour la prochaine étape du mouvement
+        if (gameEngineRef.current) {
+            gameEngineRef.current.setState(currentGame);
+        }
         
         // Mettre à jour le compteur de mouvements gratuits
         if (useFree) {
@@ -803,7 +793,43 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (interactionState.type !== 'BUYING_CARD') return;
     
     const currentPlayer = game.players[game.currentPlayerIndex];
-    const result = ResourceSystem.buyCard(game, currentPlayer.id, cardId);
+    let result: { updatedGame: Game, error?: string };
+
+    if (interactionState.isFree) {
+        // Logique pour carte gratuite (Bonus)
+        const updatedGame = structuredClone(game);
+        const player = updatedGame.players[updatedGame.currentPlayerIndex];
+        
+        if (cardId) {
+            // Prendre de la rangée
+            const rowIndex = updatedGame.board.cardRow.findIndex(c => c.id === cardId);
+            if (rowIndex !== -1) {
+                const card = updatedGame.board.cardRow[rowIndex];
+                player.cards.push(card);
+                updatedGame.board.cardRow.splice(rowIndex, 1);
+                
+                // Remplir la rangée
+                if (updatedGame.decks.actionCards.length > 0) {
+                    updatedGame.board.cardRow.push(updatedGame.decks.actionCards.shift()!);
+                }
+            } else {
+                // Carte non trouvée (ne devrait pas arriver)
+                return;
+            }
+        } else {
+            // Piocher du paquet
+            if (updatedGame.decks.actionCards.length > 0) {
+                player.cards.push(updatedGame.decks.actionCards.shift()!);
+            } else {
+                setToast({ message: "Pioche vide", visible: true });
+                return;
+            }
+        }
+        result = { updatedGame };
+    } else {
+        // Achat normal via ResourceSystem (coût en média)
+        result = ResourceSystem.buyCard(game, currentPlayer.id, cardId);
+    }
     
     if (result.error) {
       setToast({ message: result.error, visible: true });
@@ -812,10 +838,24 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     setGame(result.updatedGame);
-    setToast({ message: "Carte achetée (-3 Média)", visible: true });
-    addToHistory(cardId ? "achète une carte de la rangée pour 3 médias" : "achète une carte de la pioche pour 3 médias", currentPlayer.id, game, { type: 'IDLE' });
-    setInteractionState({ type: 'IDLE' });
-    setIsRowOpen(false);
+    
+    const msg = interactionState.isFree ? "Carte obtenue (Bonus)" : "Carte achetée (-3 Média)";
+    setToast({ message: msg, visible: true });
+    
+    const logMsg = interactionState.isFree 
+        ? (cardId ? "choisit une carte de la rangée (Bonus)" : "pioche une carte (Bonus)")
+        : (cardId ? "achète une carte de la rangée pour 3 médias" : "achète une carte de la pioche pour 3 médias");
+
+    addToHistory(logMsg, currentPlayer.id, game, { type: 'IDLE' });
+    
+    // Gérer le compteur pour les sélections multiples
+    if (interactionState.count > 1) {
+         setInteractionState({ ...interactionState, count: interactionState.count - 1 });
+         setToast({ message: `Encore ${interactionState.count - 1} carte(s) à choisir`, visible: true });
+    } else {
+        setInteractionState({ type: 'IDLE' });
+        setIsRowOpen(false);
+    }
   };
 
   // Gestionnaire unifié pour les échanges
@@ -1042,7 +1082,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       gainMsg = "1 Carte";
     }
 
-    addToHistory(`réserve la carte "${card.name}" et gagne immédiatement : ${gainMsg}`, currentPlayer.id, game);
+    addToHistory(`réserve la carte "${card.name}" et gagne immédiatement : ${gainMsg}`, currentPlayer.id, game, { type: 'IDLE' });
 
     // Si le bonus est une carte, on pioche immédiatement
     if (card.revenue === RevenueBonus.CARD) {
@@ -1426,7 +1466,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       <div className="seti-root-inner">
         <div className="seti-left-panel">
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{ 
+              flex: 1, 
+              display: 'flex', 
+              flexDirection: 'column', 
+              minHeight: 0,
+              position: interactionState.type === 'RESERVING_CARD' ? 'relative' : 'static',
+              zIndex: interactionState.type === 'RESERVING_CARD' ? 1501 : 'auto'
+            }}>
               <PlayerBoardUI 
                 game={game} 
                 playerId={currentPlayerIdToDisplay}

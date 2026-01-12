@@ -305,7 +305,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           fill={colorFill} // Plus clair pour la surbrillance
           stroke={colorStroke}
           strokeWidth="1.5" // Bordure plus épaisse
-          style={{ filter: `drop-shadow(0 0 2px ${colorShadow})`, pointerEvents: 'auto' }} // Effet de glow + bloque les événements
+          style={{ filter: `drop-shadow(0 0 2px ${colorShadow})`, pointerEvents: selectedProbeId ? 'none' : 'auto' }} // Effet de glow + bloque les événements
         />
       </svg>
     );
@@ -630,9 +630,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                 <div style={{ fontSize: '0.9em', color: '#ccc' }}>
                     Récompenses: <span style={{ color: '#ffd700' }}>{bonusText}</span>
                 </div>
-                {!hasExploration4 && (
-                    <div style={{ fontSize: '0.8em', color: '#ff6b6b', marginTop: '4px', fontStyle: 'italic' }}>(Tech Exploration IV requise)</div>
-                )}
             </>
         );
             
@@ -1125,7 +1122,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           height: `${style.size}px`,
           zIndex,
           cursor: 'pointer',
-          pointerEvents: 'auto',
+          pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
         onMouseEnter={() => handleMouseEnterObject(obj)}
         onMouseLeave={handleMouseLeaveObject}
@@ -1241,7 +1238,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           height: '20px',
           zIndex,
           cursor: 'help',
-          pointerEvents: 'auto',
+          pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
         onMouseEnter={() => handleMouseEnterObject(obj)}
         onMouseLeave={handleMouseLeaveObject}
@@ -1303,7 +1300,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           height: `${spread * 2}px`,
           zIndex,
           cursor: 'help',
-          pointerEvents: 'auto',
+          pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
         onMouseEnter={() => handleMouseEnterObject(obj)}
         onMouseLeave={handleMouseLeaveObject}
@@ -1535,6 +1532,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
 
   // Fonction pour gérer le clic sur une sonde
   const handleProbeClick = (probe: Probe, movementBonus: number = 0) => {
+    setHoveredObject(null);
     if (selectedProbeId === probe.id) {
       // Désélectionner si déjà sélectionnée
       setSelectedProbeId(null);
@@ -2069,6 +2067,24 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             })}
           </div>
 
+          {/* Backdrop pour désélectionner si on clique à côté (quand une sonde est sélectionnée) */}
+          {selectedProbeId && (
+            <div 
+              style={{
+                position: 'absolute',
+                top: 0, left: 0, width: '100%', height: '100%',
+                zIndex: 1999, // Juste en dessous des reachable cells (2000+)
+                cursor: 'default',
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedProbeId(null);
+                setReachableCells(new Map());
+                setHighlightedPath([]);
+              }}
+            />
+          )}
+
           {/* Surbrillance des cases accessibles */}
           {selectedProbeId && Array.from(reachableCells.entries()).map(([cellKey, data]) => {
             const [disk, sector] = [cellKey[0] as DiskName, parseInt(cellKey.substring(1)) as SectorNumber];
@@ -2106,7 +2122,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                   border: isTarget ? '2px solid #ffeb3b' : (isPathStep ? '2px solid #ffeb3b' : '2px solid #00ff00'),
                   backgroundColor: isTarget ? 'rgba(255, 235, 59, 0.5)' : (isPathStep ? 'rgba(255, 235, 59, 0.3)' : 'rgba(0, 255, 0, 0.2)'),
                   pointerEvents: 'auto',
-                  zIndex: isTarget ? 52 : (isPathStep ? 51 : 50),
+                  zIndex: isTarget ? 2002 : (isPathStep ? 2001 : 2000),
                   cursor: 'pointer',
                   display: 'flex',
                   justifyContent: 'center',

@@ -663,7 +663,12 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         </div>
 
         {/* Cartes */}
-        <div className="seti-player-section" style={reservationState.active ? { position: 'relative', zIndex: 1501 } : {}}>
+        <div className="seti-player-section" style={reservationState.active ? { 
+          position: 'relative', 
+          zIndex: 1501,
+          backgroundColor: '#2a2a2a',
+          boxShadow: '0 0 20px rgba(0,0,0,0.8)'
+        } : {}}>
           <div className="seti-player-section-title" style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
             <span>Main</span>
             <span 

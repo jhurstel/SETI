@@ -256,18 +256,28 @@ export class ProbeSystem {
 
     updatedGame.players[playerIndex] = updatedPlayer;
 
-    // Mettre à jour la position dans le système solaire
-    const systemProbe = updatedGame.board.solarSystem.probes.find(
-      p => p.id === probeId
-    );
-    if (systemProbe) {
-      systemProbe.solarPosition = {
-        disk: targetDisk,
-        sector: relativeSector,
-        level: targetLevel
-      };
-    }
-    // Note: La mise à jour des tiles (currentTile/targetTile) est omise car le système utilise maintenant solarPosition
+    // Mettre à jour la position dans le système solaire (Immutabilité)
+    const newSystemProbes = updatedGame.board.solarSystem.probes.map(p => {
+      if (p.id === probeId) {
+        return {
+          ...p,
+          solarPosition: {
+            disk: targetDisk,
+            sector: relativeSector,
+            level: targetLevel
+          }
+        };
+      }
+      return p;
+    });
+
+    updatedGame.board = {
+      ...updatedGame.board,
+      solarSystem: {
+        ...updatedGame.board.solarSystem,
+        probes: newSystemProbes
+      }
+    };
 
     return updatedGame;
   }
