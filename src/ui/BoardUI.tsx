@@ -9,7 +9,16 @@ import { MoveProbeAction } from '../actions/MoveProbeAction';
 import { PassAction } from '../actions/PassAction';
 import { GameEngine } from '../core/Game';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { createRotationState, getCell, getObjectPosition, rotateSector } from '../core/SolarSystemPosition';
+import { 
+  createRotationState, 
+  getCell, 
+  getObjectPosition, 
+  rotateSector,
+  FIXED_OBJECTS,
+  INITIAL_ROTATING_LEVEL1_OBJECTS,
+  INITIAL_ROTATING_LEVEL2_OBJECTS,
+  INITIAL_ROTATING_LEVEL3_OBJECTS
+} from '../core/SolarSystemPosition';
 import { DataSystem } from '../systems/DataSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -500,6 +509,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     if (!bonuses) return { updatedGame, newPendingInteractions };
 
+    // Effets immédiats (Pioche)
+    if (bonuses.card) {
+      updatedGame = CardSystem.drawCards(updatedGame, playerId, bonuses.card, 'Cartes obtenues avec orbiteur/atterrisseur');
+    }
+
     // Effets interactifs (File d'attente)
     // Note: Les ressources simples (PV, Crédits, Energie, Media, Data, Pioche) sont supposées être gérées par ProbeSystem
     if (bonuses.anycard) {
@@ -552,11 +566,30 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         targetPlanetId = parentPlanet.id;
     }
 
-    // Trouver une sonde du joueur sur cette planète (ou la planète parente du satellite)
+    // Trouver la définition statique de la planète pour obtenir sa position relative
+    const allObjects = [
+      ...FIXED_OBJECTS,
+      ...INITIAL_ROTATING_LEVEL1_OBJECTS,
+      ...INITIAL_ROTATING_LEVEL2_OBJECTS,
+      ...INITIAL_ROTATING_LEVEL3_OBJECTS
+    ];
+    const planetDef = allObjects.find(o => o.id === targetPlanetId);
+
+    if (!planetDef) {
+      console.error(`Planète introuvable: ${targetPlanetId}`);
+      return;
+    }
+
+    // Trouver une sonde du joueur sur cette planète (en comparant les positions relatives)
     const probe = currentPlayer.probes.find(p => {
         if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-        const pos = getObjectPosition(targetPlanetId, game.board.solarSystem.rotationAngleLevel1||0, game.board.solarSystem.rotationAngleLevel2||0, game.board.solarSystem.rotationAngleLevel3||0);
-        return pos && p.solarPosition.disk === pos.disk && p.solarPosition.sector === pos.sector && p.solarPosition.level === pos.level;
+        // Comparaison souple pour le niveau (0, null, undefined sont équivalents pour le niveau fixe)
+        const probeLevel = p.solarPosition.level || 0;
+        const planetLevel = planetDef.level || 0;
+        
+        return p.solarPosition.disk === planetDef.position.disk && 
+               p.solarPosition.sector === planetDef.position.sector && 
+               probeLevel === planetLevel;
     });
 
     if (!probe) return;
@@ -589,7 +622,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleOrbit = (planetId: string) => {
     handlePlanetInteraction(
         planetId,
-        (g, pid, prid) => ProbeSystem.orbitProbe(g, pid, prid),
+        (g, pid, prid, targetId) => ProbeSystem.orbitProbe(g, pid, prid, targetId),
         "met une sonde en orbite autour de",
         "Sonde mise en orbite"
     );
@@ -945,7 +978,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour la pioche de carte depuis le PlayerBoardUI (ex: bonus ordinateur)
   const handleDrawCard = (count: number, source: string) => {
-    // Note: drawCards est maintenant dans CardSystem
     const updatedGame = CardSystem.drawCards(game, game.players[game.currentPlayerIndex].id, count, source);
     setGame(updatedGame);
     addToHistory(`pioche ${count} carte${count > 1 ? 's' : ''} (${source})`, game.players[game.currentPlayerIndex].id, game);

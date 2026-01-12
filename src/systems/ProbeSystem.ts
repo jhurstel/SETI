@@ -27,6 +27,7 @@ import {
   rotateSector,
   RotationState 
 } from '../core/SolarSystemPosition';
+import { CardSystem } from './CardSystem';
 
 export class ProbeSystem {
   /**
@@ -345,49 +346,20 @@ export class ProbeSystem {
         GAME_CONSTANTS.MAX_DATA
       );
     }
-    if (bonus.planetscan) {
-      // TODO: Ajouter les scans rouges à la main du joueur
-      //updatedPlayer.redscan += bonus.redscan;
+    if (bonus.planetscan || bonus.redscan || bonus.bluescan || bonus.yellowscan || bonus.blackscan) {
+      // Géré via intéraction utilisateur dans orbitProbe/landProbe côté UI
     }
-    if (bonus.redscan) {
-      // TODO: Ajouter les scans rouges à la main du joueur
-      //updatedPlayer.redscan += bonus.redscan;
+    if (bonus.card || bonus.anycard) {
+      // Géré via intéraction utilisateur dans orbitProbe/landProbe côté UI
     }
-    if (bonus.bluescan) {
-      // TODO: Ajouter les scans bleus à la main du joueur
-      //updatedPlayer.bluescan += bonus.bluescan;
-    }
-    if (bonus.yellowscan) {
-      // TODO: Ajouter les scans jaunes à la main du joueur
-      //updatedPlayer.yellowscan += bonus.yellowscan;
-    }
-    if (bonus.card) {
-      // TODO: Ajouter les cartes à la main du joueur
-      //updatedPlayer.cards.push({ id: `card_${Date.now()}_${playerId}`, type: 'card' });
-    }
-    if (bonus.anycard) {
-      // TODO: Ajouter les cartes à la main du joueur
-      //updatedPlayer.cards.push({ id: `card_${Date.now()}_${playerId}`, type: 'card' });
-    }
-    if (bonus.yellowlifetrace) {
-      // TODO: Ajouter les traces jaunes à la main du joueur
-      //updatedPlayer.lifetrace += bonus.yellowlifetrace;
-    }
-    if (bonus.redlifetrace) {
-      // TODO: Ajouter les traces rouges à la main du joueur
-      //updatedPlayer.lifetrace += bonus.redlifetrace;
-    }
-    if (bonus.bluelifetrace) {
-      // TODO: Ajouter les traces bleues à la main du joueur
-      //updatedPlayer.lifetrace += bonus.bluelifetrace;
+    if (bonus.yellowlifetrace || bonus.redlifetrace || bonus.bluelifetrace) {
+      // Géré via intéraction utilisateur dans orbitProbe/landProbe côté UI
     }
     if (bonus.revenue) {
-      // TODO: Ajouter les revenus au score du joueur
-      //updatedPlayer.score += bonus.revenue;
+      // Géré via intéraction utilisateur dans orbitProbe/landProbe côté UI
     }
     if (bonus.anytechnology) {
-      // TODO: Ajouter les technologies à la main du joueur
-      //updatedPlayer.technologies.push({ id: `technology_${Date.now()}_${playerId}`, type: 'technology' });
+      // Géré via intéraction utilisateur dans orbitProbe/landProbe côté UI
     }
   }
 
@@ -446,11 +418,13 @@ export class ProbeSystem {
   static orbitProbe(
     game: Game,
     playerId: string,
-    probeId: string
+    probeId: string,
+    planetId: string
   ): {
     updatedGame: Game;
     isFirstOrbiter: boolean;
     planetId: string;
+    bonuses: PlanetBonus;
   } {
     const validation = this.canOrbit(game, playerId, probeId);
     if (!validation.canOrbit) {
@@ -462,7 +436,6 @@ export class ProbeSystem {
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
     const probe = player.probes.find(p => p.id === probeId)!;
-    const planetId = probe.planetId!;
 
     // Vérifier si c'est le premier orbiteur
     const planet = updatedGame.board.planets.find(p => p.id === planetId);
@@ -498,12 +471,23 @@ export class ProbeSystem {
       }
     };
 
+    const accumulatedBonuses: PlanetBonus = {};
+    const applyAndAccumulate = (bonus: PlanetBonus) => {
+        this.applyBonus(updatedPlayer, bonus);
+        for (const key in bonus) {
+            const k = key as keyof PlanetBonus;
+            if (typeof bonus[k] === 'number') {
+                accumulatedBonuses[k] = (accumulatedBonuses[k] || 0) + (bonus[k] || 0);
+            }
+        }
+    };
+
     // Bonus planète
     if (isFirstOrbiter && planet?.orbitFirstBonus) {
-      this.applyBonus(updatedPlayer, planet.orbitFirstBonus);
+      applyAndAccumulate(planet.orbitFirstBonus);
     }
     if (planet?.orbitNextBonuses) {
-      planet.orbitNextBonuses.forEach(bonus => this.applyBonus(updatedPlayer, bonus));
+      planet.orbitNextBonuses.forEach(bonus => applyAndAccumulate(bonus));
     }
 
     updatedGame.players[playerIndex] = updatedPlayer;
@@ -511,7 +495,8 @@ export class ProbeSystem {
     return {
       updatedGame,
       isFirstOrbiter,
-      planetId
+      planetId,
+      bonuses: accumulatedBonuses
     };
   }
 
@@ -564,12 +549,14 @@ export class ProbeSystem {
   static landProbe(
     game: Game,
     playerId: string,
-    probeId: string
+    probeId: string,
+    planetId: string
   ): {
     updatedGame: Game;
     isFirstLander: boolean;
     isSecondLander: boolean;
     planetId: string;
+    bonuses: PlanetBonus;
   } {
     const validation = this.canLand(game, playerId, probeId);
     if (!validation.canLand) {
@@ -581,7 +568,6 @@ export class ProbeSystem {
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
     const probe = player.probes.find(p => p.id === probeId)!;
-    const planetId = probe.planetId!;
 
     const planet = updatedGame.board.planets.find(p => p.id === planetId);
     const isFirstLander = planet ? planet.landers.length === 0 : true;
@@ -616,15 +602,26 @@ export class ProbeSystem {
       }
     };
 
+    const accumulatedBonuses: PlanetBonus = {};
+    const applyAndAccumulate = (bonus: PlanetBonus) => {
+        this.applyBonus(updatedPlayer, bonus);
+        for (const key in bonus) {
+            const k = key as keyof PlanetBonus;
+            if (typeof bonus[k] === 'number') {
+                accumulatedBonuses[k] = (accumulatedBonuses[k] || 0) + (bonus[k] || 0);
+            }
+        }
+    };
+
     // Bonus planète (atterrissage)
     if (isFirstLander && planet?.landFirstBonus) {
-      this.applyBonus(updatedPlayer, planet.landFirstBonus);
+      applyAndAccumulate(planet.landFirstBonus);
     }
     if (isSecondLander && planet?.landSecondBonus) {
-      this.applyBonus(updatedPlayer, planet.landSecondBonus);
+      applyAndAccumulate(planet.landSecondBonus);
     }
     if (planet?.landNextBonuses) {
-      planet.landNextBonuses.forEach(bonus => this.applyBonus(updatedPlayer, bonus));
+      planet.landNextBonuses.forEach(bonus => applyAndAccumulate(bonus));
     }
 
     updatedGame.players[playerIndex] = updatedPlayer;
@@ -633,7 +630,8 @@ export class ProbeSystem {
       updatedGame,
       isFirstLander,
       isSecondLander,
-      planetId
+      planetId,
+      bonuses: accumulatedBonuses
     };
   }
 
