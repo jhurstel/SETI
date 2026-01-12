@@ -1402,7 +1402,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       )}
 
       {/* Overlay pour la recherche de technologie ou l'achat de carte */}
-      {(interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS' || interactionState.type === 'BUYING_CARD') && (
+      {(interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS' || interactionState.type === 'BUYING_CARD' || interactionState.type === 'RESERVING_CARD') && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -1416,6 +1416,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           if (interactionState.type === 'BUYING_CARD') {
              setInteractionState({ type: 'IDLE' });
              setIsRowOpen(false);
+          } else if (interactionState.type === 'RESERVING_CARD') {
+             setToast({ message: "Veuillez sélectionner une carte à réserver", visible: true });
           } else {
              setToast({ message: "Veuillez sélectionner une technologie", visible: true });
           }

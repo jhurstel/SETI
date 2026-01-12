@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, FreeAction, ProbeState, Card, RevenueBonus } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, FreeAction, ProbeState, Card } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { DataSystem } from '../systems/DataSystem';
 import './PlayerBoardUI.css';
@@ -285,6 +285,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   const revenueCreditFlash = useResourceFlash(currentPlayer.revenueCredits, currentPlayer.id);
   const revenueEnergyFlash = useResourceFlash(currentPlayer.revenueEnergy, currentPlayer.id);
   const revenueCardFlash = useResourceFlash(currentPlayer.revenueCards, currentPlayer.id);
+  const cardsFlash = useResourceFlash((currentPlayer.cards || []).length, currentPlayer.id);
 
   const actionAvailability: Record<ActionType, boolean> = {
     [ActionType.LAUNCH_PROBE]: isCurrentTurn && !isRobot && !hasPerformedMainAction && ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch,
@@ -662,23 +663,23 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         </div>
 
         {/* Cartes */}
-        <div className="seti-player-section">
+        <div className="seti-player-section" style={reservationState.active ? { position: 'relative', zIndex: 1501 } : {}}>
           <div className="seti-player-section-title" style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
             <span>Main</span>
             <span 
-              key={dataFlash ? `data-${dataFlash.id}` : 'data-static'}
-              className={dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
+              key={cardsFlash ? `cards-${cardsFlash.id}` : 'cards-static'}
+              className={cardsFlash ? (cardsFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
               style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px' }}
             >
-              Carte(s): <strong style={{ color: '#fff' }}>{currentPlayer.cards.length || 0}</strong>
+              Carte(s): <strong style={{ color: '#fff' }}>{(currentPlayer.cards || []).length}</strong>
             </span>
           </div>
           {isDiscarding && (
             <div style={{ marginBottom: '10px', color: '#ff6b6b', fontSize: '0.9em' }}>
               Veuillez défausser des cartes pour n'en garder que 4.
               <br />
-              Sélectionnées : {selectedCardIds.length} / {Math.max(0, currentPlayer.cards.length - 4)}
-              {currentPlayer.cards.length - selectedCardIds.length === 4 && (
+              Sélectionnées : {selectedCardIds.length} / {Math.max(0, (currentPlayer.cards || []).length - 4)}
+              {(currentPlayer.cards || []).length - selectedCardIds.length === 4 && (
                 <button 
                   onClick={onConfirmDiscard}
                   style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
@@ -690,8 +691,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
           )}
           <div className="seti-player-list" style={{ flexDirection: 'row', overflowX: 'auto', paddingBottom: '8px', gap: '8px' }}>
             {!isRobot ? (
-              currentPlayer.cards.length > 0 ? (
-                currentPlayer.cards.map((card) => {
+              (currentPlayer.cards || []).length > 0 ? (
+                (currentPlayer.cards || []).map((card) => {
                 const isSelectedForDiscard = selectedCardIds.includes(card.id);
                 const isSelectedForTrade = cardsSelectedForTrade.includes(card.id);
                 const isHighlighted = highlightedCardId === card.id;
@@ -896,7 +897,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               )
             ) : (
               <div className="seti-player-list-empty" style={{ fontStyle: 'italic', color: '#aaa' }}>
-                {currentPlayer.cards.length} carte(s) en main (Masqué)
+                {(currentPlayer.cards || []).length} carte(s) en main (Masqué)
               </div>
             )}
           </div>

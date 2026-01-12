@@ -31,25 +31,8 @@ export enum ActionType {
   PASS = "PASS"
 }
 
-export enum TileType {
-  EARTH = "EARTH",
-  PLANET = "PLANET",
-  ASTEROID = "ASTEROID",
-  COMET = "COMET",
-  SUN = "SUN",
-  SPACE = "SPACE"
-}
-
 export type DiskName = 'A' | 'B' | 'C' | 'D' | 'E';
 export type SectorNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
-
-export interface SolarSystemTile {
-  disk: DiskName;
-  sector: SectorNumber;
-  type: TileType;
-  planetId?: string; // Pour Neptune, Uranus, etc.
-  probes: Probe[];
-}
 
 export enum ProbeState {
   IN_SOLAR_SYSTEM = "IN_SOLAR_SYSTEM",
@@ -190,12 +173,10 @@ export interface Board {
 }
 
 export interface SolarSystem {
-  tiles: SystemTile[][];
   rotationDisks: RotationDisk[];
   currentRotation: number;
   probes: Probe[];
   rings?: SolarRing[];
-  solarTiles?: SolarSystemTile[]; // Nouvelle structure avec disques A-E et secteurs 1-8
   // Positions initiales des plateaux rotatifs (1-8)
   initialSectorLevel1?: number; // Position initiale du plateau niveau 1 (1-8)
   initialSectorLevel2?: number; // Position initiale du plateau niveau 2 (1-8)
@@ -220,15 +201,6 @@ export interface SolarRingSector {
   index: number;       // 0-7
   color: SectorColor;  // Couleur du secteur
   tileIds: string[];   // IDs des cases appartenant à ce secteur/anneau
-}
-
-export interface SystemTile {
-  id: string;
-  type: TileType;
-  position: Position;
-  planetId?: string;
-  mediaBonus?: number;
-  probes: Probe[];
 }
 
 export interface Probe {

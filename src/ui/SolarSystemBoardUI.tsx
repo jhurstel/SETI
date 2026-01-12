@@ -1,9 +1,8 @@
 import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, GAME_CONSTANTS, Planet, PlanetBonus, ProbeState } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, PlanetBonus, ProbeState } from '../core/types';
 import { 
   createRotationState, 
   calculateReachableCellsWithEnergy,
-  getObjectPosition,
   calculateAbsolutePosition,
   FIXED_OBJECTS,
   INITIAL_ROTATING_LEVEL1_OBJECTS,

@@ -27,7 +27,6 @@ import {
   rotateSector,
   RotationState 
 } from '../core/SolarSystemPosition';
-import { CardSystem } from './CardSystem';
 
 export class ProbeSystem {
   /**

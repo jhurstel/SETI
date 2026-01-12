@@ -14,9 +14,6 @@ import {
   Sector,
   Planet,
   TechnologyBoard,
-  SystemTile,
-  TileType,
-  Position,
   RotationDisk,
   TechnologyCategory,
   Technology,
@@ -53,11 +50,8 @@ export class BoardManager {
    * Crée le système solaire initial
    */
   private static createSolarSystem(): SolarSystem {
-    // TODO: Implémenter la création complète du système solaire
+    // Implémenter la création complète du système solaire
     // Basé sur la configuration exacte du plateau physique
-    // Pour l'instant, structure de base
-    
-    const tiles: SystemTile[][] = this.createSystemTiles();
     const rotationDisks: RotationDisk[] = this.createRotationDisks();
 
     // Calculer les angles initiaux à partir des secteurs initiaux
@@ -73,7 +67,6 @@ export class BoardManager {
     const initialAngle3 = sectorIndex3 * 45;
 
     return {
-      tiles,
       rotationDisks,
       currentRotation: 0,
       probes: [],
@@ -88,24 +81,6 @@ export class BoardManager {
       rotationAngleLevel3: initialAngle3, // Angle de rotation initial calculé
       nextRingLevel: 1,
     };
-  }
-
-  /**
-   * Crée la grille de cases du système solaire
-   */
-  private static createSystemTiles(): SystemTile[][] {
-    // TODO: Implémenter selon la configuration exacte du plateau
-    // Structure de base pour l'instant
-    const tiles: SystemTile[][] = [];
-    
-    // Exemple simplifié - à remplacer par la vraie configuration
-    // Le plateau SETI a une structure spécifique avec :
-    // - Terre au centre
-    // - Planètes positionnées autour
-    // - Champs d'astéroïdes
-    // - Soleil (infranchissable)
-    
-    return tiles;
   }
 
   /**
@@ -130,11 +105,6 @@ export class BoardManager {
    * Crée les planètes
    */
   private static createPlanets(): Planet[] {
-    // TODO: Implémenter toutes les planètes du jeu
-    // Chaque planète a :
-    // - Un bonus spécifique
-    // - Des lunes (accessibles via effets)
-    // Planètes avec satellites
     const planets: Planet[] = [
       {
         id: 'mercury',
@@ -399,49 +369,6 @@ export class BoardManager {
         },
       ],
     };
-  }
-
-  /**
-   * Trouve une case par position
-   */
-  static findTileByPosition(
-    board: Board,
-    position: Position
-  ): SystemTile | null {
-    for (const row of board.solarSystem.tiles) {
-      for (const tile of row) {
-        if (tile.position.x === position.x && tile.position.y === position.y) {
-          return tile;
-        }
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Trouve une case par type
-   */
-  static findTilesByType(
-    board: Board,
-    type: TileType
-  ): SystemTile[] {
-    const tiles: SystemTile[] = [];
-    for (const row of board.solarSystem.tiles) {
-      for (const tile of row) {
-        if (tile.type === type) {
-          tiles.push(tile);
-        }
-      }
-    }
-    return tiles;
-  }
-
-  /**
-   * Trouve la case Terre
-   */
-  static findEarthTile(board: Board): SystemTile | null {
-    const earthTiles = this.findTilesByType(board, TileType.EARTH);
-    return earthTiles.length > 0 ? earthTiles[0] : null;
   }
 
   /**

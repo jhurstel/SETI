@@ -25,7 +25,6 @@ export * from './systems/TechnologySystem';
 export * from './systems/CardSystem';
 export * from './systems/SpeciesSystem';
 export * from './systems/MediaSystem';
-export * from './systems/SolarSystemRotation';
 
 // Actions
 export * from './actions/Action';
