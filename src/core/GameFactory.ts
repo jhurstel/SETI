@@ -17,7 +17,8 @@ import {
   SectorColor,
   RevenueBonus,
   ObjectiveTile,
-  ObjectiveCategory
+  ObjectiveCategory,
+  GameLogEntry
 } from './types';
 import { BoardManager } from './Board';
 
@@ -59,6 +60,22 @@ export class GameFactory {
       roundDecks[i] = this.createRoundDeck(i, cardsPerDeck);
     }
 
+    // Initialiser les logs
+    const gameLog: GameLogEntry[] = [];
+    const addLog = (message: string, playerId?: string) => {
+        gameLog.push({
+            id: `log_init_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            message,
+            timestamp: Date.now(),
+            playerId
+        });
+    };
+
+    players.map(p => {
+      addLog(`${p.name} a rejoint la partie avec ${p.score} PV`);
+    })
+    addLog("--- DÉBUT DE LA PARTIE ---");
+    
     const game: Game = {
       id: `game_${Date.now()}`,
       currentRound: 1,
@@ -73,7 +90,8 @@ export class GameFactory {
       discoveredSpecies: [],
       history: [],
       isFirstToPass: false,
-      roundDecks
+      roundDecks,
+      gameLog
     };
 
     return game;

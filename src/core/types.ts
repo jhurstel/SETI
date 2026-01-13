@@ -122,6 +122,13 @@ export interface Position {
   y: number;
 }
 
+export interface GameLogEntry {
+  id: string;
+  message: string;
+  timestamp: number;
+  playerId?: string;
+}
+
 export interface Game {
   id: string;
   currentRound: number;
@@ -137,6 +144,7 @@ export interface Game {
   history: GameState[];
   isFirstToPass: boolean;
   roundDecks: { [round: number]: Card[] };
+  gameLog?: GameLogEntry[];
 }
 
 export interface Player {

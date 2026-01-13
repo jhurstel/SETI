@@ -73,7 +73,17 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   
   // États pour l'UI
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
-  const [historyLog, setHistoryLog] = useState<HistoryEntry[]>([]);
+  const [historyLog, setHistoryLog] = useState<HistoryEntry[]>(() => {
+    if (initialGame.gameLog && initialGame.gameLog.length > 0) {
+        return [...initialGame.gameLog].reverse().map(log => ({
+            id: log.id,
+            message: log.message,
+            playerId: log.playerId,
+            timestamp: log.timestamp
+        }));
+    }
+    return [];
+  });
   const [interactionState, setInteractionState] = useState<InteractionState>({ type: 'IDLE' });
   const [pendingInteractions, setPendingInteractions] = useState<InteractionState[]>([]);
   const [hasPerformedMainAction, setHasPerformedMainAction] = useState(false);

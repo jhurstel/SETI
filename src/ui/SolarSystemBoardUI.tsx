@@ -1748,8 +1748,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         {/* Conteneur interne pour positionner les éléments */}
         <div style={{
           position: 'relative',
-          width: boardSize ? `${boardSize}px` : '100%',
-          height: boardSize ? `${boardSize}px` : '100%',
+          width: boardSize ? `${boardSize}px` : '0px',
+          height: boardSize ? `${boardSize}px` : '0px',
+          opacity: boardSize ? 1 : 0,
+          transition: 'opacity 0.2s',
           flexShrink: 0,
         }}>
           {/* Soleil au centre */}
