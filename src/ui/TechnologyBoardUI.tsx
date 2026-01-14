@@ -50,6 +50,13 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
     return <div style={{ fontSize: '0.7em', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>{elements}</div>;
   };
 
+  // Fonction pour obtenir le chemin de l'image SVG d'une technologie
+  // À utiliser une fois les fichiers extraits et placés dans le dossier public/assets/technologies/
+  const getTechImage = (baseId: string): string | undefined => {
+    // Exemple : return `/assets/technologies/${baseId}.svg`;
+    return undefined;
+  };
+
   return (
     <div className="seti-panel">
       <div className="seti-panel-title">Technologies</div>
@@ -73,6 +80,10 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                   if (stack.length === 0) return null;
                   const topCard = stack[0];
                   const count = stack.length;
+                  
+                  const lastDashIndex = topCard.id.lastIndexOf('-');
+                  const baseId = topCard.id.substring(0, lastDashIndex);
+                  const techImage = getTechImage(baseId);
 
                   // Détection du bonus supplémentaire de 2 PV (logique basée sur les valeurs initiales)
                   const hasExtraPv = (topCard.bonus.pv === 5) || (topCard.bonus.pv === 2 && (topCard.bonus.media || topCard.bonus.card || topCard.bonus.energy));
@@ -98,7 +109,8 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                         boxShadow: isResearching 
                           ? '0 0 10px rgba(0, 255, 0, 0.3)' 
                           : (count > 1 ? '2px 2px 0px rgba(255,255,255,0.1)' : 'none'),
-                        transition: 'all 0.2s ease'
+                        transition: 'all 0.2s ease',
+                        overflow: 'hidden'
                       }}
                     >
                       {hasExtraPv && (
@@ -124,28 +136,47 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                             +2
                         </div>
                       )}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.9em' }}>
-                          {topCard.name}
-                        </span>
-                        <span style={{ 
-                          fontSize: '0.6em', 
-                          backgroundColor: '#444', 
-                          padding: '1px 5px', 
-                          borderRadius: '10px',
-                          color: '#aaa'
-                        }}>
-                          x{count}
-                        </span>
-                      </div>
                       
-                      <div style={{ fontSize: '0.7em', color: '#ccc', lineHeight: '1.2', flex: 1 }}>
-                        {topCard.shorttext}
-                      </div>
-
-                      <div style={{ marginTop: 'auto', borderTop: '1px solid #555', paddingTop: '4px' }}>
-                        {renderBonus(topCard.bonus, hasExtraPv)}
-                      </div>
+                      {techImage ? (
+                        <div style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          backgroundImage: `url(${techImage})`, 
+                          backgroundSize: 'contain', 
+                          backgroundRepeat: 'no-repeat', 
+                          backgroundPosition: 'center',
+                          minHeight: '80px'
+                        }}>
+                           <div style={{ position: 'absolute', top: 0, right: 0, background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '2px 6px', fontSize: '0.7em', borderRadius: '0 0 0 4px' }}>
+                             x{count}
+                           </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.9em' }}>
+                              {topCard.name}
+                            </span>
+                            <span style={{ 
+                              fontSize: '0.6em', 
+                              backgroundColor: '#444', 
+                              padding: '1px 5px', 
+                              borderRadius: '10px',
+                              color: '#aaa'
+                            }}>
+                              x{count}
+                            </span>
+                          </div>
+                          
+                          <div style={{ fontSize: '0.7em', color: '#ccc', lineHeight: '1.2', flex: 1 }}>
+                            {topCard.shorttext}
+                          </div>
+    
+                          <div style={{ marginTop: 'auto', borderTop: '1px solid #555', paddingTop: '4px' }}>
+                            {renderBonus(topCard.bonus, hasExtraPv)}
+                          </div>
+                        </>
+                      )}
                     </div>
                   );
                 })}

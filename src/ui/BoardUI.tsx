@@ -73,9 +73,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   
   // États pour l'UI
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
+  const historyContentRef = useRef<HTMLDivElement>(null);
   const [historyLog, setHistoryLog] = useState<HistoryEntry[]>(() => {
     if (initialGame.gameLog && initialGame.gameLog.length > 0) {
-        return [...initialGame.gameLog].reverse().map(log => ({
+        return [...initialGame.gameLog].map(log => ({
             id: log.id,
             message: log.message,
             playerId: log.playerId,
@@ -116,6 +117,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const pendingInteractionsRef = useRef(pendingInteractions);
   useEffect(() => { pendingInteractionsRef.current = pendingInteractions; }, [pendingInteractions]);
 
+  // Scroll automatique vers le bas de l'historique
+  useEffect(() => {
+    if (historyContentRef.current) {
+      historyContentRef.current.scrollTo({ top: historyContentRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  }, [historyLog]);
+
   // Helper pour ajouter une entrée à l'historique
   const addToHistory = useCallback((message: string, playerId?: string, previousState?: Game, customInteractionState?: InteractionState) => {
     const entry: HistoryEntry = {
@@ -128,19 +136,19 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       previousPendingInteractions: pendingInteractionsRef.current,
       timestamp: Date.now()
     };
-    setHistoryLog(prev => [entry, ...prev]);
+    setHistoryLog(prev => [...prev, entry]);
   }, [hasPerformedMainAction]);
 
   // Gestionnaire pour annuler une action
   const handleUndo = () => {
     if (historyLog.length === 0) return;
-    const lastEntry = historyLog[0];
+    const lastEntry = historyLog[historyLog.length - 1];
     if (lastEntry.previousState) {
       setGame(lastEntry.previousState);
       if (gameEngineRef.current) {
         gameEngineRef.current.setState(lastEntry.previousState);
       }
-      setHistoryLog(prev => prev.slice(1));
+      setHistoryLog(prev => prev.slice(0, -1));
       // Restaurer l'état d'interaction précédent s'il existe, sinon IDLE
       setInteractionState(lastEntry.previousInteractionState || { type: 'IDLE' });
       
@@ -542,7 +550,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     if (bonuses.yellowlifetrace) {
-        newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: 'yellow' });
+        // Désactivé temporairement pour éviter de bloquer le jeu
+        // newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: 'yellow' });
     }
     
     if (bonuses.planetscan || bonuses.redscan || bonuses.bluescan || bonuses.yellowscan || bonuses.blackscan) {
@@ -948,10 +957,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     
     // Fusionner avec l'entrée d'historique précédente (Rotation) pour que l'annulation
     // revienne à l'état avant la rotation (et non à la sélection de technologie)
-    // TODO: Gérer pendingInteractions ici aussi si nécessaire
     setHistoryLog(prev => {
       // Trouver l'entrée de la rotation (dernière entrée avec un état précédent sauvegardé)
-      const rotationEntryIndex = prev.findIndex(e => e.previousState);
+      let rotationEntryIndex = -1;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].previousState) {
+          rotationEntryIndex = i;
+          break;
+        }
+      }
       
       if (rotationEntryIndex !== -1) {
         const rotationEntry = prev[rotationEntryIndex];
@@ -968,7 +982,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         };
         
         // Remplacer l'entrée de rotation (et les logs intermédiaires) par la nouvelle entrée
-        return [newEntry, ...prev.slice(rotationEntryIndex + 1)];
+        return [...prev.slice(0, rotationEntryIndex), newEntry];
       }
       
       // Fallback si pas d'entrée précédente trouvée (ne devrait pas arriver)
@@ -982,7 +996,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         previousPendingInteractions: pendingInteractions,
         timestamp: Date.now()
       };
-      return [fallbackEntry, ...prev];
+      return [...prev, fallbackEntry];
     });
   };
 
@@ -1352,6 +1366,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           from { opacity: 0; transform: translateY(-20px) scale(0.95); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
+        .seti-history-container:hover, .seti-history-container.open {
+          max-height: 33vh !important;
+        }
       `}</style>
       {/* Toast Notification */}
       {toast && toast.visible && (
@@ -1709,11 +1726,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               right: '15px',
               width: '300px',
               zIndex: 1000,
+              display: 'flex',
+              flexDirection: 'column',
+              pointerEvents: 'none'
             }}>
-              <div className={`seti-foldable-container ${isHistoryOpen ? 'open' : ''}`} style={{ maxHeight: isHistoryOpen ? '60vh' : '40px' }}>
+              <div className={`seti-foldable-container seti-history-container ${isHistoryOpen ? 'open' : ''}`} style={{ display: 'flex', flexDirection: 'column', pointerEvents: 'auto' }}>
                <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
                   <span style={{ flex: 1 }}>Historique</span>
-                  {historyLog.length > 0 && historyLog[0].previousState && (
+                  {historyLog.length > 0 && historyLog[historyLog.length - 1].previousState && (
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleUndo(); }} 
                       style={{ fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', backgroundColor: '#555', border: '1px solid #777', color: '#fff', borderRadius: '4px', marginRight: '5px' }} 
@@ -1723,11 +1743,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     </button>
                   )}
                </div>
-               <div className="seti-foldable-content">
+               <div className="seti-foldable-content" ref={historyContentRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                  <div className="seti-history-list">
                   {historyLog.length === 0 && <div style={{fontStyle: 'italic', padding: '4px', textAlign: 'center'}}>Aucune action</div>}
                   {historyLog.map((entry) => {
-                    if (entry.message.startsWith('--- FIN DE LA MANCHE')) {
+                    if (entry.message.startsWith('---')) {
                       return (
                         <div key={entry.id} style={{ display: 'flex', alignItems: 'center', margin: '10px 0', color: '#aaa', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                           <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
@@ -1736,11 +1756,17 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                         </div>
                       );
                     }
-                    const player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
+                    
+                    let player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
+                    // Fallback : essayer de trouver le joueur par son nom au début du message (pour les logs d'init)
+                    if (!player) {
+                        player = game.players.find(p => entry.message.startsWith(p.name));
+                    }
+
                     const color = player ? (player.color || '#ccc') : '#ccc';
                     return (
                       <div key={entry.id} className="seti-history-item" style={{ borderLeft: `3px solid ${color}`, paddingLeft: '8px', marginBottom: '4px' }}>
-                        {player && <strong style={{ color: color }}>{player.name} </strong>}
+                        {player && !entry.message.startsWith(player.name) && <strong style={{ color: color }}>{player.name} </strong>}
                         <span style={{ color: '#ddd' }}>{entry.message}</span>
                       </div>
                     );

@@ -486,6 +486,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
 
     // Logique d'interaction (Orbite / Atterrissage)
     const currentPlayer = game.players[game.currentPlayerIndex];
+    const isRobot = (currentPlayer as any).type === 'robot';
     
     // Vérifier si le joueur a une sonde sur cette planète (via hoveredObject qui est la planète survolée)
     const playerProbe = hoveredObject && game.board.solarSystem.probes.find(p => 
@@ -499,8 +500,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     let canOrbit = false;
     let orbitReason = "Nécessite une sonde sur la planète";
     if (playerProbe) {
-        if (hasPerformedMainAction) {
-            orbitReason = "Action principale déjà effectuée";
+        if (hasPerformedMainAction || isRobot) {
+            orbitReason = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
         } else {
             const check = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id);
             canOrbit = check.canOrbit;
@@ -511,8 +512,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     let canLand = false;
     let landReason = "Nécessite une sonde sur la planète";
     if (playerProbe) {
-        if (hasPerformedMainAction) {
-            landReason = "Action principale déjà effectuée";
+        if (hasPerformedMainAction || isRobot) {
+            landReason = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
         } else {
             const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id);
             canLand = check.canLand;
@@ -1101,6 +1102,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     const hasOrbiters = planetData && planetData.orbiters && planetData.orbiters.length > 0;
 
     const currentPlayer = game.players[game.currentPlayerIndex];
+    const isRobot = (currentPlayer as any).type === 'robot';
     const playerProbe = game.board.solarSystem.probes.find(p => 
         p.ownerId === currentPlayer.id && 
         p.state === ProbeState.IN_SOLAR_SYSTEM &&
@@ -1110,7 +1112,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     );
 
     let canInteract = false;
-    if (!hasPerformedMainAction) {
+    if (!hasPerformedMainAction && !isRobot) {
         if (obj.id === 'earth') {
              canInteract = ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch;
         } else if (playerProbe) {
