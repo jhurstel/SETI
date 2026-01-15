@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, SectorColor, Technology, RevenueBonus, ProbeState } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
@@ -73,6 +74,51 @@ const getInteractionLabel = (state: InteractionState): string => {
   }
 };
 
+const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect: DOMRect }) => {
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
+
+  useLayoutEffect(() => {
+    if (tooltipRef.current && targetRect) {
+      const rect = tooltipRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const margin = 8;
+      const padding = 10;
+
+      let left = targetRect.left + (targetRect.width / 2) - (rect.width / 2);
+
+      if (left < padding) left = padding;
+      if (left + rect.width > viewportWidth - padding) {
+        left = viewportWidth - rect.width - padding;
+      }
+
+      let top = targetRect.top - rect.height - margin;
+
+      if (top < padding) {
+        const bottomPosition = targetRect.bottom + margin;
+        if (bottomPosition + rect.height <= viewportHeight - padding) {
+            top = bottomPosition;
+        } else {
+            if (targetRect.top > (viewportHeight - targetRect.bottom)) {
+                top = padding;
+            } else {
+                top = viewportHeight - rect.height - padding;
+            }
+        }
+      }
+
+      setStyle({ top, left, opacity: 1 });
+    }
+  }, [targetRect, content]);
+
+  return createPortal(
+    <div ref={tooltipRef} style={{ position: 'fixed', zIndex: 9999, backgroundColor: 'rgba(0, 0, 0, 0.95)', padding: '8px', borderRadius: '6px', border: '1px solid #78a0ff', color: '#fff', textAlign: 'center', minWidth: '150px', boxShadow: '0 4px 15px rgba(0,0,0,0.6)', transition: 'opacity 0.1s ease-in-out', pointerEvents: 'none', ...style }}>
+      {content}
+    </div>
+  , document.body);
+};
+
 export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // États pour le jeu
   const [game, setGame] = useState<Game>(initialGame);
@@ -111,6 +157,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const [isObjectivesOpen, setIsObjectivesOpen] = useState(false);
   const [isRowOpen, setIsRowOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(true);
+
+  // État pour le tooltip générique
+  const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
   
   // Auto-open tech panel when researching
   useEffect(() => {
@@ -943,15 +992,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         
         if (cardId) {
             // Prendre de la rangée
-            const rowIndex = updatedGame.board.cardRow.findIndex(c => c.id === cardId);
+            const rowIndex = updatedGame.cardRow.findIndex(c => c.id === cardId);
             if (rowIndex !== -1) {
-                const card = updatedGame.board.cardRow[rowIndex];
+                const card = updatedGame.cardRow[rowIndex];
                 player.cards.push(card);
-                updatedGame.board.cardRow.splice(rowIndex, 1);
+                updatedGame.cardRow.splice(rowIndex, 1);
                 
                 // Remplir la rangée
                 if (updatedGame.decks.actionCards.length > 0) {
-                    updatedGame.board.cardRow.push(updatedGame.decks.actionCards.shift()!);
+                    updatedGame.cardRow.push(updatedGame.decks.actionCards.shift()!);
                 }
             } else {
                 // Carte non trouvée (ne devrait pas arriver)
@@ -1380,6 +1429,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         default: return '#fff';
     }
   };
+
+  const renderCardTooltip = (card: any) => (
+    <div style={{ width: '240px', textAlign: 'left' }}>
+      <div style={{ fontWeight: 'bold', color: '#4a9eff', fontSize: '1.1rem', marginBottom: '6px', borderBottom: '1px solid #444', paddingBottom: '4px' }}>{card.name}</div>
+      <div style={{ fontSize: '0.95em', color: '#fff', marginBottom: '10px', lineHeight: '1.4' }}>{card.description}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.85em', backgroundColor: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '4px' }}>
+         <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
+         <div>Type: {card.type === 'ACTION' ? 'Action' : 'Mission'}</div>
+         <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
+         <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
+         <div style={{ gridColumn: '1 / -1', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
+      </div>
+    </div>
+  );
   
   const humanPlayer = game.players.find(p => (p as any).type === 'human');
   const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id;
@@ -1552,6 +1615,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }}>
           {toast.message}
         </div>
+      )}
+
+      {activeTooltip && (
+        <Tooltip content={activeTooltip.content} targetRect={activeTooltip.rect} />
       )}
       
       {/* Modale de sélection de carte de fin de manche */}
@@ -1882,9 +1949,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       <div style={{ fontSize: '0.8em', color: '#888' }}>{game.decks?.actionCards?.length || 0} cartes</div>
                   </div>
 
-                  {game.board.cardRow && game.board.cardRow.map(card => (
+                  {game.cardRow && game.cardRow.map(card => (
                     <div key={card.id} 
                       onClick={() => handleCardRowClick(card.id)}
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ content: renderCardTooltip(card), rect });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
                       className="seti-common-card"
                       style={{
                       border: interactionState.type === 'BUYING_CARD' ? '1px solid #4a9eff' : '1px solid #555',
@@ -1893,7 +1965,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     }}>
                       <div style={{ fontWeight: 'bold', color: '#fff', lineHeight: '1.1', marginBottom: '4px', fontSize: '0.75rem', height: '2.2em', overflow: 'hidden' }}>{card.name}</div>
                       <div style={{ fontSize: '0.75em', color: '#aaa' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></div>
-                      {card.description && <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', margin: '4px 0', lineHeight: '1.2', flex: 1, overflowY: 'auto' }}>{card.description}</div>}
+                      {card.description && <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', margin: '4px 0', lineHeight: '1.2', flex: 1, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', color: '#ddd', marginBottom: '2px' }}>
                           {card.freeAction && <div>Act: {card.freeAction}</div>}
                           {card.revenue && <div>Rev: {card.revenue}</div>}
@@ -1917,7 +1989,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       </div>
                     </div>
                   ))}
-                  {(!game.board.cardRow || game.board.cardRow.length === 0) && (
+                  {(!game.cardRow || game.cardRow.length === 0) && (
                       <div style={{ gridColumn: '2 / -1', color: '#888', fontStyle: 'italic', padding: '10px', textAlign: 'center' }}>Aucune carte disponible</div>
                   )}
                 </div>

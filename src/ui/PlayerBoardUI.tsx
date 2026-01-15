@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, FreeAction, ProbeState, Card } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, FreeAction, ProbeState, Card, CardType, SectorColor } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { DataSystem } from '../systems/DataSystem';
 import './PlayerBoardUI.css';
@@ -271,11 +271,35 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     : game.players[game.currentPlayerIndex];
   
   const isCurrentTurn = game.players[game.currentPlayerIndex].id === currentPlayer.id;
-  const isRobot = (currentPlayer as any).type === 'robot';
+  const isRobot = currentPlayer.type === 'robot';
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
   const [cardsSelectedForTrade, setCardsSelectedForTrade] = useState<string[]>([]);
   const [tick, setTick] = useState(0);
   const [customTooltip, setCustomTooltip] = useState<{ content: React.ReactNode, targetRect: DOMRect } | null>(null);
+
+  const getSectorColorCode = (color: SectorColor) => {
+    switch(color) {
+        case SectorColor.BLUE: return '#4a9eff';
+        case SectorColor.RED: return '#ff6b6b';
+        case SectorColor.YELLOW: return '#ffd700';
+        case SectorColor.BLACK: return '#aaaaaa';
+        default: return '#fff';
+    }
+  };
+
+  const renderCardTooltip = (card: Card) => (
+    <div style={{ width: '240px', textAlign: 'left' }}>
+      <div style={{ fontWeight: 'bold', color: '#4a9eff', fontSize: '1.1rem', marginBottom: '6px', borderBottom: '1px solid #444', paddingBottom: '4px' }}>{card.name}</div>
+      <div style={{ fontSize: '0.95em', color: '#fff', marginBottom: '10px', lineHeight: '1.4' }}>{card.description}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.85em', backgroundColor: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '4px' }}>
+         <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
+         <div>Type: {card.type === CardType.ACTION ? 'Action' : 'Mission'}</div>
+         <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
+         <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
+         <div style={{ gridColumn: '1 / -1', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
+      </div>
+    </div>
+  );
 
   const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -872,6 +896,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                   <div 
                     key={card.id} 
                     className="seti-common-card"
+                    onMouseEnter={(e) => handleTooltipHover(e, renderCardTooltip(card))}
+                    onMouseLeave={handleTooltipLeave}
                     onClick={(e) => {
                       if (reservationState.active) {
                         if (card.revenue) {
@@ -1015,10 +1041,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                     </div>
                     <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span>
-                      <span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === 'ACTION' ? 'ACT' : (card.type === 'END_GAME' ? 'FIN' : 'MIS')}</span>
+                      <span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span>
                     </div>
                     {card.description && (
-                      <div className="seti-card-description" style={{ flex: 1, overflowY: 'auto', margin: '4px 0' }}>{card.description}</div>
+                      <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>
                     )}
                     <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px' }}>
                       <div className="seti-card-detail" style={{ display: 'flex', justifyContent: 'space-between' }}>

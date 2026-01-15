@@ -41,7 +41,6 @@ export class BoardManager {
       planets: this.createPlanets(),
       technologyBoard: this.createTechnologyBoard(),
       alienBoard: this.createAlienBoard(),
-      cardRow: this.createCardRow(),
       objectiveTiles: this.createObjectiveTiles()
     };
   }
@@ -385,29 +384,6 @@ export class BoardManager {
       yellow: createTrack(),
       blue: createTrack()
     };
-  }
-
-  /**
-   * Crée la rangée de cartes principale
-   */
-  private static createCardRow(): Card[] {
-    const cards: Card[] = [];
-    const colors = [SectorColor.BLUE, SectorColor.RED, SectorColor.YELLOW, SectorColor.BLACK];
-    
-    for (let i = 0; i < 3; i++) {
-        cards.push({
-            id: `row_card_${i}`,
-            name: `Projet ${i+1}`,
-            type: CardType.ACTION,
-            cost: i + 1,
-            freeAction: FreeAction.DATA,
-            scanSector: colors[i % colors.length],
-            revenue: RevenueBonus.CREDIT,
-            effects: [],
-            description: "Carte disponible à l'achat"
-        });
-    }
-    return cards;
   }
 
   /**

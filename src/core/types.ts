@@ -139,6 +139,7 @@ export interface Game {
   players: Player[];
   board: Board;
   decks: Decks;
+  cardRow: Card[];
   species: Species[];
   discoveredSpecies: Species[];
   history: GameState[];
@@ -176,7 +177,6 @@ export interface Board {
   planets: Planet[];
   technologyBoard: TechnologyBoard;
   alienBoard: AlienBoard;
-  cardRow: Card[];
   objectiveTiles: ObjectiveTile[];
 }
 
@@ -330,6 +330,7 @@ export interface TechnologyBonus {
 export interface Card {
   id: string;
   name: string;
+  description: string;
   type: CardType;
   cost: number;
   freeAction: FreeAction;
@@ -337,7 +338,6 @@ export interface Card {
   revenue: RevenueBonus;
   effects: CardEffect[];
   ownerId?: string;
-  description?: string;
   scoringModifiers?: ScoringModifier[];
 }
 
@@ -545,6 +545,7 @@ export const GAME_CONSTANTS = {
   INITIAL_CREDITS: 4,
   INITIAL_ENERGY: 3,
   INITIAL_DATA: 0,
+  INITIAL_HAND_SIZE: 4, // TODO implement reservation at start
   INITIAL_MEDIA_COVERAGE: 4,
   INITIAL_REVENUE_CREDITS: 3,
   INITIAL_REVENUE_ENERGY: 2,
