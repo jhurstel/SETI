@@ -293,7 +293,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
       <div style={{ fontSize: '0.95em', color: '#fff', marginBottom: '10px', lineHeight: '1.4' }}>{card.description}</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.85em', backgroundColor: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '4px' }}>
          <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
-         <div>Type: {card.type === CardType.ACTION ? 'Action' : 'Mission'}</div>
+         <div>Type: {card.type === CardType.ACTION ? 'Action' : 'Mission'} ({card.id})</div>
          <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
          <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
          <div style={{ gridColumn: '1 / -1', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
@@ -520,6 +520,16 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     if (currentPlayer.credits < card.cost) {
       return { canPlay: false, reason: `Crédits insuffisants (coût: ${card.cost})` };
     }
+
+    // Vérification si la carte donne des déplacements
+    const hasMovementEffect = card.immediateEffects?.some(e => e.type === 'GAIN' && e.target === 'MOVEMENT');
+    if (hasMovementEffect) {
+      const hasProbeInSystem = currentPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+      if (!hasProbeInSystem) {
+        return { canPlay: false, reason: "Nécessite une sonde dans le système solaire" };
+      }
+    }
+
     // TODO: Ajouter d'autres conditions de carte ici
     return { canPlay: true, reason: `Coût: ${card.cost} crédits` };
   };
@@ -576,6 +586,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         <span>
           {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV
         </span>
+        {!isRobot && (
         <button
             onClick={onNextPlayer}
             disabled={!isCurrentTurn || !hasPerformedMainAction || isInteractiveMode}
@@ -596,6 +607,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         >
             Prochain joueur
         </button>
+        )}
       </div>
       
       <div className="seti-player-layout" style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', paddingRight: '5px', flex: 1, minHeight: 0 }}>
@@ -605,6 +617,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         <div className="seti-player-section" style={{ position: 'relative', flex: 1 }}>
           <div className="seti-player-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Ressources</span>
+            {!isRobot && (
             <div style={{ display: 'flex', gap: '5px' }}>
             {tradeState.phase === 'inactive' ? (
               <button
@@ -633,6 +646,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               </button>
             )}
             </div>
+            )}
           </div>
 
           {tradeState.phase === 'gaining' && (
@@ -656,6 +670,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               className={`seti-res-badge ${mediaFlash ? (mediaFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
             >
               <span>Média:</span>
+              {!isRobot && (
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -692,6 +707,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               >
                 Acheter
               </button>
+              )}
               <strong>{currentPlayer.mediaCoverage}</strong>
             </div>
             <div 

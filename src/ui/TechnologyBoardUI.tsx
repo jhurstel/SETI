@@ -5,6 +5,7 @@ import { Game, Technology, TechnologyCategory, TechnologyBonus, GAME_CONSTANTS }
 interface TechnologyBoardUIProps {
   game: Game;
   isResearching?: boolean;
+  researchCategory?: TechnologyCategory;
   onTechClick?: (tech: Technology) => void;
   hasPerformedMainAction?: boolean;
 }
@@ -76,7 +77,7 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
   , document.body);
 };
 
-export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isResearching, onTechClick, hasPerformedMainAction }) => {
+export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isResearching, researchCategory, onTechClick, hasPerformedMainAction }) => {
   const techBoard = game.board.technologyBoard;
   const categories = techBoard.categorySlots || [];
   const currentPlayer = game.players[game.currentPlayerIndex];
@@ -169,7 +170,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                   const baseId = topCard.id.substring(0, lastDashIndex);
                   const techImage = getTechImage(baseId);
                   
-                  const isClickable = isResearching || canAffordResearch;
+                  const isClickable = (isResearching || canAffordResearch) && (!researchCategory || slot.category === researchCategory);
 
                   // Détection du bonus supplémentaire de 2 PV (logique basée sur les valeurs initiales)
                   const hasExtraPv = (topCard.bonus.pv === 5) || (topCard.bonus.pv === 2 && (topCard.bonus.media || topCard.bonus.card || topCard.bonus.energy));
@@ -204,7 +205,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                         marginBottom: '8px',
                         position: 'relative',
                         cursor: isClickable ? 'pointer' : 'default',
-                        opacity: isClickable ? 1 : 0.7,
+                        opacity: isClickable ? 1 : 0.5,
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '4px',

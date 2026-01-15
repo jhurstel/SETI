@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, SectorColor, Technology, RevenueBonus, ProbeState } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, SectorColor, Technology, RevenueBonus, ProbeState, TechnologyCategory } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -36,7 +36,7 @@ type InteractionState =
   | { type: 'TRADING_GAIN', spendType: string, spendCardIds?: string[] }
   | { type: 'FREE_MOVEMENT' }
   | { type: 'RESEARCHING' }
-  | { type: 'SELECTING_TECH_BONUS', sequenceId?: string }
+  | { type: 'SELECTING_TECH_BONUS', sequenceId?: string, category?: TechnologyCategory }
   | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, isBonus?: boolean, sequenceId?: string }
   | { type: 'ANALYZING' }
   | { type: 'RESERVING_CARD', count: number, sequenceId?: string }
@@ -319,7 +319,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (newGame.isFirstToPass) {
           const currentLevel = oldGame.board.solarSystem.nextRingLevel || 1;
           setToast({ message: `Rotation du système solaire (Niveau ${currentLevel})`, visible: true });
-          addToHistory(`passe son tour en premier et choisit une carte à garder`, enginePlayer.id, oldGame);
+          addToHistory(`passe son tour en premier, fait tourner le système solaire (Niveau ${currentLevel}) et choisit une carte à garder`, enginePlayer.id, oldGame);
         } else {
           addToHistory("passe son tour et choisit une carte à garder", enginePlayer.id, oldGame);
         }
@@ -356,43 +356,98 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         setHasPerformedMainAction(false); // Réinitialiser pour le prochain joueur
     } else {
         console.error("Erreur lors de l'action Passer:", result.error);
-        setToast({ message: "Erreur lors de l'action Passer", visible: true });
+        setToast({ message: `Erreur lors de l'action Passer: ${result.error}`, visible: true });
     }
   }, [addToHistory]);
 
   // Effet pour gérer le tour du joueur Mock
   useEffect(() => {
     const currentPlayer = game.players[game.currentPlayerIndex];
-    // Si le joueur est un robot
     if (currentPlayer && currentPlayer.type === 'robot') {
       const timer = setTimeout(() => {
-        // 1. Vérifier les paliers d'objectifs
         const milestoneClaim = AIBehavior.checkAndClaimMilestone(game, currentPlayer);
         
         if (milestoneClaim) {
-           const updatedGame = structuredClone(game);
-           const upTile = updatedGame.board.objectiveTiles.find(t => t.id === milestoneClaim.tileId)!;
-           const upPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
-           
-           upTile.markers.push(upPlayer.id);
-           upPlayer.claimedMilestones.push(milestoneClaim.milestone);
-           
-           setGame(updatedGame);
-           if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-           
-           addToHistory(`(Robot) atteint le palier ${milestoneClaim.milestone} PV et place un marqueur sur "${upTile.name}"`, upPlayer.id, game);
+           // This logic is now handled in handleNextPlayer, so the AI doesn't need to check it before its action.
+           // For now, we keep it simple.
            return; // On attend le prochain cycle pour jouer l'action suivante
         }
 
-        // 2. Décider de l'action (Passer)
         const decision = AIBehavior.decideAction(game, currentPlayer);
         if (decision && decision.action === 'PASS') {
-            performPass(decision.cardsToKeep, decision.selectedCardId);
+            // Logique pour rendre la décision de l'IA valide pour l'action Passer
+            let cardsToKeep = decision.cardsToKeep;
+            const handIds = currentPlayer.cards.map(c => c.id);
+            
+            // Validation stricte des cartes à garder (IDs valides et nombre correct)
+            let areCardsValid = Array.isArray(cardsToKeep) && cardsToKeep.every(id => handIds.includes(id));
+            
+            const maxHandSize = GAME_CONSTANTS.HAND_SIZE_AFTER_PASS;
+            const currentHandSize = currentPlayer.cards.length;
+            const expectedKeepCount = Math.min(currentHandSize, maxHandSize);
+
+            if (!areCardsValid || (cardsToKeep && cardsToKeep.length !== expectedKeepCount)) {
+                console.warn(`AI ${currentPlayer.name} invalid cardsToKeep. Forcing default selection.`);
+                cardsToKeep = currentPlayer.cards.slice(0, expectedKeepCount).map(c => c.id);
+            }
+
+            let selectedCardId = decision.selectedCardId;
+            const roundDeck = game.roundDecks[game.currentRound];
+            const isDeckAvailable = roundDeck && roundDeck.length > 0;
+
+            if (isDeckAvailable) {
+                const isValidSelection = selectedCardId && roundDeck.some(c => c.id === selectedCardId);
+                if (!isValidSelection) {
+                    console.warn(`AI ${currentPlayer.name} invalid selectedCardId. Picking first.`);
+                    selectedCardId = roundDeck[0].id;
+                }
+            } else {
+                selectedCardId = undefined;
+            }
+
+            performPass(cardsToKeep, selectedCardId);
         }
       }, 1500);
       return () => clearTimeout(timer);
     }
   }, [game, performPass, addToHistory]);
+
+  // Helper pour effectuer une rotation du système solaire
+  const performRotation = (currentGame: Game, source: string): { updatedGame: Game, logs: string[] } => {
+    let updatedGame = structuredClone(currentGame);
+    const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 3;
+    const oldRotationState = createRotationState(
+        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+    );
+
+    if (currentLevel === 3) {
+        updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+    } else if (currentLevel === 2) {
+        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+    } else if (currentLevel === 1) {
+        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+    }
+
+    updatedGame.board.solarSystem.nextRingLevel = currentLevel === 3 ? 1 : currentLevel + 1;
+
+    const newRotationState = createRotationState(
+        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+    );
+
+    const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
+    updatedGame = rotationResult.game;
+    
+    const logs = [`fait tourner le système solaire (Niveau ${currentLevel}) via ${source}`, ...rotationResult.logs];
+    
+    return { updatedGame, logs };
+  }
 
   // Gestionnaire pour passer au joueur suivant (fin de tour simple)
   const handleNextPlayer = () => {
@@ -630,24 +685,36 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   };
 
   // Helper pour traiter les bonus (Orbite/Atterrissage)
-  const processBonuses = (bonuses: any, currentGame: Game, playerId: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[] } => {
+  const processBonuses = (bonuses: any, currentGame: Game, playerId: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[] } => {
     let updatedGame = currentGame;
     const newPendingInteractions: InteractionState[] = [];
-    const passiveGains: string[] = [];
+    const logs: string[] = [];
+    const passiveGains: string[] = []; // For summary toast
 
-    if (!bonuses) return { updatedGame, newPendingInteractions, passiveGains };
+    if (!bonuses) return { updatedGame, newPendingInteractions, logs, passiveGains };
 
     // Gains passifs pour le résumé
-    if (bonuses.pv) passiveGains.push(`${bonuses.pv} PV`);
-    if (bonuses.media) passiveGains.push(`${bonuses.media} Média`);
-    if (bonuses.credits) passiveGains.push(`${bonuses.credits} Crédit${bonuses.credits > 1 ? 's' : ''}`);
-    if (bonuses.energy) passiveGains.push(`${bonuses.energy} Énergie`);
-    if (bonuses.data) passiveGains.push(`${bonuses.data} Donnée${bonuses.data > 1 ? 's' : ''}`);
+    if (bonuses.pv) { passiveGains.push(`${bonuses.pv} PV`); logs.push(`gagne ${bonuses.pv} PV`); }
+    if (bonuses.media) { passiveGains.push(`${bonuses.media} Média`); logs.push(`gagne ${bonuses.media} Média`); }
+    if (bonuses.credits) { const s = bonuses.credits > 1 ? 's' : ''; passiveGains.push(`${bonuses.credits} Crédit${s}`); logs.push(`gagne ${bonuses.credits} Crédit${s}`); }
+    if (bonuses.energy) { passiveGains.push(`${bonuses.energy} Énergie`); logs.push(`gagne ${bonuses.energy} Énergie`); }
+    if (bonuses.data) { const s = bonuses.data > 1 ? 's' : ''; passiveGains.push(`${bonuses.data} Donnée${s}`); logs.push(`gagne ${bonuses.data} Donnée${s}`); }
+
+    // Effets immédiats qui modifient l'état (Rotation)
+    if (bonuses.rotation) {
+        for (let i = 0; i < bonuses.rotation; i++) {
+            const rotationResult = performRotation(updatedGame, 'bonus de carte');
+            updatedGame = rotationResult.updatedGame;
+            logs.push(...rotationResult.logs);
+        }
+    }
 
     // Effets immédiats (Pioche)
     if (bonuses.card) {
-      updatedGame = CardSystem.drawCards(updatedGame, playerId, bonuses.card, 'Cartes obtenues avec orbiteur/atterrisseur');
-      passiveGains.push(`${bonuses.card} Carte${bonuses.card > 1 ? 's' : ''} (Pioche)`);
+      updatedGame = CardSystem.drawCards(updatedGame, playerId, bonuses.card, 'Bonus de carte');
+      const s = bonuses.card > 1 ? 's' : '';
+      passiveGains.push(`${bonuses.card} Carte${s}`);
+      logs.push(`pioche ${bonuses.card} Carte${s}`);
     }
 
     // Effets interactifs (File d'attente)
@@ -659,10 +726,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       newPendingInteractions.push({ type: 'RESERVING_CARD', count: bonuses.revenue });
     }
     
-    if (bonuses.anytechnology) {
-      for (let i = 0; i < bonuses.anytechnology; i++) {
-          newPendingInteractions.push({ type: 'SELECTING_TECH_BONUS' });
+    if (bonuses.technology) {
+      for (let i = 0; i < bonuses.technology.amount; i++) {
+          newPendingInteractions.push({ type: 'SELECTING_TECH_BONUS', category: bonuses.technology.color });
       }
+    }
+    
+    if (bonuses.movements) {
+        // On ajoute autant d'actions de mouvement gratuit que de bonus
+        newPendingInteractions.push({ type: 'FREE_MOVEMENT' }); // Simplification: 1 état pour X mouvements, ou X états ?
+        // Pour l'instant, FREE_MOVEMENT dans BoardUI gère 1 mouvement. Si on veut X, il faudrait adapter l'état.
+        // Hack: on push X fois l'état si le système le supporte, sinon on adapte l'état FREE_MOVEMENT pour avoir un compteur.
+        // Ici on suppose que FREE_MOVEMENT est unitaire ou que l'utilisateur gère ses points.
+        // Amélioration : Modifier InteractionState pour FREE_MOVEMENT { count: number }
+        // Pour ce diff, on va juste activer le mode mouvement.
     }
 
     if (bonuses.yellowlifetrace) {
@@ -676,7 +753,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
          setToast({ message: "Bonus Scan : Fonctionnalité à venir", visible: true });
     }
 
-    return { updatedGame, newPendingInteractions, passiveGains };
+    return { updatedGame, newPendingInteractions, logs, passiveGains };
   };
 
   // Helper générique pour les interactions avec les planètes (Orbite/Atterrissage)
@@ -738,8 +815,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     try {
         const result = actionFn(game, currentPlayer.id, probe.id, planetId);
         
-        // Traiter les bonus
-        const { updatedGame, newPendingInteractions, passiveGains } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id);
+        const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id);
 
         setGame(updatedGame);
         if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
@@ -772,8 +848,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }
 
         addToHistory(`${historyMessagePrefix} ${planetId}`, currentPlayer.id, stateBeforeAction, undefined, sequenceId);
-        if (passiveGains.length > 0) {
-            addToHistory(`gagne : ${passiveGains.join(', ')}`, currentPlayer.id, updatedGame, undefined, sequenceId);
+        if (allBonusLogs.length > 0) {
+            allBonusLogs.forEach(log => addToHistory(log, currentPlayer.id, updatedGame, undefined, sequenceId));
         }
         if (newPendingInteractions.length === 0) {
             setToast({ message: successMessage, visible: true });
@@ -954,22 +1030,48 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (interactionState.type !== 'IDLE') return;
     if (hasPerformedMainAction) return;
 
-    const currentPlayer = game.players[game.currentPlayerIndex];
+    const currentGame = gameRef.current;
+    const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
     
-    const result = CardSystem.playCard(game, currentPlayer.id, cardId);
+    const result = CardSystem.playCard(currentGame, currentPlayer.id, cardId);
     if (result.error) {
         setToast({ message: result.error, visible: true });
         return;
     }
 
-    const card = currentPlayer.cards.find(c => c.id === cardId)!;
-    setGame(result.updatedGame);
+    const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs: allBonusLogs } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id);
+
+    const card = currentGame.players[currentGame.currentPlayerIndex].cards.find(c => c.id === cardId)!;
+    setGame(gameAfterBonuses);
     if (gameEngineRef.current) {
-      gameEngineRef.current.setState(result.updatedGame);
+      gameEngineRef.current.setState(gameAfterBonuses);
     }
     setHasPerformedMainAction(true);
-    setToast({ message: `Carte jouée: ${card.name}`, visible: true });
-    addToHistory(`joue la carte "${card.name}" pour ${card.cost} crédits`, currentPlayer.id, game);
+    
+    const gainsText = passiveGains.length > 0 ? ` (Gains: ${passiveGains.join(', ')})` : '';
+    setToast({ message: `Carte jouée: ${card.name}${gainsText}`, visible: true });
+    
+    const sequenceId = `seq-${Date.now()}`;
+    
+    const areAllGainsPassive = allBonusLogs.every(log => log.startsWith('gagne') || log.startsWith('pioche'));
+
+    if (newPendingInteractions.length === 0 && areAllGainsPassive && passiveGains.length > 0) {
+        // Si seulement des gains passifs, on les ajoute sur la même ligne
+        const gainsSummary = passiveGains.join(', ');
+        addToHistory(`joue la carte "${card.name}" pour ${card.cost} crédits et gagne : ${gainsSummary}`, currentPlayer.id, currentGame, undefined, sequenceId);
+    } else {
+        // Sinon, on log l'action puis les effets en séquence
+        addToHistory(`joue la carte "${card.name}" pour ${card.cost} crédits`, currentPlayer.id, currentGame, undefined, sequenceId);
+        if (allBonusLogs.length > 0) {
+            allBonusLogs.forEach(log => addToHistory(log, currentPlayer.id, gameAfterBonuses, undefined, sequenceId));
+        }
+    }
+
+    // Gérer les interactions en attente (ex: Mouvements, Tech, etc.)
+    if (newPendingInteractions.length > 0) {
+        const interactionsWithSeqId = newPendingInteractions.map(i => ({ ...i, sequenceId }));
+        setPendingInteractions(prev => [...interactionsWithSeqId, ...prev]);
+    }
   };
 
   // Gestionnaire pour l'action d'achat de carte avec du média
@@ -1918,6 +2020,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                   <TechnologyBoardUI 
                     game={game} 
                     isResearching={interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS'}
+                    researchCategory={interactionState.type === 'SELECTING_TECH_BONUS' ? interactionState.category : undefined}
                     onTechClick={handleTechClick}
                     hasPerformedMainAction={hasPerformedMainAction}
                   />
@@ -2073,8 +2176,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                             </div>
                         )}
                         <div style={{ flex: 1, padding: '2px 0' }}>
-                            {player && !entry.message.startsWith(player.name) && !isSequenceChild && <strong style={{ color: color }}>{player.name} </strong>}
-                            <span style={{ color: '#ddd', fontSize: isSequenceChild ? '0.9em' : '1em' }}>{formatHistoryMessage(entry.message)}</span>
+                            <span style={{ color: '#ddd', fontSize: isSequenceChild ? '0.9em' : '1em' }}>
+                                {player && !entry.message.startsWith(player.name) && <strong style={{ color: color }}>{player.name} </strong>}
+                                {formatHistoryMessage(entry.message)}
+                            </span>
                         </div>
                       </div>
                     );

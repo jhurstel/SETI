@@ -338,12 +338,16 @@ export interface Card {
   revenue: RevenueBonus;
   effects: CardEffect[];
   ownerId?: string;
+  immediateEffects?: CardEffect[];
+  passiveEffects?: CardEffect[];
   scoringModifiers?: ScoringModifier[];
 }
 
 export interface CardEffect {
   type: string;
   value: any;
+  target?: string;
+  condition?: string;
 }
 
 export interface Mission {

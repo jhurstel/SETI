@@ -540,7 +540,7 @@ export class ProbeSystem {
     }
 
     if (probe.state !== ProbeState.IN_SOLAR_SYSTEM) {
-      return { canLand: false, reason: 'La sonde doit dans le systeme solaire' };
+      return { canLand: false, reason: 'La sonde doit être dans le système solaire' };
     }
 
     // Vérifier que la sonde est sur une planète (pas Terre)

@@ -39,7 +39,6 @@ export class ResearchTechAction extends BaseAction {
       this.technologyId
     );
     
-    // La rotation du système solaire est gérée dans TechnologySystem
     return result.updatedGame;
   }
 }
