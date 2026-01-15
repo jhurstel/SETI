@@ -49,11 +49,15 @@ const ACTION_NAMES: Record<ActionType, string> = {
 const ComputerSlot = ({ 
   slot, 
   onClick, 
-  canFill 
+  canFill,
+  onHover,
+  onLeave
 }: { 
   slot: any, 
   onClick: () => void, 
-  canFill: boolean 
+  canFill: boolean,
+  onHover: (e: React.MouseEvent, content: React.ReactNode) => void,
+  onLeave: () => void
 }) => {
   const isFilled = slot.filled;
   
@@ -77,7 +81,8 @@ const ComputerSlot = ({
     <div
       onClick={canFill && !isFilled ? onClick : undefined}
       className={`computer-slot ${isFilled ? 'filled' : ''} ${canFill && !isFilled ? 'can-fill' : ''}`}
-      title={tooltip}
+      onMouseEnter={(e) => onHover(e, tooltip)}
+      onMouseLeave={onLeave}
     >
       {isFilled && <div className="computer-slot-dot" />}
       {!isFilled && slot.bonus === 'media' && <span className="computer-slot-bonus media">M</span>}
@@ -90,7 +95,13 @@ const ComputerSlot = ({
   );
 };
 
-const PlayerComputer = ({ player, onSlotClick, isSelecting, onColumnSelect, isAnalyzing, disabled }: { player: any, onSlotClick: (slotId: string) => void, isSelecting?: boolean, onColumnSelect?: (col: number) => void, isAnalyzing?: boolean, disabled?: boolean }) => {
+const PlayerComputer = ({ 
+  player, onSlotClick, isSelecting, onColumnSelect, isAnalyzing, disabled, onHover, onLeave 
+}: { 
+  player: any, onSlotClick: (slotId: string) => void, isSelecting?: boolean, onColumnSelect?: (col: number) => void, isAnalyzing?: boolean, disabled?: boolean,
+  onHover: (e: React.MouseEvent, content: React.ReactNode) => void,
+  onLeave: () => void
+}) => {
   // Initialize if needed
   DataSystem.initializeComputer(player);
   const slots = player.computer.slots;
@@ -138,6 +149,8 @@ const PlayerComputer = ({ player, onSlotClick, isSelecting, onColumnSelect, isAn
                   slot={slot} 
                   onClick={() => onSlotClick(slot.id)} 
                   canFill={!disabled && DataSystem.canFillSlot(player, slot.id)} 
+                  onHover={onHover}
+                  onLeave={onLeave}
                 />
               ))}
             </div>
@@ -167,6 +180,20 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
   const [cardsSelectedForTrade, setCardsSelectedForTrade] = useState<string[]>([]);
   const [tick, setTick] = useState(0);
+  const [customTooltip, setCustomTooltip] = useState<{ content: React.ReactNode, x: number, y: number } | null>(null);
+
+  const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setCustomTooltip({
+      content,
+      x: rect.left + rect.width / 2,
+      y: rect.top
+    });
+  };
+
+  const handleTooltipLeave = () => {
+    setCustomTooltip(null);
+  };
   
   const isInteractiveMode = isDiscarding || tradeState.phase !== 'inactive' || isSelectingComputerSlot || isAnalyzing || reservationState.active || isPlacingLifeTrace;
 
@@ -309,27 +336,36 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
 
     switch (actionType) {
       case ActionType.LAUNCH_PROBE:
-        // si joueur a exploration1, il peut lancer 2 sondes
-        const maxProbes = currentPlayer.technologies.some(tech => tech.id.startsWith('exploration-1'))
-          ? GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY
-          : GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM;
-        if (currentPlayer.probes.length >= maxProbes) return `Limite de sondes atteinte (max ${maxProbes} dans le système solaire)`;
-        if (currentPlayer.credits < 2) return `Nécessite 2 crédits (vous avez ${currentPlayer.credits})`;
-        return 'Lancer une sonde depuis la Terre (coût: 2 crédits)';
+        if (isRobot) return "Tour du robot";
+        if (hasPerformedMainAction) return "Action principale déjà effectuée";
+
+        const launchCheck = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
+        if (!launchCheck.canLaunch) return launchCheck.reason || "Impossible de lancer une sonde";
+        return `Lancer une sonde depuis la Terre (coût: ${GAME_CONSTANTS.PROBE_LAUNCH_COST} crédits)`;
 
       case ActionType.ORBIT:
-        if (!hasProbeOnPlanetInfo.hasProbe) return 'Nécessite une sonde sur une planète autre que la Terre';
-        if (currentPlayer.credits < 1) return `Nécessite 1 crédit (vous avez ${currentPlayer.credits})`;
-        if (currentPlayer.energy < 1) return `Nécessite 1 énergie (vous avez ${currentPlayer.energy})`;
-        return 'Mettre une sonde en orbite (coût: 1 crédit, 1 énergie)';
+        if (isRobot) return "Tour du robot";
+        if (hasPerformedMainAction) return "Action principale déjà effectuée";
+        
+        const orbitProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+        if (!orbitProbe) return 'Nécessite une sonde dans le système solaire';
+
+        const orbitCheck = ProbeSystem.canOrbit(game, currentPlayer.id, orbitProbe.id);
+        if (!orbitCheck.canOrbit) return orbitCheck.reason || "Impossible";
+        
+        return `Mettre une sonde en orbite (coût: ${GAME_CONSTANTS.ORBIT_COST_CREDITS} crédit, ${GAME_CONSTANTS.ORBIT_COST_ENERGY} énergie)`;
       
       case ActionType.LAND:
-        if (!hasProbeOnPlanetInfo.hasProbe) return 'Nécessite une sonde sur une planète autre que la Terre';
-        const cost = hasProbeOnPlanetInfo.landCost || 0;
-        if (currentPlayer.credits < cost) {
-          return `Nécessite ${cost} crédit(s) (vous avez ${currentPlayer.credits})${hasProbeOnPlanetInfo.hasExploration3 ? ' [Réduction exploration 3 appliquée]' : ''}`;
-        }
-        return `Poser une sonde sur une planète (coût: ${cost} crédit(s)${hasProbeOnPlanetInfo.hasOrbiter ? ', orbiteur présent' : ''}${hasProbeOnPlanetInfo.hasExploration3 ? ', réduction exploration 3' : ''})`;
+        if (isRobot) return "Tour du robot";
+        if (hasPerformedMainAction) return "Action principale déjà effectuée";
+        
+        const landProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+        if (!landProbe) return 'Nécessite une sonde dans le système solaire';
+
+        const landCheck = ProbeSystem.canLand(game, currentPlayer.id, landProbe.id);
+        if (!landCheck.canLand) return landCheck.reason || "Impossible";
+
+        return `Poser une sonde sur une planète (coût: ${landCheck.energyCost} énergie${hasProbeOnPlanetInfo.hasOrbiter ? ', orbiteur présent' : ''}${hasProbeOnPlanetInfo.hasExploration3 ? ', réduction exploration 3' : ''})`;
 
       case ActionType.SCAN_SECTOR:
         if (currentPlayer.credits < 1 || currentPlayer.energy < 2) {
@@ -343,8 +379,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         return 'Analyser des données (coût: 1 énergie)';
 
       case ActionType.RESEARCH_TECH:
-        if (currentPlayer.mediaCoverage < 6) return `Nécessite 6 points de couverture médiatique (vous avez ${currentPlayer.mediaCoverage})`;
-        return 'Rechercher une technologie (coût: 6 couverture médiatique)';
+        if (isRobot) return "Tour du robot";
+        if (hasPerformedMainAction) return "Action principale déjà effectuée";
+        if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) return `Nécessite ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} points de couverture médiatique (vous avez ${currentPlayer.mediaCoverage})`;
+        return `Rechercher une technologie (coût: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} couverture médiatique)`;
 
       case ActionType.PLAY_CARD:
         return currentPlayer.cards.length === 0 ? 'Aucune carte en main' : 'Jouer une carte de votre main';
@@ -388,7 +426,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
              <div 
                key={p.id}
                onClick={() => onViewPlayer && onViewPlayer(p.id)}
-               title={isActive ? "Joueur actif" : undefined}
                style={{
                  padding: '6px 12px',
                  backgroundColor: shouldFlash ? '#4caf50' : (isViewed ? (p.color || '#444') : '#2a2a2a'),
@@ -606,7 +643,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                     style={{
                       cursor: available && onAction ? 'pointer' : 'not-allowed',
                     }}
-                    title={tooltip}
+                    onMouseEnter={(e) => handleTooltipHover(e, tooltip)}
+                    onMouseLeave={handleTooltipLeave}
                   >
                     {name}
                   </div>
@@ -658,6 +696,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               onColumnSelect={onComputerSlotSelect}
               isAnalyzing={isAnalyzing}
               disabled={isInteractiveMode}
+              onHover={handleTooltipHover}
+              onLeave={handleTooltipLeave}
             />
           </div>
         </div>
@@ -937,6 +977,30 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
 
       </div>
     </div>
+    {customTooltip && (
+        <div
+          style={{
+            position: 'fixed',
+            top: customTooltip.y,
+            left: customTooltip.x,
+            transform: 'translate(-50%, -100%)',
+            marginTop: '-8px',
+            zIndex: 9999,
+            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+            padding: '6px 10px',
+            borderRadius: '4px',
+            border: '1px solid #78a0ff',
+            color: '#fff',
+            textAlign: 'center',
+            minWidth: '120px',
+            pointerEvents: 'none',
+            whiteSpace: 'pre-line',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
+          }}
+        >
+          {customTooltip.content}
+        </div>
+      )}
     </div>
   );
 };

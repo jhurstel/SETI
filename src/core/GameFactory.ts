@@ -71,8 +71,9 @@ export class GameFactory {
         });
     };
 
-    players.map(p => {
-      addLog(`${p.name} a rejoint la partie avec ${p.score} PV`);
+    players.map((p, index) => {
+      const suffix = index === 0 ? 'er' : 'ème';
+      addLog(`${p.name} a rejoint la partie (${index + 1}${suffix} joueur) avec ${p.score} PV`);
     })
     addLog("--- DÉBUT DE LA PARTIE ---");
     

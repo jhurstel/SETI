@@ -55,9 +55,10 @@ export class ProbeSystem {
     );
 
     // Vérifier les technologies qui permettent plusieurs sondes
-    const maxProbes = player.technologies.some(t => t.id.startsWith('exploration-1'))
-     ? GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY
-     : GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM;
+    const hasExploration1 = player.technologies.some(t => t.id.includes('exploration-1'));
+    const maxProbes = hasExploration1
+     ? (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY || 2)
+     : (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM || 1);
     
     if (probesInSystem.length >= maxProbes) {
       return { 
@@ -466,19 +467,26 @@ export class ProbeSystem {
       probes: player.probes.map(p => p.id === probeId ? updatedProbe : p)
     };
 
-    // Ajouter à la planète
-    if (planet) {
-      planet.orbiters.push(updatedProbe);
-    }
-
-    // Retirer du système solaire en préservant tous les champs (y compris les angles de rotation)
+    // Mettre à jour le plateau (Planètes et Système Solaire) de manière immuable
     updatedGame.board = {
-      ...updatedGame.board,
+      ...game.board,
+      planets: game.board.planets.map(p => {
+        if (p.id === planetId) {
+          return {
+            ...p,
+            orbiters: [...p.orbiters, updatedProbe]
+          };
+        }
+        return p;
+      }),
       solarSystem: {
-        ...updatedGame.board.solarSystem,
-        probes: updatedGame.board.solarSystem.probes.filter(p => p.id !== probeId)
+        ...game.board.solarSystem,
+        probes: game.board.solarSystem.probes.filter(p => p.id !== probeId)
       }
     };
+
+    // Récupérer la planète mise à jour pour les bonus
+    const updatedPlanet = updatedGame.board.planets.find(p => p.id === planetId);
 
     const accumulatedBonuses: PlanetBonus = {};
     const applyAndAccumulate = (bonus: PlanetBonus) => {
@@ -492,11 +500,11 @@ export class ProbeSystem {
     };
 
     // Bonus planète
-    if (isFirstOrbiter && planet?.orbitFirstBonus) {
-      applyAndAccumulate(planet.orbitFirstBonus);
+    if (isFirstOrbiter && updatedPlanet?.orbitFirstBonus) {
+      applyAndAccumulate(updatedPlanet.orbitFirstBonus);
     }
-    if (planet?.orbitNextBonuses) {
-      planet.orbitNextBonuses.forEach(bonus => applyAndAccumulate(bonus));
+    if (updatedPlanet?.orbitNextBonuses) {
+      updatedPlanet.orbitNextBonuses.forEach(bonus => applyAndAccumulate(bonus));
     }
 
     updatedGame.players[playerIndex] = updatedPlayer;
@@ -597,19 +605,26 @@ export class ProbeSystem {
       probes: player.probes.map(p => p.id === probeId ? updatedProbe : p)
     };
 
-    // Ajouter à la planete
-    if (planet) {
-      planet.landers.push(updatedProbe);
-    }
-
-    // Retirer du système solaire en préservant tous les champs (y compris les angles de rotation)
+    // Mettre à jour le plateau (Planètes et Système Solaire) de manière immuable
     updatedGame.board = {
-      ...updatedGame.board,
+      ...game.board,
+      planets: game.board.planets.map(p => {
+        if (p.id === planetId) {
+          return {
+            ...p,
+            landers: [...p.landers, updatedProbe]
+          };
+        }
+        return p;
+      }),
       solarSystem: {
-        ...updatedGame.board.solarSystem,
-        probes: updatedGame.board.solarSystem.probes.filter(p => p.id !== probeId)
+        ...game.board.solarSystem,
+        probes: game.board.solarSystem.probes.filter(p => p.id !== probeId)
       }
     };
+
+    // Récupérer la planète mise à jour pour les bonus
+    const updatedPlanet = updatedGame.board.planets.find(p => p.id === planetId);
 
     const accumulatedBonuses: PlanetBonus = {};
     const applyAndAccumulate = (bonus: PlanetBonus) => {
@@ -623,14 +638,14 @@ export class ProbeSystem {
     };
 
     // Bonus planète (atterrissage)
-    if (isFirstLander && planet?.landFirstBonus) {
-      applyAndAccumulate(planet.landFirstBonus);
+    if (isFirstLander && updatedPlanet?.landFirstBonus) {
+      applyAndAccumulate(updatedPlanet.landFirstBonus);
     }
-    if (isSecondLander && planet?.landSecondBonus) {
-      applyAndAccumulate(planet.landSecondBonus);
+    if (isSecondLander && updatedPlanet?.landSecondBonus) {
+      applyAndAccumulate(updatedPlanet.landSecondBonus);
     }
-    if (planet?.landNextBonuses) {
-      planet.landNextBonuses.forEach(bonus => applyAndAccumulate(bonus));
+    if (updatedPlanet?.landNextBonuses) {
+      updatedPlanet.landNextBonuses.forEach(bonus => applyAndAccumulate(bonus));
     }
 
     updatedGame.players[playerIndex] = updatedPlayer;

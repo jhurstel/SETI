@@ -1,5 +1,5 @@
 import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, PlanetBonus, ProbeState } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, PlanetBonus, ProbeState, GAME_CONSTANTS } from '../core/types';
 import { 
   createRotationState, 
   calculateReachableCellsWithEnergy,
@@ -121,6 +121,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   const handleMouseLeaveObject = () => {
     hoverTimeoutRef.current = setTimeout(() => {
       setHoveredObject(null);
+      setSlotTooltip(null);
     }, 300);
   };
 
@@ -400,9 +401,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         {hasOther && (() => {
            let label = '';
            let color = '#fff';
-           if (bonus.media) { label = 'M'; color = '#ffeb3b'; }
+           if (bonus.media) { label = 'M'; color = '#ff6b6b'; }
            else if (bonus.credits) { label = 'C'; color = '#ffd700'; }
-           else if (bonus.energy) { label = 'E'; color = '#ff6b6b'; }
+           else if (bonus.energy) { label = 'E'; color = '#4caf50'; }
            else if (bonus.card) { label = '🃏'; color = '#aaffaa'; }
            else if (bonus.data) { label = 'D'; color = '#8affc0'; }
            else if (bonus.planetscan) { label = 'S'; color = '#fff'; }
@@ -613,7 +614,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             <div>Atterrisseur de <span style={{fontWeight: 'bold', color: player?.color}}>{player?.name}</span> sur {satellite.name}</div>
         ) : (
             <>
-                <div style={{ marginBottom: '4px', color: isSatClickable ? '#4a9eff' : '#aaa', fontWeight: isSatClickable ? 'bold' : 'normal' }}>
+                <div style={{ marginBottom: '4px', color: isSatClickable ? '#4a9eff' : '#ff6b6b', fontWeight: isSatClickable ? 'bold' : 'normal' }}>
                     {satReason}
                 </div>
                 <div style={{ fontSize: '0.9em', color: '#ccc' }}>
@@ -921,7 +922,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                         <div>Orbiteur de <span style={{fontWeight: 'bold', color: player?.color}}>{player?.name}</span></div>
                     ) : (
                         <>
-                            <div style={{ marginBottom: '4px', color: isClickable ? '#4a9eff' : '#aaa', fontWeight: isClickable ? 'bold' : 'normal' }}>
+                            <div style={{ marginBottom: '4px', color: isClickable ? '#4a9eff' : '#ff6b6b', fontWeight: isClickable ? 'bold' : 'normal' }}>
                                 {orbitReason}
                             </div>
                             <div style={{ fontSize: '0.9em', color: '#ccc' }}>
@@ -971,7 +972,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                         <div>Atterrisseur de <span style={{fontWeight: 'bold', color: player?.color}}>{player?.name}</span></div>
                     ) : (
                         <>
-                            <div style={{ marginBottom: '4px', color: isClickable ? '#4a9eff' : '#aaa', fontWeight: isClickable ? 'bold' : 'normal' }}>
+                            <div style={{ marginBottom: '4px', color: isClickable ? '#4a9eff' : '#ff6b6b', fontWeight: isClickable ? 'bold' : 'normal' }}>
                                 {landReason}
                             </div>
                             <div style={{ fontSize: '0.9em', color: '#ccc' }}>
@@ -1382,7 +1383,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   };
 
   // Fonction helper pour rendre une sonde
-  const renderProbe = (probe: Probe, zIndex: number = 50) => {
+  const renderProbe = (probe: Probe, zIndex: number = 150) => {
     if (!probe.solarPosition) return null;
 
     const player = game.players.find(p => p.id === probe.ownerId);
@@ -1578,6 +1579,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   // Fonction pour gérer le clic sur une sonde
   const handleProbeClick = (probe: Probe, movementBonus: number = 0) => {
     setHoveredObject(null);
+    setSlotTooltip(null);
     if (selectedProbeId === probe.id) {
       // Désélectionner si déjà sélectionnée
       setSelectedProbeId(null);
@@ -1776,7 +1778,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
               if (!probe.solarPosition) return false;
               const level = probe.solarPosition.level;
               return level === 0 || level === null; // Disques D et E (fixes)
-            }).map((probe) => renderProbe(probe, 50)
+            }).map((probe) => renderProbe(probe, 150)
           )}
 
           {/* Plateau rotatif niveau 3 avec 3 disques (A, B, C) - se superpose au plateau fixe */}
@@ -1842,7 +1844,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                 const level = probe.solarPosition.level;
                 return level === 3;
               })
-              .map((probe) => renderProbe(probe, 50))}
+              .map((probe) => renderProbe(probe, 150))}
 
             {/* Objets célestes sur le plateau rotatif niveau 3 - basés sur INITIAL_ROTATING_LEVEL3_OBJECTS */}
             {INITIAL_ROTATING_LEVEL3_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
@@ -1912,7 +1914,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                 const level = probe.solarPosition.level;
                 return level === 2;
               })
-              .map((probe) => renderProbe(probe, 50))}
+              .map((probe) => renderProbe(probe, 150))}
 
             {/* Objets célestes sur le plateau rotatif niveau 2 - basés sur INITIAL_ROTATING_LEVEL2_OBJECTS */}
             {INITIAL_ROTATING_LEVEL2_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
@@ -1968,7 +1970,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                 if (!probe.solarPosition) return false;
                 const level = probe.solarPosition.level;
                 return level === 1;
-              }).map((probe) => renderProbe(probe, 50)
+              }).map((probe) => renderProbe(probe, 150)
             )}
 
             {/* Objets célestes sur le plateau rotatif niveau 1 - basés sur INITIAL_ROTATING_LEVEL1_OBJECTS */}
@@ -2065,7 +2067,19 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
               } else if (hoveredObject.type === 'planet' && hoveredObject.id !== 'earth') {
                 subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>Gagnez 1 media en visitant</div>;
               } else {
-                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>Lancez une sonde</div>;
+                const currentPlayer = game.players[game.currentPlayerIndex];
+                const isRobot = (currentPlayer as any).type === 'robot';
+                const check = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
+                let text = `Lancer une sonde (${GAME_CONSTANTS.PROBE_LAUNCH_COST} Crédits)`;
+                let color = '#aaa';
+                if (hasPerformedMainAction || isRobot) {
+                    text = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
+                    color = '#ff6b6b';
+                } else if (!check.canLaunch) {
+                    text = check.reason || "Impossible";
+                    color = '#ff6b6b';
+                }
+                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: color }}>{text}</div>;
               }
 
               return (

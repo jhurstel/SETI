@@ -1,15 +1,18 @@
 import React from 'react';
-import { Game, Technology, TechnologyCategory, TechnologyBonus } from '../core/types';
+import { Game, Technology, TechnologyCategory, TechnologyBonus, GAME_CONSTANTS } from '../core/types';
 
 interface TechnologyBoardUIProps {
   game: Game;
   isResearching?: boolean;
   onTechClick?: (tech: Technology) => void;
+  hasPerformedMainAction?: boolean;
 }
 
-export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isResearching, onTechClick }) => {
+export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isResearching, onTechClick, hasPerformedMainAction }) => {
   const techBoard = game.board.technologyBoard;
   const categories = techBoard.categorySlots || [];
+  const currentPlayer = game.players[game.currentPlayerIndex];
+  const canAffordResearch = !hasPerformedMainAction && currentPlayer.mediaCoverage >= (GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA || 6);
 
   // Fonction pour regrouper les technologies par pile (même ID de base)
   const getStacks = (technologies: Technology[]) => {
@@ -41,8 +44,8 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
     if (excludeExtraPv) pv -= 2;
 
     if (pv > 0) elements.push(<span key="pv" style={{ color: '#8affc0', fontWeight: 'bold' }}>{pv} PV</span>);
-    if (bonus.media) elements.push(<span key="media" style={{ color: '#ffeb3b' }}>{bonus.media} Média</span>);
-    if (bonus.energy) elements.push(<span key="energy" style={{ color: '#ff6b6b' }}>{bonus.energy} Énergie</span>);
+    if (bonus.media) elements.push(<span key="media" style={{ color: '#ff6b6b' }}>{bonus.media} Média</span>);
+    if (bonus.energy) elements.push(<span key="energy" style={{ color: '#4caf50' }}>{bonus.energy} Énergie</span>);
     if (bonus.card) elements.push(<span key="card" style={{ color: '#fff' }}>{bonus.card} Carte</span>);
     if (bonus.probe) elements.push(<span key="probe" style={{ color: '#fff', border: '1px solid #fff', padding: '0 2px', borderRadius: '2px' }}>{bonus.probe} Sonde</span>);
     if (bonus.data) elements.push(<span key="data" style={{ color: '#fff', border: '1px solid #aaa', padding: '0 2px', borderRadius: '2px', backgroundColor: '#333' }}>{bonus.data} Data</span>);
@@ -84,6 +87,8 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                   const lastDashIndex = topCard.id.lastIndexOf('-');
                   const baseId = topCard.id.substring(0, lastDashIndex);
                   const techImage = getTechImage(baseId);
+                  
+                  const isClickable = isResearching || canAffordResearch;
 
                   // Détection du bonus supplémentaire de 2 PV (logique basée sur les valeurs initiales)
                   const hasExtraPv = (topCard.bonus.pv === 5) || (topCard.bonus.pv === 2 && (topCard.bonus.media || topCard.bonus.card || topCard.bonus.energy));
@@ -92,7 +97,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                     <div 
                       key={topCard.id} 
                       className="seti-tech-card"
-                      onClick={() => isResearching && onTechClick && onTechClick(topCard)}
+                      onClick={() => isClickable && onTechClick && onTechClick(topCard)}
                       title={`${topCard.name}: ${topCard.description} (${count} restants)`}
                       style={{
                         border: isResearching ? '2px solid #00ff00' : `1px solid ${categoryColor}`,
@@ -101,7 +106,8 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                         borderRadius: '4px',
                         marginBottom: '8px',
                         position: 'relative',
-                        cursor: isResearching ? 'pointer' : 'default',
+                        cursor: isClickable ? 'pointer' : 'default',
+                        opacity: isClickable ? 1 : 0.7,
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '4px',

@@ -36,13 +36,19 @@ type InteractionState =
   | { type: 'TRADING_GAIN', spendType: string, spendCardIds?: string[] }
   | { type: 'FREE_MOVEMENT' }
   | { type: 'RESEARCHING' }
-  | { type: 'SELECTING_TECH_BONUS' }
-  | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, isBonus?: boolean }
+  | { type: 'SELECTING_TECH_BONUS', sequenceId?: string }
+  | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, isBonus?: boolean, sequenceId?: string }
   | { type: 'ANALYZING' }
-  | { type: 'RESERVING_CARD', count: number }
-  | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow' }
-  | { type: 'BUYING_CARD', count: number, isFree?: boolean }
-  | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number };
+  | { type: 'RESERVING_CARD', count: number, sequenceId?: string }
+  | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow', sequenceId?: string }
+  | { type: 'BUYING_CARD', count: number, isFree?: boolean, sequenceId?: string }
+  | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number }
+  | { 
+      type: 'CHOOSING_BONUS_ACTION', 
+      bonusesSummary: string, 
+      choices: { id: string, label: string, state: InteractionState, done: boolean }[],
+      sequenceId?: string
+    };
 
 interface HistoryEntry {
   id: string;
@@ -53,7 +59,20 @@ interface HistoryEntry {
   previousHasPerformedMainAction?: boolean;
   previousPendingInteractions?: InteractionState[];
   timestamp: number;
+  sequenceId?: string;
 }
+
+// Helper pour les libellés des interactions
+const getInteractionLabel = (state: InteractionState): string => {
+  switch (state.type) {
+    case 'BUYING_CARD': return state.isFree ? "Choisir une carte" : "Acheter une carte";
+    case 'RESERVING_CARD': return "Réserver une carte";
+    case 'SELECTING_TECH_BONUS': return "Choisir une technologie";
+    case 'PLACING_LIFE_TRACE': return `Placer trace de vie (${state.color})`;
+    case 'SCAN_SECTOR': return "Scanner un secteur"; // Si implémenté
+    default: return "Action bonus";
+  }
+};
 
 export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // États pour le jeu
@@ -124,8 +143,23 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   }, [historyLog]);
 
+  // Helper pour formater les messages avec des icônes
+  const formatHistoryMessage = (message: string) => {
+    const parts = message.split(/(Énergie|énergie|Crédit(?:s?)|crédit(?:s?)|Média(?:s?)|Media)/g);
+    return parts.map((part, index) => {
+      if (part.match(/^Énergie|énergie$/)) {
+        return <span key={index} title="Énergie" style={{ color: '#4caf50', cursor: 'help' }}>⚡</span>;
+      } else if (part.match(/^Crédit(?:s?)|crédit(?:s?)$/)) {
+        return <span key={index} title="Crédit" style={{ color: '#ffd700', cursor: 'help' }}>₢</span>;
+      } else if (part.match(/^Média(?:s?)|Media$/)) {
+        return <span key={index} title="Média" style={{ color: '#ff6b6b', cursor: 'help' }}>🎤</span>;
+      }
+      return part;
+    });
+  };
+
   // Helper pour ajouter une entrée à l'historique
-  const addToHistory = useCallback((message: string, playerId?: string, previousState?: Game, customInteractionState?: InteractionState) => {
+  const addToHistory = useCallback((message: string, playerId?: string, previousState?: Game, customInteractionState?: InteractionState, sequenceId?: string) => {
     const entry: HistoryEntry = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       message,
@@ -134,7 +168,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       previousInteractionState: customInteractionState || interactionStateRef.current,
       previousHasPerformedMainAction: hasPerformedMainAction,
       previousPendingInteractions: pendingInteractionsRef.current,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      sequenceId
     };
     setHistoryLog(prev => [...prev, entry]);
   }, [hasPerformedMainAction]);
@@ -143,16 +178,44 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleUndo = () => {
     if (historyLog.length === 0) return;
     const lastEntry = historyLog[historyLog.length - 1];
-    if (lastEntry.previousState) {
+    
+    // Logique d'annulation de séquence (si sequenceId est présent)
+    if (lastEntry.sequenceId) {
+        // Trouver toutes les entrées de cette séquence
+        const sequenceEntries = historyLog.filter(e => e.sequenceId === lastEntry.sequenceId);
+        // L'état à restaurer est celui de la PREMIÈRE entrée de la séquence (l'action initiale)
+        const firstEntry = sequenceEntries[0];
+        
+        if (firstEntry && firstEntry.previousState) {
+            setGame(firstEntry.previousState);
+            if (gameEngineRef.current) {
+                gameEngineRef.current.setState(firstEntry.previousState);
+            }
+            
+            // Supprimer toutes les entrées de la séquence
+            setHistoryLog(prev => prev.filter(e => e.sequenceId !== lastEntry.sequenceId));
+            
+            // Restaurer les états depuis la première entrée
+            setInteractionState(firstEntry.previousInteractionState || { type: 'IDLE' });
+            if (firstEntry.previousHasPerformedMainAction !== undefined) {
+                setHasPerformedMainAction(firstEntry.previousHasPerformedMainAction);
+            }
+            if (firstEntry.previousPendingInteractions) {
+                setPendingInteractions(firstEntry.previousPendingInteractions);
+            }
+            setToast({ message: "Séquence annulée", visible: true });
+        } else {
+            setToast({ message: "Impossible d'annuler cette séquence", visible: true });
+        }
+    } else if (lastEntry.previousState) {
+      // Annulation standard (atomique)
       setGame(lastEntry.previousState);
       if (gameEngineRef.current) {
         gameEngineRef.current.setState(lastEntry.previousState);
       }
       setHistoryLog(prev => prev.slice(0, -1));
-      // Restaurer l'état d'interaction précédent s'il existe, sinon IDLE
       setInteractionState(lastEntry.previousInteractionState || { type: 'IDLE' });
       
-      // Restaurer hasPerformedMainAction
       if (lastEntry.previousHasPerformedMainAction !== undefined) {
         setHasPerformedMainAction(lastEntry.previousHasPerformedMainAction);
       }
@@ -421,8 +484,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         return;
       }
 
-      let updatedGame = { ...game };
-      updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+      let updatedGame = structuredClone(game);
       const playerIndex = updatedGame.currentPlayerIndex;
       const player = updatedGame.players[playerIndex];
 
@@ -454,7 +516,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
       }
 
-      updatedGame.board.solarSystem.nextRingLevel = currentLevel === 1 ? 3 : currentLevel - 1;
+      updatedGame.board.solarSystem.nextRingLevel = currentLevel === 3 ? 1 : currentLevel + 1;
 
       const newRotationState = createRotationState(
         updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
@@ -521,32 +583,39 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   };
 
   // Helper pour traiter les bonus (Orbite/Atterrissage)
-  const processBonuses = (bonuses: any, currentGame: Game, playerId: string): { updatedGame: Game, newPendingInteractions: InteractionState[] } => {
+  const processBonuses = (bonuses: any, currentGame: Game, playerId: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[] } => {
     let updatedGame = currentGame;
     const newPendingInteractions: InteractionState[] = [];
+    const passiveGains: string[] = [];
 
-    if (!bonuses) return { updatedGame, newPendingInteractions };
+    if (!bonuses) return { updatedGame, newPendingInteractions, passiveGains };
+
+    // Gains passifs pour le résumé
+    if (bonuses.pv) passiveGains.push(`${bonuses.pv} PV`);
+    if (bonuses.media) passiveGains.push(`${bonuses.media} Média`);
+    if (bonuses.credits) passiveGains.push(`${bonuses.credits} Crédit${bonuses.credits > 1 ? 's' : ''}`);
+    if (bonuses.energy) passiveGains.push(`${bonuses.energy} Énergie`);
+    if (bonuses.data) passiveGains.push(`${bonuses.data} Donnée${bonuses.data > 1 ? 's' : ''}`);
 
     // Effets immédiats (Pioche)
     if (bonuses.card) {
       updatedGame = CardSystem.drawCards(updatedGame, playerId, bonuses.card, 'Cartes obtenues avec orbiteur/atterrisseur');
+      passiveGains.push(`${bonuses.card} Carte${bonuses.card > 1 ? 's' : ''} (Pioche)`);
     }
 
     // Effets interactifs (File d'attente)
-    // Note: Les ressources simples (PV, Crédits, Energie, Media, Data, Pioche) sont supposées être gérées par ProbeSystem
     if (bonuses.anycard) {
       newPendingInteractions.push({ type: 'BUYING_CARD', count: bonuses.anycard, isFree: true });
     }
 
     if (bonuses.revenue) {
-        newPendingInteractions.push({ type: 'RESERVING_CARD', count: bonuses.revenue });
+      newPendingInteractions.push({ type: 'RESERVING_CARD', count: bonuses.revenue });
     }
     
     if (bonuses.anytechnology) {
       for (let i = 0; i < bonuses.anytechnology; i++) {
           newPendingInteractions.push({ type: 'SELECTING_TECH_BONUS' });
       }
-      setToast({ message: `Bonus : Choisissez ${bonuses.anytechnology} Technologie(s)`, visible: true });
     }
 
     if (bonuses.yellowlifetrace) {
@@ -560,7 +629,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
          setToast({ message: "Bonus Scan : Fonctionnalité à venir", visible: true });
     }
 
-    return { updatedGame, newPendingInteractions };
+    return { updatedGame, newPendingInteractions, passiveGains };
   };
 
   // Helper générique pour les interactions avec les planètes (Orbite/Atterrissage)
@@ -613,6 +682,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     if (!probe) return;
 
+    // Générer un ID de séquence pour grouper l'action et ses bonus
+    const sequenceId = `seq-${Date.now()}`;
+
     // Sauvegarder l'état avant l'action pour l'historique (Undo annulera tout, y compris les bonus)
     const stateBeforeAction = structuredClone(game);
 
@@ -620,20 +692,72 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         const result = actionFn(game, currentPlayer.id, probe.id, planetId);
         
         // Traiter les bonus
-        const { updatedGame, newPendingInteractions } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id);
+        const { updatedGame, newPendingInteractions, passiveGains } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id);
 
         setGame(updatedGame);
         if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
         setHasPerformedMainAction(true);
         
-        if (newPendingInteractions.length > 0) {
-            setPendingInteractions(newPendingInteractions);
+        if (newPendingInteractions.length > 1) {
+            // Créer le menu de choix en injectant le sequenceId dans les états
+            const choices = newPendingInteractions.map((interaction, index) => ({
+                id: `choice-${Date.now()}-${index}`,
+                label: getInteractionLabel(interaction),
+                state: { ...interaction, sequenceId },
+                done: false
+            }));
+            
+            const summary = passiveGains.length > 0 ? `Vous avez gagné : ${passiveGains.join(', ')}.` : "Gains interactifs :";
+            
+            setInteractionState({
+                type: 'CHOOSING_BONUS_ACTION',
+                bonusesSummary: summary,
+                choices: choices,
+                sequenceId
+            });
+        } else if (newPendingInteractions.length === 1) {
+            if (passiveGains.length > 0) {
+                setToast({ message: `Gains : ${passiveGains.join(', ')}`, visible: true });
+            }
+            setInteractionState({ ...newPendingInteractions[0], sequenceId });
+        } else if (passiveGains.length > 0) {
+            setToast({ message: `Gains : ${passiveGains.join(', ')}`, visible: true });
         }
 
-        addToHistory(`${historyMessagePrefix} ${planetId}`, currentPlayer.id, stateBeforeAction);
-        setToast({ message: successMessage, visible: true });
+        addToHistory(`${historyMessagePrefix} ${planetId}`, currentPlayer.id, stateBeforeAction, undefined, sequenceId);
+        if (passiveGains.length > 0) {
+            addToHistory(`gagne : ${passiveGains.join(', ')}`, currentPlayer.id, updatedGame, undefined, sequenceId);
+        }
+        if (newPendingInteractions.length === 0) {
+            setToast({ message: successMessage, visible: true });
+        }
     } catch (e: any) {
         setToast({ message: e.message, visible: true });
+    }
+  };
+
+  // Gestionnaire pour les choix dans le menu de bonus
+  const handleMenuChoice = (choiceIndex: number) => {
+    if (interactionState.type !== 'CHOOSING_BONUS_ACTION') return;
+    
+    const choice = interactionState.choices[choiceIndex];
+    if (choice.done) return;
+
+    // Créer un nouvel état de menu avec ce choix marqué comme fait
+    const updatedChoices = [...interactionState.choices];
+    updatedChoices[choiceIndex] = { ...choice, done: true };
+    
+    const nextMenuState: InteractionState = {
+      ...interactionState,
+      choices: updatedChoices
+    };
+
+    // Définir l'interaction choisie comme active
+    setInteractionState(choice.state);
+    
+    // Ajouter le menu mis à jour en tête de la file d'attente pour y revenir après l'action
+    if (updatedChoices.some(c => !c.done)) {
+        setPendingInteractions(prev => [nextMenuState, ...prev]);
     }
   };
 
@@ -865,7 +989,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         ? (cardId ? "choisit une carte de la rangée (Bonus)" : "pioche une carte (Bonus)")
         : (cardId ? "achète une carte de la rangée pour 3 médias" : "achète une carte de la pioche pour 3 médias");
 
-    addToHistory(logMsg, currentPlayer.id, game, { type: 'IDLE' });
+    const sequenceId = (interactionState as any).sequenceId;
+    addToHistory(logMsg, currentPlayer.id, game, interactionState, sequenceId);
     
     // Gérer le compteur pour les sélections multiples
     if (interactionState.count > 1) {
@@ -927,14 +1052,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         else if (t === 'credit') label = 'crédit';
         return count > 1 ? `${label}s` : label;
       };
-      addToHistory(`échange 2 ${translateResource(spendType, 2)} contre 1 ${translateResource(gainType, 1)}`, currentPlayer.id, game, { type: 'IDLE' });
+      addToHistory(`échange 2 ${translateResource(spendType, 2)} contre 1 ${translateResource(gainType, 1)}`, currentPlayer.id, game);
       setInteractionState({ type: 'IDLE' });
     }
   };
 
   // Fonction interne pour traiter l'achat (commune à l'achat direct et après sélection)
-  const processTechPurchase = (tech: Technology, targetComputerCol?: number) => {
-    const currentGame = gameRef.current;
+  const processTechPurchase = (tech: Technology, targetComputerCol?: number, stateOverride?: Game, interactionStateOverride?: InteractionState) => {
+    const currentGame = stateOverride || gameRef.current;
     const { updatedGame, gains } = TechnologySystem.acquireTechnology(currentGame, currentGame.players[currentGame.currentPlayerIndex].id, tech, targetComputerCol);
     const currentPlayerIndex = updatedGame.currentPlayerIndex;
     const currentPlayer = updatedGame.players[currentPlayerIndex];
@@ -943,6 +1068,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (gameEngineRef.current) {
       gameEngineRef.current.setState(updatedGame);
     }
+    
+    // Sauvegarder l'état d'interaction actuel avant de le changer pour l'historique
+    const previousInteractionState = interactionStateOverride || interactionState;
+
     setInteractionState({ type: 'IDLE' });
     setIsTechOpen(false);
     setHasPerformedMainAction(true);
@@ -955,64 +1084,136 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     const gainsText = gains.length > 0 ? ` et gagne : ${gains.join(', ')}` : '';
     
-    // Fusionner avec l'entrée d'historique précédente (Rotation) pour que l'annulation
-    // revienne à l'état avant la rotation (et non à la sélection de technologie)
-    setHistoryLog(prev => {
-      // Trouver l'entrée de la rotation (dernière entrée avec un état précédent sauvegardé)
-      let rotationEntryIndex = -1;
-      for (let i = prev.length - 1; i >= 0; i--) {
-        if (prev[i].previousState) {
-          rotationEntryIndex = i;
-          break;
+    // Si on est en train de rechercher (Action principale), on fusionne avec l'entrée de rotation
+    if (previousInteractionState.type === 'RESEARCHING') {
+      setHistoryLog(prev => {
+        // Trouver l'entrée de la rotation (dernière entrée avec un état précédent sauvegardé)
+        let rotationEntryIndex = -1;
+        for (let i = prev.length - 1; i >= 0; i--) {
+          if (prev[i].previousState) {
+            rotationEntryIndex = i;
+            break;
+          }
         }
-      }
-      
-      if (rotationEntryIndex !== -1) {
-        const rotationEntry = prev[rotationEntryIndex];
         
-        const newEntry: HistoryEntry = {
+        if (rotationEntryIndex !== -1) {
+          const rotationEntry = prev[rotationEntryIndex];
+          
+          const newEntry: HistoryEntry = {
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+            message: `acquiert la technologie "${category} ${tech.name}"${gainsText}`,
+            playerId: currentPlayer.id,
+            previousState: rotationEntry.previousState, // État AVANT la rotation
+            previousInteractionState: rotationEntry.previousInteractionState, // État IDLE
+            previousHasPerformedMainAction: rotationEntry.previousHasPerformedMainAction,
+            previousPendingInteractions: rotationEntry.previousPendingInteractions,
+            timestamp: Date.now()
+          };
+          
+          // Remplacer l'entrée de rotation (et les logs intermédiaires) par la nouvelle entrée
+          return [...prev.slice(0, rotationEntryIndex), newEntry];
+        }
+        
+        // Fallback si pas d'entrée précédente trouvée (ne devrait pas arriver)
+        const fallbackEntry: HistoryEntry = {
           id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           message: `acquiert la technologie "${category} ${tech.name}"${gainsText}`,
           playerId: currentPlayer.id,
-          previousState: rotationEntry.previousState, // État AVANT la rotation
-          previousInteractionState: rotationEntry.previousInteractionState, // État IDLE
-          previousHasPerformedMainAction: rotationEntry.previousHasPerformedMainAction,
-          previousPendingInteractions: rotationEntry.previousPendingInteractions,
+          previousState: currentGame,
+          previousInteractionState: { type: 'IDLE' },
+          previousHasPerformedMainAction: hasPerformedMainAction,
+          previousPendingInteractions: pendingInteractions,
           timestamp: Date.now()
         };
-        
-        // Remplacer l'entrée de rotation (et les logs intermédiaires) par la nouvelle entrée
-        return [...prev.slice(0, rotationEntryIndex), newEntry];
-      }
-      
-      // Fallback si pas d'entrée précédente trouvée (ne devrait pas arriver)
-      const fallbackEntry: HistoryEntry = {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-        message: `acquiert la technologie "${category} ${tech.name}"${gainsText}`,
-        playerId: currentPlayer.id,
-        previousState: currentGame,
-        previousInteractionState: { type: 'IDLE' },
-        previousHasPerformedMainAction: hasPerformedMainAction,
-        previousPendingInteractions: pendingInteractions,
-        timestamp: Date.now()
-      };
-      return [...prev, fallbackEntry];
-    });
+        return [...prev, fallbackEntry];
+      });
+    } else {
+      // Sinon (Bonus), on ajoute une nouvelle entrée atomique
+      const sequenceId = (previousInteractionState as any).sequenceId;
+      addToHistory(`acquiert la technologie "${category} ${tech.name}"${gainsText}`, currentPlayer.id, currentGame, previousInteractionState, sequenceId);
+    }
   };
 
   // Gestionnaire pour l'achat de technologie (clic initial)
   const handleTechClick = (tech: Technology) => {
-    if (interactionState.type !== 'RESEARCHING') return;
-
-    // Si c'est une technologie informatique, on demande de sélectionner un emplacement
-    if (tech.id.startsWith('computing')) {
-      setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech });
-      setToast({ message: "Sélectionnez une colonne (1, 3, 5, 6) sur l'ordinateur", visible: true });
-      return;
+    // Cas 1: Mode recherche actif ou bonus
+    if (interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS') {
+        if (tech.id.startsWith('computing')) {
+          const sequenceId = (interactionState as any).sequenceId;
+          setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId });
+          setToast({ message: "Sélectionnez une colonne (1, 3, 5, 6) sur l'ordinateur", visible: true });
+          return;
+        }
+        processTechPurchase(tech);
+        return;
     }
 
-    // Sinon achat direct
-    processTechPurchase(tech);
+    // Cas 2: Clic direct depuis IDLE (Raccourci Action Recherche)
+    if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) {
+            setToast({ message: `Pas assez de couverture médiatique (Requis: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA})`, visible: true });
+            return;
+        }
+
+        // Exécuter la rotation (Logique copiée de handleAction RESEARCH_TECH)
+        let updatedGame = structuredClone(game);
+        const player = updatedGame.players[updatedGame.currentPlayerIndex];
+
+        // Payer le coût
+        player.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
+
+        // Rotation
+        updatedGame.board = {
+            ...updatedGame.board,
+            solarSystem: { ...updatedGame.board.solarSystem },
+            technologyBoard: { ...updatedGame.board.technologyBoard }
+        };
+
+        const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 3;
+        const oldRotationState = createRotationState(
+            updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+            updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+            updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+        );
+
+        if (currentLevel === 3) {
+            updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+            updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+            updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+        } else if (currentLevel === 2) {
+            updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+            updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+        } else if (currentLevel === 1) {
+            updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+        }
+
+        updatedGame.board.solarSystem.nextRingLevel = currentLevel === 3 ? 1 : currentLevel + 1;
+
+        const newRotationState = createRotationState(
+            updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+            updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+            updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+        );
+
+        const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
+        updatedGame = rotationResult.game;
+        
+        // Ajouter les logs de rotation
+        addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias et fait tourner le système solaire (Niveau ${currentLevel}) pour rechercher une technologie`, player.id, game);
+        rotationResult.logs.forEach(log => addToHistory(log));
+
+        // Traiter l'achat ou la sélection de slot
+        if (tech.id.startsWith('computing')) {
+            setGame(updatedGame);
+            if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+            setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech });
+            setToast({ message: "Système pivoté. Sélectionnez une colonne (1, 3, 5, 6) sur l'ordinateur", visible: true });
+        } else {
+            // Achat direct avec fusion des logs (simule RESEARCHING)
+            processTechPurchase(tech, undefined, updatedGame, { type: 'RESEARCHING' });
+        }
+    }
   };
 
   // Gestionnaire pour la sélection de la colonne ordinateur
@@ -1063,7 +1264,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour les bonus ordinateur (déclenché depuis PlayerBoardUI)
   const handleComputerBonus = (type: string, amount: number) => {
     if (type === 'reservation') {
-      setInteractionState({ type: 'RESERVING_CARD', count: amount });
+      const sequenceId = (interactionState as any).sequenceId;
+      setInteractionState({ type: 'RESERVING_CARD', count: amount, sequenceId });
       setToast({ message: `Réservation active : Sélectionnez ${amount} carte(s) avec revenu`, visible: true });
     }
   };
@@ -1106,7 +1308,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       gainMsg = "1 Carte";
     }
 
-    addToHistory(`réserve la carte "${card.name}" et gagne immédiatement : ${gainMsg}`, currentPlayer.id, game, { type: 'IDLE' });
+    const sequenceId = (interactionState as any).sequenceId;
+    addToHistory(`réserve la carte "${card.name}" et gagne immédiatement : ${gainMsg}`, currentPlayer.id, game, interactionState, sequenceId);
 
     // Si le bonus est une carte, on pioche immédiatement
     if (card.revenue === RevenueBonus.CARD) {
@@ -1163,7 +1366,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
     
-    addToHistory(`place une trace de vie sur la piste ${color} et gagne ${bonusMsg}`, player.id, game);
+    const sequenceId = (interactionState as any).sequenceId;
+    addToHistory(`place une trace de vie sur la piste ${color} et gagne ${bonusMsg}`, player.id, game, interactionState, sequenceId);
     setInteractionState({ type: 'IDLE' });
     setToast({ message: `Trace de vie placée ! ${bonusMsg}`, visible: true });
   };
@@ -1194,7 +1398,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
 
-    addToHistory(`a atteint le palier ${interactionState.milestone} PV et place un marqueur sur "${tile.name}" (Points fin de partie)`, upPlayer.id, game);
+    addToHistory(`a atteint le palier ${interactionState.milestone} PV et place un marqueur sur "${tile.name}" (Points fin de partie)`, upPlayer.id, game, interactionState);
     
     setInteractionState({ type: 'IDLE' });
     setToast({ message: `Marqueur placé !`, visible: true });
@@ -1468,6 +1672,61 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         </div>
       )}
 
+      {/* Menu de choix des bonus interactifs */}
+      {interactionState.type === 'CHOOSING_BONUS_ACTION' && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 2000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px',
+            maxWidth: '500px', width: '90%', border: '1px solid #4a9eff',
+            boxShadow: '0 0 20px rgba(74, 158, 255, 0.2)'
+          }}>
+            <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Récompenses</h3>
+            <p style={{ fontSize: '1.1em', marginBottom: '20px', color: '#ddd' }}>{interactionState.bonusesSummary}</p>
+            <p style={{ fontSize: '0.9em', marginBottom: '10px', color: '#aaa' }}>Quelles actions voulez-vous effectuer ?</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {interactionState.choices.map((choice, idx) => (
+                <button
+                  key={choice.id}
+                  onClick={() => handleMenuChoice(idx)}
+                  disabled={choice.done}
+                  style={{
+                    padding: '12px',
+                    backgroundColor: choice.done ? '#444' : '#4a9eff',
+                    color: choice.done ? '#888' : '#fff',
+                    border: 'none', borderRadius: '4px',
+                    cursor: choice.done ? 'default' : 'pointer',
+                    textAlign: 'left', fontWeight: 'bold',
+                    display: 'flex', justifyContent: 'space-between',
+                    opacity: choice.done ? 0.6 : 1
+                  }}
+                >
+                  <span>{choice.label}</span>
+                  {choice.done && <span>✓</span>}
+                </button>
+              ))}
+            </div>
+            
+            {interactionState.choices.every(c => c.done) && (
+              <button
+                onClick={() => setInteractionState({ type: 'IDLE' })}
+                style={{
+                  marginTop: '20px', width: '100%', padding: '10px',
+                  backgroundColor: '#4caf50', color: '#fff', border: 'none', borderRadius: '4px',
+                  cursor: 'pointer', fontWeight: 'bold'
+                }}
+              >
+                Terminer
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Overlay pour la recherche de technologie ou l'achat de carte */}
       {(interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS' || interactionState.type === 'BUYING_CARD' || interactionState.type === 'RESERVING_CARD') && (
         <div style={{
@@ -1640,6 +1899,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     game={game} 
                     isResearching={interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS'}
                     onTechClick={handleTechClick}
+                    hasPerformedMainAction={hasPerformedMainAction}
                   />
                 </div>
               </div>
@@ -1746,7 +2006,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                <div className="seti-foldable-content" ref={historyContentRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
                  <div className="seti-history-list">
                   {historyLog.length === 0 && <div style={{fontStyle: 'italic', padding: '4px', textAlign: 'center'}}>Aucune action</div>}
-                  {historyLog.map((entry) => {
+                  {historyLog.map((entry, index) => {
                     if (entry.message.startsWith('---')) {
                       return (
                         <div key={entry.id} style={{ display: 'flex', alignItems: 'center', margin: '10px 0', color: '#aaa', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -1756,6 +2016,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                         </div>
                       );
                     }
+
+                    // Vérifier si cet élément fait partie d'une séquence et n'est pas le premier
+                    const isSequenceChild = entry.sequenceId && index > 0 && historyLog[index - 1].sequenceId === entry.sequenceId;
                     
                     let player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
                     // Fallback : essayer de trouver le joueur par son nom au début du message (pour les logs d'init)
@@ -1765,9 +2028,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
                     const color = player ? (player.color || '#ccc') : '#ccc';
                     return (
-                      <div key={entry.id} className="seti-history-item" style={{ borderLeft: `3px solid ${color}`, paddingLeft: '8px', marginBottom: '4px' }}>
+                      <div key={entry.id} className="seti-history-item" style={{ 
+                          borderLeft: isSequenceChild ? `3px solid transparent` : `3px solid ${color}`, 
+                          paddingLeft: '8px', 
+                          marginBottom: '4px',
+                          marginLeft: isSequenceChild ? '12px' : '0',
+                          position: 'relative'
+                      }}>
+                        {isSequenceChild && (
+                            <div style={{ position: 'absolute', left: '-10px', top: '-10px', bottom: '10px', width: '2px', backgroundColor: color, borderRadius: '0 0 0 4px', borderBottom: `2px solid ${color}` }}></div>
+                        )}
                         {player && !entry.message.startsWith(player.name) && <strong style={{ color: color }}>{player.name} </strong>}
-                        <span style={{ color: '#ddd' }}>{entry.message}</span>
+                        <span style={{ color: '#ddd' }}>{formatHistoryMessage(entry.message)}</span>
                       </div>
                     );
                   })}

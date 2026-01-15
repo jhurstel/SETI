@@ -29,7 +29,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, onTrackClick, 
         {isFilled ? '👤' : (
           <>
             <div style={{ fontWeight: 'bold', color: '#fff' }}>{slot.bonus.pv}</div>
-            {slot.bonus.media && <div style={{ fontSize: '0.8em', color: '#ffeb3b' }}>+{slot.bonus.media}M</div>}
+            {slot.bonus.media && <div style={{ fontSize: '0.8em', color: '#ff6b6b' }}>+{slot.bonus.media}M</div>}
           </>
         )}
       </div>
