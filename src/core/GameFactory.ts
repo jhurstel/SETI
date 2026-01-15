@@ -130,7 +130,9 @@ export class GameFactory {
       hasPassed: false,
       type: 'human',
       color: '#4a90e2' as string,
-      claimedMilestones: []
+      claimedMilestones: [],
+      visitedPlanetsThisTurn: [],
+      activeBuffs: []
     };
   }
 
@@ -270,19 +272,19 @@ export class GameFactory {
    */
   private static createActionDeck(): Card[] {
     const csvContent = `Id;Nom;Texte;Action gratuite;Couleur scan;Revenu;Cout;Condition;Gain;Contrainte
-9;Falcon Heavy;Gagnez 2 sondes et 1 Média. Ignorez la limite de sondes sur le plateau Systéme Solaire pour ces lancements.;1 Déplacement;Jaune;1 Crédit;3 Crédits;;2 Déplacements;ASTEROID_EXIT_COST
+9;Falcon Heavy;Gagnez 2 sondes et 1 Média. Ignorez la limite de sondes sur le plateau Systéme Solaire pour ces lancements.;1 Déplacement;Jaune;1 Crédit;3 Crédits;;;
 11;Subventions;Gagnez 1 Carte. Révélez la carte que vous avez piochée et bénéfciez de son action gratuite.;1 Média;Jaune;1 Energie;1 Crédit;;? Energie + 1 Reservation;
-13;Rover Perseverance;Gagnez 1 Atterrissage. Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs.;1 Média;Bleu;1 Pioche;1 Crédit;;1 Donnée + 1 Rotation +1 Tech Informatique;
+13;Rover Perseverance;Gagnez 1 Atterrissage. Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs.;1 Média;Bleu;1 Pioche;1 Crédit;;
 15;Rentrée Atmosphérique;Retirez l'un de vos orbiteurs de n'importe quelle planète pour gagner: 3 PVs, 1 Donnée, 1 Carte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;;
 16;Dragonfly;Gagnez 1 Atterrissage. Vous pouvez poser une sonde sur une case déjà occupée, et tout de même gagner la récompense recouverte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;;
 17;OSIRIS-REx;Choisissez 1 de vos sondes. Gagnez 2 Données si elle est placée sur un champ d'astéroïdes et 1 Donnée pour chaque champ d'astéroïdes adjacent.;1 Déplacement;Jaune;1 Energie;1 Crédit;;;
 19;Assistance Gravitationnelle;Gagnez 2 Déplacements. Chaque fois que vous visitez une planète ce tour-ci, vous pouvez gagner 1 Déplacement au lieu de 1 Média.;1 Média;Jaune;1 Crédit;Crédit;;2 Déplacements;
-20;Survol de Mercure;Gagnez 2 Déplacements. Si vous visitez Mercure ce tour-ci, gagnez 4 PVs.;1 Média;Rouge;1 Energie;1 Crédit;;2 Déplacements;
-21;Survol de Vénus;Gagnez 2 Déplacements. Si vous visitez Vénus ce tour-ci, gagnez 3 PVs.;1 Média;Jaune;1 Crédit;1 Crédit;;2 Déplacements;
-22;Survol de Mars;Gagnez 2 Déplacements. Si vous visitez Mars ce tour-ci, gagnez 4 PVs.;1 Donnée;Jaune;1 Energie;1 Crédit;;2 Déplacements;
-23;Survol de Jupiter;Gagnez 2 Déplacements. Si vous visitez Jupiter ce tour-ci, gagnez 4 PVs.;1 Média;Bleu;1 Energie;1 Crédit;;2 Déplacements;
-25;Voile Solaire;Gagnez 4 Déplacements. Gagnez 1 PV pour chaque planète unique que vous visitez ce tour-ci (y compris la Terre).;1 Média;Rouge;1 Crédit;2 Crédits;;4 Déplacements;
-26;A Travers la Ceinture d'Astéroïdes;Gagnez 2 déplacements. Ignorez les restrictions de déplacement lorsque vous quittez un chaamp d'astéroïdes ce tour-ci.;1 Donnée;Bleu;1 Pioche;1 Crédit;;2 Déplacements;
+20;Survol de Mercure;Gagnez 2 Déplacements. Si vous visitez Mercure ce tour-ci, gagnez 4 PVs.;1 Média;Rouge;1 Energie;1 Crédit;;2 Déplacements;VISIT_PLANET:mercury:4
+21;Survol de Vénus;Gagnez 2 Déplacements. Si vous visitez Vénus ce tour-ci, gagnez 3 PVs.;1 Média;Jaune;1 Crédit;1 Crédit;;2 Déplacements;VISIT_PLANET:venus:3
+22;Survol de Mars;Gagnez 2 Déplacements. Si vous visitez Mars ce tour-ci, gagnez 4 PVs.;1 Donnée;Jaune;1 Energie;1 Crédit;;2 Déplacements;VISIT_PLANET:mars:4
+23;Survol de Jupiter;Gagnez 2 Déplacements. Si vous visitez Jupiter ce tour-ci, gagnez 4 PVs.;1 Média;Bleu;1 Energie;1 Crédit;;2 Déplacements;VISIT_PLANET:jupiter:4
+25;Voile Solaire;Gagnez 4 Déplacements. Gagnez 1 PV pour chaque planète unique que vous visitez ce tour-ci (y compris la Terre).;1 Média;Rouge;1 Crédit;2 Crédits;;4 Déplacements;VISIT_UNIQUE:1
+26;A Travers la Ceinture d'Astéroïdes;Gagnez 2 déplacements. Ignorez les restrictions de déplacement lorsque vous quittez un chaamp d'astéroïdes ce tour-ci.;1 Donnée;Bleu;1 Pioche;1 Crédit;;2 Déplacements;ASTEROID_EXIT_COST:1
 57;Radiotélescope D'Effelsberg;Gagnez 1 Carte, 1 Rotation, 1 Technologie Observation.;1 Média;Bleu;1 Energie;3 Crédits;;1 Carte + 1 Rotation + 1 Tech Observation;
 59;Système de Propulsion Ionique;Gagez 1 Energie, 1 Rotation, 1 Technologie Exploration.;1 Média;Rouge;1 Pioche;3 Crédits;;1 Energie + 1 Rotation + 1 Tech Exploration;
 69;Grand Collisionneur de Hadrons;Gagnez 1 Donnée, 1 Rotation, 1 Technologie Informatique.;1 Déplacement;Noir;1 Energie;3 Crédits;;1 Donnée + 1 Rotation + 1 Tech Informatique;
@@ -299,9 +301,9 @@ export class GameFactory {
 110;Conférence de Presse;Gagnez 3 Médias.;1 Donnée;Rouge;1 Crédit;1 Crédit;;3 Médias;
 119;PIXL;Gagnez 1 Rotation et 1 Technologie Informatique. Gagnez ensuite 1 PV pour chaque niveau de Média que vous avez.;1 Donnée;Bleu;1 Energie;3 Crédits;;1 Rotation + 1 Tech Informatique;
 121;Futur Collisionneur Circulaire;Gagnez 3 Données, 1 Rotation, et 1 Technologie Informatique.;1 Déplacement;Jaune;1 Energie;4 Crédits;;3 Données + 1 Rotation + 1 Tech Informatique;
-123;Survol d'Astéroïdes;Gagnez 1 Déplacement. Si vous visitez un champ d'astéroïdes ce tour-ci, gagnez 1 Donnée.;1 Média;Rouge;1 Pioche;0 Crédit;;1 Déplacement;
-124;Rencontre avec une Comète;Gagnez 2 Déplacements. Si vous visitez une comète ce tour-ci, gagnez 4 PVs.;1 Média;Jaune;1 Energie;1 Crédit;;2 Déplacements;
-125;Correction de Trajectoire;Gagnez 1 Déplacement. Si vous vous déplacez sur le même disque au moins une fois ce tour-ci, gagnez 3 PV et 1 Média.;1 Donnée;Bleu;1 Pioche;1 Crédit;;1 Déplacement;
+123;Survol d'Astéroïdes;Gagnez 1 Déplacement. Si vous visitez un champ d'astéroïdes ce tour-ci, gagnez 1 Donnée.;1 Média;Rouge;1 Pioche;0 Crédit;;1 Déplacement;VISIT_ASTEROID:1
+124;Rencontre avec une Comète;Gagnez 2 Déplacements. Si vous visitez une comète ce tour-ci, gagnez 4 PVs.;1 Média;Jaune;1 Energie;1 Crédit;;2 Déplacements;VISIT_COMET:4
+125;Correction de Trajectoire;Gagnez 1 Déplacement. Si vous vous déplacez sur le même disque au moins une fois ce tour-ci, gagnez 3 PV et 1 Média.;1 Donnée;Bleu;1 Pioche;1 Crédit;;1 Déplacement;SAME_DISK_MOVE:3:1
 130;Lancement Spatial à Faible Coût;Gagnez 1 Sonde.;1 Média;Jaune;1 Energie;1 Crédit;;;
 133;Fenêtre de Lancement Optimale;Gagnez 1 Sonde. Puis 1 Déplacement pour chaque autre planète ou comète dans le même secteur que la Terre.;1 Donnée;Rouge;1 Pioche;2 Crédits;;;
 137;Archives de Données du SETI;Gagnez 2 Données.;1 Média;Noir;1 Energie;1 Crédit;;2 Données;`
@@ -340,7 +342,7 @@ export class GameFactory {
             revenue: this.mapRevenueBonus(revenue.trim()),
             effects: [],
             immediateEffects: this.parseGainColumn(gain.trim()),
-            passiveEffects: contrainte.trim() ? [{ type: 'PASSIVE', target: contrainte.trim(), value: 1 }] : []
+            passiveEffects: this.parseConstraintColumn(contrainte.trim())
         });
       }
     }
@@ -386,13 +388,14 @@ export class GameFactory {
         const match = lower.match(/^(\d+)\s+(.+)$/);
         const amount = match ? parseInt(match[1], 10) : 1;
 
-        if (lower.includes('déplacement') || lower.includes('deplacement')) effects.push({ type: 'GAIN', target: 'MOVEMENT', value: amount });
-        else if (lower.includes('sonde')) effects.push({ type: 'GAIN', target: 'PROBE', value: amount });
+        if (lower.includes('sonde')) effects.push({ type: 'GAIN', target: 'PROBE', value: amount });
         else if (lower.includes('média') || lower.includes('media')) effects.push({ type: 'GAIN', target: 'MEDIA', value: amount });
         else if (lower.includes('crédit') || lower.includes('credit')) effects.push({ type: 'GAIN', target: 'CREDIT', value: amount });
         else if (lower.includes('energie') || lower.includes('énergie')) effects.push({ type: 'GAIN', target: 'ENERGY', value: amount });
         else if (lower.includes('donnée') || lower.includes('data')) effects.push({ type: 'GAIN', target: 'DATA', value: amount });
-        else if (lower.includes('pioche') || lower.includes('carte')) effects.push({ type: 'GAIN', target: 'CARD', value: amount });
+        else if (lower.includes('pioche')) effects.push({ type: 'GAIN', target: 'CARD', value: amount });
+        else if (lower.includes('carte')) effects.push({ type: 'ACTION', target: 'ANYCARD', value: amount });
+        else if (lower.includes('déplacement') || lower.includes('deplacement')) effects.push({ type: 'ACTION', target: 'MOVEMENT', value: amount });
         else if (lower.includes('rotation')) effects.push({ type: 'ACTION', target: 'ROTATION', value: amount });
         else if (lower.includes('atterrissage')) effects.push({ type: 'ACTION', target: 'LAND', value: amount });
         else if (lower.includes('tech')) {
@@ -405,5 +408,59 @@ export class GameFactory {
         }
     }
     return effects;
+  }
+
+  private static parseConstraintColumn(constraint: string): CardEffect[] {
+    if (!constraint) return [];
+    
+    // Gestion du format VISIT_PLANET:mars:4
+    if (constraint.startsWith('VISIT_PLANET:')) {
+        const parts = constraint.split(':');
+        if (parts.length === 3) {
+            return [{ type: 'VISIT_BONUS', target: parts[1], value: parseInt(parts[2], 10) }];
+        }
+    }
+
+    // Gestion du format VISIT_UNIQUE:1
+    if (constraint.startsWith('VISIT_UNIQUE:')) {
+        const parts = constraint.split(':');
+        if (parts.length === 2) {
+            return [{ type: 'VISIT_UNIQUE', value: parseInt(parts[1], 10) }];
+        }
+    }
+
+    // Gestion du format ASTEROID_EXIT_COST:1
+    if (constraint.startsWith('ASTEROID_EXIT_COST:')) {
+        const parts = constraint.split(':');
+        if (parts.length === 2) {
+            return [{ type: 'ASTEROID_EXIT_COST', value: parseInt(parts[1], 10) }];
+        }
+    }
+
+    // Gestion du format VISIT_ASTEROID:1
+    if (constraint.startsWith('VISIT_ASTEROID:')) {
+        const parts = constraint.split(':');
+        if (parts.length === 2) {
+            return [{ type: 'VISIT_ASTEROID', value: parseInt(parts[1], 10) }];
+        }
+    }
+
+    // Gestion du format VISIT_COMET:4
+    if (constraint.startsWith('VISIT_COMET:')) {
+        const parts = constraint.split(':');
+        if (parts.length === 2) {
+            return [{ type: 'VISIT_COMET', value: parseInt(parts[1], 10) }];
+        }
+    }
+
+    // Gestion du format SAME_DISK_MOVE:3:1 (3 PV, 1 Media)
+    if (constraint.startsWith('SAME_DISK_MOVE:')) {
+        const parts = constraint.split(':');
+        if (parts.length === 3) {
+            return [{ type: 'SAME_DISK_MOVE', value: { pv: parseInt(parts[1], 10), media: parseInt(parts[2], 10) } }];
+        }
+    }
+
+    return [{ type: 'PASSIVE', target: constraint, value: 1 }];
   }
 }

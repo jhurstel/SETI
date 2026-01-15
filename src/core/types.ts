@@ -169,6 +169,8 @@ export interface Player {
   type: 'human' | 'robot';
   color: string;
   claimedMilestones: number[];
+  visitedPlanetsThisTurn: string[]; // Planètes visitées ce tour-ci
+  activeBuffs: CardEffect[]; // Effets passifs temporaires (ex: bonus de visite)
 }
 
 export interface Board {
@@ -348,6 +350,7 @@ export interface CardEffect {
   value: any;
   target?: string;
   condition?: string;
+  source?: string;
 }
 
 export interface Mission {

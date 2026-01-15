@@ -465,10 +465,11 @@ export function calculateReachableCellsWithEnergy(
   startSector: SectorNumber,
   movements: number,
   energy: number,
-  rotationState: RotationState
+  rotationState: RotationState,
+  ignoreAsteroidPenalty: boolean = false
 ): Map<string, { movements: number; path: string[] }> {
   const totalMovements = movements + energyToMovements(energy);
-  return calculateReachableCells(startDisk, startSector, totalMovements, rotationState);
+  return calculateReachableCells(startDisk, startSector, totalMovements, rotationState, ignoreAsteroidPenalty);
 }
 
 /**
@@ -483,7 +484,8 @@ export function calculateReachableCells(
   startDisk: DiskName,
   startSector: SectorNumber,
   maxMovements: number,
-  rotationState: RotationState
+  rotationState: RotationState,
+  ignoreAsteroidPenalty: boolean = false
 ): Map<string, { movements: number; path: string[] }> {
   const reachable = new Map<string, { movements: number; path: string[] }>();
   const cells = getAllCells(rotationState);
@@ -531,7 +533,7 @@ export function calculateReachableCells(
       let cost = 1; // Coût de base pour une case adjacente
       
       // Si on sort d'un champ d'astéroïdes, coût supplémentaire
-      if (currentCell.hasAsteroid) {
+      if (currentCell.hasAsteroid && !ignoreAsteroidPenalty) {
         cost += 1; // Total = 2 pour sortir d'un champ d'astéroïdes
       }
       

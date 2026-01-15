@@ -46,6 +46,11 @@ export class TurnManager {
     }
 
     updatedGame.currentPlayerIndex = nextIndex;
+    
+    // Réinitialiser les données temporaires du nouveau joueur actif
+    updatedGame.players[nextIndex].visitedPlanetsThisTurn = [];
+    updatedGame.players[nextIndex].activeBuffs = [];
+
     return updatedGame;
   }
 

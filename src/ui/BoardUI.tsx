@@ -33,7 +33,7 @@ type InteractionState =
   | { type: 'DISCARDING', cardsToDiscard: string[] }
   | { type: 'TRADING_SPEND' }
   | { type: 'TRADING_GAIN', spendType: string, spendCardIds?: string[] }
-  | { type: 'FREE_MOVEMENT' }
+  | { type: 'FREE_MOVEMENT', count: number }
   | { type: 'RESEARCHING' }
   | { type: 'SELECTING_TECH_BONUS', sequenceId?: string, category?: TechnologyCategory }
   | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, isBonus?: boolean, sequenceId?: string }
@@ -68,8 +68,54 @@ const getInteractionLabel = (state: InteractionState): string => {
     case 'RESERVING_CARD': return "Réserver une carte";
     case 'SELECTING_TECH_BONUS': return "Choisir une technologie";
     case 'PLACING_LIFE_TRACE': return `Placer trace de vie (${state.color})`;
+    case 'FREE_MOVEMENT': return `Déplacement gratuit (${state.count})`;
     default: return "Action bonus";
   }
+};
+
+// Configuration des ressources pour l'affichage et les logs
+const RESOURCE_CONFIG: Record<string, { label: string, plural: string, icon: string, color: string, regex: RegExp }> = {
+  CREDIT: { 
+    label: 'Crédit', plural: 'Crédits', icon: '₢', color: '#ffd700',
+    regex: /Crédit(?:s?)|crédit(?:s?)/ 
+  },
+  ENERGY: { 
+    label: 'Énergie', plural: 'Énergie', icon: '⚡', color: '#4caf50',
+    regex: /Énergie|énergie|Energie|energie/
+  },
+  MEDIA: { 
+    label: 'Média', plural: 'Médias', icon: '🎤', color: '#ff6b6b',
+    regex: /Média(?:s?)|Media(?:s?)|média(?:s?)|media(?:s?)/
+  },
+  DATA: { 
+    label: 'Donnée', plural: 'Données', icon: '💾', color: '#03a9f4',
+    regex: /Donnée(?:s?)|donnée(?:s?)|Data|data/
+  },
+  CARD: {
+    label: 'Carte', plural: 'Cartes', icon: '🃏', color: '#aaffaa',
+    regex: /Carte(?:s?)|carte(?:s?)/
+  },
+  PV: {
+    label: 'PV', plural: 'PV', icon: '🏆', color: '#fff',
+    regex: /\bPV\b/
+  }
+};
+
+// Helper pour formater une quantité de ressource (ex: "2 Crédits")
+const formatResource = (amount: number, type: string) => {
+  let key = type.toUpperCase();
+  // Mapping simple pour les variantes
+  if (key === 'CREDITS') key = 'CREDIT';
+  if (key === 'MEDIAS') key = 'MEDIA';
+  if (key === 'DATAS') key = 'DATA';
+  if (key === 'CARDS' || key === 'CARTES') key = 'CARD';
+  
+  const config = RESOURCE_CONFIG[key];
+  if (config) {
+    const label = Math.abs(amount) > 1 ? config.plural : config.label;
+    return `${amount} ${label}`;
+  }
+  return `${amount} ${type}`;
 };
 
 const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect: DOMRect }) => {
@@ -190,14 +236,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Helper pour formater les messages avec des icônes
   const formatHistoryMessage = (message: string) => {
-    const parts = message.split(/(Énergie|énergie|Crédit(?:s?)|crédit(?:s?)|Média(?:s?)|Media)/g);
-    return parts.map((part, index) => {
-      if (part.match(/^Énergie|énergie$/)) {
-        return <span key={index} title="Énergie" style={{ color: '#4caf50', cursor: 'help' }}>⚡</span>;
-      } else if (part.match(/^Crédit(?:s?)|crédit(?:s?)$/)) {
-        return <span key={index} title="Crédit" style={{ color: '#ffd700', cursor: 'help' }}>₢</span>;
-      } else if (part.match(/^Média(?:s?)|Media$/)) {
-        return <span key={index} title="Média" style={{ color: '#ff6b6b', cursor: 'help' }}>🎤</span>;
+    const pattern = Object.values(RESOURCE_CONFIG).map(c => c.regex.source).join('|');
+    const splitRegex = new RegExp(`(${pattern})`, 'g');
+    
+    return message.split(splitRegex).map((part, index) => {
+      for (const config of Object.values(RESOURCE_CONFIG)) {
+        if (new RegExp(`^${config.regex.source}$`).test(part)) {
+           return <span key={index} title={config.label} style={{ color: config.color, cursor: 'help', fontWeight: 'bold' }}>{config.icon}</span>;
+        }
       }
       return part;
     });
@@ -336,9 +382,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               const energyGain = newPlayer.revenueEnergy;
               const cardsGain = newPlayer.revenueCards;
               const gains: string[] = [];
-              if (creditsGain > 0) gains.push(`${creditsGain} Crédit${creditsGain > 1 ? 's' : ''}`);
-              if (energyGain > 0) gains.push(`${energyGain} Énergie${energyGain > 1 ? 's' : ''}`);
-              if (cardsGain > 0) gains.push(`${cardsGain} Carte${cardsGain > 1 ? 's' : ''}`);
+              if (creditsGain > 0) gains.push(formatResource(creditsGain, 'CREDIT'));
+              if (energyGain > 0) gains.push(formatResource(energyGain, 'ENERGY'));
+              if (cardsGain > 0) gains.push(formatResource(cardsGain, 'CARD'));
               if (gains.length > 0) addToHistory(`perçoit ses revenus : ${gains.join(', ')}`, newPlayer.id, newGame);
             }
           });
@@ -694,11 +740,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (!bonuses) return { updatedGame, newPendingInteractions, logs, passiveGains };
 
     // Gains passifs pour le résumé
-    if (bonuses.pv) { passiveGains.push(`${bonuses.pv} PV`); logs.push(`gagne ${bonuses.pv} PV`); }
-    if (bonuses.media) { passiveGains.push(`${bonuses.media} Média`); logs.push(`gagne ${bonuses.media} Média`); }
-    if (bonuses.credits) { const s = bonuses.credits > 1 ? 's' : ''; passiveGains.push(`${bonuses.credits} Crédit${s}`); logs.push(`gagne ${bonuses.credits} Crédit${s}`); }
-    if (bonuses.energy) { passiveGains.push(`${bonuses.energy} Énergie`); logs.push(`gagne ${bonuses.energy} Énergie`); }
-    if (bonuses.data) { const s = bonuses.data > 1 ? 's' : ''; passiveGains.push(`${bonuses.data} Donnée${s}`); logs.push(`gagne ${bonuses.data} Donnée${s}`); }
+    if (bonuses.pv) { const txt = formatResource(bonuses.pv, 'PV'); passiveGains.push(txt); logs.push(`gagne ${txt}`); }
+    if (bonuses.media) { const txt = formatResource(bonuses.media, 'MEDIA'); passiveGains.push(txt); logs.push(`gagne ${txt}`); }
+    if (bonuses.credits) { const txt = formatResource(bonuses.credits, 'CREDIT'); passiveGains.push(txt); logs.push(`gagne ${txt}`); }
+    if (bonuses.energy) { const txt = formatResource(bonuses.energy, 'ENERGY'); passiveGains.push(txt); logs.push(`gagne ${txt}`); }
+    if (bonuses.data) { const txt = formatResource(bonuses.data, 'DATA'); passiveGains.push(txt); logs.push(`gagne ${txt}`); }
 
     // Effets immédiats qui modifient l'état (Rotation)
     if (bonuses.rotation) {
@@ -712,9 +758,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Effets immédiats (Pioche)
     if (bonuses.card) {
       updatedGame = CardSystem.drawCards(updatedGame, playerId, bonuses.card, 'Bonus de carte');
-      const s = bonuses.card > 1 ? 's' : '';
-      passiveGains.push(`${bonuses.card} Carte${s}`);
-      logs.push(`pioche ${bonuses.card} Carte${s}`);
+      const txt = formatResource(bonuses.card, 'CARD');
+      passiveGains.push(txt);
+      logs.push(`pioche ${txt}`);
     }
 
     // Effets interactifs (File d'attente)
@@ -733,13 +779,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
     
     if (bonuses.movements) {
-        // On ajoute autant d'actions de mouvement gratuit que de bonus
-        newPendingInteractions.push({ type: 'FREE_MOVEMENT' }); // Simplification: 1 état pour X mouvements, ou X états ?
-        // Pour l'instant, FREE_MOVEMENT dans BoardUI gère 1 mouvement. Si on veut X, il faudrait adapter l'état.
-        // Hack: on push X fois l'état si le système le supporte, sinon on adapte l'état FREE_MOVEMENT pour avoir un compteur.
-        // Ici on suppose que FREE_MOVEMENT est unitaire ou que l'utilisateur gère ses points.
-        // Amélioration : Modifier InteractionState pour FREE_MOVEMENT { count: number }
-        // Pour ce diff, on va juste activer le mode mouvement.
+        newPendingInteractions.push({ type: 'FREE_MOVEMENT', count: bonuses.movements });
     }
 
     if (bonuses.yellowlifetrace) {
@@ -918,7 +958,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     const currentPlayerId = currentGame.players[currentGame.currentPlayerIndex].id;
 
-    let freeMovements = interactionState.type === 'FREE_MOVEMENT' ? 1 : 0;
+    let freeMovements = interactionState.type === 'FREE_MOVEMENT' ? interactionState.count : 0;
 
     // Parcourir le chemin étape par étape (en ignorant le point de départ à l'index 0)
     for (let i = 1; i < path.length; i++) {
@@ -947,6 +987,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             const objectName = object?.hasComet ? "une comète" : object?.hasAsteroid ? "un champ d'astéroïdes" : object?.hasPlanet ? object?.planetName : "une case vide";  
             const energySpent = oldPlayer.energy - updatedPlayer.energy;
             const mediaGain = updatedPlayer.mediaCoverage - oldPlayer.mediaCoverage;
+
+            // Détecter les buffs consommés (ex: Survol de Mars)
+            const consumedBuffs = oldPlayer.activeBuffs.filter(oldBuff => 
+                !updatedPlayer.activeBuffs.some(newBuff => 
+                    newBuff.type === oldBuff.type && 
+                    newBuff.target === oldBuff.target && 
+                    newBuff.value === oldBuff.value
+                )
+            );
             
             let message = "";
             if (energySpent > 0) {
@@ -959,6 +1008,29 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               setToast({ message: `Gain de média : +${mediaGain}`, visible: true });
               message += ` et gagne ${mediaGain} média (${objectName})`;
             }
+
+            // Log des gains de score via buffs
+            consumedBuffs.forEach(buff => {
+                if (buff.type === 'VISIT_BONUS') {
+                     const gainText = formatResource(buff.value, 'PV');
+                     message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
+                     setToast({ message: `Bonus : +${buff.value} PV (${buff.source})`, visible: true });
+                } else if (buff.type === 'VISIT_ASTEROID') {
+                     const gainText = formatResource(buff.value, 'DATA');
+                     message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
+                     setToast({ message: `Bonus : +${buff.value} Donnée (${buff.source})`, visible: true });
+                } else if (buff.type === 'VISIT_COMET') {
+                     const gainText = formatResource(buff.value, 'PV');
+                     message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
+                     setToast({ message: `Bonus : +${buff.value} PV (${buff.source})`, visible: true });
+                } else if (buff.type === 'SAME_DISK_MOVE') {
+                     const gains: string[] = [];
+                     if (buff.value.pv) gains.push(formatResource(buff.value.pv, 'PV'));
+                     if (buff.value.media) gains.push(formatResource(buff.value.media, 'MEDIA'));
+                     message += ` et gagne ${gains.join(', ')} (${buff.source || 'Bonus'})`;
+                     setToast({ message: `Bonus : +${gains.join(', ')} (${buff.source})`, visible: true });
+                }
+            });
             
             addToHistory(message, currentPlayerId, stateBeforeMove);
         }
@@ -987,7 +1059,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
     }
     if (interactionState.type === 'FREE_MOVEMENT') {
-      setInteractionState({ type: 'IDLE' });
+      if (freeMovements > 0) {
+        setInteractionState({ type: 'FREE_MOVEMENT', count: freeMovements });
+        setToast({ message: `Encore ${freeMovements} déplacement(s) gratuit(s)`, visible: true });
+      } else {
+        setInteractionState({ type: 'IDLE' });
+      }
     }
   };
 
@@ -1008,13 +1085,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (card.freeAction === FreeAction.MEDIA) {
       currentPlayer.mediaCoverage = Math.min(currentPlayer.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
       setToast({ message: "Action gratuite : +1 Média", visible: true });
-      addToHistory("défausse une carte pour gagner 1 Média", currentPlayer.id, game);
+      addToHistory(`défausse une carte pour gagner ${formatResource(1, 'MEDIA')}`, currentPlayer.id, game);
     } else if (card.freeAction === FreeAction.DATA) {
       currentPlayer.data = (currentPlayer.data || 0) + 1;
       setToast({ message: "Action gratuite : +1 Data", visible: true });
-      addToHistory("défausse une carte pour gagner 1 Donnée", currentPlayer.id, game);
+      addToHistory(`défausse une carte pour gagner ${formatResource(1, 'DATA')}`, currentPlayer.id, game);
     } else if (card.freeAction === FreeAction.MOVEMENT) {
-      setInteractionState({ type: 'FREE_MOVEMENT' });
+      setInteractionState({ type: 'FREE_MOVEMENT', count: 1 });
       setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
       addToHistory("défausse une carte pour un déplacement gratuit", currentPlayer.id, game);
     }
@@ -1193,15 +1270,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       setGame(result.updatedGame);
       setToast({ message: "Echange effectué", visible: true });
 
-      const translateResource = (type: string, count: number) => {
-        const t = type.toLowerCase();
-        let label = t;
-        if (t === 'card') label = 'carte';
-        else if (t === 'energy') label = 'énergie';
-        else if (t === 'credit') label = 'crédit';
-        return count > 1 ? `${label}s` : label;
-      };
-      addToHistory(`échange 2 ${translateResource(spendType, 2)} contre 1 ${translateResource(gainType, 1)}`, currentPlayer.id, game);
+      addToHistory(`échange ${formatResource(2, spendType)} contre ${formatResource(1, gainType)}`, currentPlayer.id, game);
       setInteractionState({ type: 'IDLE' });
     }
   };
@@ -1447,14 +1516,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (card.revenue === RevenueBonus.CREDIT) {
       currentPlayer.revenueCredits += 1;
       currentPlayer.credits += 1;
-      gainMsg = "1 Crédit";
+      gainMsg = formatResource(1, 'CREDIT');
     } else if (card.revenue === RevenueBonus.ENERGY) {
       currentPlayer.revenueEnergy += 1;
       currentPlayer.energy += 1;
-      gainMsg = "1 Énergie";
+      gainMsg = formatResource(1, 'ENERGY');
     } else if (card.revenue === RevenueBonus.CARD) {
       currentPlayer.revenueCards += 1;
-      gainMsg = "1 Carte";
+      gainMsg = formatResource(1, 'CARD');
     }
 
     const sequenceId = (interactionState as any).sequenceId;
@@ -1932,6 +2001,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               initialSector2={initialSector2} 
               initialSector3={initialSector3}
               highlightPlayerProbes={interactionState.type === 'FREE_MOVEMENT'}
+              freeMovementCount={interactionState.type === 'FREE_MOVEMENT' ? interactionState.count : 0}
               hasPerformedMainAction={hasPerformedMainAction}
             />
 

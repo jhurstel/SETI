@@ -234,10 +234,85 @@ export class ProbeSystem {
       if (targetCell.hasPlanet && targetCell.planetId !== 'earth') mediaBonus += 1;
       if (targetCell.hasAsteroid && player.technologies.some(t => t.id.startsWith('exploration-2'))) mediaBonus += 1;
     }
+
+    // Gestion des visites de planètes et bonus associés
+    let scoreBonus = 0;
+    let dataBonus = 0;
+    let newVisitedPlanets = [...player.visitedPlanetsThisTurn];
+    let newActiveBuffs = [...player.activeBuffs];
+
+    if (targetCell && targetCell.hasPlanet && targetCell.planetId) {
+        const planetId = targetCell.planetId;
+        
+        const isNewVisit = !newVisitedPlanets.includes(planetId);
+        // Enregistrer la visite si pas déjà fait (pour les stats ou bonus "planètes uniques")
+        if (isNewVisit) {
+            newVisitedPlanets.push(planetId);
+        }
+
+        // Vérifier et appliquer les buffs actifs (ex: Survol de Mars)
+        // On filtre pour ne garder que ceux qui n'ont pas encore été consommés pour cette planète
+        const buffsToTrigger = newActiveBuffs.filter(buff => buff.type === 'VISIT_BONUS' && buff.target === planetId);
+        
+        buffsToTrigger.forEach(buff => {
+            scoreBonus += buff.value;
+        });
+
+        // Retirer les buffs consommés (pour ne pas gagner 2x les points si on revient sur la planète)
+        if (buffsToTrigger.length > 0) {
+            newActiveBuffs = newActiveBuffs.filter(buff => !(buff.type === 'VISIT_BONUS' && buff.target === planetId));
+        }
+
+        // Appliquer les bonus de visite unique (ex: Voile Solaire)
+        if (isNewVisit) {
+            const uniqueBuffs = newActiveBuffs.filter(buff => buff.type === 'VISIT_UNIQUE');
+            uniqueBuffs.forEach(buff => {
+                scoreBonus += buff.value;
+            });
+        }
+    }
+
+    // Gestion des visites d'astéroïdes (ex: Survol d'Astéroïdes)
+    if (targetCell && targetCell.hasAsteroid) {
+        const asteroidBuffs = newActiveBuffs.filter(buff => buff.type === 'VISIT_ASTEROID');
+        asteroidBuffs.forEach(buff => {
+            dataBonus += buff.value;
+        });
+        if (asteroidBuffs.length > 0) {
+            newActiveBuffs = newActiveBuffs.filter(buff => buff.type !== 'VISIT_ASTEROID');
+        }
+    }
+
+    // Gestion des visites de comètes (ex: Rencontre avec une Comète)
+    if (targetCell && targetCell.hasComet) {
+        const cometBuffs = newActiveBuffs.filter(buff => buff.type === 'VISIT_COMET');
+        cometBuffs.forEach(buff => {
+            scoreBonus += buff.value;
+        });
+        if (cometBuffs.length > 0) {
+            newActiveBuffs = newActiveBuffs.filter(buff => buff.type !== 'VISIT_COMET');
+        }
+    }
+
+    // Gestion du déplacement sur le même disque (ex: Correction de Trajectoire)
+    if (targetDisk === probe.solarPosition.disk) {
+        const sameDiskBuffs = newActiveBuffs.filter(buff => buff.type === 'SAME_DISK_MOVE');
+        sameDiskBuffs.forEach(buff => {
+            if (buff.value.pv) scoreBonus += buff.value.pv;
+            if (buff.value.media) mediaBonus += buff.value.media;
+        });
+        if (sameDiskBuffs.length > 0) {
+            newActiveBuffs = newActiveBuffs.filter(buff => buff.type !== 'SAME_DISK_MOVE');
+        }
+    }
     
     // Débiter l'énergie et appliquer le bonus de média
     const updatedPlayer = {
       ...player,
+      score: player.score + scoreBonus,
+      data: Math.min(player.data + dataBonus, GAME_CONSTANTS.MAX_DATA),
+      visitedPlanetsThisTurn: newVisitedPlanets, // Mettre à jour la liste
+      activeBuffs: newActiveBuffs, // Mettre à jour la liste des buffs
       energy: player.energy - (validation.energyCost || 0),
       mediaCoverage: Math.min(player.mediaCoverage + mediaBonus, GAME_CONSTANTS.MAX_MEDIA_COVERAGE),
       probes: player.probes.map((p, idx) => {

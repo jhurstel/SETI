@@ -23,6 +23,7 @@ interface SolarSystemBoardUIProps {
   initialSector2?: number; // Secteur initial (1-8) pour positionner le plateau niveau 2
   initialSector3?: number; // Secteur initial (1-8) pour positionner le plateau niveau 3
   highlightPlayerProbes?: boolean; // Mettre en surbrillance les sondes du joueur courant
+  freeMovementCount?: number; // Nombre de déplacements gratuits disponibles
   hasPerformedMainAction?: boolean;
 }
 
@@ -104,7 +105,7 @@ const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEnter, on
   , document.body);
 };
 
-export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, hasPerformedMainAction = false }, ref) => {
+export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredObjectRect, setHoveredObjectRect] = useState<DOMRect | null>(null);
@@ -1467,7 +1468,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     return (
       <div
         key={probe.id}
-        onClick={() => handleProbeClick(probe, shouldHighlight ? 1 : 0)}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleProbeClick(probe);
+        }}
         onMouseEnter={(e) => {
           setHoveredProbe(probe.id);
           setHoveredProbeRect(e.currentTarget.getBoundingClientRect());
@@ -1635,55 +1639,85 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   };
 
   // Fonction pour gérer le clic sur une sonde
-  const handleProbeClick = (probe: Probe, movementBonus: number = 0) => {
+  const handleProbeClick = (probe: Probe) => {
     setHoveredObject(null);
     setSlotTooltip(null);
     if (selectedProbeId === probe.id) {
       // Désélectionner si déjà sélectionnée
       setSelectedProbeId(null);
-      setReachableCells(new Map());
-      setHighlightedPath([]);
-      return;
-    }
-
-    // Sélectionner la sonde
-    setSelectedProbeId(probe.id);
-
-    // Calculer les cases accessibles
-    if (probe.solarPosition) {
-      const currentPlayer = game.players[game.currentPlayerIndex];
-      const rotationState = createRotationState(rotationAngle1, rotationAngle2, rotationAngle3);
-      
-      // Calculer la position absolue de la sonde pour le pathfinding
-      // Les sondes sur les plateaux rotatifs ont une position relative, mais le pathfinding travaille en absolu
-      const tempObj: CelestialObject = {
-        id: 'temp',
-        type: 'empty',
-        name: 'temp',
-        position: {
-          disk: probe.solarPosition.disk,
-          sector: probe.solarPosition.sector,
-          x: 0, y: 0
-        },
-        level: (probe.solarPosition.level || 0) as 0 | 1 | 2 | 3
-      };
-      const absPos = calculateAbsolutePosition(tempObj, rotationState);
-
-      const reachable = calculateReachableCellsWithEnergy(
-        probe.solarPosition.disk,
-        absPos.absoluteSector,
-        movementBonus,
-        currentPlayer.energy, // Utiliser toute l'énergie disponible
-        rotationState
-      );
-
-      // Retirer la case actuelle des cases accessibles
-      const currentKey = `${probe.solarPosition.disk}${absPos.absoluteSector}`;
-      reachable.delete(currentKey);
-      
-      setReachableCells(reachable);
+    } else {
+      // Sélectionner la sonde
+      setSelectedProbeId(probe.id);
     }
   };
+
+  // Effet pour calculer les cases accessibles quand une sonde est sélectionnée
+  useEffect(() => {
+    if (selectedProbeId) {
+      const probe = game.board.solarSystem.probes.find(p => p.id === selectedProbeId);
+      if (probe && probe.solarPosition) {
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        const rotationState = createRotationState(rotationAngle1, rotationAngle2, rotationAngle3);
+        
+        // Calculer la position absolue de la sonde pour le pathfinding
+        const tempObj: CelestialObject = {
+          id: 'temp',
+          type: 'empty',
+          name: 'temp',
+          position: {
+            disk: probe.solarPosition.disk,
+            sector: probe.solarPosition.sector,
+            x: 0, y: 0
+          },
+          level: (probe.solarPosition.level || 0) as 0 | 1 | 2 | 3
+        };
+        const absPos = calculateAbsolutePosition(tempObj, rotationState);
+
+        const movementBonus = freeMovementCount;
+        
+        const hasAsteroidTech = currentPlayer.technologies.some(t => t.id.startsWith('exploration-2'));
+        const hasAsteroidBuff = currentPlayer.activeBuffs.some(b => b.type === 'ASTEROID_EXIT_COST');
+        const ignoreAsteroidPenalty = hasAsteroidTech || hasAsteroidBuff;
+
+        const reachable = calculateReachableCellsWithEnergy(
+          probe.solarPosition.disk,
+          absPos.absoluteSector,
+          movementBonus,
+          currentPlayer.energy,
+          rotationState,
+          ignoreAsteroidPenalty
+        );
+
+        // Retirer la case actuelle des cases accessibles
+        const currentKey = `${probe.solarPosition.disk}${absPos.absoluteSector}`;
+        reachable.delete(currentKey);
+        
+        setReachableCells(reachable);
+      } else {
+        setReachableCells(new Map());
+      }
+    } else {
+      setReachableCells(new Map());
+      setHighlightedPath([]);
+    }
+  }, [selectedProbeId, game, rotationAngle1, rotationAngle2, rotationAngle3, highlightPlayerProbes, freeMovementCount]);
+
+  // Effet pour sélectionner automatiquement la sonde s'il n'y en a qu'une lors d'un mouvement gratuit
+  useEffect(() => {
+    if (highlightPlayerProbes) {
+      const currentPlayer = game.players[game.currentPlayerIndex];
+      const playerProbes = game.board.solarSystem.probes.filter(
+        p => p.ownerId === currentPlayer.id && p.state === ProbeState.IN_SOLAR_SYSTEM
+      );
+
+      if (playerProbes.length === 1) {
+        const probe = playerProbes[0];
+        if (selectedProbeId !== probe.id) {
+           setSelectedProbeId(probe.id);
+        }
+      }
+    }
+  }, [highlightPlayerProbes, game, selectedProbeId]);
 
   // Obtenir toutes les sondes dans le système solaire
   const probesInSystem = useMemo(() => {

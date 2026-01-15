@@ -77,26 +77,25 @@ export class CardSystem {
               bonuses.media = (bonuses.media || 0) + effect.value;
               break;
             case 'CARD':
-              // La pioche est gérée par le bonus retourné
               bonuses.card = (bonuses.card || 0) + effect.value;
               break;
             case 'PROBE':
-              // Gain de sonde (stock)
-              // TODO: Implémenter la logique de stock de sondes si nécessaire
-              // Pour l'instant on considère que c'est un gain virtuel ou interactif
               bonuses.probe = (bonuses.probe || 0) + effect.value;
-              break;
-            case 'MOVEMENT':
-              bonuses.movements = (bonuses.movements || 0) + effect.value;
               break;
           }
         } else if (effect.type === 'ACTION') {
            switch (effect.target) {
+               case 'ANYCARD':
+                   bonuses.anycard = (bonuses.anycard || 0) + effect.value;
+                   break;
                case 'ROTATION':
                    bonuses.rotation = (bonuses.rotation || 0) + effect.value;
                    break;
                case 'LAND':
                    bonuses.landing = (bonuses.landing || 0) + effect.value;
+                   break;
+               case 'MOVEMENT':
+                   bonuses.movements = (bonuses.movements || 0) + effect.value;
                    break;
                case 'TECH':
                    if (typeof effect.value === 'object' && effect.value !== null) {
@@ -111,6 +110,33 @@ export class CardSystem {
            }
         }
       });
+    }
+
+    // Traitement des effets passifs temporaires (Buffs de tour)
+    if (card.passiveEffects) {
+        card.passiveEffects.forEach(effect => {
+            if (effect.type === 'VISIT_BONUS' && effect.target) {
+                // Si la planète a DÉJÀ été visitée ce tour-ci, on applique le bonus immédiatement
+                if (player.visitedPlanetsThisTurn.includes(effect.target)) {
+                    player.score += effect.value;
+                    if (!bonuses.pv) bonuses.pv = 0;
+                    bonuses.pv += effect.value;
+                } else {
+                    // Sinon on ajoute le buff pour le reste du tour
+                    player.activeBuffs.push({ ...effect, source: card.name });
+                }
+            } else if (effect.type === 'VISIT_UNIQUE') {
+                player.activeBuffs.push({ ...effect, source: card.name });
+            } else if (effect.type === 'ASTEROID_EXIT_COST') {
+                player.activeBuffs.push({ ...effect, source: card.name });
+            } else if (effect.type === 'VISIT_ASTEROID') {
+                player.activeBuffs.push({ ...effect, source: card.name });
+            } else if (effect.type === 'VISIT_COMET') {
+                player.activeBuffs.push({ ...effect, source: card.name });
+            } else if (effect.type === 'SAME_DISK_MOVE') {
+                player.activeBuffs.push({ ...effect, source: card.name });
+            }
+        });
     }
 
     return { updatedGame, bonuses };
@@ -159,7 +185,7 @@ export class CardSystem {
     }
 
     // Vérification si la carte donne des déplacements
-    const hasMovementEffect = card.immediateEffects?.some(e => e.type === 'GAIN' && e.target === 'MOVEMENT');
+    const hasMovementEffect = card.immediateEffects?.some(e => e.type === 'ACTION' && e.target === 'MOVEMENT');
     if (hasMovementEffect) {
       const hasProbeInSystem = player.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
       if (!hasProbeInSystem) {

@@ -647,7 +647,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               key={mediaFlash ? `media-${mediaFlash.id}` : 'media-static'}
               className={`seti-res-badge ${mediaFlash ? (mediaFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
             >
-              <span>Média:</span>
+              <span>Média (<span style={{color: '#ff6b6b'}}>🎤</span>):</span>
               {!isRobot && (
               <button
                 onClick={(e) => {
@@ -694,7 +694,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               style={canSpendCredits ? { cursor: 'pointer', border: '1px solid #ffeb3b' } : {}}
               onClick={canSpendCredits && onSpendSelection ? () => onSpendSelection('credit') : undefined}
             >
-              <span>Crédit:</span> <strong>{currentPlayer.credits}</strong>
+              <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span> <strong>{currentPlayer.credits}</strong>
             </div>
             <div 
               key={energyFlash ? `energy-${energyFlash.id}` : 'energy-static'}
@@ -702,7 +702,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               style={canSpendEnergy ? { cursor: 'pointer', border: '1px solid #ffeb3b' } : {}}
               onClick={canSpendEnergy && onSpendSelection ? () => onSpendSelection('energy') : undefined}
             >
-              <span>Énergie:</span> <strong>{currentPlayer.energy}</strong>
+              <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span> <strong>{currentPlayer.energy}</strong>
             </div>
           </div>
         </div>
@@ -715,19 +715,19 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               key={revenueCreditFlash ? `rev-credit-${revenueCreditFlash.id}` : 'rev-credit-static'}
               className={`seti-res-badge ${revenueCreditFlash ? (revenueCreditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
             >
-              <span>Crédit:</span> <strong>{currentPlayer.revenueCredits}</strong>
+              <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span> <strong>{currentPlayer.revenueCredits}</strong>
             </div>
             <div 
               key={revenueEnergyFlash ? `rev-energy-${revenueEnergyFlash.id}` : 'rev-energy-static'}
               className={`seti-res-badge ${revenueEnergyFlash ? (revenueEnergyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
             >
-              <span>Énergie:</span> <strong>{currentPlayer.revenueEnergy}</strong>
+              <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span> <strong>{currentPlayer.revenueEnergy}</strong>
             </div>
             <div 
               key={revenueCardFlash ? `rev-card-${revenueCardFlash.id}` : 'rev-card-static'}
               className={`seti-res-badge ${revenueCardFlash ? (revenueCardFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
             >
-              <span>Carte:</span> <strong>{currentPlayer.revenueCards}</strong>
+              <span>Carte (<span style={{color: '#aaffaa'}}>🃏</span>):</span> <strong>{currentPlayer.revenueCards}</strong>
             </div>
           </div>
         </div>
@@ -798,7 +798,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               className={dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
               style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px' }}
             >
-              Donnée(s): <strong style={{ color: '#fff' }}>{currentPlayer.data || 0}</strong>
+              Donnée(s) (<span style={{color: '#03a9f4'}}>💾</span>): <strong style={{ color: '#fff' }}>{currentPlayer.data || 0}</strong>
             </span>
           </div>
           <div className="seti-player-list" style={{ padding: '0' }}>
@@ -829,7 +829,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               className={cardsFlash ? (cardsFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
               style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px' }}
             >
-              Carte(s): <strong style={{ color: '#fff' }}>{(currentPlayer.cards || []).length}</strong>
+              Carte(s) (<span style={{color: '#aaffaa'}}>🃏</span>): <strong style={{ color: '#fff' }}>{(currentPlayer.cards || []).length}</strong>
             </span>
           </div>
           {isDiscarding && (
@@ -845,6 +845,11 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                   Confirmer la défausse
                 </button>
               )}
+            </div>
+          )}
+          {reservationState.active && (
+            <div style={{ marginBottom: '10px', color: '#ff9800', fontSize: '0.9em' }}>
+              Veuillez réserver une carte{reservationState.count > 1 ? ` (${reservationState.count} restantes)` : ''}:
             </div>
           )}
           <div className="seti-player-list" style={{ flexDirection: 'row', overflowX: 'auto', paddingBottom: '8px', gap: '8px' }}>
