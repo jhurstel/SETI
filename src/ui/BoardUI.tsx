@@ -2140,7 +2140,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
                     const isSequence = !!entry.sequenceId;
                     const prevEntry = index > 0 ? historyLog[index - 1] : null;
-                    const nextEntry = index < historyLog.length - 1 ? historyLog[index + 1] : null;
+                    //const nextEntry = index < historyLog.length - 1 ? historyLog[index + 1] : null;
                     
                     // Est un enfant si fait partie d'une séquence et que le précédent aussi (même séquence)
                     const isSequenceChild = isSequence && prevEntry && prevEntry.sequenceId === entry.sequenceId;

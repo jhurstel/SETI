@@ -275,7 +275,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   const isRobot = currentPlayer.type === 'robot';
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
   const [cardsSelectedForTrade, setCardsSelectedForTrade] = useState<string[]>([]);
-  const [tick, setTick] = useState(0);
   const [customTooltip, setCustomTooltip] = useState<{ content: React.ReactNode, targetRect: DOMRect } | null>(null);
 
   const getSectorColorCode = (color: SectorColor) => {
@@ -385,7 +384,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         onHistory(`transfère une donnée vers l'ordinateur (${slotId})${gainText}`);
     }
     
-    setTick(t => t + 1);
     if (onGameUpdate) onGameUpdate(updatedGame);
   };
 
