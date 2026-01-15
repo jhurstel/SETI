@@ -1,4 +1,4 @@
-import { Game, Card, CardType, GameLogEntry } from '../core/types';
+import { Game, Card, Player, ProbeState } from '../core/types';
 
 export class CardSystem {
   /**
@@ -116,6 +116,61 @@ export class CardSystem {
     return { updatedGame, bonuses };
   }
 
+  /**
+   * Vérifie si un joueur peut jouer au moins une carte de sa main
+   */
+  static canPlayCards(
+    game: Game, 
+    playerId: string, 
+  ): { canPlay: boolean, reason: string } {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) {
+      return { canPlay: false, reason: "Joueur non trouvé" };
+    }
+
+    if (player.cards.length === 0) {
+      return { canPlay: false, reason: "Aucune carte en main" };
+    }
+
+    return player.cards.some(card => this.canPlayCard(game, playerId, card).canPlay)
+      ? { canPlay: true, reason: "Au moins une carte peut être jouée" }
+      : { canPlay: false, reason: "Aucune carte ne peut être jouée" };
+  }
+
+  /**
+   * Vérifie si un joueur peut jouer une carte
+   */
+  static canPlayCard(
+    game: Game, 
+    playerId: string, 
+    card: Card
+  ): { canPlay: boolean, reason: string } {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) {
+      return { canPlay: false, reason: "Joueur non trouvé" };
+    }
+
+    if (game.players[game.currentPlayerIndex].id !== playerId) {
+      return { canPlay: false, reason: "Ce n'est pas votre tour" };
+    }
+
+    if (player.credits < card.cost) {
+      return { canPlay: false, reason: `Crédits insuffisants (coût: ${card.cost})` };
+    }
+
+    // Vérification si la carte donne des déplacements
+    const hasMovementEffect = card.immediateEffects?.some(e => e.type === 'GAIN' && e.target === 'MOVEMENT');
+    if (hasMovementEffect) {
+      const hasProbeInSystem = player.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+      if (!hasProbeInSystem) {
+        return { canPlay: false, reason: "Nécessite une sonde dans le système solaire" };
+      }
+    }
+
+    // TODO: Ajouter d'autres conditions de carte ici
+    return { canPlay: true, reason: `Coût: ${card.cost} crédits` };
+  }
+
   static discardToHandSize(player: Player, cardIdsToKeep: string[]): Player {
     const updatedPlayer = { ...player };
     updatedPlayer.cards = player.cards.filter(c => cardIdsToKeep.includes(c.id));
@@ -125,12 +180,6 @@ export class CardSystem {
   static refillCardRow(game: Game): Game {
     const updatedGame = { ...game };
     
-    // Copie profonde de la rangée de cartes
-    updatedGame.board = {
-        ...updatedGame.board,
-        cardRow: updatedGame.board.cardRow ? [...updatedGame.board.cardRow] : []
-    };
-    
     // Copie profonde des decks
     updatedGame.decks = {
         ...updatedGame.decks,
@@ -138,10 +187,10 @@ export class CardSystem {
     };
 
     // Remplir jusqu'à 3 cartes
-    while (updatedGame.board.cardRow.length < 3 && updatedGame.decks.actionCards.length > 0) {
+    while (updatedGame.cardRow.length < 3 && updatedGame.decks.actionCards.length > 0) {
       const newCard = updatedGame.decks.actionCards.shift();
       if (newCard) {
-        updatedGame.board.cardRow.push(newCard);
+        updatedGame.cardRow.push(newCard);
       }
     }
     return updatedGame;

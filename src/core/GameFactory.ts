@@ -64,7 +64,7 @@ export class GameFactory {
     const roundDecks: { [round: number]: Card[] } = {};
     const cardsPerDeck = players.length + 1;
     for (let i = 1; i <= 4; i++) {
-      roundDecks[i] = this.createRoundDeck(i, cardsPerDeck);
+      roundDecks[i] = this.createRoundDeck(cardsPerDeck);
     }
 
     // Initialiser les logs
@@ -236,7 +236,7 @@ export class GameFactory {
   /**
    * Crée un paquet de cartes pour une manche spécifique
    */
-  private static createRoundDeck(round: number, count: number): Card[] {
+  private static createRoundDeck(count: number): Card[] {
     const cards: Card[] = [];
     for (let i = 0; i < count; i++) {
       cards.push(this.createRandomCard(i));
@@ -303,7 +303,7 @@ export class GameFactory {
 124;Rencontre avec une Comète;Gagnez 2 Déplacements. Si vous visitez une comète ce tour-ci, gagnez 4 PVs.;1 Média;Jaune;1 Energie;1 Crédit;;2 Déplacements;
 125;Correction de Trajectoire;Gagnez 1 Déplacement. Si vous vous déplacez sur le même disque au moins une fois ce tour-ci, gagnez 3 PV et 1 Média.;1 Donnée;Bleu;1 Pioche;1 Crédit;;1 Déplacement;
 130;Lancement Spatial à Faible Coût;Gagnez 1 Sonde.;1 Média;Jaune;1 Energie;1 Crédit;;;
-133;Fenêtre de Lancement Optimale;Gagnez 1 Sonde. Puis 1 Déplacement pour chaque autre planète ou comète qans le même secteur que la Terre.;1 Donnée;Rouge;1 Pioche;2 Crédits;;;
+133;Fenêtre de Lancement Optimale;Gagnez 1 Sonde. Puis 1 Déplacement pour chaque autre planète ou comète dans le même secteur que la Terre.;1 Donnée;Rouge;1 Pioche;2 Crédits;;;
 137;Archives de Données du SETI;Gagnez 2 Données.;1 Média;Noir;1 Energie;1 Crédit;;2 Données;`
 
     return this.parseCSV(csvContent);

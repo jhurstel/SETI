@@ -12,8 +12,7 @@ import { ProbeSystem } from '../systems/ProbeSystem';
 import { 
   createRotationState, 
   getCell, 
-  getObjectPosition, 
-  rotateSector,
+  getObjectPosition,
   FIXED_OBJECTS,
   INITIAL_ROTATING_LEVEL1_OBJECTS,
   INITIAL_ROTATING_LEVEL2_OBJECTS,
@@ -69,7 +68,6 @@ const getInteractionLabel = (state: InteractionState): string => {
     case 'RESERVING_CARD': return "Réserver une carte";
     case 'SELECTING_TECH_BONUS': return "Choisir une technologie";
     case 'PLACING_LIFE_TRACE': return `Placer trace de vie (${state.color})`;
-    case 'SCAN_SECTOR': return "Scanner un secteur"; // Si implémenté
     default: return "Action bonus";
   }
 };
@@ -285,6 +283,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }, 3000);
       return () => clearTimeout(timer);
     }
+    return;
   }, [toast]);
 
   // Effet pour traiter la file d'attente des interactions (récompenses en chaîne)
@@ -410,6 +409,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }, 1500);
       return () => clearTimeout(timer);
     }
+    return;
   }, [game, performPass, addToHistory]);
 
   // Helper pour effectuer une rotation du système solaire
@@ -906,7 +906,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   };
 
   // Gestionnaire pour le déplacement des sondes
-  const handleProbeMove = async (probeId: string, targetDisk: DiskName, targetSector: SectorNumber, cost: number, path: string[]) => {
+  const handleProbeMove = async (probeId: string, path: string[]) => {
     if (!gameEngineRef.current) return;
 
     // Synchroniser l'état de GameEngine avec le jeu actuel
@@ -2145,7 +2145,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     // Est un enfant si fait partie d'une séquence et que le précédent aussi (même séquence)
                     const isSequenceChild = isSequence && prevEntry && prevEntry.sequenceId === entry.sequenceId;
                     // Est le dernier enfant si le suivant n'est pas dans la même séquence
-                    const isLastChild = isSequenceChild && (!nextEntry || nextEntry.sequenceId !== entry.sequenceId);
+                    //const isLastChild = isSequenceChild && (!nextEntry || nextEntry.sequenceId !== entry.sequenceId);
                     
                     let player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
                     // Fallback : essayer de trouver le joueur par son nom au début du message (pour les logs d'init)

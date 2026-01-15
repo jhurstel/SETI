@@ -15,7 +15,7 @@ import { ProbeSystem } from '../systems/ProbeSystem';
 
 interface SolarSystemBoardUIProps {
   game: Game;
-  onProbeMove?: (probeId: string, targetDisk: DiskName, targetSector: SectorNumber, cost: number, path: string[]) => void;
+  onProbeMove?: (probeId: string, path: string[]) => void;
   onPlanetClick?: (planetId: string) => void;
   onOrbit?: (planetId: string) => void;
   onLand?: (planetId: string) => void;
@@ -2052,8 +2052,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           {/* Les tooltips sont maintenant gérés par Portal, mais on garde la logique de calcul ici */}
             {/* Tooltip dynamique pour l'objet survolé (Planète, Comète, Astéroïde) */}
             {hoveredObject && hoveredObjectRect && (() => {
-              const { disk, sector } = hoveredObject.position;
-              
               // Affichage spécial pour les planètes (Hover Card)
               if (hoveredObject.type === 'planet') {
                 const planetData = game.board.planets.find(p => p.id === hoveredObject.id);
@@ -2168,7 +2166,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                 onClick={(e) => {
                   e.stopPropagation();
                   if (onProbeMove && selectedProbeId) {
-                    onProbeMove(selectedProbeId, disk, sector, data.movements, data.path);
+                    onProbeMove(selectedProbeId, data.path);
                     setSelectedProbeId(null);
                     setReachableCells(new Map());
                     setHighlightedPath([]);

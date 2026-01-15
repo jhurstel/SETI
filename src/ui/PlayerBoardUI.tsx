@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Game, ActionType, GAME_CONSTANTS, FreeAction, ProbeState, Card, CardType, SectorColor } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { DataSystem } from '../systems/DataSystem';
+import { CardSystem } from '../systems/CardSystem';
 import './PlayerBoardUI.css';
 
 interface PlayerBoardUIProps {
@@ -346,6 +347,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
       }, 1000);
       return () => clearTimeout(timer);
     }
+    return;
   }, [game, currentPlayer.id]);
 
   // Effect to reset selection when exiting trading mode
@@ -412,6 +414,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         const timer = setTimeout(() => setFlash(null), 600);
         return () => clearTimeout(timer);
       }
+      return;
     }, [value, playerId]);
 
     // Mettre à jour les refs après l'effet principal pour la prochaine comparaison
@@ -438,18 +441,13 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     [ActionType.LAND]: isCurrentTurn && !isRobot && !hasPerformedMainAction && currentPlayer.probes.some(probe => ProbeSystem.canLand(game, currentPlayer.id, probe.id).canLand),
     [ActionType.SCAN_SECTOR]: isCurrentTurn && !isRobot && !hasPerformedMainAction && false, // TODO
     [ActionType.ANALYZE_DATA]: isCurrentTurn && !isRobot && !hasPerformedMainAction && DataSystem.canAnalyzeData(game, currentPlayer.id).canAnalyze,
-    [ActionType.PLAY_CARD]: isCurrentTurn && !isRobot && !hasPerformedMainAction && false, // TODO
+    [ActionType.PLAY_CARD]: isCurrentTurn && !isRobot && !hasPerformedMainAction && CardSystem.canPlayCards(game, currentPlayer.id).canPlay,
     [ActionType.RESEARCH_TECH]: isCurrentTurn && !isRobot && !hasPerformedMainAction && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA,
     [ActionType.PASS]: isCurrentTurn && !isRobot && !hasPerformedMainAction,
   };
 
   // Fonction helper pour générer le tooltip basé sur l'état du jeu (Interaction Engine -> UI)
-  const getActionTooltip = (actionType: ActionType, available: boolean): string => {
-    // Si l'action est disponible, on peut retourner une description simple ou rien
-    //if (available) {
-       // On pourrait ajouter des descriptions génériques ici si voulu
-    //   return ACTION_NAMES[actionType];
-    //}
+  const getActionTooltip = (actionType: ActionType): string => {
     const hasProbeOnPlanetInfo = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id)
 
     switch (actionType) {
@@ -503,35 +501,17 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         return `Rechercher une technologie (coût: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} couverture médiatique)`;
 
       case ActionType.PLAY_CARD:
-        return currentPlayer.cards.length === 0 ? 'Aucune carte en main' : 'Jouer une carte de votre main';
-      
+        if (isRobot) return "Tour du robot";
+        if (hasPerformedMainAction) return "Action principale déjà effectuée";
+        
+        const cardCheck = CardSystem.canPlayCards(game, currentPlayer.id);
+        if (!cardCheck.canPlay) return cardCheck.reason || "Impossible";
+
+        return `Joueur une carte de votre main`;
+        
       default:
         return '';
     }
-  };
-
-  const checkCanPlayCard = (card: Card) => {
-    if (!isCurrentTurn) {
-      return { canPlay: false, reason: "Ce n'est pas votre tour" };
-    }
-    if (hasPerformedMainAction) {
-      return { canPlay: false, reason: "Vous avez déjà effectué une action principale ce tour-ci" };
-    }
-    if (currentPlayer.credits < card.cost) {
-      return { canPlay: false, reason: `Crédits insuffisants (coût: ${card.cost})` };
-    }
-
-    // Vérification si la carte donne des déplacements
-    const hasMovementEffect = card.immediateEffects?.some(e => e.type === 'GAIN' && e.target === 'MOVEMENT');
-    if (hasMovementEffect) {
-      const hasProbeInSystem = currentPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
-      if (!hasProbeInSystem) {
-        return { canPlay: false, reason: "Nécessite une sonde dans le système solaire" };
-      }
-    }
-
-    // TODO: Ajouter d'autres conditions de carte ici
-    return { canPlay: true, reason: `Coût: ${card.cost} crédits` };
   };
 
   const canBuyCardAction = currentPlayer.mediaCoverage >= 3;
@@ -765,7 +745,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               .map(([action, name]) => {
                 const available = actionAvailability[action as ActionType] && !isInteractiveMode;
                 const actionType = action as ActionType;
-                const tooltip = getActionTooltip(actionType, available);
+                const tooltip = getActionTooltip(actionType);
                 return (
                   <div
                     key={action}
@@ -778,7 +758,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                     style={{
                       cursor: available && onAction ? 'pointer' : 'not-allowed',
                     }}
-                    onMouseEnter={(e) => handleTooltipHover(e, tooltip)}
+                    onMouseEnter={(e) => { if (tooltip) handleTooltipHover(e, tooltip); }}
                     onMouseLeave={handleTooltipLeave}
                   >
                     {name}
@@ -906,7 +886,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                   }
                 }
 
-                const { canPlay, reason: playTooltip } = checkCanPlayCard(card);
+                const { canPlay, reason: playTooltip } = CardSystem.canPlayCard(game, currentPlayer.id, card);
                 
                 return (
                   <div 

@@ -21,11 +21,6 @@ import {
   AlienBoard,
   LifeTraceTrack,
   TechnologyBonus,
-  Card,
-  CardType,
-  FreeAction,
-  SectorColor,
-  RevenueBonus,
   ObjectiveTile,
   ObjectiveCategory
 } from './types';
