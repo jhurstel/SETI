@@ -1,4 +1,5 @@
-import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, PlanetBonus, ProbeState, GAME_CONSTANTS } from '../core/types';
 import { 
   createRotationState, 
@@ -34,10 +35,81 @@ export interface SolarSystemBoardUIRef {
   rotateCounterClockwise3: () => void;
 }
 
+const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEnter, onMouseLeave }: { content: React.ReactNode, targetRect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void }) => {
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
+
+  useLayoutEffect(() => {
+    if (tooltipRef.current && targetRect) {
+      const rect = tooltipRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const margin = 8;
+      const padding = 10;
+
+      let left = targetRect.left + (targetRect.width / 2) - (rect.width / 2);
+
+      if (left < padding) left = padding;
+      if (left + rect.width > viewportWidth - padding) {
+        left = viewportWidth - rect.width - padding;
+      }
+
+      let top = targetRect.top - rect.height - margin;
+
+      if (top < padding) {
+        const bottomPosition = targetRect.bottom + margin;
+        if (bottomPosition + rect.height <= viewportHeight - padding) {
+            top = bottomPosition;
+        } else {
+            if (targetRect.top > (viewportHeight - targetRect.bottom)) {
+                top = padding;
+            } else {
+                top = viewportHeight - rect.height - padding;
+            }
+        }
+      }
+
+      setStyle({
+        top,
+        left,
+        opacity: 1
+      });
+    }
+  }, [targetRect, content]);
+
+  return createPortal(
+    <div
+      ref={tooltipRef}
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        padding: '6px 10px',
+        borderRadius: '4px',
+        border: '1px solid #78a0ff',
+        color: '#fff',
+        textAlign: 'center',
+        minWidth: '120px',
+        whiteSpace: 'pre-line',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+        transition: 'opacity 0.1s ease-in-out',
+        pointerEvents,
+        ...style
+      }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {content}
+    </div>
+  , document.body);
+};
+
 export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, hasPerformedMainAction = false }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
+  const [hoveredObjectRect, setHoveredObjectRect] = useState<DOMRect | null>(null);
   const [hoveredProbe, setHoveredProbe] = useState<string | null>(null);
+  const [hoveredProbeRect, setHoveredProbeRect] = useState<DOMRect | null>(null);
   
   // État pour gérer la sonde sélectionnée et les cases accessibles
   const [selectedProbeId, setSelectedProbeId] = useState<string | null>(null);
@@ -45,7 +117,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
 
   // État pour le tooltip personnalisé des slots
-  const [slotTooltip, setSlotTooltip] = useState<{ content: React.ReactNode, x: number, y: number } | null>(null);
+  const [slotTooltip, setSlotTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
 
   // État pour contrôler la visibilité des plateaux rotatifs
   const [showLevel1, setShowLevel1] = useState<boolean>(true);
@@ -110,17 +182,19 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   // Ref pour le timeout de fermeture du tooltip
   const hoverTimeoutRef = useRef<any>(null);
 
-  const handleMouseEnterObject = (obj: CelestialObject) => {
+  const handleMouseEnterObject = (e: React.MouseEvent, obj: CelestialObject) => {
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
     setHoveredObject(obj);
+    setHoveredObjectRect(e.currentTarget.getBoundingClientRect());
   };
 
   const handleMouseLeaveObject = () => {
     hoverTimeoutRef.current = setTimeout(() => {
       setHoveredObject(null);
+      setHoveredObjectRect(null);
       setSlotTooltip(null);
     }, 300);
   };
@@ -364,17 +438,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   // Rendu du tooltip personnalisé
   const renderSlotTooltip = () => {
     if (!slotTooltip) return null;
-    return (
-      <div
-        className="seti-custom-tooltip"
-        style={{
-          top: slotTooltip.y - 12,
-          left: slotTooltip.x,
-        }}
-      >
-        {slotTooltip.content}
-      </div>
-    );
+    return <Tooltip content={slotTooltip.content} targetRect={slotTooltip.rect} pointerEvents="auto" />;
   };
 
   // Helper pour rendre le contenu du bonus dans le cercle (SVG)
@@ -674,7 +738,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                 }}
                 onMouseEnter={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
-                    setSlotTooltip({ content: tooltipContent, x: rect.left + rect.width / 2, y: rect.top });
+                    setSlotTooltip({ content: tooltipContent, rect });
                 }}
                 onMouseLeave={() => setSlotTooltip(null)}
                 >
@@ -940,7 +1004,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                       }}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setSlotTooltip({ content: tooltipContent, x: rect.left + rect.width / 2, y: rect.top });
+                        setSlotTooltip({ content: tooltipContent, rect });
                       }}
                       onMouseLeave={() => setSlotTooltip(null)}
                       >
@@ -990,7 +1054,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                       }}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setSlotTooltip({ content: tooltipContent, x: rect.left + rect.width / 2, y: rect.top });
+                        setSlotTooltip({ content: tooltipContent, rect });
                       }}
                       onMouseLeave={() => setSlotTooltip(null)}
                       >
@@ -1138,7 +1202,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           cursor: 'pointer',
           pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
-        onMouseEnter={() => handleMouseEnterObject(obj)}
+        onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
         onClick={() => onPlanetClick && onPlanetClick(obj.id)}
       >
@@ -1286,7 +1350,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           cursor: 'help',
           pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
-        onMouseEnter={() => handleMouseEnterObject(obj)}
+        onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
         <div
@@ -1348,7 +1412,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           cursor: 'help',
           pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
-        onMouseEnter={() => handleMouseEnterObject(obj)}
+        onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
         {Array.from({ length: asteroidCount }).map((_, i) => {
@@ -1404,8 +1468,14 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
       <div
         key={probe.id}
         onClick={() => handleProbeClick(probe, shouldHighlight ? 1 : 0)}
-        onMouseEnter={() => setHoveredProbe(probe.id)}
-        onMouseLeave={() => setHoveredProbe(null)}
+        onMouseEnter={(e) => {
+          setHoveredProbe(probe.id);
+          setHoveredProbeRect(e.currentTarget.getBoundingClientRect());
+        }}
+        onMouseLeave={() => {
+          setHoveredProbe(null);
+          setHoveredProbeRect(null);
+        }}
         style={{
           position: 'absolute',
           top: `calc(50% + ${y + offsetY}%)`,
@@ -1550,30 +1620,18 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   };
 
   // Fonction helper pour rendre un tooltip de sonde
-  const renderProbeTooltip = (probe: Probe, playerName: string, rotationAngle: number = 0) => {
-    const { x, y } = calculateObjectPosition(probe.solarPosition.disk, probe.solarPosition.sector, rotationAngle);
-    return (
-      <div
-        key={`probe-tooltip-${probe.id}`}
-        className="seti-planet-tooltip"
-        style={{
-          position: 'absolute',
-          bottom: `calc(50% - ${y}% + 12px)`,
-          left: `calc(50% + ${x}%)`,
-          transform: 'translateX(-50%)',
-          opacity: hoveredProbe === probe.id ? 1 : 0,
-          visibility: hoveredProbe === probe.id ? 'visible' : 'hidden',
-          zIndex: 101,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          whiteSpace: 'nowrap',
-        }}
-      >
+  const renderProbeTooltip = () => {
+    if (!hoveredProbe || !hoveredProbeRect) return null;
+    const probe = game.board.solarSystem.probes.find(p => p.id === hoveredProbe);
+    const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
+    const playerName = player?.name || 'Joueur inconnu';
+    const content = (
+      <>
         <div style={{ fontWeight: 'bold' }}>{playerName}</div>
         <div style={{ fontSize: '0.8em', color: '#ccc', marginTop: '2px' }}>Déplacer la sonde</div>
-      </div>
+      </>
     );
+    return <Tooltip content={content} targetRect={hoveredProbeRect} />;
   };
 
   // Fonction pour gérer le clic sur une sonde
@@ -1991,47 +2049,20 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           )}
 
           {/* Conteneur fixe pour les tooltips des planètes rotatives */}
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 100 }}>
+          {/* Les tooltips sont maintenant gérés par Portal, mais on garde la logique de calcul ici */}
             {/* Tooltip dynamique pour l'objet survolé (Planète, Comète, Astéroïde) */}
-            {hoveredObject && (() => {
+            {hoveredObject && hoveredObjectRect && (() => {
               const { disk, sector } = hoveredObject.position;
-              let rotationAngle = 0;
-              if (hoveredObject.level === 1) rotationAngle = rotationAngle1;
-              else if (hoveredObject.level === 2) rotationAngle = rotationAngle2;
-              else if (hoveredObject.level === 3) rotationAngle = rotationAngle3;
-              else rotationAngle = 0;
               
               // Affichage spécial pour les planètes (Hover Card)
               if (hoveredObject.type === 'planet') {
                 const planetData = game.board.planets.find(p => p.id === hoveredObject.id);
-                const { x, y } = calculateObjectPosition(disk, sector, rotationAngle);
                 
                 if (planetData) {
-                  return (
-                    <div
-                      className="seti-planet-hover-card"
-                      onMouseEnter={() => {
-                        if (hoverTimeoutRef.current) {
-                          clearTimeout(hoverTimeoutRef.current);
-                          hoverTimeoutRef.current = null;
-                        }
-                      }}
-                      onMouseLeave={handleMouseLeaveObject}
-                      style={{
-                        position: 'absolute',
-                        top: `calc(50% + ${y}% + 10px)`,
-                        left: `calc(50% + ${x}% + 10px)`,
-                        zIndex: 101,
-                        backgroundColor: 'rgba(10, 15, 30, 0.95)',
-                        padding: '10px',
-                        borderRadius: '8px',
-                        border: '1px solid #78a0ff',
-                        color: '#fff',
+                  const content = (
+                    <div style={{
                         minWidth: '350px',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.8)',
-                        pointerEvents: 'auto',
-                      }}
-                    >
+                    }}>
                       <div style={{ borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '12px', textAlign: 'left' }}>
                         <div style={{ fontWeight: 'bold', fontSize: '1.2em', color: '#78a0ff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
                           {planetData.name}
@@ -2045,11 +2076,24 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                       </div>
                     </div>
                   );
+                  
+                  return (
+                    <Tooltip 
+                        content={content} 
+                        targetRect={hoveredObjectRect} 
+                        pointerEvents="auto"
+                        onMouseEnter={() => {
+                            if (hoverTimeoutRef.current) {
+                                clearTimeout(hoverTimeoutRef.current);
+                                hoverTimeoutRef.current = null;
+                            }
+                        }}
+                        onMouseLeave={handleMouseLeaveObject}
+                    />
+                  );
                 }
               }
 
-              const { x, y } = calculateObjectPosition(disk, sector, rotationAngle);
-              
               let content = <div style={{ fontWeight: 'bold' }}>{hoveredObject.name}</div>;
               let subContent = null;
 
@@ -2082,51 +2126,11 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                 subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: color }}>{text}</div>;
               }
 
-              return (
-                <div
-                  className="seti-planet-tooltip"
-                  style={{
-                    position: 'absolute',
-                    bottom: `calc(50% - ${y}% + 18px)`,
-                    left: `calc(50% + ${x}%)`,
-                    transform: 'translateX(-50%)',
-                    opacity: 1,
-                    visibility: 'visible',
-                    zIndex: 101,
-                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-                    padding: '6px 10px',
-                    borderRadius: '4px',
-                    border: '1px solid #78a0ff',
-                    color: '#fff',
-                    textAlign: 'center',
-                    minWidth: '120px',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  {content}
-                  {subContent}
-                </div>
-              );
+              return <Tooltip content={<>{content}{subContent}</>} targetRect={hoveredObjectRect} />;
             })()}
 
             {/* Tooltips des sondes */}
-            {probesInSystem.map((probe) => {
-              if (!probe.solarPosition) return null;
-              const player = game.players.find(p => p.id === probe.ownerId);
-              const playerName = player?.name || 'Joueur inconnu';
-              
-              const level = probe.solarPosition.level;
-              if (level === 1) {
-                return renderProbeTooltip(probe, playerName, rotationAngle1);
-              } else if (level === 2) {
-                return renderProbeTooltip(probe, playerName, rotationAngle2);
-              } else if (level === 3) {
-                return renderProbeTooltip(probe, playerName, rotationAngle3);
-              } else {
-                return renderProbeTooltip(probe, playerName);
-              }
-            })}
-          </div>
+            {renderProbeTooltip()}
 
           {/* Backdrop pour désélectionner si on clique à côté (quand une sonde est sélectionnée) */}
           {selectedProbeId && (

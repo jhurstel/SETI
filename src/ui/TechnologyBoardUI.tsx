@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Game, Technology, TechnologyCategory, TechnologyBonus, GAME_CONSTANTS } from '../core/types';
 
 interface TechnologyBoardUIProps {
@@ -8,11 +9,91 @@ interface TechnologyBoardUIProps {
   hasPerformedMainAction?: boolean;
 }
 
+const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect: DOMRect }) => {
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
+
+  useLayoutEffect(() => {
+    if (tooltipRef.current && targetRect) {
+      const rect = tooltipRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const margin = 8;
+      const padding = 10;
+
+      let left = targetRect.left + (targetRect.width / 2) - (rect.width / 2);
+
+      if (left < padding) left = padding;
+      if (left + rect.width > viewportWidth - padding) {
+        left = viewportWidth - rect.width - padding;
+      }
+
+      let top = targetRect.top - rect.height - margin;
+
+      if (top < padding) {
+        const bottomPosition = targetRect.bottom + margin;
+        if (bottomPosition + rect.height <= viewportHeight - padding) {
+            top = bottomPosition;
+        } else {
+            if (targetRect.top > (viewportHeight - targetRect.bottom)) {
+                top = padding;
+            } else {
+                top = viewportHeight - rect.height - padding;
+            }
+        }
+      }
+
+      setStyle({
+        top,
+        left,
+        opacity: 1
+      });
+    }
+  }, [targetRect, content]);
+
+  return createPortal(
+    <div
+      ref={tooltipRef}
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        padding: '6px 10px',
+        borderRadius: '4px',
+        border: '1px solid #78a0ff',
+        color: '#fff',
+        textAlign: 'center',
+        minWidth: '120px',
+        pointerEvents: 'none',
+        whiteSpace: 'pre-line',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+        transition: 'opacity 0.1s ease-in-out',
+        ...style
+      }}
+    >
+      {content}
+    </div>
+  , document.body);
+};
+
 export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isResearching, onTechClick, hasPerformedMainAction }) => {
   const techBoard = game.board.technologyBoard;
   const categories = techBoard.categorySlots || [];
   const currentPlayer = game.players[game.currentPlayerIndex];
   const canAffordResearch = !hasPerformedMainAction && currentPlayer.mediaCoverage >= (GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA || 6);
+  const [customTooltip, setCustomTooltip] = useState<{ content: React.ReactNode, targetRect: DOMRect } | null>(null);
+
+  const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setCustomTooltip({
+      content,
+      targetRect: rect
+    });
+  };
+
+  const handleTooltipLeave = () => {
+    setCustomTooltip(null);
+  };
 
   // Fonction pour regrouper les technologies par pile (même ID de base)
   const getStacks = (technologies: Technology[]) => {
@@ -98,7 +179,23 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                       key={topCard.id} 
                       className="seti-tech-card"
                       onClick={() => isClickable && onTechClick && onTechClick(topCard)}
-                      title={`${topCard.name}: ${topCard.description} (${count} restants)`}
+                      onMouseEnter={(e) => handleTooltipHover(e, (
+                        <div style={{ textAlign: 'left', maxWidth: '200px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                            <span style={{ fontWeight: 'bold', color: '#4a9eff' }}>{topCard.name}</span>
+                            <span style={{ fontSize: '0.7em', color: categoryColor, border: `1px solid ${categoryColor}`, padding: '0 2px', borderRadius: '2px' }}>{slot.category}</span>
+                          </div>
+                          <div style={{ fontSize: '0.9em', marginBottom: '6px' }}>{topCard.description || topCard.shorttext}</div>
+                          <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '4px', borderRadius: '4px', marginBottom: '4px' }}>
+                            <div style={{ fontSize: '0.7em', color: '#aaa', marginBottom: '2px' }}>Gains immédiats :</div>
+                            {renderBonus(topCard.bonus, false)}
+                          </div>
+                          <div style={{ fontSize: '0.8em', color: '#aaa' }}>
+                            {count} exemplaire{count > 1 ? 's' : ''} restant{count > 1 ? 's' : ''}
+                          </div>
+                        </div>
+                      ))}
+                      onMouseLeave={handleTooltipLeave}
                       style={{
                         border: isResearching ? '2px solid #00ff00' : `1px solid ${categoryColor}`,
                         backgroundColor: 'rgba(30, 30, 40, 0.8)',
@@ -191,6 +288,9 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
           );
         })}
       </div>
+      {customTooltip && (
+        <Tooltip content={customTooltip.content} targetRect={customTooltip.targetRect} />
+      )}
     </div>
   );
 };

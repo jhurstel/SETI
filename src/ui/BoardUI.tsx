@@ -3,7 +3,6 @@ import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, S
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
-import { AlienBoardUI } from './AlienBoardUI';
 import { LaunchProbeAction } from '../actions/LaunchProbeAction';
 import { MoveProbeAction } from '../actions/MoveProbeAction';
 import { PassAction } from '../actions/PassAction';
@@ -111,7 +110,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const [isTechOpen, setIsTechOpen] = useState(false);
   const [isObjectivesOpen, setIsObjectivesOpen] = useState(false);
   const [isRowOpen, setIsRowOpen] = useState(false);
-  const [isAlienOpen, setIsAlienOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(true);
   
   // Auto-open tech panel when researching
@@ -575,9 +573,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         setHasPerformedMainAction(true);
         
         // 3. Passer en mode placement de trace de vie
-        setInteractionState({ type: 'PLACING_LIFE_TRACE', color: 'blue' });
-        setToast({ message: "Données analysées. Placez une trace de vie sur la piste bleue.", visible: true });
-        addToHistory(`analyse des données et gagne 1 trace de vie bleue`, player.id, previousState, { type: 'IDLE' });
+        setInteractionState({ type: 'IDLE' });
+        setToast({ message: "Données analysées.", visible: true });
+        addToHistory(`analyse des données`, player.id, previousState);
       }, 1500);
     }
   };
@@ -1332,46 +1330,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   };
 
-  // Gestionnaire pour le clic sur une piste Alien
-  const handleAlienTrackClick = (color: string) => {
-    if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
-    
-    if (interactionState.color !== color) {
-        setToast({ message: `Veuillez placer sur la piste ${interactionState.color === 'blue' ? 'bleue' : interactionState.color}`, visible: true });
-        return;
-    }
-
-    const updatedGame = structuredClone(game);
-    const player = updatedGame.players[updatedGame.currentPlayerIndex];
-    const alienBoard = updatedGame.board.alienBoard;
-    const track = (alienBoard as any)[color]; 
-
-    let bonusMsg = "";
-
-    if (!track.slot1.playerId) {
-      track.slot1.playerId = player.id;
-      player.score += track.slot1.bonus.pv;
-      if (track.slot1.bonus.media) player.mediaCoverage = Math.min(player.mediaCoverage + track.slot1.bonus.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-      bonusMsg = "+5 PV, +1 Média (1er)";
-    } else if (!track.slot2.playerId) {
-      track.slot2.playerId = player.id;
-      player.score += track.slot2.bonus.pv;
-      if (track.slot2.bonus.media) player.mediaCoverage = Math.min(player.mediaCoverage + track.slot2.bonus.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-      bonusMsg = "+3 PV, +1 Média (2ème)";
-    } else {
-      player.score += 3;
-      bonusMsg = "+3 PV";
-    }
-
-    setGame(updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-    
-    const sequenceId = (interactionState as any).sequenceId;
-    addToHistory(`place une trace de vie sur la piste ${color} et gagne ${bonusMsg}`, player.id, game, interactionState, sequenceId);
-    setInteractionState({ type: 'IDLE' });
-    setToast({ message: `Trace de vie placée ! ${bonusMsg}`, visible: true });
-  };
-
   // Gestionnaire pour le clic sur un objectif (placement de marqueur de palier)
   const handleObjectiveClick = (tileId: string) => {
     if (interactionState.type !== 'PLACING_OBJECTIVE_MARKER') return;
@@ -1829,7 +1787,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     {game.board.objectiveTiles && game.board.objectiveTiles.map(tile => (
                       <div key={tile.id} 
                         onClick={() => handleObjectiveClick(tile.id)}
-                        title={`Récompenses : 1er: ${tile.rewards.first} PV, 2ème: ${tile.rewards.second} PV, Autres: ${tile.rewards.others} PV`}
                         style={{
                         backgroundColor: 'rgba(255, 255, 255, 0.05)',
                         border: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '1px solid #4a9eff' : '1px solid #555',
@@ -1842,10 +1799,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                         gap: '4px',
                         minHeight: '100px'
                       }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 'bold', color: '#ffd700', fontSize: '0.8em', lineHeight: '1.1' }}>{tile.name}</span>
-                          <span style={{ fontSize: '0.65em', color: '#aaa', border: '1px solid #555', padding: '1px 3px', borderRadius: '3px' }}>{tile.side}</span>
-                        </div>
                         <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', marginBottom: 'auto' }}>{tile.description}</div>
                         
                         {/* Piste de score avec 4 cercles */}
@@ -1874,8 +1827,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                                 boxShadow: isNextAvailable ? '0 0 8px #4a9eff' : (player ? '0 0 4px rgba(0,0,0,0.5)' : 'none'),
                                 transform: isNextAvailable ? 'scale(1.2)' : 'scale(1)',
                                 transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                                cursor: isNextAvailable ? 'pointer' : 'default'
-                              }} title={player ? `Occupé par ${player.name}` : `${pv} PV`}>
+                                cursor: isNextAvailable ? 'pointer' : 'default',
+                              }}>
                                 {player ? '' : pv}
                               </div>
                             );
@@ -1970,13 +1923,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 </div>
                 </div>
               </div>
-              
-              <div className={`seti-foldable-container ${isAlienOpen ? 'open' : ''}`} style={{ pointerEvents: 'auto' }}>
-                <div className="seti-foldable-header" onClick={() => setIsAlienOpen(!isAlienOpen)}>Piste Alien</div>
-                <div className="seti-foldable-content">
-                  <AlienBoardUI game={game} onTrackClick={handleAlienTrackClick} />
-                </div>
-              </div>
             </div>
 
             {/* Historique en haut à droite */}
@@ -2017,8 +1963,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       );
                     }
 
-                    // Vérifier si cet élément fait partie d'une séquence et n'est pas le premier
-                    const isSequenceChild = entry.sequenceId && index > 0 && historyLog[index - 1].sequenceId === entry.sequenceId;
+                    const isSequence = !!entry.sequenceId;
+                    const prevEntry = index > 0 ? historyLog[index - 1] : null;
+                    const nextEntry = index < historyLog.length - 1 ? historyLog[index + 1] : null;
+                    
+                    // Est un enfant si fait partie d'une séquence et que le précédent aussi (même séquence)
+                    const isSequenceChild = isSequence && prevEntry && prevEntry.sequenceId === entry.sequenceId;
+                    // Est le dernier enfant si le suivant n'est pas dans la même séquence
+                    const isLastChild = isSequenceChild && (!nextEntry || nextEntry.sequenceId !== entry.sequenceId);
                     
                     let player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
                     // Fallback : essayer de trouver le joueur par son nom au début du message (pour les logs d'init)
@@ -2029,17 +1981,29 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     const color = player ? (player.color || '#ccc') : '#ccc';
                     return (
                       <div key={entry.id} className="seti-history-item" style={{ 
-                          borderLeft: isSequenceChild ? `3px solid transparent` : `3px solid ${color}`, 
+                          borderLeft: `3px solid ${color}`, 
                           paddingLeft: '8px', 
-                          marginBottom: '4px',
-                          marginLeft: isSequenceChild ? '12px' : '0',
-                          position: 'relative'
+                          marginBottom: '2px',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          backgroundColor: isSequenceChild ? 'rgba(255,255,255,0.02)' : 'transparent'
                       }}>
                         {isSequenceChild && (
-                            <div style={{ position: 'absolute', left: '-10px', top: '-10px', bottom: '10px', width: '2px', backgroundColor: color, borderRadius: '0 0 0 4px', borderBottom: `2px solid ${color}` }}></div>
+                            <div style={{ 
+                                marginRight: '6px', 
+                                color: '#666', 
+                                fontFamily: 'monospace',
+                                fontSize: '1.1em',
+                                lineHeight: '1.4',
+                                userSelect: 'none'
+                            }}>
+                                └─ {/* {isLastChild ? '└─' : '├─'} */}
+                            </div>
                         )}
-                        {player && !entry.message.startsWith(player.name) && <strong style={{ color: color }}>{player.name} </strong>}
-                        <span style={{ color: '#ddd' }}>{formatHistoryMessage(entry.message)}</span>
+                        <div style={{ flex: 1, padding: '2px 0' }}>
+                            {player && !entry.message.startsWith(player.name) && !isSequenceChild && <strong style={{ color: color }}>{player.name} </strong>}
+                            <span style={{ color: '#ddd', fontSize: isSequenceChild ? '0.9em' : '1em' }}>{formatHistoryMessage(entry.message)}</span>
+                        </div>
                       </div>
                     );
                   })}

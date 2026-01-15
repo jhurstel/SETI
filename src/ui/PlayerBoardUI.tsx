@@ -61,27 +61,55 @@ const ComputerSlot = ({
 }) => {
   const isFilled = slot.filled;
   
-  let tooltip = 'Emplacement vide';
-  if (slot.bonus === 'media') tooltip = '1 Media';
-  else if (slot.bonus === 'reservation') tooltip = '1 Reservation';
-  else if (slot.bonus === '2pv') tooltip = '2 PV';
-  else if (slot.bonus === 'credit') tooltip = '1 Crédit';
-  else if (slot.bonus === 'energy') tooltip = '1 Énergie';
-  else if (slot.bonus === 'card') tooltip = '1 Carte';
+  let bonusText = '';
+  let bonusColor = '#fff';
+  
+  if (slot.bonus === 'media') { bonusText = '1 Média'; bonusColor = '#ff6b6b'; }
+  else if (slot.bonus === 'reservation') { bonusText = '1 Réservation'; bonusColor = '#fff'; }
+  else if (slot.bonus === '2pv') { bonusText = '2 PV'; bonusColor = '#8affc0'; }
+  else if (slot.bonus === 'credit') { bonusText = '1 Crédit'; bonusColor = '#ffd700'; }
+  else if (slot.bonus === 'energy') { bonusText = '1 Énergie'; bonusColor = '#4caf50'; }
+  else if (slot.bonus === 'card') { bonusText = '1 Carte'; bonusColor = '#aaffaa'; }
+
+  let title = '';
+  let titleColor = '#fff';
+  let subContent: React.ReactNode = null;
 
   if (isFilled) {
-      tooltip = 'Donnée stockée';
+      title = 'Donnée stockée';
+      titleColor = '#aaa';
+      if (bonusText) {
+          subContent = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus obtenu : <span style={{ color: bonusColor }}>{bonusText}</span></div>;
+      }
   } else if (canFill) {
-      tooltip += ' (Cliquer pour placer)';
+      title = 'Emplacement disponible';
+      titleColor = '#4a9eff';
+      if (bonusText) {
+          subContent = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Gagnez : <span style={{ color: bonusColor, fontWeight: 'bold' }}>{bonusText}</span></div>;
+      } else {
+          subContent = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus immédiat</div>;
+      }
   } else {
-      tooltip += ' (Indisponible)';
+      title = 'Emplacement indisponible';
+      titleColor = '#ff6b6b';
+      if (bonusText) {
+          subContent = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus potentiel : <span style={{ color: bonusColor }}>{bonusText}</span></div>;
+      }
   }
   
+  const tooltipContent = (
+      <div style={{ textAlign: 'center' }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '4px', color: titleColor }}>{title}</div>
+          {subContent}
+          {canFill && !isFilled && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Cliquer pour transférer une donnée</div>}
+      </div>
+  );
+
   return (
     <div
       onClick={canFill && !isFilled ? onClick : undefined}
       className={`computer-slot ${isFilled ? 'filled' : ''} ${canFill && !isFilled ? 'can-fill' : ''}`}
-      onMouseEnter={(e) => onHover(e, tooltip)}
+      onMouseEnter={(e) => onHover(e, tooltipContent)}
       onMouseLeave={onLeave}
     >
       {isFilled && <div className="computer-slot-dot" />}
@@ -170,6 +198,73 @@ const PlayerComputer = ({
   );
 };
 
+const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect: DOMRect }) => {
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
+
+  React.useLayoutEffect(() => {
+    if (tooltipRef.current && targetRect) {
+      const rect = tooltipRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const margin = 8;
+      const padding = 10;
+
+      let left = targetRect.left + (targetRect.width / 2) - (rect.width / 2);
+
+      if (left < padding) left = padding;
+      if (left + rect.width > viewportWidth - padding) {
+        left = viewportWidth - rect.width - padding;
+      }
+
+      let top = targetRect.top - rect.height - margin;
+
+      if (top < padding) {
+        const bottomPosition = targetRect.bottom + margin;
+        if (bottomPosition + rect.height <= viewportHeight - padding) {
+            top = bottomPosition;
+        } else {
+            if (targetRect.top > (viewportHeight - targetRect.bottom)) {
+                top = padding;
+            } else {
+                top = viewportHeight - rect.height - padding;
+            }
+        }
+      }
+
+      setStyle({
+        top,
+        left,
+        opacity: 1
+      });
+    }
+  }, [targetRect, content]);
+
+  return (
+    <div
+      ref={tooltipRef}
+      style={{
+        position: 'fixed',
+        zIndex: 9999,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        padding: '6px 10px',
+        borderRadius: '4px',
+        border: '1px solid #78a0ff',
+        color: '#fff',
+        textAlign: 'center',
+        minWidth: '120px',
+        pointerEvents: 'none',
+        whiteSpace: 'pre-line',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+        transition: 'opacity 0.1s ease-in-out',
+        ...style
+      }}
+    >
+      {content}
+    </div>
+  );
+};
+
 export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, onViewPlayer, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeResourcesAction, tradeState = { phase: 'inactive' }, onSpendSelection, onGainSelection, onCancelTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, reservationState = { active: false, count: 0 }, onReserveCard, isPlacingLifeTrace = false }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
@@ -180,14 +275,13 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
   const [cardsSelectedForTrade, setCardsSelectedForTrade] = useState<string[]>([]);
   const [tick, setTick] = useState(0);
-  const [customTooltip, setCustomTooltip] = useState<{ content: React.ReactNode, x: number, y: number } | null>(null);
+  const [customTooltip, setCustomTooltip] = useState<{ content: React.ReactNode, targetRect: DOMRect } | null>(null);
 
   const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setCustomTooltip({
       content,
-      x: rect.left + rect.width / 2,
-      y: rect.top
+      targetRect: rect
     });
   };
 
@@ -461,7 +555,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         <button
             onClick={onNextPlayer}
             disabled={!isCurrentTurn || !hasPerformedMainAction || isInteractiveMode}
-            title={hasPerformedMainAction ? "Terminer le tour" : "Effectuez une action principale d'abord"}
+            onMouseEnter={(e) => handleTooltipHover(e, hasPerformedMainAction ? "Terminer le tour" : "Effectuez une action principale d'abord")}
+            onMouseLeave={handleTooltipLeave}
             style={{
                 position: 'absolute',
                 right: '10px',
@@ -978,28 +1073,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
       </div>
     </div>
     {customTooltip && (
-        <div
-          style={{
-            position: 'fixed',
-            top: customTooltip.y,
-            left: customTooltip.x,
-            transform: 'translate(-50%, -100%)',
-            marginTop: '-8px',
-            zIndex: 9999,
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            padding: '6px 10px',
-            borderRadius: '4px',
-            border: '1px solid #78a0ff',
-            color: '#fff',
-            textAlign: 'center',
-            minWidth: '120px',
-            pointerEvents: 'none',
-            whiteSpace: 'pre-line',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
-          }}
-        >
-          {customTooltip.content}
-        </div>
+        <Tooltip content={customTooltip.content} targetRect={customTooltip.targetRect} />
       )}
     </div>
   );
