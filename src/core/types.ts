@@ -230,13 +230,13 @@ export interface Probe {
 
 export interface Sector {
   id: string;
+  name: string;
+  color: SectorColor;
+  coveredAt: number;
   signals: Signal[];
   playerMarkers: PlayerMarker[];
   coveredBy?: string;
-  coveredAt?: number;
   isCovered: boolean;
-  color?: SectorColor;
-  dataSlots?: string[];
 }
 
 export interface Signal {
@@ -244,6 +244,7 @@ export interface Signal {
   type: SignalType;
   marked: boolean;
   markedBy?: string;
+  bonus?: PlanetBonus;
 }
 
 export interface PlayerMarker {

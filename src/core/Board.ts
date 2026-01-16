@@ -22,7 +22,10 @@ import {
   LifeTraceTrack,
   TechnologyBonus,
   ObjectiveTile,
-  ObjectiveCategory
+  ObjectiveCategory,
+  SectorColor,
+  SignalType,
+  Signal
 } from './types';
 
 export class BoardManager {
@@ -90,9 +93,90 @@ export class BoardManager {
    * Crée les secteurs initiaux
    */
   private static createSectors(): Sector[] {
-    // TODO: Implémenter selon le nombre exact de secteurs
-    // Chaque secteur a des signaux initiaux
-    return [];
+    // Définition des 4 plateaux doubles (Gauche/Droite)
+    const plates = [
+      { 
+        right: { name: 'Kepler 22', color: SectorColor.YELLOW, slots: 5, firstBonus: { redlifetrace: 1 }, nextBonus: { pv: 3 } },
+        left: { name: 'Proxima Centauri', color: SectorColor.RED, slots: 6, firstBonus: { redlifetrace: 1 }, nextBonus: { redlifetrace: 1 } } 
+      },
+      { 
+        right: { name: 'Sirius A', color: SectorColor.BLUE, slots: 6, firstBonus: { redlifetrace: 1 }, nextBonus: { redlifetrace: 1 } }, 
+        left: { name: "Barnard's Star", color: SectorColor.RED, slots: 5, firstBonus: { redlifetrace: 1 }, nextBonus: { pv: 3 } } 
+      },
+      { 
+        right: { name: '61 Virginis', color: SectorColor.YELLOW, slots: 6, firstBonus: { redlifetrace: 1 }, nextBonus: { redlifetrace: 1 } }, 
+        left: { name: 'Beta Pictoris', color: SectorColor.BLACK, slots: 5, firstBonus: { redlifetrace: 1, pv: 3 }, nextBonus: { redlifetrace: 1 } } 
+      },
+      { 
+        right: { name: 'Procyon', color: SectorColor.BLUE, slots: 5, firstBonus: { redlifetrace: 1 }, nextBonus: { pv: 3 } }, 
+        left: { name: 'Vega', color: SectorColor.BLACK, slots: 4, firstBonus: { redlifetrace: 1, pv: 2}, nextBonus: { pv: 5 } } 
+      },
+    ];
+
+    // Mélanger l'ordre des plateaux
+    const shuffledPlates = this.shuffle(plates);
+
+    // Aplatir pour obtenir la séquence des 8 secteurs
+    const sectorSequence: { name: string, color: SectorColor, slots: number }[] = [];
+    shuffledPlates.forEach(plate => {
+      sectorSequence.push(plate.left);
+      sectorSequence.push(plate.right);
+    });
+
+    // Appliquer une rotation aléatoire (angle initial sur le disque E)
+    const rotationOffset = Math.floor(Math.random() * 8);
+    const rotatedSequence = [
+      ...sectorSequence.slice(rotationOffset),
+      ...sectorSequence.slice(0, rotationOffset)
+    ];
+
+    // Créer les objets Sector
+    return rotatedSequence.map((config, index) => {
+      // Les secteurs sont numérotés de 1 à 8
+      const sectorId = `sector_${index + 1}`;
+      return {
+        id: sectorId,
+        name: config.name,
+        color: config.color,
+        coveredAt: 0, // Initialisé à 0 (non couvert)
+        signals: this.createSignals(config.slots),
+        playerMarkers: [],
+        isCovered: false
+      };
+    });
+  }
+
+  /**
+   * Crée les signaux pour un secteur
+   */
+  private static createSignals(count: number): Signal[] {
+    const signals = Array.from({ length: count }).map((_, i) => ({
+      id: `sig_${Math.random().toString(36).substr(2, 9)}`,
+      type: SignalType.DATA,
+      marked: false,
+      bonus: i === 1 ? { pv: 2 } : undefined
+    }));
+
+    // Ajout du slot supplémentaire blanc (sans bonus de donnée)
+    signals.push({
+      id: `sig_white_${Math.random().toString(36).substr(2, 9)}`,
+      type: SignalType.OTHER,
+      marked: false
+    });
+
+    return signals;
+  }
+
+  /**
+   * Utilitaire de mélange
+   */
+  private static shuffle<T>(array: T[]): T[] {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
   }
 
   /**

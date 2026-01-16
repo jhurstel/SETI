@@ -1,6 +1,6 @@
 import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, PlanetBonus, ProbeState, GAME_CONSTANTS } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, PlanetBonus, ProbeState, GAME_CONSTANTS, SectorColor, SignalType } from '../core/types';
 import { 
   createRotationState, 
   calculateReachableCellsWithEnergy,
@@ -103,6 +103,35 @@ const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEnter, on
       {content}
     </div>
   , document.body);
+};
+
+// Helper pour les arcs SVG
+const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
+  const angleInRadians = (angleInDegrees) * Math.PI / 180.0;
+  return {
+    x: centerX + (radius * Math.cos(angleInRadians)),
+    y: centerY + (radius * Math.sin(angleInRadians))
+  };
+};
+
+const describeArc = (x: number, y: number, radius: number, startAngle: number, endAngle: number, reverse: boolean = false) => {
+    const start = polarToCartesian(x, y, radius, endAngle);
+    const end = polarToCartesian(x, y, radius, startAngle);
+    const largeArcFlag = Math.abs(endAngle - startAngle) <= 180 ? "0" : "1";
+    
+    if (reverse) {
+        // Sens anti-horaire (Start -> End) pour le texte du bas
+        return [
+            "M", end.x, end.y, 
+            "A", radius, radius, 0, largeArcFlag, 0, start.x, start.y
+        ].join(" ");
+    }
+
+    // Sens horaire (End -> Start) pour le texte du haut
+    return [
+        "M", start.x, start.y, 
+        "A", radius, radius, 0, largeArcFlag, 1, end.x, end.y
+    ].join(" ");
 };
 
 export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false }, ref) => {
@@ -1385,6 +1414,103 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     );
   };
 
+  // Rendu des détails des secteurs (Nom + Slots) sur le disque E
+  const renderSectorDetails = () => {
+    if (!game.board.sectors) return null;
+
+    return (
+      <svg
+        style={{
+          position: 'absolute',
+          top: '0',
+          left: '0',
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+          zIndex: 15, // Au-dessus des disques (2-6), en dessous des overlays rotatifs (20+)
+          overflow: 'visible'
+        }}
+        viewBox="0 0 200 200"
+      >
+        {game.board.sectors.map((sector, i) => {
+          // Angles pour le secteur i+1 (ex: Secteur 1 = -90 à -135)
+          const startAngle = -(360 / 8) * i - 90;
+          const endAngle = -(360 / 8) * (i + 1) - 90;
+          
+          // Rayons pour le disque E (36% à 44% -> 72px à 88px)
+          const textRadius = 75; 
+          const slotRadius = 83;
+
+          // Déterminer si le texte doit être inversé (pour les secteurs du bas : 3, 4, 5, 6)
+          const isBottom = i >= 2 && i <= 5;
+
+          const textPathId = `sector-text-path-${i}`;
+          // Inverser la direction du chemin pour le bas pour que le texte soit lisible
+          const textArc = describeArc(100, 100, textRadius, startAngle, endAngle, isBottom);
+          
+          const colorMap: Record<string, string> = {
+            [SectorColor.BLUE]: '#4a9eff',
+            [SectorColor.RED]: '#ff6b6b',
+            [SectorColor.YELLOW]: '#ffd700',
+            [SectorColor.BLACK]: '#aaaaaa'
+          };
+          const color = colorMap[sector.color] || '#fff';
+
+          // Couloir des slots (toujours sens horaire pour le dessin)
+          const slotCount = sector.signals.length;
+          const slotSpacing = 5; // degrés entre les slots
+          const groupWidth = (slotCount - 1) * slotSpacing;
+          const centerAngle = (startAngle + endAngle) / 2;
+          const firstSlotAngle = centerAngle - groupWidth / 2;
+          const corridorPadding = 3.5;
+          
+          const corridorPath = describeArc(100, 100, slotRadius, centerAngle + groupWidth / 2 + corridorPadding, centerAngle - groupWidth / 2 - corridorPadding, false);
+          
+          const slots = sector.signals.map((signal, idx) => {
+             const angle = firstSlotAngle + (idx * slotSpacing);
+             const pos = polarToCartesian(100, 100, slotRadius, angle);
+             
+             const player = signal.markedBy ? game.players.find(p => p.id === signal.markedBy) : null;
+             
+             const isWhiteSlot = signal.type === SignalType.OTHER;
+             const strokeColor = isWhiteSlot ? '#ffffff' : color;
+             const fillColor = player ? player.color : (isWhiteSlot ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0,0,0,0.3)');
+             
+             return (
+               <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`}>
+                 <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" />
+                 {!player && signal.bonus && (
+                   <g transform="scale(0.25)">
+                     {renderBonusContent(signal.bonus)}
+                   </g>
+                 )}
+               </g>
+             );
+          });
+
+          return (
+            <g key={sector.id}>
+               <defs>
+                 <path id={textPathId} d={textArc} />
+               </defs>
+               <text fill={color} fontSize="2.5" fontWeight="bold" letterSpacing="0.5" opacity="0.9">
+                 <textPath href={`#${textPathId}`} startOffset="50%" textAnchor="middle">
+                   {sector.name.toUpperCase()}
+                 </textPath>
+               </text>
+               
+               {/* Fond du couloir */}
+               <path d={corridorPath} fill="none" stroke={color} strokeWidth="7" opacity="0.15" strokeLinecap="round" />
+               
+               {/* Slots */}
+               {slots}
+            </g>
+          );
+        })}
+      </svg>
+    );
+  };
+
   // Fonction helper pour générer un nombre pseudo-aléatoire basé sur une seed
   const seededRandom = (seed: number) => {
     const x = Math.sin(seed) * 10000;
@@ -2380,6 +2506,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             );
           })}
         </div>
+
+        {/* Détails des secteurs sur le disque E (Noms + Slots) */}
+        {renderSectorDetails()}
       </div>
       </div>
       

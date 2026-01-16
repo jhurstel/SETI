@@ -109,9 +109,13 @@ export class SectorSystem {
     };
 
     // Marquer les signaux
+    let gainedPV = 0;
     const updatedSector = { ...sector };
     updatedSector.signals = updatedSector.signals.map(signal => {
       if (signalIds.includes(signal.id)) {
+        if (signal.bonus?.pv) {
+          gainedPV += signal.bonus.pv;
+        }
         return {
           ...signal,
           marked: true,
@@ -120,6 +124,10 @@ export class SectorSystem {
       }
       return signal;
     });
+
+    if (gainedPV > 0) {
+      updatedPlayer.score += gainedPV;
+    }
 
     // Remplacer les jetons Donnée par des marqueurs joueur
     const dataSignals = updatedSector.signals.filter(
