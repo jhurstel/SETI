@@ -13,9 +13,9 @@ import {
   Technology,
   Card,
   CardType,
-  FreeAction,
+  FreeActionType,
   SectorColor,
-  RevenueBonus,
+  RevenueType,
   CardEffect,
   GameLogEntry,
   TechnologyCategory
@@ -251,8 +251,8 @@ export class GameFactory {
    */
   private static createRandomCard(id: number): Card {
     const colors = [SectorColor.BLUE, SectorColor.RED, SectorColor.YELLOW, SectorColor.BLACK];
-    const freeActions = [FreeAction.DATA, FreeAction.MEDIA, FreeAction.MOVEMENT];
-    const revenues = [RevenueBonus.CREDIT, RevenueBonus.ENERGY, RevenueBonus.CARD];
+    const freeActions = [FreeActionType.DATA, FreeActionType.MEDIA, FreeActionType.MOVEMENT];
+    const revenues = [RevenueType.CREDIT, RevenueType.ENERGY, RevenueType.CARD];
     return {
         id: `row_card_${id}`,
         name: `Projet ${id+1}`,
@@ -339,9 +339,9 @@ export class GameFactory {
             description: texte.trim(),
             type: CardType.ACTION,
             cost: parseInt(cout.trim(), 10) || 0,
-            freeAction: this.mapFreeAction(actionGratuite.trim()),
+            freeAction: this.mapFreeActionType(actionGratuite.trim()),
             scanSector: this.mapSectorColor(couleurScan.trim()),
-            revenue: this.mapRevenueBonus(revenue.trim()),
+            revenue: this.mapRevenueType(revenue.trim()),
             effects: [],
             immediateEffects: this.parseGainColumn(gain.trim()),
             passiveEffects: this.parseConstraintColumn(contrainte.trim())
@@ -351,12 +351,12 @@ export class GameFactory {
     return cards;
   }
 
-  private static mapFreeAction(value: string): FreeAction {
+  private static mapFreeActionType(value: string): FreeActionType {
       const v = value.toLowerCase();
-      if (v.includes('déplacement') || v.includes('movement')) return FreeAction.MOVEMENT;
-      if (v.includes('donnée') || v.includes('data')) return FreeAction.DATA;
-      if (v.includes('média') || v.includes('media')) return FreeAction.MEDIA;
-      return FreeAction.DATA; // Valeur par défaut
+      if (v.includes('déplacement') || v.includes('movement')) return FreeActionType.MOVEMENT;
+      if (v.includes('donnée') || v.includes('data')) return FreeActionType.DATA;
+      if (v.includes('média') || v.includes('media')) return FreeActionType.MEDIA;
+      return FreeActionType.DATA; // Valeur par défaut
   }
 
   private static mapSectorColor(value: string): SectorColor {
@@ -368,12 +368,12 @@ export class GameFactory {
       return SectorColor.BLUE; // Valeur par défaut
   }
 
-  private static mapRevenueBonus(value: string): RevenueBonus {
+  private static mapRevenueType(value: string): RevenueType {
       const v = value.toLowerCase();
-      if (v.includes('crédit') || v.includes('credit')) return RevenueBonus.CREDIT;
-      if (v.includes('énergie') || v.includes('energy')) return RevenueBonus.ENERGY;
-      if (v.includes('carte') || v.includes('card')) return RevenueBonus.CARD;
-      return RevenueBonus.CREDIT; // Valeur par défaut
+      if (v.includes('crédit') || v.includes('credit')) return RevenueType.CREDIT;
+      if (v.includes('énergie') || v.includes('energy')) return RevenueType.ENERGY;
+      if (v.includes('carte') || v.includes('card')) return RevenueType.CARD;
+      return RevenueType.CREDIT; // Valeur par défaut
   }
 
   private static parseGainColumn(gain: string): CardEffect[] {

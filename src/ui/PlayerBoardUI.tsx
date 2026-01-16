@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, FreeAction, ProbeState, Card, CardType, SectorColor } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, FreeActionType, ProbeState, Card, CardType, SectorColor } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { DataSystem } from '../systems/DataSystem';
 import { CardSystem } from '../systems/CardSystem';
@@ -859,30 +859,30 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                 const isSelectedForDiscard = selectedCardIds.includes(card.id);
                 const isSelectedForTrade = cardsSelectedForTrade.includes(card.id);
                 const isHighlighted = highlightedCardId === card.id;
-                const isMovementAction = card.freeAction === FreeAction.MOVEMENT;
-                const isDataAction = card.freeAction === FreeAction.DATA;
-                const isMediaAction = card.freeAction === FreeAction.MEDIA;
+                const isMovementAction = card.freeAction === FreeActionType.MOVEMENT;
+                const isDataAction = card.freeAction === FreeActionType.DATA;
+                const isMediaAction = card.freeAction === FreeActionType.MEDIA;
                 
-                let canPerformFreeAction = isCurrentTurn;
+                let canPerformFreeActionType = isCurrentTurn;
                 let actionTooltip = "";
 
                 if (!isCurrentTurn) {
                   actionTooltip = "Ce n'est pas votre tour";
                 } else if (isMovementAction) {
                   if (!(currentPlayer.probes || []).some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
-                    canPerformFreeAction = false;
+                    canPerformFreeActionType = false;
                     actionTooltip = "Nécessite une sonde dans le système solaire";
                   }
                 } else if (isDataAction) {
                   if ((currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
-                    canPerformFreeAction = false;
+                    canPerformFreeActionType = false;
                     actionTooltip = "Nécessite de transférer des données";
                   } else {
                     actionTooltip = "Vous gagnez 1 data";
                   }
                 } else if (isMediaAction) {
                   if (currentPlayer.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
-                    canPerformFreeAction = false;
+                    canPerformFreeActionType = false;
                     actionTooltip = "Média au maximum";
                   } else {
                     actionTooltip = "Vous gagnez 1 media";
@@ -996,19 +996,19 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (canPerformFreeAction && onDiscardCardAction) {
+                          if (canPerformFreeActionType && onDiscardCardAction) {
                             onDiscardCardAction(card.id);
                             setHighlightedCardId(null);
                           }
                         }}
                         onMouseEnter={(e) => {
-                          if (!canPerformFreeAction) return;
+                          if (!canPerformFreeActionType) return;
                           const target = e.currentTarget as HTMLButtonElement;
                           target.style.backgroundColor = '#6bb3ff';
                           target.style.transform = 'scale(1.05)';
                         }}
                         onMouseLeave={(e) => {
-                          if (!canPerformFreeAction) return;
+                          if (!canPerformFreeActionType) return;
                           const target = e.currentTarget as HTMLButtonElement;
                           target.style.backgroundColor = '#4a9eff';
                           target.style.transform = 'scale(1)';
@@ -1019,15 +1019,15 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                           top: '5px',
                           right: '5px',
                           zIndex: 10,
-                          backgroundColor: canPerformFreeAction ? '#4a9eff' : '#555',
-                          color: canPerformFreeAction ? 'white' : '#aaa',
-                          border: canPerformFreeAction ? '2px solid #6bb3ff' : '2px solid #444',
+                          backgroundColor: canPerformFreeActionType ? '#4a9eff' : '#555',
+                          color: canPerformFreeActionType ? 'white' : '#aaa',
+                          border: canPerformFreeActionType ? '2px solid #6bb3ff' : '2px solid #444',
                           borderRadius: '6px',
                           padding: '3px 12px',
                           fontSize: '0.65rem',
-                          cursor: canPerformFreeAction ? 'pointer' : 'not-allowed',
+                          cursor: canPerformFreeActionType ? 'pointer' : 'not-allowed',
                           fontWeight: 'normal',
-                          boxShadow: canPerformFreeAction ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
+                          boxShadow: canPerformFreeActionType ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
                           transition: 'all 0.2s',
                         }}
                       >

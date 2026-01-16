@@ -23,7 +23,7 @@ import {
   Card,
   CardType,
   ObjectiveCategory,
-  TechnologyType,
+  TechnologyCategory,
   GAME_CONSTANTS,
   ProbeState
 } from '../core/types';
@@ -99,7 +99,7 @@ export class ScoreManager {
           case ObjectiveCategory.TECHNOLOGY:
             if (tile.side === 'A') {
               // Série de 3 types de technologies
-              const typeCounts = new Map<TechnologyType, number>();
+              const typeCounts = new Map<TechnologyCategory, number>();
               player.technologies.forEach(t => {
                 typeCounts.set(t.type, (typeCounts.get(t.type) || 0) + 1);
               });

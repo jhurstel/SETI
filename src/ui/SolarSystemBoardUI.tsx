@@ -1,6 +1,6 @@
 import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, PlanetBonus, ProbeState, GAME_CONSTANTS, SectorColor, SignalType } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, Bonus, ProbeState, GAME_CONSTANTS, SectorColor, SignalType } from '../core/types';
 import { 
   createRotationState, 
   calculateReachableCellsWithEnergy,
@@ -619,12 +619,12 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     const hasExploration4 = currentPlayer.technologies.some(t => t.id.startsWith('exploration-4'));
 
     // Helper pour fusionner les bonus
-    const mergeBonuses = (...bonuses: (PlanetBonus | undefined)[]): PlanetBonus => {
-      const result: PlanetBonus = {};
+    const mergeBonuses = (...bonuses: (Bonus | undefined)[]): Bonus => {
+      const result: Bonus = {};
       bonuses.forEach(b => {
         if (!b) return;
-        (Object.keys(b) as Array<keyof PlanetBonus>).forEach(key => {
-          const k = key as keyof PlanetBonus;
+        (Object.keys(b) as Array<keyof Bonus>).forEach(key => {
+          const k = key as keyof Bonus;
           if (typeof b[k] === 'number') {
             result[k] = (result[k] || 0) + (b[k] || 0);
           }

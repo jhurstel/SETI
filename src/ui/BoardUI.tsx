@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, ActionType, DiskName, SectorNumber, FreeAction, GAME_CONSTANTS, SectorColor, Technology, RevenueBonus, ProbeState, TechnologyCategory } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Technology, RevenueType, ProbeState, TechnologyCategory } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -1124,15 +1124,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const card = currentPlayer.cards[cardIndex];
     
     // Appliquer l'effet de l'action gratuite
-    if (card.freeAction === FreeAction.MEDIA) {
+    if (card.freeAction === FreeActionType.MEDIA) {
       currentPlayer.mediaCoverage = Math.min(currentPlayer.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
       setToast({ message: "Action gratuite : +1 Média", visible: true });
       addToHistory(`défausse une carte pour gagner ${formatResource(1, 'MEDIA')}`, currentPlayer.id, game);
-    } else if (card.freeAction === FreeAction.DATA) {
+    } else if (card.freeAction === FreeActionType.DATA) {
       currentPlayer.data = (currentPlayer.data || 0) + 1;
       setToast({ message: "Action gratuite : +1 Data", visible: true });
       addToHistory(`défausse une carte pour gagner ${formatResource(1, 'DATA')}`, currentPlayer.id, game);
-    } else if (card.freeAction === FreeAction.MOVEMENT) {
+    } else if (card.freeAction === FreeActionType.MOVEMENT) {
       setInteractionState({ type: 'MOVING_PROBE', count: 1 });
       setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
       addToHistory("défausse une carte pour un déplacement gratuit", currentPlayer.id, game);
@@ -1581,15 +1581,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     // Appliquer le bonus
     let gainMsg = "";
-    if (card.revenue === RevenueBonus.CREDIT) {
+    if (card.revenue === RevenueType.CREDIT) {
       currentPlayer.revenueCredits += 1;
       currentPlayer.credits += 1;
       gainMsg = formatResource(1, 'CREDIT');
-    } else if (card.revenue === RevenueBonus.ENERGY) {
+    } else if (card.revenue === RevenueType.ENERGY) {
       currentPlayer.revenueEnergy += 1;
       currentPlayer.energy += 1;
       gainMsg = formatResource(1, 'ENERGY');
-    } else if (card.revenue === RevenueBonus.CARD) {
+    } else if (card.revenue === RevenueType.CARD) {
       currentPlayer.revenueCards += 1;
       gainMsg = formatResource(1, 'CARD');
     }
@@ -1598,7 +1598,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     addToHistory(`réserve la carte "${card.name}" et gagne immédiatement : ${gainMsg}`, currentPlayer.id, game, interactionState, sequenceId);
 
     // Si le bonus est une carte, on pioche immédiatement
-    if (card.revenue === RevenueBonus.CARD) {
+    if (card.revenue === RevenueType.CARD) {
        const drawResult = CardSystem.drawCards(updatedGame, currentPlayer.id, 1, 'Bonus immédiat réservation');
        setGame(drawResult);
        if (gameEngineRef.current) gameEngineRef.current.setState(drawResult);

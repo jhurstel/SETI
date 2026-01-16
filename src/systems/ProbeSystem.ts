@@ -17,7 +17,7 @@ import {
   GAME_CONSTANTS,
   DiskName,
   SectorNumber,
-  PlanetBonus
+  Bonus
 } from '../core/types';
 import { 
   getObjectPosition, 
@@ -422,7 +422,7 @@ export class ProbeSystem {
     return { hasProbe: false };
   }
   
-  static applyBonus(updatedPlayer: Player, bonus: PlanetBonus) {
+  static applyBonus(updatedPlayer: Player, bonus: Bonus) {
     if (bonus.pv) {
       updatedPlayer.score += bonus.pv || 0;
     }
@@ -522,7 +522,7 @@ export class ProbeSystem {
     updatedGame: Game;
     isFirstOrbiter: boolean;
     planetId: string;
-    bonuses: PlanetBonus;
+    bonuses: Bonus;
   } {
     const validation = this.canOrbit(game, playerId, probeId);
     if (!validation.canOrbit) {
@@ -576,11 +576,11 @@ export class ProbeSystem {
     // Récupérer la planète mise à jour pour les bonus
     const updatedPlanet = updatedGame.board.planets.find(p => p.id === planetId);
 
-    const accumulatedBonuses: PlanetBonus = {};
-    const applyAndAccumulate = (bonus: PlanetBonus) => {
+    const accumulatedBonuses: Bonus = {};
+    const applyAndAccumulate = (bonus: Bonus) => {
         this.applyBonus(updatedPlayer, bonus);
         for (const key in bonus) {
-            const k = key as keyof PlanetBonus;
+            const k = key as keyof Bonus;
             if (typeof bonus[k] === 'number') {
                 accumulatedBonuses[k] = (accumulatedBonuses[k] || 0) + (bonus[k] || 0);
             }
@@ -661,7 +661,7 @@ export class ProbeSystem {
     isFirstLander: boolean;
     isSecondLander: boolean;
     planetId: string;
-    bonuses: PlanetBonus;
+    bonuses: Bonus;
   } {
     const validation = this.canLand(game, playerId, probeId);
     if (!validation.canLand) {
@@ -714,11 +714,11 @@ export class ProbeSystem {
     // Récupérer la planète mise à jour pour les bonus
     const updatedPlanet = updatedGame.board.planets.find(p => p.id === planetId);
 
-    const accumulatedBonuses: PlanetBonus = {};
-    const applyAndAccumulate = (bonus: PlanetBonus) => {
+    const accumulatedBonuses: Bonus = {};
+    const applyAndAccumulate = (bonus: Bonus) => {
         this.applyBonus(updatedPlayer, bonus);
         for (const key in bonus) {
-            const k = key as keyof PlanetBonus;
+            const k = key as keyof Bonus;
             if (typeof bonus[k] === 'number') {
                 accumulatedBonuses[k] = (accumulatedBonuses[k] || 0) + (bonus[k] || 0);
             }

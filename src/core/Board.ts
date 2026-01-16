@@ -13,15 +13,13 @@ import {
   SolarSystem,
   Sector,
   Planet,
-  PlanetBonus,
+  Bonus,
   TechnologyBoard,
   RotationDisk,
   TechnologyCategory,
   Technology,
-  TechnologyType,
   AlienBoard,
   LifeTraceTrack,
-  TechnologyBonus,
   ObjectiveTile,
   ObjectiveCategory,
   SectorColor,
@@ -118,7 +116,7 @@ export class BoardManager {
     const shuffledPlates = this.shuffle(plates);
 
     // Aplatir pour obtenir la séquence des 8 secteurs
-    const sectorSequence: { name: string, color: SectorColor, slots: number, firstBonus: PlanetBonus, nextBonus: PlanetBonus }[] = [];
+    const sectorSequence: { name: string, color: SectorColor, slots: number, firstBonus: Bonus, nextBonus: Bonus }[] = [];
     shuffledPlates.forEach(plate => {
       sectorSequence.push(plate.left);
       sectorSequence.push(plate.right);
@@ -290,13 +288,13 @@ export class BoardManager {
     const createTechStack = (
       id: string,
       name: string,
-      type: TechnologyType,
+      type: TechnologyCategory,
       effects: any[],
       description: string,
       shorttext: string,
-      extraBonus?: TechnologyBonus
+      extraBonus?: Bonus
     ): Technology[] => {
-      const baseBonuses: TechnologyBonus[] = [
+      const baseBonuses: Bonus[] = [
         { pv: 3 },
         { media: 1 },
         { card: 1 },
@@ -320,7 +318,7 @@ export class BoardManager {
     const exploration1 = createTechStack(
       'exploration-1',
       'I',
-      TechnologyType.SPECIAL,
+      TechnologyCategory.EXPLORATION,
       [{ type: 'MAX_PROBES_IN_SYSTEM', value: 2 }, { type: 'FREE_LAUNCH_PROBE', value: true }],
       'Augmente la capacité maximale de sondes dans le système solaire à 2. Permet de lancer une sonde gratuitement (sans coût en crédits).',
       'Max 2 sondes',
@@ -330,7 +328,7 @@ export class BoardManager {
     const exploration2 = createTechStack(
       'exploration-2',
       'II',
-      TechnologyType.SPECIAL,
+      TechnologyCategory.EXPLORATION,
       [{ type: 'ASTEROID_MEDIA_BONUS', value: 1 }, { type: 'ASTEROID_EXIT_COST', value: 1 }],
       'Lorsqu\'une sonde visite un champ d\'astéroïdes, le joueur gagne +1 point de couverture médiatique. Permet de quitter un champ d\'astéroïdes avec seulement 1 point de déplacement au lieu du coût normal.',
       'Bonus Astéroïdes'
@@ -339,7 +337,7 @@ export class BoardManager {
     const exploration3 = createTechStack(
       'exploration-3',
       'III',
-      TechnologyType.SPECIAL,
+      TechnologyCategory.EXPLORATION,
       [{ type: 'LAND_COST_REDUCTION', value: 1 }],
       'Réduit le coût en crédits pour poser une sonde sur une planète de 1 crédit. Cette réduction s\'applique en plus des autres réductions (par exemple, si un orbiteur est déjà présent sur la planète, le coût passe de 2 à 1 crédit au lieu de 3 à 2).',
       'Atterrissage réduit'
@@ -348,7 +346,7 @@ export class BoardManager {
     const exploration4 = createTechStack(
       'exploration-4',
       'IV',
-      TechnologyType.SPECIAL,
+      TechnologyCategory.EXPLORATION,
       [{ type: 'ALLOW_LAND_ON_SATELLITES', value: true }],
       'Autorise le joueur à poser des sondes sur les lunes (satellites) des planètes. Sans cette technologie, seules les planètes principales peuvent recevoir des sondes en atterrissage.',
       'Atterrissage Lune'
@@ -358,7 +356,7 @@ export class BoardManager {
     const observation1 = createTechStack(
       'observation-1',
       'I',
-      TechnologyType.SPECIAL,
+      TechnologyCategory.OBSERVATION,
       [{ type: 'SCAN_MARK_ADJACENT_EARTH', value: true }, { type: 'SCAN_DATA_BONUS', value: 2 }],
       'Lors d\'un scan, permet de marquer un signal dans un secteur adjacent à celui de la Terre. De plus, gagnez 2 jetons de données supplémentaires lors du scan.',
       'Scan adjacent Terre',
@@ -368,7 +366,7 @@ export class BoardManager {
     const observation2 = createTechStack(
       'observation-2',
       'II',
-      TechnologyType.SPECIAL,
+      TechnologyCategory.OBSERVATION,
       [{ type: 'SCAN_MARK_MERCURY', value: true }, { type: 'SCAN_MERCURY_MEDIA_COST', value: 1 }],
       'Lors d\'un scan, vous pouvez payer 1 point de couverture médiatique pour marquer un signal supplémentaire dans le secteur de Mercure.',
       'Scan Mercure'
@@ -377,7 +375,7 @@ export class BoardManager {
     const observation3 = createTechStack(
       'observation-3',
       'III',
-      TechnologyType.SPECIAL,
+      TechnologyCategory.OBSERVATION,
       [{ type: 'SCAN_DISCARD_CARD_MARK_SIGNAL', value: true }],
       'Lors d\'un scan, vous pouvez défausser une carte de votre main pour marquer un signal supplémentaire dans un secteur correspondant à la couleur indiquée dans le coin supérieur droit de la carte défaussée.',
       'Défausse Signal'
@@ -386,7 +384,7 @@ export class BoardManager {
     const observation4 = createTechStack(
       'observation-4',
       'IV',
-      TechnologyType.SPECIAL,
+      TechnologyCategory.OBSERVATION,
       [{ type: 'SCAN_LAUNCH_PROBE_OR_MOVEMENT', value: true }, { type: 'SCAN_LAUNCH_PROBE_ENERGY_COST', value: 1 }, { type: 'SCAN_MOVEMENT_BONUS', value: 1 }],
       'Lors d\'un scan, vous pouvez choisir : soit payer 1 énergie pour lancer une sonde, soit gagner 1 point de déplacement supplémentaire.',
       'Scan Sonde'
@@ -396,7 +394,7 @@ export class BoardManager {
     const computing1 = createTechStack(
       'computing-1',
       'I',
-      TechnologyType.SPECIAL,
+      TechnologyCategory.COMPUTING,
       [{ type: 'TECH_TRACK_BONUS', value: { points: 2, credits: 1 } }],
       'Ajoutez cette carte à la piste de technologie pour gagner 2 points de victoire + 1 crédit.',
       '2 PV + 1 Crédit'
@@ -405,7 +403,7 @@ export class BoardManager {
     const computing2 = createTechStack(
       'computing-2',
       'II',
-      TechnologyType.SPECIAL,
+      TechnologyCategory.COMPUTING,
       [{ type: 'TECH_TRACK_BONUS', value: { points: 2, cards: 1 } }],
       'Ajoutez cette carte à la piste de technologie pour gagner 2 points de victoire + 1 carte.',
       '2PV + 1 Carte'
@@ -414,7 +412,7 @@ export class BoardManager {
     const computing3 = createTechStack(
       'computing-3',
       'III',
-      TechnologyType.SPECIAL,
+      TechnologyCategory.COMPUTING,
       [{ type: 'TECH_TRACK_BONUS', value: { points: 2, energy: 1 } }],
       'Ajoutez cette carte à la piste de technologie pour gagner 2 points de victoire + 1 énergie.',
       '2 PV + 1 Énergie'
@@ -423,7 +421,7 @@ export class BoardManager {
     const computing4 = createTechStack(
       'computing-4',
       'IV',
-      TechnologyType.SPECIAL,
+      TechnologyCategory.COMPUTING,
       [{ type: 'TECH_TRACK_BONUS', value: { points: 2, media: 2 } }],
       'Ajoutez cette carte à la piste de technologie pour gagner 2 points de victoire + 2 point de couverture médiatique.',
       '2 PV + 2 Média'

@@ -53,23 +53,16 @@ export enum CardType {
   END_GAME = "Fin de partie"
 }
 
-export enum FreeAction {
+export enum FreeActionType {
   MOVEMENT = "Déplacement",
   DATA = "Donnée",
   MEDIA = "Média"
 }
 
-export enum RevenueBonus {
+export enum RevenueType {
   CREDIT = "Crédit",
   ENERGY = "Energie",
   CARD = "Carte"
-}
-
-export enum TechnologyType {
-  MOVEMENT = "MOVEMENT",
-  RESOURCE = "RESOURCE",
-  SCORING = "SCORING",
-  SPECIAL = "SPECIAL"
 }
 
 export enum SectorColor {
@@ -237,8 +230,8 @@ export interface Sector {
   playerMarkers: PlayerMarker[];
   coveredBy?: string;
   isCovered: boolean;
-  firstBonus: PlanetBonus;
-  nextBonus: PlanetBonus;
+  firstBonus: Bonus;
+  nextBonus: Bonus;
 }
 
 export interface Signal {
@@ -246,7 +239,7 @@ export interface Signal {
   type: SignalType;
   marked: boolean;
   markedBy?: string;
-  bonus?: PlanetBonus;
+  bonus?: Bonus;
 }
 
 export interface PlayerMarker {
@@ -279,18 +272,13 @@ export interface LifeTraceTrack {
 
 export interface LifeTraceSlot {
   playerId?: string;
-  bonus: LifeTraceBonus;
+  bonus: Bonus;
 }
 
 export interface LifeTrace {
   id: string;
   type: LifeTraceType;
   discoveredAt: number;
-}
-
-export interface LifeTraceBonus {
-  media?: number;
-  pv?: number;
 }
 
 export interface ObjectiveTile {
@@ -310,9 +298,9 @@ export interface ObjectiveTile {
 export interface Technology {
   id: string;
   name: string;
-  type: TechnologyType;
+  type: TechnologyCategory;
   effects: TechnologyEffect[];
-  bonus: TechnologyBonus;
+  bonus: Bonus;
   ownerId?: string;
   description: string;
   shorttext: string;
@@ -323,25 +311,15 @@ export interface TechnologyEffect {
   value: any;
 }
 
-export interface TechnologyBonus {
-  energy?: number;
-  media?: number;
-  pv?: number;
-  card?: number;
-  probe?: number;
-  data?: number;
-  credits?: number;
-}
-
 export interface Card {
   id: string;
   name: string;
   description: string;
   type: CardType;
   cost: number;
-  freeAction: FreeAction;
+  freeAction: FreeActionType;
   scanSector: SectorColor;
-  revenue: RevenueBonus;
+  revenue: RevenueType;
   effects: CardEffect[];
   ownerId?: string;
   immediateEffects?: CardEffect[];
@@ -409,11 +387,11 @@ export interface Planet {
   name: string;
   orbiters: Probe[];
   landers: Probe[];
-  orbitFirstBonus?: PlanetBonus;
-  orbitNextBonus?: PlanetBonus;
-  landFirstBonus?: PlanetBonus;
-  landSecondBonus?: PlanetBonus;
-  landNextBonus?: PlanetBonus;
+  orbitFirstBonus?: Bonus;
+  orbitNextBonus?: Bonus;
+  landFirstBonus?: Bonus;
+  landSecondBonus?: Bonus;
+  landNextBonus?: Bonus;
   satellites?: Satellite[];
 }
 
@@ -422,10 +400,10 @@ export interface Satellite {
   name: string;
   planetId: string;
   landers: Probe[];
-  landBonus: PlanetBonus;
+  landBonus: Bonus;
 }
 
-export interface PlanetBonus {
+export interface Bonus {
   credits?: number;
   energy?: number;
   media?: number;
@@ -443,6 +421,7 @@ export interface PlanetBonus {
   bluelifetrace?: number;
   revenue?: number;
   anytechnology?: number;
+  probe?: number;
 }
 
 export interface RotationDisk {

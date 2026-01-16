@@ -1,4 +1,4 @@
-import { Game, Card, Player, ProbeState, FreeAction, GAME_CONSTANTS, RevenueBonus } from '../core/types';
+import { Game, Card, Player, ProbeState, FreeActionType, GAME_CONSTANTS, RevenueType } from '../core/types';
 import { 
     createRotationState, 
     calculateAbsolutePosition, 
@@ -119,12 +119,12 @@ export class CardSystem {
                case 'DISCARD_ROW_FOR_FREE_ACTIONS':
                    // Appliquer les actions gratuites de toutes les cartes de la rangée
                    updatedGame.cardRow.forEach(rowCard => {
-                       if (rowCard.freeAction === FreeAction.MOVEMENT) {
+                       if (rowCard.freeAction === FreeActionType.MOVEMENT) {
                            bonuses.movements = (bonuses.movements || 0) + 1;
-                       } else if (rowCard.freeAction === FreeAction.DATA) {
+                       } else if (rowCard.freeAction === FreeActionType.DATA) {
                            player.data = Math.min((player.data || 0) + 1, GAME_CONSTANTS.MAX_DATA);
                            bonuses.data = (bonuses.data || 0) + 1;
-                       } else if (rowCard.freeAction === FreeAction.MEDIA) {
+                       } else if (rowCard.freeAction === FreeActionType.MEDIA) {
                            player.mediaCoverage = Math.min((player.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
                            bonuses.media = (bonuses.media || 0) + 1;
                        }
@@ -223,12 +223,12 @@ export class CardSystem {
                     drawnCard.isRevealed = true;
 
                     // Appliquer l'action gratuite
-                    if (drawnCard.freeAction === FreeAction.MOVEMENT) {
+                    if (drawnCard.freeAction === FreeActionType.MOVEMENT) {
                         bonuses.movements = (bonuses.movements || 0) + 1;
-                    } else if (drawnCard.freeAction === FreeAction.DATA) {
+                    } else if (drawnCard.freeAction === FreeActionType.DATA) {
                         updatedPlayer.data = Math.min((updatedPlayer.data || 0) + 1, GAME_CONSTANTS.MAX_DATA);
                         bonuses.data = (bonuses.data || 0) + 1;
-                    } else if (drawnCard.freeAction === FreeAction.MEDIA) {
+                    } else if (drawnCard.freeAction === FreeActionType.MEDIA) {
                         updatedPlayer.mediaCoverage = Math.min((updatedPlayer.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
                         bonuses.media = (bonuses.media || 0) + 1;
                     }
@@ -252,7 +252,7 @@ export class CardSystem {
             } else if (effect.type === 'GAIN_ENERGY_PER_ENERGY_REVENUE') {
                 let energyCardsCount = 0;
                 player.cards.forEach(c => {
-                    if (c.revenue === RevenueBonus.ENERGY) {
+                    if (c.revenue === RevenueType.ENERGY) {
                         c.isRevealed = true;
                         energyCardsCount++;
                     }
@@ -264,7 +264,7 @@ export class CardSystem {
             } else if (effect.type === 'REVEAL_MOVEMENT_CARDS_FOR_BONUS') {
                 let movementCardsCount = 0;
                 player.cards.forEach(c => {
-                    if (c.freeAction === FreeAction.MOVEMENT) {
+                    if (c.freeAction === FreeActionType.MOVEMENT) {
                         c.isRevealed = true;
                         movementCardsCount++;
                     }
