@@ -25,6 +25,7 @@ interface SolarSystemBoardUIProps {
   highlightPlayerProbes?: boolean; // Mettre en surbrillance les sondes du joueur courant
   freeMovementCount?: number; // Nombre de déplacements gratuits disponibles
   hasPerformedMainAction?: boolean;
+  autoSelectProbeId?: string;
 }
 
 export interface SolarSystemBoardUIRef {
@@ -134,22 +135,7 @@ const describeArc = (x: number, y: number, radius: number, startAngle: number, e
     ].join(" ");
 };
 
-// Helper pour fusionner les bonus
-const mergeBonuses = (...bonuses: (Bonus | undefined)[]): Bonus => {
-  const result: Bonus = {};
-  bonuses.forEach(b => {
-    if (!b) return;
-    (Object.keys(b) as Array<keyof Bonus>).forEach(key => {
-      const k = key as keyof Bonus;
-      if (typeof b[k] === 'number') {
-        result[k] = (result[k] || 0) + (b[k] || 0);
-      }
-    });
-  });
-  return result;
-};
-
-export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false }, ref) => {
+export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false, autoSelectProbeId }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredObjectRect, setHoveredObjectRect] = useState<DOMRect | null>(null);
@@ -161,13 +147,27 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   const [reachableCells, setReachableCells] = useState<Map<string, { movements: number; path: string[] }>>(new Map());
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
 
+  // Effet pour sélectionner automatiquement la sonde demandée
+  useEffect(() => {
+    if (autoSelectProbeId) {
+       setSelectedProbeId(autoSelectProbeId);
+    }
+  }, [autoSelectProbeId]);
+
+  // Effet pour réinitialiser la sélection à la fin du tour
+  useEffect(() => {
+    setSelectedProbeId(null);
+    setReachableCells(new Map());
+    setHighlightedPath([]);
+  }, [game.currentPlayerIndex]);
+
   // État pour le tooltip personnalisé des slots
   const [slotTooltip, setSlotTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
 
   // État pour contrôler la visibilité des plateaux rotatifs
-  const [showLevel1, setShowLevel1] = useState<boolean>(true);
-  const [showLevel2, setShowLevel2] = useState<boolean>(true);
-  const [showLevel3, setShowLevel3] = useState<boolean>(true);
+  //const [showLevel1, setShowLevel1] = useState<boolean>(true);
+  //const [showLevel2, setShowLevel2] = useState<boolean>(true);
+  //const [showLevel3, setShowLevel3] = useState<boolean>(true);
 
 
   // Calculer l'angle initial basé sur le secteur (1-8)
@@ -175,15 +175,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   // Secteur 1 = 0° (12h), secteur 2 = -45° (sens horaire), secteur 3 = -90°, etc.
   const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
   const indexToSector: { [key: number]: SectorNumber } = { 0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8 };
-
-  // Fonction helper pour convertir un secteur absolu en secteur relatif au plateau
-  // en appliquant la rotation inverse
-  const absoluteToRelativeSector = (absoluteSector: SectorNumber, rotationAngle: number): SectorNumber => {
-    const absoluteIndex = sectorToIndex[absoluteSector];
-    const sectorsRotated = Math.round(rotationAngle / 45);
-    const relativeIndex = (absoluteIndex - sectorsRotated + 8) % 8;
-    return indexToSector[relativeIndex];
-  };
 
   // Fonction helper pour déterminer le type de secteur (normal, hollow, empty) pour tous les niveaux
   const getSectorType = (level: number, disk: DiskName, relativeSector: SectorNumber): 'normal' | 'hollow' | 'empty' => {
@@ -876,19 +867,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           >
             {/* Définition des slots */}
             {(() => {
-              const nextOrbitBonus = planetData.orbitNextBonus;
-              const nextLandBonus = planetData.landNextBonus;
-
-              const orbitSlots = new Array(5).fill(null).map((_, i) => {
-                 if (i === 0) return mergeBonuses(planetData.orbitFirstBonus, nextOrbitBonus);
-                 return nextOrbitBonus;
-              });
-
-              const landSlots = new Array(4).fill(null).map((_, i) => {
-                 if (i === 0) return mergeBonuses(planetData.landFirstBonus, nextLandBonus);
-                 if (i === 1) return mergeBonuses(planetData.landSecondBonus, nextLandBonus);
-                 return nextLandBonus;
-              });
+              const orbitSlots = planetData.orbitSlots || [];
+              const landSlots = planetData.landSlots || [];
               
               const orbiterCircleRadius = 15;
               const orbitRadius = size / 2 + 25;
@@ -2076,7 +2056,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           )}
 
           {/* Plateau rotatif niveau 3 avec 3 disques (A, B, C) - se superpose au plateau fixe */}
-          {showLevel3 && (
+          {//showLevel3 && (
           <div
             className="seti-rotating-overlay seti-rotating-level-3"
             style={{
@@ -2155,10 +2135,11 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             {/* Indicateur de rotation pour Saturne */}
             {nextRingLevel === 3 && renderRotationIndicator('saturn', '#ffd700')}
           </div>
-          )}
+          //)}
+          }
 
           {/* Plateau rotatif niveau 2 avec 2 disques (A, B) - se superpose au niveau 1 */}
-          {showLevel2 && (
+          {//showLevel2 && (
           <div
             className="seti-rotating-overlay seti-rotating-level-2"
             style={{
@@ -2225,10 +2206,11 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             {/* Indicateur de rotation pour Mars */}
             {nextRingLevel === 2 && renderRotationIndicator('mars', '#ff6b6b')}
           </div>
-          )}
+          //)}
+          }
 
           {/* Plateau rotatif niveau 1 avec 1 disque (A) - se superpose au niveau 2 */}
-          {showLevel1 && (
+          {//showLevel1 && (
           <div
             className="seti-rotating-overlay seti-rotating-level-1"
             style={{
@@ -2282,7 +2264,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             {/* Indicateur de rotation pour Terre */}
             {nextRingLevel === 1 && renderRotationIndicator('earth', '#4a9eff')}
           </div>
-          )}
+          //)}
+          }
 
           {/* Conteneur fixe pour les tooltips des planètes rotatives */}
           {/* Les tooltips sont maintenant gérés par Portal, mais on garde la logique de calcul ici */}
@@ -2495,7 +2478,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                   color: '#aaa',
                   fontWeight: 'bold',
                   pointerEvents: 'none',
-                  zIndex: 10,
+                  zIndex: 40,
                   backgroundColor: 'rgba(0, 0, 0, 0.7)',
                   padding: '3px 8px',
                   borderRadius: '4px',

@@ -32,7 +32,7 @@ export class ResourceSystem {
         return { updatedGame: game, error: "Carte non trouvée dans la rangée" };
       }
     } else {
-      updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, 'Carte obtenue grâce à votre influence médiatique.');
+      updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, 'Achat');
     }
 
     return { updatedGame };
@@ -62,8 +62,8 @@ export class ResourceSystem {
         player.credits += 1;
     } else if (normalizedGain === 'energy') {
         player.energy += 1;
-    } else if (normalizedGain === 'carte') {
-        updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, 'Carte obtenue par échange.');
+    } else if (normalizedGain === 'carte' || normalizedGain === 'card') {
+        updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, 'Echange');
     } else {
          return { updatedGame: game, error: "Type de ressource à recevoir invalide" };
     }

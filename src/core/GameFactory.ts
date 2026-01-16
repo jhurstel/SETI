@@ -260,7 +260,7 @@ export class GameFactory {
     const freeActions = [FreeActionType.DATA, FreeActionType.MEDIA, FreeActionType.MOVEMENT];
     const revenues = [RevenueType.CREDIT, RevenueType.ENERGY, RevenueType.CARD];
     return {
-        id: `row_card_${id}`,
+        id: `random_card_${id}`,
         name: `Projet ${id+1}`,
         type: CardType.ACTION,
         cost: Math.floor(Math.random() * 5) + 1,

@@ -49,7 +49,7 @@ export class PassAction extends BaseAction {
 
     // Vérifier si une carte de manche doit être choisie
     const currentRound = game.currentRound;
-    const roundDeck = game.roundDecks[currentRound];
+    const roundDeck = game.decks.roundDecks[currentRound];
     
     // Si le paquet existe et n'est pas vide, une carte doit être sélectionnée (sauf si géré automatiquement pour robot, mais l'action doit valider la cohérence)
     if (roundDeck && roundDeck.length > 0 && this.selectedCardId) {
@@ -75,8 +75,8 @@ export class PassAction extends BaseAction {
 
     // Gérer la carte de fin de manche
     const currentRound = updatedGame.currentRound;
-    if (updatedGame.roundDecks[currentRound] && updatedGame.roundDecks[currentRound].length > 0) {
-      const deck = updatedGame.roundDecks[currentRound];
+    if (updatedGame.decks.roundDecks[currentRound] && updatedGame.decks.roundDecks[currentRound].length > 0) {
+      const deck = updatedGame.decks.roundDecks[currentRound];
       let cardIndex = -1;
 
       if (this.selectedCardId) {

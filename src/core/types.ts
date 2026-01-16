@@ -395,6 +395,8 @@ export interface Planet {
   landFirstBonus?: Bonus;
   landSecondBonus?: Bonus;
   landNextBonus?: Bonus;
+  orbitSlots: Bonus[];
+  landSlots: Bonus[];
   satellites?: Satellite[];
 }
 
@@ -429,8 +431,6 @@ export interface Bonus {
 
 export interface RotationDisk {
   id: string;
-  positions: Position[]; // To Be Removed
-  currentPosition: number; // To Be Removed
   sectorIndex: number;
   diskName: DiskName;
   level: number;

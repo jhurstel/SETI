@@ -17,10 +17,9 @@ interface PlayerBoardUIProps {
   onDiscardCardAction?: (cardId: string) => void;
   onPlayCard?: (cardId: string) => void;
   onBuyCardAction?: () => void;
-  onTradeResourcesAction?: () => void;
-  tradeState?: { phase: 'inactive' | 'spending' | 'gaining', spend?: { type: string, cardIds?: string[] } };
+  onTradeResourcesAction?: (targetGain?: string) => void;
+  tradeState?: { phase: 'inactive' | 'spending', spend?: { type: string, cardIds?: string[] } };
   onSpendSelection?: (resource: string, cardIds?: string[]) => void;
-  onGainSelection?: (resource: string) => void;
   onCancelTrade?: () => void;
   onGameUpdate?: (game: Game) => void;
   onDrawCard?: (count: number, source: string) => void;
@@ -34,6 +33,7 @@ interface PlayerBoardUIProps {
   reservationState?: { active: boolean; count: number };
   onReserveCard?: (cardId: string) => void;
   isPlacingLifeTrace?: boolean;
+  onDirectTrade?: (spendType: string, gainType: string) => void;
 }
 
 const ACTION_NAMES: Record<ActionType, string> = {
@@ -263,7 +263,7 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, onViewPlayer, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeResourcesAction, tradeState = { phase: 'inactive' }, onSpendSelection, onGainSelection, onCancelTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, reservationState = { active: false, count: 0 }, onReserveCard, isPlacingLifeTrace = false }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, onViewPlayer, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeResourcesAction, tradeState = { phase: 'inactive' }, onSpendSelection, onCancelTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, reservationState = { active: false, count: 0 }, onReserveCard, isPlacingLifeTrace = false, onDirectTrade }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -394,8 +394,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   // Hook personnalisé pour gérer les flashs de ressources
   const useResourceFlash = (value: number, playerId: string) => {
     const [flash, setFlash] = useState<{ type: 'gain' | 'loss'; id: number } | null>(null);
-    const prevValueRef = useRef<number>();
-    const prevPlayerIdRef = useRef<string>();
+    const prevValueRef = useRef<number>(null);
+    const prevPlayerIdRef = useRef<string>(null);
 
     useEffect(() => {
       const prevPlayerId = prevPlayerIdRef.current;
@@ -403,7 +403,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
 
       if (prevPlayerId === playerId && prevValue !== undefined && value !== prevValue) {
         setFlash({
-          type: value > prevValue ? 'gain' : 'loss',
+          type: prevValue && value > prevValue ? 'gain' : 'loss',
           id: Date.now() + Math.random(),
         });
         const timer = setTimeout(() => setFlash(null), 600);
@@ -511,9 +511,119 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
 
   const canBuyCardAction = currentPlayer.mediaCoverage >= 3;
   const canStartTrade = tradeState.phase === 'inactive' && (currentPlayer.credits >= 2 || currentPlayer.energy >= 2 || (currentPlayer.cards || []).length >= 2);
-  const canSpendCredits = tradeState.phase === 'spending' && currentPlayer.credits >= 2;
-  const canSpendEnergy = tradeState.phase === 'spending' && currentPlayer.energy >= 2;
   const canSpendCards = tradeState.phase === 'spending' && (currentPlayer.cards || []).length >= 2;
+
+  // Helper pour les boutons d'échange rapide
+  const renderTradeButton = (spendType: string, gainType: string, icon: string, tooltip: string, canSpend: boolean) => {
+    if (isRobot) return null;
+    
+    const canTrade = isCurrentTurn && !isInteractiveMode && canSpend;
+    
+    return (
+        <button
+            onClick={(e) => {
+                e.stopPropagation();
+                if (canTrade && onDirectTrade) {
+                    onDirectTrade(spendType, gainType);
+                }
+            }}
+            disabled={!canTrade}
+            style={{
+                backgroundColor: canTrade ? '#333' : '#222',
+                color: canTrade ? '#ffd700' : '#555',
+                border: canTrade ? '1px solid #555' : '1px solid #333',
+                borderRadius: '6px',
+                padding: '0',
+                width: '30px',
+                height: '20px',
+                fontSize: '1.1rem',
+                cursor: canTrade ? 'pointer' : 'default',
+                fontWeight: 'normal',
+                boxShadow: canTrade ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
+                transition: 'all 0.2s',
+                marginLeft: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1,
+            }}
+            onMouseEnter={(e) => {
+                handleTooltipHover(e, tooltip);
+                if (!canTrade) return;
+                const target = e.currentTarget as HTMLButtonElement;
+                target.style.borderColor = '#4a9eff';
+                target.style.backgroundColor = '#444';
+                target.style.boxShadow = '0 0 5px rgba(74, 158, 255, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+                handleTooltipLeave();
+                if (!canTrade) return;
+                const target = e.currentTarget as HTMLButtonElement;
+                target.style.borderColor = '#555';
+                target.style.backgroundColor = '#333';
+                target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+            }}
+        >
+            {icon}
+        </button>
+    );
+  };
+
+  // Helper pour les boutons d'échange de cartes (initie la sélection)
+  const renderCardTradeButton = (gainType: string, icon: string, tooltip: string) => {
+    if (isRobot) return null;
+    const cardCount = (currentPlayer.cards || []).length;
+    const canTrade = isCurrentTurn && !isInteractiveMode && cardCount >= 2;
+    
+    return (
+        <button
+            onClick={(e) => {
+                e.stopPropagation();
+                if (canTrade && onTradeResourcesAction) {
+                    onTradeResourcesAction(gainType);
+                }
+            }}
+            disabled={!canTrade}
+            style={{
+                backgroundColor: canTrade ? '#333' : '#222',
+                color: canTrade ? '#ffd700' : '#555',
+                border: canTrade ? '1px solid #555' : '1px solid #333',
+                borderRadius: '6px',
+                padding: '0',
+                width: '30px',
+                height: '20px',
+                fontSize: '1.1rem',
+                cursor: canTrade ? 'pointer' : 'default',
+                fontWeight: 'normal',
+                boxShadow: canTrade ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
+                transition: 'all 0.2s',
+                marginLeft: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1,
+            }}
+            onMouseEnter={(e) => {
+                handleTooltipHover(e, tooltip);
+                if (!canTrade) return;
+                const target = e.currentTarget as HTMLButtonElement;
+                target.style.borderColor = '#4a9eff';
+                target.style.backgroundColor = '#444';
+                target.style.boxShadow = '0 0 5px rgba(74, 158, 255, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+                handleTooltipLeave();
+                if (!canTrade) return;
+                const target = e.currentTarget as HTMLButtonElement;
+                target.style.borderColor = '#555';
+                target.style.backgroundColor = '#333';
+                target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+            }}
+        >
+            {icon}
+        </button>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', flex: 1, minHeight: 0 }}>
@@ -559,7 +669,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     <div className="seti-player-panel" style={{ borderTop: `4px solid ${currentPlayer.color || '#444'}`, borderTopLeftRadius: 0, flex: 1, minHeight: 0, maxHeight: 'none' }}>
       <div className="seti-player-panel-title" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
         <span>
-          {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV
+          {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV 🏆
         </span>
         {!isRobot && (
         <button
@@ -594,21 +704,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
             <span>Ressources</span>
             {!isRobot && (
             <div style={{ display: 'flex', gap: '5px' }}>
-            {tradeState.phase === 'inactive' ? (
-              <button
-                onClick={onTradeResourcesAction}
-                disabled={!isCurrentTurn || !canStartTrade || isInteractiveMode}
-                title={canStartTrade ? "Echanger 2 ressources identiques contre 1 ressource" : "Nécessite 2 ressources identiques"}
-                style={{
-                  backgroundColor: (isCurrentTurn && canStartTrade && !isInteractiveMode) ? '#4a9eff' : '#555',
-                  color: canStartTrade ? 'white' : '#aaa',
-                  border: canStartTrade ? '1px solid #6bb3ff' : '1px solid #444',
-                  borderRadius: '6px', padding: '2px 8px', fontSize: '0.7rem', cursor: (isCurrentTurn && canStartTrade && !isInteractiveMode) ? 'pointer' : 'not-allowed',
-                }}
-              >
-                Echanger
-              </button>
-            ) : (
+            {tradeState.phase !== 'inactive' && (
               <button
                 onClick={onCancelTrade}
                 title="Annuler l'échange"
@@ -624,22 +720,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
             )}
           </div>
 
-          {tradeState.phase === 'gaining' && (
-            <div style={{
-              position: 'absolute', top: '38px', left: 0, right: 0, bottom: 0,
-              background: 'rgba(30, 40, 60, 0.95)', zIndex: 10,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-              gap: '10px', padding: '10px', borderRadius: '0 0 6px 6px',
-              animation: 'slideDown 0.3s ease-out'
-            }}>
-              <div style={{ color: '#ffeb3b', fontWeight: 'bold', marginBottom: '5px' }}>CHOISIR LE GAIN</div>
-              <button onClick={() => onGainSelection && onGainSelection('credit')} style={{ width: '80%', padding: '5px', cursor: 'pointer' }}>+1 Crédit</button>
-              <button onClick={() => onGainSelection && onGainSelection('energy')} style={{ width: '80%', padding: '5px', cursor: 'pointer' }}>+1 Énergie</button>
-              <button onClick={() => onGainSelection && onGainSelection('carte')} style={{ width: '80%', padding: '5px', cursor: 'pointer' }}>+1 Carte</button>
-            </div>
-          )}
-
-          <div className="seti-player-resources" style={{ opacity: tradeState.phase === 'gaining' ? 0.2 : 1, pointerEvents: tradeState.phase === 'gaining' ? 'none' : 'auto' }}>
+          <div className="seti-player-resources">
             <div 
               key={mediaFlash ? `media-${mediaFlash.id}` : 'media-static'}
               className={`seti-res-badge ${mediaFlash ? (mediaFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
@@ -653,34 +734,50 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                     onBuyCardAction();
                   }
                 }}
-                title={canBuyCardAction && !isInteractiveMode ? "Vous gagnez 1 carte de la pioche ou de la rangée principale (cout: 3 media)" : "Nécessite 3 couverture médiatique ou action impossible"}
                 disabled={!isCurrentTurn || !canBuyCardAction || isInteractiveMode}
                 style={{
-                  backgroundColor: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '#4a9eff' : '#555',
-                  color: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? 'white' : '#aaa',
-                  border: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '1px solid #6bb3ff' : '1px solid #444',
-                  borderRadius: '4px',
-                  padding: '0px 6px',
-                  fontSize: '0.65rem',
+                  backgroundColor: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '#333' : '#222',
+                  color: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '#fff' : '#555',
+                  border: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '1px solid #555' : '1px solid #333',
+                  borderRadius: '6px',
+                  padding: '0',
+                  width: '30px',
+                  height: '20px',
+                  fontSize: '1.1rem',
                   cursor: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? 'pointer' : 'default',
                   fontWeight: 'normal',
-                  boxShadow: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '0 1px 2px rgba(0,0,0,0.3)' : 'none',
+                  boxShadow: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
                   transition: 'all 0.2s',
                   marginRight: '5px',
-                  marginLeft: 'auto'
+                  marginLeft: 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1
                 }}
                 onMouseEnter={(e) => {
+                  const tooltipText = canBuyCardAction && !isInteractiveMode 
+                    ? "Vous gagnez 1 carte de la pioche ou de la rangée principale (cout: 3 media)" 
+                    : "Nécessite 3 couverture médiatique ou action impossible";
+                  handleTooltipHover(e, tooltipText);
+
                   if (!isCurrentTurn || !canBuyCardAction || isInteractiveMode) return;
                   const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#6bb3ff';
+                  target.style.borderColor = '#4a9eff';
+                  target.style.backgroundColor = '#444';
+                  target.style.boxShadow = '0 0 10px rgba(74, 158, 255, 0.3)';
                 }}
                 onMouseLeave={(e) => {
+                  handleTooltipLeave();
+
                   if (!isCurrentTurn || !canBuyCardAction || isInteractiveMode) return;
                   const target = e.currentTarget as HTMLButtonElement;
-                  target.style.backgroundColor = '#4a9eff';
+                  target.style.borderColor = '#555';
+                  target.style.backgroundColor = '#333';
+                  target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
                 }}
               >
-                Acheter
+                🛒
               </button>
               )}
               <strong>{currentPlayer.mediaCoverage}</strong>
@@ -688,18 +785,24 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
             <div 
               key={creditFlash ? `credit-${creditFlash.id}` : 'credit-static'}
               className={`seti-res-badge ${creditFlash ? (creditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-              style={canSpendCredits ? { cursor: 'pointer', border: '1px solid #ffeb3b' } : {}}
-              onClick={canSpendCredits && onSpendSelection ? () => onSpendSelection('credit') : undefined}
             >
-              <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span> <strong>{currentPlayer.credits}</strong>
+              <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                {renderTradeButton('credit', 'energy', '⚡', 'Echanger 2 Crédits contre 1 Énergie', currentPlayer.credits >= 2)}
+                {renderTradeButton('credit', 'card', '🃏', 'Echanger 2 Crédits contre 1 Carte', currentPlayer.credits >= 2)}
+                <strong style={{ marginLeft: '6px' }}>{currentPlayer.credits}</strong>
+              </div>
             </div>
             <div 
               key={energyFlash ? `energy-${energyFlash.id}` : 'energy-static'}
               className={`seti-res-badge ${energyFlash ? (energyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-              style={canSpendEnergy ? { cursor: 'pointer', border: '1px solid #ffeb3b' } : {}}
-              onClick={canSpendEnergy && onSpendSelection ? () => onSpendSelection('energy') : undefined}
             >
-              <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span> <strong>{currentPlayer.energy}</strong>
+              <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                {renderTradeButton('energy', 'credit', '₢', 'Echanger 2 Énergies contre 1 Crédit', currentPlayer.energy >= 2)}
+                {renderTradeButton('energy', 'card', '🃏', 'Echanger 2 Énergies contre 1 Carte', currentPlayer.energy >= 2)}
+                <strong style={{ marginLeft: '6px' }}>{currentPlayer.energy}</strong>
+              </div>
             </div>
           </div>
         </div>
@@ -824,9 +927,16 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
             <span 
               key={cardsFlash ? `cards-${cardsFlash.id}` : 'cards-static'}
               className={cardsFlash ? (cardsFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
-              style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px' }}
+              style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
             >
-              Carte(s) (<span style={{color: '#aaffaa'}}>🃏</span>): <strong style={{ color: '#fff' }}>{(currentPlayer.cards || []).length}</strong>
+              <span>Carte(s) (<span style={{color: '#aaffaa'}}>🃏</span>):</span>
+              <strong style={{ color: '#fff', marginLeft: '6px' }}>{(currentPlayer.cards || []).length}</strong>
+              {!isRobot && (
+                  <>
+                    {renderCardTradeButton('credit', '₢', 'Echanger 2 Cartes contre 1 Crédit')}
+                    {renderCardTradeButton('energy', '⚡', 'Echanger 2 Cartes contre 1 Énergie')}
+                  </>
+              )}
             </span>
           </div>
           {isDiscarding && (
@@ -842,6 +952,27 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                   Confirmer la défausse
                 </button>
               )}
+            </div>
+          )}
+          {tradeState.phase === 'spending' && canSpendCards && (
+            <div style={{ marginBottom: '10px', color: '#ff9800', fontSize: '0.9em' }}>
+              Veuillez sélectionner 2 cartes à échanger.
+              <br />
+              Sélectionnées : {cardsSelectedForTrade.length} / 2
+              {cardsSelectedForTrade.length === 2 && (
+                <button 
+                  onClick={() => onSpendSelection && onSpendSelection('card', cardsSelectedForTrade)}
+                  style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
+                >
+                  Confirmer l'échange
+                </button>
+              )}
+              <button 
+                onClick={onCancelTrade}
+                style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
+              >
+                Annuler
+              </button>
             </div>
           )}
           {reservationState.active && (
@@ -905,23 +1036,12 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                       }
 
                       const isSpendingPhase = tradeState.phase === 'spending' && canSpendCards;
-                      const isGainingPhaseWithCards = tradeState.phase === 'gaining' && tradeState.spend?.type === 'card';
 
-                      if (isSpendingPhase || isGainingPhaseWithCards) {
+                      if (isSpendingPhase) {
                         if (isSelectedForTrade) {
                           setCardsSelectedForTrade(prev => prev.filter(id => id !== card.id));
                         } else if (cardsSelectedForTrade.length < 2) {
                           setCardsSelectedForTrade(prev => [...prev, card.id]);
-                        }
-                        // Déclencher l'échange si 2 cartes sont sélectionnées
-                        const newSelection = isSelectedForTrade 
-                          ? cardsSelectedForTrade.filter(id => id !== card.id)
-                          : [...cardsSelectedForTrade, card.id];
-                        
-                        if (onSpendSelection) {
-                          if ((isSpendingPhase && newSelection.length === 2) || isGainingPhaseWithCards) {
-                            onSpendSelection('card', newSelection);
-                          }
                         }
                       } else if (isDiscarding && onCardClick) {
                         onCardClick(card.id);
@@ -931,21 +1051,21 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                     }}
                     style={{
                       cursor: 'pointer',
-                      border: (tradeState.phase === 'spending' || tradeState.phase === 'gaining') && isSelectedForTrade
+                      border: tradeState.phase === 'spending' && isSelectedForTrade
                         ? '2px solid #888'
                         : (tradeState.phase === 'spending' && canSpendCards
                           ? '1px solid #ffeb3b'
                           : (reservationState.active ? '2px solid #ff9800' : isDiscarding 
                           ? (isSelectedForDiscard ? '1px solid #ff6b6b' : '1px solid #444')
                           : (isHighlighted ? '1px solid #4a9eff' : '1px solid #444'))),
-                      backgroundColor: (tradeState.phase === 'spending' || tradeState.phase === 'gaining') && isSelectedForTrade
+                      backgroundColor: tradeState.phase === 'spending' && isSelectedForTrade
                         ? 'rgba(100, 100, 100, 0.2)'
                         : (isDiscarding
                           ? (isSelectedForDiscard ? 'rgba(255, 107, 107, 0.1)' : 'transparent')
                           : (isHighlighted ? 'rgba(74, 158, 255, 0.1)' : 'transparent')),
                       transition: 'all 0.2s ease',
                       position: 'relative',
-                      opacity: (tradeState.phase === 'spending' || tradeState.phase === 'gaining') && isSelectedForTrade ? 0.6 : 1,
+                      opacity: tradeState.phase === 'spending' && isSelectedForTrade ? 0.6 : 1,
                     }}
                   >
                     {isHighlighted && tradeState.phase === 'inactive' && !isDiscarding && !reservationState.active && (

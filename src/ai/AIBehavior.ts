@@ -11,7 +11,7 @@ export class AIBehavior {
     const cardsToKeep = player.cards.slice(0, 4).map(c => c.id);
     
     let selectedCardId: string | undefined;
-    const roundDeck = game.roundDecks[game.currentRound];
+    const roundDeck = game.decks.roundDecks[game.currentRound];
     if (roundDeck && roundDeck.length > 0) {
         // Choisir la première carte disponible
         selectedCardId = roundDeck[0].id;

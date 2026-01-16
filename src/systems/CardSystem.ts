@@ -214,7 +214,7 @@ export class CardSystem {
                 player.activeBuffs.push({ ...effect, source: card.name });
             } else if (effect.type === 'REVEAL_AND_TRIGGER_FREE_ACTION') {
                 // Piocher une carte
-                updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, 'Subventions');
+                updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, `Bonus carte ${card.name}`);
                 // Récupérer le joueur mis à jour après la pioche
                 const updatedPlayer = updatedGame.players.find(p => p.id === playerId);
                 if (updatedPlayer && updatedPlayer.cards.length > 0) {

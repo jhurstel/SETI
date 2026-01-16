@@ -522,6 +522,8 @@ export function calculateReachableCells(
     const adjacentCells = getAdjacentCells(current.disk, current.sector);
     
     adjacentCells.forEach(adj => {
+      if (adj.disk === 'E') return;
+
       const adjKey = `${adj.disk}${adj.sector}`;
       const adjCell = cells.get(adjKey);
       

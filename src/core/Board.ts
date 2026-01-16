@@ -182,6 +182,23 @@ export class BoardManager {
   }
 
   /**
+   * Helper pour fusionner les bonus
+   */
+  private static mergeBonuses(...bonuses: (Bonus | undefined)[]): Bonus {
+    const result: Bonus = {};
+    bonuses.forEach(b => {
+      if (!b) return;
+      (Object.keys(b) as Array<keyof Bonus>).forEach(key => {
+        const k = key as keyof Bonus;
+        if (typeof b[k] === 'number') {
+          result[k] = (result[k] || 0) + (b[k] || 0);
+        }
+      });
+    });
+    return result;
+  }
+
+  /**
    * Crée les planètes
    */
   private static createPlanets(): Planet[] {
@@ -195,6 +212,8 @@ export class BoardManager {
         orbitNextBonus: { card: 1, planetscan: 2, revenue: 1 },
         landFirstBonus: { data: 3 },
         landNextBonus: { pv: 12, yellowlifetrace: 1 },
+        orbitSlots: [],
+        landSlots: []
       },
       {
         id: 'venus',
@@ -205,6 +224,8 @@ export class BoardManager {
         orbitNextBonus: { pv: 6, revenue: 1 },
         landFirstBonus: { data: 2 },
         landNextBonus: { pv: 5, yellowlifetrace: 1 },
+        orbitSlots: [],
+        landSlots: []
       },
       {
         id: 'mars',
@@ -219,6 +240,8 @@ export class BoardManager {
         satellites: [
           { id: 'phobosdeimos', name: 'Phobos, Deimos', planetId: 'mars', landers: [], landBonus: { pv: 8, revenue: 2} },
         ],
+        orbitSlots: [],
+        landSlots: []
       },
       {
         id: 'jupiter',
@@ -235,6 +258,8 @@ export class BoardManager {
           { id: 'ganymede', name: 'Ganymède', planetId: 'jupiter', landers: [], landBonus: { pv: 12, media: 5 } },
           { id: 'callisto', name: 'Callisto', planetId: 'jupiter', landers: [], landBonus: { pv: 1, data: 4 } },
         ],
+        orbitSlots: [],
+        landSlots: []
       },
       {
         id: 'saturn',
@@ -249,6 +274,8 @@ export class BoardManager {
           { id: 'titan', name: 'Titan', planetId: 'saturn', landers: [], landBonus: { pv: 7, anytechnology: 2 } },
           { id: 'enceladus', name: 'Encelade', planetId: 'saturn', landers: [], landBonus: { pv: 12, redscan: 1, bluescan: 1, yellowscan: 1 } },
         ],
+        orbitSlots: [],
+        landSlots: []
       },
       {
         id: 'uranus',
@@ -262,6 +289,8 @@ export class BoardManager {
         satellites: [
           { id: 'titania', name: 'Titania', planetId: 'uranus', landers: [], landBonus: { pv: 25 } },
         ],
+        orbitSlots: [],
+        landSlots: []
       },
       {
         id: 'neptune',
@@ -275,10 +304,25 @@ export class BoardManager {
         satellites: [
           { id: 'triton', name: 'Triton', planetId: 'neptune', landers: [], landBonus: { pv: 26 } },
         ],
+        orbitSlots: [],
+        landSlots: []
       },
     ];
 
-    return planets as Planet[];
+    return planets.map(p => {
+      const orbitSlots = new Array(5).fill(null).map((_, i) => {
+        if (i === 0) return this.mergeBonuses(p.orbitFirstBonus, p.orbitNextBonus);
+        return p.orbitNextBonus || {};
+      });
+
+      const landSlots = new Array(4).fill(null).map((_, i) => {
+        if (i === 0) return this.mergeBonuses(p.landFirstBonus, p.landNextBonus);
+        if (i === 1) return this.mergeBonuses(p.landSecondBonus, p.landNextBonus);
+        return p.landNextBonus || {};
+      });
+
+      return { ...p, orbitSlots, landSlots } as Planet;
+    });
   }
 
   /**

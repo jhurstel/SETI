@@ -10,7 +10,7 @@ import './ui/styles.css';
  */
 function createMockGame(): Game {
 
-  const gameState = GameFactory.createGame(['Alice', 'Bob', 'Charlie']);
+  const gameState = GameFactory.createGame(['Alice', 'Bob']);
   const initializedGame = GameFactory.initializeGame(gameState);
 
   // Configuration des joueurs : 1er humain, autres robots + couleurs

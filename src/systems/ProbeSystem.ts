@@ -588,11 +588,10 @@ export class ProbeSystem {
     };
 
     // Bonus planète
-    if (isFirstOrbiter && updatedPlanet?.orbitFirstBonus) {
-      applyAndAccumulate(updatedPlanet.orbitFirstBonus);
-    }
-    if (updatedPlanet?.orbitNextBonus) {
-      applyAndAccumulate(updatedPlanet.orbitNextBonus);
+    if (updatedPlanet && updatedPlanet.orbitSlots) {
+      const index = updatedPlanet.orbiters.length - 1;
+      const slotBonus = updatedPlanet.orbitSlots[index];
+      if (slotBonus) applyAndAccumulate(slotBonus);
     }
 
     updatedGame.players[playerIndex] = updatedPlayer;
@@ -726,14 +725,10 @@ export class ProbeSystem {
     };
 
     // Bonus planète (atterrissage)
-    if (isFirstLander && updatedPlanet?.landFirstBonus) {
-      applyAndAccumulate(updatedPlanet.landFirstBonus);
-    }
-    if (isSecondLander && updatedPlanet?.landSecondBonus) {
-      applyAndAccumulate(updatedPlanet.landSecondBonus);
-    }
-    if (updatedPlanet?.landNextBonus) {
-      applyAndAccumulate(updatedPlanet.landNextBonus);
+    if (updatedPlanet && updatedPlanet.landSlots) {
+      const index = updatedPlanet.landers.length - 1;
+      const slotBonus = updatedPlanet.landSlots[index];
+      if (slotBonus) applyAndAccumulate(slotBonus);
     }
 
     updatedGame.players[playerIndex] = updatedPlayer;
