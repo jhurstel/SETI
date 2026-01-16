@@ -560,7 +560,7 @@ export function calculateReachableCells(
 /**
  * Obtient les cases adjacentes à une case donnée
  */
-function getAdjacentCells(
+export function getAdjacentCells(
   disk: DiskName,
   sector: SectorNumber
 ): Array<{ disk: DiskName; sector: SectorNumber }> {

@@ -1,4 +1,13 @@
-import { Game, Card, Player, ProbeState } from '../core/types';
+import { Game, Card, Player, ProbeState, FreeAction, GAME_CONSTANTS, RevenueBonus } from '../core/types';
+import { 
+    createRotationState, 
+    calculateAbsolutePosition, 
+    getCell, 
+    getAdjacentCells,
+    CelestialObject,
+    getObjectPosition,
+    getAllCelestialObjects
+} from '../core/SolarSystemPosition';
 
 export class CardSystem {
   /**
@@ -26,7 +35,7 @@ export class CardSystem {
    * Joue une carte de la main du joueur
    */
   static playCard(game: Game, playerId: string, cardId: string): { updatedGame: Game, error?: string, bonuses?: any } {
-    const updatedGame = structuredClone(game);
+    let updatedGame = structuredClone(game);
     const player = updatedGame.players.find(p => p.id === playerId);
 
     if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
@@ -107,6 +116,74 @@ export class CardSystem {
                        bonuses.technology = { amount: (bonuses.technology?.amount || 0) + effect.value };
                    }
                    break;
+               case 'DISCARD_ROW_FOR_FREE_ACTIONS':
+                   // Appliquer les actions gratuites de toutes les cartes de la rangée
+                   updatedGame.cardRow.forEach(rowCard => {
+                       if (rowCard.freeAction === FreeAction.MOVEMENT) {
+                           bonuses.movements = (bonuses.movements || 0) + 1;
+                       } else if (rowCard.freeAction === FreeAction.DATA) {
+                           player.data = Math.min((player.data || 0) + 1, GAME_CONSTANTS.MAX_DATA);
+                           bonuses.data = (bonuses.data || 0) + 1;
+                       } else if (rowCard.freeAction === FreeAction.MEDIA) {
+                           player.mediaCoverage = Math.min((player.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                           bonuses.media = (bonuses.media || 0) + 1;
+                       }
+                   });
+                   updatedGame.cardRow = [];
+                   const refilled = this.refillCardRow(updatedGame);
+                   updatedGame.cardRow = refilled.cardRow;
+                   updatedGame.decks = refilled.decks;
+                   break;
+               case 'OSIRIS_REX_BONUS':
+                   let maxDataBonus = 0;
+                   const rotationState = createRotationState(
+                       updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+                       updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+                       updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+                   );
+
+                   player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition).forEach(probe => {
+                       let currentProbeBonus = 0;
+                       
+                       // Get absolute position of the probe
+                       const tempObj: CelestialObject = {
+                           id: probe.id,
+                           type: 'empty', // type doesn't matter for position calculation
+                           name: 'probe',
+                           position: {
+                               disk: probe.solarPosition!.disk,
+                               sector: probe.solarPosition!.sector,
+                               x: 0, y: 0
+                           },
+                           level: (probe.solarPosition!.level || 0) as 0 | 1 | 2 | 3
+                       };
+                       const absPos = calculateAbsolutePosition(tempObj, rotationState);
+
+                       // Check current cell: +2 data if on an asteroid field
+                       const currentCell = getCell(absPos.disk, absPos.absoluteSector, rotationState);
+                       if (currentCell && currentCell.hasAsteroid) {
+                           currentProbeBonus += 2;
+                       }
+
+                       // Check adjacent cells: +1 data for each adjacent asteroid field
+                       const adjacentCellsInfo = getAdjacentCells(absPos.disk, absPos.absoluteSector);
+                       adjacentCellsInfo.forEach(adj => {
+                           const adjCell = getCell(adj.disk, adj.sector, rotationState);
+                           if (adjCell && adjCell.hasAsteroid) {
+                               currentProbeBonus += 1;
+                           }
+                       });
+
+                       if (currentProbeBonus > maxDataBonus) {
+                           maxDataBonus = currentProbeBonus;
+                       }
+                   });
+
+                   if (maxDataBonus > 0) {
+                       player.data = Math.min((player.data || 0) + maxDataBonus, GAME_CONSTANTS.MAX_DATA);
+                       bonuses.data = (bonuses.data || 0) + maxDataBonus;
+                   }
+                   break;
            }
         }
       });
@@ -135,6 +212,127 @@ export class CardSystem {
                 player.activeBuffs.push({ ...effect, source: card.name });
             } else if (effect.type === 'SAME_DISK_MOVE') {
                 player.activeBuffs.push({ ...effect, source: card.name });
+            } else if (effect.type === 'REVEAL_AND_TRIGGER_FREE_ACTION') {
+                // Piocher une carte
+                updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, 'Subventions');
+                // Récupérer le joueur mis à jour après la pioche
+                const updatedPlayer = updatedGame.players.find(p => p.id === playerId);
+                if (updatedPlayer && updatedPlayer.cards.length > 0) {
+                    // La carte piochée est la dernière de la main
+                    const drawnCard = updatedPlayer.cards[updatedPlayer.cards.length - 1];
+                    drawnCard.isRevealed = true;
+
+                    // Appliquer l'action gratuite
+                    if (drawnCard.freeAction === FreeAction.MOVEMENT) {
+                        bonuses.movements = (bonuses.movements || 0) + 1;
+                    } else if (drawnCard.freeAction === FreeAction.DATA) {
+                        updatedPlayer.data = Math.min((updatedPlayer.data || 0) + 1, GAME_CONSTANTS.MAX_DATA);
+                        bonuses.data = (bonuses.data || 0) + 1;
+                    } else if (drawnCard.freeAction === FreeAction.MEDIA) {
+                        updatedPlayer.mediaCoverage = Math.min((updatedPlayer.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                        bonuses.media = (bonuses.media || 0) + 1;
+                    }
+                }
+            } else if (effect.type === 'SCORE_PER_MEDIA') {
+                const pointsGained = player.mediaCoverage * effect.value;
+                if (pointsGained > 0) {
+                    player.score += pointsGained;
+                    if (!bonuses.pv) bonuses.pv = 0;
+                    bonuses.pv += pointsGained;
+                }
+            } else if (effect.type === 'SCORE_PER_TECH_TYPE') {
+                player.activeBuffs.push({ ...effect, source: card.name });
+            } else if (effect.type === 'MEDIA_IF_SHARED_TECH') {
+                player.activeBuffs.push({ ...effect, source: card.name });
+            } else if (effect.type === 'SHARED_TECH_ONLY_NO_BONUS') {
+                if (bonuses.technology) {
+                    bonuses.technology.sharedOnly = true;
+                    bonuses.technology.noTileBonus = true;
+                }
+            } else if (effect.type === 'GAIN_ENERGY_PER_ENERGY_REVENUE') {
+                let energyCardsCount = 0;
+                player.cards.forEach(c => {
+                    if (c.revenue === RevenueBonus.ENERGY) {
+                        c.isRevealed = true;
+                        energyCardsCount++;
+                    }
+                });
+                if (energyCardsCount > 0) {
+                    player.energy += energyCardsCount;
+                    bonuses.energy = (bonuses.energy || 0) + energyCardsCount;
+                }
+            } else if (effect.type === 'REVEAL_MOVEMENT_CARDS_FOR_BONUS') {
+                let movementCardsCount = 0;
+                player.cards.forEach(c => {
+                    if (c.freeAction === FreeAction.MOVEMENT) {
+                        c.isRevealed = true;
+                        movementCardsCount++;
+                    }
+                });
+                if (movementCardsCount > 0) {
+                    bonuses.probe = (bonuses.probe || 0) + movementCardsCount;
+                    bonuses.movements = (bonuses.movements || 0) + movementCardsCount;
+                }
+            } else if (effect.type === 'GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE') {
+                const energyRevCards = player.revenueEnergy - GAME_CONSTANTS.INITIAL_REVENUE_ENERGY;
+                if (energyRevCards > 0) {
+                    player.energy += energyRevCards;
+                    bonuses.energy = (bonuses.energy || 0) + energyRevCards;
+                }
+                // Reserve self (Energy)
+                player.revenueEnergy += 1;
+                player.energy += 1; // Immediate gain from reservation
+                bonuses.energy = (bonuses.energy || 0) + 1;
+            } else if (effect.type === 'GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE') {
+                const cardRevCards = player.revenueCards - GAME_CONSTANTS.INITIAL_REVENUE_CARDS;
+                if (cardRevCards > 0) {
+                    player.mediaCoverage = Math.min(player.mediaCoverage + cardRevCards, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                    bonuses.media = (bonuses.media || 0) + cardRevCards;
+                }
+                // Reserve self (Card)
+                player.revenueCards += 1;
+                // Immediate gain from reservation (Draw 1 card)
+                updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, 'Bonus réservation');
+                bonuses.card = (bonuses.card || 0) + 1;
+            } else if (effect.type === 'GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE') {
+                const creditRevCards = player.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS;
+                if (creditRevCards > 0) {
+                    const pvGain = creditRevCards * 3;
+                    player.score += pvGain;
+                    bonuses.pv = (bonuses.pv || 0) + pvGain;
+                }
+                // Reserve self (Credit)
+                player.revenueCredits += 1;
+                player.credits += 1; // Immediate gain from reservation
+                bonuses.credits = (bonuses.credits || 0) + 1;
+            } else if (effect.type === 'OPTIMAL_LAUNCH_WINDOW') {
+                const rotationState = createRotationState(
+                    updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+                    updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+                    updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+                );
+
+                const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+                if (earthPos) {
+                    let movementBonus = 0;
+                    const allObjects = getAllCelestialObjects();
+
+                    allObjects.forEach(obj => {
+                        if (obj.id === 'earth') return;
+                        if (obj.type !== 'planet' && obj.type !== 'comet') return;
+
+                        const objPos = calculateAbsolutePosition(obj, rotationState);
+                        if (objPos.isVisible && objPos.disk === earthPos.disk && objPos.absoluteSector === earthPos.absoluteSector) {
+                            movementBonus++;
+                        }
+                    });
+
+                    if (movementBonus > 0) {
+                        bonuses.movements = (bonuses.movements || 0) + movementBonus;
+                    }
+                }
+            } else if (effect.type === 'IGNORE_PROBE_LIMIT') {
+                bonuses.ignoreProbeLimit = true;
             }
         });
     }

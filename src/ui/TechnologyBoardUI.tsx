@@ -8,6 +8,7 @@ interface TechnologyBoardUIProps {
   researchCategory?: TechnologyCategory;
   onTechClick?: (tech: Technology) => void;
   hasPerformedMainAction?: boolean;
+  sharedTechOnly?: boolean;
 }
 
 const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect: DOMRect }) => {
@@ -77,12 +78,26 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
   , document.body);
 };
 
-export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isResearching, researchCategory, onTechClick, hasPerformedMainAction }) => {
+export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isResearching, researchCategory, onTechClick, hasPerformedMainAction, sharedTechOnly }) => {
   const techBoard = game.board.technologyBoard;
   const categories = techBoard.categorySlots || [];
   const currentPlayer = game.players[game.currentPlayerIndex];
   const canAffordResearch = !hasPerformedMainAction && currentPlayer.mediaCoverage >= (GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA || 6);
   const [customTooltip, setCustomTooltip] = useState<{ content: React.ReactNode, targetRect: DOMRect } | null>(null);
+
+  // Calculer les technologies partagées si nécessaire
+  const sharedBaseIds = React.useMemo(() => {
+    if (!sharedTechOnly) return new Set<string>();
+    const ids = new Set<string>();
+    game.players.forEach(p => {
+      if (p.id === currentPlayer.id) return;
+      p.technologies.forEach(t => {
+        const baseId = t.id.substring(0, t.id.lastIndexOf('-'));
+        ids.add(baseId);
+      });
+    });
+    return ids;
+  }, [game.players, currentPlayer.id, sharedTechOnly]);
 
   const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -170,7 +185,9 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                   const baseId = topCard.id.substring(0, lastDashIndex);
                   const techImage = getTechImage(baseId);
                   
-                  const isClickable = (isResearching || canAffordResearch) && (!researchCategory || slot.category === researchCategory);
+                  const isClickable = (isResearching || canAffordResearch) 
+                    && (!researchCategory || slot.category === researchCategory)
+                    && (!sharedTechOnly || sharedBaseIds.has(baseId));
 
                   // Détection du bonus supplémentaire de 2 PV (logique basée sur les valeurs initiales)
                   const hasExtraPv = (topCard.bonus.pv === 5) || (topCard.bonus.pv === 2 && (topCard.bonus.media || topCard.bonus.card || topCard.bonus.energy));

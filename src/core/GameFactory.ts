@@ -272,40 +272,42 @@ export class GameFactory {
    */
   private static createActionDeck(): Card[] {
     const csvContent = `Id;Nom;Texte;Action gratuite;Couleur scan;Revenu;Cout;Condition;Gain;Contrainte
-9;Falcon Heavy;Gagnez 2 sondes et 1 Média. Ignorez la limite de sondes sur le plateau Systéme Solaire pour ces lancements.;1 Déplacement;Jaune;1 Crédit;3 Crédits;;;
-11;Subventions;Gagnez 1 Carte. Révélez la carte que vous avez piochée et bénéfciez de son action gratuite.;1 Média;Jaune;1 Energie;1 Crédit;;? Energie + 1 Reservation;
-13;Rover Perseverance;Gagnez 1 Atterrissage. Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs.;1 Média;Bleu;1 Pioche;1 Crédit;;
+9;Falcon Heavy;Gagnez 2 sondes et 1 Média. Ignorez la limite de sondes sur le plateau Systéme Solaire pour ces lancements.;1 Déplacement;Jaune;1 Crédit;3 Crédits;;2 Sondes + 1 Média;IGNORE_PROBE_LIMIT
+11;Subventions;Gagnez 1 Carte. Révélez la carte que vous avez piochée et bénéfciez de son action gratuite.;1 Média;Jaune;1 Energie;1 Crédit;;;REVEAL_AND_TRIGGER_FREE_ACTION
+13;Rover Perseverance;Gagnez 1 Atterrissage. Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs.;1 Média;Bleu;1 Pioche;1 Crédit;;;
 15;Rentrée Atmosphérique;Retirez l'un de vos orbiteurs de n'importe quelle planète pour gagner: 3 PVs, 1 Donnée, 1 Carte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;;
 16;Dragonfly;Gagnez 1 Atterrissage. Vous pouvez poser une sonde sur une case déjà occupée, et tout de même gagner la récompense recouverte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;;
-17;OSIRIS-REx;Choisissez 1 de vos sondes. Gagnez 2 Données si elle est placée sur un champ d'astéroïdes et 1 Donnée pour chaque champ d'astéroïdes adjacent.;1 Déplacement;Jaune;1 Energie;1 Crédit;;;
+17;OSIRIS-REx;Choisissez 1 de vos sondes. Gagnez 2 Données si elle est placée sur un champ d'astéroïdes et 1 Donnée pour chaque champ d'astéroïdes adjacent.;1 Déplacement;Jaune;1 Energie;1 Crédit;;OSIRIS_REX_BONUS;
 19;Assistance Gravitationnelle;Gagnez 2 Déplacements. Chaque fois que vous visitez une planète ce tour-ci, vous pouvez gagner 1 Déplacement au lieu de 1 Média.;1 Média;Jaune;1 Crédit;Crédit;;2 Déplacements;
 20;Survol de Mercure;Gagnez 2 Déplacements. Si vous visitez Mercure ce tour-ci, gagnez 4 PVs.;1 Média;Rouge;1 Energie;1 Crédit;;2 Déplacements;VISIT_PLANET:mercury:4
 21;Survol de Vénus;Gagnez 2 Déplacements. Si vous visitez Vénus ce tour-ci, gagnez 3 PVs.;1 Média;Jaune;1 Crédit;1 Crédit;;2 Déplacements;VISIT_PLANET:venus:3
 22;Survol de Mars;Gagnez 2 Déplacements. Si vous visitez Mars ce tour-ci, gagnez 4 PVs.;1 Donnée;Jaune;1 Energie;1 Crédit;;2 Déplacements;VISIT_PLANET:mars:4
 23;Survol de Jupiter;Gagnez 2 Déplacements. Si vous visitez Jupiter ce tour-ci, gagnez 4 PVs.;1 Média;Bleu;1 Energie;1 Crédit;;2 Déplacements;VISIT_PLANET:jupiter:4
+24;Survol de Saturne;Gagnez 3 Déplacements. Si vous visitez Saturne ce tour-ci, gagnez 6 PVs.;1 Donnée;Rouge;1 Pioche;2 Crédit;;3 Déplacements;VISIT_PLANET:saturn:6
 25;Voile Solaire;Gagnez 4 Déplacements. Gagnez 1 PV pour chaque planète unique que vous visitez ce tour-ci (y compris la Terre).;1 Média;Rouge;1 Crédit;2 Crédits;;4 Déplacements;VISIT_UNIQUE:1
 26;A Travers la Ceinture d'Astéroïdes;Gagnez 2 déplacements. Ignorez les restrictions de déplacement lorsque vous quittez un chaamp d'astéroïdes ce tour-ci.;1 Donnée;Bleu;1 Pioche;1 Crédit;;2 Déplacements;ASTEROID_EXIT_COST:1
 57;Radiotélescope D'Effelsberg;Gagnez 1 Carte, 1 Rotation, 1 Technologie Observation.;1 Média;Bleu;1 Energie;3 Crédits;;1 Carte + 1 Rotation + 1 Tech Observation;
 59;Système de Propulsion Ionique;Gagez 1 Energie, 1 Rotation, 1 Technologie Exploration.;1 Média;Rouge;1 Pioche;3 Crédits;;1 Energie + 1 Rotation + 1 Tech Exploration;
 69;Grand Collisionneur de Hadrons;Gagnez 1 Donnée, 1 Rotation, 1 Technologie Informatique.;1 Déplacement;Noir;1 Energie;3 Crédits;;1 Donnée + 1 Rotation + 1 Tech Informatique;
-71;Recherche Ciblée;Gagnez 1 Rotation et 1 Technologie de n'importe quelle couleur. Puis gagnez 2 PV pour chaque technologie de ce type que vous possédez.;1 Média;Rouge;1 Crédit;3 Crédits;;;
-72;Coopération Scientifique;Gagnez 1 Rotation et 1 Technologie de n'importe quelle couleur. Si vos développez une technologie qu'un autre joueur possède déjà, gagnez 2 Média.;1 Donnée;Bleu;1 Energie;3 Crédits;;;
-73;Initiative Clean Space;Défaussez les 3 cartes de la rangée de cartes pour effectuer leurs actions gratuites.;1 Média;Jaune;1 Crédit;1 Crédit;;;
-74;Essais de Prélancement;Gagnez 1 Sonde et 1 Déplacement pour chaque carte avec une action gratuite de déplacement que vous révélez de votre main.;1 Média;Jaune;1 Pioche;2 Crédits;;;
+71;Recherche Ciblée;Gagnez 1 Rotation et 1 Technologie de n'importe quelle couleur. Puis gagnez 2 PV pour chaque technologie de ce type que vous possédez.;1 Média;Rouge;1 Crédit;3 Crédits;;1 Rotation + 1 Tech;SCORE_PER_TECH_TYPE:2
+72;Coopération Scientifique;Gagnez 1 Rotation et 1 Technologie de n'importe quelle couleur. Si vos développez une technologie qu'un autre joueur possède déjà, gagnez 2 Média.;1 Donnée;Bleu;1 Energie;3 Crédits;;1 Rotation + 1 Tech;MEDIA_IF_SHARED_TECH:2
+73;Initiative Clean Space;Défaussez les 3 cartes de la rangée de cartes pour effectuer leurs actions gratuites.;1 Média;Jaune;1 Crédit;1 Crédit;;DISCARD_ROW_FOR_FREE_ACTIONS;
+74;Essais de Prélancement;Gagnez 1 Sonde et 1 Déplacement pour chaque carte avec une action gratuite de déplacement que vous révélez de votre main.;1 Média;Jaune;1 Pioche;2 Crédits;;;REVEAL_MOVEMENT_CARDS_FOR_BONUS
+81;Collaboration Internationale;Gagnez 1 Technologie de n'importe quelle couleur qu'un autre joueur possède déjà. Ne faites pas pivoter le système solaire. Ne gagner pas le bonus indiqué sur la tuile.;1 Déplacement;Jaune;1 Pioche;2 Crédits;;1 Tech;SHARED_TECH_ONLY_NO_BONUS
 85;Lanceur Starship;Gagnez 1 Sonde, 1 Rotation et 1 Technologie Exploration.;1 Média;Rouge;1 Crédit;4 Crédits;;1 Sonde + 1 Rotation + 1 Tech Exploration;
-90;Réservoirs d'Ergols;Gagnez 1 Energie pour chaque carte avec un revenu Energie que vous révélez de votre main.;1 Donnée;Bleu;1 Pioche;1 Crédit;;;
-91;Réacteur à Fusion;Gagnez 1 Energie pour chaque carte Energie glissée sous vos revenus. Puis réservez cette carte.;1 Média;Rouge;1 Energie;3 Crédits;;;
-92;Photo du Jour de la NASA;Gagnez 2 Médias. Gagnez 1 Média pour chaque carte Pioche glissée sous vos revenus. Puis réservez cette carte.;1 Donnée;Bleu;1 Pioche;3 Crédits;;;
-93;Financement Public;Gagnez 3 PV pour chaque carte Crédit glissée sous vos revenus. Puis réservez cette carte.;1 Média;Jaune;1 Crédit;3 Crédits;;;
+90;Réservoirs d'Ergols;Gagnez 1 Energie pour chaque carte avec un revenu Energie que vous révélez de votre main.;1 Donnée;Bleu;1 Pioche;1 Crédit;;;GAIN_ENERGY_PER_ENERGY_REVENUE
+91;Réacteur à Fusion;Gagnez 1 Energie pour chaque carte Energie glissée sous vos revenus. Puis réservez cette carte.;1 Média;Rouge;1 Energie;3 Crédits;;;GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE
+92;Photo du Jour de la NASA;Gagnez 2 Médias. Gagnez 1 Média pour chaque carte Pioche glissée sous vos revenus. Puis réservez cette carte.;1 Donnée;Bleu;1 Pioche;3 Crédits;;2 Médias;GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE
+93;Financement Public;Gagnez 3 PV pour chaque carte Crédit glissée sous vos revenus. Puis réservez cette carte.;1 Média;Jaune;1 Crédit;3 Crédits;;;GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE
 109;Microprocesseurs Basse Consommation;Gagnez 1 Energie, 1 Rotation, 1 Technologie Informatique.;1 Donnée;Jaune;1 Pioche;3 Crédits;;1 Energie + 1 Rotation + 1 Tech Informatique;
 110;Conférence de Presse;Gagnez 3 Médias.;1 Donnée;Rouge;1 Crédit;1 Crédit;;3 Médias;
-119;PIXL;Gagnez 1 Rotation et 1 Technologie Informatique. Gagnez ensuite 1 PV pour chaque niveau de Média que vous avez.;1 Donnée;Bleu;1 Energie;3 Crédits;;1 Rotation + 1 Tech Informatique;
+119;PIXL;Gagnez 1 Rotation et 1 Technologie Informatique. Gagnez ensuite 1 PV pour chaque niveau de Média que vous avez.;1 Donnée;Bleu;1 Energie;3 Crédits;;1 Rotation + 1 Tech Informatique;SCORE_PER_MEDIA:1
 121;Futur Collisionneur Circulaire;Gagnez 3 Données, 1 Rotation, et 1 Technologie Informatique.;1 Déplacement;Jaune;1 Energie;4 Crédits;;3 Données + 1 Rotation + 1 Tech Informatique;
 123;Survol d'Astéroïdes;Gagnez 1 Déplacement. Si vous visitez un champ d'astéroïdes ce tour-ci, gagnez 1 Donnée.;1 Média;Rouge;1 Pioche;0 Crédit;;1 Déplacement;VISIT_ASTEROID:1
 124;Rencontre avec une Comète;Gagnez 2 Déplacements. Si vous visitez une comète ce tour-ci, gagnez 4 PVs.;1 Média;Jaune;1 Energie;1 Crédit;;2 Déplacements;VISIT_COMET:4
 125;Correction de Trajectoire;Gagnez 1 Déplacement. Si vous vous déplacez sur le même disque au moins une fois ce tour-ci, gagnez 3 PV et 1 Média.;1 Donnée;Bleu;1 Pioche;1 Crédit;;1 Déplacement;SAME_DISK_MOVE:3:1
-130;Lancement Spatial à Faible Coût;Gagnez 1 Sonde.;1 Média;Jaune;1 Energie;1 Crédit;;;
-133;Fenêtre de Lancement Optimale;Gagnez 1 Sonde. Puis 1 Déplacement pour chaque autre planète ou comète dans le même secteur que la Terre.;1 Donnée;Rouge;1 Pioche;2 Crédits;;;
+130;Lancement Spatial à Faible Coût;Gagnez 1 Sonde.;1 Média;Jaune;1 Energie;1 Crédit;;1 Sonde;
+133;Fenêtre de Lancement Optimale;Gagnez 1 Sonde. Puis 1 Déplacement pour chaque autre planète ou comète dans le même secteur que la Terre.;1 Donnée;Rouge;1 Pioche;2 Crédits;;1 Sonde;OPTIMAL_LAUNCH_WINDOW
 137;Archives de Données du SETI;Gagnez 2 Données.;1 Média;Noir;1 Energie;1 Crédit;;2 Données;`
 
     return this.parseCSV(csvContent);
@@ -406,6 +408,12 @@ export class GameFactory {
             
             effects.push({ type: 'ACTION', target: 'TECH', value: { amount, color: techColor } });
         }
+        else if (part === 'DISCARD_ROW_FOR_FREE_ACTIONS') {
+            effects.push({ type: 'ACTION', target: 'DISCARD_ROW_FOR_FREE_ACTIONS', value: 1 });
+        }
+        else if (part === 'OSIRIS_REX_BONUS') {
+            effects.push({ type: 'ACTION', target: 'OSIRIS_REX_BONUS', value: 1 });
+        }
     }
     return effects;
   }
@@ -459,6 +467,75 @@ export class GameFactory {
         if (parts.length === 3) {
             return [{ type: 'SAME_DISK_MOVE', value: { pv: parseInt(parts[1], 10), media: parseInt(parts[2], 10) } }];
         }
+    }
+
+    // Gestion du format REVEAL_AND_TRIGGER_FREE_ACTION
+    if (constraint === 'REVEAL_AND_TRIGGER_FREE_ACTION') {
+        return [{ type: 'REVEAL_AND_TRIGGER_FREE_ACTION', value: 1 }];
+    }
+
+    // Gestion du format SCORE_PER_MEDIA:1
+    if (constraint.startsWith('SCORE_PER_MEDIA:')) {
+        const parts = constraint.split(':');
+        if (parts.length === 2) {
+            return [{ type: 'SCORE_PER_MEDIA', value: parseInt(parts[1], 10) }];
+        }
+    }
+
+    // Gestion du format SCORE_PER_TECH_TYPE:2
+    if (constraint.startsWith('SCORE_PER_TECH_TYPE:')) {
+        const parts = constraint.split(':');
+        if (parts.length === 2) {
+            return [{ type: 'SCORE_PER_TECH_TYPE', value: parseInt(parts[1], 10) }];
+        }
+    }
+
+    // Gestion du format MEDIA_IF_SHARED_TECH:2
+    if (constraint.startsWith('MEDIA_IF_SHARED_TECH:')) {
+        const parts = constraint.split(':');
+        if (parts.length === 2) {
+            return [{ type: 'MEDIA_IF_SHARED_TECH', value: parseInt(parts[1], 10) }];
+        }
+    }
+
+    // Gestion du format REVEAL_MOVEMENT_CARDS_FOR_BONUS
+    if (constraint === 'REVEAL_MOVEMENT_CARDS_FOR_BONUS') {
+        return [{ type: 'REVEAL_MOVEMENT_CARDS_FOR_BONUS', value: 1 }];
+    }
+
+    // Gestion du format GAIN_ENERGY_PER_ENERGY_REVENUE
+    if (constraint === 'GAIN_ENERGY_PER_ENERGY_REVENUE') {
+        return [{ type: 'GAIN_ENERGY_PER_ENERGY_REVENUE', value: 1 }];
+    }
+
+    // Gestion du format GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE
+    if (constraint === 'GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE') {
+        return [{ type: 'GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE', value: 1 }];
+    }
+
+    // Gestion du format GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE
+    if (constraint === 'GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE') {
+        return [{ type: 'GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE', value: 1 }];
+    }
+
+    // Gestion du format GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE
+    if (constraint === 'GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE') {
+        return [{ type: 'GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE', value: 1 }];
+    }
+
+    // Gestion du format SHARED_TECH_ONLY_NO_BONUS
+    if (constraint === 'SHARED_TECH_ONLY_NO_BONUS') {
+        return [{ type: 'SHARED_TECH_ONLY_NO_BONUS', value: 1 }];
+    }
+
+    // Gestion du format OPTIMAL_LAUNCH_WINDOW
+    if (constraint === 'OPTIMAL_LAUNCH_WINDOW') {
+        return [{ type: 'OPTIMAL_LAUNCH_WINDOW', value: 1 }];
+    }
+
+    // Gestion du format IGNORE_PROBE_LIMIT
+    if (constraint === 'IGNORE_PROBE_LIMIT') {
+        return [{ type: 'IGNORE_PROBE_LIMIT', value: true }];
     }
 
     return [{ type: 'PASSIVE', target: constraint, value: 1 }];

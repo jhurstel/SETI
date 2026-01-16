@@ -28,20 +28,37 @@ interface BoardUIProps {
   game: Game;
 }
 
+/**
+ * Représente les différents états d'interaction possibles pour le joueur.
+ * L'état 'IDLE' est l'état par défaut où le joueur peut initier une action principale.
+ * Tous les autres états représentent une interaction en cours qui bloque les actions principales.
+ */
 type InteractionState = 
+  /** Le joueur est en attente, aucune interaction en cours. */
   | { type: 'IDLE' }
-  | { type: 'DISCARDING', cardsToDiscard: string[] }
-  | { type: 'TRADING_SPEND' }
-  | { type: 'TRADING_GAIN', spendType: string, spendCardIds?: string[] }
-  | { type: 'FREE_MOVEMENT', count: number }
-  | { type: 'RESEARCHING' }
-  | { type: 'SELECTING_TECH_BONUS', sequenceId?: string, category?: TechnologyCategory }
-  | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, isBonus?: boolean, sequenceId?: string }
-  | { type: 'ANALYZING' }
+  /** Le joueur a un bonus de réservation et doit choisir une carte à glisser sous son plateau. */
   | { type: 'RESERVING_CARD', count: number, sequenceId?: string }
+  /** Le joueur doit défausser des cartes (ex: fin de manche). */
+  | { type: 'DISCARDING_CARD', cardsToDiscard: string[] }
+  /** Le joueur acquiert une carte (gratuitement ou en payant) et doit la sélectionner dans la pioche ou la rangée. */
+  | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, sequenceId?: string }
+  /** Le joueur a initié un échange et doit choisir la ressource à dépenser. */
+  | { type: 'TRADING_SPEND' }
+  /** Le joueur a dépensé une ressource et doit choisir celle à gagner. */
+  | { type: 'TRADING_GAIN', spendType: string, spendCardIds?: string[] }
+  /** Le joueur a des déplacements gratuits à effectuer. */
+  | { type: 'MOVING_PROBE', count: number }
+  /** Le joueur acquiert une technologie (en payant ou en bonus) et doit la sélectionner. */
+  | { type: 'ACQUIRING_TECH', isBonus: boolean, sequenceId?: string, category?: TechnologyCategory, sharedOnly?: boolean, noTileBonus?: boolean }
+  /** Le joueur a choisi une technologie "Informatique" et doit sélectionner une colonne sur son ordinateur. */
+  | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, sequenceId?: string }
+  /** Le joueur a lancé l'action "Analyser", principalement pour l'animation. */
+  | { type: 'ANALYZING' }
+  /** Le joueur a analysé des données et doit placer une trace de vie sur le plateau Alien. */
   | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow', sequenceId?: string }
-  | { type: 'BUYING_CARD', count: number, isFree?: boolean, sequenceId?: string }
+  /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number }
+  /** Le joueur a reçu plusieurs bonus interactifs et doit choisir l'ordre de résolution. */
   | { 
       type: 'CHOOSING_BONUS_ACTION', 
       bonusesSummary: string, 
@@ -64,11 +81,11 @@ interface HistoryEntry {
 // Helper pour les libellés des interactions
 const getInteractionLabel = (state: InteractionState): string => {
   switch (state.type) {
-    case 'BUYING_CARD': return state.isFree ? "Choisir une carte" : "Acheter une carte";
+    case 'ACQUIRING_CARD': return state.isFree ? "Choisir une carte" : "Acheter une carte";
     case 'RESERVING_CARD': return "Réserver une carte";
-    case 'SELECTING_TECH_BONUS': return "Choisir une technologie";
+    case 'ACQUIRING_TECH': return "Choisir une technologie";
     case 'PLACING_LIFE_TRACE': return `Placer trace de vie (${state.color})`;
-    case 'FREE_MOVEMENT': return `Déplacement gratuit (${state.count})`;
+    case 'MOVING_PROBE': return `Déplacement gratuit (${state.count})`;
     default: return "Action bonus";
   }
 };
@@ -207,16 +224,19 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   
   // Auto-open tech panel when researching
   useEffect(() => {
-    if (interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS') {
+    if (interactionState.type === 'ACQUIRING_TECH') {
       setIsTechOpen(true);
     }
-    if (interactionState.type === 'BUYING_CARD') {
+    if (interactionState.type === 'ACQUIRING_CARD') {
       setIsRowOpen(true);
     }
   }, [interactionState.type]);
 
   // État pour la modale de sélection de carte de fin de manche
   const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: any[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
+
+  // État pour la confirmation de perte de sonde
+  const [playCardConfirmation, setPlayCardConfirmation] = useState<{ visible: boolean; cardId: string | null; message: string }>({ visible: false, cardId: null, message: '' });
 
   // Ref pour contrôler le plateau solaire
   const solarSystemRef = useRef<SolarSystemBoardUIRef>(null);
@@ -522,7 +542,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour le clic sur une carte en mode défausse
   const handleCardClick = (cardId: string) => {
-    if (interactionState.type !== 'DISCARDING') return;
+    if (interactionState.type !== 'DISCARDING_CARD') return;
     
     const currentCards = interactionState.cardsToDiscard;
     if (currentCards.includes(cardId)) {
@@ -539,7 +559,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour confirmer la défausse
   const handleConfirmDiscard = () => {
-    if (interactionState.type !== 'DISCARDING') return;
+    if (interactionState.type !== 'DISCARDING_CARD') return;
     const currentPlayer = game.players[game.currentPlayerIndex];
     const cardsToKeep = currentPlayer.cards.filter(c => !interactionState.cardsToDiscard.includes(c.id)).map(c => c.id);
     
@@ -609,7 +629,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     else if (actionType === ActionType.PASS) {
       // 1. Vérifier la taille de la main
       if (currentPlayer.cards.length > 4) {
-        setInteractionState({ type: 'DISCARDING', cardsToDiscard: [] });
+        setInteractionState({ type: 'DISCARDING_CARD', cardsToDiscard: [] });
         setToast({ message: "Veuillez défausser jusqu'à 4 cartes", visible: true });
         return;
       }
@@ -683,7 +703,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       if (gameEngineRef.current) {
         gameEngineRef.current.setState(updatedGame);
       }
-      setInteractionState({ type: 'RESEARCHING' });
+      setInteractionState({ type: 'ACQUIRING_TECH', isBonus: false });
       setIsTechOpen(true);
       setToast({ message: "Système pivoté. Sélectionnez une technologie.", visible: true });
     }
@@ -763,9 +783,25 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       logs.push(`pioche ${txt}`);
     }
 
+    // Effets immédiats (Sonde)
+    if (bonuses.probe) {
+        const ignoreLimit = bonuses.ignoreProbeLimit || false;
+        for (let i = 0; i < bonuses.probe; i++) {
+            const result = ProbeSystem.launchProbe(updatedGame, playerId, true, ignoreLimit); // free launch
+            if (result.probeId) {
+                updatedGame = result.updatedGame;
+                logs.push(`lance une sonde gratuitement`);
+            } else {
+                logs.push(`ne peut pas lancer de sonde (limite atteinte)`);
+            }
+        }
+        const txt = `${bonuses.probe} Sonde${bonuses.probe > 1 ? 's' : ''}`;
+        passiveGains.push(txt);
+    }
+
     // Effets interactifs (File d'attente)
     if (bonuses.anycard) {
-      newPendingInteractions.push({ type: 'BUYING_CARD', count: bonuses.anycard, isFree: true });
+      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: bonuses.anycard, isFree: true });
     }
 
     if (bonuses.revenue) {
@@ -774,12 +810,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     
     if (bonuses.technology) {
       for (let i = 0; i < bonuses.technology.amount; i++) {
-          newPendingInteractions.push({ type: 'SELECTING_TECH_BONUS', category: bonuses.technology.color });
+          newPendingInteractions.push({ 
+            type: 'ACQUIRING_TECH', 
+            isBonus: true,
+            category: bonuses.technology.color,
+            sharedOnly: bonuses.technology.sharedOnly,
+            noTileBonus: bonuses.technology.noTileBonus
+          });
       }
     }
     
     if (bonuses.movements) {
-        newPendingInteractions.push({ type: 'FREE_MOVEMENT', count: bonuses.movements });
+        newPendingInteractions.push({ type: 'MOVING_PROBE', count: bonuses.movements });
     }
 
     if (bonuses.yellowlifetrace) {
@@ -958,7 +1000,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     const currentPlayerId = currentGame.players[currentGame.currentPlayerIndex].id;
 
-    let freeMovements = interactionState.type === 'FREE_MOVEMENT' ? interactionState.count : 0;
+    let freeMovements = interactionState.type === 'MOVING_PROBE' ? interactionState.count : 0;
 
     // Parcourir le chemin étape par étape (en ignorant le point de départ à l'index 0)
     for (let i = 1; i < path.length; i++) {
@@ -1058,9 +1100,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         break; // Arrêter le mouvement en cas d'erreur
       }
     }
-    if (interactionState.type === 'FREE_MOVEMENT') {
+    if (interactionState.type === 'MOVING_PROBE') {
       if (freeMovements > 0) {
-        setInteractionState({ type: 'FREE_MOVEMENT', count: freeMovements });
+        setInteractionState({ type: 'MOVING_PROBE', count: freeMovements });
         setToast({ message: `Encore ${freeMovements} déplacement(s) gratuit(s)`, visible: true });
       } else {
         setInteractionState({ type: 'IDLE' });
@@ -1091,7 +1133,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       setToast({ message: "Action gratuite : +1 Data", visible: true });
       addToHistory(`défausse une carte pour gagner ${formatResource(1, 'DATA')}`, currentPlayer.id, game);
     } else if (card.freeAction === FreeAction.MOVEMENT) {
-      setInteractionState({ type: 'FREE_MOVEMENT', count: 1 });
+      setInteractionState({ type: 'MOVING_PROBE', count: 1 });
       setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
       addToHistory("défausse une carte pour un déplacement gratuit", currentPlayer.id, game);
     }
@@ -1103,10 +1145,35 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   };
 
   // Gestionnaire pour jouer une carte (payer son coût en crédits)
-  const handlePlayCard = (cardId: string) => {
+  const handlePlayCardRequest = (cardId: string) => {
     if (interactionState.type !== 'IDLE') return;
     if (hasPerformedMainAction) return;
 
+    const currentGame = gameRef.current;
+    const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
+    const card = currentPlayer.cards.find(c => c.id === cardId);
+
+    // Vérifier si la carte donne une sonde et si le joueur peut la lancer
+    if (card && card.immediateEffects) {
+        const probeEffect = card.immediateEffects.find(e => e.type === 'GAIN' && e.target === 'PROBE');
+        if (probeEffect) {
+            // Vérifier la limite de sondes (sans vérifier le coût car c'est un gain)
+            const canLaunch = ProbeSystem.canLaunchProbe(currentGame, currentPlayer.id, false);
+            if (!canLaunch.canLaunch && canLaunch.reason && canLaunch.reason.includes('Limite')) {
+                setPlayCardConfirmation({
+                    visible: true,
+                    cardId: cardId,
+                    message: "Vous avez atteint la limite de sondes dans le système solaire. L'action de lancer une sonde sera perdue. Voulez-vous continuer ?"
+                });
+                return;
+            }
+        }
+    }
+
+    executePlayCard(cardId);
+  };
+
+  const executePlayCard = (cardId: string) => {
     const currentGame = gameRef.current;
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
     
@@ -1154,12 +1221,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour l'action d'achat de carte avec du média
   const handleBuyCardAction = () => {
     if (interactionState.type !== 'IDLE') return;
-    setInteractionState({ type: 'BUYING_CARD', count: 1});
+    setInteractionState({ type: 'ACQUIRING_CARD', count: 1});
     setToast({ message: "Sélectionnez une carte dans la rangée ou la pioche", visible: true });
   };
 
   const handleCardRowClick = (cardId?: string) => { // cardId undefined means deck
-    if (interactionState.type !== 'BUYING_CARD') return;
+    if (interactionState.type !== 'ACQUIRING_CARD') return;
     
     const currentPlayer = game.players[game.currentPlayerIndex];
     let result: { updatedGame: Game, error?: string };
@@ -1202,7 +1269,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     
     if (result.error) {
       setToast({ message: result.error, visible: true });
-      // On reste dans l'état BUYING_CARD pour permettre de réessayer ou d'annuler via l'overlay
+      // On reste dans l'état ACQUIRING_CARD pour permettre de réessayer ou d'annuler via l'overlay
       return;
     }
 
@@ -1276,9 +1343,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   };
 
   // Fonction interne pour traiter l'achat (commune à l'achat direct et après sélection)
-  const processTechPurchase = (tech: Technology, targetComputerCol?: number, stateOverride?: Game, interactionStateOverride?: InteractionState) => {
+  const processTechPurchase = (tech: Technology, targetComputerCol?: number, stateOverride?: Game, interactionStateOverride?: InteractionState, noTileBonus?: boolean) => {
     const currentGame = stateOverride || gameRef.current;
-    const { updatedGame, gains } = TechnologySystem.acquireTechnology(currentGame, currentGame.players[currentGame.currentPlayerIndex].id, tech, targetComputerCol);
+    const { updatedGame, gains } = TechnologySystem.acquireTechnology(currentGame, currentGame.players[currentGame.currentPlayerIndex].id, tech, targetComputerCol, noTileBonus);
     const currentPlayerIndex = updatedGame.currentPlayerIndex;
     const currentPlayer = updatedGame.players[currentPlayerIndex];
 
@@ -1303,7 +1370,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const gainsText = gains.length > 0 ? ` et gagne : ${gains.join(', ')}` : '';
     
     // Si on est en train de rechercher (Action principale), on fusionne avec l'entrée de rotation
-    if (previousInteractionState.type === 'RESEARCHING') {
+    if (previousInteractionState.type === 'ACQUIRING_TECH' && !previousInteractionState.isBonus) {
       setHistoryLog(prev => {
         // Trouver l'entrée de la rotation (dernière entrée avec un état précédent sauvegardé)
         let rotationEntryIndex = -1;
@@ -1355,14 +1422,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour l'achat de technologie (clic initial)
   const handleTechClick = (tech: Technology) => {
     // Cas 1: Mode recherche actif ou bonus
-    if (interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS') {
+    if (interactionState.type === 'ACQUIRING_TECH') {
         if (tech.id.startsWith('computing')) {
-          const sequenceId = (interactionState as any).sequenceId;
-          setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId });
+          const { sequenceId } = interactionState;
+          setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId, });
           setToast({ message: "Sélectionnez une colonne (1, 3, 5, 6) sur l'ordinateur", visible: true });
           return;
         }
-        processTechPurchase(tech);
+        const { noTileBonus } = interactionState;
+        processTechPurchase(tech, undefined, undefined, interactionState, noTileBonus);
         return;
     }
 
@@ -1429,7 +1497,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             setToast({ message: "Système pivoté. Sélectionnez une colonne (1, 3, 5, 6) sur l'ordinateur", visible: true });
         } else {
             // Achat direct avec fusion des logs (simule RESEARCHING)
-            processTechPurchase(tech, undefined, updatedGame, { type: 'RESEARCHING' });
+            processTechPurchase(tech, undefined, updatedGame, { type: 'ACQUIRING_TECH', isBonus: false }, false);
         }
     }
   };
@@ -1453,9 +1521,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     // Finaliser l'achat
     if (interactionState.isBonus) {
-        processTechBonus(interactionState.tech, col);
+        processTechPurchase(interactionState.tech, col, undefined, interactionState, interactionState.noTileBonus);
     } else {
-        processTechPurchase(interactionState.tech, col);
+        processTechPurchase(interactionState.tech, col, undefined, interactionState, interactionState.noTileBonus);
     }
   };
 
@@ -1923,8 +1991,42 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         </div>
       )}
 
+      {/* Modale de confirmation pour carte jouée avec perte de sonde */}
+      {playCardConfirmation.visible && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 2000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px',
+            maxWidth: '400px', border: '1px solid #ff6b6b', textAlign: 'center'
+          }}>
+            <h3 style={{ color: '#ff6b6b', marginTop: 0 }}>Attention</h3>
+            <p style={{ color: '#ddd', marginBottom: '20px' }}>{playCardConfirmation.message}</p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+              <button
+                onClick={() => setPlayCardConfirmation({ visible: false, cardId: null, message: '' })}
+                style={{ padding: '8px 16px', backgroundColor: '#555', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                    if (playCardConfirmation.cardId) executePlayCard(playCardConfirmation.cardId);
+                    setPlayCardConfirmation({ visible: false, cardId: null, message: '' });
+                }}
+                style={{ padding: '8px 16px', backgroundColor: '#ff6b6b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+              >
+                Continuer quand même
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Overlay pour la recherche de technologie ou l'achat de carte */}
-      {(interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS' || interactionState.type === 'BUYING_CARD' || interactionState.type === 'RESERVING_CARD') && (
+      {(interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'RESERVING_CARD') && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -1935,7 +2037,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           zIndex: 1500,
           backdropFilter: 'blur(2px)'
         }} onClick={() => {
-          if (interactionState.type === 'BUYING_CARD') {
+          if (interactionState.type === 'ACQUIRING_CARD') {
              setInteractionState({ type: 'IDLE' });
              setIsRowOpen(false);
           } else if (interactionState.type === 'RESERVING_CARD') {
@@ -1961,12 +2063,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 playerId={currentPlayerIdToDisplay}
                 onViewPlayer={setViewedPlayerId}
                 onAction={handleAction} 
-                isDiscarding={interactionState.type === 'DISCARDING'}
-                selectedCardIds={interactionState.type === 'DISCARDING' ? interactionState.cardsToDiscard : []}
+                isDiscarding={interactionState.type === 'DISCARDING_CARD'}
+                selectedCardIds={interactionState.type === 'DISCARDING_CARD' ? interactionState.cardsToDiscard : []}
                 onCardClick={handleCardClick}
                 onConfirmDiscard={handleConfirmDiscard}
                 onDiscardCardAction={handleDiscardCardAction}
-                onPlayCard={handlePlayCard}
+                onPlayCard={handlePlayCardRequest}
                 onBuyCardAction={handleBuyCardAction}
                 onTradeResourcesAction={() => handleTrade('START')}
                 tradeState={{ phase: interactionState.type === 'TRADING_SPEND' ? 'spending' : (interactionState.type === 'TRADING_GAIN' ? 'gaining' : 'inactive'), spend: interactionState.type === 'TRADING_GAIN' ? { type: interactionState.spendType, cardIds: interactionState.spendCardIds } : undefined }}
@@ -2000,8 +2102,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               initialSector1={initialSector1} 
               initialSector2={initialSector2} 
               initialSector3={initialSector3}
-              highlightPlayerProbes={interactionState.type === 'FREE_MOVEMENT'}
-              freeMovementCount={interactionState.type === 'FREE_MOVEMENT' ? interactionState.count : 0}
+              highlightPlayerProbes={interactionState.type === 'MOVING_PROBE'}
+              freeMovementCount={interactionState.type === 'MOVING_PROBE' ? interactionState.count : 0}
               hasPerformedMainAction={hasPerformedMainAction}
             />
 
@@ -2011,7 +2113,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               top: '15px',
               left: '15px',
               width: '560px',
-              zIndex: (interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS' || interactionState.type === 'BUYING_CARD') ? 1501 : 1000,
+              zIndex: (interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS' || interactionState.type === 'ACQUIRING_CARD') ? 1501 : 1000,
               display: 'flex',
               flexDirection: 'column',
               gap: '10px',
@@ -2082,15 +2184,16 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               <div className={`seti-foldable-container ${isTechOpen ? 'open' : ''}`}
                   style={{ 
                     pointerEvents: 'auto',
-                    ...(interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
+                    ...(interactionState.type === 'ACQUIRING_TECH' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
                   }}
               >
                 <div className="seti-foldable-header" onClick={() => setIsTechOpen(!isTechOpen)}>Technologies</div>
                 <div className="seti-foldable-content">
                   <TechnologyBoardUI 
                     game={game} 
-                    isResearching={interactionState.type === 'RESEARCHING' || interactionState.type === 'SELECTING_TECH_BONUS'}
-                    researchCategory={interactionState.type === 'SELECTING_TECH_BONUS' ? interactionState.category : undefined}
+                    isResearching={interactionState.type === 'ACQUIRING_TECH'}
+                    researchCategory={interactionState.type === 'ACQUIRING_TECH' ? interactionState.category : undefined}
+                    sharedTechOnly={interactionState.type === 'ACQUIRING_TECH' ? interactionState.sharedOnly : false}
                     onTechClick={handleTechClick}
                     hasPerformedMainAction={hasPerformedMainAction}
                   />
@@ -2100,7 +2203,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               <div className={`seti-foldable-container ${isRowOpen ? 'open' : ''}`}
                   style={{ 
                     pointerEvents: 'auto',
-                    ...(interactionState.type === 'BUYING_CARD' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
+                    ...(interactionState.type === 'ACQUIRING_CARD' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
                   }}
               >
                 <div className="seti-foldable-header" onClick={() => setIsRowOpen(!isRowOpen)}>Rangée Principale</div>
@@ -2115,8 +2218,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       alignItems: 'center',
                       gap: '4px',
                       backgroundImage: 'repeating-linear-gradient(45deg, #222 0, #222 10px, #2a2a2a 10px, #2a2a2a 20px)',
-                      cursor: interactionState.type === 'BUYING_CARD' ? 'pointer' : 'default',
-                      borderColor: interactionState.type === 'BUYING_CARD' ? '#4a9eff' : '#555'
+                      cursor: interactionState.type === 'ACQUIRING_CARD' ? 'pointer' : 'default',
+                      borderColor: interactionState.type === 'ACQUIRING_CARD' ? '#4a9eff' : '#555'
                     }}>
                       <div style={{ fontWeight: 'bold', color: '#aaa', textAlign: 'center' }}>Pioche</div>
                       <div style={{ fontSize: '0.8em', color: '#888' }}>{game.decks?.actionCards?.length || 0} cartes</div>
@@ -2132,8 +2235,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       onMouseLeave={() => setActiveTooltip(null)}
                       className="seti-common-card"
                       style={{
-                      border: interactionState.type === 'BUYING_CARD' ? '1px solid #4a9eff' : '1px solid #555',
-                      cursor: interactionState.type === 'BUYING_CARD' ? 'pointer' : 'default',
+                      border: interactionState.type === 'ACQUIRING_CARD' ? '1px solid #4a9eff' : '1px solid #555',
+                      cursor: interactionState.type === 'ACQUIRING_CARD' ? 'pointer' : 'default',
                       animation: 'cardAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
                     }}>
                       <div style={{ fontWeight: 'bold', color: '#fff', lineHeight: '1.1', marginBottom: '4px', fontSize: '0.75rem', height: '2.2em', overflow: 'hidden' }}>{card.name}</div>

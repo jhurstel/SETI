@@ -327,6 +327,7 @@ export interface TechnologyBonus {
   card?: number;
   probe?: number;
   data?: number;
+  credits?: number;
 }
 
 export interface Card {
@@ -343,6 +344,7 @@ export interface Card {
   immediateEffects?: CardEffect[];
   passiveEffects?: CardEffect[];
   scoringModifiers?: ScoringModifier[];
+  isRevealed?: boolean;
 }
 
 export interface CardEffect {

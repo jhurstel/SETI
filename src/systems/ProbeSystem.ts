@@ -32,7 +32,7 @@ export class ProbeSystem {
   /**
    * Vérifie si un joueur peut lancer une sonde
    */
-  static canLaunchProbe(game: Game, playerId: string): {
+  static canLaunchProbe(game: Game, playerId: string, checkCost: boolean = true): {
     canLaunch: boolean;
     reason?: string;
   } {
@@ -42,7 +42,7 @@ export class ProbeSystem {
     }
 
     // Vérifier les crédits
-    if (player.credits < GAME_CONSTANTS.PROBE_LAUNCH_COST) {
+    if (checkCost && player.credits < GAME_CONSTANTS.PROBE_LAUNCH_COST) {
       return { 
         canLaunch: false, 
         reason: `Crédits insuffisants (nécessite ${GAME_CONSTANTS.PROBE_LAUNCH_COST})` 
@@ -76,10 +76,11 @@ export class ProbeSystem {
   static launchProbe(
     game: Game, 
     playerId: string,
-    free: boolean = false
+    free: boolean = false,
+    ignoreLimit: boolean = false
   ): {
     updatedGame: Game;
-    probeId: string;
+    probeId: string | null;
   } {
     const updatedGame = { ...game };
     updatedGame.players = [...game.players];
@@ -103,6 +104,17 @@ export class ProbeSystem {
     if (earthPos) {
       earthDisk = earthPos.disk;
       earthSector = earthPos.sector;
+    }
+
+    // Vérifier la limite de sondes (même pour un lancement gratuit)
+    if (!ignoreLimit) {
+        const probesInSystem = player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+        const hasExploration1 = player.technologies.some(t => t.id.includes('exploration-1'));
+        const maxProbes = hasExploration1 ? (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY || 2) : (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM || 1);
+
+        if (probesInSystem.length >= maxProbes) {
+            return { updatedGame: game, probeId: null };
+        }
     }
 
     const probe: Probe = {
@@ -206,6 +218,7 @@ export class ProbeSystem {
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
     const probeIndex = player.probes.findIndex(p => p.id === probeId);
+    const probe = player.probes[probeIndex];
 
     // Calculer le niveau cible en fonction de la rotation actuelle
     const rotationState = createRotationState(
