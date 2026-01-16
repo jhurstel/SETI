@@ -591,8 +591,8 @@ export class ProbeSystem {
     if (isFirstOrbiter && updatedPlanet?.orbitFirstBonus) {
       applyAndAccumulate(updatedPlanet.orbitFirstBonus);
     }
-    if (updatedPlanet?.orbitNextBonuses) {
-      updatedPlanet.orbitNextBonuses.forEach(bonus => applyAndAccumulate(bonus));
+    if (updatedPlanet?.orbitNextBonus) {
+      applyAndAccumulate(updatedPlanet.orbitNextBonus);
     }
 
     updatedGame.players[playerIndex] = updatedPlayer;
@@ -732,8 +732,8 @@ export class ProbeSystem {
     if (isSecondLander && updatedPlanet?.landSecondBonus) {
       applyAndAccumulate(updatedPlanet.landSecondBonus);
     }
-    if (updatedPlanet?.landNextBonuses) {
-      updatedPlanet.landNextBonuses.forEach(bonus => applyAndAccumulate(bonus));
+    if (updatedPlanet?.landNextBonus) {
+      applyAndAccumulate(updatedPlanet.landNextBonus);
     }
 
     updatedGame.players[playerIndex] = updatedPlayer;

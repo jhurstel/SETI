@@ -689,11 +689,11 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         const top = (size / 2) + y - (satSize / 2);
         const left = (size / 2) + x - (satSize / 2);
 
-        const bonus = mergeBonuses(...(satellite.landBonuses || []));
+        const bonus = satellite.landBonus;
         const probe = satellite.landers && satellite.landers[0];
         const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
         
-        const bonusText = formatBonus(bonus) || 'Aucun';
+        const bonusText = (formatBonus(bonus) || []).join(', ') || 'Aucun';
         
         const isOccupied = !!player;
         let satReason = landReason;
@@ -864,8 +864,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           >
             {/* Définition des slots */}
             {(() => {
-              const nextOrbitBonus = mergeBonuses(...(planetData.orbitNextBonuses || []));
-              const nextLandBonus = mergeBonuses(...(planetData.landNextBonuses || []));
+              const nextOrbitBonus = planetData.orbitNextBonus;
+              const nextLandBonus = planetData.landNextBonus;
 
               const orbitSlots = new Array(5).fill(null).map((_, i) => {
                  if (i === 0) return mergeBonuses(planetData.orbitFirstBonus, nextOrbitBonus);
@@ -1006,7 +1006,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     const pos = orbitPositions[i];
                     const probe = planetData.orbiters[i];
                     const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-                    const bonusText = formatBonus(bonus) || 'Aucun';
+                    const bonusText = (formatBonus(bonus) || []).join(', ') || 'Aucun';
                     
                     const isOccupied = !!player;
                     const isNextAvailable = i === planetData.orbiters.length;
@@ -1056,7 +1056,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     const pos = landPositions[i];
                     const probe = planetData.landers[i];
                     const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-                    const bonusText = formatBonus(bonus) || 'Aucun';
+                    const bonusText = (formatBonus(bonus) || []).join(', ') || 'Aucun';
                     
                     const isOccupied = !!player;
                     const isNextAvailable = i === planetData.landers.length;
@@ -1464,8 +1464,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             ? `${uniquePlayers} Média${uniquePlayers > 1 ? 's' : ''} (1 par joueur présent)` 
             : "1 Média par joueur présent";
 
-          const firstBonusStr = formatBonus(sector.firstBonus) || 'Aucun';
-          const nextBonusStr = formatBonus(sector.nextBonus) || 'Aucun';
+          const firstBonusStr = (formatBonus(sector.firstBonus) || []).join(', ') || 'Aucun';
+          const nextBonusStr = (formatBonus(sector.nextBonus) || []).join(', ') || 'Aucun';
           
           let bonusDisplay;
           if (firstBonusStr === nextBonusStr) {

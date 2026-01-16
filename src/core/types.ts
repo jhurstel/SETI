@@ -129,6 +129,18 @@ export interface GameLogEntry {
   playerId?: string;
 }
 
+export interface GameState {
+  state: Game;
+  timestamp: number;
+}
+
+export interface Decks {
+  actionCards: Card[];
+  missionCards: Card[];
+  endGameCards: Card[];
+  speciesCards: Card[];
+}
+
 export interface Game {
   id: string;
   currentRound: number;
@@ -186,7 +198,6 @@ export interface SolarSystem {
   rotationDisks: RotationDisk[];
   currentRotation: number;
   probes: Probe[];
-  rings?: SolarRing[];
   // Positions initiales des plateaux rotatifs (1-8)
   initialSectorLevel1?: number; // Position initiale du plateau niveau 1 (1-8)
   initialSectorLevel2?: number; // Position initiale du plateau niveau 2 (1-8)
@@ -199,18 +210,7 @@ export interface SolarSystem {
   rotationAngleLevel1?: number; // Angle de rotation actuel du plateau niveau 1 (en degrés)
   rotationAngleLevel2?: number; // Angle de rotation actuel du plateau niveau 2 (en degrés)
   rotationAngleLevel3?: number; // Angle de rotation actuel du plateau niveau 3 (en degrés)
-  nextRingLevel?: number; // Prochain niveau à tourner (1, 2 ou 3)
-}
-
-export interface SolarRing {
-  level: number;               // 1 (intérieur) → 4 (extérieur)
-  sectors: SolarRingSector[];  // Toujours 8 secteurs
-}
-
-export interface SolarRingSector {
-  index: number;       // 0-7
-  color: SectorColor;  // Couleur du secteur
-  tileIds: string[];   // IDs des cases appartenant à ce secteur/anneau
+  nextRingLevel: number; // Prochain niveau à tourner (1, 2 ou 3)
 }
 
 export interface Probe {
@@ -304,7 +304,7 @@ export interface ObjectiveTile {
     second: number;
     others: number;
   };
-  markers: string[]; // IDs des joueurs ayant un marqueur sur cette tuile
+  markers: string[];
 }
 
 export interface Technology {
@@ -314,8 +314,8 @@ export interface Technology {
   effects: TechnologyEffect[];
   bonus: TechnologyBonus;
   ownerId?: string;
-  description?: string;
-  shorttext?: string;
+  description: string;
+  shorttext: string;
 }
 
 export interface TechnologyEffect {
@@ -410,10 +410,10 @@ export interface Planet {
   orbiters: Probe[];
   landers: Probe[];
   orbitFirstBonus?: PlanetBonus;
-  orbitNextBonuses?: PlanetBonus[];
+  orbitNextBonus?: PlanetBonus;
   landFirstBonus?: PlanetBonus;
   landSecondBonus?: PlanetBonus;
-  landNextBonuses?: PlanetBonus[];
+  landNextBonus?: PlanetBonus;
   satellites?: Satellite[];
 }
 
@@ -422,7 +422,7 @@ export interface Satellite {
   name: string;
   planetId: string;
   landers: Probe[];
-  landBonuses: PlanetBonus[];
+  landBonus: PlanetBonus;
 }
 
 export interface PlanetBonus {
@@ -465,18 +465,6 @@ export interface TechnologyBoard {
 export interface TechnologyCategorySlots {
   category: TechnologyCategory;
   technologies: Technology[];
-}
-
-export interface Decks {
-  actionCards: Card[];
-  missionCards: Card[];
-  endGameCards: Card[];
-  speciesCards: Card[];
-}
-
-export interface GameState {
-  state: Game;
-  timestamp: number;
 }
 
 // ============================================================================
