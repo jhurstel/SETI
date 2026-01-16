@@ -128,10 +128,10 @@ export interface GameState {
 }
 
 export interface Decks {
-  actionCards: Card[];
-  missionCards: Card[];
-  endGameCards: Card[];
+  cards: Card[];
   speciesCards: Card[];
+  cardRow: Card[];
+  roundDecks: { [round: number]: Card[] };
 }
 
 export interface Game {
@@ -144,12 +144,10 @@ export interface Game {
   players: Player[];
   board: Board;
   decks: Decks;
-  cardRow: Card[];
   species: Species[];
   discoveredSpecies: Species[];
   history: GameState[];
   isFirstToPass: boolean;
-  roundDecks: { [round: number]: Card[] };
   gameLog?: GameLogEntry[];
 }
 
@@ -249,14 +247,19 @@ export interface PlayerMarker {
 }
 
 export interface DataComputer {
-  topRow: DataToken[];
-  bottomRow: DataToken[];
   canAnalyze: boolean;
+  slots: Record<string, ComputerSlot>;
 }
 
-export interface DataToken {
+export interface ComputerSlot {
   id: string;
-  type: string;
+  bonus?: string;
+  isOccupied: boolean;
+  technologyId?: string;
+  filled: boolean;
+  type: 'top' | 'bottom';
+  col: number;
+  parentId?: string;
 }
 
 export interface AlienBoard {

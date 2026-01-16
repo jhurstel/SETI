@@ -20,8 +20,8 @@ export class CardSystem {
     if (!player) return game;
 
     for (let i = 0; i < count; i++) {
-      if (updatedGame.decks.actionCards.length > 0) {
-        const card = updatedGame.decks.actionCards.shift();
+      if (updatedGame.decks.cards.length > 0) {
+        const card = updatedGame.decks.cards.shift();
         if (card) {
           player.cards.push(card);
         }
@@ -118,7 +118,7 @@ export class CardSystem {
                    break;
                case 'DISCARD_ROW_FOR_FREE_ACTIONS':
                    // Appliquer les actions gratuites de toutes les cartes de la rangée
-                   updatedGame.cardRow.forEach(rowCard => {
+                   updatedGame.decks.cardRow.forEach(rowCard => {
                        if (rowCard.freeAction === FreeActionType.MOVEMENT) {
                            bonuses.movements = (bonuses.movements || 0) + 1;
                        } else if (rowCard.freeAction === FreeActionType.DATA) {
@@ -129,9 +129,9 @@ export class CardSystem {
                            bonuses.media = (bonuses.media || 0) + 1;
                        }
                    });
-                   updatedGame.cardRow = [];
+                   updatedGame.decks.cardRow = [];
                    const refilled = this.refillCardRow(updatedGame);
-                   updatedGame.cardRow = refilled.cardRow;
+                   updatedGame.decks.cardRow = refilled.decks.cardRow;
                    updatedGame.decks = refilled.decks;
                    break;
                case 'OSIRIS_REX_BONUS':
@@ -407,14 +407,14 @@ export class CardSystem {
     // Copie profonde des decks
     updatedGame.decks = {
         ...updatedGame.decks,
-        actionCards: [...updatedGame.decks.actionCards]
+        cards: [...updatedGame.decks.cards]
     };
 
     // Remplir jusqu'à 3 cartes
-    while (updatedGame.cardRow.length < 3 && updatedGame.decks.actionCards.length > 0) {
-      const newCard = updatedGame.decks.actionCards.shift();
+    while (updatedGame.decks.cardRow.length < 3 && updatedGame.decks.cards.length > 0) {
+      const newCard = updatedGame.decks.cards.shift();
       if (newCard) {
-        updatedGame.cardRow.push(newCard);
+        updatedGame.decks.cardRow.push(newCard);
       }
     }
     return updatedGame;

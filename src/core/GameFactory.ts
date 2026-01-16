@@ -39,19 +39,12 @@ export class GameFactory {
       this.createPlayer(`player_${index}`, name, index + 1)
     );
 
-    // Créer et mélanger le deck d'actions
-    let actionDeck = this.createActionDeck();
-    actionDeck = this.shuffleCards(actionDeck);
-
-    // Créer la rangée de cartes initiale en piochant dans le deck
-    const initialCardRow = actionDeck.splice(0, 3);
-
     // Créer les decks
     const decks: Decks = {
-      actionCards: actionDeck, // Le reste du deck
-      missionCards: [],
-      endGameCards: [],
-      speciesCards: []
+      cards: this.createActionDeck(),
+      speciesCards: [],
+      cardRow: [],
+      roundDecks: {}
     };
 
     // Créer le plateau
@@ -59,13 +52,6 @@ export class GameFactory {
 
     // Créer les espèces (non découvertes initialement)
     const species: Species[] = [];
-
-    // Créer les paquets de fin de manche (Manches 1 à 4)
-    const roundDecks: { [round: number]: Card[] } = {};
-    const cardsPerDeck = players.length + 1;
-    for (let i = 1; i <= 4; i++) {
-      roundDecks[i] = this.createRoundDeck(cardsPerDeck);
-    }
 
     // Initialiser les logs
     const gameLog: GameLogEntry[] = [];
@@ -94,12 +80,10 @@ export class GameFactory {
       players,
       board,
       decks,
-      cardRow: initialCardRow,
       species,
       discoveredSpecies: [],
       history: [],
       isFirstToPass: false,
-      roundDecks,
       gameLog
     };
 
@@ -141,9 +125,19 @@ export class GameFactory {
    */
   private static createDataComputer(): DataComputer {
     return {
-      topRow: [],
-      bottomRow: [],
-      canAnalyze: false
+      canAnalyze: false,
+      slots: {
+        '1a': { id: '1a', filled: false, type: 'top', col: 1, isOccupied: false },
+        '1b': { id: '1b', filled: false, type: 'bottom', parentId: '1a', col: 1, isOccupied: false },
+        '2':  { id: '2', filled: false, type: 'top', bonus: 'media', col: 2, isOccupied: false },
+        '3a': { id: '3a', filled: false, type: 'top', col: 3, isOccupied: false },
+        '3b': { id: '3b', filled: false, type: 'bottom', parentId: '3a', col: 3, isOccupied: false },
+        '4':  { id: '4', filled: false, type: 'top', bonus: 'reservation', col: 4, isOccupied: false },
+        '5a': { id: '5a', filled: false, type: 'top', col: 5, isOccupied: false },
+        '5b': { id: '5b', filled: false, type: 'bottom', parentId: '5a', col: 5, isOccupied: false },
+        '6a': { id: '6a', filled: false, type: 'top', col: 6, isOccupied: false },
+        '6b': { id: '6b', filled: false, type: 'bottom', parentId: '6a', col: 6, isOccupied: false },
+      }
     };
   }
 
@@ -156,6 +150,18 @@ export class GameFactory {
     }
 
     let updatedGame = { ...game };
+
+    // Créer les paquets de fin de manche (Manches 1 à 4)
+    const cardsPerDeck = updatedGame.players.length + 1;
+    for (let i = 1; i <= GAME_CONSTANTS.MAX_ROUNDS - 1; i++) {
+      updatedGame.decks.roundDecks[i] = this.createRoundDeck(cardsPerDeck);
+    }
+
+    // Mélanger le deck d'actions
+    updatedGame.decks.cards = this.shuffleCards(updatedGame.decks.cards);
+
+    // Remplir la rangée de cartes
+    updatedGame = CardSystem.refillCardRow(updatedGame);
 
     // Distribuer les cartes initiales
     for (const player of updatedGame.players) {

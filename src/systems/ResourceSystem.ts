@@ -18,14 +18,14 @@ export class ResourceSystem {
     
     if (cardIdFromRow) {
       // Copie profonde de la rangée de cartes avant modification
-      updatedGame.board = {
-        ...updatedGame.board,
-        cardRow: [...(updatedGame.board.cardRow || [])]
+      updatedGame.decks = {
+        ...updatedGame.decks,
+        cardRow: [...(updatedGame.decks.cardRow || [])]
       };
 
-      const cardIndex = updatedGame.board.cardRow.findIndex(c => c.id === cardIdFromRow);
+      const cardIndex = updatedGame.decks.cardRow.findIndex(c => c.id === cardIdFromRow);
       if (cardIndex !== -1) {
-        const [card] = updatedGame.board.cardRow.splice(cardIndex, 1);
+        const [card] = updatedGame.decks.cardRow.splice(cardIndex, 1);
         player.cards.push(card);
         updatedGame = CardSystem.refillCardRow(updatedGame);
       } else {

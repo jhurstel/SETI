@@ -457,7 +457,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             }
 
             let selectedCardId = decision.selectedCardId;
-            const roundDeck = game.roundDecks[game.currentRound];
+            const roundDeck = game.decks.roundDecks[game.currentRound];
             const isDeckAvailable = roundDeck && roundDeck.length > 0;
 
             if (isDeckAvailable) {
@@ -567,7 +567,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setInteractionState({ type: 'IDLE' });
     
     // Vérifier s'il y a un paquet de manche pour déclencher la modale
-    const roundDeck = game.roundDecks[game.currentRound];
+    const roundDeck = game.decks.roundDecks[game.currentRound];
     if (roundDeck && roundDeck.length > 0) {
         setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
         // Note: performPass sera appelé après la confirmation dans la modale
@@ -637,7 +637,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const cardsToKeep = currentPlayer.cards.map(c => c.id);
       
       // Vérifier s'il y a un paquet de manche pour déclencher la modale
-      const roundDeck = game.roundDecks[game.currentRound];
+      const roundDeck = game.decks.roundDecks[game.currentRound];
       if (roundDeck && roundDeck.length > 0) {
           setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
       } else {
@@ -1238,15 +1238,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         
         if (cardId) {
             // Prendre de la rangée
-            const rowIndex = updatedGame.cardRow.findIndex(c => c.id === cardId);
+            const rowIndex = updatedGame.decks.cardRow.findIndex(c => c.id === cardId);
             if (rowIndex !== -1) {
-                const card = updatedGame.cardRow[rowIndex];
+                const card = updatedGame.decks.cardRow[rowIndex];
                 player.cards.push(card);
-                updatedGame.cardRow.splice(rowIndex, 1);
+                updatedGame.decks.cardRow.splice(rowIndex, 1);
                 
                 // Remplir la rangée
-                if (updatedGame.decks.actionCards.length > 0) {
-                    updatedGame.cardRow.push(updatedGame.decks.actionCards.shift()!);
+                if (updatedGame.decks.cards.length > 0) {
+                    updatedGame.decks.cardRow.push(updatedGame.decks.cards.shift()!);
                 }
             } else {
                 // Carte non trouvée (ne devrait pas arriver)
@@ -1254,8 +1254,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             }
         } else {
             // Piocher du paquet
-            if (updatedGame.decks.actionCards.length > 0) {
-                player.cards.push(updatedGame.decks.actionCards.shift()!);
+            if (updatedGame.decks.cards.length > 0) {
+                player.cards.push(updatedGame.decks.cards.shift()!);
             } else {
                 setToast({ message: "Pioche vide", visible: true });
                 return;
@@ -1512,9 +1512,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Vérifier si la colonne est déjà occupée par une technologie
     const currentGame = gameRef.current;
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
-    const playerAny = currentPlayer as any;
     const topSlotId = `${col}a`;
-    if (playerAny.computer?.slots?.[topSlotId]?.bonus === '2pv') {
+    if (currentPlayer.dataComputer.slots?.[topSlotId]?.bonus === '2pv') {
       setToast({ message: "Emplacement déjà occupé par une technologie", visible: true });
       return;
     }
@@ -2222,10 +2221,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       borderColor: interactionState.type === 'ACQUIRING_CARD' ? '#4a9eff' : '#555'
                     }}>
                       <div style={{ fontWeight: 'bold', color: '#aaa', textAlign: 'center' }}>Pioche</div>
-                      <div style={{ fontSize: '0.8em', color: '#888' }}>{game.decks?.actionCards?.length || 0} cartes</div>
+                      <div style={{ fontSize: '0.8em', color: '#888' }}>{game.decks.cards.length || 0} cartes</div>
                   </div>
 
-                  {game.cardRow && game.cardRow.map(card => (
+                  {game.decks.cardRow && game.decks.cardRow.map(card => (
                     <div key={card.id} 
                       onClick={() => handleCardRowClick(card.id)}
                       onMouseEnter={(e) => {
@@ -2265,7 +2264,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       </div>
                     </div>
                   ))}
-                  {(!game.cardRow || game.cardRow.length === 0) && (
+                  {(!game.decks.cardRow || game.decks.cardRow.length === 0) && (
                       <div style={{ gridColumn: '2 / -1', color: '#888', fontStyle: 'italic', padding: '10px', textAlign: 'center' }}>Aucune carte disponible</div>
                   )}
                 </div>

@@ -131,10 +131,7 @@ const PlayerComputer = ({
   onHover: (e: React.MouseEvent, content: React.ReactNode) => void,
   onLeave: () => void
 }) => {
-  // Initialize if needed
-  DataSystem.initializeComputer(player);
-  const slots = player.computer.slots;
-
+  const slots = player.dataComputer.slots;
   const columns = [1, 2, 3, 4, 5, 6];
 
   return (

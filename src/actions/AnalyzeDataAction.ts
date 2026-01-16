@@ -26,15 +26,8 @@ export class AnalyzeDataAction extends BaseAction {
   }
 
   execute(game: Game): Game {
-    const result = DataSystem.analyzeData(game, this.playerId);
-    
-    // Si une espèce est découverte, appliquer les effets
-    if (result.speciesDiscovered) {
-      // TODO: Gérer la découverte d'espèce
-      // Cela peut déclencher d'autres effets
-    }
-    
-    return result.updatedGame;
+    // TODO
+    return game;
   }
 }
 

@@ -134,6 +134,21 @@ const describeArc = (x: number, y: number, radius: number, startAngle: number, e
     ].join(" ");
 };
 
+// Helper pour fusionner les bonus
+const mergeBonuses = (...bonuses: (Bonus | undefined)[]): Bonus => {
+  const result: Bonus = {};
+  bonuses.forEach(b => {
+    if (!b) return;
+    (Object.keys(b) as Array<keyof Bonus>).forEach(key => {
+      const k = key as keyof Bonus;
+      if (typeof b[k] === 'number') {
+        result[k] = (result[k] || 0) + (b[k] || 0);
+      }
+    });
+  });
+  return result;
+};
+
 export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
@@ -327,9 +342,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
     // Appliquer la rotation
     const rotatedAngle = sectorCenterAngle + rotationAngle;
-    const radian = rotatedAngle * (Math.PI / 180);
-    const x = Math.cos(radian) * objectRadius;
-    const y = Math.sin(radian) * objectRadius;
+    const { x, y } = polarToCartesian(0, 0, objectRadius, rotatedAngle);
     return { x, y, sectorCenterAngle, diskIndex };
   };
 
@@ -357,14 +370,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     const innerRadiusPx = (innerRadius / 100) * 200;
     const outerRadiusPx = (outerRadius / 100) * 200;
     
-    const innerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-    const innerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * innerRadiusPx;
-    const innerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-    const innerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * innerRadiusPx;
-    const outerStartX = 100 + Math.cos(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-    const outerStartY = 100 + Math.sin(sectorStartAngle * Math.PI / 180) * outerRadiusPx;
-    const outerEndX = 100 + Math.cos(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
-    const outerEndY = 100 + Math.sin(sectorEndAngle * Math.PI / 180) * outerRadiusPx;
+    const innerStart = polarToCartesian(100, 100, innerRadiusPx, sectorStartAngle);
+    const innerEnd = polarToCartesian(100, 100, innerRadiusPx, sectorEndAngle);
+    const outerStart = polarToCartesian(100, 100, outerRadiusPx, sectorStartAngle);
+    const outerEnd = polarToCartesian(100, 100, outerRadiusPx, sectorEndAngle);
     
     const largeArcFlag = Math.abs(sectorEndAngle - sectorStartAngle) > 180 ? 1 : 0;
 
@@ -406,7 +415,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         viewBox="0 0 200 200"
       >
         <path
-          d={`M ${innerStartX} ${innerStartY} L ${outerStartX} ${outerStartY} A ${outerRadiusPx} ${outerRadiusPx} 0 ${largeArcFlag} 0 ${outerEndX} ${outerEndY} L ${innerEndX} ${innerEndY} A ${innerRadiusPx} ${innerRadiusPx} 0 ${largeArcFlag} 1 ${innerStartX} ${innerStartY} Z`}
+          d={`M ${innerStart.x} ${innerStart.y} L ${outerStart.x} ${outerStart.y} A ${outerRadiusPx} ${outerRadiusPx} 0 ${largeArcFlag} 0 ${outerEnd.x} ${outerEnd.y} L ${innerEnd.x} ${innerEnd.y} A ${innerRadiusPx} ${innerRadiusPx} 0 ${largeArcFlag} 1 ${innerStart.x} ${innerStart.y} Z`}
           fill={colorFill} // Plus clair pour la surbrillance
           stroke={colorStroke}
           strokeWidth="1.5" // Bordure plus épaisse
@@ -438,9 +447,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     const angleOffset = diskIndex === 0 ? 30 : diskIndex === 1 ? 27 : 25;
     const indicatorAngle = sectorCenterAngle - angleOffset;
     
-    const radian = indicatorAngle * (Math.PI / 180);
-    const x = Math.cos(radian) * indicatorRadius;
-    const y = Math.sin(radian) * indicatorRadius;
+    const { x, y } = polarToCartesian(0, 0, indicatorRadius, indicatorAngle);
 
     return (
       <div
@@ -476,7 +483,24 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     if (!bonus) return null;
     
     const hasPv = !!bonus.pv;
-    const hasOther = bonus.media || bonus.credits || bonus.energy || bonus.card || bonus.data || bonus.planetscan || bonus.revenue || bonus.anycard || bonus.anytechnology || bonus.yellowlifetrace;
+    const hasOther =
+      bonus.media ||
+      bonus.credits ||
+      bonus.energy ||
+      bonus.card ||
+      bonus.data ||
+      bonus.planetscan ||
+      bonus.redscan ||
+      bonus.yellowscan ||
+      bonus.bluescan ||
+      bonus.blackscan ||
+      bonus.revenue ||
+      bonus.anycard ||
+      bonus.anytechnology ||
+      bonus.yellowlifetrace ||
+      bonus.redlifetrace ||
+      bonus.bluelifetrace ||
+      bonus.probe;
     
     return (
       <>
@@ -501,11 +525,17 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
            else if (bonus.card) { label = '🃏'; color = '#aaffaa'; }
            else if (bonus.data) { label = 'D'; color = '#8affc0'; }
            else if (bonus.planetscan) { label = 'S'; color = '#fff'; }
+           else if (bonus.redscan) { label = 'S'; color = '#fff'; }
+           else if (bonus.yellowscan) { label = 'Y'; color = '#fff'; }
+           else if (bonus.bluescan) { label = 'B'; color = '#fff'; }
+           else if (bonus.blackscan) { label = 'B'; color = '#fff'; }
            else if (bonus.revenue) { label = 'R'; color = '#fff'; }
            else if (bonus.anycard) { label = '🃏'; color = '#fff'; }
            else if (bonus.anytechnology) { label = 'T'; color = '#fff'; }
-           else if (bonus.yellowlifetrace) { label = 'Tr'; color = '#ffd700'; }
-           
+           else if (bonus.yellowlifetrace) { label = 'Tr'; color = '#fff'; }
+           else if (bonus.redlifetrace) { label = 'Tr'; color = '#fff'; }
+           else if (bonus.bluelifetrace) { label = 'Tr'; color = '#fff'; }
+           else if (bonus.probe) { label = 'Pr'; color = '#fff'; }
            return (
              <text 
                y={hasPv ? "6" : "1"} 
@@ -618,21 +648,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
 
     const hasExploration4 = currentPlayer.technologies.some(t => t.id.startsWith('exploration-4'));
 
-    // Helper pour fusionner les bonus
-    const mergeBonuses = (...bonuses: (Bonus | undefined)[]): Bonus => {
-      const result: Bonus = {};
-      bonuses.forEach(b => {
-        if (!b) return;
-        (Object.keys(b) as Array<keyof Bonus>).forEach(key => {
-          const k = key as keyof Bonus;
-          if (typeof b[k] === 'number') {
-            result[k] = (result[k] || 0) + (b[k] || 0);
-          }
-        });
-      });
-      return result;
-    };
-
     const renderRings = (isFront: boolean) => (
       <>
         <div
@@ -677,13 +692,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
       return planetData.satellites.map((satellite, index) => {
         const satSize = size * 0.25;
         const angleDeg = startAngle + (index * step);
-        const rad = angleDeg * Math.PI / 180;
         
         // Distance du centre: rayon planète + un peu moins pour chevaucher
         const dist = (size / 2) * 0.85; 
-        
-        const x = Math.cos(rad) * dist;
-        const y = Math.sin(rad) * dist;
+        const { x, y } = polarToCartesian(0, 0, dist, angleDeg);
         
         // Conversion en top/left par rapport au coin haut-gauche (0,0) du conteneur
         const top = (size / 2) + y - (satSize / 2);
@@ -897,10 +909,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                  const startAngle = centerAngle - (totalArcAngle / 2);
                  
                  const angleDeg = startAngle + (i * stepDeg);
-                 const rad = angleDeg * Math.PI / 180;
+                 const { x, y } = polarToCartesian(0, 0, orbitRadius, angleDeg);
                  return {
-                   x: Math.cos(rad) * orbitRadius,
-                   y: Math.sin(rad) * orbitRadius,
+                   x, y,
                    angle: angleDeg
                  };
               });
@@ -915,10 +926,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     ? startAngle + (i) * ((endAngle - startAngle) / (count - 1))
                     : 240;
 
-                 const rad = angleDeg * Math.PI / 180;
+                 const { x, y } = polarToCartesian(0, 0, landRadius, angleDeg);
                  return {
-                   x: Math.cos(rad) * landRadius,
-                   y: Math.sin(rad) * landRadius,
+                   x, y,
                    angle: angleDeg
                  };
               });
@@ -949,26 +959,19 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                   {orbitPositions.length > 1 && (() => {
                     const startAngle = orbitPositions[0].angle;
                     const endAngle = orbitPositions[orbitPositions.length - 1].angle;
-                    const startRad = startAngle * Math.PI / 180;
-                    const endRad = endAngle * Math.PI / 180;
                     
                     const innerR = orbitRadius - orbiterCircleRadius;
                     const outerR = orbitRadius + orbiterCircleRadius;
                     
-                    const ix1 = Math.cos(startRad) * innerR;
-                    const iy1 = Math.sin(startRad) * innerR;
-                    const ix2 = Math.cos(endRad) * innerR;
-                    const iy2 = Math.sin(endRad) * innerR;
-                    
-                    const ox1 = Math.cos(startRad) * outerR;
-                    const oy1 = Math.sin(startRad) * outerR;
-                    const ox2 = Math.cos(endRad) * outerR;
-                    const oy2 = Math.sin(endRad) * outerR;
+                    const innerStart = polarToCartesian(0, 0, innerR, startAngle);
+                    const innerEnd = polarToCartesian(0, 0, innerR, endAngle);
+                    const outerStart = polarToCartesian(0, 0, outerR, startAngle);
+                    const outerEnd = polarToCartesian(0, 0, outerR, endAngle);
                     
                     return (
                       <>
-                        <path d={`M ${ix1} ${iy1} A ${innerR} ${innerR} 0 0 1 ${ix2} ${iy2}`} fill="none" stroke={`url(#corridor-grad-${planetData.id})`} strokeWidth="2" />
-                        <path d={`M ${ox1} ${oy1} A ${outerR} ${outerR} 0 0 1 ${ox2} ${oy2}`} fill="none" stroke={`url(#corridor-grad-${planetData.id})`} strokeWidth="2" />
+                        <path d={`M ${innerStart.x} ${innerStart.y} A ${innerR} ${innerR} 0 0 1 ${innerEnd.x} ${innerEnd.y}`} fill="none" stroke={`url(#corridor-grad-${planetData.id})`} strokeWidth="2" />
+                        <path d={`M ${outerStart.x} ${outerStart.y} A ${outerR} ${outerR} 0 0 1 ${outerEnd.x} ${outerEnd.y}`} fill="none" stroke={`url(#corridor-grad-${planetData.id})`} strokeWidth="2" />
                       </>
                     );
                   })()}
@@ -977,26 +980,19 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                   {landPositions.length > 1 && (() => {
                     const startAngle = landPositions[0].angle;
                     const endAngle = landPositions[landPositions.length - 1].angle;
-                    const startRad = startAngle * Math.PI / 180;
-                    const endRad = endAngle * Math.PI / 180;
                     
                     const innerR = landRadius - landerCircleRadius;
                     const outerR = landRadius + landerCircleRadius;
                     
-                    const ix1 = Math.cos(startRad) * innerR;
-                    const iy1 = Math.sin(startRad) * innerR;
-                    const ix2 = Math.cos(endRad) * innerR;
-                    const iy2 = Math.sin(endRad) * innerR;
-                    
-                    const ox1 = Math.cos(startRad) * outerR;
-                    const oy1 = Math.sin(startRad) * outerR;
-                    const ox2 = Math.cos(endRad) * outerR;
-                    const oy2 = Math.sin(endRad) * outerR;
+                    const innerStart = polarToCartesian(0, 0, innerR, startAngle);
+                    const innerEnd = polarToCartesian(0, 0, innerR, endAngle);
+                    const outerStart = polarToCartesian(0, 0, outerR, startAngle);
+                    const outerEnd = polarToCartesian(0, 0, outerR, endAngle);
                     
                     return (
                       <>
-                        <path d={`M ${ix1} ${iy1} A ${innerR} ${innerR} 0 0 1 ${ix2} ${iy2}`} fill="none" stroke={`url(#land-corridor-grad-${planetData.id})`} strokeWidth="2" />
-                        <path d={`M ${ox1} ${oy1} A ${outerR} ${outerR} 0 0 1 ${ox2} ${oy2}`} fill="none" stroke={`url(#land-corridor-grad-${planetData.id})`} strokeWidth="2" />
+                        <path d={`M ${innerStart.x} ${innerStart.y} A ${innerR} ${innerR} 0 0 1 ${innerEnd.x} ${innerEnd.y}`} fill="none" stroke={`url(#land-corridor-grad-${planetData.id})`} strokeWidth="2" />
+                        <path d={`M ${outerStart.x} ${outerStart.y} A ${outerR} ${outerR} 0 0 1 ${outerEnd.x} ${outerEnd.y}`} fill="none" stroke={`url(#land-corridor-grad-${planetData.id})`} strokeWidth="2" />
                       </>
                     );
                   })()}
@@ -1113,7 +1109,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   };
 
   // Helper pour formater les bonus
-  const formatBonus = (bonus: any) => {
+  const formatBonus = (bonus: Bonus) => {
     if (!bonus) return null;
     const items = [];
     if (bonus.pv) items.push(`${bonus.pv} PV`);
@@ -1123,12 +1119,17 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     if (bonus.card) items.push(`${bonus.card} Pioche`);
     if (bonus.data) items.push(`${bonus.data} Donnée`);
     if (bonus.planetscan) items.push(`${bonus.planetscan} Scan (Planète)`);
+    if (bonus.redscan) items.push(`${bonus.redscan} Scan Rouge`);
+    if (bonus.yellowscan) items.push(`${bonus.yellowscan} Scan Jaune`);
+    if (bonus.bluescan) items.push(`${bonus.bluescan} Scan Bleu`);
+    if (bonus.blackscan) items.push(`${bonus.blackscan} Scan Noir`);
     if (bonus.revenue) items.push(`${bonus.revenue} Réservation`);
     if (bonus.anycard) items.push(`${bonus.anycard} Carte`);
     if (bonus.redlifetrace) items.push(`Trace Rouge`);
     if (bonus.yellowlifetrace) items.push(`Trace Jaune`);
     if (bonus.bluelifetrace) items.push(`Trace Bleu`);
     if (bonus.anytechnology) items.push(`${bonus.anytechnology} Tech`);
+    if (bonus.probe) items.push(`${bonus.probe} Sonde`);
     return items;
   };
 
@@ -1623,8 +1624,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           const random1 = seededRandom(seed + i);
           const random2 = seededRandom(seed + i + 100);
           const distance = spread * (0.5 + random1 * 0.5);
-          const asteroidX = Math.cos(angle * Math.PI / 180) * distance;
-          const asteroidY = Math.sin(angle * Math.PI / 180) * distance;
+          const { x: asteroidX, y: asteroidY } = polarToCartesian(0, 0, distance, angle);
           const size = 4 + random2 * 4;
 
           return (
@@ -2481,10 +2481,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
             const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2; // -22.5°, -67.5°, etc.
             const labelRadius = 47; // Position à 47% du centre (juste après le cercle E)
             // Convertir l'angle en radians pour le positionnement
-            // En CSS, 0° = droite (3h), donc on soustrait 90° pour avoir 0° = haut (12h)
-            const radian = (sectorCenterAngle - 90) * (Math.PI / 180);
-            const x = Math.cos(radian) * labelRadius;
-            const y = Math.sin(radian) * labelRadius;
+            const { x, y } = polarToCartesian(0, 0, labelRadius, sectorCenterAngle - 90);
             
             return (
               <div
