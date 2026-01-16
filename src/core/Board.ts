@@ -13,6 +13,7 @@ import {
   SolarSystem,
   Sector,
   Planet,
+  PlanetBonus,
   TechnologyBoard,
   RotationDisk,
   TechnologyCategory,
@@ -117,7 +118,7 @@ export class BoardManager {
     const shuffledPlates = this.shuffle(plates);
 
     // Aplatir pour obtenir la séquence des 8 secteurs
-    const sectorSequence: { name: string, color: SectorColor, slots: number }[] = [];
+    const sectorSequence: { name: string, color: SectorColor, slots: number, firstBonus: PlanetBonus, nextBonus: PlanetBonus }[] = [];
     shuffledPlates.forEach(plate => {
       sectorSequence.push(plate.left);
       sectorSequence.push(plate.right);
@@ -141,7 +142,9 @@ export class BoardManager {
         coveredAt: 0, // Initialisé à 0 (non couvert)
         signals: this.createSignals(config.slots),
         playerMarkers: [],
-        isCovered: false
+        isCovered: false,
+        firstBonus: config.firstBonus,
+        nextBonus: config.nextBonus
       };
     });
   }
@@ -161,7 +164,8 @@ export class BoardManager {
     signals.push({
       id: `sig_white_${Math.random().toString(36).substr(2, 9)}`,
       type: SignalType.OTHER,
-      marked: false
+      marked: false,
+      bonus: undefined
     });
 
     return signals;

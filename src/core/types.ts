@@ -237,6 +237,8 @@ export interface Sector {
   playerMarkers: PlayerMarker[];
   coveredBy?: string;
   isCovered: boolean;
+  firstBonus: PlanetBonus;
+  nextBonus: PlanetBonus;
 }
 
 export interface Signal {

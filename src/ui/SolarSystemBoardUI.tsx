@@ -1125,9 +1125,11 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     if (bonus.planetscan) items.push(`${bonus.planetscan} Scan (Planète)`);
     if (bonus.revenue) items.push(`${bonus.revenue} Réservation`);
     if (bonus.anycard) items.push(`${bonus.anycard} Carte`);
+    if (bonus.redlifetrace) items.push(`Trace Rouge`);
     if (bonus.yellowlifetrace) items.push(`Trace Jaune`);
+    if (bonus.bluelifetrace) items.push(`Trace Bleu`);
     if (bonus.anytechnology) items.push(`${bonus.anytechnology} Tech`);
-    return items.join(', ');
+    return items;
   };
 
   // Fonction helper pour rendre une planète
@@ -1456,6 +1458,36 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           };
           const color = colorMap[sector.color] || '#fff';
 
+          // Préparation du tooltip Secteur
+          const uniquePlayers = new Set(sector.playerMarkers.map(m => m.playerId)).size;
+          const mediaBonusText = uniquePlayers > 0 
+            ? `${uniquePlayers} Média${uniquePlayers > 1 ? 's' : ''} (1 par joueur présent)` 
+            : "1 Média par joueur présent";
+
+          const firstBonusStr = formatBonus(sector.firstBonus) || 'Aucun';
+          const nextBonusStr = formatBonus(sector.nextBonus) || 'Aucun';
+          
+          let bonusDisplay;
+          if (firstBonusStr === nextBonusStr) {
+             bonusDisplay = <div style={{fontSize: '0.9em', color: '#ffd700'}}>Bonus de couverture : {firstBonusStr}</div>;
+          } else {
+             bonusDisplay = (
+               <div style={{fontSize: '0.9em', color: '#ffd700'}}>
+                 <div>1ère couverture : {firstBonusStr}</div>
+                 <div>Suivantes : {nextBonusStr}</div>
+               </div>
+             );
+          }
+
+          const sectorTooltipContent = (
+            <div style={{ textAlign: 'left' }}>
+                <div style={{fontWeight: 'bold', borderBottom: '1px solid #ccc', marginBottom: '4px', color: color}}>{sector.name.toUpperCase()}</div>
+                <div style={{fontSize: '0.9em', marginBottom: '4px'}}>Gains à la couverture :</div>
+                <div style={{fontSize: '0.9em', color: '#ff6b6b'}}>• {mediaBonusText}</div>
+                {bonusDisplay}
+            </div>
+          );
+
           // Couloir des slots (toujours sens horaire pour le dessin)
           const slotCount = sector.signals.length;
           const slotSpacing = 5; // degrés entre les slots
@@ -1476,8 +1508,46 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
              const strokeColor = isWhiteSlot ? '#ffffff' : color;
              const fillColor = player ? player.color : (isWhiteSlot ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0,0,0,0.3)');
              
+             // Les slots se remplissent dans l'ordre : un slot est disponible si le précédent est marqué (ou si c'est le premier)
+             const isNextAvailable = !signal.marked && (idx === 0 || sector.signals[idx-1].marked);
+             const isDisabled = !signal.marked && !isNextAvailable;
+             const opacity = isDisabled ? 0.2 : 1;
+
+             // Préparation du tooltip Slot
+             const baseGain = isWhiteSlot ? [] : ["1 Donnée"];
+             const bonusGain = signal.bonus ? formatBonus(signal.bonus) : null;
+             const gains = [...baseGain, ...(bonusGain || [])];
+
+             let stateText = "Disponible";
+             let stateColor = "#4a9eff";
+             if (signal.marked) {
+                 const markerPlayer = game.players.find(p => p.id === signal.markedBy);
+                 stateText = `Analysé par ${markerPlayer?.name || 'Inconnu'}`;
+                 stateColor = markerPlayer?.color || "#ccc";
+             } else if (isDisabled) {
+                 stateText = "Indisponible (nécessite le précédent)";
+                 stateColor = "#ff6b6b";
+             }
+
+             const slotTooltipContent = (
+                 <div>
+                     <div style={{fontWeight: 'bold', color: stateColor, marginBottom: '4px'}}>{stateText}</div>
+                     {gains.length > 0 ? (
+                         <div style={{fontSize: '0.9em'}}>Gain(s) : <span style={{color: '#ffd700'}}>{gains.join(', ')}</span></div>
+                     ) : (
+                         <div style={{fontSize: '0.9em', fontStyle: 'italic', color: '#aaa'}}>Aucun gain immédiat</div>
+                     )}
+                 </div>
+             );
+
              return (
-               <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`}>
+               <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`} style={{ opacity, cursor: 'help', pointerEvents: 'auto' }}
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setSlotTooltip({ content: slotTooltipContent, rect });
+                  }}
+                  onMouseLeave={() => setSlotTooltip(null)}
+               >
                  <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" />
                  {!player && signal.bonus && (
                    <g transform="scale(0.25)">
@@ -1493,7 +1563,13 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                <defs>
                  <path id={textPathId} d={textArc} />
                </defs>
-               <text fill={color} fontSize="2.5" fontWeight="bold" letterSpacing="0.5" opacity="0.9">
+               <text fill={color} fontSize="2.5" fontWeight="bold" letterSpacing="0.5" opacity="0.9" style={{ cursor: 'help', pointerEvents: 'auto' }}
+                  onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setSlotTooltip({ content: sectorTooltipContent, rect });
+                  }}
+                  onMouseLeave={() => setSlotTooltip(null)}
+               >
                  <textPath href={`#${textPathId}`} startOffset="50%" textAnchor="middle">
                    {sector.name.toUpperCase()}
                  </textPath>
