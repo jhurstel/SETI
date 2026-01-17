@@ -445,10 +445,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   const mediaFlash = useResourceFlash(currentPlayer.mediaCoverage, currentPlayer.id);
   const creditFlash = useResourceFlash(currentPlayer.credits, currentPlayer.id);
   const energyFlash = useResourceFlash(currentPlayer.energy, currentPlayer.id);
-  const dataFlash = useResourceFlash(currentPlayer.data, currentPlayer.id);
   const revenueCreditFlash = useResourceFlash(currentPlayer.revenueCredits, currentPlayer.id);
   const revenueEnergyFlash = useResourceFlash(currentPlayer.revenueEnergy, currentPlayer.id);
   const revenueCardFlash = useResourceFlash(currentPlayer.revenueCards, currentPlayer.id);
+  const dataFlash = useResourceFlash(currentPlayer.data, currentPlayer.id);
   const cardsFlash = useResourceFlash((currentPlayer.cards || []).length, currentPlayer.id);
 
   const actionAvailability: Record<ActionType, boolean> = {
@@ -466,43 +466,31 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   const getActionTooltip = (actionType: ActionType): string => {
     const hasProbeOnPlanetInfo = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id)
 
+    if (isRobot) return "Tour du robot";
+    if (hasPerformedMainAction) return "Action principale déjà effectuée";
+
     switch (actionType) {
       case ActionType.LAUNCH_PROBE:
-        if (isRobot) return "Tour du robot";
-        if (hasPerformedMainAction) return "Action principale déjà effectuée";
-
         const launchCheck = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
         if (!launchCheck.canLaunch) return launchCheck.reason || "Impossible de lancer une sonde";
         return `Lancer une sonde depuis la Terre (coût: ${GAME_CONSTANTS.PROBE_LAUNCH_COST} crédits)`;
 
       case ActionType.ORBIT:
-        if (isRobot) return "Tour du robot";
-        if (hasPerformedMainAction) return "Action principale déjà effectuée";
-        
         const orbitProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
         if (!orbitProbe) return 'Nécessite une sonde dans le système solaire';
-
         const orbitCheck = ProbeSystem.canOrbit(game, currentPlayer.id, orbitProbe.id);
         if (!orbitCheck.canOrbit) return orbitCheck.reason || "Impossible";
-        
         return `Mettre une sonde en orbite (coût: ${GAME_CONSTANTS.ORBIT_COST_CREDITS} crédit, ${GAME_CONSTANTS.ORBIT_COST_ENERGY} énergie)`;
       
       case ActionType.LAND:
-        if (isRobot) return "Tour du robot";
-        if (hasPerformedMainAction) return "Action principale déjà effectuée";
-        
         const landProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
         if (!landProbe) return 'Nécessite une sonde dans le système solaire';
-
         const landCheck = ProbeSystem.canLand(game, currentPlayer.id, landProbe.id);
         if (!landCheck.canLand) return landCheck.reason || "Impossible";
-
         return `Poser une sonde sur une planète (coût: ${landCheck.energyCost} énergie${hasProbeOnPlanetInfo.hasOrbiter ? ', orbiteur présent' : ''}${hasProbeOnPlanetInfo.hasExploration3 ? ', réduction exploration 3' : ''})`;
 
       case ActionType.SCAN_SECTOR:
-        if (currentPlayer.credits < 1 || currentPlayer.energy < 2) {
-          return `Nécessite 1 crédit et 2 énergies (vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s))`;
-        }
+        if (currentPlayer.credits < 1 || currentPlayer.energy < 2) return `Nécessite 1 crédit et 2 énergies (vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s))`;
         return 'Scanner un secteur (coût: 1 crédit, 2 énergies)';
 
       case ActionType.ANALYZE_DATA:
@@ -511,18 +499,12 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         return 'Analyser des données (coût: 1 énergie)';
 
       case ActionType.RESEARCH_TECH:
-        if (isRobot) return "Tour du robot";
-        if (hasPerformedMainAction) return "Action principale déjà effectuée";
         if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) return `Nécessite ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} points de couverture médiatique (vous avez ${currentPlayer.mediaCoverage})`;
         return `Rechercher une technologie (coût: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} couverture médiatique)`;
 
       case ActionType.PLAY_CARD:
-        if (isRobot) return "Tour du robot";
-        if (hasPerformedMainAction) return "Action principale déjà effectuée";
-        
         const cardCheck = CardSystem.canPlayCards(game, currentPlayer.id);
         if (!cardCheck.canPlay) return cardCheck.reason || "Impossible";
-
         return `Joueur une carte de votre main`;
         
       default:
@@ -531,8 +513,64 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   };
 
   const canBuyCardAction = currentPlayer.mediaCoverage >= 3;
-  const canStartTrade = tradeState.phase === 'inactive' && (currentPlayer.credits >= 2 || currentPlayer.energy >= 2 || (currentPlayer.cards || []).length >= 2);
-  const canSpendCards = tradeState.phase === 'spending' && (currentPlayer.cards || []).length >= 2;
+  const canSpendCards = (currentPlayer.cards || []).length >= 2;
+
+  // Helper pour les boutons d'action (factorisé)
+  const renderActionButton = (
+    icon: string,
+    tooltip: string,
+    onClick: (e: React.MouseEvent) => void,
+    disabled: boolean,
+    color: string = '#fff',
+    style: React.CSSProperties = {}
+  ) => {
+    return (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!disabled) onClick(e);
+        }}
+        disabled={disabled}
+        style={{
+          backgroundColor: !disabled ? '#333' : '#222',
+          color: !disabled ? color : '#555',
+          border: !disabled ? '1px solid #555' : '1px solid #333',
+          borderRadius: '6px',
+          padding: '0',
+          width: '30px',
+          height: '20px',
+          fontSize: '0.8rem',
+          cursor: !disabled ? 'pointer' : 'default',
+          fontWeight: 'normal',
+          boxShadow: !disabled ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
+          transition: 'all 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          lineHeight: 1,
+          ...style
+        }}
+        onMouseEnter={(e) => {
+          handleTooltipHover(e, tooltip);
+          if (disabled) return;
+          const target = e.currentTarget as HTMLButtonElement;
+          target.style.borderColor = '#4a9eff';
+          target.style.backgroundColor = '#444';
+          target.style.boxShadow = '0 0 5px rgba(74, 158, 255, 0.3)';
+        }}
+        onMouseLeave={(e) => {
+          handleTooltipLeave();
+          if (disabled) return;
+          const target = e.currentTarget as HTMLButtonElement;
+          target.style.borderColor = '#555';
+          target.style.backgroundColor = '#333';
+          target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
+        }}
+      >
+        {icon}
+      </button>
+    );
+  };
 
   // Helper pour les boutons d'échange rapide
   const renderTradeButton = (spendType: string, gainType: string, icon: string, tooltip: string, canSpend: boolean) => {
@@ -540,109 +578,29 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     
     const canTrade = isCurrentTurn && !isInteractiveMode && canSpend;
     
-    return (
-        <button
-            onClick={(e) => {
-                e.stopPropagation();
-                if (canTrade && onDirectTrade) {
-                    onDirectTrade(spendType, gainType);
-                }
-            }}
-            disabled={!canTrade}
-            style={{
-                backgroundColor: canTrade ? '#333' : '#222',
-                color: canTrade ? '#ffd700' : '#555',
-                border: canTrade ? '1px solid #555' : '1px solid #333',
-                borderRadius: '6px',
-                padding: '0',
-                width: '30px',
-                height: '20px',
-                fontSize: '1.1rem',
-                cursor: canTrade ? 'pointer' : 'default',
-                fontWeight: 'normal',
-                boxShadow: canTrade ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
-                transition: 'all 0.2s',
-                marginLeft: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                lineHeight: 1,
-            }}
-            onMouseEnter={(e) => {
-                handleTooltipHover(e, tooltip);
-                if (!canTrade) return;
-                const target = e.currentTarget as HTMLButtonElement;
-                target.style.borderColor = '#4a9eff';
-                target.style.backgroundColor = '#444';
-                target.style.boxShadow = '0 0 5px rgba(74, 158, 255, 0.3)';
-            }}
-            onMouseLeave={(e) => {
-                handleTooltipLeave();
-                if (!canTrade) return;
-                const target = e.currentTarget as HTMLButtonElement;
-                target.style.borderColor = '#555';
-                target.style.backgroundColor = '#333';
-                target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
-            }}
-        >
-            {icon}
-        </button>
+    return renderActionButton(
+        icon, 
+        tooltip, 
+        () => onDirectTrade && onDirectTrade(spendType, gainType), 
+        !canTrade, 
+        canTrade ? '#ffd700' : '#555',
+        { marginLeft: '4px' }
     );
   };
 
   // Helper pour les boutons d'échange de cartes (initie la sélection)
-  const renderCardTradeButton = (gainType: string, icon: string, tooltip: string) => {
+  const renderCardTradeButton = (gainType: string, icon: string, tooltip: string, style?: React.CSSProperties) => {
     if (isRobot) return null;
     const cardCount = (currentPlayer.cards || []).length;
     const canTrade = isCurrentTurn && !isInteractiveMode && cardCount >= 2;
     
-    return (
-        <button
-            onClick={(e) => {
-                e.stopPropagation();
-                if (canTrade && onTradeResourcesAction) {
-                    onTradeResourcesAction(gainType);
-                }
-            }}
-            disabled={!canTrade}
-            style={{
-                backgroundColor: canTrade ? '#333' : '#222',
-                color: canTrade ? '#ffd700' : '#555',
-                border: canTrade ? '1px solid #555' : '1px solid #333',
-                borderRadius: '6px',
-                padding: '0',
-                width: '30px',
-                height: '20px',
-                fontSize: '1.1rem',
-                cursor: canTrade ? 'pointer' : 'default',
-                fontWeight: 'normal',
-                boxShadow: canTrade ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
-                transition: 'all 0.2s',
-                marginLeft: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                lineHeight: 1,
-            }}
-            onMouseEnter={(e) => {
-                handleTooltipHover(e, tooltip);
-                if (!canTrade) return;
-                const target = e.currentTarget as HTMLButtonElement;
-                target.style.borderColor = '#4a9eff';
-                target.style.backgroundColor = '#444';
-                target.style.boxShadow = '0 0 5px rgba(74, 158, 255, 0.3)';
-            }}
-            onMouseLeave={(e) => {
-                handleTooltipLeave();
-                if (!canTrade) return;
-                const target = e.currentTarget as HTMLButtonElement;
-                target.style.borderColor = '#555';
-                target.style.backgroundColor = '#333';
-                target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
-            }}
-        >
-            {icon}
-        </button>
+    return renderActionButton(
+        icon,
+        tooltip,
+        () => onTradeResourcesAction && onTradeResourcesAction(gainType),
+        !canTrade,
+        canTrade ? '#ffd700' : '#555',
+        { marginLeft: '4px', ...style }
     );
   };
 
@@ -748,58 +706,16 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
             >
               <span>Média (<span style={{color: '#ff6b6b'}}>🎤</span>):</span>
               {!isRobot && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isCurrentTurn && canBuyCardAction && !isInteractiveMode && onBuyCardAction) {
-                    onBuyCardAction();
-                  }
-                }}
-                disabled={!isCurrentTurn || !canBuyCardAction || isInteractiveMode}
-                style={{
-                  backgroundColor: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '#333' : '#222',
-                  color: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '#fff' : '#555',
-                  border: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '1px solid #555' : '1px solid #333',
-                  borderRadius: '6px',
-                  padding: '0',
-                  width: '30px',
-                  height: '20px',
-                  fontSize: '1.1rem',
-                  cursor: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? 'pointer' : 'default',
-                  fontWeight: 'normal',
-                  boxShadow: (isCurrentTurn && canBuyCardAction && !isInteractiveMode) ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
-                  transition: 'all 0.2s',
-                  marginRight: '5px',
-                  marginLeft: 'auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  lineHeight: 1
-                }}
-                onMouseEnter={(e) => {
-                  const tooltipText = canBuyCardAction && !isInteractiveMode 
-                    ? "Vous gagnez 1 carte de la pioche ou de la rangée principale (cout: 3 media)" 
-                    : "Nécessite 3 couverture médiatique ou action impossible";
-                  handleTooltipHover(e, tooltipText);
-
-                  if (!isCurrentTurn || !canBuyCardAction || isInteractiveMode) return;
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.borderColor = '#4a9eff';
-                  target.style.backgroundColor = '#444';
-                  target.style.boxShadow = '0 0 10px rgba(74, 158, 255, 0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  handleTooltipLeave();
-
-                  if (!isCurrentTurn || !canBuyCardAction || isInteractiveMode) return;
-                  const target = e.currentTarget as HTMLButtonElement;
-                  target.style.borderColor = '#555';
-                  target.style.backgroundColor = '#333';
-                  target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
-                }}
-              >
-                🛒
-              </button>
+                  renderActionButton(
+                      '🛒',
+                      canBuyCardAction && !isInteractiveMode 
+                        ? "Acheter 1 carte de la pioche ou de la rangée principale (cout: 3 Médias)" 
+                        : "Nécessite 3 couverture médiatique ou action impossible",
+                      () => onBuyCardAction && onBuyCardAction(),
+                      !isCurrentTurn || !canBuyCardAction || isInteractiveMode,
+                      '#fff',
+                      { marginRight: '10px', marginLeft: 'auto' }
+                  )
               )}
               <strong>{currentPlayer.mediaCoverage}</strong>
             </div>
@@ -954,7 +870,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               <strong style={{ color: '#fff', marginLeft: '6px' }}>{(currentPlayer.cards || []).length}</strong>
               {!isRobot && (
                   <>
-                    {renderCardTradeButton('credit', '₢', 'Echanger 2 Cartes contre 1 Crédit')}
+                    {renderCardTradeButton('credit', '₢', 'Echanger 2 Cartes contre 1 Crédit', { marginLeft: '10px' })}
                     {renderCardTradeButton('energy', '⚡', 'Echanger 2 Cartes contre 1 Énergie')}
                   </>
               )}
@@ -1021,20 +937,22 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                   if (!(currentPlayer.probes || []).some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
                     canPerformFreeActionType = false;
                     actionTooltip = "Nécessite une sonde dans le système solaire";
+                  } else {
+                    actionTooltip = "Défausser pour gagner 1 Déplacement";
                   }
                 } else if (isDataAction) {
                   if ((currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
                     canPerformFreeActionType = false;
                     actionTooltip = "Nécessite de transférer des données";
                   } else {
-                    actionTooltip = "Vous gagnez 1 data";
+                    actionTooltip = "Défausser pour gagner 1 Donnée";
                   }
                 } else if (isMediaAction) {
                   if (currentPlayer.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
                     canPerformFreeActionType = false;
                     actionTooltip = "Média au maximum";
                   } else {
-                    actionTooltip = "Vous gagnez 1 media";
+                    actionTooltip = "Défausser pour gagner 1 Média";
                   }
                 }
 
@@ -1091,86 +1009,32 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                   >
                     {isHighlighted && tradeState.phase === 'inactive' && !isDiscarding && !reservationState.active && (
                       <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (canPlay && onPlayCard) {
-                            onPlayCard(card.id);
-                            setHighlightedCardId(null);
-                          }
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!canPlay) return;
-                          const target = e.currentTarget as HTMLButtonElement;
-                          target.style.backgroundColor = '#6bb3ff';
-                          target.style.transform = 'scale(1.05)';
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!canPlay) return;
-                          const target = e.currentTarget as HTMLButtonElement;
-                          target.style.backgroundColor = '#4a9eff';
-                          target.style.transform = 'scale(1)';
-                        }}
-                        title={playTooltip}
-                        style={{
-                          position: 'absolute',
-                          top: '5px',
-                          right: '85px',
-                          zIndex: 10,
-                          backgroundColor: canPlay ? '#4a9eff' : '#555',
-                          color: canPlay ? 'white' : '#aaa',
-                          border: canPlay ? '2px solid #6bb3ff' : '2px solid #444',
-                          borderRadius: '6px',
-                          padding: '3px 12px',
-                          fontSize: '0.65rem',
-                          cursor: canPlay ? 'pointer' : 'not-allowed',
-                          fontWeight: 'normal',
-                          boxShadow: canPlay ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
-                          transition: 'all 0.2s',
-                        }}
-                      >
-                        Jouer
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (canPerformFreeActionType && onDiscardCardAction) {
-                            onDiscardCardAction(card.id);
-                            setHighlightedCardId(null);
-                          }
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!canPerformFreeActionType) return;
-                          const target = e.currentTarget as HTMLButtonElement;
-                          target.style.backgroundColor = '#6bb3ff';
-                          target.style.transform = 'scale(1.05)';
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!canPerformFreeActionType) return;
-                          const target = e.currentTarget as HTMLButtonElement;
-                          target.style.backgroundColor = '#4a9eff';
-                          target.style.transform = 'scale(1)';
-                        }}
-                        title={actionTooltip}
-                        style={{
-                          position: 'absolute',
-                          top: '5px',
-                          right: '5px',
-                          zIndex: 10,
-                          backgroundColor: canPerformFreeActionType ? '#4a9eff' : '#555',
-                          color: canPerformFreeActionType ? 'white' : '#aaa',
-                          border: canPerformFreeActionType ? '2px solid #6bb3ff' : '2px solid #444',
-                          borderRadius: '6px',
-                          padding: '3px 12px',
-                          fontSize: '0.65rem',
-                          cursor: canPerformFreeActionType ? 'pointer' : 'not-allowed',
-                          fontWeight: 'normal',
-                          boxShadow: canPerformFreeActionType ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
-                          transition: 'all 0.2s',
-                        }}
-                      >
-                        Défausser
-                      </button>
+                      {renderActionButton(
+                          '▶️',
+                          playTooltip,
+                          () => {
+                              if (canPlay && onPlayCard) {
+                                  onPlayCard(card.id);
+                                  setHighlightedCardId(null);
+                              }
+                          },
+                          !canPlay,
+                          '#4a9eff',
+                          { position: 'absolute', top: '5px', right: '40px', zIndex: 10 }
+                      )}
+                      {renderActionButton(
+                          '🗑️',
+                          actionTooltip,
+                          () => {
+                              if (canPerformFreeActionType && onDiscardCardAction) {
+                                  onDiscardCardAction(card.id);
+                                  setHighlightedCardId(null);
+                              }
+                          },
+                          !canPerformFreeActionType,
+                          '#ff6b6b',
+                          { position: 'absolute', top: '5px', right: '5px', zIndex: 10 }
+                      )}
                       </>
                     )}
                     <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}>

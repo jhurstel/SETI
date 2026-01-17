@@ -2443,7 +2443,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       animation: 'cardAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
                     }}>
                       <div style={{ fontWeight: 'bold', color: '#fff', lineHeight: '1.1', marginBottom: '4px', fontSize: '0.75rem', height: '2.2em', overflow: 'hidden' }}>{card.name}</div>
-                      <div style={{ fontSize: '0.75em', color: '#aaa' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></div>
+                      <div style={{ fontSize: '0.75em', color: '#aaa' }}>Jouer la carte (coût: <span style={{ color: '#ffd700' }}>{card.cost}</span>)</div>
                       {card.description && <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', margin: '4px 0', lineHeight: '1.2', flex: 1, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', color: '#ddd', marginBottom: '2px' }}>
                           {card.freeAction && <div>Act: {card.freeAction}</div>}

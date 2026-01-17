@@ -379,7 +379,7 @@ export class CardSystem {
     }
 
     if (player.credits < card.cost) {
-      return { canPlay: false, reason: `Crédits insuffisants (coût: ${card.cost})` };
+      return { canPlay: false, reason: `Crédits insuffisants (coût: ${card.cost} crédit${card.cost > 1 ? 's' : ''})` };
     }
 
     // Vérification si la carte donne des déplacements
@@ -392,7 +392,7 @@ export class CardSystem {
     }
 
     // TODO: Ajouter d'autres conditions de carte ici
-    return { canPlay: true, reason: `Coût: ${card.cost} crédits` };
+    return { canPlay: true, reason: `Jouer la carte (coût: ${card.cost} crédit${card.cost > 1 ? 's' : ''})` };
   }
 
   static discardToHandSize(player: Player, cardIdsToKeep: string[]): Player {
