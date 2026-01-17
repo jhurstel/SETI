@@ -17,9 +17,9 @@ interface PlayerBoardUIProps {
   onDiscardCardAction?: (cardId: string) => void;
   onPlayCard?: (cardId: string) => void;
   onBuyCardAction?: () => void;
-  onTradeResourcesAction?: (targetGain?: string) => void;
-  tradeState?: { phase: 'inactive' | 'spending', spend?: { type: string, cardIds?: string[] } };
-  onSpendSelection?: (resource: string, cardIds?: string[]) => void;
+  onTradeCardAction?: (targetGain?: string) => void;
+  isTrading?: boolean;
+  onConfirmTrade?: () => void;
   onCancelTrade?: () => void;
   onGameUpdate?: (game: Game) => void;
   onDrawCard?: (count: number, source: string) => void;
@@ -30,10 +30,11 @@ interface PlayerBoardUIProps {
   onNextPlayer?: () => void;
   onHistory?: (message: string) => void;
   onComputerBonus?: (type: string, amount: number) => void;
-  reservationState?: { active: boolean; count: number };
-  onReserveCard?: (cardId: string) => void;
+  isReserving?: boolean;
+  reservationCount?: number;
+  onConfirmReservation?: () => void;
   isPlacingLifeTrace?: boolean;
-  onDirectTrade?: (spendType: string, gainType: string) => void;
+  onDirectTradeAction?: (spendType: string, gainType: string) => void;
 }
 
 const ACTION_NAMES: Record<ActionType, string> = {
@@ -284,7 +285,7 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, onViewPlayer, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeResourcesAction, tradeState = { phase: 'inactive' }, onSpendSelection, onCancelTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, reservationState = { active: false, count: 0 }, onReserveCard, isPlacingLifeTrace = false, onDirectTrade }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, onViewPlayer, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, isTrading = false, onConfirmTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, isReserving = false, reservationCount = 0, onConfirmReservation, isPlacingLifeTrace = false, onDirectTradeAction }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -292,7 +293,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   const isCurrentTurn = game.players[game.currentPlayerIndex].id === currentPlayer.id;
   const isRobot = currentPlayer.type === 'robot';
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
-  const [cardsSelectedForTrade, setCardsSelectedForTrade] = useState<string[]>([]);
   const [customTooltip, setCustomTooltip] = useState<{ content: React.ReactNode, targetRect: DOMRect } | null>(null);
 
   const getSectorColorCode = (color: SectorColor) => {
@@ -331,7 +331,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     setCustomTooltip(null);
   };
   
-  const isInteractiveMode = isDiscarding || tradeState.phase !== 'inactive' || isSelectingComputerSlot || isAnalyzing || reservationState.active || isPlacingLifeTrace;
+  const isInteractiveMode = isDiscarding || isTrading || isReserving || isSelectingComputerSlot || isAnalyzing || isPlacingLifeTrace;
 
   // Suivi des changements de ressources pour la notification sur les onglets
   const [tabFlashes, setTabFlashes] = useState<Record<string, boolean>>({});
@@ -369,12 +369,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
 
   // Effect to reset selection when exiting trading mode
   useEffect(() => {
-    if (tradeState.phase === 'inactive') {
-      setCardsSelectedForTrade([]);
-    } else {
+    if (!isTrading) {
       setHighlightedCardId(null);
     }
-  }, [tradeState.phase]);
+  }, [isTrading]);
 
   const handleComputerBonus = (type: string, amount: number) => {
     if (type === 'reservation') {
@@ -449,7 +447,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   const revenueEnergyFlash = useResourceFlash(currentPlayer.revenueEnergy, currentPlayer.id);
   const revenueCardFlash = useResourceFlash(currentPlayer.revenueCards, currentPlayer.id);
   const dataFlash = useResourceFlash(currentPlayer.data, currentPlayer.id);
-  const cardsFlash = useResourceFlash((currentPlayer.cards || []).length, currentPlayer.id);
+  const cardsFlash = useResourceFlash(currentPlayer.cards.length, currentPlayer.id);
 
   const actionAvailability: Record<ActionType, boolean> = {
     [ActionType.LAUNCH_PROBE]: isCurrentTurn && !isRobot && !hasPerformedMainAction && ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch,
@@ -512,9 +510,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     }
   };
 
-  const canBuyCardAction = currentPlayer.mediaCoverage >= 3;
-  const canSpendCards = (currentPlayer.cards || []).length >= 2;
-
   // Helper pour les boutons d'action (factorisé)
   const renderActionButton = (
     icon: string,
@@ -572,16 +567,30 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     );
   };
 
-  // Helper pour les boutons d'échange rapide
-  const renderTradeButton = (spendType: string, gainType: string, icon: string, tooltip: string, canSpend: boolean) => {
+  // Helper pour le bouton d'achat de carte
+  const renderBuyCardButton = (icon: string, tooltip: string) => {
     if (isRobot) return null;
+    const canBuy = isCurrentTurn && !isInteractiveMode && currentPlayer.mediaCoverage >= 3;
     
+    return renderActionButton(
+        icon,
+        tooltip,
+        () => onBuyCardAction && onBuyCardAction(),
+        !canBuy,
+        canBuy ? '#ffd700' : '#555',
+        { marginLeft: '4px' }
+    );
+  };
+
+  // Helper pour les boutons d'échange rapide
+  const renderDirectTradeButton = (spendType: string, gainType: string, icon: string, tooltip: string, canSpend: boolean) => {
+    if (isRobot) return null;
     const canTrade = isCurrentTurn && !isInteractiveMode && canSpend;
     
     return renderActionButton(
         icon, 
         tooltip, 
-        () => onDirectTrade && onDirectTrade(spendType, gainType), 
+        () => onDirectTradeAction && onDirectTradeAction(spendType, gainType), 
         !canTrade, 
         canTrade ? '#ffd700' : '#555',
         { marginLeft: '4px' }
@@ -591,16 +600,124 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   // Helper pour les boutons d'échange de cartes (initie la sélection)
   const renderCardTradeButton = (gainType: string, icon: string, tooltip: string, style?: React.CSSProperties) => {
     if (isRobot) return null;
-    const cardCount = (currentPlayer.cards || []).length;
-    const canTrade = isCurrentTurn && !isInteractiveMode && cardCount >= 2;
+    const canTrade = isCurrentTurn && !isInteractiveMode && currentPlayer.cards.length >= 2;
     
     return renderActionButton(
         icon,
         tooltip,
-        () => onTradeResourcesAction && onTradeResourcesAction(gainType),
+        () => onTradeCardAction && onTradeCardAction(gainType),
         !canTrade,
         canTrade ? '#ffd700' : '#555',
         { marginLeft: '4px', ...style }
+    );
+  };
+
+  // Helper pour le rendu d'une carte en main (Factorisation)
+  const renderHandCard = (card: Card) => {
+    const isSelectedForDiscard = isDiscarding && selectedCardIds.includes(card.id);
+    const isSelectedForTrade = isTrading && selectedCardIds.includes(card.id);
+    const isSelectedForReservation = isReserving && selectedCardIds.includes(card.id);
+    const isHighlighted = highlightedCardId === card.id;
+    
+    // Détermination de la classe CSS selon la phase
+    let phaseClass = 'seti-card-idle';
+    let isClickable = true;
+
+    if (isReserving) {
+      phaseClass = 'seti-card-interact-mode';
+      if (isSelectedForReservation) {
+        phaseClass += ' selected';
+      } else if (selectedCardIds.length === reservationCount) {
+        phaseClass += ' disabled';
+        isClickable = false;
+      }
+    } else if (isDiscarding) {
+      phaseClass = 'seti-card-interact-mode';
+      if (isSelectedForDiscard) {
+        phaseClass += ' selected';
+      } else if (currentPlayer.cards.length - selectedCardIds.length === 4) {
+        phaseClass += ' disabled';
+        isClickable = false;
+      }
+    } else if (isTrading) {
+      phaseClass = 'seti-card-interact-mode';
+      if (isSelectedForTrade) {
+        phaseClass += ' selected';
+      } else if (selectedCardIds.length >= 2) {
+        phaseClass += ' disabled';
+        isClickable = false;
+      }
+    } else {
+      // Mode IDLE (Jeu normal)
+      if (isHighlighted) {
+        phaseClass += ' selected';
+      }
+    }
+
+    // Logique des boutons d'action (Jouer / Défausser)
+    const isMovementAction = card.freeAction === FreeActionType.MOVEMENT;
+    const isDataAction = card.freeAction === FreeActionType.DATA;
+    const isMediaAction = card.freeAction === FreeActionType.MEDIA;
+    
+    let canPerformFreeActionType = isCurrentTurn;
+    let actionTooltip = "";
+
+    if (!isCurrentTurn) {
+      actionTooltip = "Ce n'est pas votre tour";
+    } else if (isMovementAction) {
+      if (!(currentPlayer.probes || []).some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
+        canPerformFreeActionType = false;
+        actionTooltip = "Nécessite une sonde dans le système solaire";
+      } else {
+        actionTooltip = "Défausser pour gagner 1 Déplacement";
+      }
+    } else if (isDataAction) {
+      if ((currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
+        canPerformFreeActionType = false;
+        actionTooltip = "Nécessite de transférer des données";
+      } else {
+        actionTooltip = "Défausser pour gagner 1 Donnée";
+      }
+    } else if (isMediaAction) {
+      if (currentPlayer.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
+        canPerformFreeActionType = false;
+        actionTooltip = "Média au maximum";
+      } else {
+        actionTooltip = "Défausser pour gagner 1 Média";
+      }
+    }
+
+    const { canPlay, reason: playTooltip } = CardSystem.canPlayCard(game, currentPlayer.id, card);
+
+    return (
+      <div 
+        key={card.id} 
+        className={`seti-common-card seti-card-wrapper ${phaseClass}`}
+        onMouseEnter={(e) => handleTooltipHover(e, renderCardTooltip(card))}
+        onMouseLeave={handleTooltipLeave}
+        onClick={(e) => {
+          if (!isClickable) return;
+          
+          if (isReserving || isTrading || isDiscarding) {
+            if (onCardClick) onCardClick(card.id);
+            return;
+          }
+          
+          // Mode IDLE : Toggle highlight
+          setHighlightedCardId(isHighlighted ? null : card.id);
+        }}
+      >
+        {isHighlighted && !isDiscarding && !isReserving && !isTrading && (
+          <>
+          {renderActionButton('▶️', playTooltip, () => { if (canPlay && onPlayCard) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlay, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 })}
+          {renderActionButton('🗑️', actionTooltip, () => { if (canPerformFreeActionType && onDiscardCardAction) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canPerformFreeActionType, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 })}
+          </>
+        )}
+        <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
+        <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
+        {card.description && <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
+        <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px' }}><div className="seti-card-detail" style={{ display: 'flex', justifyContent: 'space-between' }}>{card.freeAction && <span>Act: {card.freeAction}</span>}{card.scanSector && <span>Scan: {card.scanSector}</span>}</div><div className="seti-card-detail">{card.revenue && <span>Rev: {card.revenue}</span>}</div></div>
+      </div>
     );
   };
 
@@ -645,463 +762,301 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         })}
       </div>
 
-    <div className="seti-player-panel" style={{ borderTop: `4px solid ${currentPlayer.color || '#444'}`, borderTopLeftRadius: 0, flex: 1, minHeight: 0, maxHeight: 'none' }}>
-      <div className="seti-player-panel-title" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-        <span>
-          {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV 🏆
-        </span>
-        {!isRobot && (
-        <button
+      {/* Plateau du joueur */}
+      <div className="seti-player-panel" style={{ borderTop: `4px solid ${currentPlayer.color || '#444'}`, borderTopLeftRadius: 0, flex: 1, minHeight: 0, maxHeight: 'none' }}>
+        {/* Titre */}
+        <div className="seti-player-panel-title" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+          <span>
+            {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV 🏆
+          </span>
+          {!isRobot && (
+          <button
             onClick={onNextPlayer}
-            disabled={!isCurrentTurn || !hasPerformedMainAction || isInteractiveMode}
+            disabled={!isCurrentTurn || isInteractiveMode}
             onMouseEnter={(e) => handleTooltipHover(e, hasPerformedMainAction ? "Terminer le tour" : "Effectuez une action principale d'abord")}
             onMouseLeave={handleTooltipLeave}
             style={{
-                position: 'absolute',
-                right: '10px',
-                backgroundColor: (isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? '#4caf50' : '#555',
-                color: (isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? 'white' : '#aaa',
-                border: 'none',
-                borderRadius: '4px',
-                padding: '4px 8px',
-                cursor: (isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? 'pointer' : 'not-allowed',
-                fontSize: '0.8rem',
-                fontWeight: 'bold'
+              position: 'absolute',
+              right: '10px',
+              backgroundColor: (isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? '#4caf50' : '#555',
+              color: (isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? 'white' : '#aaa',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '4px 8px',
+              cursor: (isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? 'pointer' : 'not-allowed',
+              fontSize: '0.8rem',
+              fontWeight: 'bold'
             }}
-        >
+          >
             Prochain joueur
-        </button>
-        )}
-      </div>
-      
-      <div className="seti-player-layout" style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', paddingRight: '5px', flex: 1, minHeight: 0 }}>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-        {/* Ressources */}
-        <div className="seti-player-section" style={{ position: 'relative', flex: 1 }}>
-          <div className="seti-player-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Ressources</span>
-            {!isRobot && (
-            <div style={{ display: 'flex', gap: '5px' }}>
-            {tradeState.phase !== 'inactive' && (
-              <button
-                onClick={onCancelTrade}
-                title="Annuler l'échange"
-                style={{
-                  backgroundColor: '#f44336', color: 'white', border: '1px solid #e57373',
-                  borderRadius: '6px', padding: '2px 8px', fontSize: '0.7rem', cursor: 'pointer',
-                }}
-              >
-                Annuler
-              </button>
-            )}
-            </div>
-            )}
-          </div>
-
-          <div className="seti-player-resources">
-            <div 
-              key={mediaFlash ? `media-${mediaFlash.id}` : 'media-static'}
-              className={`seti-res-badge ${mediaFlash ? (mediaFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-            >
-              <span>Média (<span style={{color: '#ff6b6b'}}>🎤</span>):</span>
-              {!isRobot && (
-                  renderActionButton(
-                      '🛒',
-                      canBuyCardAction && !isInteractiveMode 
-                        ? "Acheter 1 carte de la pioche ou de la rangée principale (cout: 3 Médias)" 
-                        : "Nécessite 3 couverture médiatique ou action impossible",
-                      () => onBuyCardAction && onBuyCardAction(),
-                      !isCurrentTurn || !canBuyCardAction || isInteractiveMode,
-                      '#fff',
-                      { marginRight: '10px', marginLeft: 'auto' }
-                  )
-              )}
-              <strong>{currentPlayer.mediaCoverage}</strong>
-            </div>
-            <div 
-              key={creditFlash ? `credit-${creditFlash.id}` : 'credit-static'}
-              className={`seti-res-badge ${creditFlash ? (creditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-            >
-              <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span>
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
-                {renderTradeButton('credit', 'energy', '⚡', 'Echanger 2 Crédits contre 1 Énergie', currentPlayer.credits >= 2)}
-                {renderTradeButton('credit', 'card', '🃏', 'Echanger 2 Crédits contre 1 Carte', currentPlayer.credits >= 2)}
-                <strong style={{ marginLeft: '6px' }}>{currentPlayer.credits}</strong>
-              </div>
-            </div>
-            <div 
-              key={energyFlash ? `energy-${energyFlash.id}` : 'energy-static'}
-              className={`seti-res-badge ${energyFlash ? (energyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-            >
-              <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span>
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
-                {renderTradeButton('energy', 'credit', '₢', 'Echanger 2 Énergies contre 1 Crédit', currentPlayer.energy >= 2)}
-                {renderTradeButton('energy', 'card', '🃏', 'Echanger 2 Énergies contre 1 Carte', currentPlayer.energy >= 2)}
-                <strong style={{ marginLeft: '6px' }}>{currentPlayer.energy}</strong>
-              </div>
-            </div>
-          </div>
+          </button>
+          )}
         </div>
-
-        {/* Revenues */}
-        <div className="seti-player-section" style={{ position: 'relative', flex: 1 }}>
-          <div className="seti-player-section-title">Revenues</div>
-          <div className="seti-player-revenues" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <div 
-              key={revenueCreditFlash ? `rev-credit-${revenueCreditFlash.id}` : 'rev-credit-static'}
-              className={`seti-res-badge ${revenueCreditFlash ? (revenueCreditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-            >
-              <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span> <strong>{currentPlayer.revenueCredits}</strong>
-            </div>
-            <div 
-              key={revenueEnergyFlash ? `rev-energy-${revenueEnergyFlash.id}` : 'rev-energy-static'}
-              className={`seti-res-badge ${revenueEnergyFlash ? (revenueEnergyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-            >
-              <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span> <strong>{currentPlayer.revenueEnergy}</strong>
-            </div>
-            <div 
-              key={revenueCardFlash ? `rev-card-${revenueCardFlash.id}` : 'rev-card-static'}
-              className={`seti-res-badge ${revenueCardFlash ? (revenueCardFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-            >
-              <span>Carte (<span style={{color: '#aaffaa'}}>🃏</span>):</span> <strong>{currentPlayer.revenueCards}</strong>
-            </div>
-          </div>
-        </div>
-        </div>
-
-        {/* Actions */}
-        {!isRobot && (
-        <div className="seti-player-section">
-          <div className="seti-player-section-title">Actions principales</div>
-          <div className="seti-player-actions" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px' }}>
-            {Object.entries(ACTION_NAMES)
-              .filter(([action]) => action)
-              .map(([action, name]) => {
-                const available = actionAvailability[action as ActionType] && !isInteractiveMode;
-                const actionType = action as ActionType;
-                const tooltip = getActionTooltip(actionType);
-                return (
-                  <div
-                    key={action}
-                    className={available ? 'seti-player-action-available' : 'seti-player-action-unavailable'}
-                    onClick={() => {
-                      if (available && onAction) {
-                        onAction(actionType);
-                      }
-                    }}
-                    style={{
-                      cursor: available && onAction ? 'pointer' : 'not-allowed',
-                    }}
-                    onMouseEnter={(e) => { if (tooltip) handleTooltipHover(e, tooltip); }}
-                    onMouseLeave={handleTooltipLeave}
-                  >
-                    {name}
+        
+        <div className="seti-player-layout" style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', paddingRight: '5px', flex: 1, minHeight: 0 }}>
+          {/* Ressources/Revenus */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {/* Ressources */}
+            <div className="seti-player-section" style={{ position: 'relative', flex: 1 }}>
+              <div className="seti-player-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>Ressources</div>
+              <div className="seti-player-resources">
+                <div 
+                  key={mediaFlash ? `media-${mediaFlash.id}` : 'media-static'}
+                  className={`seti-res-badge ${mediaFlash ? (mediaFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
+                >
+                  <span>Média (<span style={{color: '#ff6b6b'}}>🎤</span>):</span>
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                  {renderBuyCardButton('🛒', 'Acheter 1 carte de la pioche ou de la rangée principale (cout: 3 Médias)')}
+                  <strong style={{ marginLeft: '6px' }}>{currentPlayer.mediaCoverage}</strong>
                   </div>
-                );
-              })}
-          </div>
-        </div>
-        )}
-
-        {/* Technologies */}
-        <div className="seti-player-section">
-          <div className="seti-player-section-title">Technologie</div>
-          <div className="seti-player-list">
-            {currentPlayer.technologies.length > 0 ? (
-              currentPlayer.technologies.map((tech) => (
-                <div key={tech.id} className="seti-player-list-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ fontSize: '1.1em' }} title={tech.id.split('-')[0]}>{getTechIcon(tech.id)}</div>
-                  <div style={{ fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap' }}>{tech.name}</div>
-                  {tech.description && (
-                    <div style={{ fontSize: '0.75em', color: '#ccc', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }} title={tech.description}>
-                      {tech.description}
-                    </div>
-                  )}
                 </div>
-              ))
-            ) : (
-              <div className="seti-player-list-empty">Aucune technologie</div>
-            )}
-          </div>
-        </div>
-
-        {/* Ordinateur */}
-        <div className="seti-player-section">
-          <div className="seti-player-section-title" style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-            <span>Ordinateur</span>
-            <span 
-              key={dataFlash ? `data-${dataFlash.id}` : 'data-static'}
-              className={dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
-              style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px' }}
-            >
-              Donnée(s) (<span style={{color: '#03a9f4'}}>💾</span>): <strong style={{ color: '#fff' }}>{currentPlayer.data || 0}</strong>
-            </span>
-          </div>
-          <div className="seti-player-list" style={{ padding: '0' }}>
-            <PlayerComputer 
-              player={currentPlayer} 
-              onSlotClick={handleComputerSlotClick}
-              isSelecting={isSelectingComputerSlot}
-              onColumnSelect={onComputerSlotSelect}
-              isAnalyzing={isAnalyzing}
-              disabled={isInteractiveMode}
-              onHover={handleTooltipHover}
-              onLeave={handleTooltipLeave}
-            />
-          </div>
-        </div>
-
-        {/* Cartes */}
-        <div className="seti-player-section" style={reservationState.active ? { 
-          position: 'relative', 
-          zIndex: 1501,
-          backgroundColor: '#2a2a2a',
-          boxShadow: '0 0 20px rgba(0,0,0,0.8)'
-        } : {}}>
-          <div className="seti-player-section-title" style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
-            <span>Main</span>
-            <span 
-              key={cardsFlash ? `cards-${cardsFlash.id}` : 'cards-static'}
-              className={cardsFlash ? (cardsFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
-              style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
-            >
-              <span>Carte(s) (<span style={{color: '#aaffaa'}}>🃏</span>):</span>
-              <strong style={{ color: '#fff', marginLeft: '6px' }}>{(currentPlayer.cards || []).length}</strong>
-              {!isRobot && (
-                  <>
-                    {renderCardTradeButton('credit', '₢', 'Echanger 2 Cartes contre 1 Crédit', { marginLeft: '10px' })}
-                    {renderCardTradeButton('energy', '⚡', 'Echanger 2 Cartes contre 1 Énergie')}
-                  </>
-              )}
-            </span>
-          </div>
-          {isDiscarding && (
-            <div style={{ marginBottom: '10px', color: '#ff6b6b', fontSize: '0.9em' }}>
-              Veuillez défausser des cartes pour n'en garder que 4.
-              <br />
-              Sélectionnées : {selectedCardIds.length} / {Math.max(0, (currentPlayer.cards || []).length - 4)}
-              {(currentPlayer.cards || []).length - selectedCardIds.length === 4 && (
-                <button 
-                  onClick={onConfirmDiscard}
-                  style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
+                <div 
+                  key={creditFlash ? `credit-${creditFlash.id}` : 'credit-static'}
+                  className={`seti-res-badge ${creditFlash ? (creditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
-                  Confirmer la défausse
-                </button>
-              )}
-            </div>
-          )}
-          {tradeState.phase === 'spending' && canSpendCards && (
-            <div style={{ marginBottom: '10px', color: '#ff9800', fontSize: '0.9em' }}>
-              Veuillez sélectionner 2 cartes à échanger.
-              <br />
-              Sélectionnées : {cardsSelectedForTrade.length} / 2
-              {cardsSelectedForTrade.length === 2 && (
-                <button 
-                  onClick={() => onSpendSelection && onSpendSelection('card', cardsSelectedForTrade)}
-                  style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
-                >
-                  Confirmer l'échange
-                </button>
-              )}
-              <button 
-                onClick={onCancelTrade}
-                style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
-              >
-                Annuler
-              </button>
-            </div>
-          )}
-          {reservationState.active && (
-            <div style={{ marginBottom: '10px', color: '#ff9800', fontSize: '0.9em' }}>
-              Veuillez réserver une carte{reservationState.count > 1 ? ` (${reservationState.count} restantes)` : ''}:
-            </div>
-          )}
-          <div className="seti-player-list" style={{ flexDirection: 'row', overflowX: 'auto', paddingBottom: '8px', gap: '8px' }}>
-            {!isRobot ? (
-              (currentPlayer.cards || []).length > 0 ? (
-                (currentPlayer.cards || []).map((card) => {
-                const isSelectedForDiscard = selectedCardIds.includes(card.id);
-                const isSelectedForTrade = cardsSelectedForTrade.includes(card.id);
-                const isHighlighted = highlightedCardId === card.id;
-                const isMovementAction = card.freeAction === FreeActionType.MOVEMENT;
-                const isDataAction = card.freeAction === FreeActionType.DATA;
-                const isMediaAction = card.freeAction === FreeActionType.MEDIA;
-                
-                let canPerformFreeActionType = isCurrentTurn;
-                let actionTooltip = "";
-
-                if (!isCurrentTurn) {
-                  actionTooltip = "Ce n'est pas votre tour";
-                } else if (isMovementAction) {
-                  if (!(currentPlayer.probes || []).some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
-                    canPerformFreeActionType = false;
-                    actionTooltip = "Nécessite une sonde dans le système solaire";
-                  } else {
-                    actionTooltip = "Défausser pour gagner 1 Déplacement";
-                  }
-                } else if (isDataAction) {
-                  if ((currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
-                    canPerformFreeActionType = false;
-                    actionTooltip = "Nécessite de transférer des données";
-                  } else {
-                    actionTooltip = "Défausser pour gagner 1 Donnée";
-                  }
-                } else if (isMediaAction) {
-                  if (currentPlayer.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
-                    canPerformFreeActionType = false;
-                    actionTooltip = "Média au maximum";
-                  } else {
-                    actionTooltip = "Défausser pour gagner 1 Média";
-                  }
-                }
-
-                const { canPlay, reason: playTooltip } = CardSystem.canPlayCard(game, currentPlayer.id, card);
-                
-                return (
-                  <div 
-                    key={card.id} 
-                    className="seti-common-card"
-                    onMouseEnter={(e) => handleTooltipHover(e, renderCardTooltip(card))}
-                    onMouseLeave={handleTooltipLeave}
-                    onClick={(e) => {
-                      if (reservationState.active) {
-                        if (card.revenue) {
-                          if (onReserveCard) onReserveCard(card.id);
-                        } else {
-                          alert("Cette carte n'a pas de bonus de revenu.");
-                        }
-                        return;
-                      }
-
-                      const isSpendingPhase = tradeState.phase === 'spending' && canSpendCards;
-
-                      if (isSpendingPhase) {
-                        if (isSelectedForTrade) {
-                          setCardsSelectedForTrade(prev => prev.filter(id => id !== card.id));
-                        } else if (cardsSelectedForTrade.length < 2) {
-                          setCardsSelectedForTrade(prev => [...prev, card.id]);
-                        }
-                      } else if (isDiscarding && onCardClick) {
-                        onCardClick(card.id);
-                      } else {
-                        setHighlightedCardId(isHighlighted ? null : card.id);
-                      }
-                    }}
-                    style={{
-                      cursor: 'pointer',
-                      border: tradeState.phase === 'spending' && isSelectedForTrade
-                        ? '2px solid #888'
-                        : (tradeState.phase === 'spending' && canSpendCards
-                          ? '1px solid #ffeb3b'
-                          : (reservationState.active ? '2px solid #ff9800' : isDiscarding 
-                          ? (isSelectedForDiscard ? '1px solid #ff6b6b' : '1px solid #444')
-                          : (isHighlighted ? '1px solid #4a9eff' : '1px solid #444'))),
-                      backgroundColor: tradeState.phase === 'spending' && isSelectedForTrade
-                        ? 'rgba(100, 100, 100, 0.2)'
-                        : (isDiscarding
-                          ? (isSelectedForDiscard ? 'rgba(255, 107, 107, 0.1)' : 'transparent')
-                          : (isHighlighted ? 'rgba(74, 158, 255, 0.1)' : 'transparent')),
-                      transition: 'all 0.2s ease',
-                      position: 'relative',
-                      opacity: tradeState.phase === 'spending' && isSelectedForTrade ? 0.6 : 1,
-                    }}
-                  >
-                    {isHighlighted && tradeState.phase === 'inactive' && !isDiscarding && !reservationState.active && (
-                      <>
-                      {renderActionButton(
-                          '▶️',
-                          playTooltip,
-                          () => {
-                              if (canPlay && onPlayCard) {
-                                  onPlayCard(card.id);
-                                  setHighlightedCardId(null);
-                              }
-                          },
-                          !canPlay,
-                          '#4a9eff',
-                          { position: 'absolute', top: '5px', right: '40px', zIndex: 10 }
-                      )}
-                      {renderActionButton(
-                          '🗑️',
-                          actionTooltip,
-                          () => {
-                              if (canPerformFreeActionType && onDiscardCardAction) {
-                                  onDiscardCardAction(card.id);
-                                  setHighlightedCardId(null);
-                              }
-                          },
-                          !canPerformFreeActionType,
-                          '#ff6b6b',
-                          { position: 'absolute', top: '5px', right: '5px', zIndex: 10 }
-                      )}
-                      </>
-                    )}
-                    <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}>
-                      <span>{card.name}</span>
-                    </div>
-                    <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span>
-                      <span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span>
-                    </div>
-                    {card.description && (
-                      <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>
-                    )}
-                    <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px' }}>
-                      <div className="seti-card-detail" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        {card.freeAction && <span>Act: {card.freeAction}</span>}
-                        {card.scanSector && <span>Scan: {card.scanSector}</span>}
-                      </div>
-                      <div className="seti-card-detail">
-                        {card.revenue && <span>Rev: {card.revenue}</span>}
-                      </div>
-                    </div>
+                  <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span>
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                    {renderDirectTradeButton('credit', 'energy', '⚡', 'Echanger 2 Crédits contre 1 Énergie', currentPlayer.credits >= 2)}
+                    {renderDirectTradeButton('credit', 'card', '🃏', 'Echanger 2 Crédits contre 1 Carte', currentPlayer.credits >= 2)}
+                    <strong style={{ marginLeft: '6px' }}>{currentPlayer.credits}</strong>
                   </div>
-                );
-                })
+                </div>
+                <div 
+                  key={energyFlash ? `energy-${energyFlash.id}` : 'energy-static'}
+                  className={`seti-res-badge ${energyFlash ? (energyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
+                >
+                  <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span>
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                    {renderDirectTradeButton('energy', 'credit', '₢', 'Echanger 2 Énergies contre 1 Crédit', currentPlayer.energy >= 2)}
+                    {renderDirectTradeButton('energy', 'card', '🃏', 'Echanger 2 Énergies contre 1 Carte', currentPlayer.energy >= 2)}
+                    <strong style={{ marginLeft: '6px' }}>{currentPlayer.energy}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Revenues */}
+            <div className="seti-player-section" style={{ position: 'relative', flex: 1 }}>
+              <div className="seti-player-section-title">Revenues</div>
+              <div className="seti-player-revenues" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div 
+                  key={revenueCreditFlash ? `rev-credit-${revenueCreditFlash.id}` : 'rev-credit-static'}
+                  className={`seti-res-badge ${revenueCreditFlash ? (revenueCreditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
+                >
+                  <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span> <strong>{currentPlayer.revenueCredits}</strong>
+                </div>
+                <div 
+                  key={revenueEnergyFlash ? `rev-energy-${revenueEnergyFlash.id}` : 'rev-energy-static'}
+                  className={`seti-res-badge ${revenueEnergyFlash ? (revenueEnergyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
+                >
+                  <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span> <strong>{currentPlayer.revenueEnergy}</strong>
+                </div>
+                <div 
+                  key={revenueCardFlash ? `rev-card-${revenueCardFlash.id}` : 'rev-card-static'}
+                  className={`seti-res-badge ${revenueCardFlash ? (revenueCardFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
+                >
+                  <span>Carte (<span style={{color: '#aaffaa'}}>🃏</span>):</span> <strong>{currentPlayer.revenueCards}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          {!isRobot && (
+          <div className="seti-player-section">
+            <div className="seti-player-section-title">Actions principales</div>
+            <div className="seti-player-actions" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px' }}>
+              {Object.entries(ACTION_NAMES)
+                .filter(([action]) => action)
+                .map(([action, name]) => {
+                  const available = actionAvailability[action as ActionType] && !isInteractiveMode;
+                  const actionType = action as ActionType;
+                  const tooltip = getActionTooltip(actionType);
+                  return (
+                    <div
+                      key={action}
+                      className={available ? 'seti-player-action-available' : 'seti-player-action-unavailable'}
+                      onClick={() => {
+                        if (available && onAction) {
+                          onAction(actionType);
+                        }
+                      }}
+                      style={{
+                        cursor: available && onAction ? 'pointer' : 'not-allowed',
+                      }}
+                      onMouseEnter={(e) => { if (tooltip) handleTooltipHover(e, tooltip); }}
+                      onMouseLeave={handleTooltipLeave}
+                    >
+                      {name}
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+          )}
+
+          {/* Technologies */}
+          <div className="seti-player-section">
+            <div className="seti-player-section-title">Technologie</div>
+            <div className="seti-player-list">
+              {currentPlayer.technologies.length > 0 ? (
+                currentPlayer.technologies.map((tech) => (
+                  <div key={tech.id} className="seti-player-list-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ fontSize: '1.1em' }} title={tech.id.split('-')[0]}>{getTechIcon(tech.id)}</div>
+                    <div style={{ fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap' }}>{tech.name}</div>
+                    {tech.description && (
+                      <div style={{ fontSize: '0.75em', color: '#ccc', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }} title={tech.description}>
+                        {tech.description}
+                      </div>
+                    )}
+                  </div>
+                ))
               ) : (
-                <div className="seti-player-list-empty">Aucune carte</div>
-              )
-            ) : (
-              <div className="seti-player-list-empty" style={{ fontStyle: 'italic', color: '#aaa' }}>
-                {(currentPlayer.cards || []).length} carte(s) en main (Masqué)
+                <div className="seti-player-list-empty">Aucune technologie</div>
+              )}
+            </div>
+          </div>
+
+          {/* Ordinateur */}
+          <div className="seti-player-section">
+            <div className="seti-player-section-title" style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+              <span>Ordinateur</span>
+              <span 
+                key={dataFlash ? `data-${dataFlash.id}` : 'data-static'}
+                className={dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
+                style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px' }}
+              >
+                Donnée(s) (<span style={{color: '#03a9f4'}}>💾</span>): <strong style={{ color: '#fff' }}>{currentPlayer.data || 0}</strong>
+              </span>
+            </div>
+            <div className="seti-player-list" style={{ padding: '0' }}>
+              <PlayerComputer 
+                player={currentPlayer} 
+                onSlotClick={handleComputerSlotClick}
+                isSelecting={isSelectingComputerSlot}
+                onColumnSelect={onComputerSlotSelect}
+                isAnalyzing={isAnalyzing}
+                disabled={isInteractiveMode}
+                onHover={handleTooltipHover}
+                onLeave={handleTooltipLeave}
+              />
+            </div>
+          </div>
+
+          {/* Cartes */}
+          <div className="seti-player-section" style={isReserving ? { 
+            position: 'relative', 
+            zIndex: 1501
+          } : {}}>
+            <div className="seti-player-section-title" style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+              <span>Main</span>
+              <span 
+                key={cardsFlash ? `cards-${cardsFlash.id}` : 'cards-static'}
+                className={cardsFlash ? (cardsFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
+                style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
+              >
+                <span>Carte(s) (<span style={{color: '#aaffaa'}}>🃏</span>):</span>
+                <strong style={{ color: '#fff', marginLeft: '6px' }}>{currentPlayer.cards.length}</strong>
+                {!isRobot && (
+                    <>
+                      {renderCardTradeButton('credit', '₢', 'Echanger 2 Cartes contre 1 Crédit', { marginLeft: '10px' })}
+                      {renderCardTradeButton('energy', '⚡', 'Echanger 2 Cartes contre 1 Énergie')}
+                    </>
+                )}
+              </span>
+            </div>
+            {isDiscarding && (
+              <div style={{ marginBottom: '10px', color: '#ff9800', fontSize: '0.9em' }}>
+                Veuillez défausser des cartes pour n'en garder que 4.
+                <br />
+                Sélectionnées : {selectedCardIds.length} / {Math.max(0, currentPlayer.cards.length - 4)}
+                {currentPlayer.cards.length - selectedCardIds.length === 4 && (
+                  <button 
+                    onClick={onConfirmDiscard}
+                    style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
+                  >
+                    Confirmer
+                  </button>
+                )}
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Missions */}
-        <div className="seti-player-section">
-          <div className="seti-player-section-title">Missions</div>
-          <div className="seti-player-list" style={{ flexDirection: 'row', overflowX: 'auto', paddingBottom: '8px', gap: '8px' }}>
-            {(currentPlayer.missions && currentPlayer.missions.length > 0) ? (
-              currentPlayer.missions.map((mission: any) => (
-                <div key={mission.id} className="seti-common-card" style={{ 
-                  borderLeft: mission.completed ? '3px solid #4caf50' : '3px solid #aaa',
-                  backgroundColor: mission.completed ? 'rgba(76, 175, 80, 0.1)' : 'rgba(30, 30, 40, 0.9)'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                    <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.75rem', lineHeight: '1.1' }}>{mission.name}</div>
-                    {mission.completed && <span style={{ fontSize: '1em', color: '#4caf50', fontWeight: 'bold' }}>✓</span>}
-                  </div>
-                  {mission.description && (
-                    <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', overflowY: 'auto', flex: 1 }}>
-                      {mission.description}
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="seti-player-list-empty">Aucune mission jouée</div>
+            {isTrading && (
+              <div style={{ marginBottom: '10px', color: '#ff9800', fontSize: '0.9em' }}>
+                Veuillez sélectionner 2 cartes à échanger.
+                <br />
+                Sélectionnées : {selectedCardIds.length} / 2
+                {selectedCardIds.length === 2 && (
+                  <button 
+                    onClick={onConfirmTrade}
+                    style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
+                  >
+                    Confirmer
+                  </button>
+                )}
+              </div>
             )}
+            {isReserving && (
+              <div style={{ marginBottom: '10px', color: '#ff9800', fontSize: '0.9em' }}>
+                Veuillez réserver {reservationCount} carte{reservationCount > 1 ? 's' : ''} .
+                <br />
+                Sélectionnées: {selectedCardIds.length} / {reservationCount}
+                {selectedCardIds.length === reservationCount && (
+                  <button 
+                      onClick={onConfirmReservation}
+                      style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
+                    >
+                      Confirmer
+                    </button>
+                )}
+              </div>
+            )}
+            <div className="seti-player-list" style={{ flexDirection: 'row', overflowX: 'auto', paddingBottom: '8px', gap: '8px' }}>
+              {!isRobot ? (
+                currentPlayer.cards.length > 0 ? (
+                  currentPlayer.cards.map(renderHandCard)
+                ) : (
+                  <div className="seti-player-list-empty">Aucune carte</div>
+                )
+              ) : (
+                <div className="seti-player-list-empty" style={{ fontStyle: 'italic', color: '#aaa' }}>
+                  {currentPlayer.cards.length} carte(s) en main (Masqué)
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
+          {/* Missions */}
+          <div className="seti-player-section">
+            <div className="seti-player-section-title">Missions</div>
+            <div className="seti-player-list" style={{ flexDirection: 'row', overflowX: 'auto', paddingBottom: '8px', gap: '8px' }}>
+              {(currentPlayer.missions && currentPlayer.missions.length > 0) ? (
+                currentPlayer.missions.map((mission: any) => (
+                  <div key={mission.id} className="seti-common-card" style={{ 
+                    borderLeft: mission.completed ? '3px solid #4caf50' : '3px solid #aaa',
+                    backgroundColor: mission.completed ? 'rgba(76, 175, 80, 0.1)' : 'rgba(30, 30, 40, 0.9)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                      <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.75rem', lineHeight: '1.1' }}>{mission.name}</div>
+                      {mission.completed && <span style={{ fontSize: '1em', color: '#4caf50', fontWeight: 'bold' }}>✓</span>}
+                    </div>
+                    {mission.description && (
+                      <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', overflowY: 'auto', flex: 1 }}>
+                        {mission.description}
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="seti-player-list-empty">Aucune mission jouée</div>
+              )}
+            </div>
+          </div>
+
+        </div>
       </div>
-    </div>
-    {customTooltip && (
-        <Tooltip content={customTooltip.content} targetRect={customTooltip.targetRect} />
-      )}
+      {customTooltip && (
+          <Tooltip content={customTooltip.content} targetRect={customTooltip.targetRect} />
+        )}
     </div>
   );
 };

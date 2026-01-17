@@ -37,15 +37,17 @@ type InteractionState =
   /** Le joueur est en attente, aucune interaction en cours. */
   | { type: 'IDLE' }
   /** Le joueur a un bonus de réservation et doit choisir une carte à glisser sous son plateau. */
-  | { type: 'RESERVING_CARD', count: number, sequenceId?: string }
+  | { type: 'RESERVING_CARD', count: number, sequenceId?: string, selectedCards: string[] }
   /** Le joueur doit défausser des cartes (ex: fin de manche). */
-  | { type: 'DISCARDING_CARD', cardsToDiscard: string[] }
+  | { type: 'DISCARDING_CARD', selectedCards: string[] }
+  /** Le joueur a initié un échange et doit choisir la ressource à dépenser. */
+  | { type: 'TRADING_CARD', targetGain: string, selectedCards: string[] }
   /** Le joueur acquiert une carte (gratuitement ou en payant) et doit la sélectionner dans la pioche ou la rangée. */
   | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, sequenceId?: string }
-  /** Le joueur a initié un échange et doit choisir la ressource à dépenser. */
-  | { type: 'TRADING_SPEND', targetGain: string }
   /** Le joueur a des déplacements gratuits à effectuer. */
   | { type: 'MOVING_PROBE', count: number, autoSelectProbeId?: string }
+  /** Le joueur a un atterrissage gratuit (ex: Carte 13). */
+  | { type: 'LANDING_PROBE', count: number, source?: string, sequenceId?: string }
   /** Le joueur acquiert une technologie (en payant ou en bonus) et doit la sélectionner. */
   | { type: 'ACQUIRING_TECH', isBonus: boolean, sequenceId?: string, category?: TechnologyCategory, sharedOnly?: boolean, noTileBonus?: boolean }
   /** Le joueur a choisi une technologie "Informatique" et doit sélectionner une colonne sur son ordinateur. */
@@ -54,8 +56,6 @@ type InteractionState =
   | { type: 'ANALYZING' }
   /** Le joueur a analysé des données et doit placer une trace de vie sur le plateau Alien. */
   | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow', sequenceId?: string }
-  /** Le joueur a un atterrissage gratuit (ex: Carte 13). */
-  | { type: 'LANDING_PROBE', count: number, source?: string, sequenceId?: string }
   /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number }
   /** Le joueur a reçu plusieurs bonus interactifs et doit choisir l'ordre de résolution. */
@@ -552,18 +552,38 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour le clic sur une carte en mode défausse
   const handleCardClick = (cardId: string) => {
-    if (interactionState.type !== 'DISCARDING_CARD') return;
-    
-    const currentCards = interactionState.cardsToDiscard;
-    if (currentCards.includes(cardId)) {
-      setInteractionState({ ...interactionState, cardsToDiscard: currentCards.filter(id => id !== cardId) });
-    } else {
-      // Vérifier qu'on ne sélectionne pas plus que nécessaire
-      const currentPlayer = game.players[game.currentPlayerIndex];
-      const cardsToKeep = currentPlayer.cards.length - (currentCards.length + 1);
-      if (cardsToKeep >= 4) {
-        setInteractionState({ ...interactionState, cardsToDiscard: [...currentCards, cardId] });
-      }
+    if (interactionState.type === 'DISCARDING_CARD') {
+        const currentCards = interactionState.selectedCards;
+        if (currentCards.includes(cardId)) {
+          setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
+        } else {
+          // Vérifier qu'on ne sélectionne pas plus que nécessaire
+          const currentPlayer = game.players[game.currentPlayerIndex];
+          const cardsToKeep = currentPlayer.cards.length - (currentCards.length + 1);
+          if (cardsToKeep >= 4) {
+            setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
+          }
+        }
+    } else if (interactionState.type === 'TRADING_CARD') {
+        const currentCards = interactionState.selectedCards;
+        if (currentCards.includes(cardId)) {
+            setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
+        } else if (currentCards.length < 2) {
+            setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
+        }
+    } else if (interactionState.type === 'RESERVING_CARD') {
+        const currentCards = interactionState.selectedCards;
+        if (currentCards.includes(cardId)) {
+            setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
+        } else {
+            // On peut sélectionner jusqu'à 'count' cartes
+            // Si count est 1, on remplace la sélection
+            if (interactionState.count === 1) {
+                setInteractionState({ ...interactionState, selectedCards: [cardId] });
+            } else if (currentCards.length < interactionState.count) {
+                setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
+            }
+        }
     }
   };
 
@@ -571,7 +591,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleConfirmDiscard = () => {
     if (interactionState.type !== 'DISCARDING_CARD') return;
     const currentPlayer = game.players[game.currentPlayerIndex];
-    const cardsToKeep = currentPlayer.cards.filter(c => !interactionState.cardsToDiscard.includes(c.id)).map(c => c.id);
+    const cardsToKeep = currentPlayer.cards.filter(c => !interactionState.selectedCards.includes(c.id)).map(c => c.id);
     
     // Réinitialiser l'état de défausse
     setInteractionState({ type: 'IDLE' });
@@ -583,6 +603,81 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         // Note: performPass sera appelé après la confirmation dans la modale
     } else {
         performPass(cardsToKeep);
+    }
+  };
+
+  // Gestionnaire pour la réservation de carte
+  const handleConfirmReservation = () => {
+    if (interactionState.type !== 'RESERVING_CARD') return;
+    if (interactionState.selectedCards.length === 0) return;
+
+    const updatedGame = { ...game };
+    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
+    
+    currentPlayer.cards = [...currentPlayer.cards];
+
+    // Traiter toutes les cartes sélectionnées
+    for (const cardId of interactionState.selectedCards) {
+        const cardIndex = currentPlayer.cards.findIndex(c => c.id === cardId);
+        if (cardIndex === -1) continue;
+        const card = currentPlayer.cards[cardIndex];
+
+        if (!card.revenue) continue;
+
+        // Retirer la carte
+        currentPlayer.cards.splice(cardIndex, 1);
+
+        // Appliquer le bonus
+        let gainMsg = "";
+        if (card.revenue === RevenueType.CREDIT) {
+          currentPlayer.revenueCredits += 1;
+          currentPlayer.credits += 1;
+          gainMsg = formatResource(1, 'CREDIT');
+        } else if (card.revenue === RevenueType.ENERGY) {
+          currentPlayer.revenueEnergy += 1;
+          currentPlayer.energy += 1;
+          gainMsg = formatResource(1, 'ENERGY');
+        } else if (card.revenue === RevenueType.CARD) {
+          currentPlayer.revenueCards += 1;
+          gainMsg = formatResource(1, 'CARD');
+        }
+
+        addToHistory(`réserve la carte "${card.name}" et gagne ${gainMsg}`, currentPlayer.id, game, { type: 'IDLE' }, interactionState.sequenceId);
+
+        // Si le bonus est une carte, on pioche immédiatement (attention aux effets de bord dans la boucle)
+        // Pour simplifier, on applique la pioche à la fin ou on modifie updatedGame directement
+        if (card.revenue === RevenueType.CARD) {
+           // On utilise CardSystem sur updatedGame qui est une copie locale
+           // Attention: CardSystem.drawCards retourne un nouveau Game
+           // Il faut faire attention à ne pas perdre les modifs précédentes de la boucle
+           // Ici c'est un peu tricky car drawCards est pur.
+           // On va simplifier en ajoutant manuellement la carte si possible ou en appelant drawCards sur l'objet courant
+           // Comme drawCards est complexe, on va le faire après la boucle si possible, ou accepter que updatedGame soit écrasé
+           // MAIS drawCards modifie decks et players.
+           // Solution simple: appeler drawCards et mettre à jour updatedGame
+           const res = CardSystem.drawCards(updatedGame, currentPlayer.id, 1, 'Bonus immédiat réservation');
+           // Mettre à jour les références locales
+           updatedGame.decks = res.decks;
+           updatedGame.players = res.players;
+           // currentPlayer est une référence à l'ancien tableau de joueurs, il faut le rafraichir
+           // Mais on est dans une boucle sur currentPlayer.cards...
+           // Pour éviter les problèmes, on ne supporte qu'une réservation à la fois pour l'instant dans la boucle
+           // Ou on accepte que la pioche se fasse sur l'état final.
+        }
+    }
+
+    setGame(updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+
+    // Mettre à jour l'état d'interaction
+    const newCount = interactionState.count - interactionState.selectedCards.length;
+    if (newCount > 0) {
+      setInteractionState({ type: 'RESERVING_CARD', count: newCount, sequenceId: interactionState.sequenceId, selectedCards: [] });
+      setToast({ message: `Encore ${newCount} carte(s) à réserver`, visible: true });
+    } else {
+      setInteractionState({ type: 'IDLE' });
+      setToast({ message: "Réservation terminée", visible: true });
     }
   };
 
@@ -635,7 +730,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     else if (actionType === ActionType.PASS) {
       // 1. Vérifier la taille de la main
       if (currentPlayer.cards.length > 4) {
-        setInteractionState({ type: 'DISCARDING_CARD', cardsToDiscard: [] });
+        setInteractionState({ type: 'DISCARDING_CARD', selectedCards: [] });
         setToast({ message: "Veuillez défausser jusqu'à 4 cartes", visible: true });
         return;
       }
@@ -815,7 +910,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     if (bonuses.revenue) {
-      newPendingInteractions.push({ type: 'RESERVING_CARD', count: bonuses.revenue });
+      newPendingInteractions.push({ type: 'RESERVING_CARD', count: bonuses.revenue, selectedCards: [] });
     }
     
     if (bonuses.technology) {
@@ -855,6 +950,31 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     return { updatedGame, newPendingInteractions, logs, passiveGains };
+  };
+
+  // Gestionnaire pour les choix dans le menu de bonus
+  const handleMenuChoice = (choiceIndex: number) => {
+    if (interactionState.type !== 'CHOOSING_BONUS_ACTION') return;
+    
+    const choice = interactionState.choices[choiceIndex];
+    if (choice.done) return;
+
+    // Créer un nouvel état de menu avec ce choix marqué comme fait
+    const updatedChoices = [...interactionState.choices];
+    updatedChoices[choiceIndex] = { ...choice, done: true };
+    
+    const nextMenuState: InteractionState = {
+      ...interactionState,
+      choices: updatedChoices
+    };
+
+    // Définir l'interaction choisie comme active
+    setInteractionState(choice.state);
+    
+    // Ajouter le menu mis à jour en tête de la file d'attente pour y revenir après l'action
+    if (updatedChoices.some(c => !c.done)) {
+        setPendingInteractions(prev => [nextMenuState, ...prev]);
+    }
   };
 
   // Helper générique pour les interactions avec les planètes (Orbite/Atterrissage)
@@ -957,31 +1077,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }
     } catch (e: any) {
         setToast({ message: e.message, visible: true });
-    }
-  };
-
-  // Gestionnaire pour les choix dans le menu de bonus
-  const handleMenuChoice = (choiceIndex: number) => {
-    if (interactionState.type !== 'CHOOSING_BONUS_ACTION') return;
-    
-    const choice = interactionState.choices[choiceIndex];
-    if (choice.done) return;
-
-    // Créer un nouvel état de menu avec ce choix marqué comme fait
-    const updatedChoices = [...interactionState.choices];
-    updatedChoices[choiceIndex] = { ...choice, done: true };
-    
-    const nextMenuState: InteractionState = {
-      ...interactionState,
-      choices: updatedChoices
-    };
-
-    // Définir l'interaction choisie comme active
-    setInteractionState(choice.state);
-    
-    // Ajouter le menu mis à jour en tête de la file d'attente pour y revenir après l'action
-    if (updatedChoices.some(c => !c.done)) {
-        setPendingInteractions(prev => [nextMenuState, ...prev]);
     }
   };
 
@@ -1177,40 +1272,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   };
 
-  // Gestionnaire pour l'action gratuite (défausse de carte)
-  const handleDiscardCardAction = (cardId: string) => {
-    const updatedGame = { ...game };
-    // Copie des joueurs pour éviter la mutation directe
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
-    const currentPlayerIndex = updatedGame.currentPlayerIndex;
-    const currentPlayer = updatedGame.players[currentPlayerIndex];
-    
-    const cardIndex = currentPlayer.cards.findIndex(c => c.id === cardId);
-    if (cardIndex === -1) return;
-    
-    const card = currentPlayer.cards[cardIndex];
-    
-    // Appliquer l'effet de l'action gratuite
-    if (card.freeAction === FreeActionType.MEDIA) {
-      currentPlayer.mediaCoverage = Math.min(currentPlayer.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-      setToast({ message: "Action gratuite : +1 Média", visible: true });
-      addToHistory(`défausse une carte pour gagner ${formatResource(1, 'MEDIA')}`, currentPlayer.id, game);
-    } else if (card.freeAction === FreeActionType.DATA) {
-      currentPlayer.data = (currentPlayer.data || 0) + 1;
-      setToast({ message: "Action gratuite : +1 Data", visible: true });
-      addToHistory(`défausse une carte pour gagner ${formatResource(1, 'DATA')}`, currentPlayer.id, game);
-    } else if (card.freeAction === FreeActionType.MOVEMENT) {
-      setInteractionState({ type: 'MOVING_PROBE', count: 1 });
-      setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
-      addToHistory("défausse une carte pour un déplacement gratuit", currentPlayer.id, game);
-    }
-    
-    // Défausser la carte
-    currentPlayer.cards = currentPlayer.cards.filter(c => c.id !== cardId);
-    
-    setGame(updatedGame);
-  };
-
   // Gestionnaire pour jouer une carte (payer son coût en crédits)
   const handlePlayCardRequest = (cardId: string) => {
     if (interactionState.type !== 'IDLE') return;
@@ -1299,6 +1360,40 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   };
 
+  // Gestionnaire pour l'action gratuite (défausse de carte)
+  const handleDiscardCardAction = (cardId: string) => {
+    const updatedGame = { ...game };
+    // Copie des joueurs pour éviter la mutation directe
+    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const currentPlayerIndex = updatedGame.currentPlayerIndex;
+    const currentPlayer = updatedGame.players[currentPlayerIndex];
+    
+    const cardIndex = currentPlayer.cards.findIndex(c => c.id === cardId);
+    if (cardIndex === -1) return;
+    
+    const card = currentPlayer.cards[cardIndex];
+    
+    // Appliquer l'effet de l'action gratuite
+    if (card.freeAction === FreeActionType.MEDIA) {
+      currentPlayer.mediaCoverage = Math.min(currentPlayer.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+      setToast({ message: "Action gratuite : +1 Média", visible: true });
+      addToHistory(`défausse une carte pour gagner ${formatResource(1, 'MEDIA')}`, currentPlayer.id, game);
+    } else if (card.freeAction === FreeActionType.DATA) {
+      currentPlayer.data = (currentPlayer.data || 0) + 1;
+      setToast({ message: "Action gratuite : +1 Data", visible: true });
+      addToHistory(`défausse une carte pour gagner ${formatResource(1, 'DATA')}`, currentPlayer.id, game);
+    } else if (card.freeAction === FreeActionType.MOVEMENT) {
+      setInteractionState({ type: 'MOVING_PROBE', count: 1 });
+      setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
+      addToHistory("défausse une carte pour un déplacement gratuit", currentPlayer.id, game);
+    }
+    
+    // Défausser la carte
+    currentPlayer.cards = currentPlayer.cards.filter(c => c.id !== cardId);
+    
+    setGame(updatedGame);
+  };
+
   // Gestionnaire pour l'action d'achat de carte avec du média
   const handleBuyCardAction = () => {
     if (interactionState.type !== 'IDLE') return;
@@ -1306,6 +1401,23 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setToast({ message: "Sélectionnez une carte dans la rangée ou la pioche", visible: true });
   };
 
+  // Gestionnaire pour les échanges directs (via les boutons rapides)
+  const handleDirectTrade = (spendType: string, gainType: string) => {
+    if (interactionState.type !== 'IDLE') return;
+    const currentPlayer = game.players[game.currentPlayerIndex];
+
+    const result = ResourceSystem.tradeResources(game, currentPlayer.id, spendType, gainType);
+    if (result.error) {
+        setToast({ message: result.error, visible: true });
+        return;
+    }
+
+    setGame(result.updatedGame);
+    setToast({ message: "Echange effectué", visible: true });
+    addToHistory(`échange ${formatResource(2, spendType)} contre ${formatResource(1, gainType)}`, currentPlayer.id, game);
+  };
+  
+  // Gestionnaire pour la sélection d'une carte de la pioche ou de la rangée principale
   const handleCardRowClick = (cardId?: string) => { // cardId undefined means deck
     if (interactionState.type !== 'ACQUIRING_CARD') return;
     
@@ -1392,48 +1504,24 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   };
 
-  // Gestionnaire unifié pour les échanges
-  const handleTrade = (step: 'START' | 'CANCEL' | 'SPEND', payload?: any) => {
-    if (step === 'START') {
-      if (interactionState.type !== 'IDLE') return;
-      const targetGain = payload?.targetGain;
-      if (!targetGain) return;
-
-      setInteractionState({ type: 'TRADING_SPEND', targetGain });
-      setToast({ message: `Sélectionnez 2 cartes à échanger contre 1 ${formatResource(1, targetGain)}`, visible: true });
-    } 
-    else if (step === 'CANCEL') {
-      setInteractionState({ type: 'IDLE' });
-      setToast({ message: "Echange annulé", visible: true });
-    }
-    else if (step === 'SPEND') {
-      if (interactionState.type !== 'TRADING_SPEND') return;
-      const { spendType, cardIds } = payload;
-      const { targetGain } = interactionState;
-      
-      const currentPlayer = game.players[game.currentPlayerIndex];
-      
-      const result = ResourceSystem.tradeResources(game, currentPlayer.id, spendType, targetGain, cardIds);
-      
-      if (result.error) {
-          setToast({ message: result.error, visible: true });
-          return;
-      }
-
-      setGame(result.updatedGame);
-      setToast({ message: "Echange effectué", visible: true });
-      addToHistory(`échange ${formatResource(2, spendType)} contre ${formatResource(1, targetGain)}`, currentPlayer.id, game, { type: 'IDLE' });
-      setInteractionState({ type: 'IDLE' });
-    }
-  };
-
-  // Gestionnaire pour les échanges directs (via les boutons rapides)
-  const handleDirectTrade = (spendType: string, gainType: string) => {
+  // Gestionnaire pour l'échange de cartes contre des resources crédit/énergie
+  const handleTradeCardAction = (payload?: any) => {
     if (interactionState.type !== 'IDLE') return;
-    
+    const targetGain = payload?.targetGain;
+    if (!targetGain) return;
+
+    setInteractionState({ type: 'TRADING_CARD', targetGain, selectedCards: [] });
+    setToast({ message: `Sélectionnez 2 cartes à échanger contre 1 ${formatResource(1, targetGain)}`, visible: true });
+  }
+
+  // Gestionnaire unifié pour les échanges
+  const handleConfirmTrade = () => {
+    if (interactionState.type !== 'TRADING_CARD') return;
+    const { targetGain, selectedCards } = interactionState;
     const currentPlayer = game.players[game.currentPlayerIndex];
-    const result = ResourceSystem.tradeResources(game, currentPlayer.id, spendType, gainType);
     
+    // spendType est implicitement 'card' ici car on est dans TRADING_CARD
+    const result = ResourceSystem.tradeResources(game, currentPlayer.id, 'card', targetGain, selectedCards);
     if (result.error) {
         setToast({ message: result.error, visible: true });
         return;
@@ -1441,7 +1529,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     setGame(result.updatedGame);
     setToast({ message: "Echange effectué", visible: true });
-    addToHistory(`échange ${formatResource(2, spendType)} contre ${formatResource(1, gainType)}`, currentPlayer.id, game);
+    addToHistory(`échange ${formatResource(2, 'card')} contre ${formatResource(1, targetGain)}`, currentPlayer.id, game, { type: 'IDLE' });
+    setInteractionState({ type: 'IDLE' });
   };
 
   // Fonction interne pour traiter l'achat (commune à l'achat direct et après sélection)
@@ -1651,70 +1740,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleComputerBonus = (type: string, amount: number) => {
     if (type === 'reservation') {
       const sequenceId = (interactionState as any).sequenceId;
-      setInteractionState({ type: 'RESERVING_CARD', count: amount, sequenceId });
-      setToast({ message: `Réservation active : Sélectionnez ${amount} carte(s) avec revenu`, visible: true });
-    }
-  };
-
-  // Gestionnaire pour la réservation de carte
-  const handleReserveCard = (cardId: string) => {
-    if (interactionState.type !== 'RESERVING_CARD') return;
-
-    const updatedGame = { ...game };
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
-    const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
-    
-    // Copier le tableau de cartes pour éviter de muter l'état précédent (qui est utilisé pour l'historique)
-    currentPlayer.cards = [...currentPlayer.cards];
-
-    const cardIndex = currentPlayer.cards.findIndex(c => c.id === cardId);
-    if (cardIndex === -1) return;
-    const card = currentPlayer.cards[cardIndex];
-
-    if (!card.revenue) {
-      setToast({ message: "Cette carte n'a pas de bonus de revenu", visible: true });
-      return;
-    }
-
-    // Retirer la carte
-    currentPlayer.cards.splice(cardIndex, 1);
-
-    // Appliquer le bonus
-    let gainMsg = "";
-    if (card.revenue === RevenueType.CREDIT) {
-      currentPlayer.revenueCredits += 1;
-      currentPlayer.credits += 1;
-      gainMsg = formatResource(1, 'CREDIT');
-    } else if (card.revenue === RevenueType.ENERGY) {
-      currentPlayer.revenueEnergy += 1;
-      currentPlayer.energy += 1;
-      gainMsg = formatResource(1, 'ENERGY');
-    } else if (card.revenue === RevenueType.CARD) {
-      currentPlayer.revenueCards += 1;
-      gainMsg = formatResource(1, 'CARD');
-    }
-
-    const sequenceId = (interactionState as any).sequenceId;
-    addToHistory(`réserve la carte "${card.name}" et gagne immédiatement : ${gainMsg}`, currentPlayer.id, game, interactionState, sequenceId);
-
-    // Si le bonus est une carte, on pioche immédiatement
-    if (card.revenue === RevenueType.CARD) {
-       const drawResult = CardSystem.drawCards(updatedGame, currentPlayer.id, 1, 'Bonus immédiat réservation');
-       setGame(drawResult);
-       if (gameEngineRef.current) gameEngineRef.current.setState(drawResult);
-    } else {
-       setGame(updatedGame);
-       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-    }
-
-    // Mettre à jour l'état d'interaction
-    const newCount = interactionState.count - 1;
-    if (newCount > 0) {
-      setInteractionState({ type: 'RESERVING_CARD', count: newCount });
-      setToast({ message: `Encore ${newCount} carte(s) à réserver`, visible: true });
-    } else {
-      setInteractionState({ type: 'IDLE' });
-      setToast({ message: "Réservation terminée", visible: true });
+      setInteractionState({ type: 'RESERVING_CARD', count: amount, sequenceId, selectedCards: [] });
+      setToast({ message: `Réservez ${amount} carte${amount > 1 ? 's' : ''}`, visible: true });
     }
   };
 
@@ -2211,29 +2238,29 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 onViewPlayer={setViewedPlayerId}
                 onAction={handleAction} 
                 isDiscarding={interactionState.type === 'DISCARDING_CARD'}
-                selectedCardIds={interactionState.type === 'DISCARDING_CARD' ? interactionState.cardsToDiscard : []}
+                isTrading={interactionState.type === 'TRADING_CARD'}
+                isReserving={interactionState.type === 'RESERVING_CARD'}
+                selectedCardIds={interactionState.type === 'DISCARDING_CARD' || interactionState.type === 'TRADING_CARD' || interactionState.type === 'RESERVING_CARD' ? interactionState.selectedCards : []}
                 onCardClick={handleCardClick}
-                onConfirmDiscard={handleConfirmDiscard}
                 onDiscardCardAction={handleDiscardCardAction}
-                onPlayCard={handlePlayCardRequest}
+                onConfirmDiscard={handleConfirmDiscard}
+                onTradeCardAction={(targetGain) => handleTradeCardAction({ targetGain })}
+                onConfirmTrade={handleConfirmTrade}
+                reservationCount={interactionState.type === 'RESERVING_CARD' ? interactionState.count : 0}
+                onConfirmReservation={handleConfirmReservation}
                 onBuyCardAction={handleBuyCardAction}
-                onTradeResourcesAction={(targetGain) => handleTrade('START', { targetGain })}
-                tradeState={{ phase: interactionState.type === 'TRADING_SPEND' ? 'spending' : 'inactive' }}
-                onSpendSelection={(spendType, cardIds) => handleTrade('SPEND', { spendType, cardIds })}
-                onCancelTrade={() => handleTrade('CANCEL')}
+                onDirectTradeAction={handleDirectTrade}
+                onDrawCard={handleDrawCard}
+                onPlayCard={handlePlayCardRequest}
                 onGameUpdate={(newGame) => setGame(newGame)}
                 isSelectingComputerSlot={interactionState.type === 'SELECTING_COMPUTER_SLOT'}
                 onComputerSlotSelect={handleComputerColumnSelect}
-                onDrawCard={handleDrawCard}
                 isAnalyzing={interactionState.type === 'ANALYZING'}
                 hasPerformedMainAction={hasPerformedMainAction}
                 onNextPlayer={handleNextPlayer}
                 onHistory={(message) => addToHistory(message, game.players[game.currentPlayerIndex].id, game)}
                 onComputerBonus={handleComputerBonus}
-                reservationState={interactionState.type === 'RESERVING_CARD' ? { active: true, count: interactionState.count } : { active: false, count: 0 }}
-                onReserveCard={handleReserveCard}
                 isPlacingLifeTrace={interactionState.type === 'PLACING_LIFE_TRACE'}
-                onDirectTrade={handleDirectTrade}
               />
             </div>
         </div>

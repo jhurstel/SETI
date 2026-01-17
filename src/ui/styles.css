@@ -568,3 +568,42 @@ body {
   50% { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 15px #4caf50; opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 5px #4caf50; opacity: 0.7; }
 }
+
+/* --- Gestion des cartes en main --- */
+
+.seti-card-wrapper {
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+/* Phase: IDLE (Défaut) */
+.seti-card-idle {
+  border: 1px solid #555;
+}
+.seti-card-idle:hover {
+  border-color: #777;
+  transform: translateY(-2px);
+}
+.seti-card-idle.selected {
+  border: 2px solid #4a9eff !important;
+  background-color: rgba(74, 158, 255, 0.1) !important;
+  transform: translateY(-6px);
+  z-index: 10;
+  box-shadow: 0 0 15px rgba(74, 158, 255, 0.3);
+}
+
+/* Phase: DISCARD/TRADE/RESERVE */
+.seti-card-interact-mode {
+  border: 1px solid #ffd700;
+}
+.seti-card-interact-mode.selected {
+  border: 2px solid #ffd700 !important;
+  background-color: rgba(255, 107, 107, 0.2) !important;
+  opacity: 0.8;
+}
+.seti-card-interact-mode.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: #444;
+  filter: grayscale(0.8);
+}
