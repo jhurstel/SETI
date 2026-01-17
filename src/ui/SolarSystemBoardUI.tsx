@@ -1493,6 +1493,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
              const isNextAvailable = !signal.marked && (idx === 0 || sector.signals[idx-1].marked);
              const isDisabled = !signal.marked && !isNextAvailable;
              const opacity = isDisabled ? 0.2 : 1;
+             const isLastSlot = idx === sector.signals.length - 1;
 
              // Préparation du tooltip Slot
              const baseGain = isWhiteSlot ? [] : ["1 Donnée"];
@@ -1514,10 +1515,11 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                  <div>
                      <div style={{fontWeight: 'bold', color: stateColor, marginBottom: '4px'}}>{stateText}</div>
                      {gains.length > 0 ? (
-                         <div style={{fontSize: '0.9em'}}>Gain(s) : <span style={{color: '#ffd700'}}>{gains.join(', ')}</span></div>
+                         <div style={{fontSize: '0.9em'}}>Bonus potentiel : <span style={{color: '#ffd700'}}>{gains.join(', ')}</span></div>
                      ) : (
-                         <div style={{fontSize: '0.9em', fontStyle: 'italic', color: '#aaa'}}>Aucun gain immédiat</div>
+                         <div style={{fontSize: '0.9em', fontStyle: 'italic', color: '#aaa'}}>Aucun bonus immédiat</div>
                      )}
+                     {!isDisabled && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Scanner pour récupérer le bonus</div>}
                  </div>
              );
 
@@ -1529,7 +1531,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                   }}
                   onMouseLeave={() => setSlotTooltip(null)}
                >
-                 <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" />
+                 <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" strokeDasharray={isLastSlot ? "1 1" : undefined} />
                  {!player && signal.bonus && (
                    <g transform="scale(0.25)">
                      {renderBonusContent(signal.bonus)}

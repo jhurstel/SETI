@@ -83,7 +83,7 @@ const ComputerSlot = ({
           subContent = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus obtenu : <span style={{ color: bonusColor }}>{bonusText}</span></div>;
       }
   } else if (canFill) {
-      title = 'Emplacement disponible';
+      title = 'Disponible';
       titleColor = '#4a9eff';
       if (bonusText) {
           subContent = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Gagnez : <span style={{ color: bonusColor, fontWeight: 'bold' }}>{bonusText}</span></div>;
@@ -91,7 +91,7 @@ const ComputerSlot = ({
           subContent = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus immédiat</div>;
       }
   } else {
-      title = 'Emplacement indisponible';
+      title = 'Indisponible (nécessite le précédent)';
       titleColor = '#ff6b6b';
       if (bonusText) {
           subContent = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus potentiel : <span style={{ color: bonusColor }}>{bonusText}</span></div>;
@@ -112,6 +112,7 @@ const ComputerSlot = ({
       className={`computer-slot ${isFilled ? 'filled' : ''} ${canFill && !isFilled ? 'can-fill' : ''}`}
       onMouseEnter={(e) => onHover(e, tooltipContent)}
       onMouseLeave={onLeave}
+      style={{ cursor: canFill && !isFilled ? 'pointer' : 'help' }}
     >
       {isFilled && <div className="computer-slot-dot" />}
       {!isFilled && slot.bonus === 'media' && <span className="computer-slot-bonus media">M</span>}

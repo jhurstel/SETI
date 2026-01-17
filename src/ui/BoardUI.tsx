@@ -267,6 +267,17 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     });
   };
 
+  // Helper pour formater les logs de rotation
+  const formatRotationLogs = (baseMessage: string, rotationLogs: string[]) => {
+    if (rotationLogs.length === 0) return baseMessage;
+    
+    const details = rotationLogs.map(log => {
+        return log.replace(/^Sonde de /, '').replace(/ poussée vers /, ' -> ');
+    }).join(', ');
+    
+    return `${baseMessage}. Poussée(s) : ${details}`;
+  };
+
   // Helper pour ajouter une entrée à l'historique
   const addToHistory = useCallback((message: string, playerId?: string, previousState?: Game, customInteractionState?: InteractionState, sequenceId?: string) => {
     const entry: HistoryEntry = {
@@ -508,9 +519,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
     updatedGame = rotationResult.game;
     
-    const logs = [`fait tourner le système solaire (Niveau ${currentLevel}) via ${source}`, ...rotationResult.logs];
-    
-    return { updatedGame, logs };
+    const log = formatRotationLogs(`fait tourner le système solaire (Niveau ${currentLevel}) via ${source}`, rotationResult.logs);
+    return { updatedGame, logs: [log] };
   }
 
   // Gestionnaire pour passer au joueur suivant (fin de tour simple)
@@ -689,9 +699,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
       updatedGame = rotationResult.game;
       
-      addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias et fait tourner le système solaire (Niveau ${currentLevel}) pour rechercher une technologie`, player.id, game);
-
-      rotationResult.logs.forEach(log => addToHistory(log));
+      const logMessage = formatRotationLogs(
+        `paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias et fait tourner le système solaire (Niveau ${currentLevel}) pour rechercher une technologie`,
+        rotationResult.logs
+      );
+      addToHistory(logMessage, player.id, game);
 
       setGame(updatedGame);
       if (gameEngineRef.current) {
@@ -1209,18 +1221,32 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     
     const sequenceId = `seq-${Date.now()}`;
     
-    const areAllGainsPassive = allBonusLogs.every(log => log.startsWith('gagne') || log.startsWith('pioche'));
-
-    if (newPendingInteractions.length === 0 && areAllGainsPassive && passiveGains.length > 0) {
-        // Si seulement des gains passifs, on les ajoute sur la même ligne
-        const gainsSummary = passiveGains.join(', ');
-        addToHistory(`joue la carte "${card.name}" pour ${card.cost} crédits et gagne : ${gainsSummary}`, currentPlayer.id, currentGame, undefined, sequenceId);
-    } else {
-        // Sinon, on log l'action puis les effets en séquence
-        addToHistory(`joue la carte "${card.name}" pour ${card.cost} crédits`, currentPlayer.id, currentGame, undefined, sequenceId);
-        if (allBonusLogs.length > 0) {
-            allBonusLogs.forEach(log => addToHistory(log, currentPlayer.id, gameAfterBonuses, undefined, sequenceId));
-        }
+    // Construction du message d'historique unifié
+    let message = `joue la carte "${card.name}" pour ${card.cost} crédits`;
+    
+    // Filtrer les logs pour séparer ce qu'on fusionne de ce qu'on garde séparé
+    const isPassiveLog = (log: string) => log.startsWith('gagne ') || log.startsWith('pioche ');
+    const isMovementLog = (log: string) => log.includes('déplacement') && log.includes('gratuit');
+    
+    const movementLogs = allBonusLogs.filter(isMovementLog);
+    const otherLogs = allBonusLogs.filter(log => !isPassiveLog(log) && !isMovementLog(log));
+    
+    const extras = [];
+    if (passiveGains.length > 0) {
+        extras.push(`gagne : ${passiveGains.join(', ')}`);
+    }
+    if (movementLogs.length > 0) {
+        extras.push(movementLogs.join(', '));
+    }
+    
+    if (extras.length > 0) {
+        message += ` et ${extras.join(' et ')}`;
+    }
+    
+    addToHistory(message, currentPlayer.id, currentGame, undefined, sequenceId);
+    
+    if (otherLogs.length > 0) {
+        otherLogs.forEach(log => addToHistory(log, currentPlayer.id, gameAfterBonuses, undefined, sequenceId));
     }
 
     // Gérer les interactions en attente (ex: Mouvements, Tech, etc.)
@@ -1519,8 +1545,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         updatedGame = rotationResult.game;
         
         // Ajouter les logs de rotation
-        addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias et fait tourner le système solaire (Niveau ${currentLevel}) pour rechercher une technologie`, player.id, game);
-        rotationResult.logs.forEach(log => addToHistory(log));
+        const logMessage = formatRotationLogs(
+            `paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias et fait tourner le système solaire (Niveau ${currentLevel}) pour rechercher une technologie`,
+            rotationResult.logs
+        );
+        addToHistory(logMessage, player.id, game);
 
         // Traiter l'achat ou la sélection de slot
         if (tech.id.startsWith('computing')) {
@@ -1861,6 +1890,40 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         .seti-history-container:hover, .seti-history-container.open {
           max-height: 33vh !important;
         }
+        .seti-icon-panel {
+          transition: width 0.3s ease, max-height 0.5s ease, border-radius 0.3s ease;
+          width: 100%;
+        }
+        .seti-icon-panel.collapsed {
+          width: 40px;
+          border-radius: 50%;
+        }
+        .seti-icon-panel.collapsed:hover {
+          width: 100%;
+          border-radius: 6px;
+          box-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+          border-color: #4a9eff;
+        }
+        .seti-icon-panel.collapsed .seti-foldable-header {
+          justify-content: center;
+          padding: 0;
+        }
+        .seti-icon-panel.collapsed:hover .seti-foldable-header {
+          justify-content: space-between;
+          padding: 0 10px;
+        }
+        .seti-icon-panel .panel-icon { display: none; font-size: 1.2rem; }
+        .seti-icon-panel .panel-title { display: block; }
+        .seti-icon-panel.collapsed .panel-icon { display: block; }
+        .seti-icon-panel.collapsed .panel-title { display: none; }
+        .seti-icon-panel.collapsed:hover .panel-icon { display: none; }
+        .seti-icon-panel.collapsed:hover .panel-title { display: block; }
+        .seti-icon-panel.collapsed .seti-foldable-header::after {
+          display: none;
+        }
+        .seti-icon-panel.collapsed:hover .seti-foldable-header::after {
+          display: block;
+        }
       `}</style>
       {/* Toast Notification */}
       {toast && toast.visible && (
@@ -2163,8 +2226,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               overflowY: 'auto',
               pointerEvents: 'none',
             }}>
-              <div className={`seti-foldable-container ${isObjectivesOpen ? 'open' : ''}`} style={{ pointerEvents: 'auto' }}>
-                <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>Objectifs</div>
+              <div className={`seti-foldable-container seti-icon-panel ${isObjectivesOpen ? 'open' : 'collapsed'}`} style={{ pointerEvents: 'auto' }}>
+                <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
+                  <span className="panel-icon">🎯</span>
+                  <span className="panel-title">Objectifs</span>
+                </div>
                 <div className="seti-foldable-content">
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     {game.board.objectiveTiles && game.board.objectiveTiles.map(tile => (
@@ -2223,13 +2289,16 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 </div>
               </div>
 
-              <div className={`seti-foldable-container ${isTechOpen ? 'open' : ''}`}
+              <div className={`seti-foldable-container seti-icon-panel ${isTechOpen ? 'open' : 'collapsed'}`}
                   style={{ 
                     pointerEvents: 'auto',
                     ...(interactionState.type === 'ACQUIRING_TECH' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
                   }}
               >
-                <div className="seti-foldable-header" onClick={() => setIsTechOpen(!isTechOpen)}>Technologies</div>
+                <div className="seti-foldable-header" onClick={() => setIsTechOpen(!isTechOpen)}>
+                  <span className="panel-icon">🔬</span>
+                  <span className="panel-title">Technologies</span>
+                </div>
                 <div className="seti-foldable-content">
                   <TechnologyBoardUI 
                     game={game} 
@@ -2242,13 +2311,16 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 </div>
               </div>
               
-              <div className={`seti-foldable-container ${isRowOpen ? 'open' : ''}`}
+              <div className={`seti-foldable-container seti-icon-panel ${isRowOpen ? 'open' : 'collapsed'}`}
                   style={{ 
                     pointerEvents: 'auto',
                     ...(interactionState.type === 'ACQUIRING_CARD' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
                   }}
               >
-                <div className="seti-foldable-header" onClick={() => setIsRowOpen(!isRowOpen)}>Rangée Principale</div>
+                <div className="seti-foldable-header" onClick={() => setIsRowOpen(!isRowOpen)}>
+                  <span className="panel-icon">🃏</span>
+                  <span className="panel-title">Rangée Principale</span>
+                </div>
                 <div className="seti-foldable-content">
                 <div style={{ display: 'flex', overflowX: 'auto', gap: '8px', padding: '8px' }}>
                   {/* Pile de pioche */}
@@ -2324,13 +2396,16 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               zIndex: 1000,
               display: 'flex',
               flexDirection: 'column',
-              pointerEvents: 'none'
+              pointerEvents: 'none',
+              alignItems: 'flex-end'
             }}>
-              <div className={`seti-foldable-container seti-history-container ${isHistoryOpen ? 'open' : ''}`} style={{ display: 'flex', flexDirection: 'column', pointerEvents: 'auto' }}>
+              <div className={`seti-foldable-container seti-history-container seti-icon-panel ${isHistoryOpen ? 'open' : 'collapsed'}`} style={{ display: 'flex', flexDirection: 'column', pointerEvents: 'auto' }}>
                <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
-                  <span style={{ flex: 1 }}>Historique</span>
+                  <span className="panel-icon">📜</span>
+                  <span className="panel-title" style={{ flex: 1 }}>Historique</span>
                   {historyLog.length > 0 && historyLog[historyLog.length - 1].previousState && (
                     <button 
+                      className="panel-title"
                       onClick={(e) => { e.stopPropagation(); handleUndo(); }} 
                       style={{ fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', backgroundColor: '#555', border: '1px solid #777', color: '#fff', borderRadius: '4px', marginRight: '5px' }} 
                       title="Annuler la dernière action"
