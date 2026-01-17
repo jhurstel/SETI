@@ -427,6 +427,7 @@ export interface Bonus {
   revenue?: number;
   anytechnology?: number;
   probe?: number;
+  landing?: number;
 }
 
 export interface RotationDisk {
@@ -533,6 +534,9 @@ export const GAME_CONSTANTS = {
   INITIAL_REVENUE_ENERGY: 2,
   INITIAL_REVENUE_CARDS: 1,
 } as const;
+
+export const MILESTONES = [25, 50, 70] as const;
+export type MilestoneType = typeof MILESTONES[number];
 
 export const DISK_NAMES: Record<DiskName, number> = {
   A: 0,

@@ -51,12 +51,14 @@ const ComputerSlot = ({
   slot, 
   onClick, 
   canFill,
+  hasData,
   onHover,
   onLeave
 }: { 
   slot: any, 
   onClick: () => void, 
   canFill: boolean,
+  hasData: boolean,
   onHover: (e: React.MouseEvent, content: React.ReactNode) => void,
   onLeave: () => void
 }) => {
@@ -74,35 +76,51 @@ const ComputerSlot = ({
 
   let title = '';
   let titleColor = '#fff';
-  let subContent: React.ReactNode = null;
+  let bonusLine = null;
+  let actionLine = null;
 
   if (isFilled) {
       title = 'Donnée stockée';
       titleColor = '#aaa';
       if (bonusText) {
-          subContent = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus obtenu : <span style={{ color: bonusColor }}>{bonusText}</span></div>;
+          bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: bonusColor }}>{bonusText}</span></div>;
       }
   } else if (canFill) {
-      title = 'Disponible';
-      titleColor = '#4a9eff';
-      if (bonusText) {
-          subContent = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Gagnez : <span style={{ color: bonusColor, fontWeight: 'bold' }}>{bonusText}</span></div>;
+      if (hasData) {
+          title = 'Disponible';
+          titleColor = '#4a9eff';
+          if (bonusText) {
+              bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: bonusColor, fontWeight: 'bold' }}>{bonusText}</span></div>;
+          } else {
+              bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>;
+          }
+          actionLine = <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Cliquer pour transférer une donnée</div>;
       } else {
-          subContent = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus immédiat</div>;
+          title = 'Indisponible';
+          titleColor = '#ff6b6b';
+          if (bonusText) {
+              bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: bonusColor }}>{bonusText}</span></div>;
+          } else {
+              bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>;
+          }
+          actionLine = <div style={{ fontSize: '0.8em', color: '#ff6b6b', marginTop: '4px', fontStyle: 'italic' }}>Nécessite 1 donnée</div>;
       }
   } else {
-      title = 'Indisponible (nécessite le précédent)';
+      title = 'Indisponible';
       titleColor = '#ff6b6b';
       if (bonusText) {
-          subContent = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus potentiel : <span style={{ color: bonusColor }}>{bonusText}</span></div>;
+          bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: bonusColor }}>{bonusText}</span></div>;
+      } else {
+          bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>;
       }
+  actionLine = <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Nécessite le slot précédent</div>;
   }
   
   const tooltipContent = (
       <div style={{ textAlign: 'center' }}>
           <div style={{ fontWeight: 'bold', marginBottom: '4px', color: titleColor }}>{title}</div>
-          {subContent}
-          {canFill && !isFilled && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Cliquer pour transférer une donnée</div>}
+          {bonusLine}
+          {actionLine}
       </div>
   );
 
@@ -134,6 +152,7 @@ const PlayerComputer = ({
 }) => {
   const slots = player.dataComputer.slots;
   const columns = [1, 2, 3, 4, 5, 6];
+  const hasData = (player.data || 0) > 0;
 
   return (
     <div className={`player-computer-container ${isAnalyzing ? 'analyzing-container' : ''}`}>
@@ -176,6 +195,7 @@ const PlayerComputer = ({
                   slot={slot} 
                   onClick={() => onSlotClick(slot.id)} 
                   canFill={!disabled && DataSystem.canFillSlot(player, slot.id)} 
+                  hasData={hasData}
                   onHover={onHover}
                   onLeave={onLeave}
                 />

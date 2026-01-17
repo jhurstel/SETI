@@ -26,6 +26,7 @@ interface SolarSystemBoardUIProps {
   freeMovementCount?: number; // Nombre de déplacements gratuits disponibles
   hasPerformedMainAction?: boolean;
   autoSelectProbeId?: string;
+  isLandingInteraction?: boolean;
 }
 
 export interface SolarSystemBoardUIRef {
@@ -135,7 +136,7 @@ const describeArc = (x: number, y: number, radius: number, startAngle: number, e
     ].join(" ");
 };
 
-export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false, autoSelectProbeId }, ref) => {
+export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false, autoSelectProbeId, isLandingInteraction }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredObjectRect, setHoveredObjectRect] = useState<DOMRect | null>(null);
@@ -631,7 +632,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         if (hasPerformedMainAction || isRobot) {
             landReason = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
         } else {
-            const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id);
+            const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !isLandingInteraction);
             canLand = check.canLand;
             landReason = check.canLand ? `Cliquez pour atterrir (Coût: ${check.energyCost} Énergie)` : (check.reason || "Impossible");
         }
@@ -988,17 +989,33 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     const isNextAvailable = i === planetData.orbiters.length;
                     const isClickable = isNextAvailable && canOrbit && !!onOrbit;
                     
-                    const tooltipContent = isOccupied ? (
-                        <div>Orbiteur de <span style={{fontWeight: 'bold', color: player?.color}}>{player?.name}</span></div>
-                    ) : (
-                        <>
-                            <div style={{ marginBottom: '4px', color: isClickable ? '#4a9eff' : '#ff6b6b', fontWeight: isClickable ? 'bold' : 'normal' }}>
-                                {orbitReason}
+                    let statusText = "";
+                    let statusColor = "";
+                    let actionText = null;
+
+                    if (isOccupied) {
+                        statusText = `Occupé par ${player?.name}`;
+                        statusColor = player?.color || "#ccc";
+                    } else if (isClickable) {
+                        statusText = "Disponible";
+                        statusColor = "#4a9eff";
+                        actionText = "Cliquer pour mettre en orbite";
+                    } else {
+                        statusText = "Indisponible";
+                        statusColor = "#ff6b6b";
+                        actionText = orbitReason;
+                    }
+
+                    const tooltipContent = (
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>
+                                {statusText}
                             </div>
                             <div style={{ fontSize: '0.9em', color: '#ccc' }}>
-                                Récompenses: <span style={{ color: '#ffd700' }}>{bonusText}</span>
+                                Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span>
                             </div>
-                        </>
+                            {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
+                        </div>
                     );
                     
                     const isFirst = i === 0;
@@ -1036,19 +1053,35 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     
                     const isOccupied = !!player;
                     const isNextAvailable = i === planetData.landers.length;
-                    const isClickable = isNextAvailable && canLand && !!onLand;
+                    const isClickable = isNextAvailable && (canLand || isLandingInteraction) && !!onLand;
 
-                    const tooltipContent = isOccupied ? (
-                        <div>Atterrisseur de <span style={{fontWeight: 'bold', color: player?.color}}>{player?.name}</span></div>
-                    ) : (
-                        <>
-                            <div style={{ marginBottom: '4px', color: isClickable ? '#4a9eff' : '#ff6b6b', fontWeight: isClickable ? 'bold' : 'normal' }}>
-                                {landReason}
+                    let statusText = "";
+                    let statusColor = "";
+                    let actionText = null;
+
+                    if (isOccupied) {
+                        statusText = `Occupé par ${player?.name}`;
+                        statusColor = player?.color || "#ccc";
+                    } else if (isClickable) {
+                        statusText = "Disponible";
+                        statusColor = "#4a9eff";
+                        actionText = "Cliquer pour atterrir";
+                    } else {
+                        statusText = "Indisponible";
+                        statusColor = "#ff6b6b";
+                        actionText = landReason;
+                    }
+
+                    const tooltipContent = (
+                        <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>
+                                {statusText}
                             </div>
                             <div style={{ fontSize: '0.9em', color: '#ccc' }}>
-                                Récompenses: <span style={{ color: '#ffd700' }}>{bonusText}</span>
+                                Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span>
                             </div>
-                        </>
+                            {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
+                        </div>
                     );
                     
                     const isFullSlot = i === 0 || (planetData.id === 'mars' && i === 1);
@@ -1502,24 +1535,29 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
 
              let stateText = "Disponible";
              let stateColor = "#4a9eff";
+             let actionText = null;
+
              if (signal.marked) {
                  const markerPlayer = game.players.find(p => p.id === signal.markedBy);
                  stateText = `Analysé par ${markerPlayer?.name || 'Inconnu'}`;
                  stateColor = markerPlayer?.color || "#ccc";
              } else if (isDisabled) {
-                 stateText = "Indisponible (nécessite le précédent)";
+                 stateText = "Indisponible";
                  stateColor = "#ff6b6b";
+                 actionText = "Nécessite le signal précédent";
+             } else {
+                 actionText = "Scanner pour récupérer le bonus";
              }
 
              const slotTooltipContent = (
-                 <div>
+                 <div style={{ textAlign: 'center' }}>
                      <div style={{fontWeight: 'bold', color: stateColor, marginBottom: '4px'}}>{stateText}</div>
                      {gains.length > 0 ? (
-                         <div style={{fontSize: '0.9em'}}>Bonus potentiel : <span style={{color: '#ffd700'}}>{gains.join(', ')}</span></div>
+                         <div style={{fontSize: '0.9em', color: '#ccc'}}>Bonus : <span style={{color: '#ffd700'}}>{gains.join(', ')}</span></div>
                      ) : (
-                         <div style={{fontSize: '0.9em', fontStyle: 'italic', color: '#aaa'}}>Aucun bonus immédiat</div>
+                         <div style={{fontSize: '0.9em', color: '#ccc'}}>Aucun bonus</div>
                      )}
-                     {!isDisabled && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Scanner pour récupérer le bonus</div>}
+                     {actionText && <div style={{ fontSize: '0.8em', color: stateColor, marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
                  </div>
              );
 
@@ -2286,8 +2324,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                         <div style={{ fontWeight: 'bold', fontSize: '1.2em', color: '#78a0ff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
                           {planetData.name}
                         </div>
-                        <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>
-                          Gagnez 1 media en visitant
+                        <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>
+                          Visiter pour gagner 1 media
                         </div>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px' }}>
@@ -2317,23 +2355,23 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
               let subContent = null;
 
               if (hoveredObject.type === 'comet') {
-                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>Gagnez 1 media en visitant</div>;
+                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>Visiter pour gagner 1 Média</div>;
               } else if (hoveredObject.type === 'asteroid') {
                 const currentPlayer = game.players[game.currentPlayerIndex];
                 // Utilisation de exploration-2 qui correspond au bonus d'astéroïdes dans Board.ts
                 const hasTech = currentPlayer.technologies.some(t => t.id.startsWith('exploration-2'));
                 subContent = (
-                  <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>
-                    {hasTech ? 'Gagnez 1 media en visitant' : 'Nécessite 1 déplacement supplémentaire pour quitter'}
+                  <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>
+                    {hasTech ? 'Visiter pour gagner 1 Média' : 'Quitter nécessite 1 déplacement supplémentaire'}
                   </div>
                 );
               } else if (hoveredObject.type === 'planet' && hoveredObject.id !== 'earth') {
-                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa' }}>Gagnez 1 media en visitant</div>;
+                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>Visiter pour gagner 1 Média</div>;
               } else {
                 const currentPlayer = game.players[game.currentPlayerIndex];
                 const isRobot = (currentPlayer as any).type === 'robot';
                 const check = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
-                let text = `Lancer une sonde (${GAME_CONSTANTS.PROBE_LAUNCH_COST} Crédits)`;
+                let text = `Lancer une sonde (coût: ${GAME_CONSTANTS.PROBE_LAUNCH_COST} Crédits)`;
                 let color = '#aaa';
                 if (hasPerformedMainAction || isRobot) {
                     text = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
@@ -2342,7 +2380,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     text = check.reason || "Impossible";
                     color = '#ff6b6b';
                 }
-                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: color }}>{text}</div>;
+                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: color, fontStyle: 'italic' }}>{text}</div>;
               }
 
               return <Tooltip content={<>{content}{subContent}</>} targetRect={hoveredObjectRect} />;

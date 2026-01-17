@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Technology, RevenueType, ProbeState, TechnologyCategory } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Technology, RevenueType, ProbeState, TechnologyCategory, MILESTONES } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -54,6 +54,8 @@ type InteractionState =
   | { type: 'ANALYZING' }
   /** Le joueur a analysé des données et doit placer une trace de vie sur le plateau Alien. */
   | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow', sequenceId?: string }
+  /** Le joueur a un atterrissage gratuit (ex: Carte 13). */
+  | { type: 'LANDING_PROBE', count: number, source?: string, sequenceId?: string }
   /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number }
   /** Le joueur a reçu plusieurs bonus interactifs et doit choisir l'ordre de résolution. */
@@ -72,6 +74,7 @@ const getInteractionLabel = (state: InteractionState): string => {
     case 'ACQUIRING_TECH': return "Choisir une technologie";
     case 'PLACING_LIFE_TRACE': return `Placer trace de vie (${state.color})`;
     case 'MOVING_PROBE': return `Déplacement gratuit (${state.count})`;
+    case 'LANDING_PROBE': return `Atterrissage gratuit (${state.count})`;
     default: return "Action bonus";
   }
 };
@@ -531,9 +534,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Utiliser l'état du moteur pour avoir la version la plus à jour
     const currentState = gameEngineRef.current.getState();
     const currentPlayer = currentState.players[currentState.currentPlayerIndex];
-    const milestones = [25, 50, 70];
     
-    for (const m of milestones) {
+    for (const m of MILESTONES) {
       if (currentPlayer.score >= m && !currentPlayer.claimedMilestones.includes(m)) {
         setInteractionState({ type: 'PLACING_OBJECTIVE_MARKER', milestone: m });
         setToast({ message: `Palier de ${m} PV atteint ! Placez un marqueur sur un objectif avant de terminer le tour.`, visible: true });
@@ -757,7 +759,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   };
 
   // Helper pour traiter les bonus (Orbite/Atterrissage)
-  const processBonuses = (bonuses: any, currentGame: Game, playerId: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[] } => {
+  const processBonuses = (bonuses: any, currentGame: Game, playerId: string, sourceId?: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[] } => {
     let updatedGame = currentGame;
     const newPendingInteractions: InteractionState[] = [];
     const logs: string[] = [];
@@ -848,6 +850,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
          setToast({ message: "Bonus Scan : Fonctionnalité à venir", visible: true });
     }
 
+    if (bonuses.landing) {
+        newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId });
+    }
+
     return { updatedGame, newPendingInteractions, logs, passiveGains };
   };
 
@@ -908,9 +914,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const stateBeforeAction = structuredClone(game);
 
     try {
-        const result = actionFn(game, currentPlayer.id, probe.id, planetId);
+        const result = actionFn(game, currentPlayer.id, probe.id, planetId, interactionState.type === 'LANDING_PROBE');
         
-        const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id);
+        const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, (interactionState as any).source);
 
         setGame(updatedGame);
         if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
@@ -983,7 +989,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleOrbit = (planetId: string) => {
     handlePlanetInteraction(
         planetId,
-        (g, pid, prid, targetId) => ProbeSystem.orbitProbe(g, pid, prid, targetId),
+        (g, pid, prid, targetId) => ProbeSystem.orbitProbe(g, pid, prid, targetId), // Orbit is not free via LANDING_PROBE
         "met une sonde en orbite autour de",
         "Sonde mise en orbite"
     );
@@ -991,6 +997,43 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour l'atterrissage via la hover card
   const handleLand = (planetId: string) => {
+    // Vérifier si on est en mode atterrissage gratuit
+    if (interactionState.type === 'LANDING_PROBE') {
+        handlePlanetInteraction(
+            planetId,
+            (g, pid, prid, targetId, isFree) => {
+                const result = ProbeSystem.landProbe(g, pid, prid, targetId, true); // Toujours gratuit en mode LANDING_PROBE
+                
+                // Logique spécifique Carte 13 (Rover Perseverance)
+                // "Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs."
+                if (interactionState.source === '13') {
+                    const isMars = targetId === 'mars';
+                    const isMercury = targetId === 'mercury';
+                    // Vérifier si c'est une lune (satellite)
+                    const isMoon = g.board.planets.some(p => p.satellites?.some(s => s.id === targetId));
+                    
+                    if (isMars || isMercury || isMoon) {
+                        if (!result.bonuses) result.bonuses = {};
+                        result.bonuses.pv = (result.bonuses.pv || 0) + 4;
+                    }
+                }
+                return result;
+            },
+            "fait atterrir une sonde (Bonus) sur",
+            "Atterrissage réussi"
+        );
+        
+        // Décrémenter ou terminer l'interaction
+        if (interactionState.count > 1) {
+            setInteractionState({ ...interactionState, count: interactionState.count - 1 });
+        } else {
+            // Si on vient d'un menu de choix, on retourne à IDLE (le menu gère la suite via pendingInteractions)
+            // Sinon IDLE
+            setInteractionState({ type: 'IDLE' });
+        }
+        return;
+    }
+
     handlePlanetInteraction(
         planetId,
         // On passe planetId comme targetId pour supporter l'atterrissage sur les satellites
@@ -1207,7 +1250,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         return;
     }
 
-    const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs: allBonusLogs } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id);
+    const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs: allBonusLogs } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, cardId);
 
     const card = currentGame.players[currentGame.currentPlayerIndex].cards.find(c => c.id === cardId)!;
     setGame(gameAfterBonuses);
@@ -2210,6 +2253,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               freeMovementCount={interactionState.type === 'MOVING_PROBE' ? interactionState.count : 0}
               hasPerformedMainAction={hasPerformedMainAction}
               autoSelectProbeId={interactionState.type === 'MOVING_PROBE' ? interactionState.autoSelectProbeId : undefined}
+              isLandingInteraction={interactionState.type === 'LANDING_PROBE'}
             />
 
             {/* Plateaux annexes en haut à gauche */}
@@ -2265,6 +2309,45 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                             const hasMarkerOnTile = tile.markers.includes(currentPlayer.id);
                             const isNextAvailable = isPlacingMarker && !hasMarkerOnTile && idx === tile.markers.length;
 
+                            let statusText = "";
+                            let statusColor = "";
+                            let actionText = null;
+                            let milestoneText = null;
+
+                            if (player) {
+                                statusText = `Atteint par ${player.name}`;
+                                statusColor = player.color || "#ccc";
+                            } else if (isNextAvailable) {
+                                statusText = "Disponible";
+                                statusColor = "#4a9eff";
+                                actionText = "Cliquer pour placer un marqueur";
+                            } else if (hasMarkerOnTile) {
+                                statusText = "Déjà validé";
+                                statusColor = "#aaa";
+                            } else {
+                                statusText = "Indisponible";
+                                statusColor = "#ff6b6b";
+                                if (idx === tile.markers.length) {
+                                    const nextMilestone = MILESTONES.find(m => !currentPlayer.claimedMilestones.includes(m));
+                                    if (nextMilestone) {
+                                        milestoneText = `Atteindre ${nextMilestone} PVs pour sélectionner l'objectif`;
+                                    } else {
+                                        actionText = "Tous les paliers atteints";
+                                    }
+                                } else {
+                                    actionText = "Nécessite le palier précédent";
+                                }
+                            }
+
+                            const tooltipContent = (
+                                <div style={{ textAlign: 'center' }}>
+                                    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>{statusText}</div>
+                                    <div style={{ fontSize: '0.9em', color: '#ccc' }}>Gain : <span style={{ color: '#ffd700' }}>{pv} PV</span></div>
+                                    {milestoneText && <div style={{ fontSize: '0.8em', color: '#4a9eff', marginTop: '4px', fontStyle: 'italic' }}>{milestoneText}</div>}
+                                    {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
+                                </div>
+                            );
+
                             return (
                               <div key={idx} style={{
                                 width: '22px', height: '22px', borderRadius: '50%',
@@ -2276,8 +2359,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                                 boxShadow: isNextAvailable ? '0 0 8px #4a9eff' : (player ? '0 0 4px rgba(0,0,0,0.5)' : 'none'),
                                 transform: isNextAvailable ? 'scale(1.2)' : 'scale(1)',
                                 transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                                cursor: isNextAvailable ? 'pointer' : 'default',
-                              }}>
+                                cursor: isNextAvailable ? 'pointer' : 'help',
+                              }}
+                              onMouseEnter={(e) => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setActiveTooltip({ content: tooltipContent, rect });
+                              }}
+                              onMouseLeave={() => setActiveTooltip(null)}
+                              >
                                 {player ? '' : pv}
                               </div>
                             );

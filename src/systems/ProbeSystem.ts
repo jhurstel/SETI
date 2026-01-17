@@ -610,7 +610,8 @@ export class ProbeSystem {
   static canLand(
     game: Game,
     playerId: string,
-    probeId: string
+    probeId: string,
+    checkCost: boolean = true
   ): {
     canLand: boolean;
     reason: string;
@@ -637,7 +638,7 @@ export class ProbeSystem {
     }
 
     // Vérifier l'énergie disponible
-    if (player.energy < hasProbeOnPlanetInfo.landCost!) {
+    if (checkCost && player.energy < hasProbeOnPlanetInfo.landCost!) {
       return { 
         canLand: false, 
         reason: `Énergie insuffisante (nécessite ${hasProbeOnPlanetInfo.landCost})`,
@@ -654,7 +655,8 @@ export class ProbeSystem {
     game: Game,
     playerId: string,
     probeId: string,
-    planetId: string
+    planetId: string,
+    free: boolean = false
   ): {
     updatedGame: Game;
     isFirstLander: boolean;
@@ -662,7 +664,7 @@ export class ProbeSystem {
     planetId: string;
     bonuses: Bonus;
   } {
-    const validation = this.canLand(game, playerId, probeId);
+    const validation = this.canLand(game, playerId, probeId, !free);
     if (!validation.canLand) {
       throw new Error(validation.reason || 'Atterrissage impossible');
     }
@@ -688,7 +690,7 @@ export class ProbeSystem {
     // Mettre à jour le joueur
     const updatedPlayer = {
       ...player,
-      energy: player.energy - (validation.energyCost || GAME_CONSTANTS.LAND_COST_ENERGY),
+      energy: player.energy - (free ? 0 : (validation.energyCost || GAME_CONSTANTS.LAND_COST_ENERGY)),
       probes: player.probes.map(p => p.id === probeId ? updatedProbe : p)
     };
 
