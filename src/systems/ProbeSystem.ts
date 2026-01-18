@@ -118,7 +118,7 @@ export class ProbeSystem {
     }
 
     const probe: Probe = {
-      id: `probe_${Date.now()}_${playerId}`,
+      id: `probe_${Date.now()}_${Math.floor(Math.random() * 10000)}_${playerId}`,
       ownerId: playerId,
       position: {
         x: 0,
@@ -656,7 +656,8 @@ export class ProbeSystem {
     playerId: string,
     probeId: string,
     planetId: string,
-    free: boolean = false
+    free: boolean = false,
+    forcedSlotIndex?: number
   ): {
     updatedGame: Game;
     isFirstLander: boolean;
@@ -675,9 +676,22 @@ export class ProbeSystem {
     const player = updatedGame.players[playerIndex];
     const probe = player.probes.find(p => p.id === probeId)!;
 
-    const planet = updatedGame.board.planets.find(p => p.id === planetId);
-    const isFirstLander = planet ? planet.landers.length === 0 : true;
-    const isSecondLander = planet ? planet.landers.length === 1 : false;
+    // Identifier la cible (Planète ou Satellite)
+    let targetBody: any = updatedGame.board.planets.find(p => p.id === planetId);
+    if (!targetBody) {
+        for (const p of updatedGame.board.planets) {
+            if (p.satellites) {
+                const sat = p.satellites.find(s => s.id === planetId);
+                if (sat) {
+                    targetBody = sat;
+                    break;
+                }
+            }
+        }
+    }
+
+    const isFirstLander = targetBody ? (targetBody.landers || []).length === 0 : true;
+    const isSecondLander = targetBody ? (targetBody.landers || []).length === 1 : false;
 
     // Mettre à jour la sonde
     const updatedProbe = {
@@ -704,6 +718,20 @@ export class ProbeSystem {
             landers: [...p.landers, updatedProbe]
           };
         }
+        if (p.satellites && p.satellites.some(s => s.id === planetId)) {
+            return {
+                ...p,
+                satellites: p.satellites.map(s => {
+                    if (s.id === planetId) {
+                        return {
+                            ...s,
+                            landers: [...(s.landers || []), updatedProbe]
+                        };
+                    }
+                    return s;
+                })
+            };
+        }
         return p;
       }),
       solarSystem: {
@@ -713,7 +741,18 @@ export class ProbeSystem {
     };
 
     // Récupérer la planète mise à jour pour les bonus
-    const updatedPlanet = updatedGame.board.planets.find(p => p.id === planetId);
+    let updatedTargetBody: any = updatedGame.board.planets.find(p => p.id === planetId);
+    if (!updatedTargetBody) {
+         for (const p of updatedGame.board.planets) {
+            if (p.satellites) {
+                const sat = p.satellites.find(s => s.id === planetId);
+                if (sat) {
+                    updatedTargetBody = sat;
+                    break;
+                }
+            }
+        }
+    }
 
     const accumulatedBonuses: Bonus = {};
     const applyAndAccumulate = (bonus: Bonus) => {
@@ -727,10 +766,14 @@ export class ProbeSystem {
     };
 
     // Bonus planète (atterrissage)
-    if (updatedPlanet && updatedPlanet.landSlots) {
-      const index = updatedPlanet.landers.length - 1;
-      const slotBonus = updatedPlanet.landSlots[index];
-      if (slotBonus) applyAndAccumulate(slotBonus);
+    if (updatedTargetBody) {
+        if (updatedTargetBody.landSlots) {
+            const index = forcedSlotIndex !== undefined ? forcedSlotIndex : updatedTargetBody.landers.length - 1;
+            const slotBonus = updatedTargetBody.landSlots[index];
+            if (slotBonus) applyAndAccumulate(slotBonus);
+        } else if (updatedTargetBody.landBonus) {
+            applyAndAccumulate(updatedTargetBody.landBonus);
+        }
     }
 
     updatedGame.players[playerIndex] = updatedPlayer;
