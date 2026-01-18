@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, FreeActionType, ProbeState, Card, CardType, SectorColor } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, SectorColor } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { DataSystem } from '../systems/DataSystem';
 import { CardSystem } from '../systems/CardSystem';
@@ -54,14 +54,16 @@ const ComputerSlot = ({
   canFill,
   hasData,
   onHover,
-  onLeave
+  onLeave,
+  isPreviousFilled
 }: { 
   slot: any, 
   onClick: () => void, 
   canFill: boolean,
   hasData: boolean,
   onHover: (e: React.MouseEvent, content: React.ReactNode) => void,
-  onLeave: () => void
+  onLeave: () => void,
+  isPreviousFilled?: boolean
 }) => {
   const isFilled = slot.filled;
   
@@ -114,7 +116,11 @@ const ComputerSlot = ({
       } else {
           bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>;
       }
-  actionLine = <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Nécessite le slot précédent</div>;
+      if (isPreviousFilled && slot.type !== 'top') {
+        actionLine = <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Nécessite une technologie informatique</div>;
+      } else {
+        actionLine = <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Nécessite le slot précédent</div>;
+      }
   }
   
   const tooltipContent = (
@@ -190,7 +196,7 @@ const PlayerComputer = ({
               {hasBottom && (
                 <div className="computer-column-connector" />
               )}
-              {colSlots.map((slot: any) => (
+              {colSlots.map((slot: any, slotIndex: number) => (
                 <ComputerSlot 
                   key={slot.id} 
                   slot={slot} 
@@ -199,6 +205,7 @@ const PlayerComputer = ({
                   hasData={hasData}
                   onHover={onHover}
                   onLeave={onLeave}
+                  isPreviousFilled={slotIndex > 0 ? colSlots[slotIndex - 1].filled : true}
                 />
               ))}
             </div>
@@ -396,7 +403,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     });
     
     if (onHistory) {
-        const gainText = gains.length > 0 ? ` et gagne : ${gains.join(', ')}` : '';
+        const gainText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
         onHistory(`transfère une donnée vers l'ordinateur (${slotId})${gainText}`);
     }
     
@@ -525,7 +532,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
           e.stopPropagation();
           if (!disabled) onClick(e);
         }}
-        disabled={disabled}
+        // disabled={disabled} // Désactivé pour permettre les événements de souris (tooltip)
+        aria-disabled={disabled}
         style={{
           backgroundColor: !disabled ? '#333' : '#222',
           color: !disabled ? color : '#555',
@@ -547,7 +555,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         }}
         onMouseEnter={(e) => {
           handleTooltipHover(e, tooltip);
-          if (disabled) return;
+          //if (disabled) return;
           const target = e.currentTarget as HTMLButtonElement;
           target.style.borderColor = '#4a9eff';
           target.style.backgroundColor = '#444';
@@ -555,7 +563,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         }}
         onMouseLeave={(e) => {
           handleTooltipLeave();
-          if (disabled) return;
+          //if (disabled) return;
           const target = e.currentTarget as HTMLButtonElement;
           target.style.borderColor = '#555';
           target.style.backgroundColor = '#333';
@@ -654,40 +662,12 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
       }
     }
 
-    // Logique des boutons d'action (Jouer / Défausser)
-    const isMovementAction = card.freeAction === FreeActionType.MOVEMENT;
-    const isDataAction = card.freeAction === FreeActionType.DATA;
-    const isMediaAction = card.freeAction === FreeActionType.MEDIA;
-    
-    let canPerformFreeActionType = isCurrentTurn;
-    let actionTooltip = "";
-
-    if (!isCurrentTurn) {
-      actionTooltip = "Ce n'est pas votre tour";
-    } else if (isMovementAction) {
-      if (!(currentPlayer.probes || []).some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
-        canPerformFreeActionType = false;
-        actionTooltip = "Nécessite une sonde dans le système solaire";
-      } else {
-        actionTooltip = "Défausser pour gagner 1 Déplacement";
-      }
-    } else if (isDataAction) {
-      if ((currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
-        canPerformFreeActionType = false;
-        actionTooltip = "Nécessite de transférer des données";
-      } else {
-        actionTooltip = "Défausser pour gagner 1 Donnée";
-      }
-    } else if (isMediaAction) {
-      if (currentPlayer.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
-        canPerformFreeActionType = false;
-        actionTooltip = "Média au maximum";
-      } else {
-        actionTooltip = "Défausser pour gagner 1 Média";
-      }
-    }
+    const { canDiscard, reason: discardTooltip } = CardSystem.canDiscardFreeAction(game, currentPlayer.id, card.freeAction);
+    const canDiscardAction = canDiscard && !hasPerformedMainAction;
 
     const { canPlay, reason: playTooltip } = CardSystem.canPlayCard(game, currentPlayer.id, card);
+    const canPlayAction = canPlay && !hasPerformedMainAction;
+    const effectivePlayTooltip = hasPerformedMainAction ? "Action principale déjà effectuée" : playTooltip;
 
     return (
       <div 
@@ -709,8 +689,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
       >
         {isHighlighted && !isDiscarding && !isReserving && !isTrading && (
           <>
-          {renderActionButton('▶️', playTooltip, () => { if (canPlay && onPlayCard) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlay, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 })}
-          {renderActionButton('🗑️', actionTooltip, () => { if (canPerformFreeActionType && onDiscardCardAction) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canPerformFreeActionType, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 })}
+          {renderActionButton('▶️', effectivePlayTooltip, () => { if (canPlayAction && onPlayCard) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlayAction, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 })}
+          {renderActionButton('🗑️', discardTooltip, () => { if (canDiscardAction && onDiscardCardAction) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canDiscardAction, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 })}
           </>
         )}
         <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>

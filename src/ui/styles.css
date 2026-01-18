@@ -582,12 +582,10 @@ body {
 }
 .seti-card-idle:hover {
   border-color: #777;
-  transform: translateY(-2px);
 }
 .seti-card-idle.selected {
   border: 2px solid #4a9eff !important;
   background-color: rgba(74, 158, 255, 0.1) !important;
-  transform: translateY(-6px);
   z-index: 10;
   box-shadow: 0 0 15px rgba(74, 158, 255, 0.3);
 }

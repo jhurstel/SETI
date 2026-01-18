@@ -233,6 +233,23 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   }, [interactionState.type]);
 
+  // Effet pour la réservation initiale (Setup) pour le joueur humain
+  useEffect(() => {
+    if (game.currentRound === 1 && interactionState.type === 'IDLE') {
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        if (currentPlayer.type === 'human') {
+            const initialTotalRevenue = GAME_CONSTANTS.INITIAL_REVENUE_CREDITS + GAME_CONSTANTS.INITIAL_REVENUE_ENERGY + GAME_CONSTANTS.INITIAL_REVENUE_CARDS;
+            const currentTotalRevenue = currentPlayer.revenueCredits + currentPlayer.revenueEnergy + currentPlayer.revenueCards;
+            
+            if (currentTotalRevenue === initialTotalRevenue) {
+                setInteractionState({ type: 'RESERVING_CARD', count: 1, selectedCards: [] });
+                setToast({ message: "Phase de préparation : Veuillez réserver une carte de votre main", visible: true });
+                setViewedPlayerId(currentPlayer.id);
+            }
+        }
+    }
+  }, [game.currentRound, game.currentPlayerIndex, game.players, interactionState.type]);
+
   // État pour la modale de sélection de carte de fin de manche
   const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: any[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
 
@@ -613,7 +630,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     const updatedGame = { ...game };
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
-    const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
+    
+    // Identifier le joueur concerné (celui qui possède la carte sélectionnée)
+    const cardId = interactionState.selectedCards[0];
+    let playerIndex = updatedGame.players.findIndex(p => p.cards.some(c => c.id === cardId));
+    if (playerIndex === -1) {
+        playerIndex = updatedGame.currentPlayerIndex;
+    }
+    const currentPlayer = updatedGame.players[playerIndex];
     
     currentPlayer.cards = [...currentPlayer.cards];
 
@@ -1096,7 +1120,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (interactionState.type === 'LANDING_PROBE') {
         handlePlanetInteraction(
             planetId,
-            (g, pid, prid, targetId, isFree) => {
+            (g, pid, prid, targetId) => {
                 const result = ProbeSystem.landProbe(g, pid, prid, targetId, true); // Toujours gratuit en mode LANDING_PROBE
                 
                 // Logique spécifique Carte 13 (Rover Perseverance)
@@ -1275,8 +1299,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour jouer une carte (payer son coût en crédits)
   const handlePlayCardRequest = (cardId: string) => {
     if (interactionState.type !== 'IDLE') return;
-    if (hasPerformedMainAction) return;
-
+    if (hasPerformedMainAction) {
+      setToast({ message: "Action principale déjà effectuée", visible: true });
+      return;
+    };
     const currentGame = gameRef.current;
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
     const card = currentPlayer.cards.find(c => c.id === cardId);
@@ -1337,7 +1363,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     
     const extras = [];
     if (passiveGains.length > 0) {
-        extras.push(`gagne : ${passiveGains.join(', ')}`);
+        extras.push(`gagne ${passiveGains.join(', ')}`);
     }
     if (movementLogs.length > 0) {
         extras.push(movementLogs.join(', '));
@@ -1362,34 +1388,39 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour l'action gratuite (défausse de carte)
   const handleDiscardCardAction = (cardId: string) => {
-    const updatedGame = { ...game };
-    // Copie des joueurs pour éviter la mutation directe
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
-    const currentPlayerIndex = updatedGame.currentPlayerIndex;
-    const currentPlayer = updatedGame.players[currentPlayerIndex];
+    let updatedGame = game;
+    const currentPlayerId = updatedGame.players[updatedGame.currentPlayerIndex].id;
+    const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
     
-    const cardIndex = currentPlayer.cards.findIndex(c => c.id === cardId);
-    if (cardIndex === -1) return;
-    
-    const card = currentPlayer.cards[cardIndex];
+    const card = currentPlayer.cards.find(c => c.id === cardId);
+    if (!card) return;
     
     // Appliquer l'effet de l'action gratuite
     if (card.freeAction === FreeActionType.MEDIA) {
-      currentPlayer.mediaCoverage = Math.min(currentPlayer.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+      const res = ResourceSystem.updateMedia(updatedGame, currentPlayerId, 1);
+      updatedGame = res.updatedGame;
       setToast({ message: "Action gratuite : +1 Média", visible: true });
-      addToHistory(`défausse une carte pour gagner ${formatResource(1, 'MEDIA')}`, currentPlayer.id, game);
+      addToHistory(`défausse une carte pour gagner ${formatResource(1, 'MEDIA')}`, currentPlayerId, game);
     } else if (card.freeAction === FreeActionType.DATA) {
-      currentPlayer.data = (currentPlayer.data || 0) + 1;
+      const res = ResourceSystem.updateData(updatedGame, currentPlayerId, 1);
+      updatedGame = res.updatedGame;
       setToast({ message: "Action gratuite : +1 Data", visible: true });
-      addToHistory(`défausse une carte pour gagner ${formatResource(1, 'DATA')}`, currentPlayer.id, game);
+      addToHistory(`défausse une carte pour gagner ${formatResource(1, 'DATA')}`, currentPlayerId, game);
     } else if (card.freeAction === FreeActionType.MOVEMENT) {
       setInteractionState({ type: 'MOVING_PROBE', count: 1 });
       setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
-      addToHistory("défausse une carte pour un déplacement gratuit", currentPlayer.id, game);
+      addToHistory("défausse une carte pour un déplacement gratuit", currentPlayerId, game);
     }
     
     // Défausser la carte
-    currentPlayer.cards = currentPlayer.cards.filter(c => c.id !== cardId);
+    const playerToUpdate = updatedGame.players.find(p => p.id === currentPlayerId);
+    if (playerToUpdate) {
+        const newPlayer = CardSystem.discardCard(playerToUpdate, cardId);
+        updatedGame = {
+            ...updatedGame,
+            players: updatedGame.players.map(p => p.id === currentPlayerId ? newPlayer : p)
+        };
+    }
     
     setGame(updatedGame);
   };
@@ -1558,7 +1589,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     else if (tech.id.startsWith('observation')) category = "Observation";
     else if (tech.id.startsWith('computing')) category = "Informatique";
 
-    const gainsText = gains.length > 0 ? ` et gagne : ${gains.join(', ')}` : '';
+    const gainsText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
     
     // Si on est en train de rechercher (Action principale), on fusionne avec l'entrée de rotation
     if (previousInteractionState.type === 'ACQUIRING_TECH' && !previousInteractionState.isBonus) {

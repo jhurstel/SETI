@@ -222,7 +222,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                         marginBottom: '8px',
                         position: 'relative',
                         cursor: isClickable ? 'pointer' : 'default',
-                        opacity: isClickable ? 1 : 0.5,
+                        opacity: 1,
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '4px',

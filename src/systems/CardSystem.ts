@@ -16,7 +16,6 @@ export class CardSystem {
   static drawCards(game: Game, playerId: string, count: number, source: string): Game {
     const updatedGame = structuredClone(game);
     const player = updatedGame.players.find(p => p.id === playerId);
-    
     if (!player) return game;
 
     for (let i = 0; i < count; i++) {
@@ -29,6 +28,120 @@ export class CardSystem {
     }
 
     return updatedGame;
+  }
+
+  static reserveCard(game: Game, playerId: string, cardId: string) {
+    const updatedGame = structuredClone(game);
+    const player = updatedGame.players.find(p => p.id === playerId);
+    if (!player) return game;
+
+    const card = player.cards.find(c => c.id === cardId);
+    if (!card) return game;
+
+    // Retirer la carte
+    updatedGame = this.discardCard(player, cardId);
+    
+    // Appliquer le revenu et le bonus immédiat
+    if (card.revenue === RevenueType.CREDIT) {
+        player.revenueCredits += 1;
+        player.credits += 1;
+    } else if (card.revenue === RevenueType.ENERGY) {
+        player.revenueEnergy += 1;
+        player.energy += 1;
+    } else if (card.revenue === RevenueType.CARD) {
+        player.revenueCards += 1;
+        updatedGame = this.drawCards(updatedGame, playerId, 1, "Réservation");
+    }
+
+    return updatedGame
+  }
+  static canDiscardFreeAction(game: Game, playerId: string, freeAction: FreeActionType):
+  { canDiscard: boolean, reason: string } {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) {
+      return { canDiscard: false, reason: "Joueur non trouvé" };
+    }
+
+    if (game.players[game.currentPlayerIndex].id !== playerId) {
+      return { canDiscard: false, reason: "Ce n'est pas votre tour" };
+    }
+
+    if (freeAction === FreeActionType.MOVEMENT) {
+      if (!(player.probes || []).some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
+        return { canDiscard: false, reason : "Nécessite une sonde dans le système solaire" };
+      } else {
+        return { canDiscard: true, reason: "Défausser pour gagner 1 Déplacement" };
+      }
+    } else if (freeAction === FreeActionType.DATA) {
+      if ((player.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
+        return { canDiscard: false, reason : "Nécessite de transférer des données" };
+      } else {
+        return { canDiscard: true, reason: "Défausser pour gagner 1 Donnée" };
+      }
+    } else if (freeAction === FreeActionType.MEDIA) {
+      if (player.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
+        return { canDiscard: false, reason: "Média au maximum" };
+      } else {
+        return { canDiscard: true, reason: "Défausser pour gagner 1 Média" };
+      }
+    }
+
+    return {canDiscard: true, reason: "Action inconnue" };
+  }
+
+  /**
+   * Vérifie si un joueur peut jouer au moins une carte de sa main
+   */
+  static canPlayCards(
+    game: Game, 
+    playerId: string, 
+  ): { canPlay: boolean, reason: string } {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) {
+      return { canPlay: false, reason: "Joueur non trouvé" };
+    }
+
+    if (player.cards.length === 0) {
+      return { canPlay: false, reason: "Aucune carte en main" };
+    }
+
+    return player.cards.some(card => this.canPlayCard(game, playerId, card).canPlay)
+      ? { canPlay: true, reason: "Au moins une carte peut être jouée" }
+      : { canPlay: false, reason: "Aucune carte ne peut être jouée" };
+  }
+
+  /**
+   * Vérifie si un joueur peut jouer une carte
+   */
+  static canPlayCard(
+    game: Game, 
+    playerId: string, 
+    card: Card
+  ): { canPlay: boolean, reason: string } {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) {
+      return { canPlay: false, reason: "Joueur non trouvé" };
+    }
+
+    if (game.players[game.currentPlayerIndex].id !== playerId) {
+      return { canPlay: false, reason: "Ce n'est pas votre tour" };
+    }
+
+    if (player.credits < card.cost) {
+      return { canPlay: false, reason: `Crédits insuffisants (coût: ${card.cost} crédit${card.cost > 1 ? 's' : ''})` };
+    }
+
+    // Vérification si la carte donne des déplacements
+    const hasMovementEffect = card.immediateEffects?.some(e => e.type === 'ACTION' && e.target === 'MOVEMENT');
+    if (hasMovementEffect) {
+      const hasProbeInSystem = player.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+      if (!hasProbeInSystem) {
+        return { canPlay: false, reason: "Nécessite une sonde dans le système solaire" };
+      }
+    }
+
+    // TODO: Ajouter d'autres conditions de carte ici
+    return { canPlay: true, reason: `Jouer la carte (coût: ${card.cost} crédit${card.cost > 1 ? 's' : ''})` };
   }
 
   /**
@@ -47,7 +160,7 @@ export class CardSystem {
 
     // Vérification du coût
     if (player.credits < card.cost) {
-      return { updatedGame: game, error: "Crédits insuffisants" };
+        return { updatedGame: game, error: "Crédits insuffisants" };
     }
 
     // Payer le coût
@@ -66,127 +179,127 @@ export class CardSystem {
     const bonuses: any = {};
 
     if (card.immediateEffects) {
-      card.immediateEffects.forEach(effect => {
+        card.immediateEffects.forEach(effect => {
         if (effect.type === 'GAIN') {
-          switch (effect.target) {
+            switch (effect.target) {
             case 'CREDIT':
-              player.credits += effect.value;
-              bonuses.credits = (bonuses.credits || 0) + effect.value;
-              break;
+                player.credits += effect.value;
+                bonuses.credits = (bonuses.credits || 0) + effect.value;
+                break;
             case 'ENERGY':
-              player.energy += effect.value;
-              bonuses.energy = (bonuses.energy || 0) + effect.value;
-              break;
+                player.energy += effect.value;
+                bonuses.energy = (bonuses.energy || 0) + effect.value;
+                break;
             case 'DATA':
-              player.data = (player.data || 0) + effect.value;
-              bonuses.data = (bonuses.data || 0) + effect.value;
-              break;
+                player.data = (player.data || 0) + effect.value;
+                bonuses.data = (bonuses.data || 0) + effect.value;
+                break;
             case 'MEDIA':
-              player.mediaCoverage += effect.value;
-              bonuses.media = (bonuses.media || 0) + effect.value;
-              break;
+                player.mediaCoverage += effect.value;
+                bonuses.media = (bonuses.media || 0) + effect.value;
+                break;
             case 'CARD':
-              bonuses.card = (bonuses.card || 0) + effect.value;
-              break;
+                bonuses.card = (bonuses.card || 0) + effect.value;
+                break;
             case 'PROBE':
-              bonuses.probe = (bonuses.probe || 0) + effect.value;
-              break;
-          }
+                bonuses.probe = (bonuses.probe || 0) + effect.value;
+                break;
+            }
         } else if (effect.type === 'ACTION') {
-           switch (effect.target) {
-               case 'ANYCARD':
-                   bonuses.anycard = (bonuses.anycard || 0) + effect.value;
-                   break;
-               case 'ROTATION':
-                   bonuses.rotation = (bonuses.rotation || 0) + effect.value;
-                   break;
-               case 'LAND':
-                   bonuses.landing = (bonuses.landing || 0) + effect.value;
-                   break;
-               case 'MOVEMENT':
-                   bonuses.movements = (bonuses.movements || 0) + effect.value;
-                   break;
-               case 'TECH':
-                   if (typeof effect.value === 'object' && effect.value !== null) {
-                       bonuses.technology = {
-                           amount: (bonuses.technology?.amount || 0) + effect.value.amount,
-                           color: effect.value.color // last one wins, which is fine for single tech bonus
-                       };
-                   } else { // fallback for old format
-                       bonuses.technology = { amount: (bonuses.technology?.amount || 0) + effect.value };
-                   }
-                   break;
-               case 'DISCARD_ROW_FOR_FREE_ACTIONS':
-                   // Appliquer les actions gratuites de toutes les cartes de la rangée
-                   updatedGame.decks.cardRow.forEach(rowCard => {
-                       if (rowCard.freeAction === FreeActionType.MOVEMENT) {
-                           bonuses.movements = (bonuses.movements || 0) + 1;
-                       } else if (rowCard.freeAction === FreeActionType.DATA) {
-                           player.data = Math.min((player.data || 0) + 1, GAME_CONSTANTS.MAX_DATA);
-                           bonuses.data = (bonuses.data || 0) + 1;
-                       } else if (rowCard.freeAction === FreeActionType.MEDIA) {
-                           player.mediaCoverage = Math.min((player.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-                           bonuses.media = (bonuses.media || 0) + 1;
-                       }
-                   });
-                   updatedGame.decks.cardRow = [];
-                   const refilled = this.refillCardRow(updatedGame);
-                   updatedGame.decks.cardRow = refilled.decks.cardRow;
-                   updatedGame.decks = refilled.decks;
-                   break;
-               case 'OSIRIS_REX_BONUS':
-                   let maxDataBonus = 0;
-                   const rotationState = createRotationState(
-                       updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-                       updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-                       updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-                   );
+            switch (effect.target) {
+                case 'ANYCARD':
+                    bonuses.anycard = (bonuses.anycard || 0) + effect.value;
+                    break;
+                case 'ROTATION':
+                    bonuses.rotation = (bonuses.rotation || 0) + effect.value;
+                    break;
+                case 'LAND':
+                    bonuses.landing = (bonuses.landing || 0) + effect.value;
+                    break;
+                case 'MOVEMENT':
+                    bonuses.movements = (bonuses.movements || 0) + effect.value;
+                    break;
+                case 'TECH':
+                    if (typeof effect.value === 'object' && effect.value !== null) {
+                        bonuses.technology = {
+                            amount: (bonuses.technology?.amount || 0) + effect.value.amount,
+                            color: effect.value.color // last one wins, which is fine for single tech bonus
+                        };
+                    } else { // fallback for old format
+                        bonuses.technology = { amount: (bonuses.technology?.amount || 0) + effect.value };
+                    }
+                    break;
+                case 'DISCARD_ROW_FOR_FREE_ACTIONS':
+                    // Appliquer les actions gratuites de toutes les cartes de la rangée
+                    updatedGame.decks.cardRow.forEach(rowCard => {
+                        if (rowCard.freeAction === FreeActionType.MOVEMENT) {
+                            bonuses.movements = (bonuses.movements || 0) + 1;
+                        } else if (rowCard.freeAction === FreeActionType.DATA) {
+                            player.data = Math.min((player.data || 0) + 1, GAME_CONSTANTS.MAX_DATA);
+                            bonuses.data = (bonuses.data || 0) + 1;
+                        } else if (rowCard.freeAction === FreeActionType.MEDIA) {
+                            player.mediaCoverage = Math.min((player.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                            bonuses.media = (bonuses.media || 0) + 1;
+                        }
+                    });
+                    updatedGame.decks.cardRow = [];
+                    const refilled = this.refillCardRow(updatedGame);
+                    updatedGame.decks.cardRow = refilled.decks.cardRow;
+                    updatedGame.decks = refilled.decks;
+                    break;
+                case 'OSIRIS_REX_BONUS':
+                    let maxDataBonus = 0;
+                    const rotationState = createRotationState(
+                        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+                        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+                        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+                    );
 
-                   player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition).forEach(probe => {
-                       let currentProbeBonus = 0;
-                       
-                       // Get absolute position of the probe
-                       const tempObj: CelestialObject = {
-                           id: probe.id,
-                           type: 'empty', // type doesn't matter for position calculation
-                           name: 'probe',
-                           position: {
-                               disk: probe.solarPosition!.disk,
-                               sector: probe.solarPosition!.sector,
-                               x: 0, y: 0
-                           },
-                           level: (probe.solarPosition!.level || 0) as 0 | 1 | 2 | 3
-                       };
-                       const absPos = calculateAbsolutePosition(tempObj, rotationState);
+                    player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition).forEach(probe => {
+                        let currentProbeBonus = 0;
+                        
+                        // Get absolute position of the probe
+                        const tempObj: CelestialObject = {
+                            id: probe.id,
+                            type: 'empty', // type doesn't matter for position calculation
+                            name: 'probe',
+                            position: {
+                                disk: probe.solarPosition!.disk,
+                                sector: probe.solarPosition!.sector,
+                                x: 0, y: 0
+                            },
+                            level: (probe.solarPosition!.level || 0) as 0 | 1 | 2 | 3
+                        };
+                        const absPos = calculateAbsolutePosition(tempObj, rotationState);
 
-                       // Check current cell: +2 data if on an asteroid field
-                       const currentCell = getCell(absPos.disk, absPos.absoluteSector, rotationState);
-                       if (currentCell && currentCell.hasAsteroid) {
-                           currentProbeBonus += 2;
-                       }
+                        // Check current cell: +2 data if on an asteroid field
+                        const currentCell = getCell(absPos.disk, absPos.absoluteSector, rotationState);
+                        if (currentCell && currentCell.hasAsteroid) {
+                            currentProbeBonus += 2;
+                        }
 
-                       // Check adjacent cells: +1 data for each adjacent asteroid field
-                       const adjacentCellsInfo = getAdjacentCells(absPos.disk, absPos.absoluteSector);
-                       adjacentCellsInfo.forEach(adj => {
-                           const adjCell = getCell(adj.disk, adj.sector, rotationState);
-                           if (adjCell && adjCell.hasAsteroid) {
-                               currentProbeBonus += 1;
-                           }
-                       });
+                        // Check adjacent cells: +1 data for each adjacent asteroid field
+                        const adjacentCellsInfo = getAdjacentCells(absPos.disk, absPos.absoluteSector);
+                        adjacentCellsInfo.forEach(adj => {
+                            const adjCell = getCell(adj.disk, adj.sector, rotationState);
+                            if (adjCell && adjCell.hasAsteroid) {
+                                currentProbeBonus += 1;
+                            }
+                        });
 
-                       if (currentProbeBonus > maxDataBonus) {
-                           maxDataBonus = currentProbeBonus;
-                       }
-                   });
+                        if (currentProbeBonus > maxDataBonus) {
+                            maxDataBonus = currentProbeBonus;
+                        }
+                    });
 
-                   if (maxDataBonus > 0) {
-                       player.data = Math.min((player.data || 0) + maxDataBonus, GAME_CONSTANTS.MAX_DATA);
-                       bonuses.data = (bonuses.data || 0) + maxDataBonus;
-                   }
-                   break;
-           }
+                    if (maxDataBonus > 0) {
+                        player.data = Math.min((player.data || 0) + maxDataBonus, GAME_CONSTANTS.MAX_DATA);
+                        bonuses.data = (bonuses.data || 0) + maxDataBonus;
+                    }
+                    break;
+            }
         }
-      });
+        });
     }
 
     // Traitement des effets passifs temporaires (Buffs de tour)
@@ -339,65 +452,16 @@ export class CardSystem {
 
     return { updatedGame, bonuses };
   }
-
-  /**
-   * Vérifie si un joueur peut jouer au moins une carte de sa main
-   */
-  static canPlayCards(
-    game: Game, 
-    playerId: string, 
-  ): { canPlay: boolean, reason: string } {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) {
-      return { canPlay: false, reason: "Joueur non trouvé" };
-    }
-
-    if (player.cards.length === 0) {
-      return { canPlay: false, reason: "Aucune carte en main" };
-    }
-
-    return player.cards.some(card => this.canPlayCard(game, playerId, card).canPlay)
-      ? { canPlay: true, reason: "Au moins une carte peut être jouée" }
-      : { canPlay: false, reason: "Aucune carte ne peut être jouée" };
-  }
-
-  /**
-   * Vérifie si un joueur peut jouer une carte
-   */
-  static canPlayCard(
-    game: Game, 
-    playerId: string, 
-    card: Card
-  ): { canPlay: boolean, reason: string } {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) {
-      return { canPlay: false, reason: "Joueur non trouvé" };
-    }
-
-    if (game.players[game.currentPlayerIndex].id !== playerId) {
-      return { canPlay: false, reason: "Ce n'est pas votre tour" };
-    }
-
-    if (player.credits < card.cost) {
-      return { canPlay: false, reason: `Crédits insuffisants (coût: ${card.cost} crédit${card.cost > 1 ? 's' : ''})` };
-    }
-
-    // Vérification si la carte donne des déplacements
-    const hasMovementEffect = card.immediateEffects?.some(e => e.type === 'ACTION' && e.target === 'MOVEMENT');
-    if (hasMovementEffect) {
-      const hasProbeInSystem = player.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
-      if (!hasProbeInSystem) {
-        return { canPlay: false, reason: "Nécessite une sonde dans le système solaire" };
-      }
-    }
-
-    // TODO: Ajouter d'autres conditions de carte ici
-    return { canPlay: true, reason: `Jouer la carte (coût: ${card.cost} crédit${card.cost > 1 ? 's' : ''})` };
-  }
-
+    
   static discardToHandSize(player: Player, cardIdsToKeep: string[]): Player {
     const updatedPlayer = { ...player };
     updatedPlayer.cards = player.cards.filter(c => cardIdsToKeep.includes(c.id));
+    return updatedPlayer;
+  }
+
+  static discardCard(player: Player, cardId: string): Player {
+    const updatedPlayer = { ...player };
+    updatedPlayer.cards = player.cards.filter(c => c.id !== cardId);
     return updatedPlayer;
   }
 

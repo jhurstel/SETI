@@ -11,15 +11,16 @@ import './ui/styles.css';
 function createMockGame(): Game {
 
   const gameState = GameFactory.createGame(['Alice', 'Bob']);
-  const initializedGame = GameFactory.initializeGame(gameState);
 
   // Configuration des joueurs : 1er humain, autres robots + couleurs
   const colors = ['#4a90e2', '#ff6b6b', '#ffd700', '#4caf50'];
-  initializedGame.players = initializedGame.players.map((p, index) => ({
+  gameState.players = gameState.players.map((p, index) => ({
     ...p,
     type: index === 0 ? 'human' : 'robot',
     color: colors[index % colors.length],
   }));
+
+  const initializedGame = GameFactory.initializeGame(gameState);
   
   return initializedGame;
 }

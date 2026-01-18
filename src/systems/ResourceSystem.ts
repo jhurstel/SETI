@@ -1,4 +1,4 @@
-import { Game } from '../core/types';
+import { Game, Player, GAME_CONSTANTS } from '../core/types';
 import { CardSystem } from './CardSystem';
 
 export class ResourceSystem {
@@ -68,6 +68,46 @@ export class ResourceSystem {
          return { updatedGame: game, error: "Type de ressource à recevoir invalide" };
     }
 
+    return { updatedGame };
+  }
+
+  static updateMedia(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
+    let updatedGame = { ...game };
+    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const player = updatedGame.players.find(p => p.id === playerId);
+    if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
+
+    player.mediaCoverage = Math.min(player.mediaCoverage + count, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+    return { updatedGame };
+  }
+
+  static updateCredit(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
+    let updatedGame = { ...game };
+    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const player = updatedGame.players.find(p => p.id === playerId);
+    if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
+
+    player.credits += count;
+    return { updatedGame };
+  }
+
+  static updateEnergy(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
+    let updatedGame = { ...game };
+    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const player = updatedGame.players.find(p => p.id === playerId);
+    if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
+
+    player.energy += count;
+    return { updatedGame };
+  }
+
+  static updateData(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
+    let updatedGame = { ...game };
+    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const player = updatedGame.players.find(p => p.id === playerId);
+    if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
+
+    player.data = Math.min(player.data + count, GAME_CONSTANTS.MAX_DATA);
     return { updatedGame };
   }
 }

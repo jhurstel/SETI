@@ -151,21 +151,65 @@ export class GameFactory {
 
     let updatedGame = { ...game };
 
-    // Créer les paquets de fin de manche (Manches 1 à 4)
+    // Mélanger le deck de cartes
+    updatedGame.decks.cards = this.shuffleCards(updatedGame.decks.cards);
+
+    // Créer les paquets de fin de manche (Manches 1 à 4) avec des vraies cartes
     const cardsPerDeck = updatedGame.players.length + 1;
     for (let i = 1; i <= GAME_CONSTANTS.MAX_ROUNDS - 1; i++) {
-      updatedGame.decks.roundDecks[i] = this.createRoundDeck(cardsPerDeck);
+      updatedGame.decks.roundDecks[i] = [];
+      for (let j = 0; j < cardsPerDeck; j++) {
+        const card = updatedGame.decks.cards.shift();
+        if (card) updatedGame.decks.roundDecks[i].push(card);
+      }
     }
-
-    // Mélanger le deck d'actions
-    updatedGame.decks.cards = this.shuffleCards(updatedGame.decks.cards);
 
     // Remplir la rangée de cartes
     updatedGame = CardSystem.refillCardRow(updatedGame);
 
     // Distribuer les cartes initiales
-    for (const player of updatedGame.players) {
-        updatedGame = CardSystem.drawCards(updatedGame, player.id, GAME_CONSTANTS.INITIAL_HAND_SIZE, "Main de départ");
+    for (let i = 0; i < updatedGame.players.length; i++) {
+        const playerId = updatedGame.players[i].id;
+        updatedGame = CardSystem.drawCards(updatedGame, playerId, GAME_CONSTANTS.INITIAL_HAND_SIZE, "Main de départ");
+        
+        // Logique Robot : Réservation automatique au début de la partie
+        const currentPlayer = updatedGame.players.find(p => p.id === playerId);
+        if (currentPlayer && currentPlayer.type === 'robot' && currentPlayer.cards.length > 0) {
+            const randomIndex = Math.floor(Math.random() * currentPlayer.cards.length);
+            const card = currentPlayer.cards[randomIndex];
+            
+            // Retirer la carte
+            currentPlayer.cards.splice(randomIndex, 1);
+            
+            let gainMsg = "";
+            // Appliquer le revenu et le bonus immédiat
+            if (card.revenue === RevenueType.CREDIT) {
+                currentPlayer.revenueCredits += 1;
+                currentPlayer.credits += 1;
+                gainMsg = "1 Crédit";
+            } else if (card.revenue === RevenueType.ENERGY) {
+                currentPlayer.revenueEnergy += 1;
+                currentPlayer.energy += 1;
+                gainMsg = "1 Énergie";
+            } else if (card.revenue === RevenueType.CARD) {
+                currentPlayer.revenueCards += 1;
+                gainMsg = "1 Carte";
+                // Pioche immédiate
+                if (updatedGame.decks.cards.length > 0) {
+                    const newCard = updatedGame.decks.cards.shift();
+                    if (newCard) currentPlayer.cards.push(newCard);
+                }
+            }
+
+            if (updatedGame.gameLog) {
+                updatedGame.gameLog.push({
+                    id: `log_robot_reserve_${Date.now()}_${playerId}`,
+                    message: `réserve la carte "${card.name}" et gagne ${gainMsg}`,
+                    timestamp: Date.now(),
+                    playerId: currentPlayer.id
+                });
+            }
+        }
     }
 
     // Mélanger les technologies et appliquer les bonus de pile
@@ -242,17 +286,6 @@ export class GameFactory {
   }
 
   /**
-   * Crée un paquet de cartes pour une manche spécifique
-   */
-  private static createRoundDeck(count: number): Card[] {
-    const cards: Card[] = [];
-    for (let i = 0; i < count; i++) {
-      cards.push(this.createRandomCard(i));
-    }
-    return cards;
-  }
-
-  /**
    * Mock
    */
   private static createRandomCard(id: number): Card {
@@ -281,7 +314,7 @@ export class GameFactory {
 9;Falcon Heavy;Gagnez 2 sondes et 1 Média. Ignorez la limite de sondes sur le plateau Systéme Solaire pour ces lancements.;1 Déplacement;Jaune;1 Crédit;3 Crédits;;2 Sondes + 1 Média;IGNORE_PROBE_LIMIT
 11;Subventions;Gagnez 1 Carte. Révélez la carte que vous avez piochée et bénéfciez de son action gratuite.;1 Média;Jaune;1 Energie;1 Crédit;;;REVEAL_AND_TRIGGER_FREE_ACTION
 13;Rover Perseverance;Gagnez 1 Atterrissage. Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs.;1 Média;Bleu;1 Pioche;1 Crédit;;;
-15;Rentrée Atmosphérique;Retirez l'un de vos orbiteurs de n'importe quelle planète pour gagner: 3 PVs, 1 Donnée, 1 Carte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;;
+15;Rentrée Atmosphérique;Retirez l'un de vos orbiteurs de n'importe quelle planète pour gagner 3 PVs, 1 Donnée, 1 Carte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;;
 16;Dragonfly;Gagnez 1 Atterrissage. Vous pouvez poser une sonde sur une case déjà occupée, et tout de même gagner la récompense recouverte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;;
 17;OSIRIS-REx;Choisissez 1 de vos sondes. Gagnez 2 Données si elle est placée sur un champ d'astéroïdes et 1 Donnée pour chaque champ d'astéroïdes adjacent.;1 Déplacement;Jaune;1 Energie;1 Crédit;;OSIRIS_REX_BONUS;
 19;Assistance Gravitationnelle;Gagnez 2 Déplacements. Chaque fois que vous visitez une planète ce tour-ci, vous pouvez gagner 1 Déplacement au lieu de 1 Média.;1 Média;Jaune;1 Crédit;Crédit;;2 Déplacements;
