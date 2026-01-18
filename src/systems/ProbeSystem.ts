@@ -14,6 +14,9 @@ import {
   Player,
   Probe,
   ProbeState,
+  Planet,
+  Satellite,
+  Bonus,
   GAME_CONSTANTS,
   DiskName,
   SectorNumber,
@@ -741,7 +744,7 @@ export class ProbeSystem {
     };
 
     // Récupérer la planète mise à jour pour les bonus
-    let updatedTargetBody: any = updatedGame.board.planets.find(p => p.id === planetId);
+    let updatedTargetBody: Planet | Satellite | undefined = updatedGame.board.planets.find(p => p.id === planetId);
     if (!updatedTargetBody) {
          for (const p of updatedGame.board.planets) {
             if (p.satellites) {
@@ -759,20 +762,23 @@ export class ProbeSystem {
         this.applyBonus(updatedPlayer, bonus);
         for (const key in bonus) {
             const k = key as keyof Bonus;
-            if (typeof bonus[k] === 'number') {
-                accumulatedBonuses[k] = (accumulatedBonuses[k] || 0) + (bonus[k] || 0);
+            const val = bonus[k];
+            if (typeof val === 'number') {
+                accumulatedBonuses[k] = ((accumulatedBonuses[k] as number) || 0) + val;
+            } else if (val !== undefined) {
+                accumulatedBonuses[k] = val as any;
             }
         }
     };
 
     // Bonus planète (atterrissage)
     if (updatedTargetBody) {
-        if (updatedTargetBody.landSlots) {
+        if ((updatedTargetBody as Planet).landSlots) {
             const index = forcedSlotIndex !== undefined ? forcedSlotIndex : updatedTargetBody.landers.length - 1;
-            const slotBonus = updatedTargetBody.landSlots[index];
+            const slotBonus = (updatedTargetBody as Planet).landSlots[index];
             if (slotBonus) applyAndAccumulate(slotBonus);
-        } else if (updatedTargetBody.landBonus) {
-            applyAndAccumulate(updatedTargetBody.landBonus);
+        } else if ((updatedTargetBody as Satellite).landBonus) {
+            applyAndAccumulate((updatedTargetBody as Satellite).landBonus);
         }
     }
 

@@ -228,6 +228,7 @@ const PlayerComputer = ({
 const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect: DOMRect }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
+  const tooltipId = useRef(Math.random().toString(36).substr(2, 9));
 
   React.useLayoutEffect(() => {
     if (tooltipRef.current && targetRect) {
@@ -259,11 +260,53 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
         }
       }
 
+      // Gestion des superpositions
+      const width = rect.width;
+      const height = rect.height;
+      let finalTop = top;
+      let finalLeft = left;
+      
+      const others = ((window as any).__SETI_TOOLTIPS__ || []).filter((t: any) => t.id !== tooltipId.current);
+      let collision = true;
+      let iterations = 0;
+
+      while (collision && iterations < 10) {
+          collision = false;
+          const myRect = { left: finalLeft, top: finalTop, right: finalLeft + width, bottom: finalTop + height };
+          
+          for (const other of others) {
+              const otherRect = other.rect;
+              if (myRect.left < otherRect.right &&
+                  myRect.right > otherRect.left &&
+                  myRect.top < otherRect.bottom &&
+                  myRect.bottom > otherRect.top) {
+                  
+                  finalTop = otherRect.bottom + 5;
+                  collision = true;
+                  if (finalTop + height > viewportHeight - 10) {
+                      finalTop = top;
+                      finalLeft = otherRect.right + 5;
+                  }
+                  break;
+              }
+          }
+          iterations++;
+      }
+
+      const registry = (window as any).__SETI_TOOLTIPS__ || [];
+      (window as any).__SETI_TOOLTIPS__ = [...registry.filter((t: any) => t.id !== tooltipId.current), { id: tooltipId.current, rect: { left: finalLeft, top: finalTop, right: finalLeft + width, bottom: finalTop + height } }];
+
       setStyle({
         top,
         left,
+        top: finalTop,
+        left: finalLeft,
         opacity: 1
       });
+      return () => {
+          const reg = (window as any).__SETI_TOOLTIPS__ || [];
+          (window as any).__SETI_TOOLTIPS__ = reg.filter((t: any) => t.id !== tooltipId.current);
+      };
     }
   }, [targetRect, content]);
 
@@ -663,7 +706,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     }
 
     const { canDiscard, reason: discardTooltip } = CardSystem.canDiscardFreeAction(game, currentPlayer.id, card.freeAction);
-    const canDiscardAction = canDiscard && !hasPerformedMainAction;
 
     const { canPlay, reason: playTooltip } = CardSystem.canPlayCard(game, currentPlayer.id, card);
     const canPlayAction = canPlay && !hasPerformedMainAction;
@@ -690,7 +732,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         {isHighlighted && !isDiscarding && !isReserving && !isTrading && (
           <>
           {renderActionButton('▶️', effectivePlayTooltip, () => { if (canPlayAction && onPlayCard) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlayAction, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 })}
-          {renderActionButton('🗑️', discardTooltip, () => { if (canDiscardAction && onDiscardCardAction) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canDiscardAction, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 })}
+          {renderActionButton('🗑️', discardTooltip, () => { if (canDiscard && onDiscardCardAction) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canDiscard, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 })}
           </>
         )}
         <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
@@ -781,16 +823,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               <div className="seti-player-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>Ressources</div>
               <div className="seti-player-resources">
                 <div 
-                  key={mediaFlash ? `media-${mediaFlash.id}` : 'media-static'}
-                  className={`seti-res-badge ${mediaFlash ? (mediaFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-                >
-                  <span>Média (<span style={{color: '#ff6b6b'}}>🎤</span>):</span>
-                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
-                  {renderBuyCardButton('🛒', 'Acheter 1 carte de la pioche ou de la rangée principale (cout: 3 Médias)')}
-                  <strong style={{ marginLeft: '6px' }}>{currentPlayer.mediaCoverage}</strong>
-                  </div>
-                </div>
-                <div 
                   key={creditFlash ? `credit-${creditFlash.id}` : 'credit-static'}
                   className={`seti-res-badge ${creditFlash ? (creditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
@@ -810,6 +842,16 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                     {renderDirectTradeButton('energy', 'credit', '₢', 'Echanger 2 Énergies contre 1 Crédit', currentPlayer.energy >= 2)}
                     {renderDirectTradeButton('energy', 'card', '🃏', 'Echanger 2 Énergies contre 1 Carte', currentPlayer.energy >= 2)}
                     <strong style={{ marginLeft: '6px' }}>{currentPlayer.energy}</strong>
+                  </div>
+                </div>
+                <div 
+                  key={mediaFlash ? `media-${mediaFlash.id}` : 'media-static'}
+                  className={`seti-res-badge ${mediaFlash ? (mediaFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
+                >
+                  <span>Média (<span style={{color: '#ff6b6b'}}>🎤</span>):</span>
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                  {renderBuyCardButton('🛒', 'Acheter 1 carte de la pioche ou de la rangée principale (cout: 3 Médias)')}
+                  <strong style={{ marginLeft: '6px' }}>{currentPlayer.mediaCoverage}</strong>
                   </div>
                 </div>
               </div>

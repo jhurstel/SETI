@@ -326,26 +326,7 @@ export class CardSystem {
             } else if (effect.type === 'SAME_DISK_MOVE') {
                 player.activeBuffs.push({ ...effect, source: card.name });
             } else if (effect.type === 'REVEAL_AND_TRIGGER_FREE_ACTION') {
-                // Piocher une carte
-                updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, `Bonus carte ${card.name}`);
-                // Récupérer le joueur mis à jour après la pioche
-                const updatedPlayer = updatedGame.players.find(p => p.id === playerId);
-                if (updatedPlayer && updatedPlayer.cards.length > 0) {
-                    // La carte piochée est la dernière de la main
-                    const drawnCard = updatedPlayer.cards[updatedPlayer.cards.length - 1];
-                    drawnCard.isRevealed = true;
-
-                    // Appliquer l'action gratuite
-                    if (drawnCard.freeAction === FreeActionType.MOVEMENT) {
-                        bonuses.movements = (bonuses.movements || 0) + 1;
-                    } else if (drawnCard.freeAction === FreeActionType.DATA) {
-                        updatedPlayer.data = Math.min((updatedPlayer.data || 0) + 1, GAME_CONSTANTS.MAX_DATA);
-                        bonuses.data = (bonuses.data || 0) + 1;
-                    } else if (drawnCard.freeAction === FreeActionType.MEDIA) {
-                        updatedPlayer.mediaCoverage = Math.min((updatedPlayer.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-                        bonuses.media = (bonuses.media || 0) + 1;
-                    }
-                }
+                bonuses.revealAndTriggerFreeAction = true;
             } else if (effect.type === 'SCORE_PER_MEDIA') {
                 const pointsGained = player.mediaCoverage * effect.value;
                 if (pointsGained > 0) {

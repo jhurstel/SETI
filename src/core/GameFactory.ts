@@ -68,7 +68,6 @@ export class GameFactory {
       const suffix = index === 0 ? 'er' : 'ème';
       addLog(`${p.name} a rejoint la partie (${index + 1}${suffix} joueur) avec ${p.score} PV`);
     })
-    addLog("--- DÉBUT DE LA PARTIE ---");
     
     const game: Game = {
       id: `game_${Date.now()}`,
@@ -215,6 +214,13 @@ export class GameFactory {
     // Mélanger les technologies et appliquer les bonus de pile
     this.shuffleTechnologies(updatedGame);
 
+    if (updatedGame.gameLog) {
+      updatedGame.gameLog.push({
+          id: `log_robot_reserve_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+          message: "--- DÉBUT DE LA PARTIE ---",
+          timestamp: Date.now()
+      });
+    }
     updatedGame.phase = GamePhase.PLAYING;
 
     return updatedGame;
@@ -312,8 +318,8 @@ export class GameFactory {
   private static createActionDeck(): Card[] {
     const csvContent = `Id;Nom;Texte;Action gratuite;Couleur scan;Revenu;Cout;Condition;Gain;Contrainte
 9;Falcon Heavy;Gagnez 2 sondes et 1 Média. Ignorez la limite de sondes sur le plateau Systéme Solaire pour ces lancements.;1 Déplacement;Jaune;1 Crédit;3 Crédits;;2 Sondes + 1 Média;IGNORE_PROBE_LIMIT
-11;Subventions;Gagnez 1 Carte. Révélez la carte que vous avez piochée et bénéfciez de son action gratuite.;1 Média;Jaune;1 Energie;1 Crédit;;;REVEAL_AND_TRIGGER_FREE_ACTION
-13;Rover Perseverance;Gagnez 1 Atterrissage. Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs.;1 Média;Bleu;1 Pioche;1 Crédit;;;
+11;Subventions;Gagnez 1 Carte. Révélez la carte que vous avez piochée et bénéfciez de son action gratuite.;1 Média;Jaune;1 Energie;1 Crédit;;1 Carte;REVEAL_AND_TRIGGER_FREE_ACTION
+13;Rover Perseverance;Gagnez 1 Atterrissage. Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs.;1 Média;Bleu;1 Pioche;1 Crédit;;1 Atterrissage;
 15;Rentrée Atmosphérique;Retirez l'un de vos orbiteurs de n'importe quelle planète pour gagner 3 PVs, 1 Donnée, 1 Carte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;;
 16;Dragonfly;Gagnez 1 Atterrissage. Vous pouvez poser une sonde sur une case déjà occupée, et tout de même gagner la récompense recouverte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;1 Atterrissage;
 17;OSIRIS-REx;Choisissez 1 de vos sondes. Gagnez 2 Données si elle est placée sur un champ d'astéroïdes et 1 Donnée pour chaque champ d'astéroïdes adjacent.;1 Déplacement;Jaune;1 Energie;1 Crédit;;OSIRIS_REX_BONUS;
@@ -329,7 +335,7 @@ export class GameFactory {
 59;Système de Propulsion Ionique;Gagez 1 Energie, 1 Rotation, 1 Technologie Exploration.;1 Média;Rouge;1 Pioche;3 Crédits;;1 Energie + 1 Rotation + 1 Tech Exploration;
 69;Grand Collisionneur de Hadrons;Gagnez 1 Donnée, 1 Rotation, 1 Technologie Informatique.;1 Déplacement;Noir;1 Energie;3 Crédits;;1 Donnée + 1 Rotation + 1 Tech Informatique;
 71;Recherche Ciblée;Gagnez 1 Rotation et 1 Technologie de n'importe quelle couleur. Puis gagnez 2 PV pour chaque technologie de ce type que vous possédez.;1 Média;Rouge;1 Crédit;3 Crédits;;1 Rotation + 1 Tech;SCORE_PER_TECH_TYPE:2
-72;Coopération Scientifique;Gagnez 1 Rotation et 1 Technologie de n'importe quelle couleur. Si vos développez une technologie qu'un autre joueur possède déjà, gagnez 2 Média.;1 Donnée;Bleu;1 Energie;3 Crédits;;1 Rotation + 1 Tech;MEDIA_IF_SHARED_TECH:2
+72;Coopération Scientifique;Gagnez 1 Rotation et 1 Technologie de n'importe quelle couleur. Si vous développez une technologie qu'un autre joueur possède déjà, gagnez 2 Média.;1 Donnée;Bleu;1 Energie;3 Crédits;;1 Rotation + 1 Tech;MEDIA_IF_SHARED_TECH:2
 73;Initiative Clean Space;Défaussez les 3 cartes de la rangée de cartes pour effectuer leurs actions gratuites.;1 Média;Jaune;1 Crédit;1 Crédit;;DISCARD_ROW_FOR_FREE_ACTIONS;
 74;Essais de Prélancement;Gagnez 1 Sonde et 1 Déplacement pour chaque carte avec une action gratuite de déplacement que vous révélez de votre main.;1 Média;Jaune;1 Pioche;2 Crédits;;;REVEAL_MOVEMENT_CARDS_FOR_BONUS
 81;Collaboration Internationale;Gagnez 1 Technologie de n'importe quelle couleur qu'un autre joueur possède déjà. Ne faites pas pivoter le système solaire. Ne gagner pas le bonus indiqué sur la tuile.;1 Déplacement;Jaune;1 Pioche;2 Crédits;;1 Tech;SHARED_TECH_ONLY_NO_BONUS

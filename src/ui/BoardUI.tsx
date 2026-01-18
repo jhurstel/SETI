@@ -43,7 +43,7 @@ type InteractionState =
   /** Le joueur a initié un échange et doit choisir la ressource à dépenser. */
   | { type: 'TRADING_CARD', targetGain: string, selectedCards: string[] }
   /** Le joueur acquiert une carte (gratuitement ou en payant) et doit la sélectionner dans la pioche ou la rangée. */
-  | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, sequenceId?: string }
+  | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, sequenceId?: string, triggerFreeAction?: boolean }
   /** Le joueur a des déplacements gratuits à effectuer. */
   | { type: 'MOVING_PROBE', count: number, autoSelectProbeId?: string }
   /** Le joueur a un atterrissage gratuit (ex: Carte 13). */
@@ -940,7 +940,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     if (bonuses.revenue) {
-      newPendingInteractions.push({ type: 'RESERVING_CARD', count: bonuses.revenue, selectedCards: [] });
+      const player = updatedGame.players.find(p => p.id === playerId);
+      if (player) {
+        const count = Math.min(bonuses.revenue, player.cards.length);
+        if (count > 0) {
+          newPendingInteractions.push({ type: 'RESERVING_CARD', count: count, selectedCards: [] });
+        }
+      }
     }
     
     if (bonuses.technology) {
@@ -977,6 +983,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     if (bonuses.landing) {
         newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId });
+        const txt = `${bonuses.landing} Atterrissage${bonuses.landing > 1 ? 's' : ''}`;
+        passiveGains.push(txt);
+    }
+
+    if (bonuses.revealAndTriggerFreeAction) {
+        newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: 1, isFree: true, triggerFreeAction: true });
     }
 
     return { updatedGame, newPendingInteractions, logs, passiveGains };
@@ -1013,11 +1025,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     actionFn: (game: Game, playerId: string, probeId: string, targetId: string) => { updatedGame: Game, bonuses?: any },
     historyMessagePrefix: string,
     successMessage: string
-  ) => {
-    if (interactionState.type !== 'IDLE') return;
-    if (hasPerformedMainAction) {
+  ): boolean => {
+    if (interactionState.type !== 'IDLE' && interactionState.type !== 'LANDING_PROBE') return false;
+    if (hasPerformedMainAction && interactionState.type !== 'LANDING_PROBE') {
         setToast({ message: "Action principale déjà effectuée", visible: true });
-        return;
+        return false;
     }
 
     const currentPlayer = game.players[game.currentPlayerIndex];
@@ -1040,7 +1052,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     if (!planetDef) {
       console.error(`Planète introuvable: ${targetPlanetId}`);
-      return;
+      return false;
     }
 
     // Trouver une sonde du joueur sur cette planète (en comparant les positions relatives)
@@ -1055,7 +1067,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                probeLevel === planetLevel;
     });
 
-    if (!probe) return;
+    if (!probe) return false;
 
     // Générer un ID de séquence pour grouper l'action et ses bonus
     const sequenceId = `seq-${Date.now()}`;
@@ -1072,6 +1084,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
         setHasPerformedMainAction(true);
         
+        let interactionTriggered = false;
         if (newPendingInteractions.length > 1) {
             // Créer le menu de choix en injectant le sequenceId dans les états
             const choices = newPendingInteractions.map((interaction, index) => ({
@@ -1089,11 +1102,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 choices: choices,
                 sequenceId
             });
+            interactionTriggered = true;
         } else if (newPendingInteractions.length === 1) {
             if (passiveGains.length > 0) {
                 setToast({ message: `Gains : ${passiveGains.join(', ')}`, visible: true });
             }
             setInteractionState({ ...newPendingInteractions[0], sequenceId });
+            interactionTriggered = true;
         } else if (passiveGains.length > 0) {
             setToast({ message: `Gains : ${passiveGains.join(', ')}`, visible: true });
         }
@@ -1105,8 +1120,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (newPendingInteractions.length === 0) {
             setToast({ message: successMessage, visible: true });
         }
+        return interactionTriggered;
     } catch (e: any) {
         setToast({ message: e.message, visible: true });
+        return false;
     }
   };
 
@@ -1124,39 +1141,48 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleLand = (planetId: string, slotIndex?: number) => {
     // Vérifier si on est en mode atterrissage gratuit
     if (interactionState.type === 'LANDING_PROBE') {
-        handlePlanetInteraction(
-            planetId,
-            (g, pid, prid, targetId) => {
-                const result = ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex); // Toujours gratuit en mode LANDING_PROBE
-                
-                // Logique spécifique Carte 13 (Rover Perseverance)
-                // "Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs."
-                if (interactionState.source === '13') {
-                    const isMars = targetId === 'mars';
-                    const isMercury = targetId === 'mercury';
-                    // Vérifier si c'est une lune (satellite)
-                    const isMoon = g.board.planets.some(p => p.satellites?.some(s => s.id === targetId));
-                    
-                    if (isMars || isMercury || isMoon) {
-                        if (!result.bonuses) result.bonuses = {};
-                        result.bonuses.pv = (result.bonuses.pv || 0) + 4;
-                    }
-                }
-                return result;
-            },
-            "fait atterrir une sonde (Bonus) sur",
-            "Atterrissage réussi"
-        );
-        
-        // Décrémenter ou terminer l'interaction
-        if (interactionState.count > 1) {
-            setInteractionState({ ...interactionState, count: interactionState.count - 1 });
-        } else {
-            // Si on vient d'un menu de choix, on retourne à IDLE (le menu gère la suite via pendingInteractions)
-            // Sinon IDLE
-            setInteractionState({ type: 'IDLE' });
-        }
-        return;
+      const interactionTriggered = handlePlanetInteraction(
+        planetId,
+        (g, pid, prid, targetId) => {
+          const result = ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex); // Toujours gratuit en mode LANDING_PROBE
+          
+          // Logique spécifique Carte 13 (Rover Perseverance)
+          // "Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs."
+          if (interactionState.source === '13') {
+            const isMars = targetId === 'mars';
+            const isMercury = targetId === 'mercury';
+            // Vérifier si c'est une lune (satellite)
+            const isMoon = g.board.planets.some(p => p.satellites?.some(s => s.id === targetId));
+            
+            if (isMars || isMercury || isMoon) {
+              if (!result.bonuses) result.bonuses = {};
+              result.bonuses.pv = (result.bonuses.pv || 0) + 4;
+            }
+          }
+          return result;
+        },
+        "fait atterrir une sonde (Bonus) sur",
+        "Atterrissage réussi"
+      );
+      
+      if (interactionTriggered) {
+          // Si une interaction a été déclenchée (bonus), on doit s'assurer que les atterrissages restants sont mis en file d'attente
+          if (interactionState.count > 1) {
+              const remainingState: InteractionState = { ...interactionState, count: interactionState.count - 1 };
+              setPendingInteractions(prev => [...prev, remainingState]);
+          }
+          return;
+      }
+
+      // Décrémenter ou terminer l'interaction
+      if (interactionState.count > 1) {
+          setInteractionState({ ...interactionState, count: interactionState.count - 1 });
+      } else {
+          // Si on vient d'un menu de choix, on retourne à IDLE (le menu gère la suite via pendingInteractions)
+          // Sinon IDLE
+          setInteractionState({ type: 'IDLE' });
+      }
+      return;
     }
 
     handlePlanetInteraction(
@@ -1360,6 +1386,19 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Construction du message d'historique unifié
     let message = `joue la carte "${card.name}" pour ${card.cost} crédits`;
     
+    if (result.bonuses && result.bonuses.subventionDetails) {
+        const { cardName, bonusText } = result.bonuses.subventionDetails;
+        message += ` et pioche la carte "${cardName}" pour gagner ${bonusText}`;
+        
+        if (bonusText === "1 Donnée") {
+             const idx = passiveGains.indexOf(formatResource(1, 'DATA'));
+             if (idx > -1) passiveGains.splice(idx, 1);
+        } else if (bonusText === "1 Média") {
+             const idx = passiveGains.indexOf(formatResource(1, 'MEDIA'));
+             if (idx > -1) passiveGains.splice(idx, 1);
+        }
+    }
+
     // Filtrer les logs pour séparer ce qu'on fusionne de ce qu'on garde séparé
     const isPassiveLog = (log: string) => log.startsWith('gagne ') || log.startsWith('pioche ');
     const isMovementLog = (log: string) => log.includes('déplacement') && log.includes('gratuit');
@@ -1413,7 +1452,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       setToast({ message: "Action gratuite : +1 Data", visible: true });
       addToHistory(`défausse une carte pour gagner ${formatResource(1, 'DATA')}`, currentPlayerId, game);
     } else if (card.freeAction === FreeActionType.MOVEMENT) {
-      setInteractionState({ type: 'MOVING_PROBE', count: 1 });
+      const probes = currentPlayer.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+      const autoSelectProbeId = probes.length === 1 ? probes[0].id : undefined;
+      setInteractionState({ type: 'MOVING_PROBE', count: 1, autoSelectProbeId });
       setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
       addToHistory("défausse une carte pour un déplacement gratuit", currentPlayerId, game);
     }
@@ -1503,6 +1544,29 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       return;
     }
 
+    let freeActionLog = "";
+    if (interactionState.triggerFreeAction) {
+        const player = result.updatedGame.players.find(p => p.id === currentPlayer.id);
+        if (player && player.cards.length > 0) {
+            const card = player.cards[player.cards.length - 1];
+            card.isRevealed = true;
+            
+            if (card.freeAction === FreeActionType.MEDIA) {
+                player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                setToast({ message: "Action gratuite : +1 Média", visible: true });
+                freeActionLog = " et gagne 1 Média (Action gratuite)";
+            } else if (card.freeAction === FreeActionType.DATA) {
+                player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
+                setToast({ message: "Action gratuite : +1 Donnée", visible: true });
+                freeActionLog = " et gagne 1 Donnée (Action gratuite)";
+            } else if (card.freeAction === FreeActionType.MOVEMENT) {
+                setPendingInteractions(prev => [{ type: 'MOVING_PROBE', count: 1 }, ...prev]);
+                setToast({ message: "Action gratuite : +1 Déplacement", visible: true });
+                freeActionLog = " et gagne 1 Déplacement (Action gratuite)";
+            }
+        }
+    }
+
     // Récupérer le nom de la carte pour le log
     let cardName = "Inconnue";
     if (cardId) {
@@ -1523,13 +1587,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const logMsg = interactionState.isFree 
         ? (cardId ? `choisit la carte "${cardName}" (Bonus)` : `pioche la carte "${cardName}" (Bonus)`)
         : (cardId ? `achète la carte "${cardName}" pour 3 médias` : `achète la carte "${cardName}" (pioche) pour 3 médias`);
-
+    
     const sequenceId = (interactionState as any).sequenceId;
     
     // Pour l'achat normal, on veut que l'undo revienne à IDLE (pas à la sélection)
     const undoState: InteractionState = !interactionState.isFree ? { type: 'IDLE' } : interactionState;
     
-    addToHistory(logMsg, currentPlayer.id, game, undoState, sequenceId);
+    addToHistory(logMsg + freeActionLog, currentPlayer.id, game, undoState, sequenceId);
     
     // Gérer le compteur pour les sélections multiples
     if (interactionState.count > 1) {
@@ -1776,9 +1840,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour les bonus ordinateur (déclenché depuis PlayerBoardUI)
   const handleComputerBonus = (type: string, amount: number) => {
     if (type === 'reservation') {
-      const sequenceId = (interactionState as any).sequenceId;
-      setInteractionState({ type: 'RESERVING_CARD', count: amount, sequenceId, selectedCards: [] });
-      setToast({ message: `Réservez ${amount} carte${amount > 1 ? 's' : ''}`, visible: true });
+      const currentPlayer = gameRef.current.players[gameRef.current.currentPlayerIndex];
+      const count = Math.min(amount, currentPlayer.cards.length);
+      if (count > 0) {
+        const sequenceId = (interactionState as any).sequenceId;
+        setInteractionState({ type: 'RESERVING_CARD', count: count, sequenceId, selectedCards: [] });
+        setToast({ message: `Réservez ${count} carte${count > 1 ? 's' : ''}`, visible: true });
+      } else {
+        setToast({ message: "Aucune carte à réserver", visible: true });
+      }
     }
   };
 
