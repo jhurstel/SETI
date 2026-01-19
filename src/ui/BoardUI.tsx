@@ -59,7 +59,7 @@ type InteractionState =
   /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number }
   /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
-  | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string }
+  | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string, remainingMoves?: number }
   /** Le joueur a reçu plusieurs bonus interactifs et doit choisir l'ordre de résolution. */
   | { 
       type: 'CHOOSING_BONUS_ACTION', 
@@ -1051,6 +1051,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const currentPlayer = game.players[game.currentPlayerIndex];
       let updatedGame = { ...game };
       const sequenceId = interactionState.sequenceId;
+      const remainingMoves = interactionState.remainingMoves || 0;
 
       if (choice === 'MEDIA') {
           const res = ResourceSystem.updateMedia(updatedGame, currentPlayer.id, 1);
@@ -1059,10 +1060,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           addToHistory(`choisit de gagner ${formatResource(1, 'MEDIA')}`, currentPlayer.id, game, { type: 'IDLE' }, sequenceId);
           setGame(updatedGame);
           if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-          setInteractionState({ type: 'IDLE' });
+          
+          if (remainingMoves > 0) {
+              setInteractionState({ type: 'MOVING_PROBE', count: remainingMoves });
+          } else {
+              setInteractionState({ type: 'IDLE' });
+          }
       } else {
           // Transition vers le déplacement de sonde
-          setInteractionState({ type: 'MOVING_PROBE', count: 1 });
+          setInteractionState({ type: 'MOVING_PROBE', count: remainingMoves + 1 });
           setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
           addToHistory(`choisit un déplacement gratuit`, currentPlayer.id, game, { type: 'IDLE' }, sequenceId);
       }
@@ -1257,6 +1263,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const currentPlayerId = currentGame.players[currentGame.currentPlayerIndex].id;
 
     let freeMovements = interactionState.type === 'MOVING_PROBE' ? interactionState.count : 0;
+    let interruptedForChoice = false;
 
     // Parcourir le chemin étape par étape (en ignorant le point de départ à l'index 0)
     for (let i = 1; i < path.length; i++) {
@@ -1345,10 +1352,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             // Détection Card 19 (Assistance Gravitationnelle)
             const targetCell = getCell(disk, sector, createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0));
             const hasChoiceBuff = oldPlayer.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
-            let interruptedForChoice = false;
             
             if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
-                 setInteractionState({ type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId: `move-${Date.now()}` });
+                 // Calculer les mouvements restants après ce pas (si gratuit)
+                 const remaining = useFree ? freeMovements - 1 : freeMovements;
+                 setInteractionState({ 
+                     type: 'CHOOSING_MEDIA_OR_MOVE', 
+                     sequenceId: `move-${Date.now()}`,
+                     remainingMoves: remaining
+                 });
                  interruptedForChoice = true;
                  if (i < path.length - 1) setToast({ message: "Déplacement interrompu pour choix bonus", visible: true });
             }
@@ -1383,7 +1395,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         break; // Arrêter le mouvement en cas d'erreur
       }
     }
-    if (interactionState.type === 'MOVING_PROBE') {
+    if (interactionState.type === 'MOVING_PROBE' && !interruptedForChoice) {
       if (freeMovements > 0) {
         setInteractionState({ type: 'MOVING_PROBE', count: freeMovements });
         setToast({ message: `Encore ${freeMovements} déplacement(s) gratuit(s)`, visible: true });
