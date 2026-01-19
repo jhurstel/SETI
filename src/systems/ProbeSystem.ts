@@ -19,8 +19,7 @@ import {
   Bonus,
   GAME_CONSTANTS,
   DiskName,
-  SectorNumber,
-  Bonus
+  SectorNumber
 } from '../core/types';
 import { 
   getObjectPosition, 

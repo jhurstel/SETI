@@ -126,6 +126,7 @@ const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEnter, on
           (window as any).__SETI_TOOLTIPS__ = reg.filter((t: any) => t.id !== tooltipId.current);
       };
     }
+    return;
   }, [targetRect, content]);
 
   return createPortal(

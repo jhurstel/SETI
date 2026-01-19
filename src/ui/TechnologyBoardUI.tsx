@@ -1,6 +1,6 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, Technology, TechnologyCategory, TechnologyBonus, GAME_CONSTANTS } from '../core/types';
+import { Game, Technology, TechnologyCategory, Bonus, GAME_CONSTANTS } from '../core/types';
 
 interface TechnologyBoardUIProps {
   game: Game;
@@ -14,6 +14,7 @@ interface TechnologyBoardUIProps {
 const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect: DOMRect }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
+  const tooltipId = useRef(Math.random().toString(36).substr(2, 9));
 
   useLayoutEffect(() => {
     if (tooltipRef.current && targetRect) {
@@ -45,12 +46,53 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
         }
       }
 
+      // Gestion des superpositions
+      const width = rect.width;
+      const height = rect.height;
+      let finalTop = top;
+      let finalLeft = left;
+      
+      const others = ((window as any).__SETI_TOOLTIPS__ || []).filter((t: any) => t.id !== tooltipId.current);
+      let collision = true;
+      let iterations = 0;
+
+      while (collision && iterations < 10) {
+          collision = false;
+          const myRect = { left: finalLeft, top: finalTop, right: finalLeft + width, bottom: finalTop + height };
+          
+          for (const other of others) {
+              const otherRect = other.rect;
+              if (myRect.left < otherRect.right &&
+                  myRect.right > otherRect.left &&
+                  myRect.top < otherRect.bottom &&
+                  myRect.bottom > otherRect.top) {
+                  
+                  finalTop = otherRect.bottom + 5;
+                  collision = true;
+                  if (finalTop + height > viewportHeight - 10) {
+                      finalTop = top;
+                      finalLeft = otherRect.right + 5;
+                  }
+                  break;
+              }
+          }
+          iterations++;
+      }
+
+      const registry = (window as any).__SETI_TOOLTIPS__ || [];
+      (window as any).__SETI_TOOLTIPS__ = [...registry.filter((t: any) => t.id !== tooltipId.current), { id: tooltipId.current, rect: { left: finalLeft, top: finalTop, right: finalLeft + width, bottom: finalTop + height } }];
+
       setStyle({
-        top,
-        left,
+        top: finalTop,
+        left: finalLeft,
         opacity: 1
       });
+      return () => {
+          const reg = (window as any).__SETI_TOOLTIPS__ || [];
+          (window as any).__SETI_TOOLTIPS__ = reg.filter((t: any) => t.id !== tooltipId.current);
+      };
     }
+    return;
   }, [targetRect, content]);
 
   return createPortal(
@@ -135,7 +177,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
     return '⚙️';
   };
 
-  const renderBonus = (bonus: TechnologyBonus, excludeExtraPv: boolean) => {
+  const renderBonus = (bonus: Bonus, excludeExtraPv: boolean) => {
     const elements = [];
     let pv = bonus.pv || 0;
     if (excludeExtraPv) pv -= 2;
@@ -154,7 +196,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
   // À utiliser une fois les fichiers extraits et placés dans le dossier public/assets/technologies/
   const getTechImage = (baseId: string): string | undefined => {
     // Exemple : return `/assets/technologies/${baseId}.svg`;
-    return undefined;
+    return baseId;
   };
 
   return (
@@ -176,7 +218,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                 {slot.category}
               </div>
               <div className="seti-tech-slots">
-                {stacks.map((stack, index) => {
+                {stacks.map(stack => {
                   if (stack.length === 0) return null;
                   const topCard = stack[0];
                   const count = stack.length;

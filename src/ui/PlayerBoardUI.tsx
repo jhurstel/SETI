@@ -297,8 +297,6 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
       (window as any).__SETI_TOOLTIPS__ = [...registry.filter((t: any) => t.id !== tooltipId.current), { id: tooltipId.current, rect: { left: finalLeft, top: finalTop, right: finalLeft + width, bottom: finalTop + height } }];
 
       setStyle({
-        top,
-        left,
         top: finalTop,
         left: finalLeft,
         opacity: 1
@@ -308,6 +306,7 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
           (window as any).__SETI_TOOLTIPS__ = reg.filter((t: any) => t.id !== tooltipId.current);
       };
     }
+    return;
   }, [targetRect, content]);
 
   return (
@@ -715,9 +714,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
       <div 
         key={card.id} 
         className={`seti-common-card seti-card-wrapper ${phaseClass}`}
-        onMouseEnter={(e) => handleTooltipHover(e, renderCardTooltip(card))}
+        onMouseEnter={e => handleTooltipHover(e, renderCardTooltip(card))}
         onMouseLeave={handleTooltipLeave}
-        onClick={(e) => {
+        onClick={e => {
+          e;
           if (!isClickable) return;
           
           if (isReserving || isTrading || isDiscarding) {

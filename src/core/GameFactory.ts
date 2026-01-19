@@ -294,22 +294,22 @@ export class GameFactory {
   /**
    * Mock
    */
-  private static createRandomCard(id: number): Card {
-    const colors = [SectorColor.BLUE, SectorColor.RED, SectorColor.YELLOW, SectorColor.BLACK];
-    const freeActions = [FreeActionType.DATA, FreeActionType.MEDIA, FreeActionType.MOVEMENT];
-    const revenues = [RevenueType.CREDIT, RevenueType.ENERGY, RevenueType.CARD];
-    return {
-        id: `random_card_${id}`,
-        name: `Projet ${id+1}`,
-        type: CardType.ACTION,
-        cost: Math.floor(Math.random() * 5) + 1,
-        freeAction: freeActions[Math.floor(Math.random() * freeActions.length)],
-        scanSector: colors[Math.floor(Math.random() * colors.length)],
-        revenue: revenues[Math.floor(Math.random() * revenues.length)],
-        effects: [],
-        description: "Carte random"
-    };
-  }
+  //private static createRandomCard(id: number): Card {
+  //  const colors = [SectorColor.BLUE, SectorColor.RED, SectorColor.YELLOW, SectorColor.BLACK];
+  //  const freeActions = [FreeActionType.DATA, FreeActionType.MEDIA, FreeActionType.MOVEMENT];
+  //  const revenues = [RevenueType.CREDIT, RevenueType.ENERGY, RevenueType.CARD];
+  //  return {
+  //      id: `random_card_${id}`,
+  //      name: `Projet ${id+1}`,
+  //      type: CardType.ACTION,
+  //      cost: Math.floor(Math.random() * 5) + 1,
+  //      freeAction: freeActions[Math.floor(Math.random() * freeActions.length)],
+  //      scanSector: colors[Math.floor(Math.random() * colors.length)],
+  //      revenue: revenues[Math.floor(Math.random() * revenues.length)],
+  //      effects: [],
+  //      description: "Carte random"
+  //  };
+  //}
     
   /**
    * Crée le paquet de cartes Action initial
@@ -377,7 +377,7 @@ export class GameFactory {
 
       if (columns.length >= 10) {
         const [id, nom, texte, actionGratuite, couleurScan, revenue, cout, condition, gain, contrainte] = columns;
-        
+        condition;
         cards.push({
             id: id.trim(),
             name: nom.trim(),
