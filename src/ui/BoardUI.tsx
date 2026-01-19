@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Technology, RevenueType, ProbeState, TechnologyCategory, MILESTONES, CardType } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Technology, RevenueType, ProbeState, TechnologyCategory, MILESTONES, CardType, SignalType } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -9,19 +9,12 @@ import { MoveProbeAction } from '../actions/MoveProbeAction';
 import { PassAction } from '../actions/PassAction';
 import { GameEngine } from '../core/Game';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { 
-  createRotationState, 
-  getCell, 
-  getObjectPosition,
-  FIXED_OBJECTS,
-  INITIAL_ROTATING_LEVEL1_OBJECTS,
-  INITIAL_ROTATING_LEVEL2_OBJECTS,
-  INITIAL_ROTATING_LEVEL3_OBJECTS
-} from '../core/SolarSystemPosition';
+import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../core/SolarSystemPosition';
 import { DataSystem } from '../systems/DataSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
+import { SectorSystem } from '../systems/SectorSystem';
 import { AIBehavior } from '../ai/AIBehavior';
 
 interface BoardUIProps {
@@ -58,6 +51,10 @@ type InteractionState =
   | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow', sequenceId?: string }
   /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number }
+  /** Le joueur scanne un secteur (2ème étape : choix de la carte). */
+  | { type: 'SELECTING_SCAN_CARD', sequenceId?: string }
+  /** Le joueur scanne un secteur (3ème étape : choix du secteur couleur). */
+  | { type: 'SELECTING_SCAN_SECTOR', color: SectorColor, sequenceId?: string, cardId?: string }
   /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
   | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string, remainingMoves?: number }
   /** Le joueur a reçu plusieurs bonus interactifs et doit choisir l'ordre de résolution. */
@@ -78,6 +75,8 @@ const getInteractionLabel = (state: InteractionState): string => {
     case 'MOVING_PROBE': return `Déplacement gratuit (${state.count})`;
     case 'LANDING_PROBE': return `Atterrissage gratuit (${state.count})`;
     case 'CHOOSING_MEDIA_OR_MOVE': return "Choisir Média ou Déplacement";
+    case 'SELECTING_SCAN_CARD': return "Choisir une carte pour le scan";
+    case 'SELECTING_SCAN_SECTOR': return "Choisir un secteur à scanner";
     default: return "Action bonus";
   }
 };
@@ -231,7 +230,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (interactionState.type === 'ACQUIRING_TECH') {
       setIsTechOpen(true);
     }
-    if (interactionState.type === 'ACQUIRING_CARD') {
+    if (interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') {
       setIsRowOpen(true);
     }
   }, [interactionState.type]);
@@ -708,6 +707,76 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   };
 
+  // Gestionnaire pour le clic sur un secteur (Scan)
+  const handleSectorClick = (sectorNumber: number) => {
+    // Permettre de lancer l'action Scan en cliquant sur le secteur de la Terre (si IDLE)
+    if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
+        const earthPos = getObjectPosition(
+          'earth',
+          game.board.solarSystem.rotationAngleLevel1 || 0,
+          game.board.solarSystem.rotationAngleLevel2 || 0,
+          game.board.solarSystem.rotationAngleLevel3 || 0
+        );
+        if (earthPos && earthPos.absoluteSector === sectorNumber) {
+            handleAction(ActionType.SCAN_SECTOR);
+        }
+        return;
+    }
+
+    if (interactionState.type !== 'SELECTING_SCAN_SECTOR') return;
+    
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    const sector = game.board.sectors[sectorNumber - 1];
+    
+    // Validate color
+    if (sector.color !== interactionState.color) {
+        setToast({ message: `Couleur incorrecte. Sélectionnez un secteur ${interactionState.color}`, visible: true });
+        return;
+    }
+
+    console.log(`Tentative de scan du secteur ${sector.id} (Index: ${sectorNumber})`);
+    const result = SectorSystem.scanSector(game, currentPlayer.id, sector.id);
+    
+    if (!result || !result.updatedGame) {
+        console.error("Erreur: SectorSystem.scanSector a retourné un résultat invalide", result);
+        setToast({ message: "Erreur lors du scan du secteur", visible: true });
+        return;
+    }
+
+    let updatedGame = result.updatedGame;
+    const logs = result.logs || [];
+
+    // Défausser la carte de la rangée si une carte a été utilisée pour la couleur
+    if (interactionState.cardId) {
+        const row = updatedGame.decks.cardRow;
+        const cardIndex = row.findIndex(c => c.id === interactionState.cardId);
+        if (cardIndex !== -1) {
+             const removedCard = row[cardIndex];
+             row.splice(cardIndex, 1);
+             updatedGame = CardSystem.refillCardRow(updatedGame);
+             logs.push(`défausse "${removedCard.name}"`);
+        }
+    }
+
+    if (result.bonuses) {
+         const bonusRes = processBonuses(result.bonuses, updatedGame, currentPlayer.id, 'scan');
+         updatedGame = bonusRes.updatedGame;
+         logs.push(...bonusRes.logs);
+         if (bonusRes.newPendingInteractions.length > 0) {
+             setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
+         }
+    }
+
+    setGame(updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+    setHasPerformedMainAction(true);
+    
+    addToHistory(logs.join(', '), currentPlayer.id, game, undefined, interactionState.sequenceId);
+    
+    setInteractionState({ type: 'IDLE' });
+    setToast({ message: "Scan terminé", visible: true });
+  };
+
   // Gestionnaire pour les actions
   const handleAction = (actionType: ActionType) => {
     if (!gameEngineRef.current) return;
@@ -754,6 +823,54 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     //else if (actionType === ActionType.MOVE_PROBE) {
       
     //}
+    else if (actionType === ActionType.SCAN_SECTOR) {
+      if (currentPlayer.credits < 1 || currentPlayer.energy < 2) {
+        setToast({ message: "Ressources insuffisantes (1 Crédit, 2 Énergies requis)", visible: true });
+        return;
+      }
+
+      let updatedGame = structuredClone(game);
+      const player = updatedGame.players[updatedGame.currentPlayerIndex];
+      
+      // Pay cost
+      player.credits -= 1;
+      player.energy -= 2;
+
+      // 1. Scan Earth Sector
+      const earthPos = getObjectPosition(
+          'earth',
+          updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+          updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+          updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+      );
+
+      const sequenceId = `scan-${Date.now()}`;
+      const logs: string[] = [`paye 1 Crédit et 2 Énergie pour scanner`];
+
+      if (earthPos) {
+          const result = SectorSystem.scanSector(updatedGame, player.id, `sector_${earthPos.absoluteSector}`);
+          updatedGame = result.updatedGame;
+          logs.push(...result.logs);
+          
+          // Process bonuses from scan (if any)
+          if (result.bonuses) {
+               const bonusRes = processBonuses(result.bonuses, updatedGame, player.id, 'scan');
+               updatedGame = bonusRes.updatedGame;
+               logs.push(...bonusRes.logs);
+               if (bonusRes.newPendingInteractions.length > 0) {
+                   setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
+               }
+          }
+      }
+
+      setGame(updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+      addToHistory(logs.join(', '), player.id, game, undefined, sequenceId);
+
+      setInteractionState({ type: 'SELECTING_SCAN_CARD', sequenceId });
+      setIsRowOpen(true);
+      setToast({ message: "Sélectionnez une carte de la rangée pour déterminer la couleur du secteur à scanner", visible: true });
+    }
     else if (actionType === ActionType.PASS) {
       // 1. Vérifier la taille de la main
       if (currentPlayer.cards.length > 4) {
@@ -1379,7 +1496,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         
         // Mettre à jour le compteur de mouvements gratuits
         if (useFree) {
-          freeMovements--;
+          // On ne décrémente que si le mouvement a réellement été gratuit (pas de dépense d'énergie)
+          if (energySpent === 0) {
+            freeMovements--;
+          }
         }
         
         // Petit délai pour l'animation
@@ -1575,6 +1695,21 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   
   // Gestionnaire pour la sélection d'une carte de la pioche ou de la rangée principale
   const handleCardRowClick = (cardId?: string) => { // cardId undefined means deck
+    if (interactionState.type === 'SELECTING_SCAN_CARD') {
+        if (!cardId) return; // Cannot select deck for scan color
+        const card = game.decks.cardRow.find(c => c.id === cardId);
+        if (!card) return;
+
+        setInteractionState({ 
+            type: 'SELECTING_SCAN_SECTOR', 
+            color: card.scanSector, 
+            sequenceId: interactionState.sequenceId,
+            cardId: card.id
+        });
+        setToast({ message: `Sélectionnez un secteur ${card.scanSector}`, visible: true });
+        return;
+    }
+
     if (interactionState.type !== 'ACQUIRING_CARD') return;
     
     const currentPlayer = game.players[game.currentPlayerIndex];
@@ -1997,6 +2132,22 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   
   const humanPlayer = game.players.find(p => (p as any).type === 'human');
   const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id;
+
+  // Calcul des secteurs à mettre en surbrillance (flash vert)
+  const getHighlightedSectors = () => {
+    if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
+      return game.board.sectors.filter(s => s.color === interactionState.color).map(s => s.id);
+    }
+    if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
+       // Earth sector
+       const earthPos = getObjectPosition('earth', game.board.solarSystem.rotationAngleLevel1 || 0, game.board.solarSystem.rotationAngleLevel2 || 0, game.board.solarSystem.rotationAngleLevel3 || 0);
+       if (earthPos) {
+           // sector IDs are sector_1, sector_2...
+           return [`sector_${earthPos.absoluteSector}`];
+       }
+    }
+    return [];
+  };
 
   return (
     <div className="seti-root">
@@ -2449,7 +2600,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       )}
 
       {/* Overlay pour la recherche de technologie ou l'achat de carte */}
-      {(interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'RESERVING_CARD') && (
+      {(interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'RESERVING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -2463,6 +2614,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           if (interactionState.type === 'ACQUIRING_CARD') {
              setInteractionState({ type: 'IDLE' });
              setIsRowOpen(false);
+          } else if (interactionState.type === 'SELECTING_SCAN_CARD') {
+             // Cannot cancel easily in middle of sequence, maybe toast warning?
           } else if (interactionState.type === 'RESERVING_CARD') {
              setToast({ message: "Veuillez sélectionner une carte à réserver", visible: true });
           } else {
@@ -2510,6 +2663,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 onHistory={(message) => addToHistory(message, game.players[game.currentPlayerIndex].id, game)}
                 onComputerBonus={handleComputerBonus}
                 isPlacingLifeTrace={interactionState.type === 'PLACING_LIFE_TRACE'}
+                isSelectingSector={interactionState.type === 'SELECTING_SCAN_SECTOR' || interactionState.type === 'SELECTING_SCAN_CARD'}
               />
             </div>
         </div>
@@ -2525,7 +2679,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               initialSector1={initialSector1} 
               initialSector2={initialSector2} 
               initialSector3={initialSector3}
+              onSectorClick={handleSectorClick}
               highlightPlayerProbes={interactionState.type === 'MOVING_PROBE'}
+              highlightedSectorSlots={getHighlightedSectors()}
               freeMovementCount={interactionState.type === 'MOVING_PROBE' ? interactionState.count : 0}
               hasPerformedMainAction={hasPerformedMainAction}
               autoSelectProbeId={interactionState.type === 'MOVING_PROBE' ? interactionState.autoSelectProbeId : undefined}
@@ -2545,7 +2701,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               top: '15px',
               left: '15px',
               width: '560px',
-              zIndex: (interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD') ? 1501 : 1000,
+              zIndex: (interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? 1501 : 1000,
               display: 'flex',
               flexDirection: 'column',
               gap: '10px',
@@ -2686,7 +2842,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               <div className={`seti-foldable-container seti-icon-panel ${isRowOpen ? 'open' : 'collapsed'}`}
                   style={{ 
                     pointerEvents: 'auto',
-                    ...(interactionState.type === 'ACQUIRING_CARD' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
+                    ...(interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
                   }}
               >
                 <div className="seti-foldable-header" onClick={() => setIsRowOpen(!isRowOpen)}>
@@ -2721,8 +2877,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       onMouseLeave={() => setActiveTooltip(null)}
                       className="seti-common-card"
                       style={{
-                      border: interactionState.type === 'ACQUIRING_CARD' ? '1px solid #4a9eff' : '1px solid #555',
-                      cursor: interactionState.type === 'ACQUIRING_CARD' ? 'pointer' : 'default',
+                      border: (interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? '1px solid #4a9eff' : '1px solid #555',
+                      cursor: (interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? 'pointer' : 'default',
                       animation: 'cardAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
                     }}>
                       <div style={{ fontWeight: 'bold', color: '#fff', lineHeight: '1.1', marginBottom: '4px', fontSize: '0.75rem', height: '2.2em', overflow: 'hidden' }}>{card.name}</div>

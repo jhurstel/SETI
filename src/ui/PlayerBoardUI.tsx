@@ -3,6 +3,7 @@ import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, SectorCol
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { DataSystem } from '../systems/DataSystem';
 import { CardSystem } from '../systems/CardSystem';
+import { SectorSystem } from '../systems/SectorSystem';
 import './PlayerBoardUI.css';
 
 interface PlayerBoardUIProps {
@@ -35,6 +36,7 @@ interface PlayerBoardUIProps {
   onConfirmReservation?: () => void;
   isPlacingLifeTrace?: boolean;
   onDirectTradeAction?: (spendType: string, gainType: string) => void;
+  isSelectingSector?: boolean;
 }
 
 const ACTION_NAMES: Record<ActionType, string> = {
@@ -337,7 +339,7 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, onViewPlayer, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, isTrading = false, onConfirmTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, isReserving = false, reservationCount = 0, onConfirmReservation, isPlacingLifeTrace = false, onDirectTradeAction }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, onViewPlayer, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, isTrading = false, onConfirmTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, isReserving = false, reservationCount = 0, onConfirmReservation, isPlacingLifeTrace = false, onDirectTradeAction, isSelectingSector = false }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -383,7 +385,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     setCustomTooltip(null);
   };
   
-  const isInteractiveMode = isDiscarding || isTrading || isReserving || isSelectingComputerSlot || isAnalyzing || isPlacingLifeTrace;
+  const isInteractiveMode = isDiscarding || isTrading || isReserving || isSelectingComputerSlot || isAnalyzing || isPlacingLifeTrace || isSelectingSector;
 
   // Suivi des changements de ressources pour la notification sur les onglets
   const [tabFlashes, setTabFlashes] = useState<Record<string, boolean>>({});
@@ -505,7 +507,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     [ActionType.LAUNCH_PROBE]: isCurrentTurn && !isRobot && !hasPerformedMainAction && ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch,
     [ActionType.ORBIT]: isCurrentTurn && !isRobot && !hasPerformedMainAction && currentPlayer.probes.some(probe => ProbeSystem.canOrbit(game, currentPlayer.id, probe.id).canOrbit),
     [ActionType.LAND]: isCurrentTurn && !isRobot && !hasPerformedMainAction && currentPlayer.probes.some(probe => ProbeSystem.canLand(game, currentPlayer.id, probe.id).canLand),
-    [ActionType.SCAN_SECTOR]: isCurrentTurn && !isRobot && !hasPerformedMainAction && false, // TODO
+    [ActionType.SCAN_SECTOR]: isCurrentTurn && !isRobot && !hasPerformedMainAction && SectorSystem.canScanSector(game, currentPlayer.id).canScan,
     [ActionType.ANALYZE_DATA]: isCurrentTurn && !isRobot && !hasPerformedMainAction && DataSystem.canAnalyzeData(game, currentPlayer.id).canAnalyze,
     [ActionType.PLAY_CARD]: isCurrentTurn && !isRobot && !hasPerformedMainAction && CardSystem.canPlayCards(game, currentPlayer.id).canPlay,
     [ActionType.RESEARCH_TECH]: isCurrentTurn && !isRobot && !hasPerformedMainAction && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA,

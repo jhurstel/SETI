@@ -29,6 +29,8 @@ interface SolarSystemBoardUIProps {
   isLandingInteraction?: boolean;
   onBackgroundClick?: () => void;
   allowOccupiedLanding?: boolean;
+  onSectorClick?: (sectorNumber: number) => void;
+  highlightedSectorSlots?: string[]; // IDs des secteurs dont le premier slot disponible doit flasher
 }
 
 export interface SolarSystemBoardUIRef {
@@ -185,7 +187,7 @@ const describeArc = (x: number, y: number, radius: number, startAngle: number, e
     ].join(" ");
 };
 
-export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false, autoSelectProbeId, isLandingInteraction, onBackgroundClick, allowOccupiedLanding }, ref) => {
+export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false, autoSelectProbeId, isLandingInteraction, onBackgroundClick, allowOccupiedLanding, onSectorClick, highlightedSectorSlots = [] }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredObjectRect, setHoveredObjectRect] = useState<DOMRect | null>(null);
@@ -1501,7 +1503,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           width: '100%',
           height: '100%',
           pointerEvents: 'none',
-          zIndex: 15, // Au-dessus des disques (2-6), en dessous des overlays rotatifs (20+)
+          zIndex: 50, // Au-dessus de tout pour assurer le clic
           overflow: 'visible'
         }}
         viewBox="0 0 200 200"
@@ -1519,6 +1521,11 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           const isBottom = i >= 2 && i <= 5;
 
           const textPathId = `sector-text-path-${i}`;
+          
+          // Vérifier si ce secteur doit avoir son slot en surbrillance
+          const shouldFlashSlot = highlightedSectorSlots.includes(sector.id);
+          const isSectorClickable = !!onSectorClick && shouldFlashSlot;
+
           // Inverser la direction du chemin pour le bas pour que le texte soit lisible
           const textArc = describeArc(100, 100, textRadius, startAngle, endAngle, isBottom);
           
@@ -1584,6 +1591,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
              const isNextAvailable = !signal.marked && (idx === 0 || sector.signals[idx-1].marked);
              const isDisabled = !signal.marked && !isNextAvailable;
              const opacity = isDisabled ? 0.2 : 1;
+             
+             // Flash seulement le premier slot disponible si le secteur est sélectionné
+             const isFlashing = shouldFlashSlot && isNextAvailable && !signal.marked;
+             
              const isLastSlot = idx === sector.signals.length - 1;
 
              // Préparation du tooltip Slot
@@ -1597,7 +1608,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
 
              if (signal.marked) {
                  const markerPlayer = game.players.find(p => p.id === signal.markedBy);
-                 stateText = `Analysé par ${markerPlayer?.name || 'Inconnu'}`;
+                 stateText = `Scanné par ${markerPlayer?.name || 'Inconnu'}`;
                  stateColor = markerPlayer?.color || "#ccc";
              } else if (isDisabled) {
                  stateText = "Indisponible";
@@ -1619,15 +1630,33 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                  </div>
              );
 
+             const cursorStyle = isSectorClickable ? 'pointer' : 'help';
+
              return (
-               <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`} style={{ opacity, cursor: 'help', pointerEvents: 'auto' }}
+               <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`} style={{ opacity, cursor: cursorStyle, pointerEvents: 'auto' }}
+                  onClick={(e) => {
+                    if (isSectorClickable && onSectorClick) {
+                      e.stopPropagation();
+                      onSectorClick(i + 1);
+                    }
+                  }}
                   onMouseEnter={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     setSlotTooltip({ content: slotTooltipContent, rect });
                   }}
                   onMouseLeave={() => setSlotTooltip(null)}
                >
+                 <circle r="4" fill="transparent" stroke="none" />
                  <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" strokeDasharray={isLastSlot ? "1 1" : undefined} />
+                 {isFlashing && (
+                   <>
+                     <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1" opacity="0.8" />
+                     <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1">
+                       <animate attributeName="r" values="3.5; 8" dur="2s" repeatCount="indefinite" />
+                       <animate attributeName="opacity" values="0.6; 0" dur="2s" repeatCount="indefinite" />
+                     </circle>
+                   </>
+                 )}
                  {!player && signal.bonus && (
                    <g transform="scale(0.25)">
                      {renderBonusContent(signal.bonus)}
@@ -1638,7 +1667,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           });
 
           return (
-            <g key={sector.id}>
+            <g key={sector.id}
+               style={{ pointerEvents: 'none' }}>
                <defs>
                  <path id={textPathId} d={textArc} />
                </defs>
@@ -1655,7 +1685,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                </text>
                
                {/* Fond du couloir */}
-               <path d={corridorPath} fill="none" stroke={color} strokeWidth="7" opacity="0.15" strokeLinecap="round" />
+               <path d={corridorPath} fill="none" stroke={color} strokeWidth="7" opacity="0.15" strokeLinecap="round" style={{ pointerEvents: 'auto', cursor: 'default' }} />
                
                {/* Slots */}
                {slots}
@@ -2016,6 +2046,22 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
 
   return (
     <>
+      <style>{`
+        @keyframes pulse-green {
+          0% {
+            transform: translate(-50%, -50%) scale(0.95);
+            box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+          }
+          70% {
+            transform: translate(-50%, -50%) scale(1);
+            box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+          }
+          100% {
+            transform: translate(-50%, -50%) scale(0.95);
+            box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+          }
+        }
+      `}</style>
       <div className="seti-panel seti-solar-system-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
         <div className="seti-panel-title">Système solaire</div>
         

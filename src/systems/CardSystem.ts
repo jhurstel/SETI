@@ -31,7 +31,10 @@ export class CardSystem {
     return updatedGame;
   }
 
-  static reserveCard(game: Game, playerId: string, cardId: string) {
+  /**
+   * Réserve une carte
+   */
+  static reserveCard(game: Game, playerId: string, cardId: string): Game {
     let updatedGame = structuredClone(game);
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     if (playerIndex === -1) return game;
@@ -58,6 +61,10 @@ export class CardSystem {
 
     return updatedGame
   }
+
+  /**
+   * Vérifie si un joueur peut défausser une carte
+   */
   static canDiscardFreeAction(game: Game, playerId: string, freeAction: FreeActionType):
   { canDiscard: boolean, reason: string } {
     const player = game.players.find(p => p.id === playerId);

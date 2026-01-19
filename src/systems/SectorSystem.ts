@@ -10,10 +10,8 @@
 
 import {
   Game,
-  Player,
   Sector,
-  Signal,
-  PlayerMarker,
+  SignalType,
   GAME_CONSTANTS
 } from '../core/types';
 
@@ -23,8 +21,7 @@ export class SectorSystem {
    */
   static canScanSector(
     game: Game,
-    playerId: string,
-    sectorId: string
+    playerId: string
   ): {
     canScan: boolean;
     reason?: string;
@@ -49,24 +46,6 @@ export class SectorSystem {
       };
     }
 
-    const sector = game.board.sectors.find(s => s.id === sectorId);
-    if (!sector) {
-      return { canScan: false, reason: 'Secteur introuvable' };
-    }
-
-    if (sector.isCovered) {
-      return { canScan: false, reason: 'Secteur déjà couvert' };
-    }
-
-    // Vérifier qu'il y a au moins 2 signaux non marqués
-    const unmarkedSignals = sector.signals.filter(s => !s.marked);
-    if (unmarkedSignals.length < 2) {
-      return { 
-        canScan: false, 
-        reason: 'Au moins 2 signaux doivent être marqués' 
-      };
-    }
-
     return { canScan: true };
   }
 
@@ -76,75 +55,55 @@ export class SectorSystem {
   static scanSector(
     game: Game,
     playerId: string,
-    sectorId: string,
-    signalIds: string[] // Au moins 2 signaux à marquer
-  ): {
-    updatedGame: Game;
-    covered: boolean;
-    newMajority?: boolean;
-  } {
-    const validation = this.canScanSector(game, playerId, sectorId);
+    sectorId: string
+  )
+  //: {
+  //  updatedGame: Game;
+  //  covered: boolean;
+  //  newMajority?: boolean;
+  //}
+  {
+    const validation = this.canScanSector(game, playerId);
     if (!validation.canScan) {
       throw new Error(validation.reason || 'Scan impossible');
     }
 
-    if (signalIds.length < 2) {
-      throw new Error('Au moins 2 signaux doivent être marqués');
+    const updatedGame = structuredClone(game);
+    const sector = updatedGame.board.sectors.find(s => s.id === sectorId)!;
+    if (!sector) {
+      return { updatedGame, logs: [], bonuses: {} };
     }
-
-    const updatedGame = { ...game };
-    updatedGame.players = [...game.players];
-    updatedGame.board = { ...game.board };
-    updatedGame.board.sectors = [...game.board.sectors];
-    const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
-    const player = updatedGame.players[playerIndex];
-    const sectorIndex = updatedGame.board.sectors.findIndex(s => s.id === sectorId);
-    const sector = updatedGame.board.sectors[sectorIndex];
-
-    // Débiter les ressources
-    const updatedPlayer = {
-      ...player,
-      credits: player.credits - GAME_CONSTANTS.SCAN_COST_CREDITS,
-      energy: player.energy - GAME_CONSTANTS.SCAN_COST_ENERGY
-    };
-
-    // Marquer les signaux
-    let gainedPV = 0;
-    const updatedSector = { ...sector };
-    updatedSector.signals = updatedSector.signals.map(signal => {
-      if (signalIds.includes(signal.id)) {
-        if (signal.bonus?.pv) {
-          gainedPV += signal.bonus.pv;
-        }
-        return {
-          ...signal,
-          marked: true,
-          markedBy: playerId
-        };
-      }
-      return signal;
-    });
-
-    if (gainedPV > 0) {
-      updatedPlayer.score += gainedPV;
-    }
-
-    // Remplacer les jetons Donnée par des marqueurs joueur
-    const dataSignals = updatedSector.signals.filter(
-      s => s.marked && s.type === 'DATA'
-    );
+    const player = updatedGame.players.find(p => p.id === playerId)!;
     
-    // TODO: Ajouter les données à l'ordinateur du joueur
-    // Pour chaque signal DATA marqué, ajouter une donnée
-
-    // Ajouter un marqueur joueur
-    const marker: PlayerMarker = {
-      id: `marker_${Date.now()}_${playerId}`,
-      playerId,
-      placedAt: game.currentRound
-    };
-    updatedSector.playerMarkers.push(marker);
-
+    const logs: string[] = [];
+    let bonuses: any = {};
+  
+    // Find first available signal
+    const signal = sector.signals.find(s => !s.marked);
+    
+    if (signal) {
+        signal.marked = true;
+        signal.markedBy = playerId;
+        
+        logs.push(`scanne le secteur ${sector.name}`);
+        
+        // Base gain: 1 Data (if type is DATA)
+        if (signal.type === SignalType.DATA) {
+            player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
+            logs.push("gagne 1 Donnée");
+        }
+        
+        // Signal bonus: 2PV
+        if (signal.bonus) {
+            player.score += signal.bonus.pv || 0;
+            bonuses = { ...signal.bonus };
+        }
+    } else {
+        logs.push(`tente de scanner le secteur ${sector.id} mais il est plein`);
+    }
+  
+    return { updatedGame, logs, bonuses };
+    
     // Vérifier la majorité
     const majority = this.calculateMajority(updatedSector);
     let covered = false;

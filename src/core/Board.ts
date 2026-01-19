@@ -402,7 +402,7 @@ export class BoardManager {
       'I',
       TechnologyCategory.OBSERVATION,
       [{ type: 'SCAN_MARK_ADJACENT_EARTH', value: true }, { type: 'SCAN_DATA_BONUS', value: 2 }],
-      'Lors d\'un scan, permet de marquer un signal dans un secteur adjacent à celui de la Terre. De plus, gagnez 2 jetons de données supplémentaires lors du scan.',
+      'Lors d\'un scan, permet de marquer un signal dans un secteur adjacent à celui de la Terre.',
       'Scan adjacent Terre',
       { data: 2 }
     );

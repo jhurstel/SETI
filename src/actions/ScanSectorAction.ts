@@ -26,8 +26,7 @@ export class ScanSectorAction extends BaseAction {
 
     const validation = SectorSystem.canScanSector(
       game,
-      this.playerId,
-      this.sectorId
+      this.playerId
     );
     
     if (!validation.canScan) {

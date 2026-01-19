@@ -337,7 +337,7 @@ export class ProbeSystem {
       data: Math.min(player.data + dataBonus, GAME_CONSTANTS.MAX_DATA),
       visitedPlanetsThisTurn: newVisitedPlanets, // Mettre à jour la liste
       activeBuffs: newActiveBuffs, // Mettre à jour la liste des buffs
-      energy: player.energy - (validation.energyCost || 0),
+      energy: Math.max(0, player.energy - (validation.energyCost || 0)),
       mediaCoverage: Math.min(player.mediaCoverage + mediaBonus, GAME_CONSTANTS.MAX_MEDIA_COVERAGE),
       probes: player.probes.map((p, idx) => {
         if (idx === probeIndex) {
