@@ -169,7 +169,10 @@ const PlayerComputer = ({
       {columns.map((col, index) => {
         const colSlots = Object.values(slots).filter((s: any) => s.col === col).sort((a: any, b: any) => a.type === 'top' ? -1 : 1);
         const hasBottom = colSlots.length > 1;
-        const isSelectableColumn = isSelecting && hasBottom; // Only columns with 2 slots (1, 3, 5, 6) are selectable for computing tech
+        
+        const topSlot = colSlots.find((s: any) => s.type === 'top');
+        const hasTech = topSlot && topSlot.bonus === '2pv';
+        const isSelectableColumn = isSelecting && hasBottom && !hasTech; // Only columns with 2 slots (1, 3, 5, 6) are selectable for computing tech
 
         // Calculate margins for separator to touch circles
         let separatorLeftMargin = 0;
@@ -205,7 +208,7 @@ const PlayerComputer = ({
                   hasData={hasData}
                   onHover={onHover}
                   onLeave={onLeave}
-                  isPreviousFilled={slotIndex > 0 ? colSlots[slotIndex - 1].filled : true}
+                  isPreviousFilled={slotIndex > 0 ? (colSlots[slotIndex - 1] as any).filled : true}
                 />
               ))}
             </div>

@@ -253,7 +253,7 @@ export interface DataComputer {
 
 export interface ComputerSlot {
   id: string;
-  bonus?: string;
+  bonus: string;
   isOccupied: boolean;
   technologyId?: string;
   filled: boolean;

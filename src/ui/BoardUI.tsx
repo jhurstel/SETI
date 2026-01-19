@@ -58,6 +58,8 @@ type InteractionState =
   | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow', sequenceId?: string }
   /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number }
+  /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
+  | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string }
   /** Le joueur a reçu plusieurs bonus interactifs et doit choisir l'ordre de résolution. */
   | { 
       type: 'CHOOSING_BONUS_ACTION', 
@@ -75,6 +77,7 @@ const getInteractionLabel = (state: InteractionState): string => {
     case 'PLACING_LIFE_TRACE': return `Placer trace de vie (${state.color})`;
     case 'MOVING_PROBE': return `Déplacement gratuit (${state.count})`;
     case 'LANDING_PROBE': return `Atterrissage gratuit (${state.count})`;
+    case 'CHOOSING_MEDIA_OR_MOVE': return "Choisir Média ou Déplacement";
     default: return "Action bonus";
   }
 };
@@ -236,19 +239,19 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Effet pour la réservation initiale (Setup) pour le joueur humain
   useEffect(() => {
     if (game.currentRound === 1 && interactionState.type === 'IDLE') {
-        const currentPlayer = game.players[game.currentPlayerIndex];
-        if (currentPlayer.type === 'human') {
+        const humanPlayer = game.players.find(p => p.type === 'human');
+        if (humanPlayer) {
             const initialTotalRevenue = GAME_CONSTANTS.INITIAL_REVENUE_CREDITS + GAME_CONSTANTS.INITIAL_REVENUE_ENERGY + GAME_CONSTANTS.INITIAL_REVENUE_CARDS;
-            const currentTotalRevenue = currentPlayer.revenueCredits + currentPlayer.revenueEnergy + currentPlayer.revenueCards;
+            const currentTotalRevenue = humanPlayer.revenueCredits + humanPlayer.revenueEnergy + humanPlayer.revenueCards;
             
             if (currentTotalRevenue === initialTotalRevenue) {
                 setInteractionState({ type: 'RESERVING_CARD', count: 1, selectedCards: [] });
                 setToast({ message: "Phase de préparation : Veuillez réserver une carte de votre main", visible: true });
-                setViewedPlayerId(currentPlayer.id);
+                setViewedPlayerId(humanPlayer.id);
             }
         }
     }
-  }, [game.currentRound, game.currentPlayerIndex, game.players, interactionState.type]);
+  }, [game.currentRound, game.players, interactionState.type]);
 
   // État pour la modale de sélection de carte de fin de manche
   const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: any[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
@@ -917,28 +920,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       logs.push(`pioche ${txt}`);
     }
 
-    // Effets immédiats (Sonde)
-    if (bonuses.probe) {
-        const ignoreLimit = bonuses.ignoreProbeLimit || false;
-        for (let i = 0; i < bonuses.probe; i++) {
-            const result = ProbeSystem.launchProbe(updatedGame, playerId, true, ignoreLimit); // free launch
-            if (result.probeId) {
-                updatedGame = result.updatedGame;
-                launchedProbeIds.push(result.probeId);
-                logs.push(`lance une sonde gratuitement`);
-            } else {
-                logs.push(`ne peut pas lancer de sonde (limite atteinte)`);
-            }
-        }
-        const txt = `${bonuses.probe} Sonde${bonuses.probe > 1 ? 's' : ''}`;
-        passiveGains.push(txt);
-    }
-
     // Effets interactifs (File d'attente)
     if (bonuses.anycard) {
       newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: bonuses.anycard, isFree: true });
     }
 
+    // Effets interactifs (File d'attente)
     if (bonuses.revenue) {
       const player = updatedGame.players.find(p => p.id === playerId);
       if (player) {
@@ -949,6 +936,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
     }
     
+    // Effets interactifs (File d'attente)
     if (bonuses.technology) {
       for (let i = 0; i < bonuses.technology.amount; i++) {
           newPendingInteractions.push({ 
@@ -961,6 +949,33 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
     }
     
+    // Effets interactifs (File d'attente)
+    if (bonuses.anytechnology) {
+      for (let i = 0; i < bonuses.anytechnology; i++) {
+          newPendingInteractions.push({ 
+            type: 'ACQUIRING_TECH', 
+            isBonus: true
+          });
+      }
+    }
+
+    if (bonuses.probe) {
+      const ignoreLimit = bonuses.ignoreProbeLimit || false;
+      for (let i = 0; i < bonuses.probe; i++) {
+          const result = ProbeSystem.launchProbe(updatedGame, playerId, true, ignoreLimit); // free launch
+          if (result.probeId) {
+              updatedGame = result.updatedGame;
+              launchedProbeIds.push(result.probeId);
+              logs.push(`lance une sonde gratuitement`);
+          } else {
+              logs.push(`ne peut pas lancer de sonde (limite atteinte)`);
+          }
+      }
+      const txt = `${bonuses.probe} Sonde${bonuses.probe > 1 ? 's' : ''}`;
+      passiveGains.push(txt);
+    }
+
+    // Effets interactifs (File d'attente)
     if (bonuses.movements) {
         newPendingInteractions.push({ 
             type: 'MOVING_PROBE', 
@@ -970,25 +985,35 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         logs.push(`obtient ${bonuses.movements} déplacement${bonuses.movements > 1 ? 's' : ''} gratuit${bonuses.movements > 1 ? 's' : ''}`);
     }
 
-    if (bonuses.yellowlifetrace) {
+    // Effets interactifs (File d'attente)
+    if (bonuses.landing) {
+      newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId });
+      const txt = `${bonuses.landing} Atterrissage${bonuses.landing > 1 ? 's' : ''}`;
+      passiveGains.push(txt);
+    }
+
+    // Effets interactifs (File d'attente)
+    if (bonuses.yellowlifetrace || bonuses.redlifetrace || bonuses.bluelifetrace) {
         // Désactivé temporairement pour éviter de bloquer le jeu
         // newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: 'yellow' });
-    }
+        setToast({ message: "Bonus LifeTrace : Fonctionnalité à venir", visible: true });
+      }
     
+    // Effets interactifs (File d'attente)
     if (bonuses.planetscan || bonuses.redscan || bonuses.bluescan || bonuses.yellowscan || bonuses.blackscan) {
          // TODO: Implémenter le scan
          // newPendingInteractions.push({ type: 'SCANNING' });
          setToast({ message: "Bonus Scan : Fonctionnalité à venir", visible: true });
     }
 
-    if (bonuses.landing) {
-        newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId });
-        const txt = `${bonuses.landing} Atterrissage${bonuses.landing > 1 ? 's' : ''}`;
-        passiveGains.push(txt);
-    }
-
+    // Effets interactifs (File d'attente)
     if (bonuses.revealAndTriggerFreeAction) {
         newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: 1, isFree: true, triggerFreeAction: true });
+    }
+
+    // Effets interactifs (File d'attente)
+    if (bonuses.choiceMediaOrMove) {
+        newPendingInteractions.push({ type: 'CHOOSING_MEDIA_OR_MOVE' });
     }
 
     return { updatedGame, newPendingInteractions, logs, passiveGains };
@@ -1017,6 +1042,30 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (updatedChoices.some(c => !c.done)) {
         setPendingInteractions(prev => [nextMenuState, ...prev]);
     }
+  };
+
+  // Gestionnaire pour le choix Média ou Déplacement (Carte 19)
+  const handleMediaOrMoveChoice = (choice: 'MEDIA' | 'MOVE') => {
+      if (interactionState.type !== 'CHOOSING_MEDIA_OR_MOVE') return;
+      
+      const currentPlayer = game.players[game.currentPlayerIndex];
+      let updatedGame = { ...game };
+      const sequenceId = interactionState.sequenceId;
+
+      if (choice === 'MEDIA') {
+          const res = ResourceSystem.updateMedia(updatedGame, currentPlayer.id, 1);
+          updatedGame = res.updatedGame;
+          setToast({ message: "Gain : 1 Média", visible: true });
+          addToHistory(`choisit de gagner ${formatResource(1, 'MEDIA')}`, currentPlayer.id, game, { type: 'IDLE' }, sequenceId);
+          setGame(updatedGame);
+          if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+          setInteractionState({ type: 'IDLE' });
+      } else {
+          // Transition vers le déplacement de sonde
+          setInteractionState({ type: 'MOVING_PROBE', count: 1 });
+          setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
+          addToHistory(`choisit un déplacement gratuit`, currentPlayer.id, game, { type: 'IDLE' }, sequenceId);
+      }
   };
 
   // Helper générique pour les interactions avec les planètes (Orbite/Atterrissage)
@@ -1076,7 +1125,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const stateBeforeAction = structuredClone(game);
 
     try {
-        const result = actionFn(game, currentPlayer.id, probe.id, planetId, interactionState.type === 'LANDING_PROBE');
+        const result = actionFn(game, currentPlayer.id, probe.id, planetId);
         
         const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, (interactionState as any).source);
 
@@ -1285,6 +1334,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             const newVisits = updatedPlayer.visitedPlanetsThisTurn.filter(p => !oldPlayer.visitedPlanetsThisTurn.includes(p));
             newVisits.forEach(planetId => {
                  const uniqueBuffs = oldPlayer.activeBuffs.filter(b => b.type === 'VISIT_UNIQUE');
+                 planetId;
                  uniqueBuffs.forEach(buff => {
                      const gainText = formatResource(buff.value, 'PV');
                      message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
@@ -1292,6 +1342,17 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                  });
             });
             
+            // Détection Card 19 (Assistance Gravitationnelle)
+            const targetCell = getCell(disk, sector, createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0));
+            const hasChoiceBuff = oldPlayer.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
+            let interruptedForChoice = false;
+            
+            if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
+                 setInteractionState({ type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId: `move-${Date.now()}` });
+                 interruptedForChoice = true;
+                 if (i < path.length - 1) setToast({ message: "Déplacement interrompu pour choix bonus", visible: true });
+            }
+
             addToHistory(message, currentPlayerId, stateBeforeMove);
         }
 
@@ -1311,6 +1372,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         
         // Petit délai pour l'animation
         await new Promise(resolve => setTimeout(resolve, 300));
+
+        if (interruptedForChoice) {
+            break;
+        }
 
       } else {
         console.error('Erreur lors du déplacement de la sonde (étape):', result.error);
@@ -1343,8 +1408,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (card && card.immediateEffects) {
         const probeEffect = card.immediateEffects.find(e => e.type === 'GAIN' && e.target === 'PROBE');
         if (probeEffect) {
+            const ignoreLimit = card.passiveEffects?.some(e => e.type === 'IGNORE_PROBE_LIMIT' && e.value === true);
             // Vérifier la limite de sondes (sans vérifier le coût car c'est un gain)
-            const canLaunch = ProbeSystem.canLaunchProbe(currentGame, currentPlayer.id, false);
+            const canLaunch = ProbeSystem.canLaunchProbe(currentGame, currentPlayer.id, false, ignoreLimit);
             if (!canLaunch.canLaunch && canLaunch.reason && canLaunch.reason.includes('Limite')) {
                 setPlayCardConfirmation({
                     visible: true,
@@ -2225,6 +2291,58 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           >
             Confirmer et Passer
           </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modale de choix Média ou Déplacement (Carte 19) */}
+      {interactionState.type === 'CHOOSING_MEDIA_OR_MOVE' && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 2000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px',
+            maxWidth: '400px', width: '90%', border: '1px solid #4a9eff',
+            boxShadow: '0 0 20px rgba(74, 158, 255, 0.2)', textAlign: 'center'
+          }}>
+            <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Faites un choix</h3>
+            <p style={{ marginBottom: '20px', color: '#ddd' }}>Choisissez votre bonus :</p>
+            
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button
+                onClick={() => handleMediaOrMoveChoice('MEDIA')}
+                style={{
+                  padding: '15px 20px',
+                  backgroundColor: '#ff6b6b',
+                  color: '#fff',
+                  border: 'none', borderRadius: '4px',
+                  cursor: 'pointer', fontWeight: 'bold',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px',
+                  minWidth: '100px'
+                }}
+              >
+                <span style={{ fontSize: '1.5em' }}>🎤</span>
+                <span>1 Média</span>
+              </button>
+              
+              <button
+                onClick={() => handleMediaOrMoveChoice('MOVE')}
+                style={{
+                  padding: '15px 20px',
+                  backgroundColor: '#ffd700',
+                  color: '#000',
+                  border: 'none', borderRadius: '4px',
+                  cursor: 'pointer', fontWeight: 'bold',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px',
+                  minWidth: '100px'
+                }}
+              >
+                <span style={{ fontSize: '1.5em' }}>🚀</span>
+                <span>1 Déplacement</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

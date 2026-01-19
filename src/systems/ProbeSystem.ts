@@ -34,7 +34,7 @@ export class ProbeSystem {
   /**
    * Vérifie si un joueur peut lancer une sonde
    */
-  static canLaunchProbe(game: Game, playerId: string, checkCost: boolean = true): {
+  static canLaunchProbe(game: Game, playerId: string, checkCost: boolean = true, ignoreLimit: boolean = false): {
     canLaunch: boolean;
     reason?: string;
   } {
@@ -62,7 +62,7 @@ export class ProbeSystem {
      ? (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY || 2)
      : (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM || 1);
     
-    if (probesInSystem.length >= maxProbes) {
+    if (!ignoreLimit && probesInSystem.length >= maxProbes) {
       return { 
         canLaunch: false, 
         reason: `Limite de sondes atteinte (max ${maxProbes} dans le système solaire)` 
@@ -248,6 +248,15 @@ export class ProbeSystem {
       // La Terre ne donne pas de bonus de média
       if (targetCell.hasPlanet && targetCell.planetId !== 'earth') mediaBonus += 1;
       if (targetCell.hasAsteroid && player.technologies.some(t => t.id.startsWith('exploration-2'))) mediaBonus += 1;
+    }
+
+    // Gestion Card 19 (Assistance Gravitationnelle)
+    const hasChoiceBuff = player.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
+    if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
+        // On retire le bonus de média lié à la planète pour laisser le choix au joueur via l'UI
+        if (mediaBonus > 0) {
+            mediaBonus -= 1;
+        }
     }
 
     // Gestion des visites de planètes et bonus associés

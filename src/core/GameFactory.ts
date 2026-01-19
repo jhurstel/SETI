@@ -323,7 +323,7 @@ export class GameFactory {
 15;Rentrée Atmosphérique;Retirez l'un de vos orbiteurs de n'importe quelle planète pour gagner 3 PVs, 1 Donnée, 1 Carte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;;
 16;Dragonfly;Gagnez 1 Atterrissage. Vous pouvez poser une sonde sur une case déjà occupée, et tout de même gagner la récompense recouverte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;1 Atterrissage;
 17;OSIRIS-REx;Choisissez 1 de vos sondes. Gagnez 2 Données si elle est placée sur un champ d'astéroïdes et 1 Donnée pour chaque champ d'astéroïdes adjacent.;1 Déplacement;Jaune;1 Energie;1 Crédit;;OSIRIS_REX_BONUS;
-19;Assistance Gravitationnelle;Gagnez 2 Déplacements. Chaque fois que vous visitez une planète ce tour-ci, vous pouvez gagner 1 Déplacement au lieu de 1 Média.;1 Média;Jaune;1 Crédit;Crédit;;2 Déplacements;
+19;Assistance Gravitationnelle;Gagnez 2 Déplacements. Chaque fois que vous visitez une planète ce tour-ci, vous pouvez gagner 1 Déplacement au lieu de 1 Média.;1 Média;Jaune;1 Crédit;Crédit;;2 Déplacements;CHOICE_MEDIA_OR_MOVE
 20;Survol de Mercure;Gagnez 2 Déplacements. Si vous visitez Mercure ce tour-ci, gagnez 4 PVs.;1 Média;Rouge;1 Energie;1 Crédit;;2 Déplacements;VISIT_PLANET:mercury:4
 21;Survol de Vénus;Gagnez 2 Déplacements. Si vous visitez Vénus ce tour-ci, gagnez 3 PVs.;1 Média;Jaune;1 Crédit;1 Crédit;;2 Déplacements;VISIT_PLANET:venus:3
 22;Survol de Mars;Gagnez 2 Déplacements. Si vous visitez Mars ce tour-ci, gagnez 4 PVs.;1 Donnée;Jaune;1 Energie;1 Crédit;;2 Déplacements;VISIT_PLANET:mars:4
@@ -416,8 +416,8 @@ export class GameFactory {
   private static mapRevenueType(value: string): RevenueType {
       const v = value.toLowerCase();
       if (v.includes('crédit') || v.includes('credit')) return RevenueType.CREDIT;
-      if (v.includes('énergie') || v.includes('energy')) return RevenueType.ENERGY;
-      if (v.includes('carte') || v.includes('card')) return RevenueType.CARD;
+      if (v.includes('energie') || v.includes('energy')) return RevenueType.ENERGY;
+      if (v.includes('pioche') || v.includes('card')) return RevenueType.CARD;
       return RevenueType.CREDIT; // Valeur par défaut
   }
 
@@ -582,6 +582,11 @@ export class GameFactory {
     if (constraint === 'IGNORE_PROBE_LIMIT') {
         return [{ type: 'IGNORE_PROBE_LIMIT', value: true }];
     }
+
+    // Gestion du format CHOICE_MEDIA_OR_MOVE
+    if (constraint === 'CHOICE_MEDIA_OR_MOVE') {
+      return [{ type: 'CHOICE_MEDIA_OR_MOVE', value: true }];
+  }
 
     return [{ type: 'PASSIVE', target: constraint, value: 1 }];
   }

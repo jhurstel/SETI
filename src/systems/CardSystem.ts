@@ -18,6 +18,7 @@ export class CardSystem {
     const player = updatedGame.players.find(p => p.id === playerId);
     if (!player) return game;
 
+    source;
     for (let i = 0; i < count; i++) {
       if (updatedGame.decks.cards.length > 0) {
         const card = updatedGame.decks.cards.shift();
@@ -31,15 +32,17 @@ export class CardSystem {
   }
 
   static reserveCard(game: Game, playerId: string, cardId: string) {
-    const updatedGame = structuredClone(game);
-    const player = updatedGame.players.find(p => p.id === playerId);
-    if (!player) return game;
+    let updatedGame = structuredClone(game);
+    const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
+    if (playerIndex === -1) return game;
+    let player = updatedGame.players[playerIndex];
 
     const card = player.cards.find(c => c.id === cardId);
     if (!card) return game;
 
     // Retirer la carte
-    updatedGame = this.discardCard(player, cardId);
+    player = this.discardCard(player, cardId);
+    updatedGame.players[playerIndex] = player;
     
     // Appliquer le revenu et le bonus immédiat
     if (card.revenue === RevenueType.CREDIT) {
@@ -427,6 +430,8 @@ export class CardSystem {
                 }
             } else if (effect.type === 'IGNORE_PROBE_LIMIT') {
                 bonuses.ignoreProbeLimit = true;
+            } else if (effect.type === 'CHOICE_MEDIA_OR_MOVE') {
+                player.activeBuffs.push({ ...effect, source: card.name });
             }
         });
     }

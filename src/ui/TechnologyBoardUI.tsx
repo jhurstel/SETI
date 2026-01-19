@@ -196,7 +196,8 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
   // À utiliser une fois les fichiers extraits et placés dans le dossier public/assets/technologies/
   const getTechImage = (baseId: string): string | undefined => {
     // Exemple : return `/assets/technologies/${baseId}.svg`;
-    return baseId;
+    baseId;
+    return undefined;
   };
 
   return (
@@ -227,12 +228,18 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                   const baseId = topCard.id.substring(0, lastDashIndex);
                   const techImage = getTechImage(baseId);
                   
+                  const hasTech = currentPlayer.technologies.some(t => {
+                    const tLastDash = t.id.lastIndexOf('-');
+                    return t.id.substring(0, tLastDash) === baseId;
+                  });
+
                   const isClickable = (isResearching || canAffordResearch) 
                     && (!researchCategory || slot.category === researchCategory)
-                    && (!sharedTechOnly || sharedBaseIds.has(baseId));
+                    && (!sharedTechOnly || sharedBaseIds.has(baseId))
+                    && !hasTech;
 
                   // Détection du bonus supplémentaire de 2 PV (logique basée sur les valeurs initiales)
-                  const hasExtraPv = (topCard.bonus.pv === 5) || (topCard.bonus.pv === 2 && (topCard.bonus.media || topCard.bonus.card || topCard.bonus.energy));
+                  const hasExtraPv = (topCard.bonus.pv === 5) || (topCard.bonus.pv === 2 && !!(topCard.bonus.media || topCard.bonus.card || topCard.bonus.energy));
                   
                   return (
                     <div 
@@ -245,6 +252,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                             <span style={{ fontWeight: 'bold', color: '#4a9eff' }}>{topCard.name}</span>
                             <span style={{ fontSize: '0.7em', color: categoryColor, border: `1px solid ${categoryColor}`, padding: '0 2px', borderRadius: '2px' }}>{slot.category}</span>
                           </div>
+                          {hasTech && <div style={{ color: '#ff6b6b', fontSize: '0.8em', marginBottom: '4px', fontStyle: 'italic' }}>Déjà acquis</div>}
                           <div style={{ fontSize: '0.9em', marginBottom: '6px' }}>{topCard.description || topCard.shorttext}</div>
                           <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '4px', borderRadius: '4px', marginBottom: '4px' }}>
                             <div style={{ fontSize: '0.7em', color: '#aaa', marginBottom: '2px' }}>Gains immédiats :</div>
@@ -257,14 +265,14 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                       ))}
                       onMouseLeave={handleTooltipLeave}
                       style={{
-                        border: isResearching ? '2px solid #00ff00' : `1px solid ${categoryColor}`,
+                        border: hasTech ? 'none' : (isResearching ? '2px solid #00ff00' : `1px solid ${categoryColor}`),
                         backgroundColor: 'rgba(30, 30, 40, 0.8)',
                         padding: '8px',
                         borderRadius: '4px',
                         marginBottom: '8px',
                         position: 'relative',
                         cursor: isClickable ? 'pointer' : 'default',
-                        opacity: 1,
+                        opacity: hasTech ? 0.5 : 1,
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '4px',
