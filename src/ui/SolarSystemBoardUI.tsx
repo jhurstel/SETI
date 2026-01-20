@@ -1582,101 +1582,100 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           const corridorPath = describeArc(100, 100, slotRadius, centerAngle + groupWidth / 2 + corridorPadding, centerAngle - groupWidth / 2 - corridorPadding, false);
           
           const slots = sector.signals.map((signal, idx) => {
-             const angle = firstSlotAngle + (idx * slotSpacing);
-             const pos = polarToCartesian(100, 100, slotRadius, angle);
-             
-             const player = signal.markedBy ? game.players.find(p => p.id === signal.markedBy) : null;
-             
-             const isWhiteSlot = signal.type === SignalType.OTHER;
-             const strokeColor = isWhiteSlot ? '#ffffff' : color;
-             const fillColor = player ? player.color : (isWhiteSlot ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0,0,0,0.3)');
-             
-             // Les slots se remplissent dans l'ordre : un slot est disponible si le précédent est marqué (ou si c'est le premier)
-             const isNextAvailable = !signal.marked && (idx === 0 || sector.signals[idx-1].marked);
-             const isDisabled = !signal.marked && !isNextAvailable;
-             const opacity = isDisabled ? 0.2 : 1;
-             
-             // Flash seulement le premier slot disponible si le secteur est sélectionné
-             const isFlashing = shouldFlashSlot && isNextAvailable && !signal.marked;
-             
-             const isLastSlot = idx === sector.signals.length - 1;
+            const angle = firstSlotAngle + (idx * slotSpacing);
+            const pos = polarToCartesian(100, 100, slotRadius, angle);
 
-             // Préparation du tooltip Slot
-             const baseGain = isWhiteSlot ? [] : ["1 Donnée"];
-             const bonusGain = signal.bonus ? formatBonus(signal.bonus) : null;
-             const gains = [...baseGain, ...(bonusGain || [])];
+            const player = signal.markedBy ? game.players.find(p => p.id === signal.markedBy) : null;
 
-             let stateText = "Disponible";
-             let stateColor = "#4a9eff";
-             let actionText = null;
+            const isWhiteSlot = signal.type === SignalType.OTHER;
+            const strokeColor = isWhiteSlot ? '#ffffff' : color;
+            const fillColor = player ? player.color : (isWhiteSlot ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0,0,0,0.3)');
 
-             if (signal.marked) {
-                 const markerPlayer = game.players.find(p => p.id === signal.markedBy);
-                 stateText = `Scanné par ${markerPlayer?.name || 'Inconnu'}`;
-                 stateColor = markerPlayer?.color || "#ccc";
-             } else if (isDisabled) {
-                 stateText = "Indisponible";
-                 stateColor = "#ff6b6b";
-                 actionText = "Nécessite le signal précédent";
-             } else {
-                 const canAffordScan = currentPlayer.credits >= GAME_CONSTANTS.SCAN_COST_CREDITS && currentPlayer.energy >= GAME_CONSTANTS.SCAN_COST_ENERGY;
-                 if (isSectorClickable && animateSectorSlots && !canAffordScan) {
-                    stateText = "Ressources insuffisantes";
-                    stateColor = "#ff6b6b";
-                    actionText = `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit et ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergies (vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s))`;
-                 } else {
-                    actionText = "Scanner pour récupérer le bonus";
-                 }
-             }
+            // Les slots se remplissent dans l'ordre : un slot est disponible si le précédent est marqué (ou si c'est le premier)
+            const isNextAvailable = !signal.marked && (idx === 0 || sector.signals[idx - 1].marked);
+            const isDisabled = !signal.marked && !isNextAvailable;
+            const opacity = isDisabled ? 0.2 : 1;
 
-             const slotTooltipContent = (
-                 <div style={{ textAlign: 'center' }}>
-                     <div style={{fontWeight: 'bold', color: stateColor, marginBottom: '4px'}}>{stateText}</div>
-                     {gains.length > 0 ? (
-                         <div style={{fontSize: '0.9em', color: '#ccc'}}>Bonus : <span style={{color: '#ffd700'}}>{gains.join(', ')}</span></div>
-                     ) : (
-                         <div style={{fontSize: '0.9em', color: '#ccc'}}>Aucun bonus</div>
-                     )}
-                     {actionText && <div style={{ fontSize: '0.8em', color: stateColor, marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
-                 </div>
-             );
+            // Flash seulement le premier slot disponible si le secteur est sélectionné
+            const isFlashing = shouldFlashSlot && isNextAvailable && !signal.marked;
 
-             const cursorStyle = isSectorClickable ? 'pointer' : 'help';
+            const canAffordScan = currentPlayer.credits >= GAME_CONSTANTS.SCAN_COST_CREDITS && currentPlayer.energy >= GAME_CONSTANTS.SCAN_COST_ENERGY;
 
-             return (
-               <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`} style={{ opacity, cursor: cursorStyle, pointerEvents: 'auto' }}
-                  onClick={(e) => {
-                    if (isSectorClickable && onSectorClick) {
-                      e.stopPropagation();
-                      onSectorClick(i + 1);
-                    }
-                  }}
-                  onMouseEnter={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setSlotTooltip({ content: slotTooltipContent, rect });
-                  }}
-                  onMouseLeave={() => setSlotTooltip(null)}
-               >
-                 <circle r="4" fill="transparent" stroke="none" />
-                 {isFlashing && (
-                   animateSectorSlots ? (
-                     <>
-                       <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1" opacity="0.8" />
-                       <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1">
-                         <animate attributeName="r" values="3.5; 8" dur="2s" repeatCount="indefinite" />
-                         <animate attributeName="opacity" values="0.6; 0" dur="2s" repeatCount="indefinite" />
-                       </circle>
-                     </>
-                   ) : (
-                     <circle r="4" fill="none" stroke="#00ff00" strokeWidth="1" opacity="0.6" />
-                   )
-                 )}
-                 <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" strokeDasharray={isLastSlot ? "1 1" : undefined} />
-                 {!player && signal.bonus && (
-                   <g transform="scale(0.25)">
-                     {renderBonusContent(signal.bonus)}
-                   </g>
-                 )}
+            const isLastSlot = idx === sector.signals.length - 1;
+
+            // Préparation du tooltip Slot
+            const baseGain = isWhiteSlot ? [] : ["1 Donnée"];
+            const bonusGain = signal.bonus ? formatBonus(signal.bonus) : null;
+            const gains = [...baseGain, ...(bonusGain || [])];
+
+            let stateText = "Disponible";
+            let stateColor = "#4a9eff";
+            let actionText = null;
+
+            if (signal.marked) {
+              const markerPlayer = game.players.find(p => p.id === signal.markedBy);
+              stateText = `Marqué par ${markerPlayer?.name || 'Inconnu'}`;
+              stateColor = markerPlayer?.color || "#ccc";
+            } else if (isDisabled) {
+              stateText = "Indisponible";
+              stateColor = "#ff6b6b";
+              actionText = "Nécessite le signal précédent";
+            } else if (isSectorClickable && animateSectorSlots && !canAffordScan) {
+              stateText = "Ressources insuffisantes";
+              stateColor = "#ff6b6b";
+              actionText = `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit et ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergies (vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s))`;
+            } else {
+              actionText = "Scanner pour récupérer le bonus (coût: 1 Crédit et 2 Energie)";
+            }
+
+            const slotTooltipContent = (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontWeight: 'bold', color: stateColor, marginBottom: '4px' }}>{stateText}</div>
+                {gains.length > 0 ? (
+                  <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: '#ffd700' }}>{gains.join(', ')}</span></div>
+                ) : (
+                  <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>
+                )}
+                {actionText && <div style={{ fontSize: '0.8em', color: stateColor, marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
+              </div>
+            );
+
+            const cursorStyle = isSectorClickable ? 'pointer' : 'help';
+
+            return (
+              <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`} style={{ opacity, cursor: cursorStyle, pointerEvents: 'auto' }}
+                onClick={(e) => {
+                  if (isSectorClickable && onSectorClick) {
+                    e.stopPropagation();
+                    onSectorClick(i + 1);
+                  }
+                }}
+                onMouseEnter={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setSlotTooltip({ content: slotTooltipContent, rect });
+                }}
+                onMouseLeave={() => setSlotTooltip(null)}
+              >
+                <circle r="4" fill="transparent" stroke="none" />
+                {isFlashing && (
+                  animateSectorSlots ? (
+                    <>
+                      <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1" opacity="0.8" />
+                      <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1">
+                        <animate attributeName="r" values="3.5; 8" dur="2s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="0.6; 0" dur="2s" repeatCount="indefinite" />
+                      </circle>
+                    </>
+                  ) : (
+                    <circle r="4" fill="none" stroke="#00ff00" strokeWidth="1" opacity="0.6" />
+                  )
+                )}
+                <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" strokeDasharray={isLastSlot ? "1 1" : undefined} />
+                {!player && signal.bonus && (
+                  <g transform="scale(0.25)">
+                    {renderBonusContent(signal.bonus)}
+                  </g>
+                )}
                </g>
              );
           });

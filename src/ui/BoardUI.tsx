@@ -28,17 +28,17 @@ interface BoardUIProps {
  */
 type InteractionState = 
   /** Le joueur est en attente, aucune interaction en cours. */
-  | { type: 'IDLE' }
+  | { type: 'IDLE', sequenceId?: string }
   /** Le joueur a un bonus de réservation et doit choisir une carte à glisser sous son plateau. */
   | { type: 'RESERVING_CARD', count: number, sequenceId?: string, selectedCards: string[] }
   /** Le joueur doit défausser des cartes (ex: fin de manche). */
-  | { type: 'DISCARDING_CARD', selectedCards: string[] }
+  | { type: 'DISCARDING_CARD', selectedCards: string[], sequenceId?: string }
   /** Le joueur a initié un échange et doit choisir la ressource à dépenser. */
-  | { type: 'TRADING_CARD', targetGain: string, selectedCards: string[] }
+  | { type: 'TRADING_CARD', targetGain: string, selectedCards: string[], sequenceId?: string }
   /** Le joueur acquiert une carte (gratuitement ou en payant) et doit la sélectionner dans la pioche ou la rangée. */
   | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, sequenceId?: string, triggerFreeAction?: boolean }
   /** Le joueur a des déplacements gratuits à effectuer. */
-  | { type: 'MOVING_PROBE', count: number, autoSelectProbeId?: string }
+  | { type: 'MOVING_PROBE', count: number, autoSelectProbeId?: string, sequenceId?: string }
   /** Le joueur a un atterrissage gratuit (ex: Carte 13). */
   | { type: 'LANDING_PROBE', count: number, source?: string, sequenceId?: string }
   /** Le joueur acquiert une technologie (en payant ou en bonus) et doit la sélectionner. */
@@ -46,11 +46,11 @@ type InteractionState =
   /** Le joueur a choisi une technologie "Informatique" et doit sélectionner une colonne sur son ordinateur. */
   | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, sequenceId?: string }
   /** Le joueur a lancé l'action "Analyser", principalement pour l'animation. */
-  | { type: 'ANALYZING' }
+  | { type: 'ANALYZING', sequenceId?: string }
   /** Le joueur a analysé des données et doit placer une trace de vie sur le plateau Alien. */
   | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow', sequenceId?: string }
   /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
-  | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number }
+  | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number, sequenceId?: string }
   /** Le joueur scanne un secteur (2ème étape : choix de la carte). */
   | { type: 'SELECTING_SCAN_CARD', sequenceId?: string }
   /** Le joueur scanne un secteur (3ème étape : choix du secteur couleur). */
@@ -58,12 +58,7 @@ type InteractionState =
   /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
   | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string, remainingMoves?: number }
   /** Le joueur a reçu plusieurs bonus interactifs et doit choisir l'ordre de résolution. */
-  | { 
-      type: 'CHOOSING_BONUS_ACTION', 
-      bonusesSummary: string, 
-      choices: { id: string, label: string, state: InteractionState, done: boolean }[],
-      sequenceId?: string
-    };
+  | { type: 'CHOOSING_BONUS_ACTION', bonusesSummary: string, choices: { id: string, label: string, state: InteractionState, done: boolean }[], sequenceId?: string };
 
 // Helper pour les libellés des interactions
 const getInteractionLabel = (state: InteractionState): string => {
@@ -225,13 +220,21 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // État pour le tooltip générique
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
   
-  // Auto-open tech panel when researching
+  // Auto-open tech & row panel when researching or selecting card
   useEffect(() => {
     if (interactionState.type === 'ACQUIRING_TECH') {
       setIsTechOpen(true);
     }
     if (interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') {
       setIsRowOpen(true);
+    }
+    if (interactionState.type === 'PLACING_OBJECTIVE_MARKER') {
+      setIsObjectivesOpen(true);
+    }
+    if (interactionState.type === 'IDLE') {
+      setIsTechOpen(false);
+      setIsRowOpen(false);
+      setIsObjectivesOpen(false);
     }
   }, [interactionState.type]);
 
@@ -427,7 +430,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (newGame.isFirstToPass) {
           const currentLevel = oldGame.board.solarSystem.nextRingLevel || 1;
           setToast({ message: `Rotation du système solaire (Niveau ${currentLevel})`, visible: true });
-          addToHistory(`passe son tour en premier, fait tourner le système solaire (Niveau ${currentLevel}) et choisit une carte à garder`, enginePlayer.id, oldGame);
+          addToHistory(`passe son tour en premier, fait tourner le Système Solaire (Niveau ${currentLevel}) et choisit une carte à garder`, enginePlayer.id, oldGame);
         } else {
           addToHistory("passe son tour et choisit une carte à garder", enginePlayer.id, oldGame);
         }
@@ -553,7 +556,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
     updatedGame = rotationResult.game;
     
-    const log = formatRotationLogs(`fait tourner le système solaire (Niveau ${currentLevel})`, rotationResult.logs);
+    const log = formatRotationLogs(`fait tourner le Système Solaire (Niveau ${currentLevel})`, rotationResult.logs);
     return { updatedGame, logs: [log] };
   }
 
@@ -944,7 +947,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       // Payer le coût
       player.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
-      addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias`, player.id, game, undefined, sequenceId);
+      addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias pour <strong>Rechercher une technologie</strong>`, player.id, game, undefined, sequenceId);
 
       // Faire tourner le systeme solaire
       const rotationRes = performRotation(updatedGame);
@@ -980,20 +983,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         const updatedGame = structuredClone(currentGame);
         const player = updatedGame.players[updatedGame.currentPlayerIndex];
 
-        // 1. Dépenser 1 énergie
+        // Payer le coût
         player.energy -= 1;
 
-        // 2. Vider l'ordinateur (haut et bas)
+        // Mettre à jour GameEngine
         DataSystem.clearComputer(player);
 
+        // Finaliser la transaction
         setGame(updatedGame);
         if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
         setHasPerformedMainAction(true);
-        
-        // 3. Passer en mode placement de trace de vie
+        // TODO: Passer en mode placement de trace de vie
         setInteractionState({ type: 'IDLE' });
         setToast({ message: "Données analysées.", visible: true });
-        addToHistory(`analyse des données`, player.id, previousState);
+        addToHistory(`paye 1 énergie pour <strong>Analyser les données</strong>`, player.id, previousState);
       }, 1500);
     }
   };
@@ -1623,38 +1626,36 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour l'action gratuite (défausse de carte)
   const handleDiscardCardAction = (cardId: string) => {
     let updatedGame = game;
-    const currentPlayerId = updatedGame.players[updatedGame.currentPlayerIndex].id;
     const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
-    
     const card = currentPlayer.cards.find(c => c.id === cardId);
     if (!card) return;
     
     // Appliquer l'effet de l'action gratuite
     if (card.freeAction === FreeActionType.MEDIA) {
-      const res = ResourceSystem.updateMedia(updatedGame, currentPlayerId, 1);
+      const res = ResourceSystem.updateMedia(updatedGame, currentPlayer.id, 1);
       updatedGame = res.updatedGame;
       setToast({ message: "Action gratuite : +1 Média", visible: true });
-      addToHistory(`défausse carte "${card.name}" et gagne ${formatResource(1, 'MEDIA')}`, currentPlayerId, game);
+      addToHistory(`défausse carte "${card.name}" et gagne ${formatResource(1, 'MEDIA')}`, currentPlayer.id, game);
     } else if (card.freeAction === FreeActionType.DATA) {
-      const res = ResourceSystem.updateData(updatedGame, currentPlayerId, 1);
+      const res = ResourceSystem.updateData(updatedGame, currentPlayer.id, 1);
       updatedGame = res.updatedGame;
       setToast({ message: "Action gratuite : +1 Data", visible: true });
-      addToHistory(`défausse carte "${card.name}" et gagne ${formatResource(1, 'DATA')}`, currentPlayerId, game);
+      addToHistory(`défausse carte "${card.name}" et gagne ${formatResource(1, 'DATA')}`, currentPlayer.id, game);
     } else if (card.freeAction === FreeActionType.MOVEMENT) {
       const probes = currentPlayer.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
       const autoSelectProbeId = probes.length === 1 ? probes[0].id : undefined;
       setInteractionState({ type: 'MOVING_PROBE', count: 1, autoSelectProbeId });
       setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
-      addToHistory(`défausse carte "${card.name}" et gagne 1 déplacement gratuit`, currentPlayerId, game);
+      addToHistory(`défausse carte "${card.name}" et gagne 1 déplacement gratuit`, currentPlayer.id, game);
     }
     
     // Défausser la carte
-    const playerToUpdate = updatedGame.players.find(p => p.id === currentPlayerId);
+    const playerToUpdate = updatedGame.players.find(p => p.id === currentPlayer.id);
     if (playerToUpdate) {
         const newPlayer = CardSystem.discardCard(playerToUpdate, cardId);
         updatedGame = {
             ...updatedGame,
-            players: updatedGame.players.map(p => p.id === currentPlayerId ? newPlayer : p)
+            players: updatedGame.players.map(p => p.id === currentPlayer.id ? newPlayer : p)
         };
     }
     
@@ -1665,6 +1666,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour l'action d'achat de carte avec du média
   const handleBuyCardAction = () => {
     if (interactionState.type !== 'IDLE') return;
+    
     setInteractionState({ type: 'ACQUIRING_CARD', count: 1});
     setToast({ message: "Sélectionnez une carte dans la rangée ou la pioche", visible: true });
   };
@@ -1674,14 +1676,17 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (interactionState.type !== 'IDLE') return;
     const currentPlayer = game.players[game.currentPlayerIndex];
 
+    // Mettre à jour GameEngine
     const result = ResourceSystem.tradeResources(game, currentPlayer.id, spendType, gainType);
     if (result.error) {
         setToast({ message: result.error, visible: true });
         return;
     }
 
+    // Finaliser la transaction
     setGame(result.updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
+    setInteractionState({ type: 'IDLE' });
     setToast({ message: "Echange effectué", visible: true });
     addToHistory(`échange ${formatResource(2, spendType)} contre ${formatResource(1, gainType)}`, currentPlayer.id, game);
   };
@@ -1697,9 +1702,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         setInteractionState({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId: interactionState.sequenceId, cardId: card.id });
         setIsRowOpen(false);
         setToast({ message: `Sélectionnez un secteur ${card.scanSector}`, visible: true });
-        return;
-    }
-
+    } else 
     // Cas 2: 
     if (interactionState.type === 'ACQUIRING_CARD') {
       const currentPlayer = game.players[game.currentPlayerIndex];
@@ -1789,109 +1792,55 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire unifié pour les échanges
   const handleConfirmTrade = () => {
     if (interactionState.type !== 'TRADING_CARD') return;
-    const { targetGain, selectedCards } = interactionState;
     const currentPlayer = game.players[game.currentPlayerIndex];
     
-    // spendType est implicitement 'card' ici car on est dans TRADING_CARD
-    const result = ResourceSystem.tradeResources(game, currentPlayer.id, 'card', targetGain, selectedCards);
+    // Mettre à jour GameEngine
+    const result = ResourceSystem.tradeResources(game, currentPlayer.id, 'card', interactionState.targetGain, interactionState.selectedCards);
     if (result.error) {
         setToast({ message: result.error, visible: true });
         return;
     }
 
+    // Finaliser la transaction
     setGame(result.updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    setToast({ message: "Echange effectué", visible: true });
-    addToHistory(`échange ${formatResource(2, 'card')} contre ${formatResource(1, targetGain)}`, currentPlayer.id, game, { type: 'IDLE' });
     setInteractionState({ type: 'IDLE' });
+    setToast({ message: "Echange effectué", visible: true });
+    addToHistory(`échange ${formatResource(2, 'card')} contre ${formatResource(1, interactionState.targetGain)}`, currentPlayer.id, game, { type: 'IDLE' });
   };
 
   // Fonction interne pour traiter l'achat (commune à l'achat direct et après sélection)
-  const processTechPurchase = (tech: Technology, targetComputerCol?: number, stateOverride?: Game, interactionStateOverride?: InteractionState, noTileBonus?: boolean) => {
-    const currentGame = stateOverride || gameRef.current;
-    const { updatedGame, gains } = TechnologySystem.acquireTechnology(currentGame, currentGame.players[currentGame.currentPlayerIndex].id, tech, targetComputerCol, noTileBonus);
-    const currentPlayerIndex = updatedGame.currentPlayerIndex;
-    const currentPlayer = updatedGame.players[currentPlayerIndex];
+  const processTechPurchase = (tech: Technology, targetComputerCol?: number, noTileBonus?: boolean, baseGame?: Game) => {
+    const currentGame = baseGame || gameRef.current;
+    const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
 
+    // Mettre à jour GameEngine
+    const { updatedGame, gains } = TechnologySystem.acquireTechnology(currentGame, currentPlayer.id, tech, targetComputerCol, noTileBonus);
+
+    // Finaliser la transaction
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-    
-    // Sauvegarder l'état d'interaction actuel avant de le changer pour l'historique
-    const previousInteractionState = interactionStateOverride || interactionState;
-
     setInteractionState({ type: 'IDLE' });
     setIsTechOpen(false);
     setHasPerformedMainAction(true);
     setToast({ message: `Technologie ${tech.name} acquise !`, visible: true });
-    
-    let category = "";
-    if (tech.id.startsWith('exploration')) category = "Exploration";
-    else if (tech.id.startsWith('observation')) category = "Observation";
-    else if (tech.id.startsWith('computing')) category = "Informatique";
-
-    const gainsText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
-    
-    const sequenceId = (previousInteractionState as any).sequenceId;
-    const isBonus = (previousInteractionState as any).isBonus;
-
-    // Si on est en train de rechercher (Action principale avec sequenceId), on fusionne avec l'entrée de rotation
-    if (sequenceId && !isBonus) {
-      setHistoryLog(prev => {
-        // Trouver l'entrée de début de séquence
-        const firstEntryIndex = prev.findIndex(e => e.sequenceId === sequenceId);
-
-        if (firstEntryIndex !== -1) {
-            const firstEntry = prev[firstEntryIndex];
-            const sequenceMessages = prev.filter(e => e.sequenceId === sequenceId).map(e => e.message);
-            const prefix = sequenceMessages.join(', ');
-
-            const newEntry: HistoryEntry = {
-                id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                message: `${prefix} pour rechercher la technologie "${category} ${tech.name}"${gainsText}`,
-                playerId: currentPlayer.id,
-                previousState: firstEntry.previousState,
-                previousInteractionState: { type: 'IDLE' },
-                previousHasPerformedMainAction: false,
-                previousPendingInteractions: [],
-                timestamp: Date.now()
-            };
-            return [...prev.slice(0, firstEntryIndex), newEntry];
-        }
-
-        // Fallback si pas d'entrée précédente trouvée (ne devrait pas arriver)
-        const fallbackEntry: HistoryEntry = {
-          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-          message: `acquiert la technologie "${category} ${tech.name}"${gainsText}`,
-          playerId: currentPlayer.id,
-          previousState: currentGame,
-          previousInteractionState: { type: 'IDLE' },
-          previousHasPerformedMainAction: hasPerformedMainAction,
-          previousPendingInteractions: pendingInteractions,
-          timestamp: Date.now()
-        };
-        return [...prev, fallbackEntry];
-      });
-    } else {
-      // Sinon (Bonus), on ajoute une nouvelle entrée atomique
-      addToHistory(`acquiert la technologie "${category} ${tech.name}"${gainsText}`, currentPlayer.id, currentGame, previousInteractionState, sequenceId);
-    }
+    addToHistory(`acquiert la technologie "${tech.type} ${tech.name}"${gains.length > 0 ? ` et gagne ${gains.join(', ')}` : ''}`, currentPlayer.id, currentGame, undefined, interactionState.sequenceId);
   };
 
   // Gestionnaire pour l'achat de technologie (clic initial)
   const handleTechClick = (tech: Technology) => {
     // Cas 1: Mode recherche actif ou bonus
     if (interactionState.type === 'ACQUIRING_TECH') {
-        if (tech.id.startsWith('computing')) {
+        if (tech.type === TechnologyCategory.COMPUTING) {
+          // Sélection du slot
           const { sequenceId } = interactionState;
           setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId });
-          setToast({ message: "Sélectionnez une colonne (1, 3, 5, 6) sur l'ordinateur", visible: true });
-          return;
+        } else {
+          // Finaliser l'achat
+          const { noTileBonus } = interactionState;
+          processTechPurchase(tech, undefined, noTileBonus);  
         }
-        const { noTileBonus } = interactionState;
-        processTechPurchase(tech, undefined, undefined, interactionState, noTileBonus);
-        return;
-    }
-
+    } else
     // Cas 2: Clic direct depuis IDLE (Raccourci Action Recherche)
     if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
         const currentPlayer = game.players[game.currentPlayerIndex];
@@ -1903,26 +1852,26 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         let updatedGame = structuredClone(game);
         const player = updatedGame.players[updatedGame.currentPlayerIndex];
 
-        const sequenceId = `tech-${Date.now()}`;
+        // Initier la séquence
+        interactionState.sequenceId = `tech-${Date.now()}`;
 
         // Payer le coût
         player.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
-        addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias`, player.id, game, undefined, sequenceId);
+        addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias pour <strong>Rechercher une technologie</strong>`, player.id, game, undefined, interactionState.sequenceId);
 
         // Faire tourner le systeme solaire
         const rotationResult = performRotation(updatedGame);
-        updatedGame = rotationResult.updatedGame;
-        rotationResult.logs.forEach(log => addToHistory(log, player.id, game, undefined, sequenceId));
+        updatedGame = rotationResult.updatedGame;        
+        addToHistory(rotationResult.logs.join(', '), player.id, game, undefined, interactionState.sequenceId)
 
-        // Traiter l'achat ou la sélection de slot
-        if (tech.id.startsWith('computing')) {
+        if (tech.type === TechnologyCategory.COMPUTING) {
+            // Sélection du slot
             setGame(updatedGame);
             if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-            setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId });
-            setToast({ message: "Système pivoté. Sélectionnez une colonne (1, 3, 5, 6) sur l'ordinateur", visible: true });
+            setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId: interactionState.sequenceId });
         } else {
-            // Achat direct avec fusion des logs (simule RESEARCHING)
-            processTechPurchase(tech, undefined, updatedGame, { type: 'ACQUIRING_TECH', isBonus: false, sequenceId }, false);
+            // Finaliser l'achat
+            processTechPurchase(tech, undefined, false, updatedGame);
         }
     }
   };
@@ -1937,19 +1886,19 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Vérifier si la colonne est déjà occupée par une technologie
     const currentGame = gameRef.current;
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
-    const topSlotId = `${col}a`;
-    if (currentPlayer.dataComputer.slots?.[topSlotId]?.bonus === '2pv') {
+    if (currentPlayer.dataComputer.slots?.[`${col}a`]?.bonus === '2pv') {
       setToast({ message: "Emplacement déjà occupé par une technologie", visible: true });
       return;
     }
 
     // Finaliser l'achat
-    processTechPurchase(interactionState.tech, col, undefined, interactionState, undefined);
+    processTechPurchase(interactionState.tech, col, false);
   };
 
   // Gestionnaire pour la pioche de carte depuis le PlayerBoardUI (ex: bonus ordinateur)
   const handleDrawCard = (count: number, source: string) => {
     const updatedGame = CardSystem.drawCards(game, game.players[game.currentPlayerIndex].id, count, source);
+    
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
     addToHistory(`pioche ${count} carte${count > 1 ? 's' : ''} (${source})`, game.players[game.currentPlayerIndex].id, game);
