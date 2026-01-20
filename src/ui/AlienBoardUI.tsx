@@ -117,7 +117,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, onTrackClick, 
               borderRadius: '4px' 
             }}>
               <div style={{ fontWeight: 'bold', color: '#8affc0' }}>{species.name}</div>
-              {species.discoveredAt && <div style={{ fontSize: '0.8em', color: '#aaa' }}>Découvert !</div>}
+              <div style={{ fontSize: '0.8em', color: '#aaa' }}>Découvert !</div>
             </div>
           ))
         ) : (

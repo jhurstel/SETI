@@ -79,7 +79,6 @@ export class SpeciesSystem {
     const discoveredSpecies: Species = {
       ...species,
       discovered: true,
-      discoveredAt: Date.now()
     };
 
     // Ajouter aux espèces découvertes

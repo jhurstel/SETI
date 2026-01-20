@@ -722,6 +722,64 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   };
 
+  // Helper pour effectuer un scan et potentiellement une couverture de secteur
+  const performScanAndCover = (
+    gameToUpdate: Game, 
+    playerId: string, 
+    sectorId: string, 
+    sequenceId?: string,
+    initialLogs: string[] = []
+  ) => {
+    let updatedGame = gameToUpdate;
+    const scanLogs: string[] = [...initialLogs];
+
+    // 1. Scan
+    const scanResult = SectorSystem.scanSector(updatedGame, playerId, sectorId, false);
+    updatedGame = scanResult.updatedGame;
+    scanLogs.push(...scanResult.logs);
+
+    // 2. Process scan bonuses
+    if (scanResult.bonuses) {
+        const bonusRes = processBonuses(scanResult.bonuses, updatedGame, playerId, 'scan');
+        updatedGame = bonusRes.updatedGame;
+        scanLogs.push(...bonusRes.logs);
+        if (bonusRes.newPendingInteractions.length > 0) {
+            setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
+        }
+    }
+
+    // 3. Check if covered
+    if (SectorSystem.isSectorCovered(updatedGame, sectorId)) {
+        scanLogs.push(`et complète le secteur !`);
+        addToHistory(scanLogs.join(', '), playerId, game, undefined, sequenceId);
+
+        const coverageLogs: string[] = [];
+        // 4. Cover sector
+        const coverageResult = SectorSystem.coverSector(updatedGame, playerId, sectorId);
+        updatedGame = coverageResult.updatedGame;
+        coverageLogs.push(...coverageResult.logs);
+
+        // 5. Process cover bonuses
+        if (coverageResult.bonuses) {
+            const bonusRes = processBonuses(coverageResult.bonuses, updatedGame, playerId, 'scan');
+            updatedGame = bonusRes.updatedGame;
+            coverageLogs.push(...bonusRes.logs);
+            if (bonusRes.newPendingInteractions.length > 0) {
+                setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
+            }
+        }
+        setToast({ message: 'Secteur couvert !', visible: true });
+        if (coverageLogs.length > 0) {
+            addToHistory(coverageLogs.join(', '), coverageResult.winnerId, game, undefined, sequenceId);
+        }
+    } else {
+        // 6. Log scan only
+        addToHistory(scanLogs.join(', '), playerId, game, undefined, sequenceId);
+    }
+
+    return updatedGame;
+  };
+
   // Gestionnaire pour le clic sur un secteur (Scan)
   const handleSectorClick = (sectorNumber: number) => {
     // Cas 1: Mode Scan actif ou bonus
@@ -736,38 +794,25 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
 
       let updatedGame = structuredClone(game);
-      const logs: string[] = [];
+      const initialLogs: string[] = [];
 
       // Défausser la carte de la rangée si une carte a été utilisée pour la couleur
       const card = game.decks.cardRow.find(c => c.id === interactionState.cardId);
       if (card) {
-        const row = game.decks.cardRow;
+        const row = updatedGame.decks.cardRow;
         const cardIndex = row.findIndex(c => c.id === card.id);
         if (cardIndex !== -1) {
             const removedCard = row[cardIndex];
             row.splice(cardIndex, 1);
-            updatedGame = CardSystem.refillCardRow(game);
-            logs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la rangée`);
+            updatedGame = CardSystem.refillCardRow(updatedGame);
+            initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la rangée`);
         }
       }
 
-      // Scanner secteur de la carte
-      const result = SectorSystem.scanSector(updatedGame, currentPlayer.id, sector.id, false);
-      updatedGame = result.updatedGame;
-      logs.push(...result.logs);
-
-      if (result.bonuses) {
-          const bonusRes = processBonuses(result.bonuses, updatedGame, currentPlayer.id, 'scan');
-          updatedGame = bonusRes.updatedGame;
-          logs.push(...bonusRes.logs);
-          if (bonusRes.newPendingInteractions.length > 0) {
-              setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
-          }
-      }
+      updatedGame = performScanAndCover(updatedGame, currentPlayer.id, sector.id, interactionState.sequenceId, initialLogs);
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-      addToHistory(logs.join(', '), currentPlayer.id, game, undefined, interactionState.sequenceId);
       
       // TODO: implementer la tech 2 =  choix pour le scan 3 dans le secteur de mercure 
       // et/ou la tech 3 = scan 4 dans le secteur d'une carte défaussée
@@ -864,7 +909,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       let updatedGame = structuredClone(game);
       const updatedPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
       const sequenceId = `scan-${Date.now()}`;
-      const logs: string[] = [];
 
       // Payer le coût
       updatedPlayer.credits -= GAME_CONSTANTS.SCAN_COST_CREDITS;
@@ -884,25 +928,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
 
       if (targetSectorId) {
-          const result = SectorSystem.scanSector(updatedGame, updatedPlayer.id, targetSectorId, false);
-          updatedGame = result.updatedGame;
-          logs.push(...result.logs);
-          
-          // Process bonuses from scan (if any)
-          if (result.bonuses) {
-               const bonusRes = processBonuses(result.bonuses, updatedGame, updatedPlayer.id, 'scan');
-               updatedGame = bonusRes.updatedGame;
-               logs.push(...bonusRes.logs);
-               if (bonusRes.newPendingInteractions.length > 0) {
-                   setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
-               }
-          }
+        updatedGame = performScanAndCover(updatedGame, updatedPlayer.id, targetSectorId, sequenceId);
       }
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-      addToHistory(logs.join(', '), updatedPlayer.id, game, undefined, sequenceId);
-
+      
       setInteractionState({ type: 'SELECTING_SCAN_CARD', sequenceId });
       setIsRowOpen(true);
       setToast({ message: "Sélectionnez une carte de la rangée pour déterminer la couleur du secteur à scanner", visible: true });

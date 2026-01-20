@@ -137,10 +137,10 @@ export class BoardManager {
         id: sectorId,
         name: config.name,
         color: config.color,
-        coveredAt: 0, // Initialisé à 0 (non couvert)
         signals: this.createSignals(config.slots),
         playerMarkers: [],
         isCovered: false,
+        coveredBy: [],
         firstBonus: config.firstBonus,
         nextBonus: config.nextBonus
       };

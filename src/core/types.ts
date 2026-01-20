@@ -223,11 +223,10 @@ export interface Sector {
   id: string;
   name: string;
   color: SectorColor;
-  coveredAt: number;
   signals: Signal[];
   playerMarkers: PlayerMarker[];
-  coveredBy?: string;
   isCovered: boolean;
+  coveredBy: string[];
   firstBonus: Bonus;
   nextBonus: Bonus;
 }
@@ -281,7 +280,6 @@ export interface LifeTraceSlot {
 export interface LifeTrace {
   id: string;
   type: LifeTraceType;
-  discoveredAt: number;
 }
 
 export interface ObjectiveTile {
@@ -367,7 +365,6 @@ export interface Species {
   cards: Card[];
   scoringModifiers: ScoringModifier[];
   discovered: boolean;
-  discoveredAt?: number;
 }
 
 export interface SpeciesRules {
