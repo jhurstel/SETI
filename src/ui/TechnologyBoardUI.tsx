@@ -265,7 +265,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                       ))}
                       onMouseLeave={handleTooltipLeave}
                       style={{
-                        border: hasTech ? 'none' : (isResearching ? '2px solid #00ff00' : `1px solid ${categoryColor}`),
+                        border: hasTech ? 'none' : (isResearching ? (isClickable ? '2px solid #00ff00' : '1px solid #555') : `1px solid ${categoryColor}`),
                         backgroundColor: 'rgba(30, 30, 40, 0.8)',
                         padding: '8px',
                         borderRadius: '4px',
@@ -277,7 +277,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                         flexDirection: 'column',
                         gap: '4px',
                         minHeight: '80px',
-                        boxShadow: isResearching 
+                        boxShadow: isClickable 
                           ? '0 0 10px rgba(0, 255, 0, 0.3)' 
                           : (count > 1 ? '2px 2px 0px rgba(255,255,255,0.1)' : 'none'),
                         transition: 'all 0.2s ease',

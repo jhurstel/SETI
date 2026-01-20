@@ -330,9 +330,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         
         if (firstEntry && firstEntry.previousState) {
             setGame(firstEntry.previousState);
-            if (gameEngineRef.current) {
-                gameEngineRef.current.setState(firstEntry.previousState);
-            }
+            if (gameEngineRef.current) gameEngineRef.current.setState(firstEntry.previousState);
             
             // Supprimer toutes les entrées de la séquence
             setHistoryLog(prev => prev.filter(e => e.sequenceId !== lastEntry.sequenceId));
@@ -352,9 +350,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     } else if (lastEntry.previousState) {
       // Annulation standard (atomique)
       setGame(lastEntry.previousState);
-      if (gameEngineRef.current) {
-        gameEngineRef.current.setState(lastEntry.previousState);
-      }
+      if (gameEngineRef.current) gameEngineRef.current.setState(lastEntry.previousState);
       setHistoryLog(prev => prev.slice(0, -1));
       setInteractionState(lastEntry.previousInteractionState || { type: 'IDLE' });
       
@@ -953,9 +949,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       addToHistory(logMessage, player.id, game);
 
       setGame(updatedGame);
-      if (gameEngineRef.current) {
-        gameEngineRef.current.setState(updatedGame);
-      }
+      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
       setInteractionState({ type: 'ACQUIRING_TECH', isBonus: false });
       setIsTechOpen(true);
       setToast({ message: "Système pivoté. Sélectionnez une technologie.", visible: true });
@@ -990,9 +984,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         DataSystem.clearComputer(player);
 
         setGame(updatedGame);
-        if (gameEngineRef.current) {
-          gameEngineRef.current.setState(updatedGame);
-        }
+        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
         setHasPerformedMainAction(true);
         
         // 3. Passer en mode placement de trace de vie
@@ -1488,11 +1480,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         currentGame = updatedGame;
         gameRef.current = currentGame; // Mettre à jour la ref locale pour garantir la fraîcheur
         setGame(currentGame);
-
-        // Mettre à jour l'état du moteur pour la prochaine étape du mouvement
-        if (gameEngineRef.current) {
-            gameEngineRef.current.setState(currentGame);
-        }
+        if (gameEngineRef.current)  gameEngineRef.current.setState(currentGame); // Mettre à jour l'état du moteur pour la prochaine étape du mouvement
         
         // Mettre à jour le compteur de mouvements gratuits
         if (useFree) {
@@ -1571,9 +1559,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     const card = currentGame.players[currentGame.currentPlayerIndex].cards.find(c => c.id === cardId)!;
     setGame(gameAfterBonuses);
-    if (gameEngineRef.current) {
-      gameEngineRef.current.setState(gameAfterBonuses);
-    }
+    if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonuses);
     setHasPerformedMainAction(true);
     
     const gainsText = passiveGains.length > 0 ? ` (Gains: ${passiveGains.join(', ')})` : '';
@@ -1668,6 +1654,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
     
     setGame(updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
   };
 
   // Gestionnaire pour l'action d'achat de carte avec du média
@@ -1689,6 +1676,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     setGame(result.updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
     setToast({ message: "Echange effectué", visible: true });
     addToHistory(`échange ${formatResource(2, spendType)} contre ${formatResource(1, gainType)}`, currentPlayer.id, game);
   };
@@ -1793,6 +1781,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     setGame(result.updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
     
     const msg = interactionState.isFree ? "Carte obtenue (Bonus)" : "Carte achetée (-3 Média)";
     setToast({ message: msg, visible: true });
@@ -1842,6 +1831,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     setGame(result.updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
     setToast({ message: "Echange effectué", visible: true });
     addToHistory(`échange ${formatResource(2, 'card')} contre ${formatResource(1, targetGain)}`, currentPlayer.id, game, { type: 'IDLE' });
     setInteractionState({ type: 'IDLE' });
@@ -1855,9 +1845,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const currentPlayer = updatedGame.players[currentPlayerIndex];
 
     setGame(updatedGame);
-    if (gameEngineRef.current) {
-      gameEngineRef.current.setState(updatedGame);
-    }
+    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
     
     // Sauvegarder l'état d'interaction actuel avant de le changer pour l'historique
     const previousInteractionState = interactionStateOverride || interactionState;
@@ -2034,6 +2022,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleDrawCard = (count: number, source: string) => {
     const updatedGame = CardSystem.drawCards(game, game.players[game.currentPlayerIndex].id, count, source);
     setGame(updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
     addToHistory(`pioche ${count} carte${count > 1 ? 's' : ''} (${source})`, game.players[game.currentPlayerIndex].id, game);
   };
 
@@ -2654,7 +2643,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 onDirectTradeAction={handleDirectTrade}
                 onDrawCard={handleDrawCard}
                 onPlayCard={handlePlayCardRequest}
-                onGameUpdate={(newGame) => setGame(newGame)}
+                onGameUpdate={(newGame) => {
+                    setGame(newGame);
+                    if (gameEngineRef.current) gameEngineRef.current.setState(newGame);
+                }}
                 isSelectingComputerSlot={interactionState.type === 'SELECTING_COMPUTER_SLOT'}
                 onComputerSlotSelect={handleComputerColumnSelect}
                 isAnalyzing={interactionState.type === 'ANALYZING'}

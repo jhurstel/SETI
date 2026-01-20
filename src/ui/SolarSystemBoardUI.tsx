@@ -544,7 +544,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
       bonus.yellowlifetrace ||
       bonus.redlifetrace ||
       bonus.bluelifetrace ||
-      bonus.probe;
+      bonus.probe ||
+      bonus.landing;
     
     return (
       <>
@@ -580,6 +581,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
            else if (bonus.redlifetrace) { label = 'Tr'; color = '#fff'; }
            else if (bonus.bluelifetrace) { label = 'Tr'; color = '#fff'; }
            else if (bonus.probe) { label = 'Pr'; color = '#fff'; }
+           else if (bonus.landing) { label = 'La'; color = '#fff'; }
            return (
              <text 
                y={hasPv ? "6" : "1"} 
