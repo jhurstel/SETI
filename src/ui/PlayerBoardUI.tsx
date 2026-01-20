@@ -29,8 +29,8 @@ interface PlayerBoardUIProps {
   isAnalyzing?: boolean;
   hasPerformedMainAction?: boolean;
   onNextPlayer?: () => void;
-  onHistory?: (message: string) => void;
-  onComputerBonus?: (type: string, amount: number) => void;
+  onHistory?: (message: string, sequenceId?: string) => void;
+  onComputerBonus?: (type: string, amount: number, sequenceId?: string) => void;
   isReserving?: boolean;
   reservationCount?: number;
   onConfirmReservation?: () => void;
@@ -428,9 +428,9 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     }
   }, [isTrading]);
 
-  const handleComputerBonus = (type: string, amount: number) => {
+  const handleComputerBonus = (type: string, amount: number, sequenceId?: string) => {
     if (type === 'reservation') {
-      if (onComputerBonus) onComputerBonus(type, amount);
+      if (onComputerBonus) onComputerBonus(type, amount, sequenceId);
     } else if (type === 'card' && onDrawCard) {
       onDrawCard(amount, 'Bonus Ordinateur');
     }
@@ -445,13 +445,15 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
 
     const { updatedGame, gains, bonusEffects } = DataSystem.fillSlot(gameCopy, currentPlayer.id, slotId);
     
+    const sequenceId = `computer-${Date.now()}`;
+
     bonusEffects.forEach(effect => {
-      handleComputerBonus(effect.type, effect.amount);
+      handleComputerBonus(effect.type, effect.amount, sequenceId);
     });
     
     if (onHistory) {
         const gainText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
-        onHistory(`transfère une donnée vers l'ordinateur (${slotId})${gainText}`);
+        onHistory(`transfère une donnée vers l'ordinateur (${slotId})${gainText}`, sequenceId);
     }
     
     if (onGameUpdate) onGameUpdate(updatedGame);

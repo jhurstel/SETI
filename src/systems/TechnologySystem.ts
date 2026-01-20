@@ -27,7 +27,7 @@ export class TechnologySystem {
     // Add to player
     player.technologies.push(tech);
 
-    // Computer slot assignment
+    // Assign to computer slot (if needed)
     if (targetComputerCol !== undefined) {
       DataSystem.assignTechnology(player, tech, targetComputerCol);
     }

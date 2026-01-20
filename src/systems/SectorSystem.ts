@@ -11,6 +11,7 @@
 import {
   Game,
   Sector,
+  Bonus,
   SignalType,
   GAME_CONSTANTS
 } from '../core/types';
@@ -21,7 +22,8 @@ export class SectorSystem {
    */
   static canScanSector(
     game: Game,
-    playerId: string
+    playerId: string,
+    checkCost: boolean = true
   ): {
     canScan: boolean;
     reason?: string;
@@ -32,14 +34,14 @@ export class SectorSystem {
     }
 
     // Vérifier les ressources
-    if (player.credits < GAME_CONSTANTS.SCAN_COST_CREDITS) {
+    if (checkCost && player.credits < GAME_CONSTANTS.SCAN_COST_CREDITS) {
       return { 
         canScan: false, 
         reason: `Crédits insuffisants (nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS})` 
       };
     }
 
-    if (player.energy < GAME_CONSTANTS.SCAN_COST_ENERGY) {
+    if (checkCost && player.energy < GAME_CONSTANTS.SCAN_COST_ENERGY) {
       return { 
         canScan: false, 
         reason: `Énergie insuffisante (nécessite ${GAME_CONSTANTS.SCAN_COST_ENERGY})` 
@@ -52,19 +54,14 @@ export class SectorSystem {
   /**
    * Scanne un secteur
    */
-  static scanSector(
-    game: Game,
-    playerId: string,
-    sectorId: string
-  )
-  //: {
-  //  updatedGame: Game;
-  //  covered: boolean;
-  //  newMajority?: boolean;
-  //}
-  {
-    const validation = this.canScanSector(game, playerId);
+  static scanSector(game: Game, playerId: string, sectorId: string, checkCost: boolean = true) : {
+    updatedGame: Game;
+    logs: string[];
+    bonuses: Bonus;
+  } {
+    const validation = this.canScanSector(game, playerId, checkCost);
     if (!validation.canScan) {
+      console.log(game);
       throw new Error(validation.reason || 'Scan impossible');
     }
 
@@ -76,7 +73,7 @@ export class SectorSystem {
     const player = updatedGame.players.find(p => p.id === playerId)!;
     
     const logs: string[] = [];
-    let bonuses: any = {};
+    let bonuses: Bonus = {};
   
     // Find first available signal
     const signal = sector.signals.find(s => !s.marked);
@@ -85,18 +82,18 @@ export class SectorSystem {
         signal.marked = true;
         signal.markedBy = playerId;
         
-        logs.push(`scanne le secteur ${sector.name}`);
+        logs.push(`marque un signal dans le secteur "${sector.name}"`);
         
         // Base gain: 1 Data (if type is DATA)
         if (signal.type === SignalType.DATA) {
             player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
-            logs.push("gagne 1 Donnée");
+            bonuses.data = 1;
         }
         
         // Signal bonus: 2PV
         if (signal.bonus) {
             player.score += signal.bonus.pv || 0;
-            bonuses = { ...signal.bonus };
+            bonuses.pv = signal.bonus.pv;
         }
     } else {
         logs.push(`tente de scanner le secteur ${sector.id} mais il est plein`);

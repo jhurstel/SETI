@@ -203,7 +203,7 @@ export class GameFactory {
             if (updatedGame.gameLog) {
                 updatedGame.gameLog.push({
                     id: `log_robot_reserve_${Date.now()}_${playerId}`,
-                    message: `réserve la carte "${card.name}" et gagne ${gainMsg}`,
+                    message: `réserve carte "${card.name}" et gagne ${gainMsg}`,
                     timestamp: Date.now(),
                     playerId: currentPlayer.id
                 });

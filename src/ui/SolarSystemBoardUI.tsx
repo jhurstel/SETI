@@ -31,6 +31,7 @@ interface SolarSystemBoardUIProps {
   allowOccupiedLanding?: boolean;
   onSectorClick?: (sectorNumber: number) => void;
   highlightedSectorSlots?: string[]; // IDs des secteurs dont le premier slot disponible doit flasher
+  animateSectorSlots?: boolean;
 }
 
 export interface SolarSystemBoardUIRef {
@@ -187,7 +188,7 @@ const describeArc = (x: number, y: number, radius: number, startAngle: number, e
     ].join(" ");
 };
 
-export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false, autoSelectProbeId, isLandingInteraction, onBackgroundClick, allowOccupiedLanding, onSectorClick, highlightedSectorSlots = [] }, ref) => {
+export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false, autoSelectProbeId, isLandingInteraction, onBackgroundClick, allowOccupiedLanding, onSectorClick, highlightedSectorSlots = [], animateSectorSlots = false }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredObjectRect, setHoveredObjectRect] = useState<DOMRect | null>(null);
@@ -1495,6 +1496,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   // Rendu des détails des secteurs (Nom + Slots) sur le disque E
   const renderSectorDetails = () => {
     if (!game.board.sectors) return null;
+    const currentPlayer = game.players[game.currentPlayerIndex];
 
     return (
       <svg
@@ -1617,7 +1619,14 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                  stateColor = "#ff6b6b";
                  actionText = "Nécessite le signal précédent";
              } else {
-                 actionText = "Scanner pour récupérer le bonus";
+                 const canAffordScan = currentPlayer.credits >= GAME_CONSTANTS.SCAN_COST_CREDITS && currentPlayer.energy >= GAME_CONSTANTS.SCAN_COST_ENERGY;
+                 if (isSectorClickable && animateSectorSlots && !canAffordScan) {
+                    stateText = "Ressources insuffisantes";
+                    stateColor = "#ff6b6b";
+                    actionText = `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit et ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergies (vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s))`;
+                 } else {
+                    actionText = "Scanner pour récupérer le bonus";
+                 }
              }
 
              const slotTooltipContent = (
@@ -1649,16 +1658,20 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                   onMouseLeave={() => setSlotTooltip(null)}
                >
                  <circle r="4" fill="transparent" stroke="none" />
-                 <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" strokeDasharray={isLastSlot ? "1 1" : undefined} />
                  {isFlashing && (
-                   <>
-                     <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1" opacity="0.8" />
-                     <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1">
-                       <animate attributeName="r" values="3.5; 8" dur="2s" repeatCount="indefinite" />
-                       <animate attributeName="opacity" values="0.6; 0" dur="2s" repeatCount="indefinite" />
-                     </circle>
-                   </>
+                   animateSectorSlots ? (
+                     <>
+                       <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1" opacity="0.8" />
+                       <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1">
+                         <animate attributeName="r" values="3.5; 8" dur="2s" repeatCount="indefinite" />
+                         <animate attributeName="opacity" values="0.6; 0" dur="2s" repeatCount="indefinite" />
+                       </circle>
+                     </>
+                   ) : (
+                     <circle r="4" fill="none" stroke="#00ff00" strokeWidth="1" opacity="0.6" />
+                   )
                  )}
+                 <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" strokeDasharray={isLastSlot ? "1 1" : undefined} />
                  {!player && signal.bonus && (
                    <g transform="scale(0.25)">
                      {renderBonusContent(signal.bonus)}
@@ -2497,6 +2510,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                 } else if (!check.canLaunch) {
                     text = check.reason || "Impossible";
                     color = '#ff6b6b';
+                } else if (check.canLaunch) {
+                    color = '#4a9eff';
                 }
                 subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: color, fontStyle: 'italic' }}>{text}</div>;
               }

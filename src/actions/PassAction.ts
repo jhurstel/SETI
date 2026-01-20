@@ -128,7 +128,6 @@ export class PassAction extends BaseAction {
 
       // Incrémenter le plateau modulo 3
       updatedGame.board.solarSystem.nextRingLevel = (currentLevel % 3) + 1;
-      updatedGame.isFirstToPass = true;
 
       // Nouvel état de rotation
       const newRotationState = createRotationState(
@@ -140,6 +139,8 @@ export class PassAction extends BaseAction {
       // Mettre à jour les positions des sondes
       const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
       updatedGame = rotationResult.game;
+
+      updatedGame.isFirstToPass = true;
     }
 
     // Passer au joueur suivant ou terminer la manche

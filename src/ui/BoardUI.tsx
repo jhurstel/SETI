@@ -285,6 +285,22 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
            return <span key={index} title={config.label} style={{ color: config.color, cursor: 'help', fontWeight: 'bold' }}>{config.icon}</span>;
         }
       }
+
+      // Gestion du gras (balises <strong>)
+      if (part.includes('<strong>')) {
+        const subParts = part.split(/(<strong>.*?<\/strong>)/g);
+        return (
+          <span key={index}>
+            {subParts.map((subPart, subIndex) => {
+              if (subPart.startsWith('<strong>') && subPart.endsWith('</strong>')) {
+                return <strong key={subIndex}>{subPart.replace(/<\/?strong>/g, '')}</strong>;
+              }
+              return subPart;
+            })}
+          </span>
+        );
+      }
+
       return part;
     });
   };
@@ -506,7 +522,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   }, [game, performPass, addToHistory]);
 
   // Helper pour effectuer une rotation du système solaire
-  const performRotation = (currentGame: Game, source: string): { updatedGame: Game, logs: string[] } => {
+  const performRotation = (currentGame: Game): { updatedGame: Game, logs: string[] } => {
     let updatedGame = structuredClone(currentGame);
     const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 3;
     const oldRotationState = createRotationState(
@@ -537,7 +553,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
     updatedGame = rotationResult.game;
     
-    const log = formatRotationLogs(`fait tourner le système solaire (Niveau ${currentLevel}) via ${source}`, rotationResult.logs);
+    const log = formatRotationLogs(`fait tourner le système solaire (Niveau ${currentLevel})`, rotationResult.logs);
     return { updatedGame, logs: [log] };
   }
 
@@ -665,7 +681,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           gainMsg = formatResource(1, 'CARD');
         }
 
-        addToHistory(`réserve la carte "${card.name}" et gagne ${gainMsg}`, currentPlayer.id, game, { type: 'IDLE' }, interactionState.sequenceId);
+        addToHistory(`réserve carte "${card.name}" et gagne ${gainMsg}`, currentPlayer.id, game, { type: 'IDLE' }, interactionState.sequenceId);
 
         // Si le bonus est une carte, on pioche immédiatement (attention aux effets de bord dans la boucle)
         // Pour simplifier, on applique la pioche à la fin ou on modifie updatedGame directement
@@ -705,7 +721,61 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour le clic sur un secteur (Scan)
   const handleSectorClick = (sectorNumber: number) => {
-    // Permettre de lancer l'action Scan en cliquant sur le secteur de la Terre (si IDLE)
+    // Cas 1: Mode Scan actif ou bonus
+    if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
+      const currentPlayer = game.players[game.currentPlayerIndex];
+      const sector = game.board.sectors[sectorNumber - 1];
+      
+      // Validate color
+      if (sector.color !== interactionState.color) {
+          setToast({ message: `Couleur incorrecte. Sélectionnez un secteur ${interactionState.color}`, visible: true });
+          return;
+      }
+
+      let updatedGame = structuredClone(game);
+      const logs: string[] = [];
+
+      // Défausser la carte de la rangée si une carte a été utilisée pour la couleur
+      const card = game.decks.cardRow.find(c => c.id === interactionState.cardId);
+      if (card) {
+        const row = game.decks.cardRow;
+        const cardIndex = row.findIndex(c => c.id === card.id);
+        if (cardIndex !== -1) {
+            const removedCard = row[cardIndex];
+            row.splice(cardIndex, 1);
+            updatedGame = CardSystem.refillCardRow(game);
+            logs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la rangée`);
+        }
+      }
+
+      // Scanner secteur de la carte
+      const result = SectorSystem.scanSector(updatedGame, currentPlayer.id, sector.id, false);
+      updatedGame = result.updatedGame;
+      logs.push(...result.logs);
+
+      if (result.bonuses) {
+          const bonusRes = processBonuses(result.bonuses, updatedGame, currentPlayer.id, 'scan');
+          updatedGame = bonusRes.updatedGame;
+          logs.push(...bonusRes.logs);
+          if (bonusRes.newPendingInteractions.length > 0) {
+              setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
+          }
+      }
+
+      setGame(updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+      addToHistory(logs.join(', '), currentPlayer.id, game, undefined, interactionState.sequenceId);
+      
+      // TODO: implementer la tech 2 =  choix pour le scan 3 dans le secteur de mercure 
+      // et/ou la tech 3 = scan 4 dans le secteur d'une carte défaussée
+      // et/ou la tech 4 = choix entre sonde et deplacement
+      setInteractionState({ type: 'IDLE' });
+      setHasPerformedMainAction(true);
+      setToast({ message: "Scan terminé", visible: true });
+      return;
+    }
+
+    // Cas 2: Clic direct depuis Idle (Raccourci Action Scan)
     if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
         const earthPos = getObjectPosition(
           'earth',
@@ -713,68 +783,28 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           game.board.solarSystem.rotationAngleLevel2 || 0,
           game.board.solarSystem.rotationAngleLevel3 || 0
         );
-        if (earthPos && earthPos.absoluteSector === sectorNumber) {
-            handleAction(ActionType.SCAN_SECTOR);
+        
+        if (earthPos) {
+            const currentPlayer = game.players[game.currentPlayerIndex];
+            const hasObs1 = currentPlayer.technologies.some(t => t.id.startsWith('observation-1'));
+            
+            let isValid = earthPos.absoluteSector === sectorNumber;
+            if (!isValid && hasObs1) {
+                const prev = earthPos.absoluteSector === 1 ? 8 : earthPos.absoluteSector - 1;
+                const next = earthPos.absoluteSector === 8 ? 1 : earthPos.absoluteSector + 1;
+                if (sectorNumber === prev || sectorNumber === next) isValid = true;
+            }
+
+            if (isValid) {
+                handleAction(ActionType.SCAN_SECTOR, { sectorId: `sector_${sectorNumber}` });
+            }
         }
         return;
     }
-
-    if (interactionState.type !== 'SELECTING_SCAN_SECTOR') return;
-    
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    const sector = game.board.sectors[sectorNumber - 1];
-    
-    // Validate color
-    if (sector.color !== interactionState.color) {
-        setToast({ message: `Couleur incorrecte. Sélectionnez un secteur ${interactionState.color}`, visible: true });
-        return;
-    }
-
-    console.log(`Tentative de scan du secteur ${sector.id} (Index: ${sectorNumber})`);
-    const result = SectorSystem.scanSector(game, currentPlayer.id, sector.id);
-    
-    if (!result || !result.updatedGame) {
-        console.error("Erreur: SectorSystem.scanSector a retourné un résultat invalide", result);
-        setToast({ message: "Erreur lors du scan du secteur", visible: true });
-        return;
-    }
-
-    let updatedGame = result.updatedGame;
-    const logs = result.logs || [];
-
-    // Défausser la carte de la rangée si une carte a été utilisée pour la couleur
-    if (interactionState.cardId) {
-        const row = updatedGame.decks.cardRow;
-        const cardIndex = row.findIndex(c => c.id === interactionState.cardId);
-        if (cardIndex !== -1) {
-             const removedCard = row[cardIndex];
-             row.splice(cardIndex, 1);
-             updatedGame = CardSystem.refillCardRow(updatedGame);
-             logs.push(`défausse "${removedCard.name}"`);
-        }
-    }
-
-    if (result.bonuses) {
-         const bonusRes = processBonuses(result.bonuses, updatedGame, currentPlayer.id, 'scan');
-         updatedGame = bonusRes.updatedGame;
-         logs.push(...bonusRes.logs);
-         if (bonusRes.newPendingInteractions.length > 0) {
-             setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
-         }
-    }
-
-    setGame(updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-    setHasPerformedMainAction(true);
-    
-    addToHistory(logs.join(', '), currentPlayer.id, game, undefined, interactionState.sequenceId);
-    
-    setInteractionState({ type: 'IDLE' });
-    setToast({ message: "Scan terminé", visible: true });
   };
 
   // Gestionnaire pour les actions
-  const handleAction = (actionType: ActionType) => {
+  const handleAction = (actionType: ActionType, payload?: any) => {
     if (!gameEngineRef.current) return;
     
     // Atomicité : Si on est dans un mode interactif, on ne peut pas lancer d'autre action
@@ -785,6 +815,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     // Synchroniser l'état de GameEngine avec le jeu actuel (pour préserver les angles de rotation)
     gameEngineRef.current.setState(gameRef.current);
+    console.log(game);
 
     const currentGame = gameRef.current;
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
@@ -809,8 +840,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         const oldCredits = currentPlayer.credits;
         const newCredits = result.updatedState.players.find(p => p.id === currentPlayer.id)?.credits || 0;
         const cost = oldCredits - newCredits;
-        const costText = cost === 0 ? "gratuitement (Exploration I)" : `pour ${cost} crédits`;
-        addToHistory(`lance une sonde depuis la Terre ${locString} ${costText}`, currentPlayer.id, game);
+        const costText = cost === 0 ? "gagne" : `paye ${cost} crédit`;
+        addToHistory(`${costText} pour <strong>Lancer une sonde</strong> depuis la Terre ${locString}`, currentPlayer.id, game);
       } else {
         console.error('Erreur lors du lancement de la sonde:', result.error);
         alert(result.error || 'Impossible de lancer la sonde');
@@ -820,37 +851,43 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       
     //}
     else if (actionType === ActionType.SCAN_SECTOR) {
-      if (currentPlayer.credits < 1 || currentPlayer.energy < 2) {
+      // Vérifier les resources
+      if (currentPlayer.credits < GAME_CONSTANTS.SCAN_COST_CREDITS || currentPlayer.energy < GAME_CONSTANTS.SCAN_COST_ENERGY) {
         setToast({ message: "Ressources insuffisantes (1 Crédit, 2 Énergies requis)", visible: true });
         return;
       }
-
-      let updatedGame = structuredClone(game);
-      const player = updatedGame.players[updatedGame.currentPlayerIndex];
       
-      // Pay cost
-      player.credits -= 1;
-      player.energy -= 2;
-
-      // 1. Scan Earth Sector
-      const earthPos = getObjectPosition(
-          'earth',
-          updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-          updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-          updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-      );
-
+      // Initier la séquence
+      let updatedGame = structuredClone(game);
+      const updatedPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
       const sequenceId = `scan-${Date.now()}`;
-      const logs: string[] = [`paye 1 Crédit et 2 Énergie pour scanner`];
+      const logs: string[] = [];
 
-      if (earthPos) {
-          const result = SectorSystem.scanSector(updatedGame, player.id, `sector_${earthPos.absoluteSector}`);
+      // Payer le coût
+      updatedPlayer.credits -= GAME_CONSTANTS.SCAN_COST_CREDITS;
+      updatedPlayer.energy -= GAME_CONSTANTS.SCAN_COST_ENERGY;
+      addToHistory(`paye ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit, ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergie pour <strong>Scanner un secteur</strong>`, updatedPlayer.id, game, undefined, sequenceId);
+
+      // Scanner secteur initial (Earth or Adjacent if selected)
+      let targetSectorId = payload?.sectorId;
+      if (!targetSectorId) {
+          const earthPos = getObjectPosition(
+              'earth',
+              updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+              updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+              updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+          );
+          if (earthPos) targetSectorId = `sector_${earthPos.absoluteSector}`;
+      }
+
+      if (targetSectorId) {
+          const result = SectorSystem.scanSector(updatedGame, updatedPlayer.id, targetSectorId, false);
           updatedGame = result.updatedGame;
           logs.push(...result.logs);
           
           // Process bonuses from scan (if any)
           if (result.bonuses) {
-               const bonusRes = processBonuses(result.bonuses, updatedGame, player.id, 'scan');
+               const bonusRes = processBonuses(result.bonuses, updatedGame, updatedPlayer.id, 'scan');
                updatedGame = bonusRes.updatedGame;
                logs.push(...bonusRes.logs);
                if (bonusRes.newPendingInteractions.length > 0) {
@@ -861,7 +898,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-      addToHistory(logs.join(', '), player.id, game, undefined, sequenceId);
+      addToHistory(logs.join(', '), updatedPlayer.id, game, undefined, sequenceId);
 
       setInteractionState({ type: 'SELECTING_SCAN_CARD', sequenceId });
       setIsRowOpen(true);
@@ -900,57 +937,23 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
 
       let updatedGame = structuredClone(game);
-      const playerIndex = updatedGame.currentPlayerIndex;
-      const player = updatedGame.players[playerIndex];
+      const player = updatedGame.players[updatedGame.currentPlayerIndex];
+
+      // Initier la séquence
+      const sequenceId = `tech-${Date.now()}`;
 
       // Payer le coût
       player.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
+      addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias`, player.id, game, undefined, sequenceId);
 
-      // Rotation du système solaire
-      updatedGame.board = {
-        ...updatedGame.board,
-        solarSystem: { ...updatedGame.board.solarSystem },
-        technologyBoard: { ...updatedGame.board.technologyBoard }
-      };
-
-      const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 3;
-      const oldRotationState = createRotationState(
-        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-      );
-
-      if (currentLevel === 3) {
-        updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
-        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-      } else if (currentLevel === 2) {
-        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-      } else if (currentLevel === 1) {
-        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-      }
-
-      updatedGame.board.solarSystem.nextRingLevel = currentLevel === 3 ? 1 : currentLevel + 1;
-
-      const newRotationState = createRotationState(
-        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-      );
-
-      const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
-      updatedGame = rotationResult.game;
-      
-      const logMessage = formatRotationLogs(
-        `paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias et fait tourner le système solaire (Niveau ${currentLevel}) `,
-        rotationResult.logs
-      );
-      addToHistory(logMessage, player.id, game);
+      // Faire tourner le systeme solaire
+      const rotationRes = performRotation(updatedGame);
+      updatedGame = rotationRes.updatedGame;
+      rotationRes.logs.forEach(log => addToHistory(log, player.id, game, undefined, sequenceId));
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-      setInteractionState({ type: 'ACQUIRING_TECH', isBonus: false });
+      setInteractionState({ type: 'ACQUIRING_TECH', isBonus: false, sequenceId });
       setIsTechOpen(true);
       setToast({ message: "Système pivoté. Sélectionnez une technologie.", visible: true });
     }
@@ -1006,16 +1009,19 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (!bonuses) return { updatedGame, newPendingInteractions, logs, passiveGains };
 
     // Gains passifs pour le résumé
-    if (bonuses.pv) { const txt = formatResource(bonuses.pv, 'PV'); passiveGains.push(txt); logs.push(`gagne ${txt}`); }
-    if (bonuses.media) { const txt = formatResource(bonuses.media, 'MEDIA'); passiveGains.push(txt); logs.push(`gagne ${txt}`); }
-    if (bonuses.credits) { const txt = formatResource(bonuses.credits, 'CREDIT'); passiveGains.push(txt); logs.push(`gagne ${txt}`); }
-    if (bonuses.energy) { const txt = formatResource(bonuses.energy, 'ENERGY'); passiveGains.push(txt); logs.push(`gagne ${txt}`); }
-    if (bonuses.data) { const txt = formatResource(bonuses.data, 'DATA'); passiveGains.push(txt); logs.push(`gagne ${txt}`); }
+    if (bonuses.media) { const txt = formatResource(bonuses.media, 'MEDIA'); passiveGains.push(txt); }
+    if (bonuses.credits) { const txt = formatResource(bonuses.credits, 'CREDIT'); passiveGains.push(txt); }
+    if (bonuses.energy) { const txt = formatResource(bonuses.energy, 'ENERGY'); passiveGains.push(txt); }
+    if (bonuses.data) { const txt = formatResource(bonuses.data, 'DATA'); passiveGains.push(txt); }
+    if (bonuses.pv) { const txt = formatResource(bonuses.pv, 'PV'); passiveGains.push(txt); }
+
+    const gainsText = passiveGains.length > 0 ? `${passiveGains.join(', ')}` : '';
+    if (gainsText) logs.push(`gagne ${gainsText}`);
 
     // Effets immédiats qui modifient l'état (Rotation)
     if (bonuses.rotation) {
         for (let i = 0; i < bonuses.rotation; i++) {
-            const rotationResult = performRotation(updatedGame, 'bonus de carte');
+            const rotationResult = performRotation(updatedGame);
             updatedGame = rotationResult.updatedGame;
             logs.push(...rotationResult.logs);
         }
@@ -1562,11 +1568,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonuses);
     setHasPerformedMainAction(true);
     
+    const sequenceId = `seq-${Date.now()}`;
+
     const gainsText = passiveGains.length > 0 ? ` (Gains: ${passiveGains.join(', ')})` : '';
     setToast({ message: `Carte jouée: ${card.name}${gainsText}`, visible: true });
-    
-    const sequenceId = `seq-${Date.now()}`;
-    
+        
     // Construction du message d'historique unifié
     let message = `joue la carte "${card.name}" pour ${card.cost} crédits`;
     
@@ -1603,7 +1609,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
     
     addToHistory(message, currentPlayer.id, currentGame, undefined, sequenceId);
-    
     if (otherLogs.length > 0) {
         otherLogs.forEach(log => addToHistory(log, currentPlayer.id, gameAfterBonuses, undefined, sequenceId));
     }
@@ -1629,18 +1634,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const res = ResourceSystem.updateMedia(updatedGame, currentPlayerId, 1);
       updatedGame = res.updatedGame;
       setToast({ message: "Action gratuite : +1 Média", visible: true });
-      addToHistory(`défausse une carte pour gagner ${formatResource(1, 'MEDIA')}`, currentPlayerId, game);
+      addToHistory(`défausse carte "${card.name}" et gagne ${formatResource(1, 'MEDIA')}`, currentPlayerId, game);
     } else if (card.freeAction === FreeActionType.DATA) {
       const res = ResourceSystem.updateData(updatedGame, currentPlayerId, 1);
       updatedGame = res.updatedGame;
       setToast({ message: "Action gratuite : +1 Data", visible: true });
-      addToHistory(`défausse une carte pour gagner ${formatResource(1, 'DATA')}`, currentPlayerId, game);
+      addToHistory(`défausse carte "${card.name}" et gagne ${formatResource(1, 'DATA')}`, currentPlayerId, game);
     } else if (card.freeAction === FreeActionType.MOVEMENT) {
       const probes = currentPlayer.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
       const autoSelectProbeId = probes.length === 1 ? probes[0].id : undefined;
       setInteractionState({ type: 'MOVING_PROBE', count: 1, autoSelectProbeId });
       setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
-      addToHistory("défausse une carte pour un déplacement gratuit", currentPlayerId, game);
+      addToHistory(`défausse carte "${card.name}" et gagne 1 déplacement gratuit`, currentPlayerId, game);
     }
     
     // Défausser la carte
@@ -1683,127 +1688,91 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   
   // Gestionnaire pour la sélection d'une carte de la pioche ou de la rangée principale
   const handleCardRowClick = (cardId?: string) => { // cardId undefined means deck
+    // Cas 1: Sélection pour 2eme action scan
     if (interactionState.type === 'SELECTING_SCAN_CARD') {
         if (!cardId) return; // Cannot select deck for scan color
         const card = game.decks.cardRow.find(c => c.id === cardId);
         if (!card) return;
 
-        setInteractionState({ 
-            type: 'SELECTING_SCAN_SECTOR', 
-            color: card.scanSector, 
-            sequenceId: interactionState.sequenceId,
-            cardId: card.id
-        });
+        setInteractionState({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId: interactionState.sequenceId, cardId: card.id });
+        setIsRowOpen(false);
         setToast({ message: `Sélectionnez un secteur ${card.scanSector}`, visible: true });
         return;
     }
 
-    if (interactionState.type !== 'ACQUIRING_CARD') return;
-    
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    let result: { updatedGame: Game, error?: string };
-
-    if (interactionState.isFree) {
-        // Logique pour carte gratuite (Bonus)
-        const updatedGame = structuredClone(game);
-        const player = updatedGame.players[updatedGame.currentPlayerIndex];
-        
-        if (cardId) {
-            // Prendre de la rangée
-            const rowIndex = updatedGame.decks.cardRow.findIndex(c => c.id === cardId);
-            if (rowIndex !== -1) {
-                const card = updatedGame.decks.cardRow[rowIndex];
-                player.cards.push(card);
-                updatedGame.decks.cardRow.splice(rowIndex, 1);
-                
-                // Remplir la rangée
-                if (updatedGame.decks.cards.length > 0) {
-                    updatedGame.decks.cardRow.push(updatedGame.decks.cards.shift()!);
-                }
-            } else {
-                // Carte non trouvée (ne devrait pas arriver)
-                return;
-            }
-        } else {
-            // Piocher du paquet
-            if (updatedGame.decks.cards.length > 0) {
-                player.cards.push(updatedGame.decks.cards.shift()!);
-            } else {
-                setToast({ message: "Pioche vide", visible: true });
-                return;
-            }
-        }
-        result = { updatedGame };
-    } else {
-        // Achat normal via ResourceSystem (coût en média)
-        result = ResourceSystem.buyCard(game, currentPlayer.id, cardId);
-    }
-    
-    if (result.error) {
-      setToast({ message: result.error, visible: true });
-      // On reste dans l'état ACQUIRING_CARD pour permettre de réessayer ou d'annuler via l'overlay
-      return;
-    }
-
-    let freeActionLog = "";
-    if (interactionState.triggerFreeAction) {
-        const player = result.updatedGame.players.find(p => p.id === currentPlayer.id);
-        if (player && player.cards.length > 0) {
-            const card = player.cards[player.cards.length - 1];
-            card.isRevealed = true;
-            
-            if (card.freeAction === FreeActionType.MEDIA) {
-                player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-                setToast({ message: "Action gratuite : +1 Média", visible: true });
-                freeActionLog = " et gagne 1 Média (Action gratuite)";
-            } else if (card.freeAction === FreeActionType.DATA) {
-                player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
-                setToast({ message: "Action gratuite : +1 Donnée", visible: true });
-                freeActionLog = " et gagne 1 Donnée (Action gratuite)";
-            } else if (card.freeAction === FreeActionType.MOVEMENT) {
-                setPendingInteractions(prev => [{ type: 'MOVING_PROBE', count: 1 }, ...prev]);
-                setToast({ message: "Action gratuite : +1 Déplacement", visible: true });
-                freeActionLog = " et gagne 1 Déplacement (Action gratuite)";
-            }
-        }
-    }
-
-    // Récupérer le nom de la carte pour le log
-    let cardName = "Inconnue";
-    if (cardId) {
-        const card = game.decks.cardRow.find(c => c.id === cardId);
-        if (card) cardName = card.name;
-    } else {
-        const updatedPlayer = result.updatedGame.players.find(p => p.id === currentPlayer.id);
-        if (updatedPlayer && updatedPlayer.cards.length > 0) {
-            cardName = updatedPlayer.cards[updatedPlayer.cards.length - 1].name;
-        }
-    }
-
-    setGame(result.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    
-    const msg = interactionState.isFree ? "Carte obtenue (Bonus)" : "Carte achetée (-3 Média)";
-    setToast({ message: msg, visible: true });
-    
-    const logMsg = interactionState.isFree 
-        ? (cardId ? `choisit la carte "${cardName}" (Bonus)` : `pioche la carte "${cardName}" (Bonus)`)
-        : (cardId ? `achète la carte "${cardName}" pour 3 médias` : `achète la carte "${cardName}" (pioche) pour 3 médias`);
-    
-    const sequenceId = (interactionState as any).sequenceId;
-    
-    // Pour l'achat normal, on veut que l'undo revienne à IDLE (pas à la sélection)
-    const undoState: InteractionState = !interactionState.isFree ? { type: 'IDLE' } : interactionState;
-    
-    addToHistory(logMsg + freeActionLog, currentPlayer.id, game, undoState, sequenceId);
-    
-    // Gérer le compteur pour les sélections multiples
-    if (interactionState.count > 1) {
-         setInteractionState({ ...interactionState, count: interactionState.count - 1 });
-         setToast({ message: `Encore ${interactionState.count - 1} carte(s) à choisir`, visible: true });
-    } else {
-        setInteractionState({ type: 'IDLE' });
-        setIsRowOpen(false);
+    // Cas 2: 
+    if (interactionState.type === 'ACQUIRING_CARD') {
+      const currentPlayer = game.players[game.currentPlayerIndex];
+      let result: { updatedGame: Game, error?: string };
+  
+      // Passer interactionState.isFree
+      result = ResourceSystem.buyCard(game, currentPlayer.id, cardId, interactionState.isFree);
+      if (result.error) {
+        setToast({ message: result.error, visible: true });
+        // On reste dans l'état ACQUIRING_CARD pour permettre de réessayer ou d'annuler via l'overlay
+        return;
+      }
+  
+      let freeActionLog = "";
+      if (interactionState.triggerFreeAction) {
+          const player = result.updatedGame.players.find(p => p.id === currentPlayer.id);
+          if (player && player.cards.length > 0) {
+              const card = player.cards[player.cards.length - 1];
+              card.isRevealed = true;
+              
+              if (card.freeAction === FreeActionType.MEDIA) {
+                  player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                  setToast({ message: "Action gratuite : +1 Média", visible: true });
+                  freeActionLog = " et gagne 1 Média (Action gratuite)";
+              } else if (card.freeAction === FreeActionType.DATA) {
+                  player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
+                  setToast({ message: "Action gratuite : +1 Donnée", visible: true });
+                  freeActionLog = " et gagne 1 Donnée (Action gratuite)";
+              } else if (card.freeAction === FreeActionType.MOVEMENT) {
+                  setPendingInteractions(prev => [{ type: 'MOVING_PROBE', count: 1 }, ...prev]);
+                  setToast({ message: "Action gratuite : +1 Déplacement", visible: true });
+                  freeActionLog = " et gagne 1 Déplacement (Action gratuite)";
+              }
+          }
+      }
+  
+      // Récupérer le nom de la carte pour le log
+      let cardName = "Inconnue";
+      if (cardId) {
+          const card = game.decks.cardRow.find(c => c.id === cardId);
+          if (card) cardName = card.name;
+      } else {
+          const updatedPlayer = result.updatedGame.players.find(p => p.id === currentPlayer.id);
+          if (updatedPlayer && updatedPlayer.cards.length > 0) {
+              cardName = updatedPlayer.cards[updatedPlayer.cards.length - 1].name;
+          }
+      }
+  
+      setGame(result.updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
+      
+      const msg = interactionState.isFree ? "Carte obtenue (Bonus)" : "Carte achetée (-3 Média)";
+      setToast({ message: msg, visible: true });
+      
+      const logMsg = interactionState.isFree 
+          ? (cardId ? `choisit la carte "${cardName}" (Bonus)` : `pioche la carte "${cardName}" (Bonus)`)
+          : (cardId ? `achète la carte "${cardName}" pour 3 médias` : `achète la carte "${cardName}" (pioche) pour 3 médias`);
+      
+      const sequenceId = (interactionState as any).sequenceId;
+      
+      // Pour l'achat normal, on veut que l'undo revienne à IDLE (pas à la sélection)
+      const undoState: InteractionState = !interactionState.isFree ? { type: 'IDLE' } : interactionState;
+      
+      addToHistory(logMsg + freeActionLog, currentPlayer.id, game, undoState, sequenceId);
+      
+      // Gérer le compteur pour les sélections multiples
+      if (interactionState.count > 1) {
+           setInteractionState({ ...interactionState, count: interactionState.count - 1 });
+           setToast({ message: `Encore ${interactionState.count - 1} carte(s) à choisir`, visible: true });
+      } else {
+          setInteractionState({ type: 'IDLE' });
+          setIsRowOpen(false);
+      }
     }
   };
 
@@ -1862,36 +1831,33 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     const gainsText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
     
-    // Si on est en train de rechercher (Action principale), on fusionne avec l'entrée de rotation
-    if (previousInteractionState.type === 'ACQUIRING_TECH' && !previousInteractionState.isBonus) {
+    const sequenceId = (previousInteractionState as any).sequenceId;
+    const isBonus = (previousInteractionState as any).isBonus;
+
+    // Si on est en train de rechercher (Action principale avec sequenceId), on fusionne avec l'entrée de rotation
+    if (sequenceId && !isBonus) {
       setHistoryLog(prev => {
-        // Trouver l'entrée de la rotation (dernière entrée avec un état précédent sauvegardé)
-        let rotationEntryIndex = -1;
-        for (let i = prev.length - 1; i >= 0; i--) {
-          if (prev[i].previousState) {
-            rotationEntryIndex = i;
-            break;
-          }
+        // Trouver l'entrée de début de séquence
+        const firstEntryIndex = prev.findIndex(e => e.sequenceId === sequenceId);
+
+        if (firstEntryIndex !== -1) {
+            const firstEntry = prev[firstEntryIndex];
+            const sequenceMessages = prev.filter(e => e.sequenceId === sequenceId).map(e => e.message);
+            const prefix = sequenceMessages.join(', ');
+
+            const newEntry: HistoryEntry = {
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                message: `${prefix} pour rechercher la technologie "${category} ${tech.name}"${gainsText}`,
+                playerId: currentPlayer.id,
+                previousState: firstEntry.previousState,
+                previousInteractionState: { type: 'IDLE' },
+                previousHasPerformedMainAction: false,
+                previousPendingInteractions: [],
+                timestamp: Date.now()
+            };
+            return [...prev.slice(0, firstEntryIndex), newEntry];
         }
-        
-        if (rotationEntryIndex !== -1) {
-          const rotationEntry = prev[rotationEntryIndex];
-          
-          const newEntry: HistoryEntry = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            message: `${rotationEntry.message} pour rechercher la technologie "${category} ${tech.name}"${gainsText}`,
-            playerId: currentPlayer.id,
-            previousState: rotationEntry.previousState, // État AVANT la rotation
-            previousInteractionState: rotationEntry.previousInteractionState, // État IDLE
-            previousHasPerformedMainAction: rotationEntry.previousHasPerformedMainAction,
-            previousPendingInteractions: rotationEntry.previousPendingInteractions,
-            timestamp: Date.now()
-          };
-          
-          // Remplacer l'entrée de rotation (et les logs intermédiaires) par la nouvelle entrée
-          return [...prev.slice(0, rotationEntryIndex), newEntry];
-        }
-        
+
         // Fallback si pas d'entrée précédente trouvée (ne devrait pas arriver)
         const fallbackEntry: HistoryEntry = {
           id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -1907,7 +1873,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       });
     } else {
       // Sinon (Bonus), on ajoute une nouvelle entrée atomique
-      const sequenceId = (previousInteractionState as any).sequenceId;
       addToHistory(`acquiert la technologie "${category} ${tech.name}"${gainsText}`, currentPlayer.id, currentGame, previousInteractionState, sequenceId);
     }
   };
@@ -1935,65 +1900,29 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             return;
         }
 
-        // Exécuter la rotation (Logique copiée de handleAction RESEARCH_TECH)
         let updatedGame = structuredClone(game);
         const player = updatedGame.players[updatedGame.currentPlayerIndex];
 
+        const sequenceId = `tech-${Date.now()}`;
+
         // Payer le coût
         player.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
+        addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias`, player.id, game, undefined, sequenceId);
 
-        // Rotation
-        updatedGame.board = {
-            ...updatedGame.board,
-            solarSystem: { ...updatedGame.board.solarSystem },
-            technologyBoard: { ...updatedGame.board.technologyBoard }
-        };
-
-        const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 3;
-        const oldRotationState = createRotationState(
-            updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-            updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-            updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-        );
-
-        if (currentLevel === 3) {
-            updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
-            updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-            updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-        } else if (currentLevel === 2) {
-            updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-            updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-        } else if (currentLevel === 1) {
-            updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-        }
-
-        updatedGame.board.solarSystem.nextRingLevel = currentLevel === 3 ? 1 : currentLevel + 1;
-
-        const newRotationState = createRotationState(
-            updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-            updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-            updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-        );
-
-        const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
-        updatedGame = rotationResult.game;
-        
-        // Ajouter les logs de rotation
-        const logMessage = formatRotationLogs(
-            `paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias et fait tourner le système solaire (Niveau ${currentLevel}) `,
-            rotationResult.logs
-        );
-        addToHistory(logMessage, player.id, game);
+        // Faire tourner le systeme solaire
+        const rotationResult = performRotation(updatedGame);
+        updatedGame = rotationResult.updatedGame;
+        rotationResult.logs.forEach(log => addToHistory(log, player.id, game, undefined, sequenceId));
 
         // Traiter l'achat ou la sélection de slot
         if (tech.id.startsWith('computing')) {
             setGame(updatedGame);
             if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-            setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech });
+            setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId });
             setToast({ message: "Système pivoté. Sélectionnez une colonne (1, 3, 5, 6) sur l'ordinateur", visible: true });
         } else {
             // Achat direct avec fusion des logs (simule RESEARCHING)
-            processTechPurchase(tech, undefined, updatedGame, { type: 'ACQUIRING_TECH', isBonus: false }, false);
+            processTechPurchase(tech, undefined, updatedGame, { type: 'ACQUIRING_TECH', isBonus: false, sequenceId }, false);
         }
     }
   };
@@ -2040,13 +1969,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   };
 
   // Gestionnaire pour les bonus ordinateur (déclenché depuis PlayerBoardUI)
-  const handleComputerBonus = (type: string, amount: number) => {
+  const handleComputerBonus = (type: string, amount: number, sequenceId?: string) => {
     if (type === 'reservation') {
       const currentPlayer = gameRef.current.players[gameRef.current.currentPlayerIndex];
       const count = Math.min(amount, currentPlayer.cards.length);
       if (count > 0) {
-        const sequenceId = (interactionState as any).sequenceId;
-        setInteractionState({ type: 'RESERVING_CARD', count: count, sequenceId, selectedCards: [] });
+        const seqId = sequenceId || (interactionState as any).sequenceId;
+        setInteractionState({ type: 'RESERVING_CARD', count: count, sequenceId: seqId, selectedCards: [] });
         setToast({ message: `Réservez ${count} carte${count > 1 ? 's' : ''}`, visible: true });
       } else {
         setToast({ message: "Aucune carte à réserver", visible: true });
@@ -2131,8 +2060,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
        // Earth sector
        const earthPos = getObjectPosition('earth', game.board.solarSystem.rotationAngleLevel1 || 0, game.board.solarSystem.rotationAngleLevel2 || 0, game.board.solarSystem.rotationAngleLevel3 || 0);
        if (earthPos) {
-           // sector IDs are sector_1, sector_2...
-           return [`sector_${earthPos.absoluteSector}`];
+           const sectors = [`sector_${earthPos.absoluteSector}`];
+           
+           const currentPlayer = game.players[game.currentPlayerIndex];
+           const hasObs1 = currentPlayer.technologies.some(t => t.id.startsWith('observation-1'));
+           
+           if (hasObs1) {
+               const prev = earthPos.absoluteSector === 1 ? 8 : earthPos.absoluteSector - 1;
+               const next = earthPos.absoluteSector === 8 ? 1 : earthPos.absoluteSector + 1;
+               sectors.push(`sector_${prev}`);
+               sectors.push(`sector_${next}`);
+           }
+           return sectors;
        }
     }
     return [];
@@ -2604,6 +2543,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
              setInteractionState({ type: 'IDLE' });
              setIsRowOpen(false);
           } else if (interactionState.type === 'SELECTING_SCAN_CARD') {
+             setIsRowOpen(false);
              // Cannot cancel easily in middle of sequence, maybe toast warning?
           } else if (interactionState.type === 'RESERVING_CARD') {
              setToast({ message: "Veuillez sélectionner une carte à réserver", visible: true });
@@ -2652,7 +2592,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 isAnalyzing={interactionState.type === 'ANALYZING'}
                 hasPerformedMainAction={hasPerformedMainAction}
                 onNextPlayer={handleNextPlayer}
-                onHistory={(message) => addToHistory(message, game.players[game.currentPlayerIndex].id, game)}
+                onHistory={(message, sequenceId) => addToHistory(message, game.players[game.currentPlayerIndex].id, game, undefined, sequenceId)}
                 onComputerBonus={handleComputerBonus}
                 isPlacingLifeTrace={interactionState.type === 'PLACING_LIFE_TRACE'}
                 isSelectingSector={interactionState.type === 'SELECTING_SCAN_SECTOR' || interactionState.type === 'SELECTING_SCAN_CARD'}
@@ -2674,6 +2614,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               onSectorClick={handleSectorClick}
               highlightPlayerProbes={interactionState.type === 'MOVING_PROBE'}
               highlightedSectorSlots={getHighlightedSectors()}
+              animateSectorSlots={interactionState.type === 'IDLE'}
               freeMovementCount={interactionState.type === 'MOVING_PROBE' ? interactionState.count : 0}
               hasPerformedMainAction={hasPerformedMainAction}
               autoSelectProbeId={interactionState.type === 'MOVING_PROBE' ? interactionState.autoSelectProbeId : undefined}

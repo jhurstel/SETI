@@ -41,8 +41,8 @@ export enum ProbeState {
 }
 
 export enum SignalType {
-  DATA = "DATA",
-  MEDIA = "MEDIA",
+  DATA = "Donnée",
+  MEDIA = "Média",
   OTHER = "OTHER"
 }
 
@@ -66,10 +66,10 @@ export enum RevenueType {
 }
 
 export enum SectorColor {
-  BLUE = "BLUE",
-  RED = "RED",
-  YELLOW = "YELLOW",
-  BLACK = "BLACK"
+  BLUE = "Bleu",
+  RED = "Rouge",
+  YELLOW = "Jaune",
+  BLACK = "Noir"
 }
 
 export enum TechnologyCategory {

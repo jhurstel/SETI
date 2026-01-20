@@ -1,8 +1,8 @@
-import { Game, Player, GAME_CONSTANTS } from '../core/types';
+import { Game, GAME_CONSTANTS } from '../core/types';
 import { CardSystem } from './CardSystem';
 
 export class ResourceSystem {
-  static buyCard(game: Game, playerId: string, cardIdFromRow?: string): { updatedGame: Game, error?: string } {
+  static buyCard(game: Game, playerId: string, cardIdFromRow?: string, isFree: boolean = false): { updatedGame: Game, error?: string } {
     let updatedGame = { ...game };
     
     // Copie profonde du joueur et de ses cartes
@@ -10,12 +10,14 @@ export class ResourceSystem {
     const player = updatedGame.players.find(p => p.id === playerId);
     if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
 
-    if (player.mediaCoverage < 3) {
-      return { updatedGame: game, error: "Couverture médiatique insuffisante" };
+    if (!isFree) {
+      if (player.mediaCoverage < 3) {
+        return { updatedGame: game, error: "Couverture médiatique insuffisante" };
+      }
+
+      player.mediaCoverage -= 3;
     }
 
-    player.mediaCoverage -= 3;
-    
     if (cardIdFromRow) {
       // Copie profonde de la rangée de cartes avant modification
       updatedGame.decks = {
