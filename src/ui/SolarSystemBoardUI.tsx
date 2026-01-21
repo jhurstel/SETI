@@ -1497,7 +1497,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   const renderSectorDetails = () => {
     if (!game.board.sectors) return null;
     const currentPlayer = game.players[game.currentPlayerIndex];
-
     return (
       <svg
         style={{

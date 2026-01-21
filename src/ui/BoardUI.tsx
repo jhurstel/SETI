@@ -178,6 +178,32 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
   , document.body);
 };
 
+const AlienTriangleSlot = ({ color, children, onMouseEnter, onMouseLeave }: { color: string, children?: React.ReactNode, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
+  <div 
+    style={{ position: 'relative', width: '60px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}
+    onMouseEnter={onMouseEnter}
+    onMouseLeave={onMouseLeave}
+  >
+    <svg width="60" height="50" viewBox="0 0 60 50" style={{ position: 'absolute', top: 0, left: 0, overflow: 'visible' }}>
+      <path
+        d="M10 5
+           Q30 -5 50 5
+           Q60 10 55 15
+           L35 45
+           Q30 50 25 45
+           L5 15
+           Q0 10 10 5 Z"
+        fill="rgba(0, 0, 0, 0.5)"
+        stroke={color}
+        strokeWidth="2"
+      />
+    </svg>
+    <div style={{ zIndex: 1, color: '#fff', fontWeight: 'bold', fontSize: '1.2em' }}>
+      {children}
+    </div>
+  </div>
+);
+
 export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // États pour le jeu
   const [game, setGame] = useState<Game>(initialGame);
@@ -2059,6 +2085,69 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     return [];
   };
 
+  // Helper pour le tooltip des slots Alien
+  const renderAlienSlotTooltip = (boardIndex: number, colorType: 'red' | 'blue' | 'yellow') => {
+    const board = game.board.alienBoards[boardIndex];
+    if (!board) return null;
+
+    let traces: any[] = [];
+    let colorName = "";
+    let colorHex = "";
+
+    if (colorType === 'red') {
+      traces = board.redLifeTraces;
+      colorName = "Rouge";
+      colorHex = "#ff6b6b";
+    } else if (colorType === 'blue') {
+      traces = board.blueLifeTraces;
+      colorName = "Bleue";
+      colorHex = "#4a9eff";
+    } else if (colorType === 'yellow') {
+      traces = board.yellowLifeTraces;
+      colorName = "Jaune";
+      colorHex = "#ffd700";
+    }
+
+    const formatBonusSimple = (bonus: any) => {
+        const parts = [];
+        if (bonus.pv) parts.push(`${bonus.pv} PV`);
+        if (bonus.media) parts.push(`${bonus.media} Média`);
+        return parts.join(', ') || 'Aucun';
+    };
+
+    return (
+      <div style={{ textAlign: 'center', minWidth: '180px' }}>
+        <div style={{ fontWeight: 'bold', color: colorHex, marginBottom: '6px', borderBottom: '1px solid #555', paddingBottom: '4px' }}>
+          Trace de vie {colorName}
+        </div>
+        
+        {traces.length > 0 ? (
+          <div style={{ marginBottom: '8px' }}>
+            <div style={{ fontSize: '0.8em', color: '#aaa', marginBottom: '2px' }}>Découvert par :</div>
+            {traces.map((trace, idx) => {
+              const player = game.players.find(p => p.id === trace.playerId);
+              return (
+                <div key={idx} style={{ color: player?.color || '#fff', fontWeight: 'bold', fontSize: '0.9em' }}>
+                  {player?.name || 'Inconnu'}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ fontStyle: 'italic', color: '#888', marginBottom: '8px', fontSize: '0.9em' }}>Aucune trace découverte</div>
+        )}
+
+        <div style={{ fontSize: '0.8em', marginTop: '4px', borderTop: '1px solid #555', paddingTop: '4px', textAlign: 'left' }}>
+          <div style={{ color: '#ccc', marginBottom: '2px' }}>Bonus 1ère découverte : <span style={{ color: '#ffd700', float: 'right' }}>{formatBonusSimple(board.firstBonus)}</span></div>
+          <div style={{ color: '#ccc' }}>Bonus suivants : <span style={{ color: '#ffd700', float: 'right' }}>{formatBonusSimple(board.nextBonus)}</span></div>
+        </div>
+      </div>
+    );
+  };
+
+  const currentPlayer = game.players[game.currentPlayerIndex];
+  const canResearch = !hasPerformedMainAction && interactionState.type === 'IDLE' && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
+
   return (
     <div className="seti-root">
       <style>{`
@@ -2143,7 +2232,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           border: 1px solid #555;
           border-radius: 6px;
           overflow: hidden;
-          transition: max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease, border-color 0.3s ease;
+          transition: box-shadow 0.3s ease, border-color 0.3s ease;
           max-height: 40px; /* Hauteur du header */
           display: flex;
           flex-direction: column;
@@ -2207,7 +2296,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           max-height: 33vh !important;
         }
         .seti-icon-panel {
-          transition: width 0.3s ease, max-height 0.5s ease, border-radius 0.3s ease;
           width: 100%;
         }
         .seti-icon-panel.collapsed {
@@ -2239,6 +2327,23 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }
         .seti-icon-panel.collapsed:hover .seti-foldable-header::after {
           display: block;
+        }
+        @keyframes icon-text-flash {
+          0% { text-shadow: 0 0 0 rgba(76, 175, 80, 0); transform: scale(1); }
+          50% { text-shadow: 0 0 15px rgba(76, 175, 80, 1); transform: scale(1.2); color: #4caf50; }
+          100% { text-shadow: 0 0 0 rgba(76, 175, 80, 0); transform: scale(1); }
+        }
+        @keyframes container-glow-flash {
+          0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); border-color: #555; }
+          50% { box-shadow: 0 0 10px 5px rgba(76, 175, 80, 0.6); border-color: #4caf50; }
+          100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); border-color: #555; }
+        }
+        .icon-flash {
+          animation: icon-text-flash 2s ease-in-out infinite;
+          display: inline-block;
+        }
+        .container-flash {
+          animation: container-glow-flash 2s ease-in-out infinite;
         }
       `}</style>
       {/* Toast Notification */}
@@ -2613,14 +2718,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             {/* Plateaux annexes en haut à gauche */}
             <div style={{
               position: 'absolute',
-              top: '15px',
-              left: '15px',
-              width: '560px',
+              top: '-5px',
+              left: '-5px',
+              width: '600px',
+              padding: '20px',
               zIndex: (interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? 1501 : 1000,
               display: 'flex',
               flexDirection: 'column',
               gap: '10px',
-              maxHeight: 'calc(100% - 30px)',
+              maxHeight: 'calc(100% - 10px)',
               overflowY: 'auto',
               pointerEvents: 'none',
             }}>
@@ -2732,14 +2838,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 </div>
               </div>
 
-              <div className={`seti-foldable-container seti-icon-panel ${isTechOpen ? 'open' : 'collapsed'}`}
+              <div className={`seti-foldable-container seti-icon-panel ${isTechOpen ? 'open' : 'collapsed'} ${canResearch && !isTechOpen ? 'container-flash' : ''}`}
                   style={{ 
                     pointerEvents: 'auto',
                     ...(interactionState.type === 'ACQUIRING_TECH' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
                   }}
               >
                 <div className="seti-foldable-header" onClick={() => setIsTechOpen(!isTechOpen)}>
-                  <span className="panel-icon">🔬</span>
+                  <span className={`panel-icon ${canResearch ? 'icon-flash' : ''}`}>🔬</span>
                   <span className="panel-title">Technologies</span>
                 </div>
                 <div className="seti-foldable-content">
@@ -2940,7 +3046,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 borderTopLeftRadius: '50px',
                 borderTopRightRadius: '50px',
               }}>
-                <div className="seti-foldable-header" onClick={() => setIsAlienBoardAOpen(!isAlienBoardAOpen)} style={{ justifyContent: 'center' }}>
+                <div className="seti-foldable-header" onClick={() => setIsAlienBoardAOpen(!isAlienBoardAOpen)}>
                   <span className="panel-icon">👽</span>
                   <span className="panel-title">Alien Board</span>
                 </div>
@@ -2955,53 +3061,35 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     borderTop: '1px solid #444'
                   }}>
                     {/* Red Life Trace Slot */}
-                    <div style={{
-                      width: '50px',
-                      height: '50px',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      border: '2px solid #ff6b6b', // Red border
-                      clipPath: "path('M20 0C9 0 0 9 0 20L42 93C46 100 54 100 58 93L100 20C100 9 91 0 80 0Z')",
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#fff',
-                      fontSize: '1.2em',
-                      fontWeight: 'bold'
-                    }}>
-                      {/* Player marker or empty */}
-                    </div>
+                    <AlienTriangleSlot color="#ff6b6b" 
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ content: renderAlienSlotTooltip(0, 'red'), rect });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                    >
+                       {game.board.alienBoards[0].redLifeTraces.length > 0 && game.board.alienBoards[0].redLifeTraces.length}
+                    </AlienTriangleSlot>
                     {/* Blue Life Trace Slot */}
-                    <div style={{
-                      width: '50px',
-                      height: '50px',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      border: '2px solid #4a9eff', // Blue border
-                      clipPath: "path('M20 0C9 0 0 9 0 20L42 93C46 100 54 100 58 93L100 20C100 9 91 0 80 0Z')",
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#fff',
-                      fontSize: '1.2em',
-                      fontWeight: 'bold'
-                    }}>
-                      {/* Player marker or empty */}
-                    </div>
+                    <AlienTriangleSlot color="#4a9eff"
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ content: renderAlienSlotTooltip(0, 'blue'), rect });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                    >
+                       {game.board.alienBoards[0].blueLifeTraces.length > 0 && game.board.alienBoards[0].blueLifeTraces.length}
+                    </AlienTriangleSlot>
                     {/* Yellow Life Trace Slot */}
-                    <div style={{
-                      width: '50px',
-                      height: '50px',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      border: '2px solid #ffd700', // Yellow border
-                      clipPath: "path('M20 0C9 0 0 9 0 20L42 93C46 100 54 100 58 93L100 20C100 9 91 0 80 0Z')",
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#fff',
-                      fontSize: '1.2em',
-                      fontWeight: 'bold'
-                    }}>
-                      {/* Player marker or empty */}
-                    </div>
+                    <AlienTriangleSlot color="#ffd700"
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ content: renderAlienSlotTooltip(0, 'yellow'), rect });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                    >
+                       {game.board.alienBoards[0].yellowLifeTraces.length > 0 && game.board.alienBoards[0].yellowLifeTraces.length}
+                    </AlienTriangleSlot>
                   </div>
                 </div>
               </div>
@@ -3025,7 +3113,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 borderTopLeftRadius: '50px',
                 borderTopRightRadius: '50px',
               }}>
-                <div className="seti-foldable-header" onClick={() => setIsAlienBoardBOpen(!isAlienBoardBOpen)} style={{ justifyContent: 'center' }}>
+                <div className="seti-foldable-header" onClick={() => setIsAlienBoardBOpen(!isAlienBoardBOpen)}>
                   <span className="panel-icon">👽</span>
                   <span className="panel-title">Alien Board</span>
                 </div>
@@ -3040,53 +3128,35 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     borderTop: '1px solid #444'
                   }}>
                     {/* Red Life Trace Slot */}
-                    <div style={{
-                      width: '50px',
-                      height: '50px',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      border: '2px solid #ff6b6b', // Red border
-                      clipPath: 'polygon(0% 0%, 100% 0%, 50% 100%)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#fff',
-                      fontSize: '1.2em',
-                      fontWeight: 'bold'
-                    }}>
-                      {/* Player marker or empty */}
-                    </div>
+                    <AlienTriangleSlot color="#ff6b6b" 
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ content: renderAlienSlotTooltip(1, 'red'), rect });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                    >
+                       {game.board.alienBoards[1].redLifeTraces.length > 0 && game.board.alienBoards[1].redLifeTraces.length}
+                    </AlienTriangleSlot>
                     {/* Blue Life Trace Slot */}
-                    <div style={{
-                      width: '50px',
-                      height: '50px',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      border: '2px solid #4a9eff', // Blue border
-                      clipPath: "path('M20 0C9 0 0 9 0 20L42 93C46 100 54 100 58 93L100 20C100 9 91 0 80 0Z')",
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#fff',
-                      fontSize: '1.2em',
-                      fontWeight: 'bold'
-                    }}>
-                      {/* Player marker or empty */}
-                    </div>
+                    <AlienTriangleSlot color="#4a9eff"
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ content: renderAlienSlotTooltip(1, 'blue'), rect });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                    >
+                       {game.board.alienBoards[1].blueLifeTraces.length > 0 && game.board.alienBoards[1].blueLifeTraces.length}
+                    </AlienTriangleSlot>
                     {/* Yellow Life Trace Slot */}
-                    <div style={{
-                      width: '50px',
-                      height: '50px',
-                      backgroundColor: 'rgba(0,0,0,0.5)',
-                      border: '2px solid #ffd700', // Yellow border
-                      clipPath: "path('M20 0C9 0 0 9 0 20L42 93C46 100 54 100 58 93L100 20C100 9 91 0 80 0Z')",
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#fff',
-                      fontSize: '1.2em',
-                      fontWeight: 'bold'
-                    }}>
-                      {/* Player marker or empty */}
-                    </div>
+                    <AlienTriangleSlot color="#ffd700"
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ content: renderAlienSlotTooltip(1, 'yellow'), rect });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                    >
+                       {game.board.alienBoards[1].yellowLifeTraces.length > 0 && game.board.alienBoards[1].yellowLifeTraces.length}
+                    </AlienTriangleSlot>
                   </div>
                 </div>
               </div>

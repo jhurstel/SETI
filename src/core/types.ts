@@ -181,7 +181,7 @@ export interface Board {
   sectors: Sector[];
   planets: Planet[];
   technologyBoard: TechnologyBoard;
-  alienBoard: AlienBoard;
+  alienBoards: AlienBoard[];
   objectiveTiles: ObjectiveTile[];
 }
 

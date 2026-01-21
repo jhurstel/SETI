@@ -19,7 +19,6 @@ import {
   TechnologyCategory,
   Technology,
   AlienBoard,
-  LifeTraceTrack,
   ObjectiveTile,
   ObjectiveCategory,
   SectorColor,
@@ -37,7 +36,7 @@ export class BoardManager {
       sectors: this.createSectors(),
       planets: this.createPlanets(),
       technologyBoard: this.createTechnologyBoard(),
-      alienBoard: this.createAlienBoard(),
+      alienBoards: this.createAlienBoards(),
       objectiveTiles: this.createObjectiveTiles()
     };
   }
@@ -498,17 +497,23 @@ export class BoardManager {
   /**
    * Crée le plateau Alien avec les pistes de traces de vie
    */
-  private static createAlienBoard(): AlienBoard {
-    const createTrack = (): LifeTraceTrack => ({
-      slot1: { bonus: { pv: 5, media: 1 } },
-      slot2: { bonus: { pv: 3, media: 1 } }
-    });
-
-    return {
-      red: createTrack(),
-      yellow: createTrack(),
-      blue: createTrack()
-    };
+  private static createAlienBoards(): AlienBoard[] {
+    return [{
+      redLifeTraces: [],
+      yellowLifeTraces: [],
+      blueLifeTraces: [],
+      firstBonus: { pv: 5, media: 1 },
+      nextBonus: { pv: 3, media: 1 },
+      isFirstBoard: true
+    },
+    {
+      redLifeTraces: [],
+      yellowLifeTraces: [],
+      blueLifeTraces: [],
+      firstBonus: { pv: 3, media: 1 },
+      nextBonus: { pv: 3, media: 1 },
+      isFirstBoard: false
+    }];
   }
 
   /**
