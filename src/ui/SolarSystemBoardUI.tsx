@@ -1542,11 +1542,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           const color = colorMap[sector.color] || '#fff';
 
           // Préparation du tooltip Secteur
-          const uniquePlayers = new Set(sector.playerMarkers.map(m => m.playerId)).size;
-          const mediaBonusText = uniquePlayers > 0 
-            ? `${uniquePlayers} Média${uniquePlayers > 1 ? 's' : ''} (1 par joueur présent)` 
-            : "1 Média par joueur présent";
-
+          const mediaBonusText = "1 Média pour chaque joueur présent";
           const firstBonusStr = (formatBonus(sector.firstBonus) || []).join(', ') || 'Aucun';
           const nextBonusStr = (formatBonus(sector.nextBonus) || []).join(', ') || 'Aucun';
           

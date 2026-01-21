@@ -216,6 +216,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const [isObjectivesOpen, setIsObjectivesOpen] = useState(false);
   const [isRowOpen, setIsRowOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(true);
+  const [isAlienBoardAOpen, setIsAlienBoardAOpen] = useState(false);
+  const [isAlienBoardBOpen, setIsAlienBoardBOpen] = useState(false);
 
   // État pour le tooltip générique
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
@@ -2624,7 +2626,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             }}>
               <div className={`seti-foldable-container seti-icon-panel ${isObjectivesOpen ? 'open' : 'collapsed'}`} style={{ pointerEvents: 'auto' }}>
                 <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
-                  <span className="panel-icon">🎯</span>
+                  <span className="panel-icon">🏆</span>
                   <span className="panel-title">Objectifs</span>
                 </div>
                 <div className="seti-foldable-content">
@@ -2918,6 +2920,176 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                  </div>
                </div>
             </div>
+            </div>
+
+            {/* Plateau Alien A en bas à gauche */}
+            <div style={{
+              position: 'absolute',
+              bottom: '15px',
+              left: '15px',
+              width: '240px',
+              zIndex: 1000,
+              display: 'flex',
+              flexDirection: 'column',
+              pointerEvents: 'none',
+              alignItems: 'flex-start'
+            }}>
+              <div className={`seti-foldable-container seti-icon-panel ${isAlienBoardAOpen ? 'open' : 'collapsed'}`} style={{ 
+                pointerEvents: 'auto',
+                flexDirection: 'column-reverse',
+                borderTopLeftRadius: '50px',
+                borderTopRightRadius: '50px',
+              }}>
+                <div className="seti-foldable-header" onClick={() => setIsAlienBoardAOpen(!isAlienBoardAOpen)} style={{ justifyContent: 'center' }}>
+                  <span className="panel-icon">👽</span>
+                  <span className="panel-title">Alien Board</span>
+                </div>
+                <div className="seti-foldable-content" style={{ display: 'flex', flexDirection: 'column' }}>
+                  {/* Contenu vide pour l'instant */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-around',
+                    width: '100%',
+                    padding: '10px 15px',
+                    marginTop: 'auto', // Push to bottom
+                    borderTop: '1px solid #444'
+                  }}>
+                    {/* Red Life Trace Slot */}
+                    <div style={{
+                      width: '50px',
+                      height: '50px',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '2px solid #ff6b6b', // Red border
+                      clipPath: "path('M20 0C9 0 0 9 0 20L42 93C46 100 54 100 58 93L100 20C100 9 91 0 80 0Z')",
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontSize: '1.2em',
+                      fontWeight: 'bold'
+                    }}>
+                      {/* Player marker or empty */}
+                    </div>
+                    {/* Blue Life Trace Slot */}
+                    <div style={{
+                      width: '50px',
+                      height: '50px',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '2px solid #4a9eff', // Blue border
+                      clipPath: "path('M20 0C9 0 0 9 0 20L42 93C46 100 54 100 58 93L100 20C100 9 91 0 80 0Z')",
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontSize: '1.2em',
+                      fontWeight: 'bold'
+                    }}>
+                      {/* Player marker or empty */}
+                    </div>
+                    {/* Yellow Life Trace Slot */}
+                    <div style={{
+                      width: '50px',
+                      height: '50px',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '2px solid #ffd700', // Yellow border
+                      clipPath: "path('M20 0C9 0 0 9 0 20L42 93C46 100 54 100 58 93L100 20C100 9 91 0 80 0Z')",
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontSize: '1.2em',
+                      fontWeight: 'bold'
+                    }}>
+                      {/* Player marker or empty */}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Plateau Alien B en bas à droite */}
+            <div style={{
+              position: 'absolute',
+              bottom: '15px',
+              right: '15px',
+              width: '240px',
+              zIndex: 1000,
+              display: 'flex',
+              flexDirection: 'column',
+              pointerEvents: 'none',
+              alignItems: 'flex-end'
+            }}>
+              <div className={`seti-foldable-container seti-icon-panel ${isAlienBoardBOpen ? 'open' : 'collapsed'}`} style={{ 
+                pointerEvents: 'auto',
+                flexDirection: 'column-reverse',
+                borderTopLeftRadius: '50px',
+                borderTopRightRadius: '50px',
+              }}>
+                <div className="seti-foldable-header" onClick={() => setIsAlienBoardBOpen(!isAlienBoardBOpen)} style={{ justifyContent: 'center' }}>
+                  <span className="panel-icon">👽</span>
+                  <span className="panel-title">Alien Board</span>
+                </div>
+                <div className="seti-foldable-content" style={{ display: 'flex', flexDirection: 'column' }}>
+                  {/* Contenu vide pour l'instant */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-around',
+                    width: '100%',
+                    padding: '10px 15px',
+                    marginTop: 'auto', // Push to bottom
+                    borderTop: '1px solid #444'
+                  }}>
+                    {/* Red Life Trace Slot */}
+                    <div style={{
+                      width: '50px',
+                      height: '50px',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '2px solid #ff6b6b', // Red border
+                      clipPath: 'polygon(0% 0%, 100% 0%, 50% 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontSize: '1.2em',
+                      fontWeight: 'bold'
+                    }}>
+                      {/* Player marker or empty */}
+                    </div>
+                    {/* Blue Life Trace Slot */}
+                    <div style={{
+                      width: '50px',
+                      height: '50px',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '2px solid #4a9eff', // Blue border
+                      clipPath: "path('M20 0C9 0 0 9 0 20L42 93C46 100 54 100 58 93L100 20C100 9 91 0 80 0Z')",
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontSize: '1.2em',
+                      fontWeight: 'bold'
+                    }}>
+                      {/* Player marker or empty */}
+                    </div>
+                    {/* Yellow Life Trace Slot */}
+                    <div style={{
+                      width: '50px',
+                      height: '50px',
+                      backgroundColor: 'rgba(0,0,0,0.5)',
+                      border: '2px solid #ffd700', // Yellow border
+                      clipPath: "path('M20 0C9 0 0 9 0 20L42 93C46 100 54 100 58 93L100 20C100 9 91 0 80 0Z')",
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontSize: '1.2em',
+                      fontWeight: 'bold'
+                    }}>
+                      {/* Player marker or empty */}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

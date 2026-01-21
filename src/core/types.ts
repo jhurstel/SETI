@@ -242,7 +242,6 @@ export interface Signal {
 export interface PlayerMarker {
   id: string;
   playerId: string;
-  placedAt: number;
 }
 
 export interface DataComputer {
@@ -262,24 +261,18 @@ export interface ComputerSlot {
 }
 
 export interface AlienBoard {
-  red: LifeTraceTrack;
-  yellow: LifeTraceTrack;
-  blue: LifeTraceTrack;
-}
-
-export interface LifeTraceTrack {
-  slot1: LifeTraceSlot;
-  slot2: LifeTraceSlot;
-}
-
-export interface LifeTraceSlot {
-  playerId?: string;
-  bonus: Bonus;
+  redLifeTraces: LifeTrace[];
+  yellowLifeTraces: LifeTrace[];
+  blueLifeTraces: LifeTrace[];
+  firstBonus: Bonus;
+  nextBonus: Bonus;
+  isFirstBoard: boolean;
 }
 
 export interface LifeTrace {
   id: string;
   type: LifeTraceType;
+  playerId: string
 }
 
 export interface ObjectiveTile {

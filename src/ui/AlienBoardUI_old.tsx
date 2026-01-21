@@ -9,7 +9,7 @@ interface AlienBoardUIProps {
 
 export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, onTrackClick, highlightColor }) => {
   // On suppose que game.discoveredSpecies existe (basé sur la logique de DataSystem)
-  const discoveredSpecies = (game as any).discoveredSpecies || []; // Placeholder for now
+  const discoveredSpecies = (game as any).discoveredSpecies || [];
   const alienBoard = game.board.alienBoard;
 
   const renderSlot = (slot: LifeTraceSlot, label: string) => {
