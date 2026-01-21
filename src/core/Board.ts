@@ -189,8 +189,16 @@ export class BoardManager {
       if (!b) return;
       (Object.keys(b) as Array<keyof Bonus>).forEach(key => {
         const k = key as keyof Bonus;
-        if (typeof b[k] === 'number') {
-          result[k] = (result[k] || 0) + (b[k] || 0);
+        const val = b[k];
+        if (typeof val === 'number') {
+          (result as any)[k] = ((result[k] as number) || 0) + val;
+        } else if (val !== undefined) {
+          if (k === 'gainSignal' && Array.isArray(val)) {
+            const existing = (result[k] as any[]) || [];
+            (result as any)[k] = [...existing, ...val];
+          } else {
+            (result as any)[k] = val;
+          }
         }
       });
     });

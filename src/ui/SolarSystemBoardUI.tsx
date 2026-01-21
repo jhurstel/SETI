@@ -17,7 +17,7 @@ interface SolarSystemBoardUIProps {
   game: Game;
   onProbeMove?: (probeId: string, path: string[]) => void;
   onPlanetClick?: (planetId: string) => void;
-  onOrbit?: (planetId: string) => void;
+  onOrbit?: (planetId: string, slotIndex?: number) => void;
   onLand?: (planetId: string, slotIndex?: number) => void;
   initialSector1?: number; // Secteur initial (1-8) pour positionner le plateau niveau 1
   initialSector2?: number; // Secteur initial (1-8) pour positionner le plateau niveau 2
@@ -32,6 +32,7 @@ interface SolarSystemBoardUIProps {
   onSectorClick?: (sectorNumber: number) => void;
   highlightedSectorSlots?: string[]; // IDs des secteurs dont le premier slot disponible doit flasher
   animateSectorSlots?: boolean;
+  isRemovingOrbiter?: boolean;
 }
 
 export interface SolarSystemBoardUIRef {
@@ -188,7 +189,7 @@ const describeArc = (x: number, y: number, radius: number, startAngle: number, e
     ].join(" ");
 };
 
-export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false, autoSelectProbeId, isLandingInteraction, onBackgroundClick, allowOccupiedLanding, onSectorClick, highlightedSectorSlots = [], animateSectorSlots = false }, ref) => {
+export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false, autoSelectProbeId, isLandingInteraction, onBackgroundClick, allowOccupiedLanding, onSectorClick, highlightedSectorSlots = [], animateSectorSlots = false, isRemovingOrbiter = false }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredObjectRect, setHoveredObjectRect] = useState<DOMRect | null>(null);
@@ -1045,7 +1046,13 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     
                     const isOccupied = !!player;
                     const isNextAvailable = i === planetData.orbiters.length;
-                    const isClickable = isNextAvailable && canOrbit && !!onOrbit;
+                    
+                    let isClickable = false;
+                    if (isRemovingOrbiter) {
+                        isClickable = isOccupied && player?.id === currentPlayer.id && !!onOrbit;
+                    } else {
+                        isClickable = isNextAvailable && canOrbit && !!onOrbit;
+                    }
                     
                     let statusText = "";
                     let statusColor = "";
@@ -1054,6 +1061,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     if (isOccupied) {
                         statusText = `Occupé par ${player?.name}`;
                         statusColor = player?.color || "#ccc";
+                        if (isClickable) {
+                            statusText = "Cliquer pour retirer";
+                            statusColor = "#ff6b6b";
+                        }
                     } else if (isClickable) {
                         statusText = "Disponible";
                         statusColor = "#4a9eff";
@@ -1081,7 +1092,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     return (
                       <g key={`orb-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: isClickable ? 'pointer' : 'help', pointerEvents: 'auto' }} 
                         onClick={(e) => {
-                        if (isClickable && onOrbit && planetData) { e.stopPropagation(); onOrbit(planetData.id); }
+                        if (isClickable && onOrbit && planetData) { e.stopPropagation(); onOrbit(planetData.id, i); }
                       }}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
@@ -1120,6 +1131,10 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     if (isOccupied) {
                         statusText = `Occupé par ${player?.name}`;
                         statusColor = player?.color || "#ccc";
+                        if (isClickable) {
+                            statusText = "Cliquer pour retirer";
+                            statusColor = "#ff6b6b";
+                        }
                     } else if (isClickable) {
                         statusText = "Disponible";
                         statusColor = "#4a9eff";

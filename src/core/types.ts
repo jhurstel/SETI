@@ -217,6 +217,7 @@ export interface Probe {
   planetId?: string;
   isOrbiter: boolean;
   isLander: boolean;
+  planetSlotIndex?: number;
 }
 
 export interface Sector {
@@ -251,7 +252,7 @@ export interface DataComputer {
 
 export interface ComputerSlot {
   id: string;
-  bonus: string;
+  bonus?: string;
   isOccupied: boolean;
   technologyId?: string;
   filled: boolean;
@@ -416,6 +417,13 @@ export interface Bonus {
   anytechnology?: number;
   probe?: number;
   landing?: number;
+  gainSignal?: { amount: number; scope: string }[];
+  gainSignalFromHand?: number;
+  keepCardIfOnly?: boolean;
+  noData?: boolean;
+  anyProbe?: boolean;
+  gainSignalAdjacents?: boolean;
+  scorePerMedia?: number;
 }
 
 export interface RotationDisk {

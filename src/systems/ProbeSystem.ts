@@ -592,8 +592,16 @@ export class ProbeSystem {
         this.applyBonus(updatedPlayer, bonus);
         for (const key in bonus) {
             const k = key as keyof Bonus;
-            if (typeof bonus[k] === 'number') {
-                accumulatedBonuses[k] = (accumulatedBonuses[k] || 0) + (bonus[k] || 0);
+            const val = bonus[k];
+            if (typeof val === 'number') {
+                (accumulatedBonuses as any)[k] = ((accumulatedBonuses[k] as number) || 0) + val;
+            } else if (val !== undefined) {
+                if (k === 'gainSignal' && Array.isArray(val)) {
+                    const existing = (accumulatedBonuses[k] as any[]) || [];
+                    (accumulatedBonuses as any)[k] = [...existing, ...val];
+                } else {
+                    (accumulatedBonuses as any)[k] = val;
+                }
             }
         }
     };
@@ -709,7 +717,8 @@ export class ProbeSystem {
       ...probe,
       state: ProbeState.LANDED,
       planetId,
-      isLander: true
+      isLander: true,
+      planetSlotIndex: forcedSlotIndex !== undefined ? forcedSlotIndex : (targetBody.landers || []).length
     };
 
     // Mettre à jour le joueur
@@ -772,9 +781,14 @@ export class ProbeSystem {
             const k = key as keyof Bonus;
             const val = bonus[k];
             if (typeof val === 'number') {
-                accumulatedBonuses[k] = ((accumulatedBonuses[k] as number) || 0) + val;
+                (accumulatedBonuses as any)[k] = ((accumulatedBonuses[k] as number) || 0) + val;
             } else if (val !== undefined) {
-                accumulatedBonuses[k] = val as any;
+                if (k === 'gainSignal' && Array.isArray(val)) {
+                    const existing = (accumulatedBonuses[k] as any[]) || [];
+                    (accumulatedBonuses as any)[k] = [...existing, ...val];
+                } else {
+                    (accumulatedBonuses as any)[k] = val;
+                }
             }
         }
     };

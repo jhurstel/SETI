@@ -316,68 +316,68 @@ export class GameFactory {
    * Importé depuis cartes.csv
    */
   private static createActionDeck(): Card[] {
-    const csvContent = `Id;Nom;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
-9;Falcon Heavy;Gagnez 2 sondes et 1 Média. Ignorez la limite de sondes sur le plateau Systéme Solaire pour ces lancements.;1 Déplacement;Jaune;1 Crédit;3 Crédits;2 Sondes + 1 Média;IGNORE_PROBE_LIMIT
-11;Subventions;Gagnez 1 Carte. Révélez la carte que vous avez piochée et bénéfciez de son action gratuite.;1 Média;Jaune;1 Energie;1 Crédit;1 Carte;REVEAL_AND_TRIGGER_FREE_ACTION
-13;Rover Perseverance;Gagnez 1 Atterrissage. Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs.;1 Média;Bleu;1 Pioche;1 Crédit;1 Atterrissage;
-15;Rentrée Atmosphérique;Retirez l'un de vos orbiteurs de n'importe quelle planète pour gagner 3 PVs, 1 Donnée, 1 Carte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;
-16;Dragonfly;Gagnez 1 Atterrissage. Vous pouvez poser une sonde sur une case déjà occupée, et tout de même gagner la récompense recouverte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;1 Atterrissage;
-17;OSIRIS-REx;Choisissez 1 de vos sondes. Gagnez 2 Données si elle est placée sur un champ d'astéroïdes et 1 Donnée pour chaque champ d'astéroïdes adjacent.;1 Déplacement;Jaune;1 Energie;1 Crédit;OSIRIS_REX_BONUS;
-19;Assistance Gravitationnelle;Gagnez 2 Déplacements. Chaque fois que vous visitez une planète ce tour-ci, vous pouvez gagner 1 Déplacement au lieu de 1 Média.;1 Média;Jaune;1 Crédit;Crédit;2 Déplacements;CHOICE_MEDIA_OR_MOVE
-20;Survol de Mercure;Gagnez 2 Déplacements. Si vous visitez Mercure ce tour-ci, gagnez 4 PVs.;1 Média;Rouge;1 Energie;1 Crédit;2 Déplacements;VISIT_PLANET:mercury:4
-21;Survol de Vénus;Gagnez 2 Déplacements. Si vous visitez Vénus ce tour-ci, gagnez 3 PVs.;1 Média;Jaune;1 Crédit;1 Crédit;2 Déplacements;VISIT_PLANET:venus:3
-22;Survol de Mars;Gagnez 2 Déplacements. Si vous visitez Mars ce tour-ci, gagnez 4 PVs.;1 Donnée;Jaune;1 Energie;1 Crédit;2 Déplacements;VISIT_PLANET:mars:4
-23;Survol de Jupiter;Gagnez 2 Déplacements. Si vous visitez Jupiter ce tour-ci, gagnez 4 PVs.;1 Média;Bleu;1 Energie;1 Crédit;2 Déplacements;VISIT_PLANET:jupiter:4
-24;Survol de Saturne;Gagnez 3 Déplacements. Si vous visitez Saturne ce tour-ci, gagnez 6 PVs.;1 Donnée;Rouge;1 Pioche;2 Crédit;3 Déplacements;VISIT_PLANET:saturn:6
-25;Voile Solaire;Gagnez 4 Déplacements. Gagnez 1 PV pour chaque planète unique que vous visitez ce tour-ci (y compris la Terre).;1 Média;Rouge;1 Crédit;2 Crédits;4 Déplacements;VISIT_UNIQUE:1
-26;A Travers la Ceinture d'Astéroïdes;Gagnez 2 déplacements. Ignorez les restrictions de déplacement lorsque vous quittez un chaamp d'astéroïdes ce tour-ci.;1 Donnée;Bleu;1 Pioche;1 Crédit;2 Déplacements;ASTEROID_EXIT_COST:1
-57;Radiotélescope D'Effelsberg;Gagnez 1 Carte, 1 Rotation et 1 Technologie Observation.;1 Média;Bleu;1 Energie;3 Crédits;1 Carte + 1 Rotation + 1 Tech Observation;
-59;Système de Propulsion Ionique;Gagez 1 Energie, 1 Rotation et 1 Technologie Exploration.;1 Média;Rouge;1 Pioche;3 Crédits;1 Energie + 1 Rotation + 1 Tech Exploration;
-69;Grand Collisionneur de Hadrons;Gagnez 1 Donnée, 1 Rotation et 1 Technologie Informatique.;1 Déplacement;Noir;1 Energie;3 Crédits;1 Donnée + 1 Rotation + 1 Tech Informatique;
-71;Recherche Ciblée;Gagnez 1 Rotation et 1 Technologie de n'importe quelle couleur. Puis gagnez 2 PV pour chaque technologie de ce type que vous possédez.;1 Média;Rouge;1 Crédit;3 Crédits;1 Rotation + 1 Tech;SCORE_PER_TECH_TYPE:2
-72;Coopération Scientifique;Gagnez 1 Rotation et 1 Technologie de n'importe quelle couleur. Si vous développez une technologie qu'un autre joueur possède déjà, gagnez 2 Média.;1 Donnée;Bleu;1 Energie;3 Crédits;1 Rotation + 1 Tech;MEDIA_IF_SHARED_TECH:2
-73;Initiative Clean Space;Défaussez les 3 cartes de la rangée de cartes pour effectuer leurs actions gratuites.;1 Média;Jaune;1 Crédit;1 Crédit;DISCARD_ROW_FOR_FREE_ACTIONS;
-74;Essais de Prélancement;Gagnez 1 Sonde et 1 Déplacement pour chaque carte avec une action gratuite de déplacement que vous révélez de votre main.;1 Média;Jaune;1 Pioche;2 Crédits;;REVEAL_MOVEMENT_CARDS_FOR_BONUS
-81;Collaboration Internationale;Gagnez 1 Technologie de n'importe quelle couleur qu'un autre joueur possède déjà. Ne faites pas pivoter le système solaire. Ne gagner pas le bonus indiqué sur la tuile.;1 Déplacement;Jaune;1 Pioche;2 Crédits;1 Tech;SHARED_TECH_ONLY_NO_BONUS
-85;Lanceur Starship;Gagnez 1 Sonde, 1 Rotation et 1 Technologie Exploration.;1 Média;Rouge;1 Crédit;4 Crédits;1 Sonde + 1 Rotation + 1 Tech Exploration;
-90;Réservoirs d'Ergols;Gagnez 1 Energie pour chaque carte avec un revenu Energie que vous révélez de votre main.;1 Donnée;Bleu;1 Pioche;1 Crédit;;GAIN_ENERGY_PER_ENERGY_REVENUE
-91;Réacteur à Fusion;Gagnez 1 Energie pour chaque carte Energie glissée sous vos revenus. Puis réservez cette carte.;1 Média;Rouge;1 Energie;3 Crédits;;GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE
-92;Photo du Jour de la NASA;Gagnez 2 Médias. Gagnez 1 Média pour chaque carte Pioche glissée sous vos revenus. Puis réservez cette carte.;1 Donnée;Bleu;1 Pioche;3 Crédits;2 Médias;GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE
-93;Financement Public;Gagnez 3 PV pour chaque carte Crédit glissée sous vos revenus. Puis réservez cette carte.;1 Média;Jaune;1 Crédit;3 Crédits;;GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE
-109;Microprocesseurs Basse Consommation;Gagnez 1 Energie, 1 Rotation et 1 Technologie Informatique.;1 Donnée;Jaune;1 Pioche;3 Crédits;1 Energie + 1 Rotation + 1 Tech Informatique;
-110;Conférence de Presse;Gagnez 3 Médias.;1 Donnée;Rouge;1 Crédit;1 Crédit;3 Médias;
-119;PIXL;Gagnez 1 Rotation et 1 Technologie Informatique. Gagnez ensuite 1 PV pour chaque niveau de Média que vous avez.;1 Donnée;Bleu;1 Energie;3 Crédits;1 Rotation + 1 Tech Informatique;SCORE_PER_MEDIA:1
-121;Futur Collisionneur Circulaire;Gagnez 3 Données, 1 Rotation et 1 Technologie Informatique.;1 Déplacement;Jaune;1 Energie;4 Crédits;3 Données + 1 Rotation + 1 Tech Informatique;
-123;Survol d'Astéroïdes;Gagnez 1 Déplacement. Si vous visitez un champ d'astéroïdes ce tour-ci, gagnez 1 Donnée.;1 Média;Rouge;1 Pioche;0 Crédit;1 Déplacement;VISIT_ASTEROID:1
-124;Rencontre avec une Comète;Gagnez 2 Déplacements. Si vous visitez une comète ce tour-ci, gagnez 4 PVs.;1 Média;Jaune;1 Energie;1 Crédit;2 Déplacements;VISIT_COMET:4
-125;Correction de Trajectoire;Gagnez 1 Déplacement. Si vous vous déplacez sur le même disque au moins une fois ce tour-ci, gagnez 3 PV et 1 Média.;1 Donnée;Bleu;1 Pioche;1 Crédit;1 Déplacement;SAME_DISK_MOVE:3:1
-130;Lancement Spatial à Faible Coût;Gagnez 1 Sonde.;1 Média;Jaune;1 Energie;1 Crédit;1 Sonde;
-133;Fenêtre de Lancement Optimale;Gagnez 1 Sonde. Puis 1 Déplacement pour chaque autre planète ou comète dans le même secteur que la Terre.;1 Donnée;Rouge;1 Pioche;2 Crédits;1 Sonde;OPTIMAL_LAUNCH_WINDOW
-137;Archives de Données du SETI;Gagnez 2 Données.;1 Média;Noir;1 Energie;1 Crédit;2 Données;
-65;Radiotélescope FAST;Gagnez 2 Signaux dans un secteur d'une carte de la rangée, 1 Rotation et 1 Technologie Observation;1 Déplacement;Noir;1 Crédit;4 Crédits;1 Rotation + 1 Tech Observation;GAIN_SIGNAL:row:2
-67;Radiotélescope d'Eupatoria;Gagnez 1 Média, 1 Rotation et 1 Technologie Observation. Puis vous pouvez défausser 1 carte de votre main pour son signal.;1 Déplacement;Bleu;1 Pioche;3 Crédits;1 Média + 1 Rotation + 1 Tech Observation;GAIN_SIGNAL:hand:1
-114;Chasseurs de Planètes;Gagnez 1 Carte.Vous pouvez ensuite défausser jusqu'à 3 cartes de votre main pour leurs signaux.;1 Média;Rouge;1 Energie;1 Crédit;1 Carte;GAIN_SIGNAL:hand:3
-83;"Signal ""Wow!""";Gagnez 1 Média et 2 Signaux dans le secteur de la Terre.;1 Déplacement;Bleu;1 Energie;2 Crédits;1 Média;GAIN_SIGNAL:earth:2
-47;Very Large Array;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Donnée.;1 Média;Jaune;1 Energie;2 Crédits;;GAIN_SIGNAL_AND_BONUS_IF_COVERED:row:2:data
-46;Observatoire ALMA;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Pioche.;1 Déplacement;Jaune;1 Crédit;2 Crédits;;GAIN_SIGNAL_AND_BONUS_IF_COVERED:row:2:draw
-45;Allen Telescope Array;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Energie.;1 Média;Rouge;1 Pioche;2 Crédits;;GAIN_SIGNAL_AND_BONUS_IF_COVERED:row:2:energy
-28;Télescope Spatial Kepler;Gagnez 1 Déplacemet et 2 Signaux dans un secteur où se trouve l'une de vos sondes.;1 Média;Bleu;1 Crédit;2 Crédits;1 Déplacement;GAIN_SIGNAL:probe:2
-27;Télescope Spatial Huble;Gagnez 1 Déplacemet et 1 Signal dans un secteur où se trouve l'une de vos sondes.;1 Média;Rouge;1 Pioche;1 Crédit;1 Déplacement;GAIN_SIGNAL:probe:1
-49;Program Breakthrough Watch;Gagnez 1 Déplacement et 1 Signal dans un secteur Jaune.;1 Média;Rouge;1 Crédit;1 Crédit;1 Déplacement;GAIN_SIGNAL:yellow:1
-50;Program Breakthrough Listen;Gagnez 1 Déplacement et 1 Signal dans un secteur Bleu.;1 Média;Jaune;1 Crédit;1 Crédit;1 Déplacement;GAIN_SIGNAL:blue:1
-48;Program Breakthrough Starshot;Gagnez 1 Déplacement et 1 Signal dans un secteur Rouge.;1 Média;Bleu;1 Crédit;1 Crédit;1 Déplacement;GAIN_SIGNAL:red:1
-120;Orbite aux Points de Lagrange;Gagnez 1 Signal dans un secteur où se trouve l'une de vos sondes. Si vous avez marqué exactement 1 signal dans ce secteur, reprenez cette carte en main.;1 Déplacement;Noir;1 Crédit;1 Crédit;;GAIN_SIGNAL_AND_KEEP_CARD_IF_ONLY:probe:1
-110;PLATO;Gagnez 3 Signaux dans un secteur où se trouve l'une de vos sondes. Toutefois, ces signaux ne vous permettent pas d'obtenir de Données.;1 Donnée;Jaune;1 Crédit;1 Crédit;;GAIN_SIGNAL_NO_DATA:probe:3
-30;Programme des Grand Observatoires;Choisissez jusqu'à 3 sondes (les vôtres et/ou celles d'autres joueurs). Pour chaque sonde, marquez un Signal dans son secteur.;1 Déplacement;Jaune;1 Pioche;2 Crédits;;GAIN_SIGNAL:anyprobe:3
-122;Astronomes Amateurs;Effectuez ceci 3 fois: Défaussez la première carte du paquet pour son signal.;1 Média;Noir;1 Energie;2 Crédits;;GAIN_SIGNAL:deck:3
-90;Square Kilometre Array;Gagnez 3 Signaux dans un secteur d'une carte de la rangée. Gagnez 2 PVs pour chaque secteur unique dans lequel vous marquez un signal.;1 Média;Bleu;1 Crédit;3 Crédits;;GAIN_SIGNAL_AND_SCORE_IF_UNIQUE:row:3:2
-135;Radiotélescope de Noto;Gagnez 1 Média et 1 Scan;1 Déplacement;Bleu;1 Energie;2 Crédits;1 Média + 1 Scan;
-53;Deep Synoptic Array;Gagnez 1 Scan. Gagnez 2 PVs chaque fois que vous marquez un Signal dans un secteur Jaune grâce à cette action.;1 Déplacement;Bleu;1 Energie;2 Crédits;1 Scan;SCORE_PER_SECTOR:yellow:2
-52;Observatoire de Parkes;Gagnez 1 Scan. Gagnez 2 PVs chaque fois que vous marquez un Signal dans un secteur Rouge grâce à cette action.;1 Déplacement;Jaune;1 Pioche;2 Crédits;1 Scan;SCORE_PER_SECTOR:red:2
-54;Télescope VERITAS;Gagnez 1 Scan. Gagnez 2 PVs chaque fois que vous marquez un Signal dans un secteur Bleu grâce à cette action.;1 Déplacement;Rouge;1 Crédit;2 Crédits;1 Scan;SCORE_PER_SECTOR:blue:2
-55;Radiotélescope d'Arecibo;Gagnez 1 Scan. Marquez également 1 Signal dans n'importe quel secteur.;1 Média;Jaune;1 Pioche;3 Crédits;1 Scan;GAIN_SIGNAL:any:1
-136;Radiotélescope d'Algonquin;Gagnez 4 Signaux dans un secteur Jaune, Rouge, Bleu et Noir. Toutefois, ces signaux ne vous permettent pas dobtenir des Données.;1 Donnée;Rouge;1 Energie;1 Crédit;;GAIN_SIGNAL_NO_DATA:all:4
-29;Télescope Spatial James Webb;Gagnez 1 Déplacement et 1 Signal dans un secteur où se trouve l'une de vos sondes et dans les deux secteurs adjacents.;1 Média;Jaune;1 Energie;2 Crédits;1 Déplacement;GAIN_SIGNAL_ADJACENT:probe:3
+    const csvContent = `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
+9;Falcon Heavy;Action;Gagnez 2 sondes et 1 Média. Ignorez la limite de sondes sur le plateau Systéme Solaire pour ces lancements.;1 Déplacement;Jaune;1 Crédit;3 Crédits;2 Sondes + 1 Média;IGNORE_PROBE_LIMIT
+11;Subventions;Action;Gagnez 1 Carte. Révélez la carte que vous avez piochée et bénéfciez de son action gratuite.;1 Média;Jaune;1 Energie;1 Crédit;1 Carte;REVEAL_AND_TRIGGER_FREE_ACTION
+13;Rover Perseverance;Action;Gagnez 1 Atterrissage. Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs.;1 Média;Bleu;1 Pioche;1 Crédit;1 Atterrissage;
+15;Rentrée Atmosphérique;Action;Retirez l'un de vos orbiteurs de n'importe quelle planète pour gagner 3 PVs, 1 Donnée, 1 Carte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;;ATMOSPHERIC_ENTRY
+16;Dragonfly;Action;Gagnez 1 Atterrissage. Vous pouvez poser une sonde sur une case déjà occupée, et tout de même gagner la récompense recouverte.;1 Déplacement;Bleu;1 Crédit;1 Crédit;1 Atterrissage;
+17;OSIRIS-REx;Action;Choisissez 1 de vos sondes. Gagnez 2 Données si elle est placée sur un champ d'astéroïdes et 1 Donnée pour chaque champ d'astéroïdes adjacent.;1 Déplacement;Jaune;1 Energie;1 Crédit;;OSIRIS_REX_BONUS
+19;Assistance Gravitationnelle;Action;Gagnez 2 Déplacements. Chaque fois que vous visitez une planète ce tour-ci, vous pouvez gagner 1 Déplacement au lieu de 1 Média.;1 Média;Jaune;1 Crédit;Crédit;2 Déplacements;CHOICE_MEDIA_OR_MOVE
+20;Survol de Mercure;Action;Gagnez 2 Déplacements. Si vous visitez Mercure ce tour-ci, gagnez 4 PVs.;1 Média;Rouge;1 Energie;1 Crédit;2 Déplacements;VISIT_PLANET:mercury:4
+21;Survol de Vénus;Action;Gagnez 2 Déplacements. Si vous visitez Vénus ce tour-ci, gagnez 3 PVs.;1 Média;Jaune;1 Crédit;1 Crédit;2 Déplacements;VISIT_PLANET:venus:3
+22;Survol de Mars;Action;Gagnez 2 Déplacements. Si vous visitez Mars ce tour-ci, gagnez 4 PVs.;1 Donnée;Jaune;1 Energie;1 Crédit;2 Déplacements;VISIT_PLANET:mars:4
+23;Survol de Jupiter;Action;Gagnez 2 Déplacements. Si vous visitez Jupiter ce tour-ci, gagnez 4 PVs.;1 Média;Bleu;1 Energie;1 Crédit;2 Déplacements;VISIT_PLANET:jupiter:4
+24;Survol de Saturne;Action;Gagnez 3 Déplacements. Si vous visitez Saturne ce tour-ci, gagnez 6 PVs.;1 Donnée;Rouge;1 Pioche;2 Crédit;3 Déplacements;VISIT_PLANET:saturn:6
+25;Voile Solaire;Action;Gagnez 4 Déplacements. Gagnez 1 PV pour chaque planète unique que vous visitez ce tour-ci (y compris la Terre).;1 Média;Rouge;1 Crédit;2 Crédits;4 Déplacements;VISIT_UNIQUE:1
+26;A Travers la Ceinture d'Astéroïdes;Action;Gagnez 2 déplacements. Ignorez les restrictions de déplacement lorsque vous quittez un chaamp d'astéroïdes ce tour-ci.;1 Donnée;Bleu;1 Pioche;1 Crédit;2 Déplacements;ASTEROID_EXIT_COST:1
+57;Radiotélescope D'Effelsberg;Action;Gagnez 1 Carte, 1 Rotation et 1 Technologie Observation.;1 Média;Bleu;1 Energie;3 Crédits;1 Carte + 1 Rotation + 1 Tech Observation;
+59;Système de Propulsion Ionique;Action;Gagez 1 Energie, 1 Rotation et 1 Technologie Exploration.;1 Média;Rouge;1 Pioche;3 Crédits;1 Energie + 1 Rotation + 1 Tech Exploration;
+69;Grand Collisionneur de Hadrons;Action;Gagnez 1 Donnée, 1 Rotation et 1 Technologie Informatique.;1 Déplacement;Noir;1 Energie;3 Crédits;1 Donnée + 1 Rotation + 1 Tech Informatique;
+71;Recherche Ciblée;Action;Gagnez 1 Rotation et 1 Technologie de n'importe quelle couleur. Puis gagnez 2 PV pour chaque technologie de ce type que vous possédez.;1 Média;Rouge;1 Crédit;3 Crédits;1 Rotation + 1 Tech;SCORE_PER_TECH_TYPE:2
+72;Coopération Scientifique;Action;Gagnez 1 Rotation et 1 Technologie de n'importe quelle couleur. Si vous développez une technologie qu'un autre joueur possède déjà, gagnez 2 Média.;1 Donnée;Bleu;1 Energie;3 Crédits;1 Rotation + 1 Tech;MEDIA_IF_SHARED_TECH:2
+73;Initiative Clean Space;Action;Défaussez les 3 cartes de la rangée de cartes pour effectuer leurs actions gratuites.;1 Média;Jaune;1 Crédit;1 Crédit;;DISCARD_ROW_FOR_FREE_ACTIONS
+74;Essais de Prélancement;Action;Gagnez 1 Sonde et 1 Déplacement pour chaque carte avec une action gratuite de déplacement que vous révélez de votre main.;1 Média;Jaune;1 Pioche;2 Crédits;1 Sonde;REVEAL_MOVEMENT_CARDS_FOR_BONUS
+81;Collaboration Internationale;Action;Gagnez 1 Technologie de n'importe quelle couleur qu'un autre joueur possède déjà. Ne faites pas pivoter le système solaire. Ne gagner pas le bonus indiqué sur la tuile.;1 Déplacement;Jaune;1 Pioche;2 Crédits;1 Tech;SHARED_TECH_ONLY_NO_BONUS
+85;Lanceur Starship;Action;Gagnez 1 Sonde, 1 Rotation et 1 Technologie Exploration.;1 Média;Rouge;1 Crédit;4 Crédits;1 Sonde + 1 Rotation + 1 Tech Exploration;
+90;Réservoirs d'Ergols;Action;Gagnez 1 Energie pour chaque carte avec un revenu Energie que vous révélez de votre main.;1 Donnée;Bleu;1 Pioche;1 Crédit;;GAIN_ENERGY_PER_ENERGY_REVENUE
+91;Réacteur à Fusion;Action;Gagnez 1 Energie pour chaque carte Energie glissée sous vos revenus. Puis réservez cette carte.;1 Média;Rouge;1 Energie;3 Crédits;;GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE
+92;Photo du Jour de la NASA;Action;Gagnez 2 Médias. Gagnez 1 Média pour chaque carte Pioche glissée sous vos revenus. Puis réservez cette carte.;1 Donnée;Bleu;1 Pioche;3 Crédits;2 Médias;GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE
+93;Financement Public;Action;Gagnez 3 PV pour chaque carte Crédit glissée sous vos revenus. Puis réservez cette carte.;1 Média;Jaune;1 Crédit;3 Crédits;;GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE
+109;Microprocesseurs Basse Consommation;Action;Gagnez 1 Energie, 1 Rotation et 1 Technologie Informatique.;1 Donnée;Jaune;1 Pioche;3 Crédits;1 Energie + 1 Rotation + 1 Tech Informatique;
+110;Conférence de Presse;Action;Gagnez 3 Médias.;1 Donnée;Rouge;1 Crédit;1 Crédit;3 Médias;
+119;PIXL;Action;Gagnez 1 Rotation et 1 Technologie Informatique. Gagnez ensuite 1 PV pour chaque niveau de Média que vous avez.;1 Donnée;Bleu;1 Energie;3 Crédits;1 Rotation + 1 Tech Informatique;SCORE_PER_MEDIA:1
+121;Futur Collisionneur Circulaire;Action;Gagnez 3 Données, 1 Rotation et 1 Technologie Informatique.;1 Déplacement;Jaune;1 Energie;4 Crédits;3 Données + 1 Rotation + 1 Tech Informatique;
+123;Survol d'Astéroïdes;Action;Gagnez 1 Déplacement. Si vous visitez un champ d'astéroïdes ce tour-ci, gagnez 1 Donnée.;1 Média;Rouge;1 Pioche;0 Crédit;1 Déplacement;VISIT_ASTEROID:1
+124;Rencontre avec une Comète;Action;Gagnez 2 Déplacements. Si vous visitez une comète ce tour-ci, gagnez 4 PVs.;1 Média;Jaune;1 Energie;1 Crédit;2 Déplacements;VISIT_COMET:4
+125;Correction de Trajectoire;Action;Gagnez 1 Déplacement. Si vous vous déplacez sur le même disque au moins une fois ce tour-ci, gagnez 3 PV et 1 Média.;1 Donnée;Bleu;1 Pioche;1 Crédit;1 Déplacement;SAME_DISK_MOVE:3:1
+130;Lancement Spatial à Faible Coût;Action;Gagnez 1 Sonde.;1 Média;Jaune;1 Energie;1 Crédit;1 Sonde;
+133;Fenêtre de Lancement Optimale;Action;Gagnez 1 Sonde. Puis 1 Déplacement pour chaque autre planète ou comète dans le même secteur que la Terre.;1 Donnée;Rouge;1 Pioche;2 Crédits;1 Sonde;OPTIMAL_LAUNCH_WINDOW
+137;Archives de Données du SETI;Action;Gagnez 2 Données.;1 Média;Noir;1 Energie;1 Crédit;2 Données;
+65;Radiotélescope FAST;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée, 1 Rotation et 1 Technologie Observation;1 Déplacement;Noir;1 Crédit;4 Crédits;1 Rotation + 1 Tech Observation + 2 Signaux Rangée;
+67;Radiotélescope d'Eupatoria;Action;Gagnez 1 Média, 1 Rotation et 1 Technologie Observation. Puis vous pouvez défausser 1 carte de votre main pour son signal.;1 Déplacement;Bleu;1 Pioche;3 Crédits;1 Média + 1 Rotation + 1 Tech Observation;GAIN_SIGNAL_FROM_HAND:1
+114;Chasseurs de Planètes;Action;Gagnez 1 Carte.Vous pouvez ensuite défausser jusqu'à 3 cartes de votre main pour leurs signaux.;1 Média;Rouge;1 Energie;1 Crédit;1 Carte;GAIN_SIGNAL_FROM_HAND:3
+83;"Signal ""Wow!""";Action;Gagnez 1 Média et 2 Signaux dans le secteur de la Terre.;1 Déplacement;Bleu;1 Energie;2 Crédits;1 Média + 2 Signaux Terre;
+47;Very Large Array;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Donnée.;1 Média;Jaune;1 Energie;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:data
+46;Observatoire ALMA;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Pioche.;1 Déplacement;Jaune;1 Crédit;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:draw
+45;Allen Telescope Array;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Energie.;1 Média;Rouge;1 Pioche;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:energy
+28;Télescope Spatial Kepler;Action;Gagnez 1 Déplacemet et 2 Signaux dans un secteur où se trouve l'une de vos sondes.;1 Média;Bleu;1 Crédit;2 Crédits;1 Déplacement + 2 Signaux Sonde;
+27;Télescope Spatial Huble;Action;Gagnez 1 Déplacemet et 1 Signal dans un secteur où se trouve l'une de vos sondes.;1 Média;Rouge;1 Pioche;1 Crédit;1 Déplacement + 1 Signal Sonde;
+49;Program Breakthrough Watch;Action;Gagnez 1 Déplacement et 1 Signal dans un secteur Jaune.;1 Média;Rouge;1 Crédit;1 Crédit;1 Déplacement + 1 Signal Jaune;
+50;Program Breakthrough Listen;Action;Gagnez 1 Déplacement et 1 Signal dans un secteur Bleu.;1 Média;Jaune;1 Crédit;1 Crédit;1 Déplacement + 1 Signal Bleu;
+48;Program Breakthrough Starshot;Action;Gagnez 1 Déplacement et 1 Signal dans un secteur Rouge.;1 Média;Bleu;1 Crédit;1 Crédit;1 Déplacement + 1 Signal Rouge;
+120;Orbite aux Points de Lagrange;Action;Gagnez 1 Signal dans un secteur où se trouve l'une de vos sondes. Si vous avez marqué exactement 1 signal dans ce secteur, reprenez cette carte en main.;1 Déplacement;Noir;1 Crédit;1 Crédit;1 Signal Sonde;KEEP_CARD_IF_ONLY
+110;PLATO;Action;Gagnez 3 Signaux dans un secteur où se trouve l'une de vos sondes. Toutefois, ces signaux ne vous permettent pas d'obtenir de Données.;1 Donnée;Jaune;1 Crédit;1 Crédit;3 Signaux Sonde;NO_DATA
+30;Programme des Grand Observatoires;Action;Choisissez jusqu'à 3 sondes (les vôtres et/ou celles d'autres joueurs). Pour chaque sonde, marquez un Signal dans son secteur.;1 Déplacement;Jaune;1 Pioche;2 Crédits;3 Signaux Sonde;ANY_PROBE
+122;Astronomes Amateurs;Action;Effectuez ceci 3 fois: Défaussez la première carte du paquet pour son signal.;1 Média;Noir;1 Energie;2 Crédits;3 Signaux Deck;
+90;Square Kilometre Array;Action;Gagnez 3 Signaux dans un secteur d'une carte de la rangée. Gagnez 2 PVs pour chaque secteur unique dans lequel vous marquez un signal.;1 Média;Bleu;1 Crédit;3 Crédits;3 Signaux Rangée;SCORE_IF_UNIQUE:2
+135;Radiotélescope de Noto;Action;Gagnez 1 Média et 1 Scan;1 Déplacement;Bleu;1 Energie;2 Crédits;1 Média + 1 Scan;
+53;Deep Synoptic Array;Action;Gagnez 1 Scan. Gagnez 2 PVs chaque fois que vous marquez un Signal dans un secteur Jaune grâce à cette action.;1 Déplacement;Bleu;1 Energie;2 Crédits;1 Scan;SCORE_PER_SECTOR:yellow:2
+52;Observatoire de Parkes;Action;Gagnez 1 Scan. Gagnez 2 PVs chaque fois que vous marquez un Signal dans un secteur Rouge grâce à cette action.;1 Déplacement;Jaune;1 Pioche;2 Crédits;1 Scan;SCORE_PER_SECTOR:red:2
+54;Télescope VERITAS;Action;Gagnez 1 Scan. Gagnez 2 PVs chaque fois que vous marquez un Signal dans un secteur Bleu grâce à cette action.;1 Déplacement;Rouge;1 Crédit;2 Crédits;1 Scan;SCORE_PER_SECTOR:blue:2
+55;Radiotélescope d'Arecibo;Action;Gagnez 1 Scan. Marquez également 1 Signal dans n'importe quel secteur.;1 Média;Jaune;1 Pioche;3 Crédits;1 Scan + 1 Signal;
+136;Radiotélescope d'Algonquin;Action;Gagnez 4 Signaux dans un secteur Jaune, Rouge, Bleu et Noir. Toutefois, ces signaux ne vous permettent pas dobtenir des Données.;1 Donnée;Rouge;1 Energie;1 Crédit;1 Signal Jaune + 1 Signal Bleu + 1 Signal Rouge + 1 Signal Noir;NO_DATA
+29;Télescope Spatial James Webb;Action;Gagnez 1 Déplacement et 1 Signal dans un secteur où se trouve l'une de vos sondes et dans les deux secteurs adjacents.;1 Média;Jaune;1 Energie;2 Crédits;1 Déplacement + 1 Signal Sonde;GAIN_SIGNAL_ADJACENTS
 `
 
     return this.parseCSV(csvContent);
@@ -401,12 +401,12 @@ export class GameFactory {
       const columns = line.split(';');
 
       if (columns.length >= 10) {
-        const [id, nom, texte, actionGratuite, couleurScan, revenue, cout, gain, contrainte] = columns;
+        const [id, nom, type, texte, actionGratuite, couleurScan, revenue, cout, gain, contrainte] = columns;
         cards.push({
             id: id.trim(),
             name: nom.trim(),
             description: texte.trim(),
-            type: CardType.ACTION,
+            type: this.mapCardType(type.trim()),
             cost: parseInt(cout.trim(), 10) || 0,
             freeAction: this.mapFreeActionType(actionGratuite.trim()),
             scanSector: this.mapSectorColor(couleurScan.trim()),
@@ -418,6 +418,15 @@ export class GameFactory {
       }
     }
     return cards;
+  }
+
+  private static mapCardType(value: string): CardType {
+    const v = value.toLowerCase();
+    if (v.includes('action')) return CardType.ACTION;
+    if (v.includes('conditionnel')) return CardType.CONDITIONAL_MISSION;
+    if (v.includes('déclenchable')) return CardType.TRIGGERED_MISSION;
+    if (v.includes('fin de jeu')) return CardType.END_GAME
+    return CardType.ACTION; // Valeur par défaut
   }
 
   private static mapFreeActionType(value: string): FreeActionType {
@@ -469,6 +478,7 @@ export class GameFactory {
         else if (lower.includes('déplacement') || lower.includes('deplacement')) effects.push({ type: 'ACTION', target: 'MOVEMENT', value: amount });
         else if (lower.includes('rotation')) effects.push({ type: 'ACTION', target: 'ROTATION', value: amount });
         else if (lower.includes('atterrissage')) effects.push({ type: 'ACTION', target: 'LAND', value: amount });
+        else if (lower.includes('scan')) effects.push({ type: 'ACTION', target: 'SCAN', value: amount });
         else if (lower.includes('tech')) {
             let techColor: TechnologyCategory | undefined = undefined;
             if (lower.includes('informatique') || lower.includes('bleu')) techColor = TechnologyCategory.COMPUTING;
@@ -477,11 +487,18 @@ export class GameFactory {
             
             effects.push({ type: 'ACTION', target: 'TECH', value: { amount, color: techColor } });
         }
-        else if (part === 'DISCARD_ROW_FOR_FREE_ACTIONS') {
-            effects.push({ type: 'ACTION', target: 'DISCARD_ROW_FOR_FREE_ACTIONS', value: 1 });
-        }
-        else if (part === 'OSIRIS_REX_BONUS') {
-            effects.push({ type: 'ACTION', target: 'OSIRIS_REX_BONUS', value: 1 });
+        else if (lower.includes('signal') || lower.includes('signaux')) {
+            let scope = 'ANY';
+            if (lower.includes('rangée') || lower.includes('rangee')) scope = 'ROW';
+            else if (lower.includes('terre')) scope = 'EARTH';
+            else if (lower.includes('sonde')) scope = 'PROBE';
+            else if (lower.includes('jaune')) scope = 'YELLOW';
+            else if (lower.includes('bleu')) scope = 'BLUE';
+            else if (lower.includes('rouge')) scope = 'RED';
+            else if (lower.includes('noir')) scope = 'BLACK';
+            else if (lower.includes('deck')) scope = 'DECK';
+            
+            effects.push({ type: 'ACTION', target: 'GAIN_SIGNAL', value: { amount, scope } });
         }
     }
     return effects;
@@ -602,6 +619,21 @@ export class GameFactory {
         return [{ type: 'OPTIMAL_LAUNCH_WINDOW', value: 1 }];
     }
 
+    // Gestion du format OSIRIS_REX_BONUS
+    if (constraint === 'OSIRIS_REX_BONUS') {
+        return [{ type: 'OSIRIS_REX_BONUS', value: 1 }];
+    }
+
+    // Gestion du format DISCARD_ROW_FOR_FREE_ACTIONS
+    if (constraint === 'DISCARD_ROW_FOR_FREE_ACTIONS') {
+        return [{ type: 'DISCARD_ROW_FOR_FREE_ACTIONS', value: 1 }];
+    }
+
+    // Gestion du format ATMOSPHERIC_ENTRY
+    if (constraint === 'ATMOSPHERIC_ENTRY') {
+        return [{ type: 'ATMOSPHERIC_ENTRY', value: 1 }];
+    }
+
     // Gestion du format IGNORE_PROBE_LIMIT
     if (constraint === 'IGNORE_PROBE_LIMIT') {
         return [{ type: 'IGNORE_PROBE_LIMIT', value: true }];
@@ -611,6 +643,37 @@ export class GameFactory {
     if (constraint === 'CHOICE_MEDIA_OR_MOVE') {
       return [{ type: 'CHOICE_MEDIA_OR_MOVE', value: true }];
   }
+
+    // Gestion du format GAIN_SIGNAL_FROM_HAND:x
+    if (constraint.startsWith('GAIN_SIGNAL_FROM_HAND:')) {
+        const parts = constraint.split(':');
+        return [{ type: 'GAIN_SIGNAL_FROM_HAND', value: parseInt(parts[1], 10) }];
+    }
+
+    // Gestion du format BONUS_IF_COVERED:type
+    if (constraint.startsWith('BONUS_IF_COVERED:')) {
+        const parts = constraint.split(':');
+        return [{ type: 'BONUS_IF_COVERED', target: parts[1], value: 1 }];
+    }
+
+    // Gestion du format SCORE_IF_UNIQUE:x
+    if (constraint.startsWith('SCORE_IF_UNIQUE:')) {
+        const parts = constraint.split(':');
+        return [{ type: 'SCORE_IF_UNIQUE', value: parseInt(parts[1], 10) }];
+    }
+
+    if (constraint === 'KEEP_CARD_IF_ONLY') return [{ type: 'KEEP_CARD_IF_ONLY', value: true }];
+    if (constraint === 'NO_DATA') return [{ type: 'NO_DATA', value: true }];
+    if (constraint === 'ANY_PROBE') return [{ type: 'ANY_PROBE', value: true }];
+    if (constraint === 'GAIN_SIGNAL_ADJACENTS') return [{ type: 'GAIN_SIGNAL_ADJACENTS', value: true }];
+
+    // Gestion du format SCORE_PER_SECTOR:color:value
+    if (constraint.startsWith('SCORE_PER_SECTOR:')) {
+        const parts = constraint.split(':');
+        if (parts.length === 3) {
+            return [{ type: 'SCORE_PER_SECTOR', target: parts[1], value: parseInt(parts[2], 10) }];
+        }
+    }
 
     return [{ type: 'PASSIVE', target: constraint, value: 1 }];
   }

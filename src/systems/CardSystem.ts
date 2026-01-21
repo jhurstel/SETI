@@ -239,73 +239,9 @@ export class CardSystem {
                         bonuses.technology = { amount: (bonuses.technology?.amount || 0) + effect.value };
                     }
                     break;
-                case 'DISCARD_ROW_FOR_FREE_ACTIONS':
-                    // Appliquer les actions gratuites de toutes les cartes de la rangée
-                    updatedGame.decks.cardRow.forEach(rowCard => {
-                        if (rowCard.freeAction === FreeActionType.MOVEMENT) {
-                            bonuses.movements = (bonuses.movements || 0) + 1;
-                        } else if (rowCard.freeAction === FreeActionType.DATA) {
-                            player.data = Math.min((player.data || 0) + 1, GAME_CONSTANTS.MAX_DATA);
-                            bonuses.data = (bonuses.data || 0) + 1;
-                        } else if (rowCard.freeAction === FreeActionType.MEDIA) {
-                            player.mediaCoverage = Math.min((player.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-                            bonuses.media = (bonuses.media || 0) + 1;
-                        }
-                    });
-                    updatedGame.decks.cardRow = [];
-                    const refilled = this.refillCardRow(updatedGame);
-                    updatedGame.decks.cardRow = refilled.decks.cardRow;
-                    updatedGame.decks = refilled.decks;
-                    break;
-                case 'OSIRIS_REX_BONUS':
-                    let maxDataBonus = 0;
-                    const rotationState = createRotationState(
-                        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-                        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-                        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-                    );
-
-                    player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition).forEach(probe => {
-                        let currentProbeBonus = 0;
-                        
-                        // Get absolute position of the probe
-                        const tempObj: CelestialObject = {
-                            id: probe.id,
-                            type: 'empty', // type doesn't matter for position calculation
-                            name: 'probe',
-                            position: {
-                                disk: probe.solarPosition!.disk,
-                                sector: probe.solarPosition!.sector,
-                                x: 0, y: 0
-                            },
-                            level: (probe.solarPosition!.level || 0) as 0 | 1 | 2 | 3
-                        };
-                        const absPos = calculateAbsolutePosition(tempObj, rotationState);
-
-                        // Check current cell: +2 data if on an asteroid field
-                        const currentCell = getCell(absPos.disk, absPos.absoluteSector, rotationState);
-                        if (currentCell && currentCell.hasAsteroid) {
-                            currentProbeBonus += 2;
-                        }
-
-                        // Check adjacent cells: +1 data for each adjacent asteroid field
-                        const adjacentCellsInfo = getAdjacentCells(absPos.disk, absPos.absoluteSector);
-                        adjacentCellsInfo.forEach(adj => {
-                            const adjCell = getCell(adj.disk, adj.sector, rotationState);
-                            if (adjCell && adjCell.hasAsteroid) {
-                                currentProbeBonus += 1;
-                            }
-                        });
-
-                        if (currentProbeBonus > maxDataBonus) {
-                            maxDataBonus = currentProbeBonus;
-                        }
-                    });
-
-                    if (maxDataBonus > 0) {
-                        player.data = Math.min((player.data || 0) + maxDataBonus, GAME_CONSTANTS.MAX_DATA);
-                        bonuses.data = (bonuses.data || 0) + maxDataBonus;
-                    }
+                case 'GAIN_SIGNAL':
+                    if (!bonuses.gainSignal) bonuses.gainSignal = [];
+                    bonuses.gainSignal.push(effect.value);
                     break;
             }
         }
@@ -338,12 +274,7 @@ export class CardSystem {
             } else if (effect.type === 'REVEAL_AND_TRIGGER_FREE_ACTION') {
                 bonuses.revealAndTriggerFreeAction = true;
             } else if (effect.type === 'SCORE_PER_MEDIA') {
-                const pointsGained = player.mediaCoverage * effect.value;
-                if (pointsGained > 0) {
-                    player.score += pointsGained;
-                    if (!bonuses.pv) bonuses.pv = 0;
-                    bonuses.pv += pointsGained;
-                }
+                bonuses.scorePerMedia = effect.value;
             } else if (effect.type === 'SCORE_PER_TECH_TYPE') {
                 player.activeBuffs.push({ ...effect, source: card.name });
             } else if (effect.type === 'MEDIA_IF_SHARED_TECH') {
@@ -439,6 +370,90 @@ export class CardSystem {
                 bonuses.ignoreProbeLimit = true;
             } else if (effect.type === 'CHOICE_MEDIA_OR_MOVE') {
                 player.activeBuffs.push({ ...effect, source: card.name });
+            } else if (effect.type === 'OSIRIS_REX_BONUS') {
+                let maxDataBonus = 0;
+                const rotationState = createRotationState(
+                    updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+                    updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+                    updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+                );
+
+                player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition).forEach(probe => {
+                    let currentProbeBonus = 0;
+                    
+                    // Get absolute position of the probe
+                    const tempObj: CelestialObject = {
+                        id: probe.id,
+                        type: 'empty', // type doesn't matter for position calculation
+                        name: 'probe',
+                        position: {
+                            disk: probe.solarPosition!.disk,
+                            sector: probe.solarPosition!.sector,
+                            x: 0, y: 0
+                        },
+                        level: (probe.solarPosition!.level || 0) as 0 | 1 | 2 | 3
+                    };
+                    const absPos = calculateAbsolutePosition(tempObj, rotationState);
+
+                    // Check current cell: +2 data if on an asteroid field
+                    const currentCell = getCell(absPos.disk, absPos.absoluteSector, rotationState);
+                    if (currentCell && currentCell.hasAsteroid) {
+                        currentProbeBonus += 2;
+                    }
+
+                    // Check adjacent cells: +1 data for each adjacent asteroid field
+                    const adjacentCellsInfo = getAdjacentCells(absPos.disk, absPos.absoluteSector);
+                    adjacentCellsInfo.forEach(adj => {
+                        const adjCell = getCell(adj.disk, adj.sector, rotationState);
+                        if (adjCell && adjCell.hasAsteroid) {
+                            currentProbeBonus += 1;
+                        }
+                    });
+
+                    if (currentProbeBonus > maxDataBonus) {
+                        maxDataBonus = currentProbeBonus;
+                    }
+                });
+
+                if (maxDataBonus > 0) {
+                    player.data = Math.min((player.data || 0) + maxDataBonus, GAME_CONSTANTS.MAX_DATA);
+                    bonuses.data = (bonuses.data || 0) + maxDataBonus;
+                }
+            } else if (effect.type === 'DISCARD_ROW_FOR_FREE_ACTIONS') {
+                // Appliquer les actions gratuites de toutes les cartes de la rangée
+                updatedGame.decks.cardRow.forEach(rowCard => {
+                    if (rowCard.freeAction === FreeActionType.MOVEMENT) {
+                        bonuses.movements = (bonuses.movements || 0) + 1;
+                    } else if (rowCard.freeAction === FreeActionType.DATA) {
+                        player.data = Math.min((player.data || 0) + 1, GAME_CONSTANTS.MAX_DATA);
+                        bonuses.data = (bonuses.data || 0) + 1;
+                    } else if (rowCard.freeAction === FreeActionType.MEDIA) {
+                        player.mediaCoverage = Math.min((player.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                        bonuses.media = (bonuses.media || 0) + 1;
+                    }
+                });
+                updatedGame.decks.cardRow = [];
+                const refilled = this.refillCardRow(updatedGame);
+                updatedGame.decks.cardRow = refilled.decks.cardRow;
+                updatedGame.decks = refilled.decks;
+            } else if (effect.type === 'ATMOSPHERIC_ENTRY') {
+                bonuses.atmosphericEntry = true;
+            } else if (effect.type === 'GAIN_SIGNAL_FROM_HAND') {
+                bonuses.gainSignalFromHand = effect.value;
+            } else if (effect.type === 'BONUS_IF_COVERED') {
+                player.activeBuffs.push({ ...effect, source: card.name });
+            } else if (effect.type === 'SCORE_IF_UNIQUE') {
+                player.activeBuffs.push({ ...effect, source: card.name });
+            } else if (effect.type === 'SCORE_PER_SECTOR') {
+                player.activeBuffs.push({ ...effect, source: card.name });
+            } else if (effect.type === 'KEEP_CARD_IF_ONLY') {
+                bonuses.keepCardIfOnly = true;
+            } else if (effect.type === 'NO_DATA') {
+                bonuses.noData = true;
+            } else if (effect.type === 'ANY_PROBE') {
+                bonuses.anyProbe = true;
+            } else if (effect.type === 'GAIN_SIGNAL_ADJACENTS') {
+                bonuses.gainSignalAdjacents = true;
             }
         });
     }

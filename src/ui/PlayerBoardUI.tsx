@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, SectorColor } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, SectorColor, Player, ComputerSlot } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { DataSystem } from '../systems/DataSystem';
 import { CardSystem } from '../systems/CardSystem';
@@ -37,6 +37,9 @@ interface PlayerBoardUIProps {
   isPlacingLifeTrace?: boolean;
   onDirectTradeAction?: (spendType: string, gainType: string) => void;
   isSelectingSector?: boolean;
+  isDiscardingForSignal?: boolean;
+  onConfirmDiscardForSignal?: () => void;
+  discardForSignalCount?: number;
 }
 
 const ACTION_NAMES: Record<ActionType, string> = {
@@ -50,7 +53,7 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.PASS]: 'Passer définitivement',
 };
 
-const ComputerSlot = ({ 
+const ComputerSlotUI = ({ 
   slot, 
   onClick, 
   canFill,
@@ -59,7 +62,7 @@ const ComputerSlot = ({
   onLeave,
   isPreviousFilled
 }: { 
-  slot: any, 
+  slot: ComputerSlot, 
   onClick: () => void, 
   canFill: boolean,
   hasData: boolean,
@@ -155,7 +158,7 @@ const ComputerSlot = ({
 const PlayerComputer = ({ 
   player, onSlotClick, isSelecting, onColumnSelect, isAnalyzing, disabled, onHover, onLeave 
 }: { 
-  player: any, onSlotClick: (slotId: string) => void, isSelecting?: boolean, onColumnSelect?: (col: number) => void, isAnalyzing?: boolean, disabled?: boolean,
+  player: Player, onSlotClick: (slotId: string) => void, isSelecting?: boolean, onColumnSelect?: (col: number) => void, isAnalyzing?: boolean, disabled?: boolean,
   onHover: (e: React.MouseEvent, content: React.ReactNode) => void,
   onLeave: () => void
 }) => {
@@ -169,10 +172,10 @@ const PlayerComputer = ({
       {isAnalyzing && <div className="scan-line" />}
 
       {columns.map((col, index) => {
-        const colSlots = Object.values(slots).filter((s: any) => s.col === col).sort((a: any, b: any) => a.type === 'top' ? -1 : 1);
+        const colSlots = Object.values(slots).filter((s) => s.col === col).sort((a, b) => a.type === 'top' ? -1 : 1);
         const hasBottom = colSlots.length > 1;
         
-        const topSlot = colSlots.find((s: any) => s.type === 'top');
+        const topSlot = colSlots.find((s) => s.type === 'top');
         const hasTech = topSlot && topSlot.bonus === '2pv';
         const isSelectableColumn = isSelecting && hasBottom && !hasTech; // Only columns with 2 slots (1, 3, 5, 6) are selectable for computing tech
 
@@ -183,7 +186,7 @@ const PlayerComputer = ({
         if (index < columns.length - 1) {
             const currentPadding = hasBottom ? 12 : 4;
             const nextCol = columns[index + 1];
-            const nextColSlots = Object.values(slots).filter((s: any) => s.col === nextCol);
+            const nextColSlots = Object.values(slots).filter((s) => s.col === nextCol);
             const nextHasBottom = nextColSlots.length > 1;
             const nextPadding = nextHasBottom ? 12 : 4;
             
@@ -202,7 +205,7 @@ const PlayerComputer = ({
                 <div className="computer-column-connector" />
               )}
               {colSlots.map((slot: any, slotIndex: number) => (
-                <ComputerSlot 
+                <ComputerSlotUI 
                   key={slot.id} 
                   slot={slot} 
                   onClick={() => onSlotClick(slot.id)} 
@@ -210,7 +213,7 @@ const PlayerComputer = ({
                   hasData={hasData}
                   onHover={onHover}
                   onLeave={onLeave}
-                  isPreviousFilled={slotIndex > 0 ? (colSlots[slotIndex - 1] as any).filled : true}
+                  isPreviousFilled={slotIndex > 0 ? colSlots[slotIndex - 1].filled : true}
                 />
               ))}
             </div>
@@ -339,7 +342,7 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, onViewPlayer, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, isTrading = false, onConfirmTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, isReserving = false, reservationCount = 0, onConfirmReservation, isPlacingLifeTrace = false, onDirectTradeAction, isSelectingSector = false }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, onViewPlayer, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, isTrading = false, onConfirmTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, isReserving = false, reservationCount = 0, onConfirmReservation, isPlacingLifeTrace = false, onDirectTradeAction, isSelectingSector = false, isDiscardingForSignal = false, onConfirmDiscardForSignal, discardForSignalCount = 0 }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -674,6 +677,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     const isSelectedForDiscard = isDiscarding && selectedCardIds.includes(card.id);
     const isSelectedForTrade = isTrading && selectedCardIds.includes(card.id);
     const isSelectedForReservation = isReserving && selectedCardIds.includes(card.id);
+    const isSelectedForDiscardSignal = isDiscardingForSignal && selectedCardIds.includes(card.id);
     const isHighlighted = highlightedCardId === card.id;
     
     // Détermination de la classe CSS selon la phase
@@ -704,6 +708,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
         phaseClass += ' disabled';
         isClickable = false;
       }
+    } else if (isDiscardingForSignal) {
+      phaseClass = 'seti-card-interact-mode';
+      if (isSelectedForDiscardSignal) {
+        phaseClass += ' selected';
+      } else if (selectedCardIds.length >= (discardForSignalCount || 0) && !isSelectedForDiscardSignal) {
+        phaseClass += ' disabled';
+        isClickable = false;
+      }
     } else {
       // Mode IDLE (Jeu normal)
       if (isHighlighted) {
@@ -727,7 +739,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
           e;
           if (!isClickable) return;
           
-          if (isReserving || isTrading || isDiscarding) {
+          if (isReserving || isTrading || isDiscarding || isDiscardingForSignal) {
             if (onCardClick) onCardClick(card.id);
             return;
           }
@@ -736,7 +748,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
           setHighlightedCardId(isHighlighted ? null : card.id);
         }}
       >
-        {isHighlighted && !isDiscarding && !isReserving && !isTrading && (
+        {isHighlighted && !isDiscarding && !isReserving && !isTrading && !isDiscardingForSignal && (
           <>
           {renderActionButton('▶️', effectivePlayTooltip, () => { if (canPlayAction && onPlayCard) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlayAction, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 })}
           {renderActionButton('🗑️', discardTooltip, () => { if (canDiscard && onDiscardCardAction) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canDiscard, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 })}
@@ -1037,6 +1049,19 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                       Confirmer
                     </button>
                 )}
+              </div>
+            )}
+            {isDiscardingForSignal && (
+              <div style={{ marginBottom: '10px', color: '#ff9800', fontSize: '0.9em' }}>
+                Sélectionnez jusqu'à {discardForSignalCount} carte(s) à défausser pour gagner des signaux.
+                <br />
+                Sélectionnées : {selectedCardIds.length}
+                <button 
+                  onClick={onConfirmDiscardForSignal}
+                  style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
+                >
+                  Confirmer
+                </button>
               </div>
             )}
             <div className="seti-player-list" style={{ flexDirection: 'row', overflowX: 'auto', paddingBottom: '8px', gap: '8px' }}>
