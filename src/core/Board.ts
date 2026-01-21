@@ -499,17 +499,13 @@ export class BoardManager {
    */
   private static createAlienBoards(): AlienBoard[] {
     return [{
-      redLifeTraces: [],
-      yellowLifeTraces: [],
-      blueLifeTraces: [],
+      lifeTraces: [],
       firstBonus: { pv: 5, media: 1 },
       nextBonus: { pv: 3, media: 1 },
       isFirstBoard: true
     },
     {
-      redLifeTraces: [],
-      yellowLifeTraces: [],
-      blueLifeTraces: [],
+      lifeTraces: [],
       firstBonus: { pv: 3, media: 1 },
       nextBonus: { pv: 3, media: 1 },
       isFirstBoard: false

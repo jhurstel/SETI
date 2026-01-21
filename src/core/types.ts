@@ -79,9 +79,9 @@ export enum TechnologyCategory {
 }
 
 export enum LifeTraceType {
-  TYPE_A = "TYPE_A",
-  TYPE_B = "TYPE_B",
-  TYPE_C = "TYPE_C"
+  RED = "Rouge",
+  YELLOW = "Jaune",
+  BLUE = "Bleu"
 }
 
 export enum EventType {
@@ -261,9 +261,7 @@ export interface ComputerSlot {
 }
 
 export interface AlienBoard {
-  redLifeTraces: LifeTrace[];
-  yellowLifeTraces: LifeTrace[];
-  blueLifeTraces: LifeTrace[];
+  lifeTraces: LifeTrace[];
   firstBonus: Bonus;
   nextBonus: Bonus;
   isFirstBoard: boolean;

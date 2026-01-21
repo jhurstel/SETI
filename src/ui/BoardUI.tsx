@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Technology, RevenueType, ProbeState, TechnologyCategory, MILESTONES, CardType, SignalType } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Technology, RevenueType, ProbeState, TechnologyCategory, MILESTONES, CardType, SignalType, LifeTraceType } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -48,7 +48,7 @@ type InteractionState =
   /** Le joueur a lancé l'action "Analyser", principalement pour l'animation. */
   | { type: 'ANALYZING', sequenceId?: string }
   /** Le joueur a analysé des données et doit placer une trace de vie sur le plateau Alien. */
-  | { type: 'PLACING_LIFE_TRACE', color: 'blue' | 'red' | 'yellow', sequenceId?: string }
+  | { type: 'PLACING_LIFE_TRACE', color: LifeTraceType, sequenceId?: string }
   /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number, sequenceId?: string }
   /** Le joueur scanne un secteur (2ème étape : choix de la carte). */
@@ -178,11 +178,12 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
   , document.body);
 };
 
-const AlienTriangleSlot = ({ color, children, onMouseEnter, onMouseLeave }: { color: string, children?: React.ReactNode, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
+const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseEnter, onMouseLeave }: { color: string, traces: any[], game: Game, onClick?: () => void, isClickable?: boolean, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
   <div 
-    style={{ position: 'relative', width: '60px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }}
+    style={{ position: 'relative', width: '60px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isClickable ? 'pointer' : 'help' }}
     onMouseEnter={onMouseEnter}
     onMouseLeave={onMouseLeave}
+    onClick={onClick}
   >
     <svg width="60" height="50" viewBox="0 0 60 50" style={{ position: 'absolute', top: 0, left: 0, overflow: 'visible' }}>
       <path
@@ -193,13 +194,30 @@ const AlienTriangleSlot = ({ color, children, onMouseEnter, onMouseLeave }: { co
            Q30 50 25 45
            L5 15
            Q0 10 10 5 Z"
-        fill="rgba(0, 0, 0, 0.5)"
+        fill={isClickable ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.5)"}
         stroke={color}
-        strokeWidth="2"
+        strokeWidth={isClickable ? "3" : "2"}
+        style={{ transition: 'all 0.3s ease', filter: isClickable ? `drop-shadow(0 0 5px ${color})` : 'none' }}
       />
+      {isClickable && (
+         <animate attributeName="opacity" values="1;0.7;1" dur="1.5s" repeatCount="indefinite" />
+      )}
     </svg>
-    <div style={{ zIndex: 1, color: '#fff', fontWeight: 'bold', fontSize: '1.2em' }}>
-      {children}
+    <div style={{ zIndex: 1, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '2px', width: '40px', height: '30px', overflow: 'hidden' }}>
+      {traces.map((trace, idx) => {
+          const player = game.players.find(p => p.id === trace.playerId);
+          return (
+              <div key={idx} style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  backgroundColor: player?.color || '#fff',
+                  border: '1px solid rgba(255,255,255,0.8)',
+                  boxShadow: '0 0 2px rgba(0,0,0,0.8)',
+                  zIndex: 2
+              }} />
+          );
+      })}
     </div>
   </div>
 );
@@ -1196,6 +1214,50 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     return { updatedGame, newPendingInteractions, logs, passiveGains };
   };
 
+  // Gestionnaire pour placer une trace de vie
+  const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType) => {
+    if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
+    
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    let updatedGame = structuredClone(game);
+    const board = updatedGame.board.alienBoards[boardIndex];
+    
+    board.lifeTraces.push({
+        id: `trace-${Date.now()}`,
+        type: color,
+        playerId: currentPlayer.id
+    });
+
+    const track = board.lifeTraces.filter(t => t.type === color);
+
+    const isFirst = track.length === 1;
+    const bonus = isFirst ? board.firstBonus : board.nextBonus;
+
+    const { updatedGame: gameAfterBonus, newPendingInteractions, passiveGains, logs } = processBonuses(bonus, updatedGame, currentPlayer.id);
+    
+    setGame(gameAfterBonus);
+    if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonus);
+    
+    const sequenceId = interactionState.sequenceId;
+    addToHistory(`place une trace de vie ${color} sur le plateau Alien ${boardIndex + 1}`, currentPlayer.id, game, undefined, sequenceId);
+    logs.forEach(log => addToHistory(log, currentPlayer.id, gameAfterBonus, undefined, sequenceId));
+
+    if (passiveGains.length > 0) {
+        setToast({ message: `Bonus : ${passiveGains.join(', ')}`, visible: true });
+    }
+
+    const interactionsWithSeqId = newPendingInteractions.map(i => ({ ...i, sequenceId }));
+    const allNext = [...interactionsWithSeqId, ...pendingInteractions];
+    
+    if (allNext.length > 0) {
+        const [next, ...rest] = allNext;
+        setInteractionState(next);
+        setPendingInteractions(rest);
+    } else {
+        setInteractionState({ type: 'IDLE' });
+    }
+  };
+
   // Gestionnaire pour les choix dans le menu de bonus
   const handleMenuChoice = (choiceIndex: number) => {
     if (interactionState.type !== 'CHOOSING_BONUS_ACTION') return;
@@ -2086,24 +2148,21 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   };
 
   // Helper pour le tooltip des slots Alien
-  const renderAlienSlotTooltip = (boardIndex: number, colorType: 'red' | 'blue' | 'yellow') => {
+  const renderAlienSlotTooltip = (boardIndex: number, colorType: LifeTraceType) => {
     const board = game.board.alienBoards[boardIndex];
     if (!board) return null;
 
-    let traces: any[] = [];
+    const traces = board.lifeTraces.filter(t => t.type === colorType);
     let colorName = "";
     let colorHex = "";
 
-    if (colorType === 'red') {
-      traces = board.redLifeTraces;
+    if (colorType === LifeTraceType.RED) {
       colorName = "Rouge";
       colorHex = "#ff6b6b";
-    } else if (colorType === 'blue') {
-      traces = board.blueLifeTraces;
+    } else if (colorType === LifeTraceType.BLUE) {
       colorName = "Bleue";
       colorHex = "#4a9eff";
-    } else if (colorType === 'yellow') {
-      traces = board.yellowLifeTraces;
+    } else if (colorType === LifeTraceType.YELLOW) {
       colorName = "Jaune";
       colorHex = "#ffd700";
     }
@@ -3061,35 +3120,41 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     borderTop: '1px solid #444'
                   }}>
                     {/* Red Life Trace Slot */}
-                    <AlienTriangleSlot color="#ff6b6b" 
+                    <AlienTriangleSlot color="#ff6b6b"
+                      traces={game.board.alienBoards[0].lifeTraces.filter(t => t.type === LifeTraceType.RED)}
+                      game={game}
+                      isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.RED}
+                      onClick={() => handlePlaceLifeTrace(0, LifeTraceType.RED)}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ content: renderAlienSlotTooltip(0, 'red'), rect });
+                        setActiveTooltip({ content: renderAlienSlotTooltip(0, LifeTraceType.RED), rect });
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
-                    >
-                       {game.board.alienBoards[0].redLifeTraces.length > 0 && game.board.alienBoards[0].redLifeTraces.length}
-                    </AlienTriangleSlot>
+                    />
                     {/* Blue Life Trace Slot */}
                     <AlienTriangleSlot color="#4a9eff"
+                      traces={game.board.alienBoards[0].lifeTraces.filter(t => t.type === LifeTraceType.BLUE)}
+                      game={game}
+                      isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE}
+                      onClick={() => handlePlaceLifeTrace(0, LifeTraceType.BLUE)}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ content: renderAlienSlotTooltip(0, 'blue'), rect });
+                        setActiveTooltip({ content: renderAlienSlotTooltip(0, LifeTraceType.BLUE), rect });
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
-                    >
-                       {game.board.alienBoards[0].blueLifeTraces.length > 0 && game.board.alienBoards[0].blueLifeTraces.length}
-                    </AlienTriangleSlot>
+                    />
                     {/* Yellow Life Trace Slot */}
                     <AlienTriangleSlot color="#ffd700"
+                      traces={game.board.alienBoards[0].lifeTraces.filter(t => t.type === LifeTraceType.YELLOW)}
+                      game={game}
+                      isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.YELLOW}
+                      onClick={() => handlePlaceLifeTrace(0, LifeTraceType.YELLOW)}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ content: renderAlienSlotTooltip(0, 'yellow'), rect });
+                        setActiveTooltip({ content: renderAlienSlotTooltip(0, LifeTraceType.YELLOW), rect });
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
-                    >
-                       {game.board.alienBoards[0].yellowLifeTraces.length > 0 && game.board.alienBoards[0].yellowLifeTraces.length}
-                    </AlienTriangleSlot>
+                    />
                   </div>
                 </div>
               </div>
@@ -3128,35 +3193,41 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     borderTop: '1px solid #444'
                   }}>
                     {/* Red Life Trace Slot */}
-                    <AlienTriangleSlot color="#ff6b6b" 
+                    <AlienTriangleSlot color="#ff6b6b"
+                      traces={game.board.alienBoards[1].lifeTraces.filter(t => t.type === LifeTraceType.RED)}
+                      game={game}
+                      isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.RED}
+                      onClick={() => handlePlaceLifeTrace(1, LifeTraceType.RED)}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ content: renderAlienSlotTooltip(1, 'red'), rect });
+                        setActiveTooltip({ content: renderAlienSlotTooltip(1, LifeTraceType.RED), rect });
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
-                    >
-                       {game.board.alienBoards[1].redLifeTraces.length > 0 && game.board.alienBoards[1].redLifeTraces.length}
-                    </AlienTriangleSlot>
+                    />
                     {/* Blue Life Trace Slot */}
                     <AlienTriangleSlot color="#4a9eff"
+                      traces={game.board.alienBoards[1].lifeTraces.filter(t => t.type === LifeTraceType.BLUE)}
+                      game={game}
+                      isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE}
+                      onClick={() => handlePlaceLifeTrace(1, LifeTraceType.BLUE)}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ content: renderAlienSlotTooltip(1, 'blue'), rect });
+                        setActiveTooltip({ content: renderAlienSlotTooltip(1, LifeTraceType.BLUE), rect });
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
-                    >
-                       {game.board.alienBoards[1].blueLifeTraces.length > 0 && game.board.alienBoards[1].blueLifeTraces.length}
-                    </AlienTriangleSlot>
+                    />
                     {/* Yellow Life Trace Slot */}
                     <AlienTriangleSlot color="#ffd700"
+                      traces={game.board.alienBoards[1].lifeTraces.filter(t => t.type === LifeTraceType.YELLOW)}
+                      game={game}
+                      isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.YELLOW}
+                      onClick={() => handlePlaceLifeTrace(1, LifeTraceType.YELLOW)}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ content: renderAlienSlotTooltip(1, 'yellow'), rect });
+                        setActiveTooltip({ content: renderAlienSlotTooltip(1, LifeTraceType.YELLOW), rect });
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
-                    >
-                       {game.board.alienBoards[1].yellowLifeTraces.length > 0 && game.board.alienBoards[1].yellowLifeTraces.length}
-                    </AlienTriangleSlot>
+                    />
                   </div>
                 </div>
               </div>
