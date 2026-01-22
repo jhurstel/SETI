@@ -54,7 +54,7 @@ export class SectorSystem {
   /**
    * Scanne un secteur
    */
-  static scanSector(game: Game, playerId: string, sectorId: string, checkCost: boolean = true) : {
+  static scanSector(game: Game, playerId: string, sectorId: string, checkCost: boolean = true, noData: boolean = false) : {
     updatedGame: Game;
     logs: string[];
     bonuses: Bonus;
@@ -85,8 +85,12 @@ export class SectorSystem {
       
       // Base gain: 1 Data (if type is DATA)
       if (signal.type === SignalType.DATA) {
-          player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
-          bonuses.data = 1;
+          if (noData) {
+            logs.push(`sans gagner de Donnée`);
+          } else {
+            player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
+            bonuses.data = 1;
+          }
       }
       
       // Signal bonus: 2PV
@@ -180,7 +184,7 @@ export class SectorSystem {
             });
         }
     }
-    return { updatedGame, logs, bonuses, winnerId };
+    return { updatedGame, logs, bonuses, winnerId};
   }
 
   /**

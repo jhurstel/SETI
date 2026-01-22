@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Technology, RevenueType, ProbeState, TechnologyCategory, MILESTONES, CardType, LifeTraceType } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Card, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, MILESTONES, CardType, LifeTraceType } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -26,7 +26,7 @@ interface BoardUIProps {
  * L'état 'IDLE' est l'état par défaut où le joueur peut initier une action principale.
  * Tous les autres états représentent une interaction en cours qui bloque les actions principales.
  */
-type InteractionState = 
+type InteractionState =
   /** Le joueur est en attente, aucune interaction en cours. */
   | { type: 'IDLE', sequenceId?: string }
   /** Le joueur a un bonus de réservation et doit choisir une carte à glisser sous son plateau. */
@@ -54,11 +54,9 @@ type InteractionState =
   /** Le joueur scanne un secteur (2ème étape : choix de la carte). */
   | { type: 'SELECTING_SCAN_CARD', sequenceId?: string }
   /** Le joueur scanne un secteur (3ème étape : choix du secteur couleur). */
-  | { type: 'SELECTING_SCAN_SECTOR', color: SectorColor, sequenceId?: string, cardId?: string }
+  | { type: 'SELECTING_SCAN_SECTOR', color: SectorColor, noData?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string }
   /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
   | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string, remainingMoves?: number }
-  /** Le joueur doit marquer des signaux. */
-  | { type: 'MARKING_SIGNAL', amount: number, scope: string, noData?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, cardId?: string, sequenceId?: string }
   /** Le joueur doit défausser des cartes de sa main pour leurs signaux. */
   | { type: 'DISCARDING_FOR_SIGNAL', count: number, selectedCards: string[], sequenceId?: string }
   /** Le joueur doit retirer un orbiteur (Carte 15). */
@@ -80,7 +78,6 @@ const getInteractionLabel = (state: InteractionState): string => {
     case 'CHOOSING_MEDIA_OR_MOVE': return "Choisir Média ou Déplacement";
     case 'SELECTING_SCAN_CARD': return "Choisir une carte pour le scan";
     case 'SELECTING_SCAN_SECTOR': return "Choisir un secteur à scanner";
-    case 'MARKING_SIGNAL': return `Marquer un signal (${state.scope})`;
     case 'DISCARDING_FOR_SIGNAL': return `Défausser pour signal (${state.count})`;
     case 'REMOVING_ORBITER': return "Retirer un orbiteur";
     default: return "Action bonus";
@@ -101,19 +98,19 @@ interface HistoryEntry {
 
 // Configuration des ressources pour l'affichage et les logs
 const RESOURCE_CONFIG: Record<string, { label: string, plural: string, icon: string, color: string, regex: RegExp }> = {
-  CREDIT: { 
+  CREDIT: {
     label: 'Crédit', plural: 'Crédits', icon: '₢', color: '#ffd700',
-    regex: /Crédit(?:s?)|crédit(?:s?)/ 
+    regex: /Crédit(?:s?)|crédit(?:s?)/
   },
-  ENERGY: { 
+  ENERGY: {
     label: 'Énergie', plural: 'Énergie', icon: '⚡', color: '#4caf50',
     regex: /Énergie|énergie|Energie|energie/
   },
-  MEDIA: { 
+  MEDIA: {
     label: 'Média', plural: 'Médias', icon: '🎤', color: '#ff6b6b',
     regex: /Média(?:s?)|Media(?:s?)|média(?:s?)|media(?:s?)/
   },
-  DATA: { 
+  DATA: {
     label: 'Donnée', plural: 'Données', icon: '💾', color: '#03a9f4',
     regex: /Donnée(?:s?)|donnée(?:s?)|Data|data/
   },
@@ -135,7 +132,7 @@ const formatResource = (amount: number, type: string) => {
   if (key === 'MEDIAS') key = 'MEDIA';
   if (key === 'DATAS') key = 'DATA';
   if (key === 'CARDS' || key === 'CARTES') key = 'CARD';
-  
+
   const config = RESOURCE_CONFIG[key];
   if (config) {
     const label = Math.abs(amount) > 1 ? config.plural : config.label;
@@ -168,13 +165,13 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
       if (top < padding) {
         const bottomPosition = targetRect.bottom + margin;
         if (bottomPosition + rect.height <= viewportHeight - padding) {
-            top = bottomPosition;
+          top = bottomPosition;
         } else {
-            if (targetRect.top > (viewportHeight - targetRect.bottom)) {
-                top = padding;
-            } else {
-                top = viewportHeight - rect.height - padding;
-            }
+          if (targetRect.top > (viewportHeight - targetRect.bottom)) {
+            top = padding;
+          } else {
+            top = viewportHeight - rect.height - padding;
+          }
         }
       }
 
@@ -186,11 +183,11 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
     <div ref={tooltipRef} style={{ position: 'fixed', zIndex: 9999, backgroundColor: 'rgba(0, 0, 0, 0.95)', padding: '8px', borderRadius: '6px', border: '1px solid #78a0ff', color: '#fff', textAlign: 'center', minWidth: '150px', boxShadow: '0 4px 15px rgba(0,0,0,0.6)', transition: 'opacity 0.1s ease-in-out', pointerEvents: 'none', ...style }}>
       {content}
     </div>
-  , document.body);
+    , document.body);
 };
 
 const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseEnter, onMouseLeave }: { color: string, traces: any[], game: Game, onClick?: () => void, isClickable?: boolean, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
-  <div 
+  <div
     style={{ position: 'relative', width: '60px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isClickable ? 'pointer' : 'help' }}
     onMouseEnter={onMouseEnter}
     onMouseLeave={onMouseLeave}
@@ -211,23 +208,23 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
         style={{ transition: 'all 0.3s ease', filter: isClickable ? `drop-shadow(0 0 5px ${color})` : 'none' }}
       />
       {isClickable && (
-         <animate attributeName="opacity" values="1;0.7;1" dur="1.5s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="1;0.7;1" dur="1.5s" repeatCount="indefinite" />
       )}
     </svg>
     <div style={{ zIndex: 1, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '2px', width: '40px', height: '30px', overflow: 'hidden' }}>
       {traces.map((trace, idx) => {
-          const player = game.players.find(p => p.id === trace.playerId);
-          return (
-              <div key={idx} style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  backgroundColor: player?.color || '#fff',
-                  border: '1px solid rgba(255,255,255,0.8)',
-                  boxShadow: '0 0 2px rgba(0,0,0,0.8)',
-                  zIndex: 2
-              }} />
-          );
+        const player = game.players.find(p => p.id === trace.playerId);
+        return (
+          <div key={idx} style={{
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            backgroundColor: player?.color || '#fff',
+            border: '1px solid rgba(255,255,255,0.8)',
+            boxShadow: '0 0 2px rgba(0,0,0,0.8)',
+            zIndex: 2
+          }} />
+        );
       })}
     </div>
   </div>
@@ -237,7 +234,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // États pour le jeu
   const [game, setGame] = useState<Game>(initialGame);
   const gameEngineRef = useRef<GameEngine | null>(null);
-  
+
   // Ref pour accéder à l'état du jeu le plus récent dans les callbacks
   const gameRef = useRef(game);
   useEffect(() => {
@@ -248,18 +245,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   if (!gameEngineRef.current) {
     gameEngineRef.current = new GameEngine(game);
   }
-  
+
   // États pour l'UI
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
   const historyContentRef = useRef<HTMLDivElement>(null);
   const [historyLog, setHistoryLog] = useState<HistoryEntry[]>(() => {
     if (initialGame.gameLog && initialGame.gameLog.length > 0) {
-        return [...initialGame.gameLog].map(log => ({
-            id: log.id,
-            message: log.message,
-            playerId: log.playerId,
-            timestamp: log.timestamp
-        }));
+      return [...initialGame.gameLog].map(log => ({
+        id: log.id,
+        message: log.message,
+        playerId: log.playerId,
+        timestamp: log.timestamp
+      }));
     }
     return [];
   });
@@ -276,7 +273,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // État pour le tooltip générique
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
-  
+
   // Auto-open tech & row panel when researching or selecting card
   useEffect(() => {
     if (interactionState.type === 'ACQUIRING_TECH') {
@@ -298,17 +295,17 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Effet pour la réservation initiale (Setup) pour le joueur humain
   useEffect(() => {
     if (game.currentRound === 1 && interactionState.type === 'IDLE') {
-        const humanPlayer = game.players.find(p => p.type === 'human');
-        if (humanPlayer) {
-            const initialTotalRevenue = GAME_CONSTANTS.INITIAL_REVENUE_CREDITS + GAME_CONSTANTS.INITIAL_REVENUE_ENERGY + GAME_CONSTANTS.INITIAL_REVENUE_CARDS;
-            const currentTotalRevenue = humanPlayer.revenueCredits + humanPlayer.revenueEnergy + humanPlayer.revenueCards;
-            
-            if (currentTotalRevenue === initialTotalRevenue) {
-                setInteractionState({ type: 'RESERVING_CARD', count: 1, selectedCards: [] });
-                setToast({ message: "Phase de préparation : Veuillez réserver une carte de votre main", visible: true });
-                setViewedPlayerId(humanPlayer.id);
-            }
+      const humanPlayer = game.players.find(p => p.type === 'human');
+      if (humanPlayer) {
+        const initialTotalRevenue = GAME_CONSTANTS.INITIAL_REVENUE_CREDITS + GAME_CONSTANTS.INITIAL_REVENUE_ENERGY + GAME_CONSTANTS.INITIAL_REVENUE_CARDS;
+        const currentTotalRevenue = humanPlayer.revenueCredits + humanPlayer.revenueEnergy + humanPlayer.revenueCards;
+
+        if (currentTotalRevenue === initialTotalRevenue) {
+          setInteractionState({ type: 'RESERVING_CARD', count: 1, selectedCards: [] });
+          setToast({ message: "Phase de préparation : Veuillez réserver une carte de votre main", visible: true });
+          setViewedPlayerId(humanPlayer.id);
         }
+      }
     }
   }, [game.currentRound, game.players, interactionState.type]);
 
@@ -338,11 +335,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const formatHistoryMessage = (message: string) => {
     const pattern = Object.values(RESOURCE_CONFIG).map(c => c.regex.source).join('|');
     const splitRegex = new RegExp(`(${pattern})`, 'g');
-    
+
     return message.split(splitRegex).map((part, index) => {
       for (const config of Object.values(RESOURCE_CONFIG)) {
         if (new RegExp(`^${config.regex.source}$`).test(part)) {
-           return <span key={index} title={config.label} style={{ color: config.color, cursor: 'help', fontWeight: 'bold' }}>{config.icon}</span>;
+          return <span key={index} title={config.label} style={{ color: config.color, cursor: 'help', fontWeight: 'bold' }}>{config.icon}</span>;
         }
       }
 
@@ -368,11 +365,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Helper pour formater les logs de rotation
   const formatRotationLogs = (baseMessage: string, rotationLogs: string[]) => {
     if (rotationLogs.length === 0) return baseMessage;
-    
+
     const details = rotationLogs.map(log => {
-        return log.replace(/^Sonde de /, '').replace(/ poussée vers /, ' -> ');
+      return log.replace(/^Sonde de /, '').replace(/ poussée vers /, ' -> ');
     }).join(', ');
-    
+
     return `${baseMessage}. Poussée(s) : ${details}`;
   };
 
@@ -396,48 +393,48 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleUndo = () => {
     if (historyLog.length === 0) return;
     const lastEntry = historyLog[historyLog.length - 1];
-    
+
     // Logique d'annulation de séquence (si sequenceId est présent)
     if (lastEntry.sequenceId) {
-        // Trouver toutes les entrées de cette séquence
-        const sequenceEntries = historyLog.filter(e => e.sequenceId === lastEntry.sequenceId);
-        // L'état à restaurer est celui de la PREMIÈRE entrée de la séquence (l'action initiale)
-        const firstEntry = sequenceEntries[0];
-        
-        if (firstEntry && firstEntry.previousState) {
-            setGame(firstEntry.previousState);
-            if (gameEngineRef.current) gameEngineRef.current.setState(firstEntry.previousState);
-            
-            // Supprimer toutes les entrées de la séquence
-            setHistoryLog(prev => prev.filter(e => e.sequenceId !== lastEntry.sequenceId));
-            
-            // Restaurer les états depuis la première entrée
-            setInteractionState(firstEntry.previousInteractionState || { type: 'IDLE' });
-            if (firstEntry.previousHasPerformedMainAction !== undefined) {
-                setHasPerformedMainAction(firstEntry.previousHasPerformedMainAction);
-            }
-            if (firstEntry.previousPendingInteractions) {
-                setPendingInteractions(firstEntry.previousPendingInteractions);
-            }
-            setToast({ message: "Séquence annulée", visible: true });
-        } else {
-            setToast({ message: "Impossible d'annuler cette séquence", visible: true });
+      // Trouver toutes les entrées de cette séquence
+      const sequenceEntries = historyLog.filter(e => e.sequenceId === lastEntry.sequenceId);
+      // L'état à restaurer est celui de la PREMIÈRE entrée de la séquence (l'action initiale)
+      const firstEntry = sequenceEntries[0];
+
+      if (firstEntry && firstEntry.previousState) {
+        setGame(firstEntry.previousState);
+        if (gameEngineRef.current) gameEngineRef.current.setState(firstEntry.previousState);
+
+        // Supprimer toutes les entrées de la séquence
+        setHistoryLog(prev => prev.filter(e => e.sequenceId !== lastEntry.sequenceId));
+
+        // Restaurer les états depuis la première entrée
+        setInteractionState(firstEntry.previousInteractionState || { type: 'IDLE' });
+        if (firstEntry.previousHasPerformedMainAction !== undefined) {
+          setHasPerformedMainAction(firstEntry.previousHasPerformedMainAction);
         }
+        if (firstEntry.previousPendingInteractions) {
+          setPendingInteractions(firstEntry.previousPendingInteractions);
+        }
+        setToast({ message: "Séquence annulée", visible: true });
+      } else {
+        setToast({ message: "Impossible d'annuler cette séquence", visible: true });
+      }
     } else if (lastEntry.previousState) {
       // Annulation standard (atomique)
       setGame(lastEntry.previousState);
       if (gameEngineRef.current) gameEngineRef.current.setState(lastEntry.previousState);
       setHistoryLog(prev => prev.slice(0, -1));
       setInteractionState(lastEntry.previousInteractionState || { type: 'IDLE' });
-      
+
       if (lastEntry.previousHasPerformedMainAction !== undefined) {
         setHasPerformedMainAction(lastEntry.previousHasPerformedMainAction);
       }
-      
+
       if (lastEntry.previousPendingInteractions) {
         setPendingInteractions(lastEntry.previousPendingInteractions);
       }
-      
+
       setToast({ message: "Retour en arrière effectué", visible: true });
     } else {
       setToast({ message: "Impossible d'annuler cette action", visible: true });
@@ -455,109 +452,114 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     return;
   }, [toast]);
 
-  // Effet pour traiter la file d'attente des interactions (récompenses en chaîne)
+  // Effet pour traiter la file d'attente des interactions (récompenses en chaîne) et le remplissage de la rangée
   useEffect(() => {
-    if (interactionState.type === 'IDLE' && pendingInteractions.length > 0) {
-      const [next, ...rest] = pendingInteractions;
-      setPendingInteractions(rest);
-      setInteractionState(next);
-      // Note: Les toasts spécifiques peuvent être gérés ici ou lors de l'ajout à la file
+    if (interactionState.type === 'IDLE') {
+      if (pendingInteractions.length > 0) {
+        const [next, ...rest] = pendingInteractions;
+        setPendingInteractions(rest);
+        setInteractionState(next);
+      } else if (game.decks.cardRow.length < 3 && game.decks.cards.length > 0) {
+        const updatedGame = CardSystem.refillCardRow(game);
+        setGame(updatedGame);
+        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+      }
     }
-  }, [interactionState, pendingInteractions]);
+  }, [interactionState, pendingInteractions, game]);
 
   // Effet pour traiter les interactions non-bloquantes (effets de carte)
   useEffect(() => {
     if (interactionState.type === 'TRIGGER_CARD_EFFECT') {
-        const { effectType, value, sequenceId } = interactionState;
-        const currentPlayer = game.players[game.currentPlayerIndex];
-        let updatedGame = structuredClone(game);
-        let player = updatedGame.players[updatedGame.currentPlayerIndex];
-        let logMessage = "";
-        let toastMessage = "";
+      const { effectType, value, sequenceId } = interactionState;
+      const currentPlayer = game.players[game.currentPlayerIndex];
+      let updatedGame = structuredClone(game);
+      let player = updatedGame.players[updatedGame.currentPlayerIndex];
+      let logMessage = "";
+      let toastMessage = "";
 
-        if (effectType === 'SCORE_PER_MEDIA') {
-            const pointsGained = player.mediaCoverage * value;
-            if (pointsGained > 0) {
-                player.score += pointsGained;
-                logMessage = `gagne ${pointsGained} PV (Bonus PIXL)`;
-                toastMessage = `Bonus : +${pointsGained} PV`;
-            }
+      if (effectType === 'SCORE_PER_MEDIA') {
+        const pointsGained = player.mediaCoverage * value;
+        if (pointsGained > 0) {
+          player.score += pointsGained;
+          logMessage = `gagne ${pointsGained} PV (Bonus PIXL)`;
+          toastMessage = `Bonus : +${pointsGained} PV`;
         }
+      }
 
-        if (logMessage) {
-            setGame(updatedGame);
-            if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-            addToHistory(logMessage, currentPlayer.id, game, undefined, sequenceId);
-        }
-        if (toastMessage) {
-            setToast({ message: toastMessage, visible: true });
-        }
+      if (logMessage) {
+        setGame(updatedGame);
+        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+        addToHistory(logMessage, currentPlayer.id, game, undefined, sequenceId);
+      }
+      if (toastMessage) {
+        setToast({ message: toastMessage, visible: true });
+      }
 
-        // Passer immédiatement à l'état suivant
-        setInteractionState({ type: 'IDLE' });
+      // Passer immédiatement à l'état suivant
+      setInteractionState({ type: 'IDLE' });
     }
   }, [interactionState, game, addToHistory]);
 
   // Helper pour exécuter l'action Passer via PassAction
   const performPass = useCallback((cardsToKeep: string[], selectedCardId?: string) => {
     if (!gameEngineRef.current) return;
-    
+
     // Synchroniser l'état
     const currentGame = gameRef.current;
     gameEngineRef.current.setState(currentGame);
-    
+
     // Utiliser l'état du moteur pour garantir la cohérence
     const engineState = gameEngineRef.current.getState();
     const enginePlayer = engineState.players[engineState.currentPlayerIndex];
-    
+
     const action = new PassAction(enginePlayer.id, cardsToKeep, selectedCardId);
     const result = gameEngineRef.current.executeAction(action);
-    
+
     if (result.success && result.updatedState) {
-        const oldGame = currentGame;
-        const newGame = result.updatedState;
-        
-        if (newGame.isFirstToPass) {
-          const currentLevel = oldGame.board.solarSystem.nextRingLevel || 1;
-          setToast({ message: `Rotation du système solaire (Niveau ${currentLevel})`, visible: true });
-          addToHistory(`passe son tour en premier, fait tourner le Système Solaire (Niveau ${currentLevel}) et choisit une carte à garder`, enginePlayer.id, oldGame);
-        } else {
-          addToHistory("passe son tour et choisit une carte à garder", enginePlayer.id, oldGame);
-        }
+      const oldGame = currentGame;
+      const newGame = result.updatedState;
 
-        // Détecter la fin de manche (si le numéro de manche a augmenté)
-        if (newGame.currentRound > oldGame.currentRound) {
-          setToast({ message: "Fin de manche : Revenus perçus", visible: true });
-          addToHistory(`--- FIN DE LA MANCHE ${oldGame.currentRound} ---`);
+      if (newGame.isFirstToPass) {
+        const currentLevel = oldGame.board.solarSystem.nextRingLevel || 1;
+        setToast({ message: `Rotation du système solaire (Niveau ${currentLevel})`, visible: true });
+        addToHistory(`passe son tour en premier, fait tourner le Système Solaire (Niveau ${currentLevel}) et choisit une carte à garder`, enginePlayer.id, oldGame);
+      } else {
+        addToHistory("passe son tour et choisit une carte à garder", enginePlayer.id, oldGame);
+      }
 
-          // Log des revenus pour chaque joueur
-          newGame.players.forEach(newPlayer => {
-            const oldPlayer = oldGame.players.find(p => p.id === newPlayer.id);
-            if (oldPlayer) {
-              const creditsGain = newPlayer.revenueCredits;
-              const energyGain = newPlayer.revenueEnergy;
-              const cardsGain = newPlayer.revenueCards;
-              const gains: string[] = [];
-              if (creditsGain > 0) gains.push(formatResource(creditsGain, 'CREDIT'));
-              if (energyGain > 0) gains.push(formatResource(energyGain, 'ENERGY'));
-              if (cardsGain > 0) gains.push(formatResource(cardsGain, 'CARD'));
-              if (gains.length > 0) addToHistory(`perçoit ses revenus : ${gains.join(', ')}`, newPlayer.id, newGame);
-            }
-          });
+      // Détecter la fin de manche (si le numéro de manche a augmenté)
+      if (newGame.currentRound > oldGame.currentRound) {
+        setToast({ message: "Fin de manche : Revenus perçus", visible: true });
+        addToHistory(`--- FIN DE LA MANCHE ${oldGame.currentRound} ---`);
 
-          // Log du changement de premier joueur
-          const newFirstPlayer = newGame.players[newGame.firstPlayerIndex];
-          const oldFirstPlayer = oldGame.players[oldGame.firstPlayerIndex];
-          if (newFirstPlayer.id !== oldFirstPlayer.id) {
-            addToHistory(`devient le Premier Joueur`, newFirstPlayer.id, newGame);
+        // Log des revenus pour chaque joueur
+        newGame.players.forEach(newPlayer => {
+          const oldPlayer = oldGame.players.find(p => p.id === newPlayer.id);
+          if (oldPlayer) {
+            const creditsGain = newPlayer.revenueCredits;
+            const energyGain = newPlayer.revenueEnergy;
+            const cardsGain = newPlayer.revenueCards;
+            const gains: string[] = [];
+            if (creditsGain > 0) gains.push(formatResource(creditsGain, 'CREDIT'));
+            if (energyGain > 0) gains.push(formatResource(energyGain, 'ENERGY'));
+            if (cardsGain > 0) gains.push(formatResource(cardsGain, 'CARD'));
+            if (gains.length > 0) addToHistory(`perçoit ses revenus : ${gains.join(', ')}`, newPlayer.id, newGame);
           }
-        }
+        });
 
-        setGame(newGame);
-        setHasPerformedMainAction(false); // Réinitialiser pour le prochain joueur
+        // Log du changement de premier joueur
+        const newFirstPlayer = newGame.players[newGame.firstPlayerIndex];
+        const oldFirstPlayer = oldGame.players[oldGame.firstPlayerIndex];
+        if (newFirstPlayer.id !== oldFirstPlayer.id) {
+          addToHistory(`devient le Premier Joueur`, newFirstPlayer.id, newGame);
+        }
+      }
+
+      setGame(newGame);
+      setHasPerformedMainAction(false); // Réinitialiser pour le prochain joueur
     } else {
-        console.error("Erreur lors de l'action Passer:", result.error);
-        setToast({ message: `Erreur lors de l'action Passer: ${result.error}`, visible: true });
+      console.error("Erreur lors de l'action Passer:", result.error);
+      setToast({ message: `Erreur lors de l'action Passer: ${result.error}`, visible: true });
     }
   }, [addToHistory]);
 
@@ -567,46 +569,46 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (currentPlayer && currentPlayer.type === 'robot') {
       const timer = setTimeout(() => {
         const milestoneClaim = AIBehavior.checkAndClaimMilestone(game, currentPlayer);
-        
+
         if (milestoneClaim) {
-           // This logic is now handled in handleNextPlayer, so the AI doesn't need to check it before its action.
-           // For now, we keep it simple.
-           return; // On attend le prochain cycle pour jouer l'action suivante
+          // This logic is now handled in handleNextPlayer, so the AI doesn't need to check it before its action.
+          // For now, we keep it simple.
+          return; // On attend le prochain cycle pour jouer l'action suivante
         }
 
         const decision = AIBehavior.decideAction(game, currentPlayer);
         if (decision && decision.action === 'PASS') {
-            // Logique pour rendre la décision de l'IA valide pour l'action Passer
-            let cardsToKeep = decision.cardsToKeep;
-            const handIds = currentPlayer.cards.map(c => c.id);
-            
-            // Validation stricte des cartes à garder (IDs valides et nombre correct)
-            let areCardsValid = Array.isArray(cardsToKeep) && cardsToKeep.every(id => handIds.includes(id));
-            
-            const maxHandSize = GAME_CONSTANTS.HAND_SIZE_AFTER_PASS;
-            const currentHandSize = currentPlayer.cards.length;
-            const expectedKeepCount = Math.min(currentHandSize, maxHandSize);
+          // Logique pour rendre la décision de l'IA valide pour l'action Passer
+          let cardsToKeep = decision.cardsToKeep;
+          const handIds = currentPlayer.cards.map(c => c.id);
 
-            if (!areCardsValid || (cardsToKeep && cardsToKeep.length !== expectedKeepCount)) {
-                console.warn(`AI ${currentPlayer.name} invalid cardsToKeep. Forcing default selection.`);
-                cardsToKeep = currentPlayer.cards.slice(0, expectedKeepCount).map(c => c.id);
+          // Validation stricte des cartes à garder (IDs valides et nombre correct)
+          let areCardsValid = Array.isArray(cardsToKeep) && cardsToKeep.every(id => handIds.includes(id));
+
+          const maxHandSize = GAME_CONSTANTS.HAND_SIZE_AFTER_PASS;
+          const currentHandSize = currentPlayer.cards.length;
+          const expectedKeepCount = Math.min(currentHandSize, maxHandSize);
+
+          if (!areCardsValid || (cardsToKeep && cardsToKeep.length !== expectedKeepCount)) {
+            console.warn(`AI ${currentPlayer.name} invalid cardsToKeep. Forcing default selection.`);
+            cardsToKeep = currentPlayer.cards.slice(0, expectedKeepCount).map(c => c.id);
+          }
+
+          let selectedCardId = decision.selectedCardId;
+          const roundDeck = game.decks.roundDecks[game.currentRound];
+          const isDeckAvailable = roundDeck && roundDeck.length > 0;
+
+          if (isDeckAvailable) {
+            const isValidSelection = selectedCardId && roundDeck.some(c => c.id === selectedCardId);
+            if (!isValidSelection) {
+              console.warn(`AI ${currentPlayer.name} invalid selectedCardId. Picking first.`);
+              selectedCardId = roundDeck[0].id;
             }
+          } else {
+            selectedCardId = undefined;
+          }
 
-            let selectedCardId = decision.selectedCardId;
-            const roundDeck = game.decks.roundDecks[game.currentRound];
-            const isDeckAvailable = roundDeck && roundDeck.length > 0;
-
-            if (isDeckAvailable) {
-                const isValidSelection = selectedCardId && roundDeck.some(c => c.id === selectedCardId);
-                if (!isValidSelection) {
-                    console.warn(`AI ${currentPlayer.name} invalid selectedCardId. Picking first.`);
-                    selectedCardId = roundDeck[0].id;
-                }
-            } else {
-                selectedCardId = undefined;
-            }
-
-            performPass(cardsToKeep, selectedCardId);
+          performPass(cardsToKeep, selectedCardId);
         }
       }, 1500);
       return () => clearTimeout(timer);
@@ -619,33 +621,33 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     let updatedGame = structuredClone(currentGame);
     const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 3;
     const oldRotationState = createRotationState(
-        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+      updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel3 || 0
     );
 
     if (currentLevel === 3) {
-        updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
-        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
     } else if (currentLevel === 2) {
-        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
     } else if (currentLevel === 1) {
-        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
     }
 
     updatedGame.board.solarSystem.nextRingLevel = currentLevel === 3 ? 1 : currentLevel + 1;
 
     const newRotationState = createRotationState(
-        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+      updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel3 || 0
     );
 
     const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
     updatedGame = rotationResult.game;
-    
+
     const log = formatRotationLogs(`fait tourner le Système Solaire (Niveau ${currentLevel})`, rotationResult.logs);
     return { updatedGame, logs: [log] };
   }
@@ -658,7 +660,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Utiliser l'état du moteur pour avoir la version la plus à jour
     const currentState = gameEngineRef.current.getState();
     const currentPlayer = currentState.players[currentState.currentPlayerIndex];
-    
+
     for (const m of MILESTONES) {
       if (currentPlayer.score >= m && !currentPlayer.claimedMilestones.includes(m)) {
         setInteractionState({ type: 'PLACING_OBJECTIVE_MARKER', milestone: m });
@@ -677,50 +679,50 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour le clic sur une carte en mode défausse
   const handleCardClick = (cardId: string) => {
     if (interactionState.type === 'DISCARDING_CARD') {
-        const currentCards = interactionState.selectedCards;
-        if (currentCards.includes(cardId)) {
-          setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
-        } else {
-          // Vérifier qu'on ne sélectionne pas plus que nécessaire
-          const currentPlayer = game.players[game.currentPlayerIndex];
-          const cardsToKeep = currentPlayer.cards.length - (currentCards.length + 1);
-          if (cardsToKeep >= 4) {
-            setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
-          }
+      const currentCards = interactionState.selectedCards;
+      if (currentCards.includes(cardId)) {
+        setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
+      } else {
+        // Vérifier qu'on ne sélectionne pas plus que nécessaire
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        const cardsToKeep = currentPlayer.cards.length - (currentCards.length + 1);
+        if (cardsToKeep >= 4) {
+          setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
         }
+      }
     } else if (interactionState.type === 'TRADING_CARD') {
-        const currentCards = interactionState.selectedCards;
-        if (currentCards.includes(cardId)) {
-            setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
-        } else if (currentCards.length < 2) {
-            setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
-        }
+      const currentCards = interactionState.selectedCards;
+      if (currentCards.includes(cardId)) {
+        setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
+      } else if (currentCards.length < 2) {
+        setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
+      }
     } else if (interactionState.type === 'RESERVING_CARD') {
-        const currentCards = interactionState.selectedCards;
-        if (currentCards.includes(cardId)) {
-            setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
-        } else {
-            // On peut sélectionner jusqu'à 'count' cartes
-            // Si count est 1, on remplace la sélection
-            if (interactionState.count === 1) {
-                setInteractionState({ ...interactionState, selectedCards: [cardId] });
-            } else if (currentCards.length < interactionState.count) {
-                setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
-            }
+      const currentCards = interactionState.selectedCards;
+      if (currentCards.includes(cardId)) {
+        setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
+      } else {
+        // On peut sélectionner jusqu'à 'count' cartes
+        // Si count est 1, on remplace la sélection
+        if (interactionState.count === 1) {
+          setInteractionState({ ...interactionState, selectedCards: [cardId] });
+        } else if (currentCards.length < interactionState.count) {
+          setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
         }
+      }
     } else if (interactionState.type === 'DISCARDING_FOR_SIGNAL') {
-        const currentCards = interactionState.selectedCards;
-        if (currentCards.includes(cardId)) {
-            setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
-        } else {
-            // On peut sélectionner jusqu'à 'count' cartes
-            // Si count est 1, on remplace la sélection
-            if (interactionState.count === 1) {
-                setInteractionState({ ...interactionState, selectedCards: [cardId] });
-            } else if (currentCards.length < interactionState.count) {
-                setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
-            }
+      const currentCards = interactionState.selectedCards;
+      if (currentCards.includes(cardId)) {
+        setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
+      } else {
+        // On peut sélectionner jusqu'à 'count' cartes
+        // Si count est 1, on remplace la sélection
+        if (interactionState.count === 1) {
+          setInteractionState({ ...interactionState, selectedCards: [cardId] });
+        } else if (currentCards.length < interactionState.count) {
+          setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
         }
+      }
     }
   };
 
@@ -729,62 +731,49 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (interactionState.type !== 'DISCARDING_CARD') return;
     const currentPlayer = game.players[game.currentPlayerIndex];
     const cardsToKeep = currentPlayer.cards.filter(c => !interactionState.selectedCards.includes(c.id)).map(c => c.id);
-    
+
     // Réinitialiser l'état de défausse
     setInteractionState({ type: 'IDLE' });
-    
+
     // Vérifier s'il y a un paquet de manche pour déclencher la modale
     const roundDeck = game.decks.roundDecks[game.currentRound];
     if (roundDeck && roundDeck.length > 0) {
-        setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
-        // Note: performPass sera appelé après la confirmation dans la modale
+      setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
+      // Note: performPass sera appelé après la confirmation dans la modale
     } else {
-        performPass(cardsToKeep);
+      performPass(cardsToKeep);
     }
   };
 
   // Gestionnaire pour confirmer la défausse pour signaux
   const handleConfirmDiscardForSignal = () => {
     if (interactionState.type !== 'DISCARDING_FOR_SIGNAL') return;
-    
-    const selectedCards = interactionState.selectedCards;
-    if (selectedCards.length === 0) {
-        // Si aucune carte n'est sélectionnée, on annule/termine l'interaction sans rien faire
-        setInteractionState({ type: 'IDLE' });
-        setToast({ message: "Aucune carte défaussée", visible: true });
-        return;
-    }
-
     const currentPlayer = game.players[game.currentPlayerIndex];
-    let updatedGame = structuredClone(game);
-    let updatedPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
     const sequenceId = interactionState.sequenceId;
 
+    const selectedCards = interactionState.selectedCards;
+    if (selectedCards.length === 0) {
+      // Si aucune carte n'est sélectionnée, on annule/termine l'interaction sans rien faire
+      setInteractionState({ type: 'IDLE' });
+      setToast({ message: "Aucune carte défaussée", visible: true });
+      addToHistory(`ne défausse aucune carte pour marquer des signaux`, currentPlayer.id, game, undefined, sequenceId);
+      return;
+    }
+
+    let updatedGame = structuredClone(game);
+    let updatedPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
+
     const cardsToDiscard = updatedPlayer.cards.filter(c => selectedCards.includes(c.id));
-    
-    // Retirer les cartes
-    selectedCards.forEach(cardId => {
-        updatedPlayer = CardSystem.discardCard(updatedPlayer, cardId);
-    });
-    updatedGame.players[updatedGame.currentPlayerIndex] = updatedPlayer;
-    
+
     // Générer les interactions de signal pour chaque carte
     const newInteractions: InteractionState[] = [];
-    
+
     cardsToDiscard.forEach(card => {
-        newInteractions.push({
-            type: 'MARKING_SIGNAL',
-            amount: 1,
-            scope: card.scanSector, // La couleur de la carte détermine le secteur
-            sequenceId,
-            cardId: card.id
-        });
+      newInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId, cardId: card.id });
     });
 
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-    
-    addToHistory(`défausse ${cardsToDiscard.length} carte(s) pour marquer des signaux`, currentPlayer.id, game, undefined, sequenceId);
 
     // Ajouter les interactions de marquage et lancer la première
     const [first, ...rest] = newInteractions;
@@ -800,65 +789,65 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     const updatedGame = { ...game };
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
-    
+
     // Identifier le joueur concerné (celui qui possède la carte sélectionnée)
     const cardId = interactionState.selectedCards[0];
     let playerIndex = updatedGame.players.findIndex(p => p.cards.some(c => c.id === cardId));
     if (playerIndex === -1) {
-        playerIndex = updatedGame.currentPlayerIndex;
+      playerIndex = updatedGame.currentPlayerIndex;
     }
     const currentPlayer = updatedGame.players[playerIndex];
-    
+
     currentPlayer.cards = [...currentPlayer.cards];
 
     // Traiter toutes les cartes sélectionnées
     for (const cardId of interactionState.selectedCards) {
-        const cardIndex = currentPlayer.cards.findIndex(c => c.id === cardId);
-        if (cardIndex === -1) continue;
-        const card = currentPlayer.cards[cardIndex];
+      const cardIndex = currentPlayer.cards.findIndex(c => c.id === cardId);
+      if (cardIndex === -1) continue;
+      const card = currentPlayer.cards[cardIndex];
 
-        if (!card.revenue) continue;
+      if (!card.revenue) continue;
 
-        // Retirer la carte
-        currentPlayer.cards.splice(cardIndex, 1);
+      // Retirer la carte
+      currentPlayer.cards.splice(cardIndex, 1);
 
-        // Appliquer le bonus
-        let gainMsg = "";
-        if (card.revenue === RevenueType.CREDIT) {
-          currentPlayer.revenueCredits += 1;
-          currentPlayer.credits += 1;
-          gainMsg = formatResource(1, 'CREDIT');
-        } else if (card.revenue === RevenueType.ENERGY) {
-          currentPlayer.revenueEnergy += 1;
-          currentPlayer.energy += 1;
-          gainMsg = formatResource(1, 'ENERGY');
-        } else if (card.revenue === RevenueType.CARD) {
-          currentPlayer.revenueCards += 1;
-          gainMsg = formatResource(1, 'CARD');
-        }
+      // Appliquer le bonus
+      let gainMsg = "";
+      if (card.revenue === RevenueType.CREDIT) {
+        currentPlayer.revenueCredits += 1;
+        currentPlayer.credits += 1;
+        gainMsg = formatResource(1, 'CREDIT');
+      } else if (card.revenue === RevenueType.ENERGY) {
+        currentPlayer.revenueEnergy += 1;
+        currentPlayer.energy += 1;
+        gainMsg = formatResource(1, 'ENERGY');
+      } else if (card.revenue === RevenueType.CARD) {
+        currentPlayer.revenueCards += 1;
+        gainMsg = formatResource(1, 'CARD');
+      }
 
-        addToHistory(`réserve carte "${card.name}" et gagne ${gainMsg}`, currentPlayer.id, game, { type: 'IDLE' }, interactionState.sequenceId);
+      addToHistory(`réserve carte "${card.name}" et gagne ${gainMsg}`, currentPlayer.id, game, { type: 'IDLE' }, interactionState.sequenceId);
 
-        // Si le bonus est une carte, on pioche immédiatement (attention aux effets de bord dans la boucle)
-        // Pour simplifier, on applique la pioche à la fin ou on modifie updatedGame directement
-        if (card.revenue === RevenueType.CARD) {
-           // On utilise CardSystem sur updatedGame qui est une copie locale
-           // Attention: CardSystem.drawCards retourne un nouveau Game
-           // Il faut faire attention à ne pas perdre les modifs précédentes de la boucle
-           // Ici c'est un peu tricky car drawCards est pur.
-           // On va simplifier en ajoutant manuellement la carte si possible ou en appelant drawCards sur l'objet courant
-           // Comme drawCards est complexe, on va le faire après la boucle si possible, ou accepter que updatedGame soit écrasé
-           // MAIS drawCards modifie decks et players.
-           // Solution simple: appeler drawCards et mettre à jour updatedGame
-           const res = CardSystem.drawCards(updatedGame, currentPlayer.id, 1, 'Bonus immédiat réservation');
-           // Mettre à jour les références locales
-           updatedGame.decks = res.decks;
-           updatedGame.players = res.players;
-           // currentPlayer est une référence à l'ancien tableau de joueurs, il faut le rafraichir
-           // Mais on est dans une boucle sur currentPlayer.cards...
-           // Pour éviter les problèmes, on ne supporte qu'une réservation à la fois pour l'instant dans la boucle
-           // Ou on accepte que la pioche se fasse sur l'état final.
-        }
+      // Si le bonus est une carte, on pioche immédiatement (attention aux effets de bord dans la boucle)
+      // Pour simplifier, on applique la pioche à la fin ou on modifie updatedGame directement
+      if (card.revenue === RevenueType.CARD) {
+        // On utilise CardSystem sur updatedGame qui est une copie locale
+        // Attention: CardSystem.drawCards retourne un nouveau Game
+        // Il faut faire attention à ne pas perdre les modifs précédentes de la boucle
+        // Ici c'est un peu tricky car drawCards est pur.
+        // On va simplifier en ajoutant manuellement la carte si possible ou en appelant drawCards sur l'objet courant
+        // Comme drawCards est complexe, on va le faire après la boucle si possible, ou accepter que updatedGame soit écrasé
+        // MAIS drawCards modifie decks et players.
+        // Solution simple: appeler drawCards et mettre à jour updatedGame
+        const res = CardSystem.drawCards(updatedGame, currentPlayer.id, 1, 'Bonus immédiat réservation');
+        // Mettre à jour les références locales
+        updatedGame.decks = res.decks;
+        updatedGame.players = res.players;
+        // currentPlayer est une référence à l'ancien tableau de joueurs, il faut le rafraichir
+        // Mais on est dans une boucle sur currentPlayer.cards...
+        // Pour éviter les problèmes, on ne supporte qu'une réservation à la fois pour l'instant dans la boucle
+        // Ou on accepte que la pioche se fasse sur l'état final.
+      }
     }
 
     setGame(updatedGame);
@@ -877,57 +866,58 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Helper pour effectuer un scan et potentiellement une couverture de secteur
   const performScanAndCover = (
-    gameToUpdate: Game, 
-    playerId: string, 
-    sectorId: string, 
+    gameToUpdate: Game,
+    playerId: string,
+    sectorId: string,
     sequenceId?: string,
-    initialLogs: string[] = []
+    initialLogs: string[] = [],
+    noData: boolean = false
   ) => {
     let updatedGame = gameToUpdate;
     const scanLogs: string[] = [...initialLogs];
 
     // 1. Scan
-    const scanResult = SectorSystem.scanSector(updatedGame, playerId, sectorId, false);
+    const scanResult = SectorSystem.scanSector(updatedGame, playerId, sectorId, false, noData);
     updatedGame = scanResult.updatedGame;
     scanLogs.push(...scanResult.logs);
 
     // 2. Process scan bonuses
     if (scanResult.bonuses) {
-        const bonusRes = processBonuses(scanResult.bonuses, updatedGame, playerId, 'scan');
-        updatedGame = bonusRes.updatedGame;
-        scanLogs.push(...bonusRes.logs);
-        if (bonusRes.newPendingInteractions.length > 0) {
-            setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
-        }
+      const bonusRes = processBonuses(scanResult.bonuses, updatedGame, playerId, 'scan');
+      updatedGame = bonusRes.updatedGame;
+      scanLogs.push(...bonusRes.logs);
+      if (bonusRes.newPendingInteractions.length > 0) {
+        setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
+      }
     }
 
     // 3. Check if covered
     if (SectorSystem.isSectorCovered(updatedGame, sectorId)) {
-        scanLogs.push(`et complète le secteur !`);
-        addToHistory(scanLogs.join(', '), playerId, game, undefined, sequenceId);
+      scanLogs.push(`et complète le secteur !`);
+      addToHistory(scanLogs.join(', '), playerId, game, undefined, sequenceId);
 
-        const coverageLogs: string[] = [];
-        // 4. Cover sector
-        const coverageResult = SectorSystem.coverSector(updatedGame, playerId, sectorId);
-        updatedGame = coverageResult.updatedGame;
-        coverageLogs.push(...coverageResult.logs);
+      const coverageLogs: string[] = [];
+      // 4. Cover sector
+      const coverageResult = SectorSystem.coverSector(updatedGame, playerId, sectorId);
+      updatedGame = coverageResult.updatedGame;
+      coverageLogs.push(...coverageResult.logs);
 
-        // 5. Process cover bonuses
-        if (coverageResult.bonuses) {
-            const bonusRes = processBonuses(coverageResult.bonuses, updatedGame, playerId, 'scan');
-            updatedGame = bonusRes.updatedGame;
-            coverageLogs.push(...bonusRes.logs);
-            if (bonusRes.newPendingInteractions.length > 0) {
-                setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
-            }
+      // 5. Process cover bonuses
+      if (coverageResult.bonuses) {
+        const bonusRes = processBonuses(coverageResult.bonuses, updatedGame, playerId, 'scan');
+        updatedGame = bonusRes.updatedGame;
+        coverageLogs.push(...bonusRes.logs);
+        if (bonusRes.newPendingInteractions.length > 0) {
+          setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
         }
-        setToast({ message: 'Secteur couvert !', visible: true });
-        if (coverageLogs.length > 0) {
-            addToHistory(coverageLogs.join(', '), coverageResult.winnerId, game, undefined, sequenceId);
-        }
+      }
+      setToast({ message: 'Secteur couvert !', visible: true });
+      if (coverageLogs.length > 0) {
+        addToHistory(coverageLogs.join(', '), coverageResult.winnerId, game, undefined, sequenceId);
+      }
     } else {
-        // 6. Log scan only
-        addToHistory(scanLogs.join(', '), playerId, game, undefined, sequenceId);
+      // 6. Log scan only
+      addToHistory(scanLogs.join(', '), playerId, game, undefined, sequenceId);
     }
 
     return updatedGame;
@@ -935,201 +925,54 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour le clic sur un secteur (Scan)
   const handleSectorClick = (sectorNumber: number) => {
-    // Cas 3: MARKING_SIGNAL (Bonus de signal)
-    if (interactionState.type === 'MARKING_SIGNAL') {
-        const currentPlayer = game.players[game.currentPlayerIndex];
-        const sector = game.board.sectors[sectorNumber - 1];
-        
-        // Validation du scope
-        let isValid = false;
-        let errorMsg = "";
-
-        const rotationState = createRotationState(
-            game.board.solarSystem.rotationAngleLevel1 || 0, 
-            game.board.solarSystem.rotationAngleLevel2 || 0, 
-            game.board.solarSystem.rotationAngleLevel3 || 0
-        );
-
-        if (interactionState.scope === 'EARTH') {
-             const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
-             if (earthPos && earthPos.absoluteSector === sectorNumber) isValid = true;
-             else errorMsg = "Ce n'est pas le secteur de la Terre";
-        } else if (interactionState.scope === 'PROBE') {
-             // Vérifier si une sonde du joueur est dans ce secteur (position absolue)
-             const hasProbeInSector = currentPlayer.probes.some(p => {
-                 if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-                 // Calculer la position absolue de la sonde
-                 let angle = 0;
-                 if (p.solarPosition.level === 1) angle = rotationState.level1Angle;
-                 if (p.solarPosition.level === 2) angle = rotationState.level2Angle;
-                 if (p.solarPosition.level === 3) angle = rotationState.level3Angle;
-                 
-                 const sectorIndex = p.solarPosition.sector - 1;
-                 const rotationSteps = Math.round(angle / 45);
-                 const absIndex = (sectorIndex + rotationSteps + 16) % 8;
-                 return (absIndex + 1) === sectorNumber;
-             });
-             
-             if (hasProbeInSector) isValid = true;
-             else errorMsg = "Aucune de vos sondes dans ce secteur";
-
-        } else if (interactionState.scope === 'ANYPROBE') {
-             const hasProbeInSector = game.board.solarSystem.probes.some(p => {
-                 if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-                 let angle = 0;
-                 if (p.solarPosition.level === 1) angle = rotationState.level1Angle;
-                 if (p.solarPosition.level === 2) angle = rotationState.level2Angle;
-                 if (p.solarPosition.level === 3) angle = rotationState.level3Angle;
-                 const sectorIndex = p.solarPosition.sector - 1;
-                 const rotationSteps = Math.round(angle / 45);
-                 const absIndex = (sectorIndex + rotationSteps + 16) % 8;
-                 return (absIndex + 1) === sectorNumber;
-             });
-             if (hasProbeInSector) isValid = true;
-             else errorMsg = "Aucune sonde dans ce secteur";
-
-        } else if (interactionState.scope === 'ROW') {
-             const rowColors = game.decks.cardRow.map(c => c.scanSector);
-             if (rowColors.includes(sector.color)) isValid = true;
-             else errorMsg = `La couleur ${sector.color} ne correspond à aucune carte de la rangée`;
-
-        } else if (['YELLOW', 'BLUE', 'RED', 'BLACK', SectorColor.YELLOW, SectorColor.BLUE, SectorColor.RED, SectorColor.BLACK].includes(interactionState.scope)) {
-             // Normalisation pour comparaison (String vs Enum)
-             const scopeColor = interactionState.scope === 'YELLOW' ? SectorColor.YELLOW :
-                                interactionState.scope === 'BLUE' ? SectorColor.BLUE :
-                                interactionState.scope === 'RED' ? SectorColor.RED :
-                                interactionState.scope === 'BLACK' ? SectorColor.BLACK : interactionState.scope;
-             
-             if (sector.color === scopeColor) isValid = true;
-             else errorMsg = `Ce n'est pas un secteur ${scopeColor}`;
-
-        } else if (interactionState.scope === 'ANY') {
-             isValid = true;
-        }
-
-        if (!isValid) {
-            setToast({ message: errorMsg, visible: true });
-            return;
-        }
-
-        // Exécution du marquage
-        let updatedGame = structuredClone(game);
-        const sequenceId = interactionState.sequenceId;
-        
-        // Gestion des secteurs adjacents (James Webb)
-        const sectorsToMark = [sector.id];
-        if (interactionState.adjacents) {
-            const prev = sectorNumber === 1 ? 8 : sectorNumber - 1;
-            const next = sectorNumber === 8 ? 1 : sectorNumber + 1;
-            sectorsToMark.push(`sector_${prev}`, `sector_${next}`);
-        }
-
-        let totalLogs: string[] = [];
-        
-        sectorsToMark.forEach(sId => {
-            // 1. Scan (gratuit via checkCost=false)
-            const scanResult = SectorSystem.scanSector(updatedGame, currentPlayer.id, sId, false);
-            updatedGame = scanResult.updatedGame;
-            
-            // Filtrer les bonus si noData est actif
-            if (interactionState.noData && scanResult.bonuses) {
-                delete scanResult.bonuses.data;
-            }
-            
-            // 2. Traiter les bonus
-            if (scanResult.bonuses) {
-                const bonusRes = processBonuses(scanResult.bonuses, updatedGame, currentPlayer.id, 'scan');
-                updatedGame = bonusRes.updatedGame;
-                totalLogs.push(...bonusRes.logs);
-                if (bonusRes.newPendingInteractions.length > 0) {
-                    setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
-                }
-            }
-            
-            // 3. Vérifier couverture
-            if (SectorSystem.isSectorCovered(updatedGame, sId)) {
-                totalLogs.push(`complète le secteur ${sId}`);
-                // Logique de couverture simplifiée ici (normalement via performScanAndCover, mais on doit gérer noData)
-                // Pour simplifier, on assume que la couverture donne ses bonus normalement
-                const coverageResult = SectorSystem.coverSector(updatedGame, currentPlayer.id, sId);
-                updatedGame = coverageResult.updatedGame;
-                if (coverageResult.bonuses) {
-                    const bonusRes = processBonuses(coverageResult.bonuses, updatedGame, currentPlayer.id, 'scan');
-                    updatedGame = bonusRes.updatedGame;
-                    totalLogs.push(...bonusRes.logs);
-                    if (bonusRes.newPendingInteractions.length > 0) {
-                        setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
-                    }
-                }
-            }
-        });
-
-        // Gestion de keepCardIfOnly (Carte 120)
-        if (interactionState.keepCardIfOnly) {
-             const sectorObj = updatedGame.board.sectors.find(s => s.id === sector.id);
-             if (sectorObj) {
-                 const playerSignals = sectorObj.signals.filter(s => s.markedBy === currentPlayer.id).length;
-                 if (playerSignals === 1) {
-                     totalLogs.push("récupère la carte en main (Condition remplie)");
-                     // Note: La réintégration réelle de la carte nécessiterait une gestion de la défausse non implémentée
-                 }
-             }
-        }
-
-        setGame(updatedGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-        
-        addToHistory(`marque un signal (${interactionState.scope}) dans ${sector.name}`, currentPlayer.id, game, undefined, sequenceId);
-        if (totalLogs.length > 0) {
-             totalLogs.forEach(log => addToHistory(log, currentPlayer.id, updatedGame, undefined, sequenceId));
-        }
-
-        // Décrémenter le compteur
-        if (interactionState.amount > 1) {
-            setInteractionState({ ...interactionState, amount: interactionState.amount - 1 });
-            setToast({ message: `Encore ${interactionState.amount - 1} signal(aux) à marquer`, visible: true });
-        } else {
-            setInteractionState({ type: 'IDLE' });
-            setToast({ message: "Signaux marqués", visible: true });
-        }
-        return;
-    }
-
     // Cas 1: Mode Scan actif ou bonus
     if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
       const currentPlayer = game.players[game.currentPlayerIndex];
       const sector = game.board.sectors[sectorNumber - 1];
-      
+
       // Validate color
       if (sector.color !== interactionState.color) {
-          setToast({ message: `Couleur incorrecte. Sélectionnez un secteur ${interactionState.color}`, visible: true });
-          return;
+        setToast({ message: `Couleur incorrecte. Sélectionnez un secteur ${interactionState.color}`, visible: true });
+        return;
       }
 
       let updatedGame = structuredClone(game);
       const initialLogs: string[] = [];
 
       // Défausser la carte de la rangée si une carte a été utilisée pour la couleur
-      const card = game.decks.cardRow.find(c => c.id === interactionState.cardId);
+      let card: Card | undefined;
+      card = game.decks.cardRow.find(c => c.id === interactionState.cardId);
       if (card) {
         const row = updatedGame.decks.cardRow;
         const cardIndex = row.findIndex(c => c.id === card.id);
         if (cardIndex !== -1) {
-            const removedCard = row[cardIndex];
-            row.splice(cardIndex, 1);
-            updatedGame = CardSystem.refillCardRow(updatedGame);
-            initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la rangée`);
+          const removedCard = row[cardIndex];
+          row.splice(cardIndex, 1);
+          initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la rangée`);
         }
       }
 
-      updatedGame = performScanAndCover(updatedGame, currentPlayer.id, sector.id, interactionState.sequenceId, initialLogs);
+      // Défausser la carte de la main si une carte a été utilisée pour la couleur
+      card = currentPlayer.cards.find(c => c.id === interactionState.cardId);
+      if (card) {
+        const hand = updatedGame.players[updatedGame.currentPlayerIndex].cards;
+        const cardIndex = hand.findIndex(c => c.id === card.id);
+        if (cardIndex !== -1) {
+          const removedCard = hand[cardIndex];
+          hand.splice(cardIndex, 1);
+          initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la main`);
+        }
+      }
+      
+      updatedGame = performScanAndCover(updatedGame, currentPlayer.id, sector.id, interactionState.sequenceId, initialLogs, interactionState.noData);
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-      
+
       // TODO: implementer la tech 2 =  choix pour le scan 3 dans le secteur de mercure 
       // et/ou la tech 3 = scan 4 dans le secteur d'une carte défaussée
       // et/ou la tech 4 = choix entre sonde et deplacement
+      // TODO passer a la next intereaction
       setInteractionState({ type: 'IDLE' });
       setHasPerformedMainAction(true);
       setToast({ message: "Scan terminé", visible: true });
@@ -1138,39 +981,39 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     // Cas 2: Clic direct depuis Idle (Raccourci Action Scan)
     if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
-        const earthPos = getObjectPosition(
-          'earth',
-          game.board.solarSystem.rotationAngleLevel1 || 0,
-          game.board.solarSystem.rotationAngleLevel2 || 0,
-          game.board.solarSystem.rotationAngleLevel3 || 0
-        );
-        
-        if (earthPos) {
-            const currentPlayer = game.players[game.currentPlayerIndex];
-            const hasObs1 = currentPlayer.technologies.some(t => t.id.startsWith('observation-1'));
-            
-            let isValid = earthPos.absoluteSector === sectorNumber;
-            if (!isValid && hasObs1) {
-                const prev = earthPos.absoluteSector === 1 ? 8 : earthPos.absoluteSector - 1;
-                const next = earthPos.absoluteSector === 8 ? 1 : earthPos.absoluteSector + 1;
-                if (sectorNumber === prev || sectorNumber === next) isValid = true;
-            }
+      const earthPos = getObjectPosition(
+        'earth',
+        game.board.solarSystem.rotationAngleLevel1 || 0,
+        game.board.solarSystem.rotationAngleLevel2 || 0,
+        game.board.solarSystem.rotationAngleLevel3 || 0
+      );
 
-            if (isValid) {
-                handleAction(ActionType.SCAN_SECTOR, { sectorId: `sector_${sectorNumber}` });
-            }
+      if (earthPos) {
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        const hasObs1 = currentPlayer.technologies.some(t => t.id.startsWith('observation-1'));
+
+        let isValid = earthPos.absoluteSector === sectorNumber;
+        if (!isValid && hasObs1) {
+          const prev = earthPos.absoluteSector === 1 ? 8 : earthPos.absoluteSector - 1;
+          const next = earthPos.absoluteSector === 8 ? 1 : earthPos.absoluteSector + 1;
+          if (sectorNumber === prev || sectorNumber === next) isValid = true;
         }
-        return;
+
+        if (isValid) {
+          handleAction(ActionType.SCAN_SECTOR, { sectorId: `sector_${sectorNumber}` });
+        }
+      }
+      return;
     }
   };
 
   // Gestionnaire pour les actions
   const handleAction = (actionType: ActionType, payload?: any) => {
     if (!gameEngineRef.current) return;
-    
+
     // Atomicité : Si on est dans un mode interactif, on ne peut pas lancer d'autre action
     if (interactionState.type !== 'IDLE') return;
-    
+
     // Si une action principale a déjà été faite, on ne peut pas en faire d'autre (sauf PASS qui est géré spécifiquement)
     if (hasPerformedMainAction && actionType !== ActionType.PASS) return;
 
@@ -1180,7 +1023,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     const currentGame = gameRef.current;
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
-    
+
     if (actionType === ActionType.LAUNCH_PROBE) {
       const action = new LaunchProbeAction(currentPlayer.id);
       const result = gameEngineRef.current.executeAction(action);
@@ -1188,7 +1031,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         console.log('Sonde lancée, nouvelles sondes:', result.updatedState.board.solarSystem.probes);
         setGame(result.updatedState);
         setHasPerformedMainAction(true);
-        
+
         // Calculer la position de la Terre pour le log
         const earthPos = getObjectPosition(
           'earth',
@@ -1197,7 +1040,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           game.board.solarSystem.rotationAngleLevel3 || 0
         );
         const locString = earthPos ? `(${earthPos.disk}${earthPos.absoluteSector})` : '';
-        
+
         const oldCredits = currentPlayer.credits;
         const newCredits = result.updatedState.players.find(p => p.id === currentPlayer.id)?.credits || 0;
         const cost = oldCredits - newCredits;
@@ -1209,7 +1052,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
     }
     //else if (actionType === ActionType.MOVE_PROBE) {
-      
+
     //}
     else if (actionType === ActionType.SCAN_SECTOR) {
       // Vérifier les resources
@@ -1217,7 +1060,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         setToast({ message: "Ressources insuffisantes (1 Crédit, 2 Énergies requis)", visible: true });
         return;
       }
-      
+
       // Initier la séquence
       let updatedGame = structuredClone(game);
       const updatedPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
@@ -1231,13 +1074,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       // Scanner secteur initial (Earth or Adjacent if selected)
       let targetSectorId = payload?.sectorId;
       if (!targetSectorId) {
-          const earthPos = getObjectPosition(
-              'earth',
-              updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-              updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-              updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-          );
-          if (earthPos) targetSectorId = `sector_${earthPos.absoluteSector}`;
+        const earthPos = getObjectPosition(
+          'earth',
+          updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+          updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+          updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+        );
+        if (earthPos) targetSectorId = `sector_${earthPos.absoluteSector}`;
       }
 
       if (targetSectorId) {
@@ -1246,7 +1089,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-      
+
       setInteractionState({ type: 'SELECTING_SCAN_CARD', sequenceId });
       setIsRowOpen(true);
       setToast({ message: "Sélectionnez une carte de la rangée pour déterminer la couleur du secteur à scanner", visible: true });
@@ -1258,15 +1101,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         setToast({ message: "Veuillez défausser jusqu'à 4 cartes", visible: true });
         return;
       }
-      
+
       const cardsToKeep = currentPlayer.cards.map(c => c.id);
-      
+
       // Vérifier s'il y a un paquet de manche pour déclencher la modale
       const roundDeck = game.decks.roundDecks[game.currentRound];
       if (roundDeck && roundDeck.length > 0) {
-          setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
+        setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
       } else {
-          performPass(cardsToKeep);
+        performPass(cardsToKeep);
       }
     }
     else if (actionType === ActionType.ORBIT) {
@@ -1276,7 +1119,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       setToast({ message: "Cliquez sur un emplacement d'atterrissage sur une planète", visible: true });
     }
     else if (actionType === ActionType.RESEARCH_TECH) {
-      
+
       const currentPlayer = game.players[game.currentPlayerIndex];
       if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) {
         setToast({ message: "Pas assez de couverture médiatique", visible: true });
@@ -1361,191 +1204,183 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (bonuses.energy) { const txt = formatResource(bonuses.energy, 'ENERGY'); passiveGains.push(txt); }
     if (bonuses.data) { const txt = formatResource(bonuses.data, 'DATA'); passiveGains.push(txt); }
     if (bonuses.pv) { const txt = formatResource(bonuses.pv, 'PV'); passiveGains.push(txt); }
-
     const gainsText = passiveGains.length > 0 ? `${passiveGains.join(', ')}` : '';
     if (gainsText) logs.push(`gagne ${gainsText}`);
 
-    // Effets immédiats qui modifient l'état (Rotation)
+    // Effets immédiats
     if (bonuses.rotation) {
-        for (let i = 0; i < bonuses.rotation; i++) {
-            const rotationResult = performRotation(updatedGame);
-            updatedGame = rotationResult.updatedGame;
-            logs.push(...rotationResult.logs);
-        }
+      for (let i = 0; i < bonuses.rotation; i++) {
+        const rotationResult = performRotation(updatedGame);
+        updatedGame = rotationResult.updatedGame;
+        logs.push(...rotationResult.logs);
+      }
     }
-
-    // Effets immédiats (Pioche)
     if (bonuses.card) {
       updatedGame = CardSystem.drawCards(updatedGame, playerId, bonuses.card, 'Bonus de carte');
       const txt = formatResource(bonuses.card, 'CARD');
       passiveGains.push(txt);
       logs.push(`pioche ${txt}`);
     }
-
-    // Effets interactifs (File d'attente)
-    if (bonuses.anycard) {
-      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: bonuses.anycard, isFree: true });
-    }
-
-    // Effets interactifs (File d'attente)
-    if (bonuses.revenue) {
-      const player = updatedGame.players.find(p => p.id === playerId);
-      if (player) {
-        const count = Math.min(bonuses.revenue, player.cards.length);
-        if (count > 0) {
-          newPendingInteractions.push({ type: 'RESERVING_CARD', count: count, selectedCards: [] });
-        }
-      }
-    }
-    
-    // Effets interactifs (File d'attente)
-    if (bonuses.technology) {
-      for (let i = 0; i < bonuses.technology.amount; i++) {
-          newPendingInteractions.push({ 
-            type: 'ACQUIRING_TECH', 
-            isBonus: true,
-            category: bonuses.technology.color,
-            sharedOnly: bonuses.technology.sharedOnly,
-            noTileBonus: bonuses.technology.noTileBonus
-          });
-      }
-    }
-    
-    // Effets de carte à déclencher dans la séquence
-    if (bonuses.scorePerMedia) {
-        newPendingInteractions.push({ type: 'TRIGGER_CARD_EFFECT', effectType: 'SCORE_PER_MEDIA', value: bonuses.scorePerMedia });
-    }
-    
-    // Effets interactifs (File d'attente)
-    if (bonuses.anytechnology) {
-      for (let i = 0; i < bonuses.anytechnology; i++) {
-          newPendingInteractions.push({ 
-            type: 'ACQUIRING_TECH', 
-            isBonus: true
-          });
-      }
-    }
-
     if (bonuses.probe) {
       const ignoreLimit = bonuses.ignoreProbeLimit || false;
       for (let i = 0; i < bonuses.probe; i++) {
-          const result = ProbeSystem.launchProbe(updatedGame, playerId, true, ignoreLimit); // free launch
-          if (result.probeId) {
-              updatedGame = result.updatedGame;
-              launchedProbeIds.push(result.probeId);
-              logs.push(`lance une sonde gratuitement`);
-          } else {
-              logs.push(`ne peut pas lancer de sonde (limite atteinte)`);
-          }
+        const result = ProbeSystem.launchProbe(updatedGame, playerId, true, ignoreLimit); // free launch
+        if (result.probeId) {
+          updatedGame = result.updatedGame;
+          launchedProbeIds.push(result.probeId);
+          logs.push(`lance une sonde gratuitement`);
+        } else {
+          logs.push(`ne peut pas lancer de sonde (limite atteinte)`);
+        }
       }
       const txt = `${bonuses.probe} Sonde${bonuses.probe > 1 ? 's' : ''}`;
       passiveGains.push(txt);
     }
 
     // Effets interactifs (File d'attente)
-    if (bonuses.movements) {
-        newPendingInteractions.push({ 
-            type: 'MOVING_PROBE', 
-            count: bonuses.movements,
-            autoSelectProbeId: launchedProbeIds.length > 0 ? launchedProbeIds[launchedProbeIds.length - 1] : undefined
-        });
-        logs.push(`obtient ${bonuses.movements} déplacement${bonuses.movements > 1 ? 's' : ''} gratuit${bonuses.movements > 1 ? 's' : ''}`);
+    if (bonuses.anycard) {
+      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: bonuses.anycard, isFree: true });
     }
-
-    // Effets interactifs (File d'attente)
+    if (bonuses.revenue) {
+      const player = updatedGame.players.find(p => p.id === playerId);
+      if (player) {
+        const count = Math.min(bonuses.revenue, player.cards.length);
+        if (count > 0) newPendingInteractions.push({ type: 'RESERVING_CARD', count: count, selectedCards: [] });
+      }
+    }
+    if (bonuses.technology) {
+      for (let i = 0; i < bonuses.technology.amount; i++) {
+        newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true, category: bonuses.technology.color, sharedOnly: bonuses.technology.sharedOnly, noTileBonus: bonuses.technology.noTileBonus });
+      }
+    }
+    if (bonuses.anytechnology) {
+      for (let i = 0; i < bonuses.anytechnology; i++) {
+        newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true });
+      }
+    }
+    if (bonuses.movements) {
+      newPendingInteractions.push({ type: 'MOVING_PROBE', count: bonuses.movements, autoSelectProbeId: launchedProbeIds.length > 0 ? launchedProbeIds[launchedProbeIds.length - 1] : undefined });
+      logs.push(`obtient ${bonuses.movements} déplacement${bonuses.movements > 1 ? 's' : ''} gratuit${bonuses.movements > 1 ? 's' : ''}`);
+    }
     if (bonuses.landing) {
       newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId });
-      const txt = `${bonuses.landing} Atterrissage${bonuses.landing > 1 ? 's' : ''}`;
-      passiveGains.push(txt);
+    }
+    if (bonuses.scorePerMedia) {
+      newPendingInteractions.push({ type: 'TRIGGER_CARD_EFFECT', effectType: 'SCORE_PER_MEDIA', value: bonuses.scorePerMedia });
+    }
+    if (bonuses.yellowlifetrace) {
+      // Désactivé temporairement pour éviter de bloquer le jeu
+      // newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: LifeTraceColor.YELLOW });
+      setToast({ message: "Bonus LifeTrace : Fonctionnalité à venir", visible: true });
+    }
+    if (bonuses.redlifetrace) {
+      // Désactivé temporairement pour éviter de bloquer le jeu
+      // newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: LifeTraceColor.RED });
+      setToast({ message: "Bonus LifeTrace : Fonctionnalité à venir", visible: true });
+    }
+    if (bonuses.bluelifetrace) {
+      // Désactivé temporairement pour éviter de bloquer le jeu
+      // newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: LifeTraceColor.BLUE });
+      setToast({ message: "Bonus LifeTrace : Fonctionnalité à venir", visible: true });
+    }
+    if (bonuses.deckscan) {
+      // Révéler et défausser les cartes du dessus du paquet pour déterminer la couleur
+      for (let i = 0; i < bonuses.deckscan; i++) {
+        if (updatedGame.decks.cards.length > 0) {
+          const card = updatedGame.decks.cards.shift();
+          if (card) {
+            logs.push(`défausse "${card.name}" (${card.scanSector}) du paquet`);
+            newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, cardId: card.id });
+          }
+        }
+      }
+    }
+    if (bonuses.rowscan) {
+      for (let i = 0; i < bonuses.rowscan; i++) {
+        newPendingInteractions.push({ type: 'SELECTING_SCAN_CARD' })
+      }
+    }
+    if (bonuses.redscan) {
+      for (let i = 0; i < bonuses.redscan; i++) {
+        newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorColor.RED, noData: bonuses.noData })
+      }
+    }
+    if (bonuses.yellowscan) {
+      for (let i = 0; i < bonuses.yellowscan; i++) {
+        newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorColor.YELLOW, noData: bonuses.noData })
+      }
+    }
+    if (bonuses.bluescan) {
+      for (let i = 0; i < bonuses.bluescan; i++) {
+        newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorColor.BLUE, noData: bonuses.noData })
+      }
+    }
+    if (bonuses.blackscan) {
+      for (let i = 0; i < bonuses.blackscan; i++) {
+        newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorColor.BLACK, noData: bonuses.noData })
+      }
+    }
+    if (bonuses.anyscan) {
+      for (let i = 0; i < bonuses.anyscan; i++) {
+        newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorColor.ANY, noData: bonuses.noData })
+      }
+    }
+    if (bonuses.earthscan) {
+      const rotationState = createRotationState(
+        game.board.solarSystem.rotationAngleLevel1 || 0,
+        game.board.solarSystem.rotationAngleLevel2 || 0,
+        game.board.solarSystem.rotationAngleLevel3 || 0
+      );
+      const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+      if (earthPos) {
+        const earthSector = game.board.sectors[earthPos.absoluteSector - 1];
+        if (earthSector) {
+          // TODO: Il n'y en a qu'un cette action pour être faite immédiatement...
+          for (let i = 0; i < bonuses.earthscan; i++) {
+            newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: earthSector.color, noData: bonuses.noData });
+          }
+        }
+      }
+    }
+    if (bonuses.probescan) {
+      // TODO: SELECTING_PROBE if multiple... sinon action immédiate
     }
 
-    // Effets interactifs (File d'attente)
-    if (bonuses.yellowlifetrace || bonuses.redlifetrace || bonuses.bluelifetrace) {
-        // Désactivé temporairement pour éviter de bloquer le jeu
-        // newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: 'yellow' });
-        setToast({ message: "Bonus LifeTrace : Fonctionnalité à venir", visible: true });
-      }
-    
-    // Effets interactifs (File d'attente)
-    if (bonuses.planetscan || bonuses.redscan || bonuses.bluescan || bonuses.yellowscan || bonuses.blackscan) {
-         // TODO: Implémenter le scan
-         // newPendingInteractions.push({ type: 'SCANNING' });
-         setToast({ message: "Bonus Scan : Fonctionnalité à venir", visible: true });
-    }
+//            noData: bonuses.noData,
+//            anyProbe: bonuses.anyProbe,
+//            adjacents: bonuses.gainSignalAdjacents,
+//            keepCardIfOnly: bonuses.keepCardIfOnly,
+//            cardId: sourceId
 
     // Effets interactifs (File d'attente)
     if (bonuses.revealAndTriggerFreeAction) {
-        newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: 1, isFree: true, triggerFreeAction: true });
+      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: 1, isFree: true, triggerFreeAction: true });
     }
-
-    // Effets interactifs (File d'attente)
     if (bonuses.choiceMediaOrMove) {
-        newPendingInteractions.push({ type: 'CHOOSING_MEDIA_OR_MOVE' });
+      newPendingInteractions.push({ type: 'CHOOSING_MEDIA_OR_MOVE' });
     }
-
-    // Effets interactifs (File d'attente)
-    if (bonuses.gainSignal) {
-        bonuses.gainSignal.forEach((gs: { amount: number, scope: string }) => {
-            if (gs.scope === 'DECK') {
-                // Révéler et défausser les cartes du dessus du paquet pour déterminer la couleur
-                for (let i = 0; i < gs.amount; i++) {
-                    if (updatedGame.decks.cards.length > 0) {
-                        const card = updatedGame.decks.cards.shift();
-                        if (card) {
-                            logs.push(`défausse "${card.name}" (${card.scanSector}) du paquet`);
-                            newPendingInteractions.push({ 
-                                type: 'MARKING_SIGNAL', 
-                                amount: 1, 
-                                scope: card.scanSector, // Utilise la couleur de la carte
-                                noData: bonuses.noData,
-                                anyProbe: bonuses.anyProbe,
-                                adjacents: bonuses.gainSignalAdjacents,
-                                keepCardIfOnly: bonuses.keepCardIfOnly,
-                                cardId: sourceId
-                            });
-                        }
-                    }
-                }
-            } else {
-                newPendingInteractions.push({ 
-                    type: 'MARKING_SIGNAL', 
-                    amount: gs.amount, 
-                    scope: gs.scope,
-                    noData: bonuses.noData,
-                    anyProbe: bonuses.anyProbe,
-                    adjacents: bonuses.gainSignalAdjacents,
-                    keepCardIfOnly: bonuses.keepCardIfOnly,
-                    cardId: sourceId
-                });
-            }
-        });
-    }
-
-    // Effets interactifs (File d'attente)
-    if (bonuses.gainSignalFromHand) {
-        newPendingInteractions.push({ type: 'DISCARDING_FOR_SIGNAL', count: bonuses.gainSignalFromHand, selectedCards: [] });
-    }
-
-    // Effets interactifs (File d'attente)
     if (bonuses.atmosphericEntry) {
-        newPendingInteractions.push({ type: 'REMOVING_ORBITER' });
+      newPendingInteractions.push({ type: 'REMOVING_ORBITER' });
     }
-
+    if (bonuses.gainSignalFromHand) {
+      newPendingInteractions.push({ type: 'DISCARDING_FOR_SIGNAL', count: bonuses.gainSignalFromHand, selectedCards: [] });
+    }
+    
     return { updatedGame, newPendingInteractions, logs, passiveGains };
   };
 
   // Gestionnaire pour placer une trace de vie
   const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType) => {
     if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
-    
+
     const currentPlayer = game.players[game.currentPlayerIndex];
     let updatedGame = structuredClone(game);
     const board = updatedGame.board.alienBoards[boardIndex];
-    
+
     board.lifeTraces.push({
-        id: `trace-${Date.now()}`,
-        type: color,
-        playerId: currentPlayer.id
+      id: `trace-${Date.now()}`,
+      type: color,
+      playerId: currentPlayer.id
     });
 
     const track = board.lifeTraces.filter(t => t.type === color);
@@ -1554,41 +1389,41 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const bonus = isFirst ? board.firstBonus : board.nextBonus;
 
     const { updatedGame: gameAfterBonus, newPendingInteractions, passiveGains, logs } = processBonuses(bonus, updatedGame, currentPlayer.id);
-    
+
     setGame(gameAfterBonus);
     if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonus);
-    
+
     const sequenceId = interactionState.sequenceId;
     addToHistory(`place une trace de vie ${color} sur le plateau Alien ${boardIndex + 1}`, currentPlayer.id, game, undefined, sequenceId);
     logs.forEach(log => addToHistory(log, currentPlayer.id, gameAfterBonus, undefined, sequenceId));
 
     if (passiveGains.length > 0) {
-        setToast({ message: `Bonus : ${passiveGains.join(', ')}`, visible: true });
+      setToast({ message: `Bonus : ${passiveGains.join(', ')}`, visible: true });
     }
 
     const interactionsWithSeqId = newPendingInteractions.map(i => ({ ...i, sequenceId }));
     const allNext = [...interactionsWithSeqId, ...pendingInteractions];
-    
+
     if (allNext.length > 0) {
-        const [next, ...rest] = allNext;
-        setInteractionState(next);
-        setPendingInteractions(rest);
+      const [next, ...rest] = allNext;
+      setInteractionState(next);
+      setPendingInteractions(rest);
     } else {
-        setInteractionState({ type: 'IDLE' });
+      setInteractionState({ type: 'IDLE' });
     }
   };
 
   // Gestionnaire pour les choix dans le menu de bonus
   const handleMenuChoice = (choiceIndex: number) => {
     if (interactionState.type !== 'CHOOSING_BONUS_ACTION') return;
-    
+
     const choice = interactionState.choices[choiceIndex];
     if (choice.done) return;
 
     // Créer un nouvel état de menu avec ce choix marqué comme fait
     const updatedChoices = [...interactionState.choices];
     updatedChoices[choiceIndex] = { ...choice, done: true };
-    
+
     const nextMenuState: InteractionState = {
       ...interactionState,
       choices: updatedChoices
@@ -1596,41 +1431,41 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     // Définir l'interaction choisie comme active
     setInteractionState(choice.state);
-    
+
     // Ajouter le menu mis à jour en tête de la file d'attente pour y revenir après l'action
     if (updatedChoices.some(c => !c.done)) {
-        setPendingInteractions(prev => [nextMenuState, ...prev]);
+      setPendingInteractions(prev => [nextMenuState, ...prev]);
     }
   };
 
   // Gestionnaire pour le choix Média ou Déplacement (Carte 19)
   const handleMediaOrMoveChoice = (choice: 'MEDIA' | 'MOVE') => {
-      if (interactionState.type !== 'CHOOSING_MEDIA_OR_MOVE') return;
-      
-      const currentPlayer = game.players[game.currentPlayerIndex];
-      let updatedGame = { ...game };
-      const sequenceId = interactionState.sequenceId;
-      const remainingMoves = interactionState.remainingMoves || 0;
+    if (interactionState.type !== 'CHOOSING_MEDIA_OR_MOVE') return;
 
-      if (choice === 'MEDIA') {
-          const res = ResourceSystem.updateMedia(updatedGame, currentPlayer.id, 1);
-          updatedGame = res.updatedGame;
-          setToast({ message: "Gain : 1 Média", visible: true });
-          addToHistory(`choisit de gagner ${formatResource(1, 'MEDIA')}`, currentPlayer.id, game, { type: 'IDLE' }, sequenceId);
-          setGame(updatedGame);
-          if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-          
-          if (remainingMoves > 0) {
-              setInteractionState({ type: 'MOVING_PROBE', count: remainingMoves });
-          } else {
-              setInteractionState({ type: 'IDLE' });
-          }
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    let updatedGame = { ...game };
+    const sequenceId = interactionState.sequenceId;
+    const remainingMoves = interactionState.remainingMoves || 0;
+
+    if (choice === 'MEDIA') {
+      const res = ResourceSystem.updateMedia(updatedGame, currentPlayer.id, 1);
+      updatedGame = res.updatedGame;
+      setToast({ message: "Gain : 1 Média", visible: true });
+      addToHistory(`choisit de gagner ${formatResource(1, 'MEDIA')}`, currentPlayer.id, game, { type: 'IDLE' }, sequenceId);
+      setGame(updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+
+      if (remainingMoves > 0) {
+        setInteractionState({ type: 'MOVING_PROBE', count: remainingMoves });
       } else {
-          // Transition vers le déplacement de sonde
-          setInteractionState({ type: 'MOVING_PROBE', count: remainingMoves + 1 });
-          setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
-          addToHistory(`choisit un déplacement gratuit`, currentPlayer.id, game, { type: 'IDLE' }, sequenceId);
+        setInteractionState({ type: 'IDLE' });
       }
+    } else {
+      // Transition vers le déplacement de sonde
+      setInteractionState({ type: 'MOVING_PROBE', count: remainingMoves + 1 });
+      setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
+      addToHistory(`choisit un déplacement gratuit`, currentPlayer.id, game, { type: 'IDLE' }, sequenceId);
+    }
   };
 
   // Helper générique pour les interactions avec les planètes (Orbite/Atterrissage)
@@ -1642,17 +1477,17 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   ): boolean => {
     if (interactionState.type !== 'IDLE' && interactionState.type !== 'LANDING_PROBE') return false;
     if (hasPerformedMainAction && interactionState.type !== 'LANDING_PROBE') {
-        setToast({ message: "Action principale déjà effectuée", visible: true });
-        return false;
+      setToast({ message: "Action principale déjà effectuée", visible: true });
+      return false;
     }
 
     const currentPlayer = game.players[game.currentPlayerIndex];
-    
+
     // Résolution de l'ID de la planète parente si c'est un satellite
     let targetPlanetId = planetId;
     const parentPlanet = game.board.planets.find(p => p.satellites?.some(s => s.id === planetId));
     if (parentPlanet) {
-        targetPlanetId = parentPlanet.id;
+      targetPlanetId = parentPlanet.id;
     }
 
     // Trouver la définition statique de la planète pour obtenir sa position relative
@@ -1671,14 +1506,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     // Trouver une sonde du joueur sur cette planète (en comparant les positions relatives)
     const probe = currentPlayer.probes.find(p => {
-        if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-        // Comparaison souple pour le niveau (0, null, undefined sont équivalents pour le niveau fixe)
-        const probeLevel = p.solarPosition.level || 0;
-        const planetLevel = planetDef.level || 0;
-        
-        return p.solarPosition.disk === planetDef.position.disk && 
-               p.solarPosition.sector === planetDef.position.sector && 
-               probeLevel === planetLevel;
+      if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+      // Comparaison souple pour le niveau (0, null, undefined sont équivalents pour le niveau fixe)
+      const probeLevel = p.solarPosition.level || 0;
+      const planetLevel = planetDef.level || 0;
+
+      return p.solarPosition.disk === planetDef.position.disk &&
+        p.solarPosition.sector === planetDef.position.sector &&
+        probeLevel === planetLevel;
     });
 
     if (!probe) return false;
@@ -1690,54 +1525,54 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const stateBeforeAction = structuredClone(game);
 
     try {
-        const result = actionFn(game, currentPlayer.id, probe.id, planetId);
-        
-        const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, (interactionState as any).source);
+      const result = actionFn(game, currentPlayer.id, probe.id, planetId);
 
-        setGame(updatedGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-        setHasPerformedMainAction(true);
-        
-        let interactionTriggered = false;
-        if (newPendingInteractions.length > 1) {
-            // Créer le menu de choix en injectant le sequenceId dans les états
-            const choices = newPendingInteractions.map((interaction, index) => ({
-                id: `choice-${Date.now()}-${index}`,
-                label: getInteractionLabel(interaction),
-                state: { ...interaction, sequenceId },
-                done: false
-            }));
-            
-            const summary = passiveGains.length > 0 ? `Vous avez gagné : ${passiveGains.join(', ')}.` : "Gains interactifs :";
-            
-            setInteractionState({
-                type: 'CHOOSING_BONUS_ACTION',
-                bonusesSummary: summary,
-                choices: choices,
-                sequenceId
-            });
-            interactionTriggered = true;
-        } else if (newPendingInteractions.length === 1) {
-            if (passiveGains.length > 0) {
-                setToast({ message: `Gains : ${passiveGains.join(', ')}`, visible: true });
-            }
-            setInteractionState({ ...newPendingInteractions[0], sequenceId });
-            interactionTriggered = true;
-        } else if (passiveGains.length > 0) {
-            setToast({ message: `Gains : ${passiveGains.join(', ')}`, visible: true });
-        }
+      const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, (interactionState as any).source);
 
-        addToHistory(`${historyMessagePrefix} ${planetId}`, currentPlayer.id, stateBeforeAction, undefined, sequenceId);
-        if (allBonusLogs.length > 0) {
-            allBonusLogs.forEach(log => addToHistory(log, currentPlayer.id, updatedGame, undefined, sequenceId));
+      setGame(updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+      setHasPerformedMainAction(true);
+
+      let interactionTriggered = false;
+      if (newPendingInteractions.length > 1) {
+        // Créer le menu de choix en injectant le sequenceId dans les états
+        const choices = newPendingInteractions.map((interaction, index) => ({
+          id: `choice-${Date.now()}-${index}`,
+          label: getInteractionLabel(interaction),
+          state: { ...interaction, sequenceId },
+          done: false
+        }));
+
+        const summary = passiveGains.length > 0 ? `Vous avez gagné : ${passiveGains.join(', ')}.` : "Gains interactifs :";
+
+        setInteractionState({
+          type: 'CHOOSING_BONUS_ACTION',
+          bonusesSummary: summary,
+          choices: choices,
+          sequenceId
+        });
+        interactionTriggered = true;
+      } else if (newPendingInteractions.length === 1) {
+        if (passiveGains.length > 0) {
+          setToast({ message: `Gains : ${passiveGains.join(', ')}`, visible: true });
         }
-        if (newPendingInteractions.length === 0) {
-            setToast({ message: successMessage, visible: true });
-        }
-        return interactionTriggered;
+        setInteractionState({ ...newPendingInteractions[0], sequenceId });
+        interactionTriggered = true;
+      } else if (passiveGains.length > 0) {
+        setToast({ message: `Gains : ${passiveGains.join(', ')}`, visible: true });
+      }
+
+      addToHistory(`${historyMessagePrefix} ${planetId}`, currentPlayer.id, stateBeforeAction, undefined, sequenceId);
+      if (allBonusLogs.length > 0) {
+        allBonusLogs.forEach(log => addToHistory(log, currentPlayer.id, updatedGame, undefined, sequenceId));
+      }
+      if (newPendingInteractions.length === 0) {
+        setToast({ message: successMessage, visible: true });
+      }
+      return interactionTriggered;
     } catch (e: any) {
-        setToast({ message: e.message, visible: true });
-        return false;
+      setToast({ message: e.message, visible: true });
+      return false;
     }
   };
 
@@ -1747,20 +1582,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (interactionState.type === 'REMOVING_ORBITER') {
       const currentPlayer = game.players[game.currentPlayerIndex];
       const planet = game.board.planets.find(p => p.id === planetId);
-      
+
       if (!planet) return;
 
       // Vérifier si le joueur a un orbiteur sur cette planète
       let orbiterIndex = -1;
-      
+
       // Si un slot spécifique est cliqué, vérifier s'il appartient au joueur
       if (slotIndex !== undefined && planet.orbiters[slotIndex]?.ownerId === currentPlayer.id) {
-          orbiterIndex = slotIndex;
+        orbiterIndex = slotIndex;
       } else {
-          // Sinon (fallback), prendre le premier orbiteur du joueur
-          orbiterIndex = planet.orbiters.findIndex(p => p.ownerId === currentPlayer.id);
+        // Sinon (fallback), prendre le premier orbiteur du joueur
+        orbiterIndex = planet.orbiters.findIndex(p => p.ownerId === currentPlayer.id);
       }
-      
+
       if (orbiterIndex === -1) {
         setToast({ message: "Vous n'avez pas d'orbiteur sur cette planète", visible: true });
         return;
@@ -1770,13 +1605,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       let updatedGame = structuredClone(game);
       const updatedPlanet = updatedGame.board.planets.find(p => p.id === planetId)!;
       const removedProbe = updatedPlanet.orbiters[orbiterIndex];
-      
+
       // Retirer de la planète
       updatedPlanet.orbiters.splice(orbiterIndex, 1);
-      
+
       // Retirer de la liste globale des sondes du système solaire
       updatedGame.board.solarSystem.probes = updatedGame.board.solarSystem.probes.filter(p => p.id !== removedProbe.id);
-      
+
       // Retirer de la liste du joueur
       const updatedPlayer = updatedGame.players.find(p => p.id === currentPlayer.id)!;
       updatedPlayer.probes = updatedPlayer.probes.filter(p => p.id !== removedProbe.id);
@@ -1795,10 +1630,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     handlePlanetInteraction(
-        planetId,
-        (g, pid, prid, targetId) => ProbeSystem.orbitProbe(g, pid, prid, targetId), // Orbit is not free via LANDING_PROBE
-        "met une sonde en orbite autour de",
-        "Sonde mise en orbite"
+      planetId,
+      (g, pid, prid, targetId) => ProbeSystem.orbitProbe(g, pid, prid, targetId), // Orbit is not free via LANDING_PROBE
+      "met une sonde en orbite autour de",
+      "Sonde mise en orbite"
     );
   };
 
@@ -1810,7 +1645,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         planetId,
         (g, pid, prid, targetId) => {
           const result = ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex); // Toujours gratuit en mode LANDING_PROBE
-          
+
           // Logique spécifique Carte 13 (Rover Perseverance)
           // "Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs."
           if (interactionState.source === '13') {
@@ -1818,7 +1653,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             const isMercury = targetId === 'mercury';
             // Vérifier si c'est une lune (satellite)
             const isMoon = g.board.planets.some(p => p.satellites?.some(s => s.id === targetId));
-            
+
             if (isMars || isMercury || isMoon) {
               if (!result.bonuses) result.bonuses = {};
               result.bonuses.pv = (result.bonuses.pv || 0) + 4;
@@ -1826,10 +1661,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               // Appliquer le gain de PV à l'état du jeu
               const pIndex = result.updatedGame.players.findIndex(p => p.id === pid);
               if (pIndex !== -1) {
-                  const p = { ...result.updatedGame.players[pIndex] };
-                  p.score += 4;
-                  result.updatedGame.players = [...result.updatedGame.players];
-                  result.updatedGame.players[pIndex] = p;
+                const p = { ...result.updatedGame.players[pIndex] };
+                p.score += 4;
+                result.updatedGame.players = [...result.updatedGame.players];
+                result.updatedGame.players[pIndex] = p;
               }
             }
           }
@@ -1838,33 +1673,33 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         "fait atterrir une sonde (Bonus) sur",
         "Atterrissage réussi"
       );
-      
+
       if (interactionTriggered) {
-          // Si une interaction a été déclenchée (bonus), on doit s'assurer que les atterrissages restants sont mis en file d'attente
-          if (interactionState.count > 1) {
-              const remainingState: InteractionState = { ...interactionState, count: interactionState.count - 1 };
-              setPendingInteractions(prev => [...prev, remainingState]);
-          }
-          return;
+        // Si une interaction a été déclenchée (bonus), on doit s'assurer que les atterrissages restants sont mis en file d'attente
+        if (interactionState.count > 1) {
+          const remainingState: InteractionState = { ...interactionState, count: interactionState.count - 1 };
+          setPendingInteractions(prev => [...prev, remainingState]);
+        }
+        return;
       }
 
       // Décrémenter ou terminer l'interaction
       if (interactionState.count > 1) {
-          setInteractionState({ ...interactionState, count: interactionState.count - 1 });
+        setInteractionState({ ...interactionState, count: interactionState.count - 1 });
       } else {
-          // Si on vient d'un menu de choix, on retourne à IDLE (le menu gère la suite via pendingInteractions)
-          // Sinon IDLE
-          setInteractionState({ type: 'IDLE' });
+        // Si on vient d'un menu de choix, on retourne à IDLE (le menu gère la suite via pendingInteractions)
+        // Sinon IDLE
+        setInteractionState({ type: 'IDLE' });
       }
       return;
     }
 
     handlePlanetInteraction(
-        planetId,
-        // On passe planetId comme targetId pour supporter l'atterrissage sur les satellites
-        (g, pid, prid, targetId) => ProbeSystem.landProbe(g, pid, prid, targetId, false, slotIndex),
-        "fait atterrir une sonde sur",
-        "Atterrissage réussi"
+      planetId,
+      // On passe planetId comme targetId pour supporter l'atterrissage sur les satellites
+      (g, pid, prid, targetId) => ProbeSystem.landProbe(g, pid, prid, targetId, false, slotIndex),
+      "fait atterrir une sonde sur",
+      "Atterrissage réussi"
     );
   };
 
@@ -1876,7 +1711,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     gameEngineRef.current.setState(gameRef.current);
 
     let currentGame = gameRef.current; // Utiliser la ref pour avoir l'état le plus frais
-    
+
     setToast({ message: "Déplacement...", visible: true });
 
     const currentPlayerId = currentGame.players[currentGame.currentPlayerIndex].id;
@@ -1904,95 +1739,95 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         // Vérifier le gain de média pour afficher un toast (pour cette étape)
         const updatedPlayer = updatedGame.players.find(p => p.id === currentPlayerId);
         const oldPlayer = currentGame.players.find(p => p.id === currentPlayerId);
-        
+
         let energySpent = 0;
         if (updatedPlayer && oldPlayer) {
-            // Log du coût (approximatif car calculé dans l'action)
-            const object = getCell(disk, sector, createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0));
-            const objectName = object?.hasComet ? "Comète" : object?.hasAsteroid ? "Astéroïdes" : object?.hasPlanet ? object?.planetName : "une case vide";  
-            energySpent = oldPlayer.energy - updatedPlayer.energy;
-            const mediaGain = updatedPlayer.mediaCoverage - oldPlayer.mediaCoverage;
+          // Log du coût (approximatif car calculé dans l'action)
+          const object = getCell(disk, sector, createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0));
+          const objectName = object?.hasComet ? "Comète" : object?.hasAsteroid ? "Astéroïdes" : object?.hasPlanet ? object?.planetName : "une case vide";
+          energySpent = oldPlayer.energy - updatedPlayer.energy;
+          const mediaGain = updatedPlayer.mediaCoverage - oldPlayer.mediaCoverage;
 
-            // Détecter les buffs consommés (ex: Survol de Mars)
-            const consumedBuffs = oldPlayer.activeBuffs.filter(oldBuff => 
-                !updatedPlayer.activeBuffs.some(newBuff => 
-                    newBuff.type === oldBuff.type && 
-                    newBuff.target === oldBuff.target && 
-                    newBuff.value === oldBuff.value
-                )
-            );
-            
-            let message = "";
-            if (energySpent > 0) {
-              message = `déplace une sonde vers ${disk}${sector} pour ${energySpent} énergie`;
-            } else {
-              message = `déplace une sonde vers ${disk}${sector} gratuitement`;
+          // Détecter les buffs consommés (ex: Survol de Mars)
+          const consumedBuffs = oldPlayer.activeBuffs.filter(oldBuff =>
+            !updatedPlayer.activeBuffs.some(newBuff =>
+              newBuff.type === oldBuff.type &&
+              newBuff.target === oldBuff.target &&
+              newBuff.value === oldBuff.value
+            )
+          );
+
+          let message = "";
+          if (energySpent > 0) {
+            message = `déplace une sonde vers ${disk}${sector} pour ${energySpent} énergie`;
+          } else {
+            message = `déplace une sonde vers ${disk}${sector} gratuitement`;
+          }
+
+          if (mediaGain > 0) {
+            setToast({ message: `Gain de média : +${mediaGain}`, visible: true });
+            message += ` et gagne ${mediaGain} média (${objectName})`;
+          }
+
+          // Log des gains de score via buffs
+          consumedBuffs.forEach(buff => {
+            if (buff.type === 'VISIT_BONUS') {
+              const gainText = formatResource(buff.value, 'PV');
+              message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
+              setToast({ message: `Bonus : +${buff.value} PV (${buff.source})`, visible: true });
+            } else if (buff.type === 'VISIT_ASTEROID') {
+              const gainText = formatResource(buff.value, 'DATA');
+              message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
+              setToast({ message: `Bonus : +${buff.value} Donnée (${buff.source})`, visible: true });
+            } else if (buff.type === 'VISIT_COMET') {
+              const gainText = formatResource(buff.value, 'PV');
+              message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
+              setToast({ message: `Bonus : +${buff.value} PV (${buff.source})`, visible: true });
+            } else if (buff.type === 'SAME_DISK_MOVE') {
+              const gains: string[] = [];
+              if (buff.value.pv) gains.push(formatResource(buff.value.pv, 'PV'));
+              if (buff.value.media) gains.push(formatResource(buff.value.media, 'MEDIA'));
+              message += ` et gagne ${gains.join(', ')} (${buff.source || 'Bonus'})`;
+              setToast({ message: `Bonus : +${gains.join(', ')} (${buff.source})`, visible: true });
             }
+          });
 
-            if (mediaGain > 0) {
-              setToast({ message: `Gain de média : +${mediaGain}`, visible: true });
-              message += ` et gagne ${mediaGain} média (${objectName})`;
-            }
-
-            // Log des gains de score via buffs
-            consumedBuffs.forEach(buff => {
-                if (buff.type === 'VISIT_BONUS') {
-                     const gainText = formatResource(buff.value, 'PV');
-                     message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
-                     setToast({ message: `Bonus : +${buff.value} PV (${buff.source})`, visible: true });
-                } else if (buff.type === 'VISIT_ASTEROID') {
-                     const gainText = formatResource(buff.value, 'DATA');
-                     message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
-                     setToast({ message: `Bonus : +${buff.value} Donnée (${buff.source})`, visible: true });
-                } else if (buff.type === 'VISIT_COMET') {
-                     const gainText = formatResource(buff.value, 'PV');
-                     message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
-                     setToast({ message: `Bonus : +${buff.value} PV (${buff.source})`, visible: true });
-                } else if (buff.type === 'SAME_DISK_MOVE') {
-                     const gains: string[] = [];
-                     if (buff.value.pv) gains.push(formatResource(buff.value.pv, 'PV'));
-                     if (buff.value.media) gains.push(formatResource(buff.value.media, 'MEDIA'));
-                     message += ` et gagne ${gains.join(', ')} (${buff.source || 'Bonus'})`;
-                     setToast({ message: `Bonus : +${gains.join(', ')} (${buff.source})`, visible: true });
-                }
+          // Détecter les buffs persistants déclenchés (ex: Carte 25 - Voile Solaire / VISIT_UNIQUE)
+          const newVisits = updatedPlayer.visitedPlanetsThisTurn.filter(p => !oldPlayer.visitedPlanetsThisTurn.includes(p));
+          newVisits.forEach(planetId => {
+            const uniqueBuffs = oldPlayer.activeBuffs.filter(b => b.type === 'VISIT_UNIQUE');
+            planetId;
+            uniqueBuffs.forEach(buff => {
+              const gainText = formatResource(buff.value, 'PV');
+              message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
+              setToast({ message: `Bonus : +${buff.value} PV (${buff.source})`, visible: true });
             });
+          });
 
-            // Détecter les buffs persistants déclenchés (ex: Carte 25 - Voile Solaire / VISIT_UNIQUE)
-            const newVisits = updatedPlayer.visitedPlanetsThisTurn.filter(p => !oldPlayer.visitedPlanetsThisTurn.includes(p));
-            newVisits.forEach(planetId => {
-                 const uniqueBuffs = oldPlayer.activeBuffs.filter(b => b.type === 'VISIT_UNIQUE');
-                 planetId;
-                 uniqueBuffs.forEach(buff => {
-                     const gainText = formatResource(buff.value, 'PV');
-                     message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
-                     setToast({ message: `Bonus : +${buff.value} PV (${buff.source})`, visible: true });
-                 });
+          // Détection Card 19 (Assistance Gravitationnelle)
+          const targetCell = getCell(disk, sector, createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0));
+          const hasChoiceBuff = oldPlayer.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
+
+          if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
+            // Calculer les mouvements restants après ce pas (si gratuit)
+            const remaining = useFree ? freeMovements - 1 : freeMovements;
+            setInteractionState({
+              type: 'CHOOSING_MEDIA_OR_MOVE',
+              sequenceId: `move-${Date.now()}`,
+              remainingMoves: remaining
             });
-            
-            // Détection Card 19 (Assistance Gravitationnelle)
-            const targetCell = getCell(disk, sector, createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0));
-            const hasChoiceBuff = oldPlayer.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
-            
-            if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
-                 // Calculer les mouvements restants après ce pas (si gratuit)
-                 const remaining = useFree ? freeMovements - 1 : freeMovements;
-                 setInteractionState({ 
-                     type: 'CHOOSING_MEDIA_OR_MOVE', 
-                     sequenceId: `move-${Date.now()}`,
-                     remainingMoves: remaining
-                 });
-                 interruptedForChoice = true;
-                 if (i < path.length - 1) setToast({ message: "Déplacement interrompu pour choix bonus", visible: true });
-            }
+            interruptedForChoice = true;
+            if (i < path.length - 1) setToast({ message: "Déplacement interrompu pour choix bonus", visible: true });
+          }
 
-            addToHistory(message, currentPlayerId, stateBeforeMove);
+          addToHistory(message, currentPlayerId, stateBeforeMove);
         }
 
         currentGame = updatedGame;
         gameRef.current = currentGame; // Mettre à jour la ref locale pour garantir la fraîcheur
         setGame(currentGame);
-        if (gameEngineRef.current)  gameEngineRef.current.setState(currentGame); // Mettre à jour l'état du moteur pour la prochaine étape du mouvement
-        
+        if (gameEngineRef.current) gameEngineRef.current.setState(currentGame); // Mettre à jour l'état du moteur pour la prochaine étape du mouvement
+
         // Mettre à jour le compteur de mouvements gratuits
         if (useFree) {
           // On ne décrémente que si le mouvement a réellement été gratuit (pas de dépense d'énergie)
@@ -2000,12 +1835,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             freeMovements--;
           }
         }
-        
+
         // Petit délai pour l'animation
         await new Promise(resolve => setTimeout(resolve, 300));
 
         if (interruptedForChoice) {
-            break;
+          break;
         }
 
       } else {
@@ -2037,20 +1872,66 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     // Vérifier si la carte donne une sonde et si le joueur peut la lancer
     if (card && card.immediateEffects) {
-        const probeEffect = card.immediateEffects.find(e => e.type === 'GAIN' && e.target === 'PROBE');
-        if (probeEffect) {
-            const ignoreLimit = card.passiveEffects?.some(e => e.type === 'IGNORE_PROBE_LIMIT' && e.value === true);
-            // Vérifier la limite de sondes (sans vérifier le coût car c'est un gain)
-            const canLaunch = ProbeSystem.canLaunchProbe(currentGame, currentPlayer.id, false, ignoreLimit);
-            if (!canLaunch.canLaunch && canLaunch.reason && canLaunch.reason.includes('Limite')) {
-                setPlayCardConfirmation({
-                    visible: true,
-                    cardId: cardId,
-                    message: "Vous avez atteint la limite de sondes dans le système solaire. L'action de lancer une sonde sera perdue. Voulez-vous continuer ?"
-                });
-                return;
-            }
+      const probeEffect = card.immediateEffects.find(e => e.type === 'GAIN' && e.target === 'PROBE');
+      if (probeEffect) {
+        const ignoreLimit = card.passiveEffects?.some(e => e.type === 'IGNORE_PROBE_LIMIT' && e.value === true);
+        // Vérifier la limite de sondes (sans vérifier le coût car c'est un gain)
+        const canLaunch = ProbeSystem.canLaunchProbe(currentGame, currentPlayer.id, false, ignoreLimit);
+        if (!canLaunch.canLaunch && canLaunch.reason && canLaunch.reason.includes('Limite')) {
+          setPlayCardConfirmation({
+            visible: true,
+            cardId: cardId,
+            message: "Vous avez atteint la limite de sondes dans le système solaire. L'action de lancer une sonde sera perdue. Voulez-vous continuer ?"
+          });
+          return;
         }
+      }
+    }
+
+    // Vérifier si la carte donne des données et si le joueur peut les stocker
+    if (card && card.immediateEffects) {
+      const dataEffect = card.immediateEffects.find(e => e.type === 'GAIN' && e.target === 'DATA');
+      if (dataEffect) {
+        if ((currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
+          setPlayCardConfirmation({
+            visible: true,
+            cardId: cardId,
+            message: "Vous avez atteint la limite de données. Le gain de données sera perdu. Voulez-vous continuer ?"
+          });
+          return;
+        }
+      }
+    }
+
+    // Vérifier si la carte donne des médias et si le joueur peut les stocker
+    if (card && card.immediateEffects) {
+      const mediaEffect = card.immediateEffects.find(e => e.type === 'GAIN' && e.target === 'MEDIA');
+      if (mediaEffect) {
+        if ((currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
+          setPlayCardConfirmation({
+            visible: true,
+            cardId: cardId,
+            message: "Vous avez atteint la limite de couverture médiatique. Le gain de médias sera perdu. Voulez-vous continuer ?"
+          });
+          return;
+        }
+      }
+    }
+
+    // Vérifier si la carte donne des atterisages et si le joueur n'a pas de sonde sur une planète
+    if (card && card.immediateEffects) {
+      const landEffect = card.immediateEffects.find(e => e.type === 'ACTION' && e.target === 'LAND');
+      if (landEffect) {
+        const probeInfo = ProbeSystem.probeOnPlanetInfo(currentGame, currentPlayer.id);
+        if (!probeInfo.hasProbe) {
+          setPlayCardConfirmation({
+            visible: true,
+            cardId: cardId,
+            message: "Vous n'avez aucune sonde sur une planète pour effectuer l'atterrissage. L'action sera perdue. Voulez-vous continuer ?"
+          });
+          return;
+        }
+      }
     }
 
     executePlayCard(cardId);
@@ -2059,69 +1940,71 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const executePlayCard = (cardId: string) => {
     const currentGame = gameRef.current;
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
-    
+
     const result = CardSystem.playCard(currentGame, currentPlayer.id, cardId);
     if (result.error) {
-        setToast({ message: result.error, visible: true });
-        return;
+      setToast({ message: result.error, visible: true });
+      return;
     }
 
+    console.log(result);
     const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs: allBonusLogs } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, cardId);
+    console.log(newPendingInteractions);
 
     const card = currentGame.players[currentGame.currentPlayerIndex].cards.find(c => c.id === cardId)!;
     setGame(gameAfterBonuses);
     if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonuses);
     setHasPerformedMainAction(true);
-    
+
     const sequenceId = `seq-${Date.now()}`;
 
     const gainsText = passiveGains.length > 0 ? ` (Gains: ${passiveGains.join(', ')})` : '';
-    setToast({ message: `Carte jouée: ${card.name}${gainsText}`, visible: true });
-        
+    //setToast({ message: `Carte jouée: ${card.name}${gainsText}`, visible: true });
+
     // Construction du message d'historique unifié
     let message = `joue la carte "${card.name}" pour ${card.cost} crédits`;
-    
+
     if (result.bonuses && result.bonuses.subventionDetails) {
-        const { cardName, bonusText } = result.bonuses.subventionDetails;
-        message += ` et pioche la carte "${cardName}" pour gagner ${bonusText}`;
-        
-        if (bonusText === "1 Donnée") {
-             const idx = passiveGains.indexOf(formatResource(1, 'DATA'));
-             if (idx > -1) passiveGains.splice(idx, 1);
-        } else if (bonusText === "1 Média") {
-             const idx = passiveGains.indexOf(formatResource(1, 'MEDIA'));
-             if (idx > -1) passiveGains.splice(idx, 1);
-        }
+      const { cardName, bonusText } = result.bonuses.subventionDetails;
+      message += ` et pioche la carte "${cardName}" pour gagner ${bonusText}`;
+
+      if (bonusText === "1 Donnée") {
+        const idx = passiveGains.indexOf(formatResource(1, 'DATA'));
+        if (idx > -1) passiveGains.splice(idx, 1);
+      } else if (bonusText === "1 Média") {
+        const idx = passiveGains.indexOf(formatResource(1, 'MEDIA'));
+        if (idx > -1) passiveGains.splice(idx, 1);
+      }
     }
 
     // Filtrer les logs pour séparer ce qu'on fusionne de ce qu'on garde séparé
     const isPassiveLog = (log: string) => log.startsWith('gagne ') || log.startsWith('pioche ');
     const isMovementLog = (log: string) => log.includes('déplacement') && log.includes('gratuit');
-    
+
     const movementLogs = allBonusLogs.filter(isMovementLog);
     const otherLogs = allBonusLogs.filter(log => !isPassiveLog(log) && !isMovementLog(log));
-    
+
     const extras = [];
     if (passiveGains.length > 0) {
-        extras.push(`gagne ${passiveGains.join(', ')}`);
+      extras.push(`gagne ${passiveGains.join(', ')}`);
     }
     if (movementLogs.length > 0) {
-        extras.push(movementLogs.join(', '));
-    }
-    
-    if (extras.length > 0) {
-        message += ` et ${extras.join(' et ')}`;
-    }
-    
-    addToHistory(message, currentPlayer.id, currentGame, undefined, sequenceId);
-    if (otherLogs.length > 0) {
-        otherLogs.forEach(log => addToHistory(log, currentPlayer.id, gameAfterBonuses, undefined, sequenceId));
+      extras.push(movementLogs.join(', '));
     }
 
-    // Gérer les interactions en attente (ex: Mouvements, Tech, etc.)
+    if (extras.length > 0) {
+      message += ` et ${extras.join(' et ')}`;
+    }
+
+    addToHistory(message, currentPlayer.id, currentGame, undefined, sequenceId);
+    if (otherLogs.length > 0) {
+      otherLogs.forEach(log => addToHistory(log, currentPlayer.id, gameAfterBonuses, undefined, sequenceId));
+    }
+
+    // Gérer les interactions en attente (ex: Mouvements, Tech, Signals, etc.)
     if (newPendingInteractions.length > 0) {
-        const interactionsWithSeqId = newPendingInteractions.map(i => ({ ...i, sequenceId }));
-        setPendingInteractions(prev => [...interactionsWithSeqId, ...prev]);
+      const interactionsWithSeqId = newPendingInteractions.map(i => ({ ...i, sequenceId }));
+      setPendingInteractions(prev => [...interactionsWithSeqId, ...prev]);
     }
   };
 
@@ -2131,7 +2014,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
     const card = currentPlayer.cards.find(c => c.id === cardId);
     if (!card) return;
-    
+
     // Appliquer l'effet de l'action gratuite
     if (card.freeAction === FreeActionType.MEDIA) {
       const res = ResourceSystem.updateMedia(updatedGame, currentPlayer.id, 1);
@@ -2150,17 +2033,17 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
       addToHistory(`défausse carte "${card.name}" et gagne 1 déplacement gratuit`, currentPlayer.id, game);
     }
-    
+
     // Défausser la carte
     const playerToUpdate = updatedGame.players.find(p => p.id === currentPlayer.id);
     if (playerToUpdate) {
-        const newPlayer = CardSystem.discardCard(playerToUpdate, cardId);
-        updatedGame = {
-            ...updatedGame,
-            players: updatedGame.players.map(p => p.id === currentPlayer.id ? newPlayer : p)
-        };
+      const newPlayer = CardSystem.discardCard(playerToUpdate, cardId);
+      updatedGame = {
+        ...updatedGame,
+        players: updatedGame.players.map(p => p.id === currentPlayer.id ? newPlayer : p)
+      };
     }
-    
+
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
   };
@@ -2168,8 +2051,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour l'action d'achat de carte avec du média
   const handleBuyCardAction = () => {
     if (interactionState.type !== 'IDLE') return;
-    
-    setInteractionState({ type: 'ACQUIRING_CARD', count: 1});
+
+    setInteractionState({ type: 'ACQUIRING_CARD', count: 1 });
     setToast({ message: "Sélectionnez une carte dans la rangée ou la pioche", visible: true });
   };
 
@@ -2181,8 +2064,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Mettre à jour GameEngine
     const result = ResourceSystem.tradeResources(game, currentPlayer.id, spendType, gainType);
     if (result.error) {
-        setToast({ message: result.error, visible: true });
-        return;
+      setToast({ message: result.error, visible: true });
+      return;
     }
 
     // Finaliser la transaction
@@ -2192,93 +2075,93 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setToast({ message: "Echange effectué", visible: true });
     addToHistory(`échange ${formatResource(2, spendType)} contre ${formatResource(1, gainType)}`, currentPlayer.id, game);
   };
-  
+
   // Gestionnaire pour la sélection d'une carte de la pioche ou de la rangée principale
   const handleCardRowClick = (cardId?: string) => { // cardId undefined means deck
     // Cas 1: Sélection pour 2eme action scan
     if (interactionState.type === 'SELECTING_SCAN_CARD') {
-        if (!cardId) return; // Cannot select deck for scan color
-        const card = game.decks.cardRow.find(c => c.id === cardId);
-        if (!card) return;
+      if (!cardId) return; // Cannot select deck for scan color
+      const card = game.decks.cardRow.find(c => c.id === cardId);
+      if (!card) return;
 
-        setInteractionState({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId: interactionState.sequenceId, cardId: card.id });
-        setIsRowOpen(false);
-        setToast({ message: `Sélectionnez un secteur ${card.scanSector}`, visible: true });
-    } else 
-    // Cas 2: 
-    if (interactionState.type === 'ACQUIRING_CARD') {
-      const currentPlayer = game.players[game.currentPlayerIndex];
-      let result: { updatedGame: Game, error?: string };
-  
-      // Passer interactionState.isFree
-      result = ResourceSystem.buyCard(game, currentPlayer.id, cardId, interactionState.isFree);
-      if (result.error) {
-        setToast({ message: result.error, visible: true });
-        // On reste dans l'état ACQUIRING_CARD pour permettre de réessayer ou d'annuler via l'overlay
-        return;
-      }
-  
-      let freeActionLog = "";
-      if (interactionState.triggerFreeAction) {
+      setInteractionState({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId: interactionState.sequenceId, cardId: card.id });
+      setIsRowOpen(false);
+      setToast({ message: `Sélectionnez un secteur ${card.scanSector}`, visible: true });
+    } else
+      // Cas 2: 
+      if (interactionState.type === 'ACQUIRING_CARD') {
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        let result: { updatedGame: Game, error?: string };
+
+        // Passer interactionState.isFree
+        result = ResourceSystem.buyCard(game, currentPlayer.id, cardId, interactionState.isFree);
+        if (result.error) {
+          setToast({ message: result.error, visible: true });
+          // On reste dans l'état ACQUIRING_CARD pour permettre de réessayer ou d'annuler via l'overlay
+          return;
+        }
+
+        let freeActionLog = "";
+        if (interactionState.triggerFreeAction) {
           const player = result.updatedGame.players.find(p => p.id === currentPlayer.id);
           if (player && player.cards.length > 0) {
-              const card = player.cards[player.cards.length - 1];
-              card.isRevealed = true;
-              
-              if (card.freeAction === FreeActionType.MEDIA) {
-                  player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-                  setToast({ message: "Action gratuite : +1 Média", visible: true });
-                  freeActionLog = " et gagne 1 Média (Action gratuite)";
-              } else if (card.freeAction === FreeActionType.DATA) {
-                  player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
-                  setToast({ message: "Action gratuite : +1 Donnée", visible: true });
-                  freeActionLog = " et gagne 1 Donnée (Action gratuite)";
-              } else if (card.freeAction === FreeActionType.MOVEMENT) {
-                  setPendingInteractions(prev => [{ type: 'MOVING_PROBE', count: 1 }, ...prev]);
-                  setToast({ message: "Action gratuite : +1 Déplacement", visible: true });
-                  freeActionLog = " et gagne 1 Déplacement (Action gratuite)";
-              }
+            const card = player.cards[player.cards.length - 1];
+            card.isRevealed = true;
+
+            if (card.freeAction === FreeActionType.MEDIA) {
+              player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+              setToast({ message: "Action gratuite : +1 Média", visible: true });
+              freeActionLog = " et gagne 1 Média (Action gratuite)";
+            } else if (card.freeAction === FreeActionType.DATA) {
+              player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
+              setToast({ message: "Action gratuite : +1 Donnée", visible: true });
+              freeActionLog = " et gagne 1 Donnée (Action gratuite)";
+            } else if (card.freeAction === FreeActionType.MOVEMENT) {
+              setPendingInteractions(prev => [{ type: 'MOVING_PROBE', count: 1 }, ...prev]);
+              setToast({ message: "Action gratuite : +1 Déplacement", visible: true });
+              freeActionLog = " et gagne 1 Déplacement (Action gratuite)";
+            }
           }
-      }
-  
-      // Récupérer le nom de la carte pour le log
-      let cardName = "Inconnue";
-      if (cardId) {
+        }
+
+        // Récupérer le nom de la carte pour le log
+        let cardName = "Inconnue";
+        if (cardId) {
           const card = game.decks.cardRow.find(c => c.id === cardId);
           if (card) cardName = card.name;
-      } else {
+        } else {
           const updatedPlayer = result.updatedGame.players.find(p => p.id === currentPlayer.id);
           if (updatedPlayer && updatedPlayer.cards.length > 0) {
-              cardName = updatedPlayer.cards[updatedPlayer.cards.length - 1].name;
+            cardName = updatedPlayer.cards[updatedPlayer.cards.length - 1].name;
           }
-      }
-  
-      setGame(result.updatedGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-      
-      const msg = interactionState.isFree ? "Carte obtenue (Bonus)" : "Carte achetée (-3 Média)";
-      setToast({ message: msg, visible: true });
-      
-      const logMsg = interactionState.isFree 
+        }
+
+        setGame(result.updatedGame);
+        if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
+
+        const msg = interactionState.isFree ? "Carte obtenue (Bonus)" : "Carte achetée (-3 Média)";
+        setToast({ message: msg, visible: true });
+
+        const logMsg = interactionState.isFree
           ? (cardId ? `choisit la carte "${cardName}" (Bonus)` : `pioche la carte "${cardName}" (Bonus)`)
           : (cardId ? `achète la carte "${cardName}" pour 3 médias` : `achète la carte "${cardName}" (pioche) pour 3 médias`);
-      
-      const sequenceId = (interactionState as any).sequenceId;
-      
-      // Pour l'achat normal, on veut que l'undo revienne à IDLE (pas à la sélection)
-      const undoState: InteractionState = !interactionState.isFree ? { type: 'IDLE' } : interactionState;
-      
-      addToHistory(logMsg + freeActionLog, currentPlayer.id, game, undoState, sequenceId);
-      
-      // Gérer le compteur pour les sélections multiples
-      if (interactionState.count > 1) {
-           setInteractionState({ ...interactionState, count: interactionState.count - 1 });
-           setToast({ message: `Encore ${interactionState.count - 1} carte(s) à choisir`, visible: true });
-      } else {
+
+        const sequenceId = (interactionState as any).sequenceId;
+
+        // Pour l'achat normal, on veut que l'undo revienne à IDLE (pas à la sélection)
+        const undoState: InteractionState = !interactionState.isFree ? { type: 'IDLE' } : interactionState;
+
+        addToHistory(logMsg + freeActionLog, currentPlayer.id, game, undoState, sequenceId);
+
+        // Gérer le compteur pour les sélections multiples
+        if (interactionState.count > 1) {
+          setInteractionState({ ...interactionState, count: interactionState.count - 1 });
+          setToast({ message: `Encore ${interactionState.count - 1} carte(s) à choisir`, visible: true });
+        } else {
           setInteractionState({ type: 'IDLE' });
           setIsRowOpen(false);
+        }
       }
-    }
   };
 
   // Gestionnaire pour l'échange de cartes contre des resources crédit/énergie
@@ -2295,12 +2178,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleConfirmTrade = () => {
     if (interactionState.type !== 'TRADING_CARD') return;
     const currentPlayer = game.players[game.currentPlayerIndex];
-    
+
     // Mettre à jour GameEngine
     const result = ResourceSystem.tradeResources(game, currentPlayer.id, 'card', interactionState.targetGain, interactionState.selectedCards);
     if (result.error) {
-        setToast({ message: result.error, visible: true });
-        return;
+      setToast({ message: result.error, visible: true });
+      return;
     }
 
     // Finaliser la transaction
@@ -2333,22 +2216,22 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleTechClick = (tech: Technology) => {
     // Cas 1: Mode recherche actif ou bonus
     if (interactionState.type === 'ACQUIRING_TECH') {
-        if (tech.type === TechnologyCategory.COMPUTING) {
-          // Sélection du slot
-          const { sequenceId } = interactionState;
-          setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId });
-        } else {
-          // Finaliser l'achat
-          const { noTileBonus } = interactionState;
-          processTechPurchase(tech, undefined, noTileBonus);  
-        }
+      if (tech.type === TechnologyCategory.COMPUTING) {
+        // Sélection du slot
+        const { sequenceId } = interactionState;
+        setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId });
+      } else {
+        // Finaliser l'achat
+        const { noTileBonus } = interactionState;
+        processTechPurchase(tech, undefined, noTileBonus);
+      }
     } else
-    // Cas 2: Clic direct depuis IDLE (Raccourci Action Recherche)
-    if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
+      // Cas 2: Clic direct depuis IDLE (Raccourci Action Recherche)
+      if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
         const currentPlayer = game.players[game.currentPlayerIndex];
         if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) {
-            setToast({ message: `Pas assez de couverture médiatique (Requis: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA})`, visible: true });
-            return;
+          setToast({ message: `Pas assez de couverture médiatique (Requis: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA})`, visible: true });
+          return;
         }
 
         let updatedGame = structuredClone(game);
@@ -2363,19 +2246,19 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
         // Faire tourner le systeme solaire
         const rotationResult = performRotation(updatedGame);
-        updatedGame = rotationResult.updatedGame;        
+        updatedGame = rotationResult.updatedGame;
         addToHistory(rotationResult.logs.join(', '), player.id, game, undefined, interactionState.sequenceId)
 
         if (tech.type === TechnologyCategory.COMPUTING) {
-            // Sélection du slot
-            setGame(updatedGame);
-            if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-            setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId: interactionState.sequenceId });
+          // Sélection du slot
+          setGame(updatedGame);
+          if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+          setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId: interactionState.sequenceId });
         } else {
-            // Finaliser l'achat
-            processTechPurchase(tech, undefined, false, updatedGame);
+          // Finaliser l'achat
+          processTechPurchase(tech, undefined, false, updatedGame);
         }
-    }
+      }
   };
 
   // Gestionnaire pour la sélection de la colonne ordinateur
@@ -2400,7 +2283,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour la pioche de carte depuis le PlayerBoardUI (ex: bonus ordinateur)
   const handleDrawCard = (count: number, source: string) => {
     const updatedGame = CardSystem.drawCards(game, game.players[game.currentPlayerIndex].id, count, source);
-    
+
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
     addToHistory(`pioche ${count} carte${count > 1 ? 's' : ''} (${source})`, game.players[game.currentPlayerIndex].id, game);
@@ -2437,31 +2320,31 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour le clic sur un objectif (placement de marqueur de palier)
   const handleObjectiveClick = (tileId: string) => {
     if (interactionState.type !== 'PLACING_OBJECTIVE_MARKER') return;
-    
+
     const tile = game.board.objectiveTiles.find(t => t.id === tileId);
     if (!tile) return;
-    
+
     const currentPlayer = game.players[game.currentPlayerIndex];
-    
+
     // Vérifier si le joueur a déjà un marqueur sur cet objectif
     if (tile.markers.includes(currentPlayer.id)) {
       setToast({ message: "Vous avez déjà un marqueur sur cet objectif.", visible: true });
       return;
     }
-        
+
     // Mettre à jour le jeu
     const updatedGame = structuredClone(game);
     const upTile = updatedGame.board.objectiveTiles.find(t => t.id === tileId)!;
     const upPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
-    
+
     upTile.markers.push(upPlayer.id);
     upPlayer.claimedMilestones.push(interactionState.milestone);
-    
+
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
 
     addToHistory(`a atteint le palier ${interactionState.milestone} PV et place un marqueur sur "${tile.name}" (Points fin de partie)`, upPlayer.id, game, interactionState);
-    
+
     setInteractionState({ type: 'IDLE' });
     setToast({ message: `Marqueur placé !`, visible: true });
 
@@ -2476,12 +2359,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Helper pour la couleur des secteurs
   const getSectorColorCode = (color: SectorColor) => {
-    switch(color) {
-        case SectorColor.BLUE: return '#4a9eff';
-        case SectorColor.RED: return '#ff6b6b';
-        case SectorColor.YELLOW: return '#ffd700';
-        case SectorColor.BLACK: return '#aaaaaa';
-        default: return '#fff';
+    switch (color) {
+      case SectorColor.BLUE: return '#4a9eff';
+      case SectorColor.RED: return '#ff6b6b';
+      case SectorColor.YELLOW: return '#ffd700';
+      case SectorColor.BLACK: return '#aaaaaa';
+      default: return '#fff';
     }
   };
 
@@ -2490,15 +2373,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       <div style={{ fontWeight: 'bold', color: '#4a9eff', fontSize: '1.1rem', marginBottom: '6px', borderBottom: '1px solid #444', paddingBottom: '4px' }}>{card.name}</div>
       <div style={{ fontSize: '0.95em', color: '#fff', marginBottom: '10px', lineHeight: '1.4' }}>{card.description}</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.85em', backgroundColor: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '4px' }}>
-         <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
-         <div>Type: {card.type === 'ACTION' ? 'Action' : 'Mission'}</div>
-         <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
-         <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
-         <div style={{ gridColumn: '1 / -1', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
+        <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
+        <div>Type: {card.type === 'ACTION' ? 'Action' : 'Mission'}</div>
+        <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
+        <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
+        <div style={{ gridColumn: '1 / -1', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
       </div>
     </div>
   );
-  
+
   const humanPlayer = game.players.find(p => (p as any).type === 'human');
   const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id;
 
@@ -2508,22 +2391,22 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       return game.board.sectors.filter(s => s.color === interactionState.color).map(s => s.id);
     }
     if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
-       // Earth sector
-       const earthPos = getObjectPosition('earth', game.board.solarSystem.rotationAngleLevel1 || 0, game.board.solarSystem.rotationAngleLevel2 || 0, game.board.solarSystem.rotationAngleLevel3 || 0);
-       if (earthPos) {
-           const sectors = [`sector_${earthPos.absoluteSector}`];
-           
-           const currentPlayer = game.players[game.currentPlayerIndex];
-           const hasObs1 = currentPlayer.technologies.some(t => t.id.startsWith('observation-1'));
-           
-           if (hasObs1) {
-               const prev = earthPos.absoluteSector === 1 ? 8 : earthPos.absoluteSector - 1;
-               const next = earthPos.absoluteSector === 8 ? 1 : earthPos.absoluteSector + 1;
-               sectors.push(`sector_${prev}`);
-               sectors.push(`sector_${next}`);
-           }
-           return sectors;
-       }
+      // Earth sector
+      const earthPos = getObjectPosition('earth', game.board.solarSystem.rotationAngleLevel1 || 0, game.board.solarSystem.rotationAngleLevel2 || 0, game.board.solarSystem.rotationAngleLevel3 || 0);
+      if (earthPos) {
+        const sectors = [`sector_${earthPos.absoluteSector}`];
+
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        const hasObs1 = currentPlayer.technologies.some(t => t.id.startsWith('observation-1'));
+
+        if (hasObs1) {
+          const prev = earthPos.absoluteSector === 1 ? 8 : earthPos.absoluteSector - 1;
+          const next = earthPos.absoluteSector === 8 ? 1 : earthPos.absoluteSector + 1;
+          sectors.push(`sector_${prev}`);
+          sectors.push(`sector_${next}`);
+        }
+        return sectors;
+      }
     }
     return [];
   };
@@ -2549,10 +2432,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     const formatBonusSimple = (bonus: any) => {
-        const parts = [];
-        if (bonus.pv) parts.push(`${bonus.pv} PV`);
-        if (bonus.media) parts.push(`${bonus.media} Média`);
-        return parts.join(', ') || 'Aucun';
+      const parts = [];
+      if (bonus.pv) parts.push(`${bonus.pv} PV`);
+      if (bonus.media) parts.push(`${bonus.media} Média`);
+      return parts.join(', ') || 'Aucun';
     };
 
     return (
@@ -2560,7 +2443,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         <div style={{ fontWeight: 'bold', color: colorHex, marginBottom: '6px', borderBottom: '1px solid #555', paddingBottom: '4px' }}>
           Trace de vie {colorName}
         </div>
-        
+
         {traces.length > 0 ? (
           <div style={{ marginBottom: '8px' }}>
             <div style={{ fontSize: '0.8em', color: '#aaa', marginBottom: '2px' }}>Découvert par :</div>
@@ -2811,7 +2694,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       {activeTooltip && (
         <Tooltip content={activeTooltip.content} targetRect={activeTooltip.rect} />
       )}
-      
+
       {/* Modale de sélection de carte de fin de manche */}
       {passModalState.visible && (
         <div style={{
@@ -2841,74 +2724,75 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '20px', color: '#fff' }}>
               Fin de manche : Choisissez une carte
             </div>
-            <div style={{ 
-              display: 'flex', 
-              gap: '15px', 
-              flexWrap: 'wrap', 
-              justifyContent: 'center', 
+            <div style={{
+              display: 'flex',
+              gap: '15px',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
               width: '100%',
               overflowY: 'auto',
               padding: '10px'
             }}>
-            {passModalState.cards.map(card => {
-              const isSelected = passModalState.selectedCardId === card.id;
-              return (
-              <div 
-                key={card.id}
-                onClick={() => setPassModalState(prev => ({ ...prev, selectedCardId: card.id }))}
-                onMouseEnter={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setActiveTooltip({ content: renderCardTooltip(card), rect });
-                }}
-                onMouseLeave={() => setActiveTooltip(null)}
-                className={`seti-common-card seti-card-wrapper ${isSelected ? 'selected' : ''}`}
-                style={{
-                  width: '140px',
-                  height: '200px',
-                  padding: '6px',
-                  backgroundColor: isSelected ? 'rgba(74, 158, 255, 0.2)' : 'rgba(30, 30, 40, 0.9)',
-                  border: isSelected ? '2px solid #4a9eff' : '1px solid #555',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '2px',
-                  position: 'relative'
-                }}
-              >
-                <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden', fontWeight: 'bold', color: '#fff' }}><span>{card.name}</span></div>
-                <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
-                {card.description && <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis', fontSize: '0.7em', color: '#ccc' }}>{card.description}</div>}
-                <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px' }}><div className="seti-card-detail" style={{ display: 'flex', justifyContent: 'space-between' }}>{card.freeAction && <span>Act: {card.freeAction}</span>}{card.scanSector && <span>Scan: {card.scanSector}</span>}</div><div className="seti-card-detail">{card.revenue && <span>Rev: {card.revenue}</span>}</div></div>
-              </div>
-            )})}
-          </div>
-          <button
-            disabled={!passModalState.selectedCardId}
-            onClick={() => {
-              if (passModalState.selectedCardId) {
-                const currentPlayer = game.players[game.currentPlayerIndex];
-                // Recalculer les cartes à garder (au cas où on vient de la défausse)
-                const cardsToKeep = passModalState.cardsToKeep || currentPlayer.cards.map(c => c.id);
-                performPass(cardsToKeep, passModalState.selectedCardId);
-                setPassModalState({ visible: false, cards: [], selectedCardId: null });
-              }
-            }}
-            style={{
-              marginTop: '30px',
-              padding: '10px 30px',
-              fontSize: '1.1rem',
-              backgroundColor: passModalState.selectedCardId ? '#4a9eff' : '#555',
-              color: passModalState.selectedCardId ? '#fff' : '#aaa',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: passModalState.selectedCardId ? 'pointer' : 'not-allowed',
-            }}
-          >
-            Confirmer et Passer
-          </button>
+              {passModalState.cards.map(card => {
+                const isSelected = passModalState.selectedCardId === card.id;
+                return (
+                  <div
+                    key={card.id}
+                    onClick={() => setPassModalState(prev => ({ ...prev, selectedCardId: card.id }))}
+                    onMouseEnter={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setActiveTooltip({ content: renderCardTooltip(card), rect });
+                    }}
+                    onMouseLeave={() => setActiveTooltip(null)}
+                    className={`seti-common-card seti-card-wrapper ${isSelected ? 'selected' : ''}`}
+                    style={{
+                      width: '140px',
+                      height: '200px',
+                      padding: '6px',
+                      backgroundColor: isSelected ? 'rgba(74, 158, 255, 0.2)' : 'rgba(30, 30, 40, 0.9)',
+                      border: isSelected ? '2px solid #4a9eff' : '1px solid #555',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      transform: isSelected ? 'scale(1.05)' : 'scale(1)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
+                      position: 'relative'
+                    }}
+                  >
+                    <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden', fontWeight: 'bold', color: '#fff' }}><span>{card.name}</span></div>
+                    <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
+                    {card.description && <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis', fontSize: '0.7em', color: '#ccc' }}>{card.description}</div>}
+                    <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px' }}><div className="seti-card-detail" style={{ display: 'flex', justifyContent: 'space-between' }}>{card.freeAction && <span>Act: {card.freeAction}</span>}{card.scanSector && <span>Scan: {card.scanSector}</span>}</div><div className="seti-card-detail">{card.revenue && <span>Rev: {card.revenue}</span>}</div></div>
+                  </div>
+                )
+              })}
+            </div>
+            <button
+              disabled={!passModalState.selectedCardId}
+              onClick={() => {
+                if (passModalState.selectedCardId) {
+                  const currentPlayer = game.players[game.currentPlayerIndex];
+                  // Recalculer les cartes à garder (au cas où on vient de la défausse)
+                  const cardsToKeep = passModalState.cardsToKeep || currentPlayer.cards.map(c => c.id);
+                  performPass(cardsToKeep, passModalState.selectedCardId);
+                  setPassModalState({ visible: false, cards: [], selectedCardId: null });
+                }
+              }}
+              style={{
+                marginTop: '30px',
+                padding: '10px 30px',
+                fontSize: '1.1rem',
+                backgroundColor: passModalState.selectedCardId ? '#4a9eff' : '#555',
+                color: passModalState.selectedCardId ? '#fff' : '#aaa',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: passModalState.selectedCardId ? 'pointer' : 'not-allowed',
+              }}
+            >
+              Confirmer et Passer
+            </button>
           </div>
         </div>
       )}
@@ -2927,7 +2811,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           }}>
             <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Faites un choix</h3>
             <p style={{ marginBottom: '20px', color: '#ddd' }}>Choisissez votre bonus :</p>
-            
+
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
               <button
                 onClick={() => handleMediaOrMoveChoice('MEDIA')}
@@ -2944,7 +2828,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 <span style={{ fontSize: '1.5em' }}>🎤</span>
                 <span>1 Média</span>
               </button>
-              
+
               <button
                 onClick={() => handleMediaOrMoveChoice('MOVE')}
                 style={{
@@ -2980,7 +2864,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Récompenses</h3>
             <p style={{ fontSize: '1.1em', marginBottom: '20px', color: '#ddd' }}>{interactionState.bonusesSummary}</p>
             <p style={{ fontSize: '0.9em', marginBottom: '10px', color: '#aaa' }}>Quelles actions voulez-vous effectuer ?</p>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {interactionState.choices.map((choice, idx) => (
                 <button
@@ -3003,7 +2887,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 </button>
               ))}
             </div>
-            
+
             {interactionState.choices.every(c => c.done) && (
               <button
                 onClick={() => setInteractionState({ type: 'IDLE' })}
@@ -3042,8 +2926,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               </button>
               <button
                 onClick={() => {
-                    if (playCardConfirmation.cardId) executePlayCard(playCardConfirmation.cardId);
-                    setPlayCardConfirmation({ visible: false, cardId: null, message: '' });
+                  if (playCardConfirmation.cardId) executePlayCard(playCardConfirmation.cardId);
+                  setPlayCardConfirmation({ visible: false, cardId: null, message: '' });
                 }}
                 style={{ padding: '8px 16px', backgroundColor: '#ff6b6b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
               >
@@ -3067,79 +2951,79 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           backdropFilter: 'blur(2px)'
         }} onClick={() => {
           if (interactionState.type === 'ACQUIRING_CARD') {
-             setInteractionState({ type: 'IDLE' });
-             setIsRowOpen(false);
+            setInteractionState({ type: 'IDLE' });
+            setIsRowOpen(false);
           } else if (interactionState.type === 'SELECTING_SCAN_CARD') {
-             setIsRowOpen(false);
-             // Cannot cancel easily in middle of sequence, maybe toast warning?
+            setIsRowOpen(false);
+            // Cannot cancel easily in middle of sequence, maybe toast warning?
           } else if (interactionState.type === 'RESERVING_CARD') {
-             setToast({ message: "Veuillez sélectionner une carte à réserver", visible: true });
+            setToast({ message: "Veuillez sélectionner une carte à réserver", visible: true });
           } else {
-             setToast({ message: "Veuillez sélectionner une technologie", visible: true });
+            setToast({ message: "Veuillez sélectionner une technologie", visible: true });
           }
         }} />
       )}
 
       <div className="seti-root-inner">
         <div className="seti-left-panel">
-            <div style={{ 
-              flex: 1, 
-              display: 'flex', 
-              flexDirection: 'column', 
-              minHeight: 0,
-              position: interactionState.type === 'RESERVING_CARD' ? 'relative' : 'static',
-              zIndex: interactionState.type === 'RESERVING_CARD' ? 1501 : 'auto'
-            }}>
-              <PlayerBoardUI 
-                game={game} 
-                playerId={currentPlayerIdToDisplay}
-                onViewPlayer={setViewedPlayerId}
-                onAction={handleAction} 
-                isDiscarding={interactionState.type === 'DISCARDING_CARD'}
-                isTrading={interactionState.type === 'TRADING_CARD'}
-                isReserving={interactionState.type === 'RESERVING_CARD'}
-                selectedCardIds={interactionState.type === 'DISCARDING_CARD' || interactionState.type === 'TRADING_CARD' || interactionState.type === 'RESERVING_CARD' || interactionState.type === 'DISCARDING_FOR_SIGNAL' ? interactionState.selectedCards : []}
-                onCardClick={handleCardClick}
-                onDiscardCardAction={handleDiscardCardAction}
-                onConfirmDiscard={handleConfirmDiscard}
-                onTradeCardAction={(targetGain) => handleTradeCardAction({ targetGain })}
-                onConfirmTrade={handleConfirmTrade}
-                reservationCount={interactionState.type === 'RESERVING_CARD' ? interactionState.count : 0}
-                onConfirmReservation={handleConfirmReservation}
-                onBuyCardAction={handleBuyCardAction}
-                onDirectTradeAction={handleDirectTrade}
-                onDrawCard={handleDrawCard}
-                onPlayCard={handlePlayCardRequest}
-                onGameUpdate={(newGame) => {
-                    setGame(newGame);
-                    if (gameEngineRef.current) gameEngineRef.current.setState(newGame);
-                }}
-                isSelectingComputerSlot={interactionState.type === 'SELECTING_COMPUTER_SLOT'}
-                onComputerSlotSelect={handleComputerColumnSelect}
-                isAnalyzing={interactionState.type === 'ANALYZING'}
-                hasPerformedMainAction={hasPerformedMainAction}
-                onNextPlayer={handleNextPlayer}
-                onHistory={(message, sequenceId) => addToHistory(message, game.players[game.currentPlayerIndex].id, game, undefined, sequenceId)}
-                onComputerBonus={handleComputerBonus}
-                isPlacingLifeTrace={interactionState.type === 'PLACING_LIFE_TRACE'}
-                isSelectingSector={interactionState.type === 'SELECTING_SCAN_SECTOR' || interactionState.type === 'SELECTING_SCAN_CARD'}
-                isDiscardingForSignal={interactionState.type === 'DISCARDING_FOR_SIGNAL'}
-                onConfirmDiscardForSignal={handleConfirmDiscardForSignal}
-                discardForSignalCount={interactionState.type === 'DISCARDING_FOR_SIGNAL' ? interactionState.count : 0}
-              />
-            </div>
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            position: interactionState.type === 'RESERVING_CARD' ? 'relative' : 'static',
+            zIndex: interactionState.type === 'RESERVING_CARD' ? 1501 : 'auto'
+          }}>
+            <PlayerBoardUI
+              game={game}
+              playerId={currentPlayerIdToDisplay}
+              onViewPlayer={setViewedPlayerId}
+              onAction={handleAction}
+              isDiscarding={interactionState.type === 'DISCARDING_CARD'}
+              isTrading={interactionState.type === 'TRADING_CARD'}
+              isReserving={interactionState.type === 'RESERVING_CARD'}
+              selectedCardIds={interactionState.type === 'DISCARDING_CARD' || interactionState.type === 'TRADING_CARD' || interactionState.type === 'RESERVING_CARD' || interactionState.type === 'DISCARDING_FOR_SIGNAL' ? interactionState.selectedCards : []}
+              onCardClick={handleCardClick}
+              onDiscardCardAction={handleDiscardCardAction}
+              onConfirmDiscard={handleConfirmDiscard}
+              onTradeCardAction={(targetGain) => handleTradeCardAction({ targetGain })}
+              onConfirmTrade={handleConfirmTrade}
+              reservationCount={interactionState.type === 'RESERVING_CARD' ? interactionState.count : 0}
+              onConfirmReservation={handleConfirmReservation}
+              onBuyCardAction={handleBuyCardAction}
+              onDirectTradeAction={handleDirectTrade}
+              onDrawCard={handleDrawCard}
+              onPlayCard={handlePlayCardRequest}
+              onGameUpdate={(newGame) => {
+                setGame(newGame);
+                if (gameEngineRef.current) gameEngineRef.current.setState(newGame);
+              }}
+              isSelectingComputerSlot={interactionState.type === 'SELECTING_COMPUTER_SLOT'}
+              onComputerSlotSelect={handleComputerColumnSelect}
+              isAnalyzing={interactionState.type === 'ANALYZING'}
+              hasPerformedMainAction={hasPerformedMainAction}
+              onNextPlayer={handleNextPlayer}
+              onHistory={(message, sequenceId) => addToHistory(message, game.players[game.currentPlayerIndex].id, game, undefined, sequenceId)}
+              onComputerBonus={handleComputerBonus}
+              isPlacingLifeTrace={interactionState.type === 'PLACING_LIFE_TRACE'}
+              isSelectingSector={interactionState.type === 'SELECTING_SCAN_SECTOR' || interactionState.type === 'SELECTING_SCAN_CARD'}
+              isDiscardingForSignal={interactionState.type === 'DISCARDING_FOR_SIGNAL'}
+              onConfirmDiscardForSignal={handleConfirmDiscardForSignal}
+              discardForSignalCount={interactionState.type === 'DISCARDING_FOR_SIGNAL' ? interactionState.count : 0}
+            />
+          </div>
         </div>
         <div className="seti-right-column">
           <div className="seti-center-panel">
-            <SolarSystemBoardUI 
-              ref={solarSystemRef} 
-              game={game} 
-              onProbeMove={handleProbeMove} 
+            <SolarSystemBoardUI
+              ref={solarSystemRef}
+              game={game}
+              onProbeMove={handleProbeMove}
               onPlanetClick={handlePlanetClick}
               onOrbit={handleOrbit}
               onLand={handleLand}
-              initialSector1={initialSector1} 
-              initialSector2={initialSector2} 
+              initialSector1={initialSector1}
+              initialSector2={initialSector2}
               initialSector3={initialSector3}
               onSectorClick={handleSectorClick}
               highlightPlayerProbes={interactionState.type === 'MOVING_PROBE'}
@@ -3152,8 +3036,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               allowOccupiedLanding={interactionState.type === 'LANDING_PROBE' && interactionState.source === '16'}
               onBackgroundClick={() => {
                 if (interactionState.type === 'MOVING_PROBE') {
-                    setInteractionState({ type: 'IDLE' });
-                    setToast({ message: "Déplacements terminés", visible: true });
+                  setInteractionState({ type: 'IDLE' });
+                  setToast({ message: "Déplacements terminés", visible: true });
                 }
               }}
               isRemovingOrbiter={interactionState.type === 'REMOVING_ORBITER'}
@@ -3182,32 +3066,32 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 <div className="seti-foldable-content">
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     {game.board.objectiveTiles && game.board.objectiveTiles.map(tile => (
-                      <div key={tile.id} 
+                      <div key={tile.id}
                         onClick={() => handleObjectiveClick(tile.id)}
                         style={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        border: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '1px solid #4a9eff' : '1px solid #555',
-                        borderRadius: '6px',
-                        padding: '8px',
-                        display: 'flex',
-                        cursor: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? 'pointer' : 'default',
-                        boxShadow: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '0 0 10px rgba(74, 158, 255, 0.3)' : 'none',
-                        flexDirection: 'column',
-                        gap: '4px',
-                        minHeight: '100px'
-                      }}>
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                          border: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '1px solid #4a9eff' : '1px solid #555',
+                          borderRadius: '6px',
+                          padding: '8px',
+                          display: 'flex',
+                          cursor: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? 'pointer' : 'default',
+                          boxShadow: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '0 0 10px rgba(74, 158, 255, 0.3)' : 'none',
+                          flexDirection: 'column',
+                          gap: '4px',
+                          minHeight: '100px'
+                        }}>
                         <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', marginBottom: 'auto' }}>{tile.description}</div>
-                        
+
                         {/* Piste de score avec 4 cercles */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', position: 'relative', padding: '0 5px' }}>
                           {/* Ligne de connexion */}
                           <div style={{ position: 'absolute', top: '50%', left: '10px', right: '10px', height: '2px', backgroundColor: '#555', zIndex: 0 }}></div>
-                          
+
                           {/* Cercles (1er, 2eme, Autre, Autre) */}
                           {[tile.rewards.first, tile.rewards.second, tile.rewards.others, tile.rewards.others].map((pv, idx) => {
                             const markerPlayerId = tile.markers[idx];
                             const player = markerPlayerId ? game.players.find(p => p.id === markerPlayerId) : null;
-                            
+
                             const currentPlayer = game.players[game.currentPlayerIndex];
                             const isPlacingMarker = interactionState.type === 'PLACING_OBJECTIVE_MARKER';
                             const hasMarkerOnTile = tile.markers.includes(currentPlayer.id);
@@ -3219,37 +3103,37 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                             let milestoneText = null;
 
                             if (player) {
-                                statusText = `Atteint par ${player.name}`;
-                                statusColor = player.color || "#ccc";
+                              statusText = `Atteint par ${player.name}`;
+                              statusColor = player.color || "#ccc";
                             } else if (isNextAvailable) {
-                                statusText = "Disponible";
-                                statusColor = "#4a9eff";
-                                actionText = "Cliquer pour placer un marqueur";
+                              statusText = "Disponible";
+                              statusColor = "#4a9eff";
+                              actionText = "Cliquer pour placer un marqueur";
                             } else if (hasMarkerOnTile) {
-                                statusText = "Déjà validé";
-                                statusColor = "#aaa";
+                              statusText = "Déjà validé";
+                              statusColor = "#aaa";
                             } else {
-                                statusText = "Indisponible";
-                                statusColor = "#ff6b6b";
-                                if (idx === tile.markers.length) {
-                                    const nextMilestone = MILESTONES.find(m => !currentPlayer.claimedMilestones.includes(m));
-                                    if (nextMilestone) {
-                                        milestoneText = `Atteindre ${nextMilestone} PVs pour sélectionner l'objectif`;
-                                    } else {
-                                        actionText = "Tous les paliers atteints";
-                                    }
+                              statusText = "Indisponible";
+                              statusColor = "#ff6b6b";
+                              if (idx === tile.markers.length) {
+                                const nextMilestone = MILESTONES.find(m => !currentPlayer.claimedMilestones.includes(m));
+                                if (nextMilestone) {
+                                  milestoneText = `Atteindre ${nextMilestone} PVs pour sélectionner l'objectif`;
                                 } else {
-                                    actionText = "Nécessite le palier précédent";
+                                  actionText = "Tous les paliers atteints";
                                 }
+                              } else {
+                                actionText = "Nécessite le palier précédent";
+                              }
                             }
 
                             const tooltipContent = (
-                                <div style={{ textAlign: 'center' }}>
-                                    <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>{statusText}</div>
-                                    <div style={{ fontSize: '0.9em', color: '#ccc' }}>Gain : <span style={{ color: '#ffd700' }}>{pv} PV</span></div>
-                                    {milestoneText && <div style={{ fontSize: '0.8em', color: '#4a9eff', marginTop: '4px', fontStyle: 'italic' }}>{milestoneText}</div>}
-                                    {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
-                                </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>{statusText}</div>
+                                <div style={{ fontSize: '0.9em', color: '#ccc' }}>Gain : <span style={{ color: '#ffd700' }}>{pv} PV</span></div>
+                                {milestoneText && <div style={{ fontSize: '0.8em', color: '#4a9eff', marginTop: '4px', fontStyle: 'italic' }}>{milestoneText}</div>}
+                                {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
+                              </div>
                             );
 
                             return (
@@ -3259,17 +3143,17 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                                 border: player ? '2px solid #fff' : (isNextAvailable ? '2px solid #4a9eff' : '1px solid #777'),
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 zIndex: 1, fontSize: '0.75em', fontWeight: 'bold',
-                                color: player ? '#000' : '#fff', 
+                                color: player ? '#000' : '#fff',
                                 boxShadow: isNextAvailable ? '0 0 8px #4a9eff' : (player ? '0 0 4px rgba(0,0,0,0.5)' : 'none'),
                                 transform: isNextAvailable ? 'scale(1.2)' : 'scale(1)',
                                 transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                                 cursor: isNextAvailable ? 'pointer' : 'help',
                               }}
-                              onMouseEnter={(e) => {
+                                onMouseEnter={(e) => {
                                   const rect = e.currentTarget.getBoundingClientRect();
                                   setActiveTooltip({ content: tooltipContent, rect });
-                              }}
-                              onMouseLeave={() => setActiveTooltip(null)}
+                                }}
+                                onMouseLeave={() => setActiveTooltip(null)}
                               >
                                 {player ? '' : pv}
                               </div>
@@ -3283,18 +3167,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               </div>
 
               <div className={`seti-foldable-container seti-icon-panel ${isTechOpen ? 'open' : 'collapsed'} ${canResearch && !isTechOpen ? 'container-flash' : ''}`}
-                  style={{ 
-                    pointerEvents: 'auto',
-                    ...(interactionState.type === 'ACQUIRING_TECH' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
-                  }}
+                style={{
+                  pointerEvents: 'auto',
+                  ...(interactionState.type === 'ACQUIRING_TECH' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
+                }}
               >
                 <div className="seti-foldable-header" onClick={() => setIsTechOpen(!isTechOpen)}>
                   <span className={`panel-icon ${canResearch ? 'icon-flash' : ''}`}>🔬</span>
                   <span className="panel-title">Technologies</span>
                 </div>
                 <div className="seti-foldable-content">
-                  <TechnologyBoardUI 
-                    game={game} 
+                  <TechnologyBoardUI
+                    game={game}
                     isResearching={interactionState.type === 'ACQUIRING_TECH'}
                     researchCategory={interactionState.type === 'ACQUIRING_TECH' ? interactionState.category : undefined}
                     sharedTechOnly={interactionState.type === 'ACQUIRING_TECH' ? interactionState.sharedOnly : false}
@@ -3303,79 +3187,79 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                   />
                 </div>
               </div>
-              
+
               <div className={`seti-foldable-container seti-icon-panel ${isRowOpen ? 'open' : 'collapsed'}`}
-                  style={{ 
-                    pointerEvents: 'auto',
-                    ...(interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
-                  }}
+                style={{
+                  pointerEvents: 'auto',
+                  ...(interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
+                }}
               >
                 <div className="seti-foldable-header" onClick={() => setIsRowOpen(!isRowOpen)}>
                   <span className="panel-icon">🃏</span>
                   <span className="panel-title">Rangée Principale</span>
                 </div>
                 <div className="seti-foldable-content">
-                <div style={{ display: 'flex', overflowX: 'auto', gap: '8px', padding: '8px' }}>
-                  {/* Pile de pioche */}
-                  <div 
+                  <div style={{ display: 'flex', overflowX: 'auto', gap: '8px', padding: '8px' }}>
+                    {/* Pile de pioche */}
+                    <div
                       onClick={() => handleCardRowClick()}
                       className="seti-common-card"
                       style={{
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: '4px',
-                      backgroundImage: 'repeating-linear-gradient(45deg, #222 0, #222 10px, #2a2a2a 10px, #2a2a2a 20px)',
-                      cursor: interactionState.type === 'ACQUIRING_CARD' ? 'pointer' : 'default',
-                      borderColor: interactionState.type === 'ACQUIRING_CARD' ? '#4a9eff' : '#555'
-                    }}>
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundImage: 'repeating-linear-gradient(45deg, #222 0, #222 10px, #2a2a2a 10px, #2a2a2a 20px)',
+                        cursor: interactionState.type === 'ACQUIRING_CARD' ? 'pointer' : 'default',
+                        borderColor: interactionState.type === 'ACQUIRING_CARD' ? '#4a9eff' : '#555'
+                      }}>
                       <div style={{ fontWeight: 'bold', color: '#aaa', textAlign: 'center' }}>Pioche</div>
                       <div style={{ fontSize: '0.8em', color: '#888' }}>{game.decks.cards.length || 0} cartes</div>
-                  </div>
+                    </div>
 
-                  {game.decks.cardRow && game.decks.cardRow.map(card => (
-                    <div key={card.id} 
-                      onClick={() => handleCardRowClick(card.id)}
-                      onMouseEnter={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ content: renderCardTooltip(card), rect });
-                      }}
-                      onMouseLeave={() => setActiveTooltip(null)}
-                      className="seti-common-card"
-                      style={{
-                      border: (interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? '1px solid #4a9eff' : '1px solid #555',
-                      cursor: (interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? 'pointer' : 'default',
-                      animation: 'cardAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                    }}>
-                      <div style={{ fontWeight: 'bold', color: '#fff', lineHeight: '1.1', marginBottom: '4px', fontSize: '0.75rem', height: '2.2em', overflow: 'hidden' }}>{card.name}</div>
-                      <div style={{ fontSize: '0.75em', color: '#aaa' }}>Jouer la carte (coût: <span style={{ color: '#ffd700' }}>{card.cost}</span>)</div>
-                      {card.description && <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', margin: '4px 0', lineHeight: '1.2', flex: 1, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', color: '#ddd', marginBottom: '2px' }}>
+                    {game.decks.cardRow && game.decks.cardRow.map(card => (
+                      <div key={card.id}
+                        onClick={() => handleCardRowClick(card.id)}
+                        onMouseEnter={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setActiveTooltip({ content: renderCardTooltip(card), rect });
+                        }}
+                        onMouseLeave={() => setActiveTooltip(null)}
+                        className="seti-common-card"
+                        style={{
+                          border: (interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? '1px solid #4a9eff' : '1px solid #555',
+                          cursor: (interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? 'pointer' : 'default',
+                          animation: 'cardAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                        }}>
+                        <div style={{ fontWeight: 'bold', color: '#fff', lineHeight: '1.1', marginBottom: '4px', fontSize: '0.75rem', height: '2.2em', overflow: 'hidden' }}>{card.name}</div>
+                        <div style={{ fontSize: '0.75em', color: '#aaa' }}>Jouer la carte (coût: <span style={{ color: '#ffd700' }}>{card.cost}</span>)</div>
+                        {card.description && <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', margin: '4px 0', lineHeight: '1.2', flex: 1, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', color: '#ddd', marginBottom: '2px' }}>
                           {card.freeAction && <div>Act: {card.freeAction}</div>}
                           {card.revenue && <div>Rev: {card.revenue}</div>}
-                      </div>
-                      <div style={{ 
-                        marginTop: 'auto', 
-                        padding: '4px', 
-                        backgroundColor: 'rgba(255,255,255,0.05)', 
-                        borderRadius: '4px', 
-                        textAlign: 'center',
-                        border: `1px solid ${getSectorColorCode(card.scanSector)}`,
-                      }}>
-                        <div style={{ fontSize: '0.7em', textTransform: 'uppercase', color: '#ddd', marginBottom: '2px' }}>Scan</div>
-                        <div style={{ 
-                          color: getSectorColorCode(card.scanSector), 
-                          fontWeight: 'bold',
-                          fontSize: '1.1em'
+                        </div>
+                        <div style={{
+                          marginTop: 'auto',
+                          padding: '4px',
+                          backgroundColor: 'rgba(255,255,255,0.05)',
+                          borderRadius: '4px',
+                          textAlign: 'center',
+                          border: `1px solid ${getSectorColorCode(card.scanSector)}`,
                         }}>
-                          {card.scanSector}
+                          <div style={{ fontSize: '0.7em', textTransform: 'uppercase', color: '#ddd', marginBottom: '2px' }}>Scan</div>
+                          <div style={{
+                            color: getSectorColorCode(card.scanSector),
+                            fontWeight: 'bold',
+                            fontSize: '1.1em'
+                          }}>
+                            {card.scanSector}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                  {(!game.decks.cardRow || game.decks.cardRow.length === 0) && (
+                    ))}
+                    {(!game.decks.cardRow || game.decks.cardRow.length === 0) && (
                       <div style={{ gridColumn: '2 / -1', color: '#888', fontStyle: 'italic', padding: '10px', textAlign: 'center' }}>Aucune carte disponible</div>
-                  )}
-                </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -3393,83 +3277,83 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               alignItems: 'flex-end'
             }}>
               <div className={`seti-foldable-container seti-history-container seti-icon-panel ${isHistoryOpen ? 'open' : 'collapsed'}`} style={{ display: 'flex', flexDirection: 'column', pointerEvents: 'auto' }}>
-               <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
+                <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
                   <span className="panel-icon">📜</span>
                   <span className="panel-title" style={{ flex: 1 }}>Historique</span>
                   {historyLog.length > 0 && historyLog[historyLog.length - 1].previousState && (
-                    <button 
+                    <button
                       className="panel-title"
-                      onClick={(e) => { e.stopPropagation(); handleUndo(); }} 
-                      style={{ fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', backgroundColor: '#555', border: '1px solid #777', color: '#fff', borderRadius: '4px', marginRight: '5px' }} 
+                      onClick={(e) => { e.stopPropagation(); handleUndo(); }}
+                      style={{ fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', backgroundColor: '#555', border: '1px solid #777', color: '#fff', borderRadius: '4px', marginRight: '5px' }}
                       title="Annuler la dernière action"
                     >
                       ↩
                     </button>
                   )}
-               </div>
-               <div className="seti-foldable-content" ref={historyContentRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                 <div className="seti-history-list">
-                  {historyLog.length === 0 && <div style={{fontStyle: 'italic', padding: '4px', textAlign: 'center'}}>Aucune action</div>}
-                  {historyLog.map((entry, index) => {
-                    if (entry.message.startsWith('---')) {
-                      return (
-                        <div key={entry.id} style={{ display: 'flex', alignItems: 'center', margin: '10px 0', color: '#aaa', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                          <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
-                          <div style={{ padding: '0 10px' }}>{entry.message.replace(/---/g, '').trim()}</div>
-                          <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
-                        </div>
-                      );
-                    }
+                </div>
+                <div className="seti-foldable-content" ref={historyContentRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+                  <div className="seti-history-list">
+                    {historyLog.length === 0 && <div style={{ fontStyle: 'italic', padding: '4px', textAlign: 'center' }}>Aucune action</div>}
+                    {historyLog.map((entry, index) => {
+                      if (entry.message.startsWith('---')) {
+                        return (
+                          <div key={entry.id} style={{ display: 'flex', alignItems: 'center', margin: '10px 0', color: '#aaa', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
+                            <div style={{ padding: '0 10px' }}>{entry.message.replace(/---/g, '').trim()}</div>
+                            <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
+                          </div>
+                        );
+                      }
 
-                    const isSequence = !!entry.sequenceId;
-                    const prevEntry = index > 0 ? historyLog[index - 1] : null;
-                    //const nextEntry = index < historyLog.length - 1 ? historyLog[index + 1] : null;
-                    
-                    // Est un enfant si fait partie d'une séquence et que le précédent aussi (même séquence)
-                    const isSequenceChild = isSequence && prevEntry && prevEntry.sequenceId === entry.sequenceId;
-                    // Est le dernier enfant si le suivant n'est pas dans la même séquence
-                    //const isLastChild = isSequenceChild && (!nextEntry || nextEntry.sequenceId !== entry.sequenceId);
-                    
-                    let player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
-                    // Fallback : essayer de trouver le joueur par son nom au début du message (pour les logs d'init)
-                    if (!player) {
+                      const isSequence = !!entry.sequenceId;
+                      const prevEntry = index > 0 ? historyLog[index - 1] : null;
+                      //const nextEntry = index < historyLog.length - 1 ? historyLog[index + 1] : null;
+
+                      // Est un enfant si fait partie d'une séquence et que le précédent aussi (même séquence)
+                      const isSequenceChild = isSequence && prevEntry && prevEntry.sequenceId === entry.sequenceId;
+                      // Est le dernier enfant si le suivant n'est pas dans la même séquence
+                      //const isLastChild = isSequenceChild && (!nextEntry || nextEntry.sequenceId !== entry.sequenceId);
+
+                      let player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
+                      // Fallback : essayer de trouver le joueur par son nom au début du message (pour les logs d'init)
+                      if (!player) {
                         player = game.players.find(p => entry.message.startsWith(p.name));
-                    }
+                      }
 
-                    const color = player ? (player.color || '#ccc') : '#ccc';
-                    return (
-                      <div key={entry.id} className="seti-history-item" style={{ 
-                          borderLeft: `3px solid ${color}`, 
-                          paddingLeft: '8px', 
+                      const color = player ? (player.color || '#ccc') : '#ccc';
+                      return (
+                        <div key={entry.id} className="seti-history-item" style={{
+                          borderLeft: `3px solid ${color}`,
+                          paddingLeft: '8px',
                           marginBottom: '2px',
                           display: 'flex',
                           alignItems: 'flex-start',
                           backgroundColor: isSequenceChild ? 'rgba(255,255,255,0.02)' : 'transparent'
-                      }}>
-                        {isSequenceChild && (
-                            <div style={{ 
-                                marginRight: '6px', 
-                                color: '#666', 
-                                fontFamily: 'monospace',
-                                fontSize: '1.1em',
-                                lineHeight: '1.4',
-                                userSelect: 'none'
+                        }}>
+                          {isSequenceChild && (
+                            <div style={{
+                              marginRight: '6px',
+                              color: '#666',
+                              fontFamily: 'monospace',
+                              fontSize: '1.1em',
+                              lineHeight: '1.4',
+                              userSelect: 'none'
                             }}>
-                                └─ {/* {isLastChild ? '└─' : '├─'} */}
+                              └─ {/* {isLastChild ? '└─' : '├─'} */}
                             </div>
-                        )}
-                        <div style={{ flex: 1, padding: '2px 0' }}>
+                          )}
+                          <div style={{ flex: 1, padding: '2px 0' }}>
                             <span style={{ color: '#ddd', fontSize: isSequenceChild ? '0.9em' : '1em' }}>
-                                {player && !entry.message.startsWith(player.name) && <strong style={{ color: color }}>{player.name} </strong>}
-                                {formatHistoryMessage(entry.message)}
+                              {player && !entry.message.startsWith(player.name) && <strong style={{ color: color }}>{player.name} </strong>}
+                              {formatHistoryMessage(entry.message)}
                             </span>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                 </div>
-               </div>
-            </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Plateau Alien A en bas à gauche */}
@@ -3484,7 +3368,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               pointerEvents: 'none',
               alignItems: 'flex-start'
             }}>
-              <div className={`seti-foldable-container seti-icon-panel ${isAlienBoardAOpen ? 'open' : 'collapsed'}`} style={{ 
+              <div className={`seti-foldable-container seti-icon-panel ${isAlienBoardAOpen ? 'open' : 'collapsed'}`} style={{
                 pointerEvents: 'auto',
                 flexDirection: 'column-reverse',
                 borderTopLeftRadius: '50px',
@@ -3557,7 +3441,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               pointerEvents: 'none',
               alignItems: 'flex-end'
             }}>
-              <div className={`seti-foldable-container seti-icon-panel ${isAlienBoardBOpen ? 'open' : 'collapsed'}`} style={{ 
+              <div className={`seti-foldable-container seti-icon-panel ${isAlienBoardBOpen ? 'open' : 'collapsed'}`} style={{
                 pointerEvents: 'auto',
                 flexDirection: 'column-reverse',
                 borderTopLeftRadius: '50px',

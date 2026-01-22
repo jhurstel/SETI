@@ -239,9 +239,20 @@ export class CardSystem {
                         bonuses.technology = { amount: (bonuses.technology?.amount || 0) + effect.value };
                     }
                     break;
-                case 'GAIN_SIGNAL':
-                    if (!bonuses.gainSignal) bonuses.gainSignal = [];
-                    bonuses.gainSignal.push(effect.value);
+                case 'SCAN':
+                    // TODO
+                    break;
+                case 'SIGNAL':
+                    const { amount, scope } = effect.value;
+                    if (scope === 'YELLOW') bonuses.yellowscan = (bonuses.yellowscan || 0) + amount;
+                    else if (scope === 'BLUE') bonuses.bluescan = (bonuses.bluescan || 0) + amount;
+                    else if (scope === 'RED') bonuses.redscan = (bonuses.redscan || 0) + amount;
+                    else if (scope === 'BLACK') bonuses.blackscan = (bonuses.blackscan || 0) + amount;
+                    else if (scope === 'PROBE') bonuses.probescan = (bonuses.probescan || 0) + amount;
+                    else if (scope === 'EARTH') bonuses.earthscan = (bonuses.earthscan || 0) + amount;
+                    else if (scope === 'ROW') bonuses.rowscan = (bonuses.rowscan || 0) + amount;
+                    else if (scope === 'DECK') bonuses.deckscan = (bonuses.deckscan || 0) + amount;
+                    else if (scope === 'ANY') bonuses.anyscan = (bonuses.anyscan || 0) + amount;
                     break;
             }
         }
@@ -433,9 +444,6 @@ export class CardSystem {
                     }
                 });
                 updatedGame.decks.cardRow = [];
-                const refilled = this.refillCardRow(updatedGame);
-                updatedGame.decks.cardRow = refilled.decks.cardRow;
-                updatedGame.decks = refilled.decks;
             } else if (effect.type === 'ATMOSPHERIC_ENTRY') {
                 bonuses.atmosphericEntry = true;
             } else if (effect.type === 'GAIN_SIGNAL_FROM_HAND') {
@@ -479,7 +487,8 @@ export class CardSystem {
     // Copie profonde des decks
     updatedGame.decks = {
         ...updatedGame.decks,
-        cards: [...updatedGame.decks.cards]
+        cards: [...updatedGame.decks.cards],
+        cardRow: [...updatedGame.decks.cardRow]
     };
 
     // Remplir jusqu'à 3 cartes

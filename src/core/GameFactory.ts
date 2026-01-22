@@ -498,7 +498,7 @@ export class GameFactory {
             else if (lower.includes('noir')) scope = 'BLACK';
             else if (lower.includes('deck')) scope = 'DECK';
             
-            effects.push({ type: 'ACTION', target: 'GAIN_SIGNAL', value: { amount, scope } });
+            effects.push({ type: 'ACTION', target: 'SIGNAL', value: { amount, scope } });
         }
     }
     return effects;

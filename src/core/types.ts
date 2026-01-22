@@ -69,7 +69,8 @@ export enum SectorColor {
   BLUE = "Bleu",
   RED = "Rouge",
   YELLOW = "Jaune",
-  BLACK = "Noir"
+  BLACK = "Noir",
+  ANY = "Tout"
 }
 
 export enum TechnologyCategory {
@@ -408,15 +409,26 @@ export interface Bonus {
   bluescan?: number;
   yellowscan?: number;
   blackscan?: number;
+  probescan?: number;
+  earthscan?: number;
+  rowscan?: number;
+  deckscan?: number;
+  anyscan?: number;
   card?: number;
   anycard?: number;
   yellowlifetrace?: number;
   redlifetrace?: number;
   bluelifetrace?: number;
   revenue?: number;
+  rotation?: number;
   anytechnology?: number;
   probe?: number;
+  movements?: number;
   landing?: number;
+  ignoreProbeLimit?: boolean;
+  atmosphericEntry?: boolean;
+  sharedOnly?: boolean;
+  noTileBonus?: boolean;
   gainSignal?: { amount: number; scope: string }[];
   gainSignalFromHand?: number;
   keepCardIfOnly?: boolean;

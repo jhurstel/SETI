@@ -1209,6 +1209,11 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     if (bonus.yellowscan) items.push(`${bonus.yellowscan} Scan Jaune`);
     if (bonus.bluescan) items.push(`${bonus.bluescan} Scan Bleu`);
     if (bonus.blackscan) items.push(`${bonus.blackscan} Scan Noir`);
+    if (bonus.probescan) items.push(`${bonus.probescan} Scan Sonde`);
+    if (bonus.earthscan) items.push(`${bonus.earthscan} Scan Terre`);
+    if (bonus.rowscan) items.push(`${bonus.rowscan} Scan Rangée`);
+    if (bonus.deckscan) items.push(`${bonus.deckscan} Scan Pioche`);
+    if (bonus.anyscan) items.push(`${bonus.anyscan} Scan Quelconque`);
     if (bonus.revenue) items.push(`${bonus.revenue} Réservation`);
     if (bonus.anycard) items.push(`${bonus.anycard} Carte`);
     if (bonus.redlifetrace) items.push(`Trace Rouge`);
