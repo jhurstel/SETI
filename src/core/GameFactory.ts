@@ -107,6 +107,7 @@ export class GameFactory {
       probes: [],
       technologies: [],
       cards: [],
+      playedCards: [],
       missions: [],
       dataComputer: this.createDataComputer(),
       lifeTraces: [],
@@ -386,7 +387,7 @@ export class GameFactory {
 98;Spectrographe Coronal;Action;Marquez 1 Trace de Vie Rouge pour une espèce pour laquelle vous avez déjà marqué 1 Trace de Vie Rouge.;1 Donnée;Rouge;1 Energie;1 Crédit;;GAIN_LIFETRACE_IF_ALREADY:red:1
 99;Microscope Electronique;Action;Marquez 1 Trace de Vie Jaune pour une espèce pour laquelle vous avez déjà marqué 1 Trace de Vie Jaune.;1 Donnée;Jaune;1 Pioche;1 Crédit;;GAIN_LIFETRACE_IF_ALREADY:yellow:1
 100;Supercalculateur Exascale;Action;Marquez 1 Trace de Vie Bleu pour une espèce pour laquelle vous avez déjà marqué 1 Trace de Vie Bleu.;1 Donnée;Bleu;1 Crédit;1 Crédit;;GAIN_LIFETRACE_IF_ALREADY:blue:1
-86;Télescope Géant Magellan;Fin de jeu;Gagnez 1 Signal dans un secteur d'une carte de la rangée. Mission: Gagnez 1 PV pour chaque secteur où vous avez un signal.;1 Média;Rouge;1 Energie;1 Crédit;1 Signal;
+86;Télescope Géant Magellan;Fin de jeu;Gagnez 1 Signal dans un secteur d'une carte de la rangée. Mission: Gagnez 1 PV pour chaque secteur où vous avez un signal.;1 Média;Rouge;1 Energie;1 Crédit;1 Signal Rangée;
 40;Observatoire de Kepler-22;Fin de jeu;Gagnez 2 Signaux dans le secteur de Kepler-22. Mission: Gagnez 3PVs pour chaque secteur Jaune que vous avez couvert.;1 Média;Rouge;1 Crédit;2 Crédits;2 Signaux Kepler-22;
 38;Observatoire de l'Etoile de Barnard;Fin de jeu;Gagnez 2 Signaux dans le secteur de l'Etoile de Barnard. Mission: Gagnez 3 PVs pour chaque secteur Rouge que vous avez couvert.;1 Média;Bleu;1 Energie;2 Crédits;2 Signaux Etoile de Barnard;
 42;Observatoire de Procyon;Fin de jeu;Gagnez 2 Signaux dans le secteur de Procyon. Mission: Gagnez 3 PVs pour chaque secteur Bleu que vous avez couvert.;1 Média;Jaune;1 Pioche;2 Crédits;2 Signaux Procyon;

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Card, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, MILESTONES, CardType, LifeTraceType, Player } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Card, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, MILESTONES, CardType, LifeTraceType, Player, Mission } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -491,10 +491,22 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   };
 
-  const renderCardTooltip = (card: any) => (
+  const renderCardTooltip = (card: Card) => {
+    const descriptionParts = card.description ? card.description.split('Mission:') : [card.description];
+    const mainDescription = descriptionParts[0];
+    const missionDescription = descriptionParts.length > 1 ? descriptionParts[1] : null;
+
+    return (
     <div style={{ width: '240px', textAlign: 'left' }}>
       <div style={{ fontWeight: 'bold', color: '#4a9eff', fontSize: '1.1rem', marginBottom: '6px', borderBottom: '1px solid #444', paddingBottom: '4px' }}>{card.name}</div>
-      <div style={{ fontSize: '0.95em', color: '#fff', marginBottom: '10px', lineHeight: '1.4' }}>{card.description}</div>
+      <div style={{ fontSize: '0.95em', color: '#fff', marginBottom: '10px', lineHeight: '1.4' }}>
+        {mainDescription}
+        {missionDescription && (
+            <div style={{ marginTop: '6px', color: '#ffd700', borderTop: '1px dashed #555', paddingTop: '4px' }}>
+                <strong>Mission:</strong>{missionDescription}
+            </div>
+        )}
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.85em', backgroundColor: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '4px' }}>
         <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
         <div>Type: {card.type === CardType.ACTION ? 'Action' : card.type === CardType.END_GAME ? 'Fin de jeu' : 'Mission'}</div>
@@ -503,7 +515,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         <div style={{ gridColumn: '1 / -1', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
       </div>
     </div>
-  );
+    );
+  };
 
   const findCardByName = useCallback((name: string) => {
     if (!name) return undefined;
@@ -1921,8 +1934,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     historyMessagePrefix: string,
     successMessage: string
   ): boolean => {
-    setToast({ message: `coucou`, visible: true });
-    console.log(interactionState);
     if (interactionState.type !== 'IDLE' && interactionState.type !== 'LANDING_PROBE') return false;
     if (hasPerformedMainAction && interactionState.type !== 'LANDING_PROBE') {
       setToast({ message: "Action principale déjà effectuée", visible: true });
@@ -1967,7 +1978,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (!probe) return false;
 
     // Générer un ID de séquence pour grouper l'action et ses bonus
-    const sequenceId = `seq-${Date.now()}`;
+    const sequenceId = interactionState.sequenceId || `seq-${Date.now()}`;
 
     // Sauvegarder l'état avant l'action pour l'historique (Undo annulera tout, y compris les bonus)
     const stateBeforeAction = structuredClone(game);
@@ -1975,7 +1986,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     try {
       const result = actionFn(game, currentPlayer.id, probe.id, planetId);
 
-      const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs, historyEntries } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, (interactionState as any).source, undefined, planetId);
+      const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs, historyEntries } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, (interactionState as any).source, sequenceId, planetId);
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
@@ -2587,11 +2598,35 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs: allBonusLogs, historyEntries: bonusHistoryEntries } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, cardId, sequenceId);
     console.log(newPendingInteractions);
 
-    // PATCH: Ajouter la carte jouée à la pile de défausse
+    // Ajouter la carte jouée à la pile de défausse ou aux cartes jouées (Missions Fin de partie)
     const cardPlayed = currentPlayer.cards.find(c => c.id === cardId);
     if (cardPlayed) {
-        if (!gameAfterBonuses.decks.discardPile) gameAfterBonuses.decks.discardPile = [];
-        gameAfterBonuses.decks.discardPile.push(cardPlayed);
+        const playerInNewGame = gameAfterBonuses.players.find(p => p.id === currentPlayer.id);
+
+        if (cardPlayed.type === CardType.END_GAME) {
+            if (playerInNewGame) {
+                if (!playerInNewGame.playedCards) playerInNewGame.playedCards = [];
+                playerInNewGame.playedCards.push(cardPlayed);
+            }
+        } else if (cardPlayed.type === CardType.CONDITIONAL_MISSION || cardPlayed.type === CardType.TRIGGERED_MISSION) {
+            if (playerInNewGame) {
+                if (!playerInNewGame.missions) playerInNewGame.missions = [];
+                const newMission: Mission = {
+                    id: `mission-${cardPlayed.id}-${Date.now()}`,
+                    cardId: cardPlayed.id,
+                    name: cardPlayed.name,
+                    description: cardPlayed.description,
+                    ownerId: currentPlayer.id,
+                    requirements: [], // TODO: Parser les prérequis depuis la carte
+                    progress: { current: 0, target: 1 },
+                    completed: false
+                };
+                playerInNewGame.missions.push(newMission);
+            }
+        } else {
+            if (!gameAfterBonuses.decks.discardPile) gameAfterBonuses.decks.discardPile = [];
+            gameAfterBonuses.decks.discardPile.push(cardPlayed);
+        }
     }
 
     const card = currentGame.players[currentGame.currentPlayerIndex].cards.find(c => c.id === cardId)!;
@@ -3832,6 +3867,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               autoSelectProbeId={interactionState.type === 'MOVING_PROBE' ? interactionState.autoSelectProbeId : undefined}
               isLandingInteraction={interactionState.type === 'LANDING_PROBE'}
               allowOccupiedLanding={interactionState.type === 'LANDING_PROBE' && interactionState.source === '16'}
+              allowSatelliteLanding={interactionState.type === 'LANDING_PROBE' && interactionState.source === '12'}
               onBackgroundClick={() => {
                 if (interactionState.type === 'MOVING_PROBE') {
                   setInteractionState({ type: 'IDLE' });

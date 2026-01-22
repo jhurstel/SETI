@@ -66,7 +66,7 @@ export class ScoreManager {
     // TODO: Implémenter les bonus selon les règles de chaque espèce
     // Chaque espèce peut avoir des modificateurs de scoring différents
     let bonus = 0;
-    const endGameCards : Card[] = player.cards.filter(c => c.type === CardType.END_GAME);
+    const endGameCards : Card[] = (player.playedCards || []).filter(c => c.type === CardType.END_GAME);
 
     endGameCards.forEach(card => {
       card.scoringModifiers.forEach(modifier => {
@@ -131,7 +131,7 @@ export class ScoreManager {
             } else {
               // Paire Mission / Fin de partie
               const completedMissions = player.missions.filter(m => m.completed).length;
-              const endGameCards = player.cards.filter(c => c.type === CardType.END_GAME).length;
+              const endGameCards = (player.playedCards || []).filter(c => c.type === CardType.END_GAME).length;
               count = Math.floor((completedMissions + endGameCards) / 2);
             }
             break;

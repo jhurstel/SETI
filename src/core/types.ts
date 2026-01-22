@@ -166,6 +166,7 @@ export interface Player {
   probes: Probe[];
   technologies: Technology[];
   cards: Card[];
+  playedCards: Card[]; // Cartes jouées qui restent en jeu (ex: Missions Fin de partie)
   missions: Mission[];
   dataComputer: DataComputer;
   lifeTraces: LifeTrace[];
@@ -334,6 +335,8 @@ export interface CardEffect {
 export interface Mission {
   id: string;
   cardId: string;
+  name: string;
+  description: string;
   ownerId: string;
   requirements: MissionRequirement[];
   progress: MissionProgress;

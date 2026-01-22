@@ -102,7 +102,7 @@ const ComputerSlotUI = ({
           } else {
               bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>;
           }
-          actionLine = <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Cliquer pour transférer une donnée</div>;
+          actionLine = <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Cliquez pour transférer une donnée</div>;
       } else {
           title = 'Indisponible';
           titleColor = '#ff6b6b';
@@ -362,10 +362,22 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     }
   };
 
-  const renderCardTooltip = (card: Card) => (
+  const renderCardTooltip = (card: Card) => {
+    const descriptionParts = card.description ? card.description.split('Mission:') : [card.description];
+    const mainDescription = descriptionParts[0];
+    const missionDescription = descriptionParts.length > 1 ? descriptionParts[1] : null;
+
+    return (
     <div style={{ width: '240px', textAlign: 'left' }}>
       <div style={{ fontWeight: 'bold', color: '#4a9eff', fontSize: '1.1rem', marginBottom: '6px', borderBottom: '1px solid #444', paddingBottom: '4px' }}>{card.name}</div>
-      <div style={{ fontSize: '0.95em', color: '#fff', marginBottom: '10px', lineHeight: '1.4' }}>{card.description}</div>
+      <div style={{ fontSize: '0.95em', color: '#fff', marginBottom: '10px', lineHeight: '1.4' }}>
+        {mainDescription}
+        {missionDescription && (
+            <div style={{ marginTop: '6px', color: '#ffd700', borderTop: '1px dashed #555', paddingTop: '4px' }}>
+                <strong>Mission:</strong>{missionDescription}
+            </div>
+        )}
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.85em', backgroundColor: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '4px' }}>
          <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
          <div>Type: {card.type === CardType.ACTION ? 'Action' : 'Mission'} ({card.id})</div>
@@ -374,7 +386,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
          <div style={{ gridColumn: '1 / -1', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
       </div>
     </div>
-  );
+    );
+  };
 
   const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -1083,8 +1096,9 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
           <div className="seti-player-section">
             <div className="seti-player-section-title">Missions</div>
             <div className="seti-player-list" style={{ flexDirection: 'row', overflowX: 'auto', paddingBottom: '8px', gap: '8px' }}>
-              {(currentPlayer.missions && currentPlayer.missions.length > 0) ? (
-                currentPlayer.missions.map((mission: any) => (
+              {((currentPlayer.missions && currentPlayer.missions.length > 0) || (currentPlayer.playedCards && currentPlayer.playedCards.length > 0)) ? (
+                <>
+                {(currentPlayer.missions || []).map((mission: any) => (
                   <div key={mission.id} className="seti-common-card" style={{ 
                     borderLeft: mission.completed ? '3px solid #4caf50' : '3px solid #aaa',
                     backgroundColor: mission.completed ? 'rgba(76, 175, 80, 0.1)' : 'rgba(30, 30, 40, 0.9)'
@@ -1099,7 +1113,30 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                       </div>
                     )}
                   </div>
-                ))
+                ))}
+                {(currentPlayer.playedCards || []).map((card: Card) => {
+                  const descriptionParts = card.description ? card.description.split('Mission:') : [];
+                  const missionText = descriptionParts.length > 1 ? descriptionParts[1].trim() : card.description;
+                  return (
+                  <div key={card.id} className="seti-common-card" style={{ 
+                    borderLeft: '3px solid #ffd700',
+                    backgroundColor: 'rgba(30, 30, 40, 0.9)'
+                  }}
+                  onMouseEnter={(e) => handleTooltipHover(e, renderCardTooltip(card))}
+                  onMouseLeave={handleTooltipLeave}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                      <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.75rem', lineHeight: '1.1' }}>{card.name}</div>
+                      <span style={{ fontSize: '0.6em', color: '#ffd700', fontWeight: 'bold', border: '1px solid #ffd700', borderRadius: '3px', padding: '0 2px' }}>FIN</span>
+                    </div>
+                    {missionText && (
+                      <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', overflowY: 'auto', flex: 1 }}>
+                        {missionText}
+                      </div>
+                    )}
+                  </div>
+                )})}
+                </>
               ) : (
                 <div className="seti-player-list-empty">Aucune mission jouée</div>
               )}

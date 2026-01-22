@@ -33,6 +33,7 @@ interface SolarSystemBoardUIProps {
   highlightedSectorSlots?: string[]; // IDs des secteurs dont le premier slot disponible doit flasher
   animateSectorSlots?: boolean;
   isRemovingOrbiter?: boolean;
+  allowSatelliteLanding?: boolean;
 }
 
 export interface SolarSystemBoardUIRef {
@@ -189,7 +190,7 @@ const describeArc = (x: number, y: number, radius: number, startAngle: number, e
     ].join(" ");
 };
 
-export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false, autoSelectProbeId, isLandingInteraction, onBackgroundClick, allowOccupiedLanding, onSectorClick, highlightedSectorSlots = [], animateSectorSlots = false, isRemovingOrbiter = false }, ref) => {
+export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false, autoSelectProbeId, isLandingInteraction, onBackgroundClick, allowOccupiedLanding, onSectorClick, highlightedSectorSlots = [], animateSectorSlots = false, isRemovingOrbiter = false, allowSatelliteLanding = false }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredObjectRect, setHoveredObjectRect] = useState<DOMRect | null>(null);
@@ -762,7 +763,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         let satReason = landReason;
         let isSatClickable = (!isOccupied || allowOccupiedLanding) && canLand && !!onLand;
 
-        if (!hasExploration4) {
+        if (!hasExploration4 && !allowSatelliteLanding) {
             satReason = "Nécessite la technologie Exploration IV";
             isSatClickable = false;
         }
