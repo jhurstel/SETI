@@ -200,7 +200,7 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
     style={{ position: 'relative', width: '60px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isClickable ? 'pointer' : 'help' }}
     onMouseEnter={onMouseEnter}
     onMouseLeave={onMouseLeave}
-    onClick={onClick}
+    onClick={() => { if (isClickable && onClick) onClick(); }}
   >
     <svg width="60" height="50" viewBox="0 0 60 50" style={{ position: 'absolute', top: 0, left: 0, overflow: 'visible' }}>
       <path
@@ -426,6 +426,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (interactionState.type === 'PLACING_OBJECTIVE_MARKER') {
       setIsObjectivesOpen(true);
     }
+    if (interactionState.type === 'PLACING_LIFE_TRACE') {
+      setIsAlienBoardAOpen(true);
+      setIsAlienBoardBOpen(true);
+    }
     if (interactionState.type === 'IDLE') {
       setIsTechOpen(false);
       setIsRowOpen(false);
@@ -562,7 +566,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Helper pour formater les messages avec des icônes
   const formatHistoryMessage = (message: string) => {
     const resourcePattern = Object.values(RESOURCE_CONFIG).map(c => c.regex.source).join('|');
-    const splitRegex = new RegExp(`(${resourcePattern}|"[^"]+")`, 'g');
+    const splitRegex = new RegExp(`(<strong>.*?<\\/strong>|${resourcePattern}|"[^"]+")`, 'g');
 
     return message.split(splitRegex).map((part, index) => {
       // Gestion des cartes (entre guillemets)
@@ -1509,6 +1513,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         const currentGame = gameRef.current;
         const updatedGame = structuredClone(currentGame);
         const player = updatedGame.players[updatedGame.currentPlayerIndex];
+        const sequenceId = `analyze-${Date.now()}`;
 
         // Payer le coût
         player.energy -= 1;
@@ -1520,10 +1525,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         setGame(updatedGame);
         if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
         setHasPerformedMainAction(true);
-        // TODO: Passer en mode placement de trace de vie
-        setInteractionState({ type: 'IDLE' });
-        setToast({ message: "Données analysées.", visible: true });
-        addToHistory(`paye 1 énergie pour <strong>Analyser les données</strong>`, player.id, previousState);
+        setInteractionState({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE, sequenceId });
+        setToast({ message: "Données analysées. Placez une trace de vie bleue.", visible: true });
+        addToHistory(`paye 1 énergie pour <strong>Analyser les données</strong>`, player.id, previousState, { type: 'IDLE' }, sequenceId);
       }, 1500);
     }
   };
@@ -1536,6 +1540,40 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const historyEntries: { message: string, playerId: string }[] = [];
     const passiveGains: string[] = []; // For summary toast
     const launchedProbeIds: string[] = [];
+
+    const handleSpecificScan = (count: number, namePart: string) => {
+      for (let i = 0; i < count; i++) {
+        const sector = updatedGame.board.sectors.find(s => s.name.includes(namePart));
+        if (sector) {
+            const scanResult = SectorSystem.scanSector(updatedGame, playerId, sector.id, false, bonuses.noData);
+            updatedGame = scanResult.updatedGame;
+            logs.push(...scanResult.logs);
+
+            if (scanResult.bonuses) {
+                const sub = processBonuses(scanResult.bonuses, updatedGame, playerId, 'scan', sequenceId);
+                updatedGame = sub.updatedGame;
+                logs.push(...sub.logs);
+                passiveGains.push(...sub.passiveGains);
+                newPendingInteractions.push(...sub.newPendingInteractions);
+                historyEntries.push(...sub.historyEntries);
+            }
+
+            if (SectorSystem.isSectorCovered(updatedGame, sector.id)) {
+                const coverResult = SectorSystem.coverSector(updatedGame, playerId, sector.id);
+                updatedGame = coverResult.updatedGame;
+                logs.push(...coverResult.logs);
+                if (coverResult.bonuses) {
+                    const sub = processBonuses(coverResult.bonuses, updatedGame, playerId, 'cover', sequenceId);
+                    updatedGame = sub.updatedGame;
+                    logs.push(...sub.logs);
+                    passiveGains.push(...sub.passiveGains);
+                    newPendingInteractions.push(...sub.newPendingInteractions);
+                    historyEntries.push(...sub.historyEntries);
+                }
+            }
+        }
+      }
+    };
 
     if (!bonuses) return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };
 
@@ -1599,6 +1637,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }
       }
     }
+    if (bonuses.vegascan) handleSpecificScan(bonuses.vegascan, 'Vega');
+    if (bonuses.keplerscan) handleSpecificScan(bonuses.keplerscan, 'Kepler');
+    if (bonuses.barnardscan) handleSpecificScan(bonuses.barnardscan, 'Barnard');
+    if (bonuses.procyonscan) handleSpecificScan(bonuses.procyonscan, 'Procyon');
     if (bonuses.planetscan && planetId) {
       for (let i = 0; i < bonuses.planetscan; i++) {
         const rotationState = createRotationState(
@@ -1612,7 +1654,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           if (planetSector) {
             const result = SectorSystem.scanSector(updatedGame, playerId, planetSector.id, false, bonuses.noData);
             updatedGame = result.updatedGame;
-            setToast({ message: `Scanne le secteur de ${planetPos.name}`, visible: true });
+            setToast({ message: `Scanne le secteur de ${planetSector.name}`, visible: true });
             logs.push(result.logs.join(', '));
           }
         }
@@ -1651,19 +1693,19 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       newPendingInteractions.push({ type: 'TRIGGER_CARD_EFFECT', effectType: 'SCORE_PER_MEDIA', value: bonuses.scorePerMedia });
     }
     if (bonuses.yellowlifetrace) {
-      // Désactivé temporairement pour éviter de bloquer le jeu
-      // newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: LifeTraceColor.YELLOW });
-      setToast({ message: "Bonus LifeTrace : Fonctionnalité à venir", visible: true });
+      for (let i = 0; i < bonuses.yellowlifetrace; i++) {
+        newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.YELLOW });
+      }
     }
     if (bonuses.redlifetrace) {
-      // Désactivé temporairement pour éviter de bloquer le jeu
-      // newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: LifeTraceColor.RED });
-      setToast({ message: "Bonus LifeTrace : Fonctionnalité à venir", visible: true });
+      for (let i = 0; i < bonuses.redlifetrace; i++) {
+        newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.RED });
+      }
     }
     if (bonuses.bluelifetrace) {
-      // Désactivé temporairement pour éviter de bloquer le jeu
-      // newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: LifeTraceColor.BLUE });
-      setToast({ message: "Bonus LifeTrace : Fonctionnalité à venir", visible: true });
+      for (let i = 0; i < bonuses.bluelifetrace; i++) {
+        newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE });
+      }
     }
     if (bonuses.deckscan) {
       // Révéler et défausser les cartes du dessus du paquet pour déterminer la couleur
@@ -1743,6 +1785,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType) => {
     if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
 
+    if (interactionState.color !== color) {
+      setToast({ message: `Vous devez placer une trace de vie ${interactionState.color}`, visible: true });
+      return;
+    }
+
     const currentPlayer = game.players[game.currentPlayerIndex];
     let updatedGame = structuredClone(game);
     const board = updatedGame.board.alienBoards[boardIndex];
@@ -1764,8 +1811,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonus);
 
     const sequenceId = interactionState.sequenceId;
-    addToHistory(`place une trace de vie ${color} sur le plateau Alien ${boardIndex + 1}`, currentPlayer.id, game, undefined, sequenceId);
-    logs.forEach(log => addToHistory(log, currentPlayer.id, gameAfterBonus, undefined, sequenceId));
+    let message = `place une trace de vie ${color} sur le plateau Alien ${boardIndex + 1}`;
+    if (logs.length > 0) {
+      message += ` et ${logs.join(', ')}`;
+    }
+    addToHistory(message, currentPlayer.id, game, undefined, sequenceId);
     historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, gameAfterBonus, undefined, sequenceId));
 
     if (passiveGains.length > 0) {

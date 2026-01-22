@@ -686,6 +686,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         }
     }
 
+    let landEnergyCost;
     let canLand = false;
     let landReason = "Nécessite une sonde sur la planète";
     if (playerProbe) {
@@ -694,6 +695,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         } else {
             const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !isLandingInteraction);
             canLand = check.canLand;
+            landEnergyCost = check.energyCost;
             landReason = check.canLand ? `Cliquez pour atterrir (Coût: ${check.energyCost} Énergie)` : (check.reason || "Impossible");
         }
     }
@@ -1139,7 +1141,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     } else if (isClickable) {
                         statusText = "Disponible";
                         statusColor = "#4a9eff";
-                        actionText = "Cliquez pour atterrir (Coût: ${check.energyCost} Énergie)";
+                        actionText = `Cliquez pour atterrir (Coût: ${landEnergyCost} Énergie)`;
                     } else {
                         statusText = "Indisponible";
                         statusColor = "#ff6b6b";
