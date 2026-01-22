@@ -239,7 +239,7 @@ export class CardSystem {
                             }
                             break;
                         case 'SCAN':
-                            bonuses.anyscan = (bonuses.anyscan || 0) + effect.value;
+                            bonuses.scanAction = (bonuses.scanAction || 0) + effect.value;
                             break;
                         case 'SIGNAL':
                             const { amount, scope } = effect.value;
@@ -251,6 +251,10 @@ export class CardSystem {
                             else if (scope === 'EARTH') bonuses.earthscan = (bonuses.earthscan || 0) + amount;
                             else if (scope === 'ROW') bonuses.rowscan = (bonuses.rowscan || 0) + amount;
                             else if (scope === 'DECK') bonuses.deckscan = (bonuses.deckscan || 0) + amount;
+                            else if (scope === 'KEPLER') bonuses.keplerscan = (bonuses.keplerscan || 0) + amount;
+                            else if (scope === 'BARNARD') bonuses.barnardscan = (bonuses.barnardscan || 0) + amount;
+                            else if (scope === 'PROCYON') bonuses.procyonscan = (bonuses.procyonscan || 0) + amount;
+                            else if (scope === 'VEGA') bonuses.vegascan = (bonuses.vegascan || 0) + amount;
                             else if (scope === 'ANY') bonuses.anyscan = (bonuses.anyscan || 0) + amount;
                             break;
                     }
@@ -461,6 +465,10 @@ export class CardSystem {
                     bonuses.anyProbe = true;
                 } else if (effect.type === 'GAIN_SIGNAL_ADJACENTS') {
                     bonuses.gainSignalAdjacents = true;
+                } else if (effect.type === 'CHOICE_EXPLO_OR_OBS') {
+                    bonuses.chooseTechType = true;
+                } else if (effect.type === 'IGNORE_SATELLITE_LIMIT') {
+                    bonuses.ignoreSatelliteLimit = true;
                 }
             });
         }

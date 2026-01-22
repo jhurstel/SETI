@@ -132,6 +132,7 @@ export interface Decks {
   cards: Card[];
   speciesCards: Card[];
   cardRow: Card[];
+  discardPile: Card[];
   roundDecks: { [round: number]: Card[] };
 }
 
@@ -414,6 +415,11 @@ export interface Bonus {
   rowscan?: number;
   deckscan?: number;
   anyscan?: number;
+  keplerscan?: number;
+  barnardscan?: number;
+  procyonscan?: number;
+  vegascan?: number;
+  scanAction?: number;
   card?: number;
   anycard?: number;
   yellowlifetrace?: number;

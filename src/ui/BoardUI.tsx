@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Card, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, MILESTONES, CardType, LifeTraceType } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Card, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, MILESTONES, CardType, LifeTraceType, Player } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -57,6 +57,12 @@ type InteractionState =
   | { type: 'SELECTING_SCAN_SECTOR', color: SectorColor, noData?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string, message?: string }
   /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
   | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string, remainingMoves?: number }
+  /** Le joueur doit choisir s'il utilise la technologie Observation 2 (Payer 1 Média pour scanner Mercure). */
+  | { type: 'CHOOSING_OBS2_ACTION', sequenceId?: string }
+  /** Le joueur doit choisir s'il utilise la technologie Observation 3 (Défausser une carte pour un signal). */
+  | { type: 'CHOOSING_OBS3_ACTION', sequenceId?: string }
+  /** Le joueur doit choisir s'il utilise la technologie Observation 4 (Payer 1 Energie pour lancer une sonde OU gagner 1 déplacement). */
+  | { type: 'CHOOSING_OBS4_ACTION', sequenceId?: string }
   /** Le joueur doit défausser des cartes de sa main pour leurs signaux. */
   | { type: 'DISCARDING_FOR_SIGNAL', count: number, selectedCards: string[], sequenceId?: string }
   /** Le joueur doit retirer un orbiteur (Carte 15). */
@@ -77,6 +83,9 @@ const getInteractionLabel = (state: InteractionState): string => {
     case 'LANDING_PROBE': return `Atterrissage gratuit (${state.count})`;
     case 'CHOOSING_MEDIA_OR_MOVE': return "Choisir Média ou Déplacement";
     case 'SELECTING_SCAN_CARD': return "Choisir une carte pour le scan";
+    case 'CHOOSING_OBS2_ACTION': return "Bonus Observation II";
+    case 'CHOOSING_OBS3_ACTION': return "Bonus Observation III";
+    case 'CHOOSING_OBS4_ACTION': return "Bonus Observation IV";
     case 'SELECTING_SCAN_SECTOR': return "Choisir un secteur à scanner";
     case 'DISCARDING_FOR_SIGNAL': return `Défausser pour signal (${state.count})`;
     case 'REMOVING_ORBITER': return "Retirer un orbiteur";
@@ -230,6 +239,138 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
   </div>
 );
 
+const DebugPanel = ({ game, setGame, onHistory, setHasPerformedMainAction, setViewedPlayerId, interactionState }: { game: Game, setGame: (game: Game) => void, onHistory: (msg: string, playerId?: string) => void, setHasPerformedMainAction: (val: boolean) => void, setViewedPlayerId: (id: string) => void, interactionState: InteractionState }) => {
+  const [cardId, setCardId] = useState('');
+  const [amount, setAmount] = useState(1);
+  const [isVisible, setIsVisible] = useState(true);
+  const [position, setPosition] = useState({ x: 20, y: 150 });
+  const panelRef = useRef<HTMLDivElement>(null);
+  const offsetRef = useRef({ x: 0, y: 0 });
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (panelRef.current && (e.target as HTMLElement).dataset.dragHandle) {
+      offsetRef.current = {
+        x: e.clientX - panelRef.current.getBoundingClientRect().left,
+        y: e.clientY - panelRef.current.getBoundingClientRect().top,
+      };
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    setPosition({
+      x: e.clientX - offsetRef.current.x,
+      y: e.clientY - offsetRef.current.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleAddResource = (resourceType: 'credits' | 'energy' | 'mediaCoverage' | 'data') => {
+    const updatedGame = structuredClone(game);
+    const player = updatedGame.players[updatedGame.currentPlayerIndex];
+    player[resourceType] = (player[resourceType] || 0) + amount;
+    setGame(updatedGame);
+    onHistory(`DEBUG: Added ${amount} ${resourceType} to ${player.name}`, player.id);
+  };
+
+  const handleAddCard = () => {
+    const updatedGame = structuredClone(game);
+    const player = updatedGame.players[updatedGame.currentPlayerIndex];
+    const cardToFind = cardId.toLowerCase();
+
+    const allCards: Card[] = [
+        ...(updatedGame.decks.cards || []),
+        ...(updatedGame.decks.cardRow || []),
+        ...(updatedGame.decks.discardPile || []),
+        ...Object.values(updatedGame.decks.roundDecks || {}).flat()
+    ];
+    
+    const card = allCards.find(c => c.id === cardId || c.name.toLowerCase().includes(cardToFind));
+    
+    if (card) {
+      player.cards.push(structuredClone(card));
+      setGame(updatedGame);
+      onHistory(`DEBUG: Added card "${card.name}" to ${player.name}`, player.id);
+    } else {
+      onHistory(`DEBUG: Card with ID/name part "${cardId}" not found.`);
+    }
+  };
+
+  const changePlayer = (offset: number) => {
+    const newIndex = (game.currentPlayerIndex + offset + game.players.length) % game.players.length;
+    const updatedGame = { ...game, currentPlayerIndex: newIndex };
+    setGame(updatedGame);
+    setHasPerformedMainAction(false);
+    setViewedPlayerId(updatedGame.players[newIndex].id);
+    onHistory(`DEBUG: Switched to player ${updatedGame.players[newIndex].name}`);
+  };
+
+  if (process.env.NODE_ENV !== 'development') {
+    return null;
+  }
+
+  if (!isVisible) {
+    return createPortal(<button onClick={() => setIsVisible(true)} style={{position: 'fixed', top: '10px', left: '10px', zIndex: 10000, padding: '5px 10px'}}>Debug</button>, document.body);
+  }
+
+  return createPortal(
+    <div 
+      ref={panelRef}
+      style={{ 
+        position: 'fixed', top: position.y, left: position.x, zIndex: 10000, background: 'rgba(40, 40, 60, 0.9)', 
+        border: '1px solid #78a0ff', borderRadius: '8px', padding: '10px', color: 'white', width: '250px',
+        boxShadow: '0 5px 15px rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', fontFamily: 'sans-serif', fontSize: '14px'
+      }}
+    >
+      <div 
+        data-drag-handle="true"
+        style={{ cursor: 'move', paddingBottom: '10px', borderBottom: '1px solid #555', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        onMouseDown={handleMouseDown}
+      >
+        <strong>Debug Panel</strong>
+        <button onClick={() => setIsVisible(false)} style={{background: 'none', border: '1px solid #777', borderRadius: '4px', color: 'white', cursor: 'pointer', padding: '2px 6px'}}>X</button>
+      </div>
+      
+      <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+        <div>
+          <label>Amount: </label>
+          <input type="number" value={amount} onChange={e => setAmount(parseInt(e.target.value, 10) || 0)} style={{width: '60px', background: '#222', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '4px'}} />
+        </div>
+        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px'}}>
+          <button onClick={() => handleAddResource('credits')}>+ Credits</button>
+          <button onClick={() => handleAddResource('energy')}>+ Energy</button>
+          <button onClick={() => handleAddResource('mediaCoverage')}>+ Media</button>
+          <button onClick={() => handleAddResource('data')}>+ Data</button>
+        </div>
+        <div>
+          <input type="text" value={cardId} onChange={e => setCardId(e.target.value)} placeholder="Card ID/Name" style={{width: '100%', boxSizing: 'border-box', background: '#222', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '4px', marginTop: '4px'}} />
+          <button onClick={handleAddCard} style={{width: '100%', marginTop: '5px'}}>Add Card to Hand</button>
+        </div>
+        <button onClick={() => setHasPerformedMainAction(false)}>Reset Main Action</button>
+        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px'}}>
+          <button onClick={() => changePlayer(-1)}>Prev Player</button>
+          <button onClick={() => changePlayer(1)}>Next Player</button>
+        </div>
+        <div style={{ marginTop: '10px', borderTop: '1px solid #555', paddingTop: '5px' }}>
+          <div style={{ fontSize: '0.8em', color: '#aaa' }}>Interaction State:</div>
+          <div style={{ color: '#4a9eff', fontWeight: 'bold', fontSize: '0.9em' }}>{interactionState.type}</div>
+          {interactionState.type !== 'IDLE' && (
+             <pre style={{ fontSize: '0.7em', color: '#ccc', overflowX: 'auto', whiteSpace: 'pre-wrap', maxHeight: '100px', overflowY: 'auto', margin: '5px 0 0 0' }}>
+               {JSON.stringify(interactionState, (k, v) => k === 'type' ? undefined : v, 2)}
+             </pre>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
 export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // États pour le jeu
   const [game, setGame] = useState<Game>(initialGame);
@@ -321,7 +462,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: any[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
 
   // État pour la confirmation de perte de sonde
-  const [playCardConfirmation, setPlayCardConfirmation] = useState<{ visible: boolean; cardId: string | null; message: string }>({ visible: false, cardId: null, message: '' });
+  const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
 
   // Ref pour contrôler le plateau solaire
   const solarSystemRef = useRef<SolarSystemBoardUIRef>(null);
@@ -339,12 +480,101 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   }, [historyLog]);
 
+  // Helper pour la couleur des secteurs
+  const getSectorColorCode = (color: SectorColor) => {
+    switch (color) {
+      case SectorColor.BLUE: return '#4a9eff';
+      case SectorColor.RED: return '#ff6b6b';
+      case SectorColor.YELLOW: return '#ffd700';
+      case SectorColor.BLACK: return '#aaaaaa';
+      default: return '#fff';
+    }
+  };
+
+  const renderCardTooltip = (card: any) => (
+    <div style={{ width: '240px', textAlign: 'left' }}>
+      <div style={{ fontWeight: 'bold', color: '#4a9eff', fontSize: '1.1rem', marginBottom: '6px', borderBottom: '1px solid #444', paddingBottom: '4px' }}>{card.name}</div>
+      <div style={{ fontSize: '0.95em', color: '#fff', marginBottom: '10px', lineHeight: '1.4' }}>{card.description}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.85em', backgroundColor: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '4px' }}>
+        <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
+        <div>Type: {card.type === CardType.ACTION ? 'Action' : card.type === CardType.END_GAME ? 'Fin de jeu' : 'Mission'}</div>
+        <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
+        <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
+        <div style={{ gridColumn: '1 / -1', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
+      </div>
+    </div>
+  );
+
+  const findCardByName = useCallback((name: string) => {
+    if (!name) return undefined;
+    const cleanName = name.trim();
+    const searchIn = (list?: Card[]) => list?.find(c => c.name === cleanName);
+
+    // Check players hands
+    for (const p of game.players) {
+        const c = searchIn(p.cards);
+        if (c) return c;
+    }
+    // Check row
+    const cRow = searchIn(game.decks.cardRow);
+    if (cRow) return cRow;
+    
+    // Check deck (if accessible, usually hidden but in game state it is there)
+    const cDeck = searchIn(game.decks.cards);
+    if (cDeck) return cDeck;
+
+    // Check discard
+    const cDiscard = searchIn(game.decks.discardPile);
+    if (cDiscard) return cDiscard;
+    
+    // Check round decks
+    if (game.decks.roundDecks) {
+        for (const key in game.decks.roundDecks) {
+            const cRound = searchIn(game.decks.roundDecks[key]);
+            if (cRound) return cRound;
+        }
+    }
+
+    // Check species cards
+    if (game.species) {
+        for (const s of game.species) {
+            const cSpecies = searchIn(s.cards);
+            if (cSpecies) return cSpecies;
+        }
+    }
+    
+    return undefined;
+  }, [game]);
+
   // Helper pour formater les messages avec des icônes
   const formatHistoryMessage = (message: string) => {
-    const pattern = Object.values(RESOURCE_CONFIG).map(c => c.regex.source).join('|');
-    const splitRegex = new RegExp(`(${pattern})`, 'g');
+    const resourcePattern = Object.values(RESOURCE_CONFIG).map(c => c.regex.source).join('|');
+    const splitRegex = new RegExp(`(${resourcePattern}|"[^"]+")`, 'g');
 
     return message.split(splitRegex).map((part, index) => {
+      // Gestion des cartes (entre guillemets)
+      if (part.startsWith('"') && part.endsWith('"')) {
+        const cardName = part.slice(1, -1);
+        if (!cardName) return part;
+        const card = findCardByName(cardName);
+        
+        if (card) {
+             return (
+                <span 
+                    key={index} 
+                    style={{ color: '#4a9eff', cursor: 'help', borderBottom: '1px dotted #4a9eff' }}
+                    onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ content: renderCardTooltip(card), rect });
+                    }}
+                    onMouseLeave={() => setActiveTooltip(null)}
+                >
+                    "{cardName}"
+                </span>
+             );
+        }
+      }
+
       for (const config of Object.values(RESOURCE_CONFIG)) {
         if (new RegExp(`^${config.regex.source}$`).test(part)) {
           return <span key={index} title={config.label} style={{ color: config.color, cursor: 'help', fontWeight: 'bold' }}>{config.icon}</span>;
@@ -527,6 +757,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const oldGame = currentGame;
       const newGame = result.updatedState;
 
+      // PATCH: Ajouter les cartes défaussées à la pile de défausse
+      const cardsToDiscard = enginePlayer.cards.filter(c => !cardsToKeep.includes(c.id));
+      if (cardsToDiscard.length > 0) {
+         if (!newGame.decks.discardPile) newGame.decks.discardPile = [];
+         newGame.decks.discardPile.push(...cardsToDiscard);
+      }
+
       if (newGame.isFirstToPass) {
         const currentLevel = oldGame.board.solarSystem.nextRingLevel || 1;
         setToast({ message: `Rotation du système solaire (Niveau ${currentLevel})`, visible: true });
@@ -681,6 +918,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     gameEngineRef.current.nextPlayer();
     setGame(gameEngineRef.current.getState());
     setHasPerformedMainAction(false);
+    setInteractionState({ type: 'IDLE' });
+    setPendingInteractions([]);
     setToast({ message: "Au tour du joueur suivant", visible: true });
   };
 
@@ -877,11 +1116,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     gameToUpdate: Game,
     playerId: string,
     sectorId: string,
-    sequenceId?: string,
     initialLogs: string[] = [],
-    noData: boolean = false
-  ) => {
+    noData: boolean = false,
+    sequenceId?: string
+  ): { updatedGame: Game, historyEntries: { message: string, playerId: string }[] } => {
     let updatedGame = gameToUpdate;
+    const historyEntries: { message: string, playerId: string }[] = [];
     const scanLogs: string[] = [...initialLogs];
 
     // 1. Scan
@@ -891,18 +1131,22 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     // 2. Process scan bonuses
     if (scanResult.bonuses) {
-      const bonusRes = processBonuses(scanResult.bonuses, updatedGame, playerId, 'scan');
+      const bonusRes = processBonuses(scanResult.bonuses, updatedGame, playerId, 'scan', sequenceId);
       updatedGame = bonusRes.updatedGame;
       scanLogs.push(...bonusRes.logs);
+      if (bonusRes.historyEntries) {
+        historyEntries.push(...bonusRes.historyEntries);
+      }
       if (bonusRes.newPendingInteractions.length > 0) {
-        setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
+        const interactionsWithSeq = bonusRes.newPendingInteractions.map(i => ({ ...i, sequenceId }));
+        setPendingInteractions(prev => [...prev, ...interactionsWithSeq]);
       }
     }
 
     // 3. Check if covered
     if (SectorSystem.isSectorCovered(updatedGame, sectorId)) {
       scanLogs.push(`et complète le secteur !`);
-      addToHistory(scanLogs.join(', '), playerId, game, undefined, sequenceId);
+      historyEntries.push({ message: scanLogs.join(', '), playerId });
 
       const coverageLogs: string[] = [];
       // 4. Cover sector
@@ -912,24 +1156,105 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       // 5. Process cover bonuses
       if (coverageResult.bonuses) {
-        const bonusRes = processBonuses(coverageResult.bonuses, updatedGame, playerId, 'scan');
+        const bonusRes = processBonuses(coverageResult.bonuses, updatedGame, playerId, 'scan', sequenceId);
         updatedGame = bonusRes.updatedGame;
         coverageLogs.push(...bonusRes.logs);
+        if (bonusRes.historyEntries) {
+            historyEntries.push(...bonusRes.historyEntries);
+        }
         if (bonusRes.newPendingInteractions.length > 0) {
-          setPendingInteractions(prev => [...prev, ...bonusRes.newPendingInteractions]);
+          const interactionsWithSeq = bonusRes.newPendingInteractions.map(i => ({ ...i, sequenceId }));
+          setPendingInteractions(prev => [...prev, ...interactionsWithSeq]);
         }
       }
       setToast({ message: 'Secteur couvert !', visible: true });
       if (coverageLogs.length > 0) {
-        addToHistory(coverageLogs.join(', '), coverageResult.winnerId, game, undefined, sequenceId);
+        historyEntries.push({ message: coverageLogs.join(', '), playerId: coverageResult.winnerId });
       }
     } else {
       // 6. Log scan only
-      addToHistory(scanLogs.join(', '), playerId, game, undefined, sequenceId);
+      historyEntries.push({ message: scanLogs.join(', '), playerId });
     }
 
-    return updatedGame;
+    return { updatedGame, historyEntries };
   };
+
+  // Helper pour effectuer une séquence de scan complète
+  const performScanAction = (
+    gameToUpdate: Game,
+    sequenceId?: string,
+    initialLogs: string[] = []
+  ): { updatedGame: Game, historyEntries: { message: string, playerId: string }[] } => {
+    let updatedGame = gameToUpdate;
+    const historyEntries: { message: string, playerId: string }[] = [];
+    const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
+    const hasObs1 = currentPlayer.technologies.some(t => t.id.startsWith('observation-1'));
+    const hasObs2 = currentPlayer.technologies.some(t => t.id.startsWith('observation-2'));
+    const hasObs3 = currentPlayer.technologies.some(t => t.id.startsWith('observation-3'));
+    const hasObs4 = currentPlayer.technologies.some(t => t.id.startsWith('observation-4'));
+
+    const rotationState = createRotationState(
+      game.board.solarSystem.rotationAngleLevel1 || 0,
+      game.board.solarSystem.rotationAngleLevel2 || 0,
+      game.board.solarSystem.rotationAngleLevel3 || 0
+    );
+
+    const newPendingInteractions: InteractionState[] = [];
+    
+    // 1. Signal depuis la Terre
+    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+    if (earthPos) {
+      const earthSector = game.board.sectors[earthPos.absoluteSector - 1];
+      if (hasObs1) {
+        newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: earthSector.color, sequenceId, adjacents: true })
+      } else {
+        const res = performScanAndCover(updatedGame, currentPlayer.id, earthSector.id, [], false, sequenceId);
+        updatedGame = res.updatedGame;
+        historyEntries.push(...res.historyEntries);
+        setToast({ message: "Scanne le secteur de la Terre", visible: true });
+      }
+    }
+
+    // 2. Signal depuis la rangée de carte
+    newPendingInteractions.push({ type: 'SELECTING_SCAN_CARD', sequenceId })
+
+    // 3. Signal depuis Mercure
+    if (hasObs2) {
+      if (currentPlayer.mediaCoverage > 0) {
+        newPendingInteractions.push({ type: 'CHOOSING_OBS2_ACTION', sequenceId });
+      } else {
+        historyEntries.push({ message: "ne peut pas utiliser Observation II (manque de Média)", playerId: currentPlayer.id });
+      }
+    }
+
+    // 4. Signal depuis carte de la main (Obs3)
+    if (hasObs3) {
+      if (currentPlayer.cards.length > 0) {
+        newPendingInteractions.push({ type: 'CHOOSING_OBS3_ACTION', sequenceId });
+      } else {
+        historyEntries.push({ message: "ne peut pas utiliser Observation III (manque de cartes en main)", playerId: currentPlayer.id });
+      }
+    }
+
+    // 5. Lancer une Sonde pour 1 Energie ou 1 Déplacement
+    if (hasObs4) {
+      const canLaunch = currentPlayer.energy >= 1 && ProbeSystem.canLaunchProbe(updatedGame, currentPlayer.id, false).canLaunch;
+      const canMove = currentPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+
+      if (canLaunch || canMove) {
+        newPendingInteractions.push({ type: 'CHOOSING_OBS4_ACTION', sequenceId });
+      } else {
+        historyEntries.push({ message: "ne peut pas utiliser Observation IV (conditions non remplies)", playerId: currentPlayer.id });
+      }
+    } 
+
+    // Ajouter les nouvelles interactions et lancer la première
+    const [first, ...rest] = newPendingInteractions;
+    setInteractionState(first);
+    setPendingInteractions(prev => [...rest, ...prev]);
+    
+    return { updatedGame, historyEntries };
+  }
 
   // Gestionnaire pour le clic sur un secteur (Scan)
   const handleSectorClick = (sectorNumber: number) => {
@@ -940,8 +1265,24 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       // Validate color
       if (interactionState.color !== SectorColor.ANY && sector.color !== interactionState.color) {
-        setToast({ message: `Couleur incorrecte. Sélectionnez un secteur ${interactionState.color}`, visible: true });
-        return;
+        let isAdjacentAllowed = false;
+        if (interactionState.adjacents) {
+             const rotationState = createRotationState(
+                game.board.solarSystem.rotationAngleLevel1 || 0,
+                game.board.solarSystem.rotationAngleLevel2 || 0,
+                game.board.solarSystem.rotationAngleLevel3 || 0
+             );
+             const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+             if (earthPos) {
+                 const diff = Math.abs(earthPos.absoluteSector - sectorNumber);
+                 if (diff === 1 || diff === 7 || diff === 0) isAdjacentAllowed = true;
+             }
+        }
+
+        if (!isAdjacentAllowed) {
+            setToast({ message: `Couleur incorrecte. Sélectionnez un secteur ${interactionState.color}`, visible: true });
+            return;
+        }
       }
 
       let updatedGame = structuredClone(game);
@@ -956,6 +1297,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (cardIndex !== -1) {
           const removedCard = row[cardIndex];
           row.splice(cardIndex, 1);
+          if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+          updatedGame.decks.discardPile.push(removedCard);
           initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la rangée`);
         }
       }
@@ -968,6 +1311,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (cardIndex !== -1) {
           const removedCard = deck[cardIndex];
           deck.splice(cardIndex, 1);
+          if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+          updatedGame.decks.discardPile.push(removedCard);
           initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la pioche`);
         }
       }
@@ -980,19 +1325,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (cardIndex !== -1) {
           const removedCard = hand[cardIndex];
           hand.splice(cardIndex, 1);
+          if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+          updatedGame.decks.discardPile.push(removedCard);
           initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la main`);
         }
       }
 
-      updatedGame = performScanAndCover(updatedGame, currentPlayer.id, sector.id, interactionState.sequenceId, initialLogs, interactionState.noData);
+      const res = performScanAndCover(updatedGame, currentPlayer.id, sector.id, initialLogs, interactionState.noData, interactionState.sequenceId);
+      updatedGame = res.updatedGame;
+      // Log immediately for interactive scan
+      res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, interactionState.sequenceId));
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
 
-      // TODO: implementer la tech 2 =  choix pour le scan 3 dans le secteur de mercure 
-      // et/ou la tech 3 = scan 4 dans le secteur d'une carte défaussée
-      // et/ou la tech 4 = choix entre sonde et deplacement
-      // TODO passer a la next intereaction
       setInteractionState({ type: 'IDLE' });
       setHasPerformedMainAction(true);
       return;
@@ -1000,28 +1346,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     // Cas 2: Clic direct depuis Idle (Raccourci Action Scan)
     if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
-      const earthPos = getObjectPosition(
-        'earth',
-        game.board.solarSystem.rotationAngleLevel1 || 0,
-        game.board.solarSystem.rotationAngleLevel2 || 0,
-        game.board.solarSystem.rotationAngleLevel3 || 0
-      );
-
-      if (earthPos) {
-        const currentPlayer = game.players[game.currentPlayerIndex];
-        const hasObs1 = currentPlayer.technologies.some(t => t.id.startsWith('observation-1'));
-
-        let isValid = earthPos.absoluteSector === sectorNumber;
-        if (!isValid && hasObs1) {
-          const prev = earthPos.absoluteSector === 1 ? 8 : earthPos.absoluteSector - 1;
-          const next = earthPos.absoluteSector === 8 ? 1 : earthPos.absoluteSector + 1;
-          if (sectorNumber === prev || sectorNumber === next) isValid = true;
-        }
-
-        if (isValid) {
-          handleAction(ActionType.SCAN_SECTOR, { sectorId: `sector_${sectorNumber}` });
-        }
-      }
+      handleAction(ActionType.SCAN_SECTOR, { sectorId: `sector_${sectorNumber}` });
       return;
     }
   };
@@ -1090,28 +1415,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       updatedPlayer.energy -= GAME_CONSTANTS.SCAN_COST_ENERGY;
       addToHistory(`paye ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit, ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergie pour <strong>Scanner un secteur</strong>`, updatedPlayer.id, game, undefined, sequenceId);
 
-      // Scanner secteur initial (Earth or Adjacent if selected)
-      let targetSectorId = payload?.sectorId;
-      if (!targetSectorId) {
-        const earthPos = getObjectPosition(
-          'earth',
-          updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-          updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-          updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-        );
-        if (earthPos) targetSectorId = `sector_${earthPos.absoluteSector}`;
-      }
-
-      if (targetSectorId) {
-        updatedGame = performScanAndCover(updatedGame, updatedPlayer.id, targetSectorId, sequenceId);
-      }
-
+      // Scanner en séquence
+      const res = performScanAction(updatedGame, sequenceId);
+      updatedGame = res.updatedGame;
+      res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, sequenceId));
       setGame(updatedGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-
-      setInteractionState({ type: 'SELECTING_SCAN_CARD', sequenceId });
-      setIsRowOpen(true);
-      setToast({ message: "Sélectionnez une carte de la rangée pour déterminer la couleur du secteur à scanner", visible: true });
     }
     else if (actionType === ActionType.PASS) {
       // 1. Vérifier la taille de la main
@@ -1208,14 +1516,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   };
 
   // Helper pour traiter les bonus (Orbite/Atterrissage)
-  const processBonuses = (bonuses: any, currentGame: Game, playerId: string, sourceId?: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[] } => {
+  const processBonuses = (bonuses: any, currentGame: Game, playerId: string, sourceId?: string, sequenceId?: string, planetId?: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[], historyEntries: { message: string, playerId: string }[] } => {
     let updatedGame = currentGame;
     const newPendingInteractions: InteractionState[] = [];
     const logs: string[] = [];
+    const historyEntries: { message: string, playerId: string }[] = [];
     const passiveGains: string[] = []; // For summary toast
     const launchedProbeIds: string[] = [];
 
-    if (!bonuses) return { updatedGame, newPendingInteractions, logs, passiveGains };
+    if (!bonuses) return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };
 
     // Gains passifs pour le résumé
     if (bonuses.media) { const txt = formatResource(bonuses.media, 'MEDIA'); passiveGains.push(txt); }
@@ -1247,6 +1556,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (result.probeId) {
           updatedGame = result.updatedGame;
           launchedProbeIds.push(result.probeId);
+          setToast({ message: "Lance une sonde gratuitement", visible: true });
           logs.push(`lance une sonde gratuitement`);
         } else {
           logs.push(`ne peut pas lancer de sonde (limite atteinte)`);
@@ -1254,6 +1564,46 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
       const txt = `${bonuses.probe} Sonde${bonuses.probe > 1 ? 's' : ''}`;
       passiveGains.push(txt);
+    }
+    if (bonuses.earthscan) {
+      for (let i = 0; i < bonuses.earthscan; i++) {
+        // La technologie Observation I ne s'applique pas dans ce cas-là mais uniquement lors de l'action Scanner un secteur.
+        // Ce bonus est donc immédiat.
+        const rotationState = createRotationState(
+          game.board.solarSystem.rotationAngleLevel1 || 0,
+          game.board.solarSystem.rotationAngleLevel2 || 0,
+          game.board.solarSystem.rotationAngleLevel3 || 0
+        );
+        const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+        if (earthPos) {
+          const earthSector = game.board.sectors[earthPos.absoluteSector - 1];
+          if (earthSector) {
+            const result = SectorSystem.scanSector(updatedGame, playerId, earthSector.id, false, bonuses.noData);
+            updatedGame = result.updatedGame;
+            setToast({ message: "Scanne le secteur de la Terre", visible: true });
+            logs.push(result.logs.join(', '));
+          }
+        }
+      }
+    }
+    if (bonuses.planetscan && planetId) {
+      for (let i = 0; i < bonuses.planetscan; i++) {
+        const rotationState = createRotationState(
+          game.board.solarSystem.rotationAngleLevel1 || 0,
+          game.board.solarSystem.rotationAngleLevel2 || 0,
+          game.board.solarSystem.rotationAngleLevel3 || 0
+        );
+        const planetPos = getObjectPosition(planetId, rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+        if (planetPos) {
+          const planetSector = game.board.sectors[planetPos.absoluteSector - 1];
+          if (planetSector) {
+            const result = SectorSystem.scanSector(updatedGame, playerId, planetSector.id, false, bonuses.noData);
+            updatedGame = result.updatedGame;
+            setToast({ message: `Scanne le secteur de ${planetPos.name}`, visible: true });
+            logs.push(result.logs.join(', '));
+          }
+        }
+      }
     }
 
     // Effets interactifs (File d'attente)
@@ -1348,32 +1698,16 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorColor.ANY, noData: bonuses.noData })
       }
     }
-    if (bonuses.earthscan) {
-      const rotationState = createRotationState(
-        game.board.solarSystem.rotationAngleLevel1 || 0,
-        game.board.solarSystem.rotationAngleLevel2 || 0,
-        game.board.solarSystem.rotationAngleLevel3 || 0
-      );
-      const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
-      if (earthPos) {
-        const earthSector = game.board.sectors[earthPos.absoluteSector - 1];
-        if (earthSector) {
-          // TODO: Il n'y en a qu'un cette action pour être faite immédiatement...
-          for (let i = 0; i < bonuses.earthscan; i++) {
-            newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: earthSector.color, noData: bonuses.noData });
-          }
-        }
-      }
-    }
     if (bonuses.probescan) {
       // TODO: SELECTING_PROBE if multiple... sinon action immédiate
     }
-
-//            noData: bonuses.noData,
-//            anyProbe: bonuses.anyProbe,
-//            adjacents: bonuses.gainSignalAdjacents,
-//            keepCardIfOnly: bonuses.keepCardIfOnly,
-//            cardId: sourceId
+    if (bonuses.scanAction) {
+      for (let i = 0; i < bonuses.scanAction; i++) {
+        const res = performScanAction(updatedGame, sequenceId);
+        updatedGame = res.updatedGame;
+        historyEntries.push(...res.historyEntries);
+      }
+    }
 
     // Effets interactifs (File d'attente)
     if (bonuses.revealAndTriggerFreeAction) {
@@ -1389,7 +1723,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       newPendingInteractions.push({ type: 'DISCARDING_FOR_SIGNAL', count: bonuses.gainSignalFromHand, selectedCards: [] });
     }
     
-    return { updatedGame, newPendingInteractions, logs, passiveGains };
+    return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };
   };
 
   // Gestionnaire pour placer une trace de vie
@@ -1411,7 +1745,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const isFirst = track.length === 1;
     const bonus = isFirst ? board.firstBonus : board.nextBonus;
 
-    const { updatedGame: gameAfterBonus, newPendingInteractions, passiveGains, logs } = processBonuses(bonus, updatedGame, currentPlayer.id);
+    const { updatedGame: gameAfterBonus, newPendingInteractions, passiveGains, logs, historyEntries } = processBonuses(bonus, updatedGame, currentPlayer.id);
 
     setGame(gameAfterBonus);
     if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonus);
@@ -1419,6 +1753,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const sequenceId = interactionState.sequenceId;
     addToHistory(`place une trace de vie ${color} sur le plateau Alien ${boardIndex + 1}`, currentPlayer.id, game, undefined, sequenceId);
     logs.forEach(log => addToHistory(log, currentPlayer.id, gameAfterBonus, undefined, sequenceId));
+    historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, gameAfterBonus, undefined, sequenceId));
 
     if (passiveGains.length > 0) {
       setToast({ message: `Bonus : ${passiveGains.join(', ')}`, visible: true });
@@ -1461,6 +1796,94 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   };
 
+  // Gestionnaire pour le choix Observation 2
+  const handleObs2Choice = (accepted: boolean) => {
+    if (interactionState.type !== 'CHOOSING_OBS2_ACTION') return;
+    
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    const sequenceId = interactionState.sequenceId;
+
+    if (accepted) {
+        let updatedGame = structuredClone(game);
+        const player = updatedGame.players[updatedGame.currentPlayerIndex];
+        
+        // Payer 1 Média
+        player.mediaCoverage -= 1;
+        addToHistory(`paye 1 Média pour utiliser Observation II`, player.id, game, undefined, sequenceId);
+
+        // Scanner Mercure
+        const rotationState = createRotationState(
+          updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+          updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+          updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+        );
+        const mercuryPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+        if (mercuryPos) {
+            const mercurySector = updatedGame.board.sectors[mercuryPos.absoluteSector - 1];
+            const res = performScanAndCover(updatedGame, player.id, mercurySector.id, [], false, sequenceId);
+            updatedGame = res.updatedGame;
+            res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, updatedGame, undefined, sequenceId));
+            setToast({ message: "Scanne le secteur de Mercure", visible: true });
+        }
+        setGame(updatedGame);
+        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+    }
+
+    setInteractionState({ type: 'IDLE' });
+  };
+
+  // Gestionnaire pour le choix Observation 3
+  const handleObs3Choice = (accepted: boolean) => {
+    if (interactionState.type !== 'CHOOSING_OBS3_ACTION') return;
+    
+    const sequenceId = interactionState.sequenceId;
+
+    if (accepted) {
+        setInteractionState({ type: 'DISCARDING_FOR_SIGNAL', count: 1, selectedCards: [], sequenceId });
+        setToast({ message: "Sélectionnez une carte à défausser", visible: true });
+    } else {
+        // Passer à l'interaction suivante (ou IDLE)
+        setInteractionState({ type: 'IDLE' });
+    }
+  };
+
+  // Gestionnaire pour le choix Observation 4
+  const handleObs4Choice = (choice: 'PROBE' | 'MOVE') => {
+    if (interactionState.type !== 'CHOOSING_OBS4_ACTION') return;
+    
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    const sequenceId = interactionState.sequenceId;
+    let updatedGame = structuredClone(game);
+    const player = updatedGame.players[updatedGame.currentPlayerIndex];
+
+    if (choice === 'PROBE') {
+        // Payer 1 Energie
+        player.energy -= 1;
+        addToHistory(`paye 1 Énergie pour utiliser Observation IV (Lancement de sonde)`, player.id, game, undefined, sequenceId);
+
+        // Lancer une sonde (Gratuit en crédits, mais on a payé l'énergie)
+        const launchRes = ProbeSystem.launchProbe(updatedGame, player.id, true, false);
+        if (launchRes.probeId) {
+            updatedGame = launchRes.updatedGame;
+            addToHistory(`lance une sonde (Observation IV)`, player.id, updatedGame, undefined, sequenceId);
+            setToast({ message: "Sonde lancée", visible: true });
+        } else {
+             // Should not happen if button is disabled correctly, but safety net
+             player.energy += 1; // Refund
+             setToast({ message: "Impossible de lancer une sonde", visible: true });
+             return;
+        }
+    } else {
+        // Gain 1 Movement
+        setPendingInteractions(prev => [{ type: 'MOVING_PROBE', count: 1, sequenceId }, ...prev]);
+        addToHistory(`choisit de gagner 1 déplacement (Observation IV)`, player.id, game, undefined, sequenceId);
+    }
+
+    setGame(updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+    setInteractionState({ type: 'IDLE' });
+  };
+
   // Gestionnaire pour le choix Média ou Déplacement (Carte 19)
   const handleMediaOrMoveChoice = (choice: 'MEDIA' | 'MOVE') => {
     if (interactionState.type !== 'CHOOSING_MEDIA_OR_MOVE') return;
@@ -1498,6 +1921,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     historyMessagePrefix: string,
     successMessage: string
   ): boolean => {
+    setToast({ message: `coucou`, visible: true });
+    console.log(interactionState);
     if (interactionState.type !== 'IDLE' && interactionState.type !== 'LANDING_PROBE') return false;
     if (hasPerformedMainAction && interactionState.type !== 'LANDING_PROBE') {
       setToast({ message: "Action principale déjà effectuée", visible: true });
@@ -1550,7 +1975,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     try {
       const result = actionFn(game, currentPlayer.id, probe.id, planetId);
 
-      const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, (interactionState as any).source);
+      const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs, historyEntries } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, (interactionState as any).source, undefined, planetId);
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
@@ -1585,9 +2010,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         setToast({ message: `Gains : ${passiveGains.join(', ')}`, visible: true });
       }
 
-      addToHistory(`${historyMessagePrefix} ${planetId}`, currentPlayer.id, stateBeforeAction, undefined, sequenceId);
-      if (allBonusLogs.length > 0) {
-        allBonusLogs.forEach(log => addToHistory(log, currentPlayer.id, updatedGame, undefined, sequenceId));
+      let message = `${historyMessagePrefix} ${planetDef.name}`;
+      if (passiveGains.length > 0) {
+        message += ` et gagne ${passiveGains.join(', ')}`;
+      }
+
+      addToHistory(message, currentPlayer.id, stateBeforeAction, undefined, sequenceId);
+      
+      const otherLogs = allBonusLogs.filter(log => !log.startsWith('gagne '));
+      if (otherLogs.length > 0) {
+        otherLogs.forEach(log => addToHistory(log, currentPlayer.id, updatedGame, undefined, sequenceId));
+      }
+
+      if (historyEntries.length > 0) {
+        historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, updatedGame, undefined, sequenceId));
       }
       if (newPendingInteractions.length === 0) {
         setToast({ message: successMessage, visible: true });
@@ -1597,6 +2033,41 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       setToast({ message: e.message, visible: true });
       return false;
     }
+  };
+
+  // Helper pour vérifier si le joueur peut acquérir une technologie
+  const canAcquireTech = (game: Game, playerId: string, category?: TechnologyCategory): boolean => {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return false;
+    
+    const techBoard = game.board.technologyBoard;
+    if (!techBoard || !techBoard.categorySlots) return false;
+    
+    for (const slot of techBoard.categorySlots) {
+        if (category && slot.category !== category) continue;
+        
+        // Group by baseId
+        const stacks = new Map<string, Technology[]>();
+        slot.technologies.forEach(tech => {
+            const lastDashIndex = tech.id.lastIndexOf('-');
+            const baseId = tech.id.substring(0, lastDashIndex);
+            if (!stacks.has(baseId)) stacks.set(baseId, []);
+            stacks.get(baseId)!.push(tech);
+        });
+        
+        for (const [baseId, stack] of stacks) {
+            if (stack.length > 0) {
+                // Check if player has this tech
+                const hasTech = player.technologies.some(t => {
+                    const tLastDash = t.id.lastIndexOf('-');
+                    return t.id.substring(0, tLastDash) === baseId;
+                });
+                
+                if (!hasTech) return true;
+            }
+        }
+    }
+    return false;
   };
 
   // Gestionnaire pour la mise en orbite via la hover card
@@ -1652,78 +2123,197 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       return;
     }
 
-    handlePlanetInteraction(
-      planetId,
-      (g, pid, prid, targetId) => ProbeSystem.orbitProbe(g, pid, prid, targetId), // Orbit is not free via LANDING_PROBE
-      "met une sonde en orbite autour de",
-      "Sonde mise en orbite"
-    );
+    const executeOrbit = () => {
+      handlePlanetInteraction(
+        planetId,
+        (g, pid, prid, targetId) => ProbeSystem.orbitProbe(g, pid, prid, targetId), // Orbit is not free via LANDING_PROBE
+        "paye 1 Energie et 1 Crédit pour <strong>Mettre en orbite</strong> une sonde autour de",
+        "Sonde mise en orbite"
+      );
+    };
+
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    // Check for bonus warnings
+    if (slotIndex !== undefined) {
+      const planet = game.board.planets.find(p => p.id === planetId);
+      if (planet && planet.orbitSlots && planet.orbitSlots[slotIndex]) {
+        const bonus = planet.orbitSlots[slotIndex];
+        if (bonus.revenue && currentPlayer.cards.length === 0) {
+          setConfirmModalState({
+            visible: true,
+            cardId: null,
+            message: "Vous n'avez aucune carte en main pour effectuer la réservation (bonus). Le bonus sera perdu. Voulez-vous continuer ?",
+            onConfirm: executeOrbit
+          });
+          return;
+        }
+
+        if (bonus.data && (currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
+          setConfirmModalState({
+            visible: true,
+            cardId: null,
+            message: "Vous avez atteint la limite de données. Le gain de données (bonus) sera perdu. Voulez-vous continuer ?",
+            onConfirm: executeOrbit
+          });
+          return;
+        }
+
+        if (bonus.media && currentPlayer.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
+          setConfirmModalState({
+            visible: true,
+            cardId: null,
+            message: "Vous avez atteint la limite de couverture médiatique. Le gain de médias (bonus) sera perdu. Voulez-vous continuer ?",
+            onConfirm: executeOrbit
+          });
+          return;
+        }
+
+        if ((bonus.technology || bonus.anytechnology) && !canAcquireTech(game, currentPlayer.id, bonus.technology?.color)) {
+          setConfirmModalState({
+            visible: true,
+            cardId: null,
+            message: "Vous avez déjà toutes les technologies disponibles. Le gain de technologie (bonus) sera perdu. Voulez-vous continuer ?",
+            onConfirm: executeOrbit
+          });
+          return;
+        }
+      }
+    }
+
+    executeOrbit();
   };
 
   // Gestionnaire pour l'atterrissage via la hover card
   const handleLand = (planetId: string, slotIndex?: number) => {
-    // Vérifier si on est en mode atterrissage gratuit
-    if (interactionState.type === 'LANDING_PROBE') {
-      const interactionTriggered = handlePlanetInteraction(
-        planetId,
-        (g, pid, prid, targetId) => {
-          const result = ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex); // Toujours gratuit en mode LANDING_PROBE
+    const executeLand = () => {
+      // Vérifier si on est en mode atterrissage gratuit
+      if (interactionState.type === 'LANDING_PROBE') {
+        const interactionTriggered = handlePlanetInteraction(
+          planetId,
+          (g, pid, prid, targetId) => {
+            const result = ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex); // Toujours gratuit en mode LANDING_PROBE
 
-          // Logique spécifique Carte 13 (Rover Perseverance)
-          // "Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs."
-          if (interactionState.source === '13') {
-            const isMars = targetId === 'mars';
-            const isMercury = targetId === 'mercury';
-            // Vérifier si c'est une lune (satellite)
-            const isMoon = g.board.planets.some(p => p.satellites?.some(s => s.id === targetId));
+            // Logique spécifique Carte 13 (Rover Perseverance)
+            // "Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs."
+            if ((interactionState as any).source === '13') {
+              const isMars = targetId === 'mars';
+              const isMercury = targetId === 'mercury';
+              // Vérifier si c'est une lune (satellite)
+              const isMoon = g.board.planets.some(p => p.satellites?.some(s => s.id === targetId));
 
-            if (isMars || isMercury || isMoon) {
-              if (!result.bonuses) result.bonuses = {};
-              result.bonuses.pv = (result.bonuses.pv || 0) + 4;
+              if (isMars || isMercury || isMoon) {
+                if (!result.bonuses) result.bonuses = {};
+                result.bonuses.pv = (result.bonuses.pv || 0) + 4;
 
-              // Appliquer le gain de PV à l'état du jeu
-              const pIndex = result.updatedGame.players.findIndex(p => p.id === pid);
-              if (pIndex !== -1) {
-                const p = { ...result.updatedGame.players[pIndex] };
-                p.score += 4;
-                result.updatedGame.players = [...result.updatedGame.players];
-                result.updatedGame.players[pIndex] = p;
+                // Appliquer le gain de PV à l'état du jeu
+                const pIndex = result.updatedGame.players.findIndex(p => p.id === pid);
+                if (pIndex !== -1) {
+                  const p = { ...result.updatedGame.players[pIndex] };
+                  p.score += 4;
+                  result.updatedGame.players = [...result.updatedGame.players];
+                  result.updatedGame.players[pIndex] = p;
+                }
               }
             }
-          }
-          return result;
-        },
-        "fait atterrir une sonde (Bonus) sur",
-        "Atterrissage réussi"
-      );
+            return result;
+          },
+          "fait atterrir une sonde (Bonus) sur",
+          "Atterrissage réussi"
+        );
 
-      if (interactionTriggered) {
-        // Si une interaction a été déclenchée (bonus), on doit s'assurer que les atterrissages restants sont mis en file d'attente
+        if (interactionTriggered) {
+          // Si une interaction a été déclenchée (bonus), on doit s'assurer que les atterrissages restants sont mis en file d'attente
+          if (interactionState.count > 1) {
+            const remainingState: InteractionState = { ...interactionState, count: interactionState.count - 1 };
+            setPendingInteractions(prev => [...prev, remainingState]);
+          }
+          return;
+        }
+
+        // Décrémenter ou terminer l'interaction
         if (interactionState.count > 1) {
-          const remainingState: InteractionState = { ...interactionState, count: interactionState.count - 1 };
-          setPendingInteractions(prev => [...prev, remainingState]);
+          setInteractionState({ ...interactionState, count: interactionState.count - 1 });
+        } else {
+          // Si on vient d'un menu de choix, on retourne à IDLE (le menu gère la suite via pendingInteractions)
+          // Sinon IDLE
+          setInteractionState({ type: 'IDLE' });
         }
         return;
       }
 
-      // Décrémenter ou terminer l'interaction
-      if (interactionState.count > 1) {
-        setInteractionState({ ...interactionState, count: interactionState.count - 1 });
+      handlePlanetInteraction(
+        planetId,
+        // On passe planetId comme targetId pour supporter l'atterrissage sur les satellites
+        (g, pid, prid, targetId) => ProbeSystem.landProbe(g, pid, prid, targetId, false, slotIndex),
+        "fait atterrir une sonde sur",
+        "Atterrissage réussi"
+      );
+    };
+
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    // Check for bonus warnings
+    if (slotIndex !== undefined) {
+      let bonus: Bonus | undefined;
+
+      // Check if planet
+      const planet = game.board.planets.find(p => p.id === planetId);
+      if (planet && planet.landSlots) {
+        bonus = planet.landSlots[slotIndex];
       } else {
-        // Si on vient d'un menu de choix, on retourne à IDLE (le menu gère la suite via pendingInteractions)
-        // Sinon IDLE
-        setInteractionState({ type: 'IDLE' });
+        // Check if satellite
+        const parentPlanet = game.board.planets.find(p => p.satellites?.some(s => s.id === planetId));
+        if (parentPlanet) {
+          const sat = parentPlanet.satellites?.find(s => s.id === planetId);
+          if (sat) {
+            bonus = sat.landBonus;
+          }
+        }
       }
-      return;
+
+      if (bonus) {
+        if (bonus.revenue && currentPlayer.cards.length === 0) {
+          setConfirmModalState({
+            visible: true,
+            cardId: null,
+            message: "Vous n'avez aucune carte en main pour effectuer la réservation (bonus). Le bonus sera perdu. Voulez-vous continuer ?",
+            onConfirm: executeLand
+          });
+          return;
+        }
+
+        if (bonus.data && (currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
+          setConfirmModalState({
+            visible: true,
+            cardId: null,
+            message: "Vous avez atteint la limite de données. Le gain de données (bonus) sera perdu. Voulez-vous continuer ?",
+            onConfirm: executeLand
+          });
+          return;
+        }
+
+        if (bonus.media && currentPlayer.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
+          setConfirmModalState({
+            visible: true,
+            cardId: null,
+            message: "Vous avez atteint la limite de couverture médiatique. Le gain de médias (bonus) sera perdu. Voulez-vous continuer ?",
+            onConfirm: executeLand
+          });
+          return;
+        }
+
+        if ((bonus.technology || bonus.anytechnology) && !canAcquireTech(game, currentPlayer.id, bonus.technology?.color)) {
+          setConfirmModalState({
+            visible: true,
+            cardId: null,
+            message: "Vous avez déjà toutes les technologies disponibles. Le gain de technologie (bonus) sera perdu. Voulez-vous continuer ?",
+            onConfirm: executeLand
+          });
+          return;
+        }
+      }
     }
 
-    handlePlanetInteraction(
-      planetId,
-      // On passe planetId comme targetId pour supporter l'atterrissage sur les satellites
-      (g, pid, prid, targetId) => ProbeSystem.landProbe(g, pid, prid, targetId, false, slotIndex),
-      "fait atterrir une sonde sur",
-      "Atterrissage réussi"
-    );
+    executeLand();
   };
 
   // Gestionnaire pour le déplacement des sondes
@@ -1901,7 +2491,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         // Vérifier la limite de sondes (sans vérifier le coût car c'est un gain)
         const canLaunch = ProbeSystem.canLaunchProbe(currentGame, currentPlayer.id, false, ignoreLimit);
         if (!canLaunch.canLaunch && canLaunch.reason && canLaunch.reason.includes('Limite')) {
-          setPlayCardConfirmation({
+          setConfirmModalState({
             visible: true,
             cardId: cardId,
             message: "Vous avez atteint la limite de sondes dans le système solaire. L'action de lancer une sonde sera perdue. Voulez-vous continuer ?"
@@ -1916,7 +2506,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const dataEffect = card.immediateEffects.find(e => e.type === 'GAIN' && e.target === 'DATA');
       if (dataEffect) {
         if ((currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
-          setPlayCardConfirmation({
+          setConfirmModalState({
             visible: true,
             cardId: cardId,
             message: "Vous avez atteint la limite de données. Le gain de données sera perdu. Voulez-vous continuer ?"
@@ -1930,8 +2520,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (card && card.immediateEffects) {
       const mediaEffect = card.immediateEffects.find(e => e.type === 'GAIN' && e.target === 'MEDIA');
       if (mediaEffect) {
-        if ((currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
-          setPlayCardConfirmation({
+        if ((currentPlayer.mediaCoverage || 0) >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
+          setConfirmModalState({
             visible: true,
             cardId: cardId,
             message: "Vous avez atteint la limite de couverture médiatique. Le gain de médias sera perdu. Voulez-vous continuer ?"
@@ -1947,10 +2537,31 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       if (landEffect) {
         const probeInfo = ProbeSystem.probeOnPlanetInfo(currentGame, currentPlayer.id);
         if (!probeInfo.hasProbe) {
-          setPlayCardConfirmation({
+          setConfirmModalState({
             visible: true,
             cardId: cardId,
             message: "Vous n'avez aucune sonde sur une planète pour effectuer l'atterrissage. L'action sera perdue. Voulez-vous continuer ?"
+          });
+          return;
+        }
+      }
+    }
+
+    // Vérifier si la carte donne une technologie et si le joueur peut l'acquérir
+    if (card && card.immediateEffects) {
+      const techEffect = card.immediateEffects.find(e => e.type === 'GAIN' && (e.target === 'TECHNOLOGY' || e.target === 'ANY_TECHNOLOGY'));
+      if (techEffect) {
+        let catToCheck: TechnologyCategory | undefined = undefined;
+        if (typeof techEffect.value === 'string') {
+            catToCheck = techEffect.value as TechnologyCategory;
+        } else if (techEffect.value) {
+            catToCheck = techEffect.value.color || techEffect.value.category;
+        }
+        if (!canAcquireTech(currentGame, currentPlayer.id, catToCheck)) {
+          setConfirmModalState({
+            visible: true,
+            cardId: cardId,
+            message: "Vous avez déjà toutes les technologies disponibles. Le gain de technologie sera perdu. Voulez-vous continuer ?"
           });
           return;
         }
@@ -1970,22 +2581,29 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       return;
     }
 
+    const sequenceId = `seq-${Date.now()}`;
+
     console.log(result);
-    const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs: allBonusLogs } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, cardId);
+    const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs: allBonusLogs, historyEntries: bonusHistoryEntries } = processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, cardId, sequenceId);
     console.log(newPendingInteractions);
+
+    // PATCH: Ajouter la carte jouée à la pile de défausse
+    const cardPlayed = currentPlayer.cards.find(c => c.id === cardId);
+    if (cardPlayed) {
+        if (!gameAfterBonuses.decks.discardPile) gameAfterBonuses.decks.discardPile = [];
+        gameAfterBonuses.decks.discardPile.push(cardPlayed);
+    }
 
     const card = currentGame.players[currentGame.currentPlayerIndex].cards.find(c => c.id === cardId)!;
     setGame(gameAfterBonuses);
     if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonuses);
     setHasPerformedMainAction(true);
 
-    const sequenceId = `seq-${Date.now()}`;
-
     const gainsText = passiveGains.length > 0 ? ` (Gains: ${passiveGains.join(', ')})` : '';
     //setToast({ message: `Carte jouée: ${card.name}${gainsText}`, visible: true });
 
     // Construction du message d'historique unifié
-    let message = `joue la carte "${card.name}" pour ${card.cost} crédits`;
+    let message = `paye ${card.cost} crédit${card.cost > 1? 's' : ''} pour jouer carte "${card.name}"`;
 
     if (result.bonuses && result.bonuses.subventionDetails) {
       const { cardName, bonusText } = result.bonuses.subventionDetails;
@@ -2014,7 +2632,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (movementLogs.length > 0) {
       extras.push(movementLogs.join(', '));
     }
-
     if (extras.length > 0) {
       message += ` et ${extras.join(' et ')}`;
     }
@@ -2022,6 +2639,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     addToHistory(message, currentPlayer.id, currentGame, undefined, sequenceId);
     if (otherLogs.length > 0) {
       otherLogs.forEach(log => addToHistory(log, currentPlayer.id, gameAfterBonuses, undefined, sequenceId));
+    }
+    
+    // Add history entries from processBonuses (objects)
+    if (bonusHistoryEntries && bonusHistoryEntries.length > 0) {
+        bonusHistoryEntries.forEach(entry => addToHistory(entry.message, entry.playerId, gameAfterBonuses, undefined, sequenceId));
     }
 
     // Gérer les interactions en attente (ex: Mouvements, Tech, Signals, etc.)
@@ -2037,6 +2659,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
     const card = currentPlayer.cards.find(c => c.id === cardId);
     if (!card) return;
+
+    // PATCH: Ajouter à la pile de défausse
+    if (card) {
+        if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+        updatedGame.decks.discardPile.push(card);
+    }
 
     // Appliquer l'effet de l'action gratuite
     if (card.freeAction === FreeActionType.MEDIA) {
@@ -2201,12 +2829,21 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleConfirmTrade = () => {
     if (interactionState.type !== 'TRADING_CARD') return;
     const currentPlayer = game.players[game.currentPlayerIndex];
+    
+    // Capturer les cartes avant qu'elles ne soient retirées
+    const cardsToDiscard = currentPlayer.cards.filter(c => interactionState.selectedCards.includes(c.id));
 
     // Mettre à jour GameEngine
     const result = ResourceSystem.tradeResources(game, currentPlayer.id, 'card', interactionState.targetGain, interactionState.selectedCards);
     if (result.error) {
       setToast({ message: result.error, visible: true });
       return;
+    }
+
+    // PATCH: Ajouter à la pile de défausse
+    if (cardsToDiscard.length > 0) {
+        if (!result.updatedGame.decks.discardPile) result.updatedGame.decks.discardPile = [];
+        result.updatedGame.decks.discardPile.push(...cardsToDiscard);
     }
 
     // Finaliser la transaction
@@ -2380,37 +3017,23 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const initialSector2 = game.board.solarSystem.initialSectorLevel2 || 1;
   const initialSector3 = game.board.solarSystem.initialSectorLevel3 || 1;
 
-  // Helper pour la couleur des secteurs
-  const getSectorColorCode = (color: SectorColor) => {
-    switch (color) {
-      case SectorColor.BLUE: return '#4a9eff';
-      case SectorColor.RED: return '#ff6b6b';
-      case SectorColor.YELLOW: return '#ffd700';
-      case SectorColor.BLACK: return '#aaaaaa';
-      default: return '#fff';
-    }
-  };
-
-  const renderCardTooltip = (card: any) => (
-    <div style={{ width: '240px', textAlign: 'left' }}>
-      <div style={{ fontWeight: 'bold', color: '#4a9eff', fontSize: '1.1rem', marginBottom: '6px', borderBottom: '1px solid #444', paddingBottom: '4px' }}>{card.name}</div>
-      <div style={{ fontSize: '0.95em', color: '#fff', marginBottom: '10px', lineHeight: '1.4' }}>{card.description}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.85em', backgroundColor: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '4px' }}>
-        <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
-        <div>Type: {card.type === 'ACTION' ? 'Action' : 'Mission'}</div>
-        <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
-        <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
-        <div style={{ gridColumn: '1 / -1', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
-      </div>
-    </div>
-  );
-
   const humanPlayer = game.players.find(p => (p as any).type === 'human');
   const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id;
 
   // Calcul des secteurs à mettre en surbrillance (flash vert)
   const getHighlightedSectors = () => {
     if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
+      if (interactionState.adjacents) {
+         const rotationState = createRotationState(
+            game.board.solarSystem.rotationAngleLevel1 || 0,
+            game.board.solarSystem.rotationAngleLevel2 || 0,
+            game.board.solarSystem.rotationAngleLevel3 || 0
+         );
+         const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+         if (earthPos) {
+             return game.board.sectors.filter(s => Math.abs(parseInt(s.id.split('_')[1]) - earthPos.absoluteSector) <= 1 || Math.abs(parseInt(s.id.split('_')[1]) - earthPos.absoluteSector) === 7).map(s => s.id);
+         }
+      }
       if (interactionState.color === SectorColor.ANY) {
         return game.board.sectors.map(s => s.id);
       }
@@ -2500,6 +3123,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   return (
     <div className="seti-root">
       <style>{`
+        /* Generic button style for debug panel */
+        .seti-root button {
+          background-color: #444; color: white; border: 1px solid #666;
+          padding: 5px; border-radius: 4px; cursor: pointer;
+        }
+        .seti-root button:hover { background-color: #555; }
+
         .seti-root {
           height: 100vh;
           width: 100vw;
@@ -2695,6 +3325,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           animation: container-glow-flash 2s ease-in-out infinite;
         }
       `}</style>
+      {/* Panneau de débogage pour le développement */}
+      <DebugPanel 
+        game={game} 
+        setGame={setGame} 
+        onHistory={addToHistory} 
+        setHasPerformedMainAction={setHasPerformedMainAction}
+        setViewedPlayerId={setViewedPlayerId}
+        interactionState={interactionState} />
       {/* Toast Notification */}
       {toast && toast.visible && (
         <div style={{
@@ -2875,6 +3513,136 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         </div>
       )}
 
+      {/* Modale pour Observation 2 */}
+      {interactionState.type === 'CHOOSING_OBS2_ACTION' && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 2000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px',
+            maxWidth: '400px', width: '90%', border: '1px solid #4a9eff',
+            boxShadow: '0 0 20px rgba(74, 158, 255, 0.2)', textAlign: 'center'
+          }}>
+            <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Observation II</h3>
+            <p style={{ marginBottom: '20px', color: '#ddd' }}>Voulez-vous défausser un Média pour marquer un signal supplémentaire dans le secteur de Mercure ?</p>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button
+                onClick={() => handleObs2Choice(true)}
+                style={{
+                  padding: '10px 20px', backgroundColor: '#4caf50', color: '#fff',
+                  border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
+                }}
+              >
+                Oui (-1 Média)
+              </button>
+              <button
+                onClick={() => handleObs2Choice(false)}
+                style={{
+                  padding: '10px 20px', backgroundColor: '#555', color: '#fff',
+                  border: 'none', borderRadius: '4px', cursor: 'pointer'
+                }}
+              >
+                Non
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale pour Observation 3 */}
+      {interactionState.type === 'CHOOSING_OBS3_ACTION' && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 2000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px',
+            maxWidth: '400px', width: '90%', border: '1px solid #4a9eff',
+            boxShadow: '0 0 20px rgba(74, 158, 255, 0.2)', textAlign: 'center'
+          }}>
+            <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Observation III</h3>
+            <p style={{ marginBottom: '20px', color: '#ddd' }}>Voulez-vous défausser une carte de votre main pour marquer un signal supplémentaire ?</p>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button
+                onClick={() => handleObs3Choice(true)}
+                style={{
+                  padding: '10px 20px', backgroundColor: '#4caf50', color: '#fff',
+                  border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
+                }}
+              >
+                Oui
+              </button>
+              <button
+                onClick={() => handleObs3Choice(false)}
+                style={{
+                  padding: '10px 20px', backgroundColor: '#555', color: '#fff',
+                  border: 'none', borderRadius: '4px', cursor: 'pointer'
+                }}
+              >
+                Non
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale pour Observation 4 */}
+      {interactionState.type === 'CHOOSING_OBS4_ACTION' && (() => {
+        const canLaunch = currentPlayer.energy >= 1 && ProbeSystem.canLaunchProbe(game, currentPlayer.id, false).canLaunch;
+        const canMove = currentPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+
+        return (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 2000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px',
+            maxWidth: '400px', width: '90%', border: '1px solid #4a9eff',
+            boxShadow: '0 0 20px rgba(74, 158, 255, 0.2)', textAlign: 'center'
+          }}>
+            <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Observation IV</h3>
+            <p style={{ marginBottom: '20px', color: '#ddd' }}>Choisissez votre bonus :</p>
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button
+                onClick={() => handleObs4Choice('PROBE')}
+                disabled={!canLaunch}
+                style={{
+                  padding: '10px 20px', 
+                  backgroundColor: !canLaunch ? '#555' : '#4caf50', 
+                  color: '#fff',
+                  border: 'none', borderRadius: '4px', 
+                  cursor: !canLaunch ? 'not-allowed' : 'pointer', 
+                  fontWeight: 'bold',
+                  opacity: !canLaunch ? 0.6 : 1
+                }}
+              >
+                Lancer une sonde (-1 Énergie)
+              </button>
+              <button
+                onClick={() => handleObs4Choice('MOVE')}
+                disabled={!canMove}
+                style={{
+                  padding: '10px 20px', backgroundColor: !canMove ? '#555' : '#ffd700', color: !canMove ? '#fff' : '#000',
+                  border: 'none', borderRadius: '4px', cursor: !canMove ? 'not-allowed' : 'pointer', fontWeight: 'bold',
+                  opacity: !canMove ? 0.6 : 1
+                }}
+              >
+                +1 Déplacement
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+      })()}
+
       {/* Menu de choix des bonus interactifs */}
       {interactionState.type === 'CHOOSING_BONUS_ACTION' && (
         <div style={{
@@ -2930,8 +3698,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         </div>
       )}
 
-      {/* Modale de confirmation pour carte jouée avec perte de sonde */}
-      {playCardConfirmation.visible && (
+      {/* Modale de confirmation */}
+      {confirmModalState.visible && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 2000,
@@ -2942,18 +3710,22 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             maxWidth: '400px', border: '1px solid #ff6b6b', textAlign: 'center'
           }}>
             <h3 style={{ color: '#ff6b6b', marginTop: 0 }}>Attention</h3>
-            <p style={{ color: '#ddd', marginBottom: '20px' }}>{playCardConfirmation.message}</p>
+            <p style={{ color: '#ddd', marginBottom: '20px' }}>{confirmModalState.message}</p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
               <button
-                onClick={() => setPlayCardConfirmation({ visible: false, cardId: null, message: '' })}
+                onClick={() => setConfirmModalState({ visible: false, cardId: null, message: '', onConfirm: undefined })}
                 style={{ padding: '8px 16px', backgroundColor: '#555', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
               >
                 Annuler
               </button>
               <button
                 onClick={() => {
-                  if (playCardConfirmation.cardId) executePlayCard(playCardConfirmation.cardId);
-                  setPlayCardConfirmation({ visible: false, cardId: null, message: '' });
+                  if (confirmModalState.onConfirm) {
+                    confirmModalState.onConfirm();
+                  } else if (confirmModalState.cardId) {
+                    executePlayCard(confirmModalState.cardId);
+                  }
+                  setConfirmModalState({ visible: false, cardId: null, message: '', onConfirm: undefined });
                 }}
                 style={{ padding: '8px 16px', backgroundColor: '#ff6b6b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
               >
@@ -3134,7 +3906,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                             } else if (isNextAvailable) {
                               statusText = "Disponible";
                               statusColor = "#4a9eff";
-                              actionText = "Cliquer pour placer un marqueur";
+                              actionText = "Cliquez pour placer un marqueur";
                             } else if (hasMarkerOnTile) {
                               statusText = "Déjà validé";
                               statusColor = "#aaa";
@@ -3242,6 +4014,24 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       <div style={{ fontSize: '0.8em', color: '#888' }}>{game.decks.cards.length || 0} cartes</div>
                     </div>
 
+                    {/* Pile de défausse */}
+                    {/*
+                    <div
+                      className="seti-common-card"
+                      style={{
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: '4px',
+                        backgroundColor: 'rgba(0,0,0,0.3)',
+                        border: '1px dashed #555',
+                        cursor: 'help'
+                      }}
+                      title="Pile de défausse"
+                      >
+                      <div style={{ fontWeight: 'bold', color: '#aaa', textAlign: 'center' }}>Défausse</div>
+                      <div style={{ fontSize: '0.8em', color: '#888' }}>{game.decks.discardPile?.length || 0} cartes</div>
+                    </div>
+                    */}
                     {game.decks.cardRow && game.decks.cardRow.map(card => (
                       <div key={card.id}
                         onClick={() => handleCardRowClick(card.id)}

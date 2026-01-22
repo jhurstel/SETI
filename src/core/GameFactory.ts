@@ -44,6 +44,7 @@ export class GameFactory {
       cards: this.createActionDeck(),
       speciesCards: [],
       cardRow: [],
+      discardPile: [],
       roundDecks: {}
     };
 
@@ -357,10 +358,10 @@ export class GameFactory {
 65;Radiotélescope FAST;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée, 1 Rotation et 1 Technologie Observation;1 Déplacement;Noir;1 Crédit;4 Crédits;1 Rotation + 1 Tech Observation + 2 Signaux Rangée;
 67;Radiotélescope d'Eupatoria;Action;Gagnez 1 Média, 1 Rotation et 1 Technologie Observation. Puis vous pouvez défausser 1 carte de votre main pour son signal.;1 Déplacement;Bleu;1 Pioche;3 Crédits;1 Média + 1 Rotation + 1 Tech Observation;GAIN_SIGNAL_FROM_HAND:1
 114;Chasseurs de Planètes;Action;Gagnez 1 Carte.Vous pouvez ensuite défausser jusqu'à 3 cartes de votre main pour leurs signaux.;1 Média;Rouge;1 Energie;1 Crédit;1 Carte;GAIN_SIGNAL_FROM_HAND:3
-83;"Signal ""Wow!""";Action;Gagnez 1 Média et 2 Signaux dans le secteur de la Terre.;1 Déplacement;Bleu;1 Energie;2 Crédits;1 Média + 2 Signaux Terre;
-47;Very Large Array;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Donnée.;1 Média;Jaune;1 Energie;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:data
-46;Observatoire ALMA;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Pioche.;1 Déplacement;Jaune;1 Crédit;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:draw
-45;Allen Telescope Array;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Energie.;1 Média;Rouge;1 Pioche;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:energy
+83;Signal "Wow!";Action;Gagnez 1 Média et 2 Signaux dans le secteur de la Terre.;1 Déplacement;Bleu;1 Energie;2 Crédits;1 Média + 2 Signaux Terre;
+47;Very Large Array;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Donnée.;1 Média;Jaune;1 Energie;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:data:1
+46;Observatoire ALMA;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Pioche.;1 Déplacement;Jaune;1 Crédit;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:draw:1
+45;Allen Telescope Array;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Energie.;1 Média;Rouge;1 Pioche;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:energy:1
 28;Télescope Spatial Kepler;Action;Gagnez 1 Déplacemet et 2 Signaux dans un secteur où se trouve l'une de vos sondes.;1 Média;Bleu;1 Crédit;2 Crédits;1 Déplacement + 2 Signaux Sonde;
 27;Télescope Spatial Huble;Action;Gagnez 1 Déplacemet et 1 Signal dans un secteur où se trouve l'une de vos sondes.;1 Média;Rouge;1 Pioche;1 Crédit;1 Déplacement + 1 Signal Sonde;
 49;Program Breakthrough Watch;Action;Gagnez 1 Déplacement et 1 Signal dans un secteur Jaune.;1 Média;Rouge;1 Crédit;1 Crédit;1 Déplacement + 1 Signal Jaune;
@@ -378,8 +379,27 @@ export class GameFactory {
 55;Radiotélescope d'Arecibo;Action;Gagnez 1 Scan. Marquez également 1 Signal dans n'importe quel secteur.;1 Média;Jaune;1 Pioche;3 Crédits;1 Scan + 1 Signal;
 136;Radiotélescope d'Algonquin;Action;Gagnez 4 Signaux dans un secteur Jaune, Rouge, Bleu et Noir. Toutefois, ces signaux ne vous permettent pas dobtenir des Données.;1 Donnée;Rouge;1 Energie;1 Crédit;1 Signal Jaune + 1 Signal Bleu + 1 Signal Rouge + 1 Signal Noir;NO_DATA
 29;Télescope Spatial James Webb;Action;Gagnez 1 Déplacement et 1 Signal dans un secteur où se trouve l'une de vos sondes et dans les deux secteurs adjacents.;1 Média;Jaune;1 Energie;2 Crédits;1 Déplacement + 1 Signal Sonde;GAIN_SIGNAL_ADJACENTS
+75;Etude sur les Extrêmophiles;Action;Gagnez 1 Trace de Vie de n'importe quelle couleur. Puis gagnez 1 PV pour chaque Trace de Vie que vous avez marquée de cette couleur.;1 Donnée;Noir;1 Crédit;2 Crédits;1 Trace;SCORE_PER_TRACE:any:1
+108;SETI@home;Action;Si vous avez au moins 8 Médias marquez 1 Trace de Vie Rouge.;1 Donnée;Noir;1 Crédit;1 Crédit;;GAIN_LIFETRACE_IF_MEDIA:red:1
+18;Hayabusa;Action;Si vous avez une sonde sur un champ d'astéroïdes, marquez 1 Trace de Vie Jaune.;1 Déplacement;Noir;1 Pioche;1 Crédit;;GAIN_LIFETRACE_IF_ASTEROID:yellow:1
+84;Retour d'Echantillons;Action;Retirez l'un de vos atterrisseurs de n'importe quelle planète ou lune pour marquer 1 Trace de Vie Jaune.;1 Média;Bleu;1 Energie;1 Crédit;;SAMPLE_RETURN
+98;Spectrographe Coronal;Action;Marquez 1 Trace de Vie Rouge pour une espèce pour laquelle vous avez déjà marqué 1 Trace de Vie Rouge.;1 Donnée;Rouge;1 Energie;1 Crédit;;GAIN_LIFETRACE_IF_ALREADY:red:1
+99;Microscope Electronique;Action;Marquez 1 Trace de Vie Jaune pour une espèce pour laquelle vous avez déjà marqué 1 Trace de Vie Jaune.;1 Donnée;Jaune;1 Pioche;1 Crédit;;GAIN_LIFETRACE_IF_ALREADY:yellow:1
+100;Supercalculateur Exascale;Action;Marquez 1 Trace de Vie Bleu pour une espèce pour laquelle vous avez déjà marqué 1 Trace de Vie Bleu.;1 Donnée;Bleu;1 Crédit;1 Crédit;;GAIN_LIFETRACE_IF_ALREADY:blue:1
+86;Télescope Géant Magellan;Fin de jeu;Gagnez 1 Signal dans un secteur d'une carte de la rangée. Mission: Gagnez 1 PV pour chaque secteur où vous avez un signal.;1 Média;Rouge;1 Energie;1 Crédit;1 Signal;
+40;Observatoire de Kepler-22;Fin de jeu;Gagnez 2 Signaux dans le secteur de Kepler-22. Mission: Gagnez 3PVs pour chaque secteur Jaune que vous avez couvert.;1 Média;Rouge;1 Crédit;2 Crédits;2 Signaux Kepler-22;
+38;Observatoire de l'Etoile de Barnard;Fin de jeu;Gagnez 2 Signaux dans le secteur de l'Etoile de Barnard. Mission: Gagnez 3 PVs pour chaque secteur Rouge que vous avez couvert.;1 Média;Bleu;1 Energie;2 Crédits;2 Signaux Etoile de Barnard;
+42;Observatoire de Procyon;Fin de jeu;Gagnez 2 Signaux dans le secteur de Procyon. Mission: Gagnez 3 PVs pour chaque secteur Bleu que vous avez couvert.;1 Média;Jaune;1 Pioche;2 Crédits;2 Signaux Procyon;
+44;Observatoire de Vega;Fin de jeu;Gagnez 2 Signaux dans le secteur de Véga. Mission: Gagnez 3 PVs pour chaque secteur Noir que vous avez couvert.;1 Média;Rouge;1 Crédit;1 Crédit;1 Signal Véga;
+126;Télescope Spatial Euclide;Fin de jeu;Gagnez 1 Rotation et 1 Technologie Exploration ou Observation. Mission: Gagnez 2 PVs pour chaque Technologie Informatique.;1 Média;Bleu;1 Pioche;3 Crédits;1 Rotation + 1 Tech;CHOICE_EXPLO_OR_OBSERV
+14;Mars Science Laboratory;Fin de jeu;Gagnez 1 Média et 2 Données. Mission: Gagnez 4 PVs pour chacun de vos Orbiteurs et Atterrisseurs sur Mars (lunes comprises).;1 Déplacement;Rouge;1 Crédit;2 Crédits;1 Média + 2 Données;
+12;Europa Clipper;Fin de jeu;Gagnez 1 Atterrissage sur une planète ou une lune, même sans la technologie requise. Mission: Gagnez 3 PVs pour chacun de vos Orbiteurs et Atterrisseurs sur Jupiter (lunes comprises).;1 Média;Noir;1 Crédit;2 Crédits;1 Atterrissage;IGNORE_SATELLITE_LIMIT
+127;NEAR Shoemaker;Fin de jeu;Gagnez 2 Médias. Mission: Si vous avez une sonde sur un champ d'astéroïdes, gagnez 13 PVs.;1 Donnée;Jaune;1 Crédit;1 Crédit;2 Médias;
+113;Congrès Solvay;Fin de jeu;Gagnez 2 Médias. Mission: résolvez la case la plus à droite d'une tuile Score dorée sur laquelle vou sn'avez pas placé de marqueur.;1 Donnée;Bleu;1 Pioche;2 Crédits;2 Médias;
+63;SHERLOC;Fin de jeu;Gagnez 1 Rotation et 1 Technologie Exploration. Mission: Gagnez 2 PVs pour chaque Trace de Vie Jaune.;1 Déplacement;Bleu;1 Crédit;3 Crédits;1 Rotation + 1 Tech Exploration;
+68;DUNE;Fin de jeu;Gagnez 1 Rotation et 1 Technologie Informatique. Mission: Gagnez 2 PVs pour chaque Trace de Vie Bleu.;1 Média;Rouge;1 Crédit;3 Crédits;1 Rotation + 1 Tech Informatique;
+62;Observatoire Spatial d'Onsala;Fin de jeu;Gagnez 1 Rotation et 1 Technologie Observation. Mission: Gagnez 2 PVs pour chaque Trace de Vie Rouge.;1 Donnée;Rouge;1 Crédit;3 Crédits;1 Rotation + 1 Tech Observation;
 `
-
     return this.parseCSV(csvContent);
   }
 
@@ -425,7 +445,7 @@ export class GameFactory {
     if (v.includes('action')) return CardType.ACTION;
     if (v.includes('conditionnel')) return CardType.CONDITIONAL_MISSION;
     if (v.includes('déclenchable')) return CardType.TRIGGERED_MISSION;
-    if (v.includes('fin de jeu')) return CardType.END_GAME
+    if (v.includes('fin')) return CardType.END_GAME
     return CardType.ACTION; // Valeur par défaut
   }
 
@@ -488,6 +508,10 @@ export class GameFactory {
           else if (lower.includes('rouge')) scope = 'RED';
           else if (lower.includes('noir')) scope = 'BLACK';
           else if (lower.includes('deck')) scope = 'DECK';
+          else if (lower.includes('kepler')) scope = 'KEPLER';
+          else if (lower.includes('barnard')) scope = 'BARNARD';
+          else if (lower.includes('procyon')) scope = 'PROCYON';
+          else if (lower.includes('vega')) scope = 'VEGA';
           
           effects.push({ type: 'ACTION', target: 'SIGNAL', value: { amount, scope } });
         }
@@ -688,6 +712,16 @@ export class GameFactory {
         if (parts.length === 3) {
             return [{ type: 'SCORE_PER_SECTOR', target: parts[1], value: parseInt(parts[2], 10) }];
         }
+    }
+
+    // Gestion du format CHOICE_EXPLO_OR_OBSERV
+    if (constraint === 'CHOICE_EXPLO_OR_OBSERV') {
+      return [{ type: 'CHOICE_EXPLO_OR_OBSERV', value: true }];
+    }
+
+    // Gestion du format IGNORE_SATELLITE_LIMIT
+    if (constraint === 'IGNORE_SATELLITE_LIMIT') {
+      return [{ type: 'IGNORE_SATELLITE_LIMIT', value: true }];
     }
 
     return [{ type: 'PASSIVE', target: constraint, value: 1 }];

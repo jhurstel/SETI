@@ -659,7 +659,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
 
     // Logique d'interaction (Orbite / Atterrissage)
     const currentPlayer = game.players[game.currentPlayerIndex];
-    const isRobot = (currentPlayer as any).type === 'robot';
+    const isRobot = currentPlayer.type === 'robot';
     
     // Trouver l'objet céleste correspondant à l'ID de la planète pour vérifier la position
     const targetObj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS].find(o => o.id === id);
@@ -1062,13 +1062,13 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                         statusText = `Occupé par ${player?.name}`;
                         statusColor = player?.color || "#ccc";
                         if (isClickable) {
-                            statusText = "Cliquer pour retirer";
+                            statusText = "Cliquez pour retirer";
                             statusColor = "#ff6b6b";
                         }
                     } else if (isClickable) {
                         statusText = "Disponible";
                         statusColor = "#4a9eff";
-                        actionText = "Cliquer pour mettre en orbite (Coût: 1 Crédit, 1 Énergie)";
+                        actionText = "Cliquez pour mettre en orbite (Coût: 1 Crédit, 1 Énergie)";
                     } else {
                         statusText = "Indisponible";
                         statusColor = "#ff6b6b";
@@ -1132,13 +1132,13 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                         statusText = `Occupé par ${player?.name}`;
                         statusColor = player?.color || "#ccc";
                         if (isClickable) {
-                            statusText = "Cliquer pour retirer";
+                            statusText = "Cliquez pour retirer";
                             statusColor = "#ff6b6b";
                         }
                     } else if (isClickable) {
                         statusText = "Disponible";
                         statusColor = "#4a9eff";
-                        actionText = "Cliquer pour atterrir";
+                        actionText = "Cliquez pour atterrir (Coût: ${check.energyCost} Énergie)";
                     } else {
                         statusText = "Indisponible";
                         statusColor = "#ff6b6b";
@@ -1560,6 +1560,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           };
           const color = colorMap[sector.color] || '#fff';
 
+          const coveredByPlayers = (sector.coveredBy || []).map((pid: string) => game.players.find(p => p.id === pid)).filter(p => !!p);
+
           // Préparation du tooltip Secteur
           const mediaBonusText = "1 Média pour chaque joueur présent";
           const firstBonusStr = (formatBonus(sector.firstBonus) || []).join(', ') || 'Aucun';
@@ -1577,12 +1579,27 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
              );
           }
 
+          let coverDisplay;
+          if (coveredByPlayers.length > 0) {
+            coverDisplay = (
+              <div style={{ marginTop: '6px', paddingTop: '4px', borderTop: '1px solid #555' }}>
+                <div style={{ fontSize: '0.8em', color: '#aaa' }}>Couvert par :</div>
+                {coveredByPlayers.map(p => (
+                  <div key={p.id} style={{ color: p.color, fontWeight: 'bold', fontSize: '0.9em' }}>{p.name}</div>
+                ))}
+              </div>
+            );
+          } else {
+            coverDisplay = <div style={{ fontSize: '0.8em', color: '#aaa' }}>Aucune couverture</div>;
+          }
+
           const sectorTooltipContent = (
             <div style={{ textAlign: 'left' }}>
                 <div style={{fontWeight: 'bold', borderBottom: '1px solid #ccc', marginBottom: '4px', color: color}}>{sector.name.toUpperCase()}</div>
                 <div style={{fontSize: '0.9em', marginBottom: '4px'}}>Gains à la couverture :</div>
                 <div style={{fontSize: '0.9em', color: '#ff6b6b'}}>• {mediaBonusText}</div>
                 {bonusDisplay}
+                {coverDisplay}
             </div>
           );
 
