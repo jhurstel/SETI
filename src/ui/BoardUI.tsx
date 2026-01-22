@@ -54,7 +54,7 @@ type InteractionState =
   /** Le joueur scanne un secteur (2ème étape : choix de la carte). */
   | { type: 'SELECTING_SCAN_CARD', sequenceId?: string }
   /** Le joueur scanne un secteur (3ème étape : choix du secteur couleur). */
-  | { type: 'SELECTING_SCAN_SECTOR', color: SectorColor, noData?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string }
+  | { type: 'SELECTING_SCAN_SECTOR', color: SectorColor, noData?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string, message?: string }
   /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
   | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string, remainingMoves?: number }
   /** Le joueur doit défausser des cartes de sa main pour leurs signaux. */
@@ -291,6 +291,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       setIsObjectivesOpen(false);
     }
   }, [interactionState.type]);
+
+  // Effet pour afficher un message toast si l'interaction en contient un
+  useEffect(() => {
+    const state = interactionState as any;
+    if (state.message) {
+      setToast({ message: state.message, visible: true });
+    }
+  }, [interactionState]);
 
   // Effet pour la réservation initiale (Setup) pour le joueur humain
   useEffect(() => {
@@ -931,7 +939,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const sector = game.board.sectors[sectorNumber - 1];
 
       // Validate color
-      if (sector.color !== interactionState.color) {
+      if (interactionState.color !== SectorColor.ANY && sector.color !== interactionState.color) {
         setToast({ message: `Couleur incorrecte. Sélectionnez un secteur ${interactionState.color}`, visible: true });
         return;
       }
@@ -952,6 +960,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }
       }
 
+      // Défausser la carte de la pioche si une carte a été utilisée pour la couleur
+      card = game.decks.cards.find(c => c.id === interactionState.cardId);
+      if (card) {
+        const deck = updatedGame.decks.cards;
+        const cardIndex = deck.findIndex(c => c.id === card.id);
+        if (cardIndex !== -1) {
+          const removedCard = deck[cardIndex];
+          deck.splice(cardIndex, 1);
+          initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la pioche`);
+        }
+      }
+      
       // Défausser la carte de la main si une carte a été utilisée pour la couleur
       card = currentPlayer.cards.find(c => c.id === interactionState.cardId);
       if (card) {
@@ -963,7 +983,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la main`);
         }
       }
-      
+
       updatedGame = performScanAndCover(updatedGame, currentPlayer.id, sector.id, interactionState.sequenceId, initialLogs, interactionState.noData);
 
       setGame(updatedGame);
@@ -975,7 +995,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       // TODO passer a la next intereaction
       setInteractionState({ type: 'IDLE' });
       setHasPerformedMainAction(true);
-      setToast({ message: "Scan terminé", visible: true });
       return;
     }
 
@@ -1286,11 +1305,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (bonuses.deckscan) {
       // Révéler et défausser les cartes du dessus du paquet pour déterminer la couleur
       for (let i = 0; i < bonuses.deckscan; i++) {
-        if (updatedGame.decks.cards.length > 0) {
-          const card = updatedGame.decks.cards.shift();
+        if (updatedGame.decks.cards.length > i) {
+          const card = updatedGame.decks.cards[i];
           if (card) {
-            logs.push(`défausse "${card.name}" (${card.scanSector}) du paquet`);
-            newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, cardId: card.id });
+            newPendingInteractions.push({ 
+              type: 'SELECTING_SCAN_SECTOR', 
+              color: card.scanSector, 
+              cardId: card.id,
+              message: `Marquez un signal dans un secteur ${card.scanSector}`
+            });
           }
         }
       }
@@ -2388,6 +2411,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Calcul des secteurs à mettre en surbrillance (flash vert)
   const getHighlightedSectors = () => {
     if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
+      if (interactionState.color === SectorColor.ANY) {
+        return game.board.sectors.map(s => s.id);
+      }
       return game.board.sectors.filter(s => s.color === interactionState.color).map(s => s.id);
     }
     if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {

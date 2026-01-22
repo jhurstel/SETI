@@ -468,8 +468,7 @@ export class GameFactory {
         const match = lower.match(/^(\d+)\s+(.+)$/);
         const amount = match ? parseInt(match[1], 10) : 1;
 
-        if (lower.includes('sonde')) effects.push({ type: 'GAIN', target: 'PROBE', value: amount });
-        else if (lower.includes('média') || lower.includes('media')) effects.push({ type: 'GAIN', target: 'MEDIA', value: amount });
+        if (lower.includes('média') || lower.includes('media')) effects.push({ type: 'GAIN', target: 'MEDIA', value: amount });
         else if (lower.includes('crédit') || lower.includes('credit')) effects.push({ type: 'GAIN', target: 'CREDIT', value: amount });
         else if (lower.includes('energie') || lower.includes('énergie')) effects.push({ type: 'GAIN', target: 'ENERGY', value: amount });
         else if (lower.includes('donnée') || lower.includes('data')) effects.push({ type: 'GAIN', target: 'DATA', value: amount });
@@ -479,6 +478,20 @@ export class GameFactory {
         else if (lower.includes('rotation')) effects.push({ type: 'ACTION', target: 'ROTATION', value: amount });
         else if (lower.includes('atterrissage')) effects.push({ type: 'ACTION', target: 'LAND', value: amount });
         else if (lower.includes('scan')) effects.push({ type: 'ACTION', target: 'SCAN', value: amount });
+        else if (lower.includes('signal') || lower.includes('signaux')) {
+          let scope = 'ANY';
+          if (lower.includes('rangée') || lower.includes('rangee')) scope = 'ROW';
+          else if (lower.includes('terre')) scope = 'EARTH';
+          else if (lower.includes('sonde')) scope = 'PROBE';
+          else if (lower.includes('jaune')) scope = 'YELLOW';
+          else if (lower.includes('bleu')) scope = 'BLUE';
+          else if (lower.includes('rouge')) scope = 'RED';
+          else if (lower.includes('noir')) scope = 'BLACK';
+          else if (lower.includes('deck')) scope = 'DECK';
+          
+          effects.push({ type: 'ACTION', target: 'SIGNAL', value: { amount, scope } });
+        }
+        else if (lower.includes('sonde')) effects.push({ type: 'GAIN', target: 'PROBE', value: amount });
         else if (lower.includes('tech')) {
             let techColor: TechnologyCategory | undefined = undefined;
             if (lower.includes('informatique') || lower.includes('bleu')) techColor = TechnologyCategory.COMPUTING;
@@ -486,19 +499,6 @@ export class GameFactory {
             else if (lower.includes('observation') || lower.includes('rouge')) techColor = TechnologyCategory.OBSERVATION;
             
             effects.push({ type: 'ACTION', target: 'TECH', value: { amount, color: techColor } });
-        }
-        else if (lower.includes('signal') || lower.includes('signaux')) {
-            let scope = 'ANY';
-            if (lower.includes('rangée') || lower.includes('rangee')) scope = 'ROW';
-            else if (lower.includes('terre')) scope = 'EARTH';
-            else if (lower.includes('sonde')) scope = 'PROBE';
-            else if (lower.includes('jaune')) scope = 'YELLOW';
-            else if (lower.includes('bleu')) scope = 'BLUE';
-            else if (lower.includes('rouge')) scope = 'RED';
-            else if (lower.includes('noir')) scope = 'BLACK';
-            else if (lower.includes('deck')) scope = 'DECK';
-            
-            effects.push({ type: 'ACTION', target: 'SIGNAL', value: { amount, scope } });
         }
     }
     return effects;
@@ -662,10 +662,25 @@ export class GameFactory {
         return [{ type: 'SCORE_IF_UNIQUE', value: parseInt(parts[1], 10) }];
     }
 
-    if (constraint === 'KEEP_CARD_IF_ONLY') return [{ type: 'KEEP_CARD_IF_ONLY', value: true }];
-    if (constraint === 'NO_DATA') return [{ type: 'NO_DATA', value: true }];
-    if (constraint === 'ANY_PROBE') return [{ type: 'ANY_PROBE', value: true }];
-    if (constraint === 'GAIN_SIGNAL_ADJACENTS') return [{ type: 'GAIN_SIGNAL_ADJACENTS', value: true }];
+    // Gestion du format KEEP_CARD_IF_ONLY
+    if (constraint === 'KEEP_CARD_IF_ONLY') {
+      return [{ type: 'KEEP_CARD_IF_ONLY', value: true }];
+    }
+
+    // Gestion du format NO_DATA
+    if (constraint === 'NO_DATA') {
+      return [{ type: 'NO_DATA', value: true }];
+    }
+
+    // Gestion du format ANY_PROBE
+    if (constraint === 'ANY_PROBE'){
+      return [{ type: 'ANY_PROBE', value: true }];
+    }
+
+    // Gestion du format GAIN_SIGNAL_ADJACENTS
+    if (constraint === 'GAIN_SIGNAL_ADJACENTS') {
+      return [{ type: 'GAIN_SIGNAL_ADJACENTS', value: true }];
+    }
 
     // Gestion du format SCORE_PER_SECTOR:color:value
     if (constraint.startsWith('SCORE_PER_SECTOR:')) {
