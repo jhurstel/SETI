@@ -1,6 +1,7 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Game, Technology, TechnologyCategory, Bonus, GAME_CONSTANTS } from '../core/types';
+import './TechnologyBoardUI.css';
 
 interface TechnologyBoardUIProps {
   game: Game;
@@ -98,22 +99,8 @@ const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect
   return createPortal(
     <div
       ref={tooltipRef}
-      style={{
-        position: 'fixed',
-        zIndex: 9999,
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        padding: '6px 10px',
-        borderRadius: '4px',
-        border: '1px solid #78a0ff',
-        color: '#fff',
-        textAlign: 'center',
-        minWidth: '120px',
-        pointerEvents: 'none',
-        whiteSpace: 'pre-line',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
-        transition: 'opacity 0.1s ease-in-out',
-        ...style
-      }}
+      className="seti-tech-tooltip"
+      style={style}
     >
       {content}
     </div>
@@ -189,7 +176,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
     if (bonus.probe) elements.push(<span key="probe" style={{ color: '#fff', border: '1px solid #fff', padding: '0 2px', borderRadius: '2px' }}>{bonus.probe} Sonde</span>);
     if (bonus.data) elements.push(<span key="data" style={{ color: '#fff', border: '1px solid #aaa', padding: '0 2px', borderRadius: '2px', backgroundColor: '#333' }}>{bonus.data} Data</span>);
     
-    return <div style={{ fontSize: '0.7em', display: 'flex', gap: '5px', flexWrap: 'wrap' }}>{elements}</div>;
+    return <div className="seti-tech-bonus-container">{elements}</div>;
   };
 
   // Fonction pour obtenir le chemin de l'image SVG d'une technologie
@@ -241,84 +228,67 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                   // Détection du bonus supplémentaire de 2 PV (logique basée sur les valeurs initiales)
                   const hasExtraPv = (topCard.bonus.pv === 5) || (topCard.bonus.pv === 2 && !!(topCard.bonus.media || topCard.bonus.card || topCard.bonus.energy));
                   
+                  // Construction des classes CSS
+                  let cardClass = 'seti-tech-card';
+                  if (hasTech) {
+                    cardClass += ' acquired';
+                  } else if (isClickable) {
+                    cardClass += ' clickable';
+                  } else {
+                    cardClass += ' default';
+                  }
+                  if (count > 1 && !isClickable) {
+                    cardClass += ' stacked';
+                  }
+
+                  // Style dynamique pour la bordure (dépend de la catégorie et de l'état)
+                  const cardStyle: React.CSSProperties = {};
+                  if (!hasTech && !isClickable) {
+                     // Bordure par défaut (couleur catégorie) si pas acquis et pas en cours de recherche active
+                     // Si isResearching est true mais pas clickable (ex: pas assez de ressources ou mauvaise catégorie), on met une bordure grise
+                     if (isResearching) {
+                        cardStyle.border = '1px solid #555';
+                     } else {
+                        cardStyle.border = `1px solid ${categoryColor}`;
+                     }
+                  }
+
                   return (
                     <div 
                       key={topCard.id} 
-                      className="seti-tech-card"
+                      className={cardClass}
                       onClick={() => isClickable && onTechClick && onTechClick(topCard)}
                       onMouseEnter={(e) => handleTooltipHover(e, (
-                        <div style={{ textAlign: 'left', maxWidth: '200px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                            <span style={{ fontWeight: 'bold', color: '#4a9eff' }}>{topCard.name}</span>
-                            <span style={{ fontSize: '0.7em', color: categoryColor, border: `1px solid ${categoryColor}`, padding: '0 2px', borderRadius: '2px' }}>{slot.category}</span>
+                        <div className="seti-tech-tooltip-content">
+                          <div className="seti-tech-tooltip-header">
+                            <span className="seti-tech-tooltip-name">{topCard.name}</span>
+                            <span className="seti-tech-tooltip-category" style={{ color: categoryColor, borderColor: categoryColor }}>{slot.category}</span>
                           </div>
-                          {hasTech && <div style={{ color: '#ff6b6b', fontSize: '0.8em', marginBottom: '4px', fontStyle: 'italic' }}>Déjà acquis</div>}
-                          <div style={{ fontSize: '0.9em', marginBottom: '6px' }}>{topCard.description || topCard.shorttext}</div>
-                          <div style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '4px', borderRadius: '4px', marginBottom: '4px' }}>
+                          {hasTech && <div className="seti-tech-tooltip-acquired">Déjà acquis</div>}
+                          <div className="seti-tech-tooltip-desc">{topCard.description || topCard.shorttext}</div>
+                          <div className="seti-tech-tooltip-bonus">
                             <div style={{ fontSize: '0.7em', color: '#aaa', marginBottom: '2px' }}>Gains immédiats :</div>
                             {renderBonus(topCard.bonus, false)}
                           </div>
-                          <div style={{ fontSize: '0.8em', color: '#aaa' }}>
+                          <div className="seti-tech-tooltip-count">
                             {count} exemplaire{count > 1 ? 's' : ''} restant{count > 1 ? 's' : ''}
                           </div>
                         </div>
                       ))}
                       onMouseLeave={handleTooltipLeave}
-                      style={{
-                        border: hasTech ? 'none' : (isResearching ? (isClickable ? '2px solid #00ff00' : '1px solid #555') : `1px solid ${categoryColor}`),
-                        backgroundColor: 'rgba(30, 30, 40, 0.8)',
-                        padding: '8px',
-                        borderRadius: '4px',
-                        marginBottom: '8px',
-                        position: 'relative',
-                        cursor: isClickable ? 'pointer' : 'default',
-                        opacity: hasTech ? 0.5 : 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
-                        minHeight: '80px',
-                        boxShadow: isClickable 
-                          ? '0 0 10px rgba(0, 255, 0, 0.3)' 
-                          : (count > 1 ? '2px 2px 0px rgba(255,255,255,0.1)' : 'none'),
-                        transition: 'all 0.2s ease',
-                        overflow: 'hidden'
-                      }}
+                      style={cardStyle}
                     >
                       {hasExtraPv && (
-                        <div style={{
-                            position: 'absolute',
-                            top: '7px',
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            backgroundColor: '#8affc0',
-                            color: '#000',
-                            borderRadius: '50%',
-                            width: '20px',
-                            height: '20px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.7em',
-                            fontWeight: 'bold',
-                            zIndex: 10,
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
-                            border: '1px solid #fff'
-                        }}>
+                        <div className="seti-tech-card-extra-pv">
                             +2
                         </div>
                       )}
                       
                       {techImage ? (
-                        <div style={{ 
-                          width: '100%', 
-                          height: '100%', 
+                        <div className="seti-tech-card-image" style={{ 
                           backgroundImage: `url(${techImage})`, 
-                          backgroundSize: 'contain', 
-                          backgroundRepeat: 'no-repeat', 
-                          backgroundPosition: 'center',
-                          minHeight: '80px'
                         }}>
-                           <div style={{ position: 'absolute', top: 0, right: 0, background: 'rgba(0,0,0,0.7)', color: '#fff', padding: '2px 6px', fontSize: '0.7em', borderRadius: '0 0 0 4px' }}>
+                           <div className="seti-tech-card-count-badge">
                              x{count}
                            </div>
                         </div>

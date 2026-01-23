@@ -1,0 +1,186 @@
+.seti-tech-tooltip {
+  position: fixed;
+  z-index: 9999;
+  background-color: rgba(0, 0, 0, 0.9);
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #78a0ff;
+  color: #fff;
+  text-align: center;
+  min-width: 120px;
+  pointer-events: none;
+  white-space: pre-line;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  transition: opacity 0.1s ease-in-out;
+}
+
+.seti-tech-tooltip-content {
+  text-align: left;
+  max-width: 200px;
+}
+
+.seti-tech-tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.seti-tech-tooltip-name {
+  font-weight: bold;
+  color: #4a9eff;
+}
+
+.seti-tech-tooltip-category {
+  font-size: 0.7em;
+  padding: 0 2px;
+  border-radius: 2px;
+  border: 1px solid;
+}
+
+.seti-tech-tooltip-acquired {
+  color: #ff6b6b;
+  font-size: 0.8em;
+  margin-bottom: 4px;
+  font-style: italic;
+}
+
+.seti-tech-tooltip-desc {
+  font-size: 0.9em;
+  margin-bottom: 6px;
+}
+
+.seti-tech-tooltip-bonus {
+  background-color: rgba(255,255,255,0.1);
+  padding: 4px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.seti-tech-tooltip-count {
+  font-size: 0.8em;
+  color: #aaa;
+}
+
+.seti-tech-bonus-container {
+  font-size: 0.7em;
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.seti-tech-card {
+  background-color: rgba(30, 30, 40, 0.8);
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 80px;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.seti-tech-card.clickable {
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+  border: 2px solid #00ff00 !important;
+}
+
+.seti-tech-card.acquired {
+  opacity: 0.5;
+  border: none !important;
+  cursor: default;
+}
+
+.seti-tech-card.default {
+  cursor: default;
+}
+
+.seti-tech-card.stacked {
+  box-shadow: 2px 2px 0px rgba(255,255,255,0.1);
+}
+
+.seti-tech-card-extra-pv {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #8affc0;
+  color: #000;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7em;
+  font-weight: bold;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  border: 1px solid #fff;
+}
+
+.seti-tech-card-image {
+  width: 100%;
+  height: 100%;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  min-height: 80px;
+}
+
+.seti-tech-card-count-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: rgba(0,0,0,0.7);
+  color: #fff;
+  padding: 2px 6px;
+  font-size: 0.7em;
+  border-radius: 0 0 0 4px;
+}
+
+.seti-tech-categories {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.seti-tech-category {
+  background: rgba(30, 40, 60, 0.6);
+  border-radius: 6px;
+  padding: 8px;
+  flex-shrink: 0;
+}
+
+.seti-tech-category-title {
+  font-weight: bold;
+  color: #78a0ff;
+  margin-bottom: 6px;
+  font-size: 0.8rem;
+}
+
+.seti-tech-slots {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.seti-tech-slot {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  padding: 4px;
+  text-align: center;
+  font-size: 0.7rem;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
