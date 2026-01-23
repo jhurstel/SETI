@@ -499,6 +499,57 @@ export interface ValidationWarning {
   message: string;
 }
 
+/**
+ * Représente les différents états d'interaction possibles pour le joueur.
+ * L'état 'IDLE' est l'état par défaut où le joueur peut initier une action principale.
+ * Tous les autres états représentent une interaction en cours qui bloque les actions principales.
+ */
+export type InteractionState =
+  /** Le joueur est en attente, aucune interaction en cours. */
+  | { type: 'IDLE', sequenceId?: string }
+  /** Le joueur a un bonus de réservation et doit choisir une carte à glisser sous son plateau. */
+  | { type: 'RESERVING_CARD', count: number, sequenceId?: string, selectedCards: string[] }
+  /** Le joueur doit défausser des cartes (ex: fin de manche). */
+  | { type: 'DISCARDING_CARD', selectedCards: string[], sequenceId?: string }
+  /** Le joueur a initié un échange et doit choisir la ressource à dépenser. */
+  | { type: 'TRADING_CARD', targetGain: string, selectedCards: string[], sequenceId?: string }
+  /** Le joueur acquiert une carte (gratuitement ou en payant) et doit la sélectionner dans la pioche ou la rangée. */
+  | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, sequenceId?: string, triggerFreeAction?: boolean }
+  /** Le joueur a des déplacements gratuits à effectuer. */
+  | { type: 'MOVING_PROBE', count: number, autoSelectProbeId?: string, sequenceId?: string }
+  /** Le joueur a un atterrissage gratuit (ex: Carte 13). */
+  | { type: 'LANDING_PROBE', count: number, source?: string, sequenceId?: string }
+  /** Le joueur acquiert une technologie (en payant ou en bonus) et doit la sélectionner. */
+  | { type: 'ACQUIRING_TECH', isBonus: boolean, sequenceId?: string, category?: TechnologyCategory, sharedOnly?: boolean, noTileBonus?: boolean }
+  /** Le joueur a choisi une technologie "Informatique" et doit sélectionner une colonne sur son ordinateur. */
+  | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, sequenceId?: string }
+  /** Le joueur a lancé l'action "Analyser", principalement pour l'animation. */
+  | { type: 'ANALYZING', sequenceId?: string }
+  /** Le joueur doit placer une trace de vie sur le plateau Alien. */
+  | { type: 'PLACING_LIFE_TRACE', color: LifeTraceType, sequenceId?: string }
+  /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
+  | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number, sequenceId?: string }
+  /** Le joueur scanne un secteur (2ème étape : choix de la carte). */
+  | { type: 'SELECTING_SCAN_CARD', sequenceId?: string }
+  /** Le joueur scanne un secteur (3ème étape : choix du secteur couleur). */
+  | { type: 'SELECTING_SCAN_SECTOR', color: SectorColor, noData?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string, message?: string }
+  /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
+  | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string, remainingMoves?: number }
+  /** Le joueur doit choisir s'il utilise la technologie Observation 2 (Payer 1 Média pour scanner Mercure). */
+  | { type: 'CHOOSING_OBS2_ACTION', sequenceId?: string }
+  /** Le joueur doit choisir s'il utilise la technologie Observation 3 (Défausser une carte pour un signal). */
+  | { type: 'CHOOSING_OBS3_ACTION', sequenceId?: string }
+  /** Le joueur doit choisir s'il utilise la technologie Observation 4 (Payer 1 Energie pour lancer une sonde OU gagner 1 déplacement). */
+  | { type: 'CHOOSING_OBS4_ACTION', sequenceId?: string }
+  /** Le joueur doit défausser des cartes de sa main pour leurs signaux. */
+  | { type: 'DISCARDING_FOR_SIGNAL', count: number, selectedCards: string[], sequenceId?: string }
+  /** Le joueur doit retirer un orbiteur (Carte 15). */
+  | { type: 'REMOVING_ORBITER', sequenceId?: string }
+  /** Le joueur a reçu plusieurs bonus interactifs et doit choisir l'ordre de résolution. */
+  | { type: 'CHOOSING_BONUS_ACTION', bonusesSummary: string, choices: { id: string, label: string, state: InteractionState, done: boolean }[], sequenceId?: string }
+  /** Un effet de carte non-interactif est déclenché. */
+  | { type: 'TRIGGER_CARD_EFFECT', effectType: string, value: any, sequenceId?: string };
+
 // ============================================================================
 // SCORING
 // ============================================================================

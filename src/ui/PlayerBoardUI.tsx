@@ -189,22 +189,22 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
     const missionDescription = descriptionParts.length > 1 ? descriptionParts[1] : null;
 
     return (
-    <div style={{ width: '240px', textAlign: 'left' }}>
-      <div style={{ fontWeight: 'bold', color: '#4a9eff', fontSize: '1.1rem', marginBottom: '6px', borderBottom: '1px solid #444', paddingBottom: '4px' }}>{card.name}</div>
-      <div style={{ fontSize: '0.95em', color: '#fff', marginBottom: '10px', lineHeight: '1.4' }}>
+    <div className="seti-card-tooltip">
+      <div className="seti-card-tooltip-title">{card.name}</div>
+      <div className="seti-card-tooltip-desc">
         {mainDescription}
         {missionDescription && (
-            <div style={{ marginTop: '6px', color: '#ffd700', borderTop: '1px dashed #555', paddingTop: '4px' }}>
+            <div className="seti-card-tooltip-mission">
                 <strong>Mission:</strong>{missionDescription}
             </div>
         )}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.85em', backgroundColor: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '4px' }}>
+      <div className="seti-card-tooltip-stats">
          <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
          <div>Type: {card.type === CardType.ACTION ? 'Action' : 'Mission'} ({card.id})</div>
          <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
          <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
-         <div style={{ gridColumn: '1 / -1', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
+         <div className="seti-card-tooltip-scan">Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
       </div>
     </div>
     );
@@ -418,42 +418,17 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
           e.stopPropagation();
           if (!disabled) onClick(e);
         }}
-        // disabled={disabled} // Désactivé pour permettre les événements de souris (tooltip)
+        className="seti-action-btn"
         aria-disabled={disabled}
         style={{
-          backgroundColor: !disabled ? '#333' : '#222',
           color: !disabled ? color : '#555',
-          border: !disabled ? '1px solid #555' : '1px solid #333',
-          borderRadius: '6px',
-          padding: '0',
-          width: '30px',
-          height: '20px',
-          fontSize: '0.8rem',
-          cursor: !disabled ? 'pointer' : 'default',
-          fontWeight: 'normal',
-          boxShadow: !disabled ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
-          transition: 'all 0.2s',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          lineHeight: 1,
           ...style
         }}
         onMouseEnter={(e) => {
           handleTooltipHover(e, tooltip);
-          //if (disabled) return;
-          const target = e.currentTarget as HTMLButtonElement;
-          target.style.borderColor = '#4a9eff';
-          target.style.backgroundColor = '#444';
-          target.style.boxShadow = '0 0 5px rgba(74, 158, 255, 0.3)';
         }}
         onMouseLeave={(e) => {
           handleTooltipLeave();
-          //if (disabled) return;
-          const target = e.currentTarget as HTMLButtonElement;
-          target.style.borderColor = '#555';
-          target.style.backgroundColor = '#333';
-          target.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
         }}
       >
         {icon}
@@ -584,8 +559,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
       >
         {isHighlighted && !isDiscarding && !isReserving && !isTrading && !isDiscardingForSignal && (
           <>
-          {renderActionButton('▶️', effectivePlayTooltip, () => { if (canPlayAction && onPlayCard) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlayAction, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 })}
-          {renderActionButton('🗑️', discardTooltip, () => { if (canDiscard && onDiscardCardAction) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canDiscard, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 })}
+          {renderActionButton('▶️', effectivePlayTooltip, () => { if (canPlayAction && onPlayCard) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlayAction, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 } as React.CSSProperties)}
+          {renderActionButton('🗑️', discardTooltip, () => { if (canDiscard && onDiscardCardAction) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canDiscard, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 } as React.CSSProperties)}
           </>
         )}
         <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
@@ -597,9 +572,9 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', flex: 1, minHeight: 0 }}>
+    <div className="seti-player-board-container">
       {/* Onglets des joueurs */}
-      <div className="seti-player-tabs" style={{ display: 'flex', gap: '4px', paddingLeft: '10px', marginBottom: '-1px', zIndex: 1 }}>
+      <div className="seti-player-tabs">
         {game.players.map((p, index) => {
            const isViewed = p.id === currentPlayer.id;
            const isActive = p.id === game.players[game.currentPlayerIndex].id;
@@ -609,29 +584,17 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
            return (
              <div 
                key={p.id}
+               className={`seti-player-tab ${isActive ? 'active' : 'inactive'}`}
                onClick={() => onViewPlayer && onViewPlayer(p.id)}
                style={{
-                 padding: '6px 12px',
                  backgroundColor: shouldFlash ? '#4caf50' : (isViewed ? (p.color || '#444') : '#2a2a2a'),
-                 borderTop: isActive ? '2px solid #fff' : '1px solid #555',
-                 borderLeft: '1px solid #555',
-                 borderRight: '1px solid #555',
                  borderBottom: isViewed ? `1px solid ${p.color || '#444'}` : '1px solid #555',
-                 borderRadius: '6px 6px 0 0',
-                 cursor: 'pointer',
                  opacity: isViewed ? 1 : 0.7,
-                 color: '#fff',
-                 fontSize: '0.8rem',
-                 fontWeight: isActive ? 'bold' : 'normal',
-                 display: 'flex',
-                 alignItems: 'center',
-                 gap: '5px',
-                 transition: 'all 0.2s'
                }}
              >
                {p.type === 'robot' ? '🤖' : '👤'} {p.name}
                {isFirstPlayer && <span title="Premier joueur">👑</span>}
-               {isActive && <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#0f0', boxShadow: '0 0 4px #0f0' }}></span>}
+               {isActive && <span className="seti-player-tab-indicator"></span>}
              </div>
            );
         })}
@@ -640,7 +603,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
       {/* Plateau du joueur */}
       <div className="seti-player-panel" style={{ borderTop: `4px solid ${currentPlayer.color || '#444'}`, borderTopLeftRadius: 0, flex: 1, minHeight: 0, maxHeight: 'none' }}>
         {/* Titre */}
-        <div className="seti-player-panel-title" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+        <div className="seti-player-panel-title seti-player-panel-title-container">
           <span>
             {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV 🏆
           </span>
@@ -648,39 +611,28 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
           <button
             onClick={onNextPlayer}
             disabled={!isCurrentTurn || isInteractiveMode}
+            className={`seti-next-player-btn ${(isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? 'enabled' : 'disabled'}`}
             onMouseEnter={(e) => handleTooltipHover(e, hasPerformedMainAction ? "Terminer le tour" : "Effectuez une action principale d'abord")}
             onMouseLeave={handleTooltipLeave}
-            style={{
-              position: 'absolute',
-              right: '10px',
-              backgroundColor: (isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? '#4caf50' : '#555',
-              color: (isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? 'white' : '#aaa',
-              border: 'none',
-              borderRadius: '4px',
-              padding: '4px 8px',
-              cursor: (isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? 'pointer' : 'not-allowed',
-              fontSize: '0.8rem',
-              fontWeight: 'bold'
-            }}
           >
             Prochain joueur
           </button>
           )}
         </div>
         
-        <div className="seti-player-layout" style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', paddingRight: '5px', flex: 1, minHeight: 0 }}>
+        <div className="seti-player-layout-container">
           {/* Ressources/Revenus */}
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="seti-resources-row">
             {/* Ressources */}
-            <div className="seti-player-section" style={{ position: 'relative', flex: 1 }}>
-              <div className="seti-player-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>Ressources</div>
+            <div className="seti-player-section seti-section-relative">
+              <div className="seti-player-section-title seti-section-header">Ressources</div>
               <div className="seti-player-resources">
                 <div 
                   key={creditFlash ? `credit-${creditFlash.id}` : 'credit-static'}
                   className={`seti-res-badge ${creditFlash ? (creditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
                   <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span>
-                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                  <div className="seti-resource-badge-content">
                     {renderDirectTradeButton('credit', 'energy', '⚡', 'Echanger 2 Crédits contre 1 Énergie', currentPlayer.credits >= 2)}
                     {renderDirectTradeButton('credit', 'card', '🃏', 'Echanger 2 Crédits contre 1 Carte', currentPlayer.credits >= 2)}
                     <strong style={{ marginLeft: '6px' }}>{currentPlayer.credits}</strong>
@@ -691,7 +643,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                   className={`seti-res-badge ${energyFlash ? (energyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
                   <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span>
-                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                  <div className="seti-resource-badge-content">
                     {renderDirectTradeButton('energy', 'credit', '₢', 'Echanger 2 Énergies contre 1 Crédit', currentPlayer.energy >= 2)}
                     {renderDirectTradeButton('energy', 'card', '🃏', 'Echanger 2 Énergies contre 1 Carte', currentPlayer.energy >= 2)}
                     <strong style={{ marginLeft: '6px' }}>{currentPlayer.energy}</strong>
@@ -702,7 +654,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                   className={`seti-res-badge ${mediaFlash ? (mediaFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
                   <span>Média (<span style={{color: '#ff6b6b'}}>🎤</span>):</span>
-                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                  <div className="seti-resource-badge-content">
                   {renderBuyCardButton('🛒', 'Acheter 1 carte de la pioche ou de la rangée principale (cout: 3 Médias)')}
                   <strong style={{ marginLeft: '6px' }}>{currentPlayer.mediaCoverage}</strong>
                   </div>
@@ -711,9 +663,9 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
             </div>
 
             {/* Revenues */}
-            <div className="seti-player-section" style={{ position: 'relative', flex: 1 }}>
+            <div className="seti-player-section seti-section-relative">
               <div className="seti-player-section-title">Revenues</div>
-              <div className="seti-player-revenues" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div className="seti-player-revenues seti-revenues-list">
                 <div 
                   key={revenueCreditFlash ? `rev-credit-${revenueCreditFlash.id}` : 'rev-credit-static'}
                   className={`seti-res-badge ${revenueCreditFlash ? (revenueCreditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
@@ -740,7 +692,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
           {!isRobot && (
           <div className="seti-player-section">
             <div className="seti-player-section-title">Actions principales</div>
-            <div className="seti-player-actions" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '5px' }}>
+            <div className="seti-player-actions seti-actions-grid">
               {Object.entries(ACTION_NAMES)
                 .filter(([action]) => action)
                 .map(([action, name]) => {
@@ -776,11 +728,11 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
             <div className="seti-player-list">
               {currentPlayer.technologies.length > 0 ? (
                 currentPlayer.technologies.map((tech) => (
-                  <div key={tech.id} className="seti-player-list-item" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ fontSize: '1.1em' }} title={tech.id.split('-')[0]}>{getTechIcon(tech.id)}</div>
-                    <div style={{ fontWeight: 'bold', color: '#fff', whiteSpace: 'nowrap' }}>{tech.name}</div>
+                  <div key={tech.id} className="seti-player-list-item seti-tech-list-item">
+                    <div className="seti-tech-icon" title={tech.id.split('-')[0]}>{getTechIcon(tech.id)}</div>
+                    <div className="seti-tech-name">{tech.name}</div>
                     {tech.description && (
-                      <div style={{ fontSize: '0.75em', color: '#ccc', fontStyle: 'italic', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }} title={tech.description}>
+                      <div className="seti-tech-desc" title={tech.description}>
                         {tech.description}
                       </div>
                     )}
@@ -794,17 +746,16 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
 
           {/* Ordinateur */}
           <div className="seti-player-section">
-            <div className="seti-player-section-title" style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+            <div className="seti-player-section-title seti-computer-header">
               <span>Ordinateur</span>
               <span 
                 key={dataFlash ? `data-${dataFlash.id}` : 'data-static'}
-                className={dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
-                style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px' }}
+                className={`seti-computer-data-badge ${dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
               >
-                Donnée(s) (<span style={{color: '#03a9f4'}}>💾</span>): <strong style={{ color: '#fff' }}>{currentPlayer.data || 0}</strong>
+                Donnée (<span style={{color: '#03a9f4'}}>💾</span>): <strong style={{ color: '#fff' }}>{currentPlayer.data || 0}</strong>
               </span>
             </div>
-            <div className="seti-player-list" style={{ padding: '0' }}>
+            <div className="seti-player-list seti-computer-list">
               <PlayerComputerUI 
                 player={currentPlayer} 
                 onSlotClick={handleComputerSlotClick}
@@ -823,14 +774,13 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
             position: 'relative', 
             zIndex: 1501
           } : {}}>
-            <div className="seti-player-section-title" style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+            <div className="seti-player-section-title seti-cards-header">
               <span>Main</span>
               <span 
                 key={cardsFlash ? `cards-${cardsFlash.id}` : 'cards-static'}
-                className={cardsFlash ? (cardsFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}
-                style={{ fontSize: '0.8em', color: '#aaa', fontWeight: 'normal', padding: '2px 5px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
+                className={`seti-cards-badge ${cardsFlash ? (cardsFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
               >
-                <span>Carte(s) (<span style={{color: '#aaffaa'}}>🃏</span>):</span>
+                <span>Carte (<span style={{color: '#aaffaa'}}>🃏</span>):</span>
                 <strong style={{ color: '#fff', marginLeft: '6px' }}>{currentPlayer.cards.length}</strong>
                 {!isRobot && (
                     <>
@@ -841,14 +791,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               </span>
             </div>
             {isDiscarding && (
-              <div style={{ marginBottom: '10px', color: '#ff9800', fontSize: '0.9em' }}>
+              <div className="seti-cards-warning">
                 Veuillez défausser des cartes pour n'en garder que 4.
                 <br />
                 Sélectionnées : {selectedCardIds.length} / {Math.max(0, currentPlayer.cards.length - 4)}
                 {currentPlayer.cards.length - selectedCardIds.length === 4 && (
                   <button 
                     onClick={onConfirmDiscard}
-                    style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
+                    className="seti-confirm-btn"
                   >
                     Confirmer
                   </button>
@@ -856,14 +806,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               </div>
             )}
             {isTrading && (
-              <div style={{ marginBottom: '10px', color: '#ff9800', fontSize: '0.9em' }}>
+              <div className="seti-cards-warning">
                 Veuillez sélectionner 2 cartes à échanger.
                 <br />
                 Sélectionnées : {selectedCardIds.length} / 2
                 {selectedCardIds.length === 2 && (
                   <button 
                     onClick={onConfirmTrade}
-                    style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
+                    className="seti-confirm-btn"
                   >
                     Confirmer
                   </button>
@@ -871,14 +821,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               </div>
             )}
             {isReserving && (
-              <div style={{ marginBottom: '10px', color: '#ff9800', fontSize: '0.9em' }}>
+              <div className="seti-cards-warning">
                 Veuillez réserver {reservationCount} carte{reservationCount > 1 ? 's' : ''} .
                 <br />
                 Sélectionnées: {selectedCardIds.length} / {reservationCount}
                 {selectedCardIds.length === reservationCount && (
                   <button 
                       onClick={onConfirmReservation}
-                      style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
+                      className="seti-confirm-btn"
                     >
                       Confirmer
                     </button>
@@ -886,19 +836,19 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
               </div>
             )}
             {isDiscardingForSignal && (
-              <div style={{ marginBottom: '10px', color: '#ff9800', fontSize: '0.9em' }}>
+              <div className="seti-cards-warning">
                 Sélectionnez jusqu'à {discardForSignalCount} carte(s) à défausser pour gagner des signaux.
                 <br />
                 Sélectionnées : {selectedCardIds.length}
                 <button 
                   onClick={onConfirmDiscardForSignal}
-                  style={{ marginLeft: '10px', cursor: 'pointer', padding: '2px 8px' }}
+                  className="seti-confirm-btn"
                 >
                   Confirmer
                 </button>
               </div>
             )}
-            <div className="seti-player-list" style={{ flexDirection: 'row', overflowX: 'auto', paddingBottom: '8px', gap: '8px' }}>
+            <div className="seti-player-list seti-cards-list">
               {!isRobot ? (
                 currentPlayer.cards.length > 0 ? (
                   currentPlayer.cards.map(renderHandCard)
@@ -916,20 +866,17 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
           {/* Missions */}
           <div className="seti-player-section">
             <div className="seti-player-section-title">Missions</div>
-            <div className="seti-player-list" style={{ flexDirection: 'row', overflowX: 'auto', paddingBottom: '8px', gap: '8px' }}>
+            <div className="seti-player-list seti-cards-list">
               {((currentPlayer.missions && currentPlayer.missions.length > 0) || (currentPlayer.playedCards && currentPlayer.playedCards.length > 0)) ? (
                 <>
                 {(currentPlayer.missions || []).map((mission: any) => (
-                  <div key={mission.id} className="seti-common-card" style={{ 
-                    borderLeft: mission.completed ? '3px solid #4caf50' : '3px solid #aaa',
-                    backgroundColor: mission.completed ? 'rgba(76, 175, 80, 0.1)' : 'rgba(30, 30, 40, 0.9)'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                      <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.75rem', lineHeight: '1.1' }}>{mission.name}</div>
-                      {mission.completed && <span style={{ fontSize: '1em', color: '#4caf50', fontWeight: 'bold' }}>✓</span>}
+                  <div key={mission.id} className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`}>
+                    <div className="seti-mission-header">
+                      <div className="seti-mission-title">{mission.name}</div>
+                      {mission.completed && <span className="seti-mission-check">✓</span>}
                     </div>
                     {mission.description && (
-                      <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', overflowY: 'auto', flex: 1 }}>
+                      <div className="seti-mission-desc">
                         {mission.description}
                       </div>
                     )}
@@ -939,19 +886,16 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
                   const descriptionParts = card.description ? card.description.split('Mission:') : [];
                   const missionText = descriptionParts.length > 1 ? descriptionParts[1].trim() : card.description;
                   return (
-                  <div key={card.id} className="seti-common-card" style={{ 
-                    borderLeft: '3px solid #ffd700',
-                    backgroundColor: 'rgba(30, 30, 40, 0.9)'
-                  }}
+                  <div key={card.id} className="seti-common-card seti-played-card"
                   onMouseEnter={(e) => handleTooltipHover(e, renderCardTooltip(card))}
                   onMouseLeave={handleTooltipLeave}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                      <div style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.75rem', lineHeight: '1.1' }}>{card.name}</div>
-                      <span style={{ fontSize: '0.6em', color: '#ffd700', fontWeight: 'bold', border: '1px solid #ffd700', borderRadius: '3px', padding: '0 2px' }}>FIN</span>
+                    <div className="seti-mission-header">
+                      <div className="seti-mission-title">{card.name}</div>
+                      <span className="seti-played-card-tag">FIN</span>
                     </div>
                     {missionText && (
-                      <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', overflowY: 'auto', flex: 1 }}>
+                      <div className="seti-mission-desc">
                         {missionText}
                       </div>
                     )}

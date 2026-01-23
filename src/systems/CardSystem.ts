@@ -200,12 +200,12 @@ export class CardSystem {
                             bonuses.energy = (bonuses.energy || 0) + effect.value;
                             break;
                         case 'DATA':
-                            player.data = (player.data || 0) + effect.value;
-                            bonuses.data = (bonuses.data || 0) + effect.value;
+                            player.data = Math.min((player.data || 0) + effect.value, GAME_CONSTANTS.MAX_DATA);
+                            bonuses.data = Math.min((bonuses.data || 0) + effect.value, GAME_CONSTANTS.MAX_DATA);
                             break;
                         case 'MEDIA':
-                            player.mediaCoverage += effect.value;
-                            bonuses.media = (bonuses.media || 0) + effect.value;
+                            player.mediaCoverage = Math.min((player.mediaCoverage || 0) + effect.value, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                            bonuses.media = Math.min((bonuses.media || 0) + effect.value, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
                             break;
                         case 'CARD':
                             bonuses.card = (bonuses.card || 0) + effect.value;

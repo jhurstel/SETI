@@ -1,31 +1,54 @@
+.seti-player-tabs {
+  display: flex;
+  gap: 4px;
+  padding-left: 10px;
+  margin-bottom: -1px;
+  z-index: 1;
+}
+
+.seti-player-tab {
+  padding: 6px 12px;
+  border-left: 1px solid #555;
+  border-right: 1px solid #555;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  color: #fff;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s;
+}
+
 .seti-player-panel {
+  border-top-left-radius: 0;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
   background: rgba(20, 25, 40, 0.9);
   border: 2px solid rgba(100, 150, 255, 0.4);
-  border-radius: 8px;
-  padding: 10px;
   backdrop-filter: blur(10px);
-  flex-shrink: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 
 .seti-player-panel-title {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  padding: 8px;
   font-size: 1rem;
   font-weight: bold;
   color: #78a0ff;
-  margin-bottom: 10px;
-  text-align: center;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  flex-shrink: 0;
 }
 
 .seti-player-layout {
-  display: grid;
-  grid-template-columns: 1fr 1fr 2fr 2fr;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-  overflow: hidden;
+  overflow-y: auto;
+  padding: 10px;
   flex: 1;
   min-height: 0;
 }
@@ -35,17 +58,15 @@
   border: 1px solid rgba(100, 150, 255, 0.2);
   border-radius: 6px;
   padding: 8px;
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
 }
 
 .seti-player-section-title {
+  font-size: 0.85rem;
   font-weight: bold;
   color: #78a0ff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   margin-bottom: 6px;
-  font-size: 0.85rem;
-  flex-shrink: 0;
 }
 
 .seti-player-resources {
@@ -57,11 +78,11 @@
 .seti-res-badge {
   display: flex;
   justify-content: space-between;
-  padding: 4px 6px;
+  align-items: center;
   background: rgba(0, 0, 0, 0.3);
+  padding: 4px 8px;
   border-radius: 3px;
   font-size: 0.75rem;
-  flex-shrink: 0;
 }
 
 .seti-res-badge strong {
@@ -70,9 +91,9 @@
 }
 
 .seti-player-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
 }
 
 .seti-player-action-available {
@@ -80,14 +101,16 @@
   background: rgba(100, 200, 100, 0.2);
   border: 1px solid rgba(100, 200, 100, 0.4);
   border-radius: 3px;
+  text-align: center;
   font-size: 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
-  flex-shrink: 0;
 }
 
 .seti-player-action-available:hover {
   background: rgba(100, 200, 100, 0.3);
+  border-color: #4a9eff;
+  color: #fff;
 }
 
 .seti-player-action-unavailable {
@@ -95,10 +118,10 @@
   background: rgba(60, 60, 60, 0.3);
   border: 1px solid rgba(100, 100, 100, 0.2);
   border-radius: 3px;
+  text-align: center;
   font-size: 0.75rem;
-  color: #666;
-  opacity: 0.6;
-  flex-shrink: 0;
+  color: #555;
+  cursor: not-allowed;
 }
 
 .seti-player-list {
@@ -107,19 +130,19 @@
   gap: 4px;
 }
 
+.seti-player-list-empty {
+  font-style: italic;
+  color: #666;
+  text-align: center;
+  padding: 10px;
+}
+
 .seti-player-list-item {
   padding: 4px 6px;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 3px;
   font-size: 0.75rem;
   flex-shrink: 0;
-}
-
-.seti-player-list-empty {
-  padding: 4px;
-  color: #666;
-  font-size: 0.7rem;
-  font-style: italic;
 }
 
 @keyframes flashGreen {
@@ -154,4 +177,466 @@
   box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
   border: 1px solid rgba(0, 255, 255, 0.5) !important;
   transition: all 0.3s ease;
+}
+
+/* Computer Slot Styles */
+.computer-slot {
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  border: 1px solid #777;
+  background-color: transparent;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  position: relative;
+  transition: all 0.2s;
+  opacity: 0.4;
+}
+
+.computer-slot.filled {
+  background-color: #4a9eff;
+  box-shadow: 0 0 8px rgba(74, 158, 255, 0.6);
+  opacity: 1;
+}
+
+.computer-slot.can-fill {
+  cursor: pointer;
+  opacity: 1;
+}
+
+.computer-slot-dot {
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 4px #fff;
+}
+
+.computer-slot-bonus {
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.computer-slot-bonus.media { color: #ffeb3b; }
+.computer-slot-bonus.reservation { color: #ff6b6b; }
+.computer-slot-bonus.pv { color: #8affc0; font-size: 10px; }
+.computer-slot-bonus.credit { color: #4a9eff; }
+.computer-slot-bonus.energy { color: #ff6b6b; }
+.computer-slot-bonus.card { color: #fff; }
+
+/* Player Computer Styles */
+.player-computer-container {
+  display: flex;
+  padding: 12px 24px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 8px;
+  overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: flex-start;
+  position: relative;
+  overflow: hidden;
+}
+
+.computer-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 4px;
+  transition: all 0.2s;
+}
+
+.computer-column.has-bottom {
+  border-color: #555;
+  padding: 4px 12px;
+}
+
+.computer-column.selectable {
+  border-color: #00ff00;
+  cursor: pointer;
+  background-color: rgba(0, 255, 0, 0.1);
+}
+
+.computer-column-connector {
+  position: absolute;
+  top: 36px;
+  height: 8px;
+  width: 2px;
+  background-color: #555;
+  z-index: 0;
+}
+
+.computer-separator {
+  flex: 1;
+  height: 2px;
+  background-color: #555;
+  margin-top: 20px;
+  min-width: 10px;
+  z-index: 0;
+  position: relative;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Nouveaux styles extraits */
+
+.seti-player-board-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.seti-player-tab.active {
+  border-top: 2px solid #fff;
+  font-weight: bold;
+}
+
+.seti-player-tab.inactive {
+  border-top: 1px solid #555;
+  font-weight: normal;
+}
+
+.seti-player-tab-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #0f0;
+  box-shadow: 0 0 4px #0f0;
+}
+
+.seti-player-panel-title-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+
+.seti-next-player-btn {
+  position: absolute;
+  right: 10px;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+.seti-next-player-btn.enabled {
+  background-color: #4caf50;
+  color: white;
+  cursor: pointer;
+}
+
+.seti-next-player-btn.disabled {
+  background-color: #555;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+.seti-player-layout-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding-right: 5px;
+  flex: 1;
+  min-height: 0;
+}
+
+.seti-resources-row {
+  display: flex;
+  gap: 10px;
+}
+
+.seti-section-relative {
+  position: relative;
+  flex: 1;
+}
+
+.seti-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.seti-resource-badge-content {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.seti-revenues-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.seti-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+
+.seti-tech-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seti-tech-icon {
+  font-size: 1.1em;
+}
+
+.seti-tech-name {
+  font-weight: bold;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.seti-tech-desc {
+  font-size: 0.75em;
+  color: #ccc;
+  font-style: italic;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.seti-computer-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.seti-computer-data-badge {
+  font-size: 0.8em;
+  color: #aaa;
+  font-weight: normal;
+  padding: 2px 5px;
+  border-radius: 4px;
+  text-transform: none;
+}
+
+.seti-computer-list {
+  padding: 0;
+}
+
+.seti-cards-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.seti-cards-badge {
+  font-size: 0.8em;
+  color: #aaa;
+  font-weight: normal;
+  padding: 2px 5px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  text-transform: none;
+}
+
+.seti-cards-warning {
+  margin-bottom: 10px;
+  color: #ff9800;
+  font-size: 0.9em;
+}
+
+.seti-confirm-btn {
+  margin-left: 10px;
+  cursor: pointer;
+  padding: 2px 8px;
+}
+
+.seti-cards-list {
+  flex-direction: row;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  gap: 8px;
+}
+
+.seti-mission-card {
+  border-left: 3px solid #aaa;
+  background-color: rgba(30, 30, 40, 0.9);
+}
+
+.seti-mission-card.completed {
+  border-left-color: #4caf50;
+  background-color: rgba(76, 175, 80, 0.1);
+}
+
+.seti-mission-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.seti-mission-title {
+  font-weight: bold;
+  color: #fff;
+  font-size: 0.75rem;
+  line-height: 1.1;
+}
+
+.seti-mission-check {
+  font-size: 1em;
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.seti-mission-desc {
+  font-size: 0.7em;
+  color: #ccc;
+  font-style: italic;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.seti-played-card {
+  border-left: 3px solid #ffd700;
+  background-color: rgba(30, 30, 40, 0.9);
+}
+
+.seti-played-card-tag {
+  font-size: 0.6em;
+  color: #ffd700;
+  font-weight: bold;
+  border: 1px solid #ffd700;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+/* Tooltip content styles */
+.seti-tooltip-content {
+  text-align: center;
+}
+.seti-tooltip-title {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.seti-tooltip-bonus {
+  font-size: 0.9em;
+  color: #ccc;
+}
+.seti-tooltip-action {
+  font-size: 0.8em;
+  color: #aaa;
+  margin-top: 4px;
+  font-style: italic;
+}
+.seti-tooltip-action.error {
+  color: #ff6b6b;
+}
+
+/* Card Tooltip */
+.seti-card-tooltip {
+  width: 240px;
+  text-align: left;
+}
+.seti-card-tooltip-title {
+  font-weight: bold;
+  color: #4a9eff;
+  font-size: 1.1rem;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #444;
+  padding-bottom: 4px;
+}
+.seti-card-tooltip-desc {
+  font-size: 0.95em;
+  color: #fff;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+.seti-card-tooltip-mission {
+  margin-top: 6px;
+  color: #ffd700;
+  border-top: 1px dashed #555;
+  padding-top: 4px;
+}
+.seti-card-tooltip-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  font-size: 0.85em;
+  background-color: rgba(255,255,255,0.05);
+  padding: 8px;
+  border-radius: 4px;
+}
+.seti-card-tooltip-scan {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Action Button */
+.seti-action-btn {
+  border-radius: 6px;
+  padding: 0;
+  width: 30px;
+  height: 20px;
+  font-size: 0.8rem;
+  font-weight: normal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all 0.2s;
+}
+.seti-action-btn:not([aria-disabled="true"]) {
+  background-color: #333;
+  border: 1px solid #555;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  cursor: pointer;
+}
+.seti-action-btn[aria-disabled="true"] {
+  background-color: #222;
+  color: #555;
+  border: 1px solid #333;
+  cursor: default;
+  box-shadow: none;
+}
+.seti-action-btn:not([aria-disabled="true"]):hover {
+  border-color: #4a9eff;
+  background-color: #444;
+  box-shadow: 0 0 5px rgba(74, 158, 255, 0.3);
+}
+
+/* Hand Card */
+.seti-hand-card-actions {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 10;
+  display: flex;
+  gap: 5px;
+}
+.seti-hand-card-play-btn {
+  position: absolute;
+  top: 5px;
+  right: 40px;
+  z-index: 10;
+}
+.seti-hand-card-discard-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 10;
 }

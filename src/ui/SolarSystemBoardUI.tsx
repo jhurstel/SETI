@@ -1655,12 +1655,12 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
               stateText = "Indisponible";
               stateColor = "#ff6b6b";
               actionText = "Nécessite le signal précédent";
-            } else if (isSectorClickable && animateSectorSlots && !canAffordScan) {
+            } else if (isSectorClickable && !canAffordScan) {
               stateText = "Ressources insuffisantes";
               stateColor = "#ff6b6b";
               actionText = `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit et ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergies (vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s))`;
             } else {
-              actionText = "Scanner pour récupérer le bonus (coût: 1 Crédit et 2 Energie)";
+              actionText = "Scannez pour récupérer le bonus (coût: 1 Crédit et 2 Energie)";
             }
 
             const slotTooltipContent = (
@@ -1693,7 +1693,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
               >
                 <circle r="4" fill="transparent" stroke="none" />
                 {isFlashing && (
-                  animateSectorSlots ? (
+                  animateSectorSlots && canAffordScan ? (
                     <>
                       <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1" opacity="0.8" />
                       <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1">

@@ -450,10 +450,7 @@ export class ProbeSystem {
       );
     }
     if (bonus.data) {
-      updatedPlayer.data = Math.min(
-        updatedPlayer.data + (bonus.data || 0),
-        GAME_CONSTANTS.MAX_DATA
-      );
+      updatedPlayer.data = Math.min(updatedPlayer.data + (bonus.data || 0), GAME_CONSTANTS.MAX_DATA);
     }
     if (bonus.planetscan || bonus.redscan || bonus.bluescan || bonus.yellowscan || bonus.blackscan) {
       // Géré via intéraction utilisateur dans orbitProbe/landProbe côté UI

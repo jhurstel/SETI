@@ -1,6 +1,5 @@
-import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Card, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Player, Mission } from '../core/types';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Card, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Player, Mission, InteractionState } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -16,61 +15,16 @@ import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { SectorSystem } from '../systems/SectorSystem';
 import { AIBehavior } from '../ai/AIBehavior';
+import { DebugPanel } from './DebugPanel';
+import { PassModal } from './modals/PassModal';
+import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal } from './modals/GameModals';
+import { CardTooltip, getSectorColorCode } from './CardTooltip';
+import { Tooltip } from './Tooltip';
+import './BoardUI.css';
 
 interface BoardUIProps {
   game: Game;
 }
-
-/**
- * Représente les différents états d'interaction possibles pour le joueur.
- * L'état 'IDLE' est l'état par défaut où le joueur peut initier une action principale.
- * Tous les autres états représentent une interaction en cours qui bloque les actions principales.
- */
-type InteractionState =
-  /** Le joueur est en attente, aucune interaction en cours. */
-  | { type: 'IDLE', sequenceId?: string }
-  /** Le joueur a un bonus de réservation et doit choisir une carte à glisser sous son plateau. */
-  | { type: 'RESERVING_CARD', count: number, sequenceId?: string, selectedCards: string[] }
-  /** Le joueur doit défausser des cartes (ex: fin de manche). */
-  | { type: 'DISCARDING_CARD', selectedCards: string[], sequenceId?: string }
-  /** Le joueur a initié un échange et doit choisir la ressource à dépenser. */
-  | { type: 'TRADING_CARD', targetGain: string, selectedCards: string[], sequenceId?: string }
-  /** Le joueur acquiert une carte (gratuitement ou en payant) et doit la sélectionner dans la pioche ou la rangée. */
-  | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, sequenceId?: string, triggerFreeAction?: boolean }
-  /** Le joueur a des déplacements gratuits à effectuer. */
-  | { type: 'MOVING_PROBE', count: number, autoSelectProbeId?: string, sequenceId?: string }
-  /** Le joueur a un atterrissage gratuit (ex: Carte 13). */
-  | { type: 'LANDING_PROBE', count: number, source?: string, sequenceId?: string }
-  /** Le joueur acquiert une technologie (en payant ou en bonus) et doit la sélectionner. */
-  | { type: 'ACQUIRING_TECH', isBonus: boolean, sequenceId?: string, category?: TechnologyCategory, sharedOnly?: boolean, noTileBonus?: boolean }
-  /** Le joueur a choisi une technologie "Informatique" et doit sélectionner une colonne sur son ordinateur. */
-  | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, sequenceId?: string }
-  /** Le joueur a lancé l'action "Analyser", principalement pour l'animation. */
-  | { type: 'ANALYZING', sequenceId?: string }
-  /** Le joueur doit placer une trace de vie sur le plateau Alien. */
-  | { type: 'PLACING_LIFE_TRACE', color: LifeTraceType, sequenceId?: string }
-  /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
-  | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number, sequenceId?: string }
-  /** Le joueur scanne un secteur (2ème étape : choix de la carte). */
-  | { type: 'SELECTING_SCAN_CARD', sequenceId?: string }
-  /** Le joueur scanne un secteur (3ème étape : choix du secteur couleur). */
-  | { type: 'SELECTING_SCAN_SECTOR', color: SectorColor, noData?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string, message?: string }
-  /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
-  | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string, remainingMoves?: number }
-  /** Le joueur doit choisir s'il utilise la technologie Observation 2 (Payer 1 Média pour scanner Mercure). */
-  | { type: 'CHOOSING_OBS2_ACTION', sequenceId?: string }
-  /** Le joueur doit choisir s'il utilise la technologie Observation 3 (Défausser une carte pour un signal). */
-  | { type: 'CHOOSING_OBS3_ACTION', sequenceId?: string }
-  /** Le joueur doit choisir s'il utilise la technologie Observation 4 (Payer 1 Energie pour lancer une sonde OU gagner 1 déplacement). */
-  | { type: 'CHOOSING_OBS4_ACTION', sequenceId?: string }
-  /** Le joueur doit défausser des cartes de sa main pour leurs signaux. */
-  | { type: 'DISCARDING_FOR_SIGNAL', count: number, selectedCards: string[], sequenceId?: string }
-  /** Le joueur doit retirer un orbiteur (Carte 15). */
-  | { type: 'REMOVING_ORBITER', sequenceId?: string }
-  /** Le joueur a reçu plusieurs bonus interactifs et doit choisir l'ordre de résolution. */
-  | { type: 'CHOOSING_BONUS_ACTION', bonusesSummary: string, choices: { id: string, label: string, state: InteractionState, done: boolean }[], sequenceId?: string }
-  /** Un effet de carte non-interactif est déclenché. */
-  | { type: 'TRIGGER_CARD_EFFECT', effectType: string, value: any, sequenceId?: string };
 
 // Helper pour les libellés des interactions
 const getInteractionLabel = (state: InteractionState): string => {
@@ -150,51 +104,6 @@ const formatResource = (amount: number, type: string) => {
   return `${amount} ${type}`;
 };
 
-const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect: DOMRect }) => {
-  const tooltipRef = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
-
-  useLayoutEffect(() => {
-    if (tooltipRef.current && targetRect) {
-      const rect = tooltipRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const margin = 8;
-      const padding = 10;
-
-      let left = targetRect.left + (targetRect.width / 2) - (rect.width / 2);
-
-      if (left < padding) left = padding;
-      if (left + rect.width > viewportWidth - padding) {
-        left = viewportWidth - rect.width - padding;
-      }
-
-      let top = targetRect.top - rect.height - margin;
-
-      if (top < padding) {
-        const bottomPosition = targetRect.bottom + margin;
-        if (bottomPosition + rect.height <= viewportHeight - padding) {
-          top = bottomPosition;
-        } else {
-          if (targetRect.top > (viewportHeight - targetRect.bottom)) {
-            top = padding;
-          } else {
-            top = viewportHeight - rect.height - padding;
-          }
-        }
-      }
-
-      setStyle({ top, left, opacity: 1 });
-    }
-  }, [targetRect, content]);
-
-  return createPortal(
-    <div ref={tooltipRef} style={{ position: 'fixed', zIndex: 9999, backgroundColor: 'rgba(0, 0, 0, 0.95)', padding: '8px', borderRadius: '6px', border: '1px solid #78a0ff', color: '#fff', textAlign: 'center', minWidth: '150px', boxShadow: '0 4px 15px rgba(0,0,0,0.6)', transition: 'opacity 0.1s ease-in-out', pointerEvents: 'none', ...style }}>
-      {content}
-    </div>
-    , document.body);
-};
-
 const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseEnter, onMouseLeave }: { color: string, traces: any[], game: Game, onClick?: () => void, isClickable?: boolean, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
   <div
     style={{ position: 'relative', width: '60px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isClickable ? 'pointer' : 'help' }}
@@ -239,138 +148,6 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
     </div>
   </div>
 );
-
-const DebugPanel = ({ game, setGame, onHistory, setHasPerformedMainAction, setViewedPlayerId, interactionState }: { game: Game, setGame: (game: Game) => void, onHistory: (msg: string, playerId?: string) => void, setHasPerformedMainAction: (val: boolean) => void, setViewedPlayerId: (id: string) => void, interactionState: InteractionState }) => {
-  const [cardId, setCardId] = useState('');
-  const [amount, setAmount] = useState(1);
-  const [isVisible, setIsVisible] = useState(true);
-  const [position, setPosition] = useState({ x: 20, y: 150 });
-  const panelRef = useRef<HTMLDivElement>(null);
-  const offsetRef = useRef({ x: 0, y: 0 });
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (panelRef.current && (e.target as HTMLElement).dataset.dragHandle) {
-      offsetRef.current = {
-        x: e.clientX - panelRef.current.getBoundingClientRect().left,
-        y: e.clientY - panelRef.current.getBoundingClientRect().top,
-      };
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-    }
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    setPosition({
-      x: e.clientX - offsetRef.current.x,
-      y: e.clientY - offsetRef.current.y,
-    });
-  };
-
-  const handleMouseUp = () => {
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-  };
-
-  const handleAddResource = (resourceType: 'credits' | 'energy' | 'mediaCoverage' | 'data') => {
-    const updatedGame = structuredClone(game);
-    const player = updatedGame.players[updatedGame.currentPlayerIndex];
-    player[resourceType] = (player[resourceType] || 0) + amount;
-    setGame(updatedGame);
-    onHistory(`DEBUG: Added ${amount} ${resourceType} to ${player.name}`, player.id);
-  };
-
-  const handleAddCard = () => {
-    const updatedGame = structuredClone(game);
-    const player = updatedGame.players[updatedGame.currentPlayerIndex];
-    const cardToFind = cardId.toLowerCase();
-
-    const allCards: Card[] = [
-        ...(updatedGame.decks.cards || []),
-        ...(updatedGame.decks.cardRow || []),
-        ...(updatedGame.decks.discardPile || []),
-        ...Object.values(updatedGame.decks.roundDecks || {}).flat()
-    ];
-    
-    const card = allCards.find(c => c.id === cardId || c.name.toLowerCase().includes(cardToFind));
-    
-    if (card) {
-      player.cards.push(structuredClone(card));
-      setGame(updatedGame);
-      onHistory(`DEBUG: Added card "${card.name}" to ${player.name}`, player.id);
-    } else {
-      onHistory(`DEBUG: Card with ID/name part "${cardId}" not found.`);
-    }
-  };
-
-  const changePlayer = (offset: number) => {
-    const newIndex = (game.currentPlayerIndex + offset + game.players.length) % game.players.length;
-    const updatedGame = { ...game, currentPlayerIndex: newIndex };
-    setGame(updatedGame);
-    setHasPerformedMainAction(false);
-    setViewedPlayerId(updatedGame.players[newIndex].id);
-    onHistory(`DEBUG: Switched to player ${updatedGame.players[newIndex].name}`);
-  };
-
-  if (process.env.NODE_ENV !== 'development') {
-    return null;
-  }
-
-  if (!isVisible) {
-    return createPortal(<button onClick={() => setIsVisible(true)} style={{position: 'fixed', top: '10px', left: '10px', zIndex: 10000, padding: '5px 10px'}}>Debug</button>, document.body);
-  }
-
-  return createPortal(
-    <div 
-      ref={panelRef}
-      style={{ 
-        position: 'fixed', top: position.y, left: position.x, zIndex: 10000, background: 'rgba(40, 40, 60, 0.9)', 
-        border: '1px solid #78a0ff', borderRadius: '8px', padding: '10px', color: 'white', width: '250px',
-        boxShadow: '0 5px 15px rgba(0,0,0,0.5)', backdropFilter: 'blur(5px)', fontFamily: 'sans-serif', fontSize: '14px'
-      }}
-    >
-      <div 
-        data-drag-handle="true"
-        style={{ cursor: 'move', paddingBottom: '10px', borderBottom: '1px solid #555', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-        onMouseDown={handleMouseDown}
-      >
-        <strong>Debug Panel</strong>
-        <button onClick={() => setIsVisible(false)} style={{background: 'none', border: '1px solid #777', borderRadius: '4px', color: 'white', cursor: 'pointer', padding: '2px 6px'}}>X</button>
-      </div>
-      
-      <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
-        <div>
-          <label>Amount: </label>
-          <input type="number" value={amount} onChange={e => setAmount(parseInt(e.target.value, 10) || 0)} style={{width: '60px', background: '#222', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '4px'}} />
-        </div>
-        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px'}}>
-          <button onClick={() => handleAddResource('credits')}>+ Credits</button>
-          <button onClick={() => handleAddResource('energy')}>+ Energy</button>
-          <button onClick={() => handleAddResource('mediaCoverage')}>+ Media</button>
-          <button onClick={() => handleAddResource('data')}>+ Data</button>
-        </div>
-        <div>
-          <input type="text" value={cardId} onChange={e => setCardId(e.target.value)} placeholder="Card ID/Name" style={{width: '100%', boxSizing: 'border-box', background: '#222', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '4px', marginTop: '4px'}} />
-          <button onClick={handleAddCard} style={{width: '100%', marginTop: '5px'}}>Add Card to Hand</button>
-        </div>
-        <button onClick={() => setHasPerformedMainAction(false)}>Reset Main Action</button>
-        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px'}}>
-          <button onClick={() => changePlayer(-1)}>Prev Player</button>
-          <button onClick={() => changePlayer(1)}>Next Player</button>
-        </div>
-        <div style={{ marginTop: '10px', borderTop: '1px solid #555', paddingTop: '5px' }}>
-          <div style={{ fontSize: '0.8em', color: '#aaa' }}>Interaction State:</div>
-          <div style={{ color: '#4a9eff', fontWeight: 'bold', fontSize: '0.9em' }}>{interactionState.type}</div>
-          {interactionState.type !== 'IDLE' && (
-             <pre style={{ fontSize: '0.7em', color: '#ccc', overflowX: 'auto', whiteSpace: 'pre-wrap', maxHeight: '100px', overflowY: 'auto', margin: '5px 0 0 0' }}>
-               {JSON.stringify(interactionState, (k, v) => k === 'type' ? undefined : v, 2)}
-             </pre>
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-};
 
 export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // États pour le jeu
@@ -488,44 +265,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   }, [historyLog]);
 
-  // Helper pour la couleur des secteurs
-  const getSectorColorCode = (color: SectorColor) => {
-    switch (color) {
-      case SectorColor.BLUE: return '#4a9eff';
-      case SectorColor.RED: return '#ff6b6b';
-      case SectorColor.YELLOW: return '#ffd700';
-      case SectorColor.BLACK: return '#aaaaaa';
-      default: return '#fff';
-    }
-  };
-
-  const renderCardTooltip = (card: Card) => {
-    const descriptionParts = card.description ? card.description.split('Mission:') : [card.description];
-    const mainDescription = descriptionParts[0];
-    const missionDescription = descriptionParts.length > 1 ? descriptionParts[1] : null;
-
-    return (
-    <div style={{ width: '240px', textAlign: 'left' }}>
-      <div style={{ fontWeight: 'bold', color: '#4a9eff', fontSize: '1.1rem', marginBottom: '6px', borderBottom: '1px solid #444', paddingBottom: '4px' }}>{card.name}</div>
-      <div style={{ fontSize: '0.95em', color: '#fff', marginBottom: '10px', lineHeight: '1.4' }}>
-        {mainDescription}
-        {missionDescription && (
-            <div style={{ marginTop: '6px', color: '#ffd700', borderTop: '1px dashed #555', paddingTop: '4px' }}>
-                <strong>Mission:</strong>{missionDescription}
-            </div>
-        )}
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '0.85em', backgroundColor: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '4px' }}>
-        <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
-        <div>Type: {card.type === CardType.ACTION ? 'Action' : card.type === CardType.END_GAME ? 'Fin de jeu' : 'Mission'}</div>
-        <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
-        <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
-        <div style={{ gridColumn: '1 / -1', marginTop: '4px', paddingTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
-      </div>
-    </div>
-    );
-  };
-
   const findCardByName = useCallback((name: string) => {
     if (!name) return undefined;
     const cleanName = name.trim();
@@ -586,7 +325,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     style={{ color: '#4a9eff', cursor: 'help', borderBottom: '1px dotted #4a9eff' }}
                     onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ content: renderCardTooltip(card), rect });
+                        setActiveTooltip({ content: <CardTooltip card={card} />, rect });
                     }}
                     onMouseLeave={() => setActiveTooltip(null)}
                 >
@@ -966,6 +705,22 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                           placed = true;
                           addToHistory(`déclenche un marqueur neutre (Palier ${m} PV) sur la trace ${color} du plateau Alien`, currentPlayer.id, currentState);
                           setToast({ message: `Palier ${m} PV : Marqueur neutre placé (${color})`, visible: true });
+
+                          // Vérifier si une espèce Alien est découverte (1 marqueur de chaque couleur sur ce plateau)
+                          const traces = board.lifeTraces;
+                          const hasRed = traces.some(t => t.type === LifeTraceType.RED);
+                          const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
+                          const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
+
+                          if (hasRed && hasYellow && hasBlue && !board.speciesId) {
+                            const ALIEN_SPECIES = ['Centauriens', 'Exertiens', 'Oumuamua'];
+                            const randomSpecies = ALIEN_SPECIES[Math.floor(Math.random() * ALIEN_SPECIES.length)];
+                            board.speciesId = randomSpecies;
+
+                            setAlienDiscoveryNotification({ visible: true, message: "Découverte d'une nouvelle espèce Alien !" });
+                            setTimeout(() => setAlienDiscoveryNotification(null), 4000);
+                            addToHistory(`déclenche la découverte d'une nouvelle espèce Alien !`, currentPlayer.id, currentState);
+                          }
                           break;
                       }
                   }
@@ -1859,20 +1614,19 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     
     let discoveryLog = "";
     if (hasRed && hasYellow && hasBlue && !(hadRed && hadYellow && hadBlue)) {
-         setAlienDiscoveryNotification({ visible: true, message: "Découverte d'une nouvelle espèce Alien !" });
-         setTimeout(() => setAlienDiscoveryNotification(null), 4000);
-         discoveryLog = " et découvre une nouvelle espèce Alien !";
-    }
+      // Assigner une espèce aléatoire au plateau si pas déjà fait
+      const ALIEN_SPECIES = ['Centauriens', 'Exertiens', 'Oumuamua']
+      if (!board.speciesId) {
+        //const availableSpecies = Object.keys(ALIEN_SPECIES_TOPOLOGIES);
+        // Filtrer les espèces déjà découvertes sur d'autres plateaux (si on veut l'unicité)
+        // Pour l'instant, simple random
+        const randomSpecies = ALIEN_SPECIES[Math.floor(Math.random() * ALIEN_SPECIES.length)];
+        board.speciesId = randomSpecies;
+      }
 
-    const ALIEN_SPECIES = ['Centauriens', 'Exertiens', 'Oumuamua']
-
-    // Assigner une espèce aléatoire au plateau si pas déjà fait
-    if (!board.speciesId) {
-      //const availableSpecies = Object.keys(ALIEN_SPECIES_TOPOLOGIES);
-      // Filtrer les espèces déjà découvertes sur d'autres plateaux (si on veut l'unicité)
-      // Pour l'instant, simple random
-      const randomSpecies = ALIEN_SPECIES[Math.floor(Math.random() * ALIEN_SPECIES.length)];
-      board.speciesId = randomSpecies;
+      setAlienDiscoveryNotification({ visible: true, message: "Découverte d'une nouvelle espèce Alien !" });
+      setTimeout(() => setAlienDiscoveryNotification(null), 4000);
+      discoveryLog = " et découvre une nouvelle espèce Alien !";
     }
 
     const track = board.lifeTraces.filter(t => t.type === color);
@@ -3288,209 +3042,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   return (
     <div className="seti-root">
-      <style>{`
-        /* Generic button style for debug panel */
-        .seti-root button {
-          background-color: #444; color: white; border: 1px solid #666;
-          padding: 5px; border-radius: 4px; cursor: pointer;
-        }
-        .seti-root button:hover { background-color: #555; }
-
-        .seti-root {
-          height: 100vh;
-          width: 100vw;
-          overflow: hidden;
-          background-color: #1a1a2e;
-          color: #fff;
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .seti-root-inner {
-          display: flex;
-          flex-direction: row;
-          height: 100%;
-          padding: 10px;
-          box-sizing: border-box;
-          gap: 10px;
-        }
-        .seti-left-panel {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          flex: 1;
-          min-width: 300px;
-          height: 100%;
-          overflow-y: auto;
-        }
-        .seti-right-column {
-          display: flex;
-          flex-direction: column;
-          flex: 2;
-          min-width: 0;
-          gap: 10px;
-          height: 100%;
-        }
-        .seti-center-panel {
-          position: relative;
-          flex: 1;
-          height: 100%;
-          width: 100%;
-          overflow: hidden;
-          border-radius: 8px;
-          background-color: rgba(0, 0, 0, 0.2);
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-        }
-        .seti-bottom-layout {
-          display: flex;
-          gap: 10px;
-          height: 35vh;
-          flex-shrink: 0;
-          min-height: 250px;
-        }
-        .seti-player-area {
-          flex: 3;
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-        }
-        .seti-history-area {
-          flex: 1;
-          min-width: 250px;
-          display: flex;
-          flex-direction: column;
-        }
-        @media (max-width: 768px) {
-          .seti-root { height: auto; min-height: 100vh; overflow-y: auto; }
-          .seti-root-inner { flex-direction: column; height: auto; overflow: visible; }
-          .seti-left-panel { width: 100%; min-width: 0; max-width: none; height: auto; }
-          .seti-right-column { height: auto; flex: none; }
-          .seti-center-panel { display: block; height: auto; padding-bottom: 0; overflow: visible; flex: none; }
-          .seti-bottom-layout { flex-direction: column; height: auto; flex: none; }
-          .seti-player-area { width: 100%; flex: none; }
-          .seti-history-area { width: 100%; height: 300px; flex: none; }
-        }
-        
-        /* Styles pour les panneaux repliables */
-        .seti-foldable-container {
-          background-color: rgba(30, 30, 40, 0.9);
-          border: 1px solid #555;
-          border-radius: 6px;
-          overflow: hidden;
-          transition: box-shadow 0.3s ease, border-color 0.3s ease;
-          max-height: 40px; /* Hauteur du header */
-          display: flex;
-          flex-direction: column;
-          flex-shrink: 0;
-          position: relative;
-          z-index: 10;
-        }
-        .seti-foldable-container:hover, .seti-foldable-container.open {
-          max-height: 80vh; /* Assez grand pour le contenu */
-          box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-          border-color: #4a9eff;
-          z-index: 20;
-        }
-        .seti-foldable-header {
-          padding: 0 10px;
-          color: #fff;
-          font-weight: bold;
-          cursor: pointer;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          background-color: #333;
-          height: 40px;
-          min-height: 40px;
-          box-sizing: border-box;
-        }
-        .seti-foldable-header::after {
-          content: '▼';
-          font-size: 0.8em;
-          transition: transform 0.3s;
-        }
-        .seti-foldable-container:hover .seti-foldable-header::after, .seti-foldable-container.open .seti-foldable-header::after {
-          transform: rotate(180deg);
-        }
-        .seti-foldable-content {
-          padding: 10px;
-          overflow-y: auto;
-          opacity: 0;
-          transition: opacity 0.2s ease;
-        }
-        .seti-foldable-container:hover .seti-foldable-content, .seti-foldable-container.open .seti-foldable-content {
-          opacity: 1;
-          transition: opacity 0.5s ease 0.1s;
-        }
-        /* Overrides pour les composants internes */
-        .seti-foldable-content .seti-panel {
-          border: none !important;
-          background: transparent !important;
-          padding: 0 !important;
-          box-shadow: none !important;
-          margin: 0 !important;
-        }
-        .seti-foldable-content .seti-panel-title {
-          display: none !important;
-        }
-        @keyframes cardAppear {
-          from { opacity: 0; transform: translateY(-20px) scale(0.95); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .seti-history-container:hover, .seti-history-container.open {
-          max-height: 33vh !important;
-        }
-        .seti-icon-panel {
-          width: 100%;
-        }
-        .seti-icon-panel.collapsed {
-          width: 40px;
-          border-radius: 50%;
-        }
-        .seti-icon-panel.collapsed:hover {
-          width: 100%;
-          border-radius: 6px;
-          box-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
-          border-color: #4a9eff;
-        }
-        .seti-icon-panel.collapsed .seti-foldable-header {
-          justify-content: center;
-          padding: 0;
-        }
-        .seti-icon-panel.collapsed:hover .seti-foldable-header {
-          justify-content: space-between;
-          padding: 0 10px;
-        }
-        .seti-icon-panel .panel-icon { display: none; font-size: 1.2rem; }
-        .seti-icon-panel .panel-title { display: block; }
-        .seti-icon-panel.collapsed .panel-icon { display: block; }
-        .seti-icon-panel.collapsed .panel-title { display: none; }
-        .seti-icon-panel.collapsed:hover .panel-icon { display: none; }
-        .seti-icon-panel.collapsed:hover .panel-title { display: block; }
-        .seti-icon-panel.collapsed .seti-foldable-header::after {
-          display: none;
-        }
-        .seti-icon-panel.collapsed:hover .seti-foldable-header::after {
-          display: block;
-        }
-        @keyframes icon-text-flash {
-          0% { text-shadow: 0 0 0 rgba(76, 175, 80, 0); transform: scale(1); }
-          50% { text-shadow: 0 0 15px rgba(76, 175, 80, 1); transform: scale(1.2); color: #4caf50; }
-          100% { text-shadow: 0 0 0 rgba(76, 175, 80, 0); transform: scale(1); }
-        }
-        @keyframes container-glow-flash {
-          0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); border-color: #555; }
-          50% { box-shadow: 0 0 10px 5px rgba(76, 175, 80, 0.6); border-color: #4caf50; }
-          100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); border-color: #555; }
-        }
-        .icon-flash {
-          animation: icon-text-flash 2s ease-in-out infinite;
-          display: inline-block;
-        }
-        .container-flash {
-          animation: container-glow-flash 2s ease-in-out infinite;
-        }
-      `}</style>
       {/* Panneau de débogage pour le développement */}
       <DebugPanel 
         game={game} 
@@ -3501,22 +3052,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         interactionState={interactionState} />
       {/* Toast Notification */}
       {toast && toast.visible && (
-        <div style={{
-          position: 'fixed',
-          top: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          color: '#4a9eff',
-          padding: '12px 24px',
-          borderRadius: '8px',
-          zIndex: 9999,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-          border: '1px solid #4a9eff',
-          fontWeight: 'bold',
-          pointerEvents: 'none',
-          transition: 'opacity 0.3s ease-in-out',
-        }}>
+        <div className="seti-toast">
           {toast.message}
         </div>
       )}
@@ -3526,235 +3062,30 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       )}
 
       {/* Modale de sélection de carte de fin de manche */}
-      {passModalState.visible && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.85)',
-          zIndex: 2000,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px'
-        }}>
-          <div style={{
-            backgroundColor: '#1e1e2e',
-            border: '2px solid #4a9eff',
-            borderRadius: '12px',
-            padding: '30px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            maxWidth: '900px',
-            maxHeight: '85vh',
-            boxShadow: '0 0 40px rgba(74, 158, 255, 0.2)',
-            width: '100%'
-          }}>
-            <div style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '20px', color: '#fff' }}>
-              Fin de manche : Choisissez une carte
-            </div>
-            <div style={{
-              display: 'flex',
-              gap: '15px',
-              flexWrap: 'wrap',
-              justifyContent: 'center',
-              width: '100%',
-              overflowY: 'auto',
-              padding: '10px'
-            }}>
-              {passModalState.cards.map(card => {
-                const isSelected = passModalState.selectedCardId === card.id;
-                return (
-                  <div
-                    key={card.id}
-                    onClick={() => setPassModalState(prev => ({ ...prev, selectedCardId: card.id }))}
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveTooltip({ content: renderCardTooltip(card), rect });
-                    }}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                    className={`seti-common-card seti-card-wrapper ${isSelected ? 'selected' : ''}`}
-                    style={{
-                      width: '140px',
-                      height: '200px',
-                      padding: '6px',
-                      backgroundColor: isSelected ? 'rgba(74, 158, 255, 0.2)' : 'rgba(30, 30, 40, 0.9)',
-                      border: isSelected ? '2px solid #4a9eff' : '1px solid #555',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px',
-                      position: 'relative'
-                    }}
-                  >
-                    <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden', fontWeight: 'bold', color: '#fff' }}><span>{card.name}</span></div>
-                    <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
-                    {card.description && <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis', fontSize: '0.7em', color: '#ccc' }}>{card.description}</div>}
-                    <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px' }}><div className="seti-card-detail" style={{ display: 'flex', justifyContent: 'space-between' }}>{card.freeAction && <span>Act: {card.freeAction}</span>}{card.scanSector && <span>Scan: {card.scanSector}</span>}</div><div className="seti-card-detail">{card.revenue && <span>Rev: {card.revenue}</span>}</div></div>
-                  </div>
-                )
-              })}
-            </div>
-            <button
-              disabled={!passModalState.selectedCardId}
-              onClick={() => {
-                if (passModalState.selectedCardId) {
-                  const currentPlayer = game.players[game.currentPlayerIndex];
-                  // Recalculer les cartes à garder (au cas où on vient de la défausse)
-                  const cardsToKeep = passModalState.cardsToKeep || currentPlayer.cards.map(c => c.id);
-                  performPass(cardsToKeep, passModalState.selectedCardId);
-                  setPassModalState({ visible: false, cards: [], selectedCardId: null });
-                }
-              }}
-              style={{
-                marginTop: '30px',
-                padding: '10px 30px',
-                fontSize: '1.1rem',
-                backgroundColor: passModalState.selectedCardId ? '#4a9eff' : '#555',
-                color: passModalState.selectedCardId ? '#fff' : '#aaa',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: passModalState.selectedCardId ? 'pointer' : 'not-allowed',
-              }}
-            >
-              Confirmer et Passer
-            </button>
-          </div>
-        </div>
-      )}
+      <PassModal 
+        visible={passModalState.visible} 
+        cards={passModalState.cards} 
+        onConfirm={(selectedCardId) => {
+          const currentPlayer = game.players[game.currentPlayerIndex];
+          const cardsToKeep = passModalState.cardsToKeep || currentPlayer.cards.map(c => c.id);
+          performPass(cardsToKeep, selectedCardId);
+          setPassModalState({ visible: false, cards: [], selectedCardId: null });
+        }} 
+      />
 
       {/* Modale de choix Média ou Déplacement (Carte 19) */}
       {interactionState.type === 'CHOOSING_MEDIA_OR_MOVE' && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 2000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div style={{
-            backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px',
-            maxWidth: '400px', width: '90%', border: '1px solid #4a9eff',
-            boxShadow: '0 0 20px rgba(74, 158, 255, 0.2)', textAlign: 'center'
-          }}>
-            <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Faites un choix</h3>
-            <p style={{ marginBottom: '20px', color: '#ddd' }}>Choisissez votre bonus :</p>
-
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button
-                onClick={() => handleMediaOrMoveChoice('MEDIA')}
-                style={{
-                  padding: '15px 20px',
-                  backgroundColor: '#ff6b6b',
-                  color: '#fff',
-                  border: 'none', borderRadius: '4px',
-                  cursor: 'pointer', fontWeight: 'bold',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px',
-                  minWidth: '100px'
-                }}
-              >
-                <span style={{ fontSize: '1.5em' }}>🎤</span>
-                <span>1 Média</span>
-              </button>
-
-              <button
-                onClick={() => handleMediaOrMoveChoice('MOVE')}
-                style={{
-                  padding: '15px 20px',
-                  backgroundColor: '#ffd700',
-                  color: '#000',
-                  border: 'none', borderRadius: '4px',
-                  cursor: 'pointer', fontWeight: 'bold',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px',
-                  minWidth: '100px'
-                }}
-              >
-                <span style={{ fontSize: '1.5em' }}>🚀</span>
-                <span>1 Déplacement</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <MediaOrMoveModal onChoice={handleMediaOrMoveChoice} />
       )}
 
       {/* Modale pour Observation 2 */}
       {interactionState.type === 'CHOOSING_OBS2_ACTION' && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 2000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div style={{
-            backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px',
-            maxWidth: '400px', width: '90%', border: '1px solid #4a9eff',
-            boxShadow: '0 0 20px rgba(74, 158, 255, 0.2)', textAlign: 'center'
-          }}>
-            <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Observation II</h3>
-            <p style={{ marginBottom: '20px', color: '#ddd' }}>Voulez-vous défausser un Média pour marquer un signal supplémentaire dans le secteur de Mercure ?</p>
-
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button
-                onClick={() => handleObs2Choice(true)}
-                style={{
-                  padding: '10px 20px', backgroundColor: '#4caf50', color: '#fff',
-                  border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
-                }}
-              >
-                Oui (-1 Média)
-              </button>
-              <button
-                onClick={() => handleObs2Choice(false)}
-                style={{
-                  padding: '10px 20px', backgroundColor: '#555', color: '#fff',
-                  border: 'none', borderRadius: '4px', cursor: 'pointer'
-                }}
-              >
-                Non
-              </button>
-            </div>
-          </div>
-        </div>
+        <Observation2Modal onChoice={handleObs2Choice} />
       )}
 
       {/* Modale pour Observation 3 */}
       {interactionState.type === 'CHOOSING_OBS3_ACTION' && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 2000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div style={{
-            backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px',
-            maxWidth: '400px', width: '90%', border: '1px solid #4a9eff',
-            boxShadow: '0 0 20px rgba(74, 158, 255, 0.2)', textAlign: 'center'
-          }}>
-            <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Observation III</h3>
-            <p style={{ marginBottom: '20px', color: '#ddd' }}>Voulez-vous défausser une carte de votre main pour marquer un signal supplémentaire ?</p>
-
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button
-                onClick={() => handleObs3Choice(true)}
-                style={{
-                  padding: '10px 20px', backgroundColor: '#4caf50', color: '#fff',
-                  border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold'
-                }}
-              >
-                Oui
-              </button>
-              <button
-                onClick={() => handleObs3Choice(false)}
-                style={{
-                  padding: '10px 20px', backgroundColor: '#555', color: '#fff',
-                  border: 'none', borderRadius: '4px', cursor: 'pointer'
-                }}
-              >
-                Non
-              </button>
-            </div>
-          </div>
-        </div>
+        <Observation3Modal onChoice={handleObs3Choice} />
       )}
 
       {/* Modale pour Observation 4 */}
@@ -3763,196 +3094,37 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         const canMove = currentPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
 
         return (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 2000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div style={{
-            backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px',
-            maxWidth: '400px', width: '90%', border: '1px solid #4a9eff',
-            boxShadow: '0 0 20px rgba(74, 158, 255, 0.2)', textAlign: 'center'
-          }}>
-            <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Observation IV</h3>
-            <p style={{ marginBottom: '20px', color: '#ddd' }}>Choisissez votre bonus :</p>
-
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button
-                onClick={() => handleObs4Choice('PROBE')}
-                disabled={!canLaunch}
-                style={{
-                  padding: '10px 20px', 
-                  backgroundColor: !canLaunch ? '#555' : '#4caf50', 
-                  color: '#fff',
-                  border: 'none', borderRadius: '4px', 
-                  cursor: !canLaunch ? 'not-allowed' : 'pointer', 
-                  fontWeight: 'bold',
-                  opacity: !canLaunch ? 0.6 : 1
-                }}
-              >
-                Lancer une sonde (-1 Énergie)
-              </button>
-              <button
-                onClick={() => handleObs4Choice('MOVE')}
-                disabled={!canMove}
-                style={{
-                  padding: '10px 20px', backgroundColor: !canMove ? '#555' : '#ffd700', color: !canMove ? '#fff' : '#000',
-                  border: 'none', borderRadius: '4px', cursor: !canMove ? 'not-allowed' : 'pointer', fontWeight: 'bold',
-                  opacity: !canMove ? 0.6 : 1
-                }}
-              >
-                +1 Déplacement
-              </button>
-            </div>
-          </div>
-        </div>
+        <Observation4Modal onChoice={handleObs4Choice} canLaunch={canLaunch} canMove={canMove} />
       );
       })()}
 
       {/* Menu de choix des bonus interactifs */}
-      {interactionState.type === 'CHOOSING_BONUS_ACTION' && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 2000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div style={{
-            backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px',
-            maxWidth: '500px', width: '90%', border: '1px solid #4a9eff',
-            boxShadow: '0 0 20px rgba(74, 158, 255, 0.2)'
-          }}>
-            <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Récompenses</h3>
-            <p style={{ fontSize: '1.1em', marginBottom: '20px', color: '#ddd' }}>{interactionState.bonusesSummary}</p>
-            <p style={{ fontSize: '0.9em', marginBottom: '10px', color: '#aaa' }}>Quelles actions voulez-vous effectuer ?</p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {interactionState.choices.map((choice, idx) => (
-                <button
-                  key={choice.id}
-                  onClick={() => handleMenuChoice(idx)}
-                  disabled={choice.done}
-                  style={{
-                    padding: '12px',
-                    backgroundColor: choice.done ? '#444' : '#4a9eff',
-                    color: choice.done ? '#888' : '#fff',
-                    border: 'none', borderRadius: '4px',
-                    cursor: choice.done ? 'default' : 'pointer',
-                    textAlign: 'left', fontWeight: 'bold',
-                    display: 'flex', justifyContent: 'space-between',
-                    opacity: choice.done ? 0.6 : 1
-                  }}
-                >
-                  <span>{choice.label}</span>
-                  {choice.done && <span>✓</span>}
-                </button>
-              ))}
-            </div>
-
-            {interactionState.choices.every(c => c.done) && (
-              <button
-                onClick={() => setInteractionState({ type: 'IDLE' })}
-                style={{
-                  marginTop: '20px', width: '100%', padding: '10px',
-                  backgroundColor: '#4caf50', color: '#fff', border: 'none', borderRadius: '4px',
-                  cursor: 'pointer', fontWeight: 'bold'
-                }}
-              >
-                Terminer
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      <BonusChoiceModal 
+        interactionState={interactionState} 
+        onChoice={handleMenuChoice} 
+        onFinish={() => setInteractionState({ type: 'IDLE' })} 
+      />
 
       {/* Alien Discovery Notification */}
-      {alienDiscoveryNotification && alienDiscoveryNotification.visible && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          zIndex: 10000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'column',
-          animation: 'fadeIn 0.5s ease-out',
-          backdropFilter: 'blur(5px)'
-        }}>
-          <div style={{
-            fontSize: '2.5rem',
-            fontWeight: 'bold',
-            color: '#0f0',
-            textShadow: '0 0 10px #0f0, 0 0 20px #0f0, 0 0 30px #0f0',
-            textAlign: 'center',
-            animation: 'alien-discovery-appear 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-            padding: '40px 60px',
-            border: '4px solid #0f0',
-            borderRadius: '20px',
-            backgroundColor: 'rgba(0, 20, 0, 0.9)',
-            boxShadow: '0 0 50px rgba(0, 255, 0, 0.5), inset 0 0 30px rgba(0, 255, 0, 0.2)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '20px'
-          }}>
-            <div style={{ fontSize: '6rem', animation: 'alien-bounce 1s infinite alternate' }}>👽</div>
-            <div>{alienDiscoveryNotification.message}</div>
-          </div>
-          <style>{`
-            @keyframes alien-discovery-appear {
-              0% { transform: scale(0.5); opacity: 0; }
-              60% { transform: scale(1.1); opacity: 1; }
-              100% { transform: scale(1); opacity: 1; }
-            }
-            @keyframes alien-bounce {
-              from { transform: translateY(0); }
-              to { transform: translateY(-10px); }
-            }
-            @keyframes fadeIn {
-              from { opacity: 0; }
-              to { opacity: 1; }
-            }
-          `}</style>
-        </div>
-      )}
+      <AlienDiscoveryModal 
+        visible={alienDiscoveryNotification?.visible || false} 
+        message={alienDiscoveryNotification?.message || ''} 
+      />
 
       {/* Modale de confirmation */}
-      {confirmModalState.visible && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 2000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div style={{
-            backgroundColor: '#2a2a2a', padding: '20px', borderRadius: '8px',
-            maxWidth: '400px', border: '1px solid #ff6b6b', textAlign: 'center'
-          }}>
-            <h3 style={{ color: '#ff6b6b', marginTop: 0 }}>Attention</h3>
-            <p style={{ color: '#ddd', marginBottom: '20px' }}>{confirmModalState.message}</p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-              <button
-                onClick={() => setConfirmModalState({ visible: false, cardId: null, message: '', onConfirm: undefined })}
-                style={{ padding: '8px 16px', backgroundColor: '#555', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-              >
-                Annuler
-              </button>
-              <button
-                onClick={() => {
-                  if (confirmModalState.onConfirm) {
-                    confirmModalState.onConfirm();
-                  } else if (confirmModalState.cardId) {
-                    executePlayCard(confirmModalState.cardId);
-                  }
-                  setConfirmModalState({ visible: false, cardId: null, message: '', onConfirm: undefined });
-                }}
-                style={{ padding: '8px 16px', backgroundColor: '#ff6b6b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                Continuer quand même
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal 
+        visible={confirmModalState.visible} 
+        message={confirmModalState.message} 
+        onCancel={() => setConfirmModalState({ visible: false, cardId: null, message: '', onConfirm: undefined })}
+        onConfirm={() => {
+          if (confirmModalState.onConfirm) {
+            confirmModalState.onConfirm();
+          } else if (confirmModalState.cardId) {
+            executePlayCard(confirmModalState.cardId);
+          }
+          setConfirmModalState({ visible: false, cardId: null, message: '', onConfirm: undefined });
+        }}
+      />
 
       {/* Overlay pour la recherche de technologie ou l'achat de carte */}
       {(interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'RESERVING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') && (
@@ -4219,7 +3391,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                   <div style={{ display: 'flex', overflowX: 'auto', gap: '8px', padding: '8px' }}>
                     {/* Pile de pioche */}
                     <div
-                      onClick={() => handleCardRowClick()}
+                      onClick={() => handleCardRowClick(undefined)}
                       className="seti-common-card"
                       style={{
                         justifyContent: 'center',
@@ -4256,7 +3428,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                         onClick={() => handleCardRowClick(card.id)}
                         onMouseEnter={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
-                          setActiveTooltip({ content: renderCardTooltip(card), rect });
+                          setActiveTooltip({ content: <CardTooltip card={card} />, rect });
                         }}
                         onMouseLeave={() => setActiveTooltip(null)}
                         className="seti-common-card"
@@ -4332,7 +3504,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                     {historyLog.map((entry, index) => {
                       if (entry.message.startsWith('---')) {
                         return (
-                          <div key={entry.id} style={{ display: 'flex', alignItems: 'center', margin: '10px 0', color: '#aaa', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          <div key={entry.id} style={{ display: 'flex', alignItems: 'center', margin: '10px 0', color: '#aaa', fontSize: '0.75rem', textTransform: 'none', letterSpacing: '0.05em' }}>
                             <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
                             <div style={{ padding: '0 10px' }}>{entry.message.replace(/---/g, '').trim()}</div>
                             <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
