@@ -28,7 +28,7 @@ export class AIBehavior {
     const milestones = [25, 50, 70];
     
     for (const m of milestones) {
-      if (player.score >= m && !player.claimedMilestones.includes(m)) {
+      if (player.score >= m && !player.claimedGoldenMilestones.includes(m)) {
         // Trouver les tuiles où le joueur n'a pas encore de marqueur
         const availableTiles = (game.board.objectiveTiles || []).filter(t => !t.markers.includes(player.id));
         

@@ -420,7 +420,7 @@ export class ProbeSystem {
           // Trouver la planète dans le jeu pour vérifier les orbiteurs et le cout (reduit ou non)
           const planet = game.board.planets.find(p => p.id === planetId);
           const hasOrbiter = planet && planet.orbiters.length > 0 ? true : false;
-          const hasExploration3 = game.players.find(p => p.id === playerId)?.technologies.some(t => t.id === 'exploration-3') || false;
+          const hasExploration3 = game.players.find(p => p.id === playerId)?.technologies.some(t => t.id.startsWith('exploration-3')) || false;
           const landCost = hasExploration3
             ? (hasOrbiter ? GAME_CONSTANTS.LAND_COST_ENERGY_WITH_TECHNOLOGY_AND_ORBITER : GAME_CONSTANTS.LAND_COST_ENERGY_WITH_TECHNOLOGY)
             : (hasOrbiter ? GAME_CONSTANTS.LAND_COST_ENERGY_WITH_ORBITER : GAME_CONSTANTS.LAND_COST_ENERGY);

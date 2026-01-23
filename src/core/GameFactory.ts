@@ -18,7 +18,8 @@ import {
   RevenueType,
   CardEffect,
   GameLogEntry,
-  TechnologyCategory
+  TechnologyCategory,
+  NEUTRAL_MILESTONES
 } from './types';
 import { BoardManager } from './Board';
 import { CardSystem } from '../systems/CardSystem';
@@ -70,6 +71,12 @@ export class GameFactory {
       addLog(`${p.name} a rejoint la partie (${index + 1}${suffix} joueur) avec ${p.score} PV`);
     })
     
+    const neutralCount = playerNames.length === 2 ? 2 : (playerNames.length === 3 ? 1 : 0);
+    const neutralMilestonesAvailable: Record<number, number> = {};
+    NEUTRAL_MILESTONES.forEach(m => {
+        neutralMilestonesAvailable[m] = neutralCount;
+    });
+
     const game: Game = {
       id: `game_${Date.now()}`,
       currentRound: 1,
@@ -84,7 +91,8 @@ export class GameFactory {
       discoveredSpecies: [],
       history: [],
       isFirstToPass: false,
-      gameLog
+      gameLog,
+      neutralMilestonesAvailable
     };
 
     return game;
@@ -115,7 +123,8 @@ export class GameFactory {
       hasPassed: false,
       type: 'human',
       color: '#4a90e2' as string,
-      claimedMilestones: [],
+      claimedGoldenMilestones: [],
+      claimedNeutralMilestones: [],
       visitedPlanetsThisTurn: [],
       activeBuffs: []
     };

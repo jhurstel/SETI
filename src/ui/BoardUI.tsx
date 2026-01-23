@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Card, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, MILESTONES, CardType, LifeTraceType, Player, Mission } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Card, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Player, Mission } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -223,12 +223,13 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
     <div style={{ zIndex: 1, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '2px', width: '40px', height: '30px', overflow: 'hidden' }}>
       {traces.map((trace, idx) => {
         const player = game.players.find(p => p.id === trace.playerId);
+        const isNeutral = trace.playerId === 'neutral';
         return (
           <div key={idx} style={{
             width: '10px',
             height: '10px',
             borderRadius: '50%',
-            backgroundColor: player?.color || '#fff',
+            backgroundColor: isNeutral ? '#888' : (player?.color || '#fff'),
             border: '1px solid rgba(255,255,255,0.8)',
             boxShadow: '0 0 2px rgba(0,0,0,0.8)',
             zIndex: 2
@@ -923,12 +924,53 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const currentState = gameEngineRef.current.getState();
     const currentPlayer = currentState.players[currentState.currentPlayerIndex];
 
-    for (const m of MILESTONES) {
-      if (currentPlayer.score >= m && !currentPlayer.claimedMilestones.includes(m)) {
+    for (const m of GOLDEN_MILESTONES) {
+      if (currentPlayer.score >= m && !currentPlayer.claimedGoldenMilestones.includes(m)) {
         setInteractionState({ type: 'PLACING_OBJECTIVE_MARKER', milestone: m });
         setToast({ message: `Palier de ${m} PV atteint ! Placez un marqueur sur un objectif avant de terminer le tour.`, visible: true });
         setIsObjectivesOpen(true);
         return; // Interrompre le passage au joueur suivant
+      }
+    }
+
+    // Vérifier les paliers neutres (20, 30 PV)
+    for (const m of NEUTRAL_MILESTONES) {
+      if (currentPlayer.score >= m && !currentPlayer.claimedNeutralMilestones.includes(m)) {
+          // Marquer comme réclamé pour ce joueur
+          currentPlayer.claimedNeutralMilestones.push(m);
+          
+          // Vérifier s'il reste des marqueurs neutres pour ce palier
+          if (currentState.neutralMilestonesAvailable && currentState.neutralMilestonesAvailable[m] > 0) {
+              currentState.neutralMilestonesAvailable[m]--;
+              
+              // Placer un marqueur neutre sur le plateau Alien
+              // Ordre: Rouge, Jaune, Bleu. Board 0 puis Board 1.
+              const boards = currentState.board.alienBoards;
+              const colors = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE];
+              let placed = false;
+
+              for (const board of boards) {
+                  for (const color of colors) {
+                      // Vérifier si l'emplacement est libre (aucune trace de cette couleur sur ce plateau)
+                      const isOccupied = board.lifeTraces.some(t => t.type === color);
+                      if (!isOccupied) {
+                          board.lifeTraces.push({
+                              id: `trace-neutral-${Date.now()}`,
+                              type: color,
+                              playerId: 'neutral' // ID spécial pour neutre
+                          });
+                          placed = true;
+                          addToHistory(`déclenche un marqueur neutre (Palier ${m} PV) sur la trace ${color} du plateau Alien`, currentPlayer.id, currentState);
+                          setToast({ message: `Palier ${m} PV : Marqueur neutre placé (${color})`, visible: true });
+                          break;
+                      }
+                  }
+                  if (placed) break;
+              }
+              if (!placed) {
+                  addToHistory(`déclenche un marqueur neutre (Palier ${m} PV) mais aucun emplacement libre`, currentPlayer.id, currentState);
+              }
+          }
       }
     }
 
@@ -1804,6 +1846,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     const isFirst = track.length === 1;
     const bonus = isFirst ? board.firstBonus : board.nextBonus;
+
+    const playerToUpdate = updatedGame.players.find(p => p.id === currentPlayer.id);
+    if (playerToUpdate) {
+        ProbeSystem.applyBonus(playerToUpdate, bonus);
+    }
 
     const { updatedGame: gameAfterBonus, newPendingInteractions, passiveGains, logs, historyEntries } = processBonuses(bonus, updatedGame, currentPlayer.id);
 
@@ -3083,7 +3130,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const upPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
 
     upTile.markers.push(upPlayer.id);
-    upPlayer.claimedMilestones.push(interactionState.milestone);
+    upPlayer.claimedGoldenMilestones.push(interactionState.milestone);
 
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
@@ -4000,7 +4047,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                               statusText = "Indisponible";
                               statusColor = "#ff6b6b";
                               if (idx === tile.markers.length) {
-                                const nextMilestone = MILESTONES.find(m => !currentPlayer.claimedMilestones.includes(m));
+                                const nextMilestone = GOLDEN_MILESTONES.find(m => !currentPlayer.claimedGoldenMilestones.includes(m));
                                 if (nextMilestone) {
                                   milestoneText = `Atteindre ${nextMilestone} PVs pour sélectionner l'objectif`;
                                 } else {
@@ -4302,18 +4349,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
                     />
-                    {/* Blue Life Trace Slot */}
-                    <AlienTriangleSlot color="#4a9eff"
-                      traces={game.board.alienBoards[0].lifeTraces.filter(t => t.type === LifeTraceType.BLUE)}
-                      game={game}
-                      isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE}
-                      onClick={() => handlePlaceLifeTrace(0, LifeTraceType.BLUE)}
-                      onMouseEnter={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ content: renderAlienSlotTooltip(0, LifeTraceType.BLUE), rect });
-                      }}
-                      onMouseLeave={() => setActiveTooltip(null)}
-                    />
                     {/* Yellow Life Trace Slot */}
                     <AlienTriangleSlot color="#ffd700"
                       traces={game.board.alienBoards[0].lifeTraces.filter(t => t.type === LifeTraceType.YELLOW)}
@@ -4323,6 +4358,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
                         setActiveTooltip({ content: renderAlienSlotTooltip(0, LifeTraceType.YELLOW), rect });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                    />
+                    {/* Blue Life Trace Slot */}
+                    <AlienTriangleSlot color="#4a9eff"
+                      traces={game.board.alienBoards[0].lifeTraces.filter(t => t.type === LifeTraceType.BLUE)}
+                      game={game}
+                      isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE}
+                      onClick={() => handlePlaceLifeTrace(0, LifeTraceType.BLUE)}
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ content: renderAlienSlotTooltip(0, LifeTraceType.BLUE), rect });
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
                     />
@@ -4375,18 +4422,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
                     />
-                    {/* Blue Life Trace Slot */}
-                    <AlienTriangleSlot color="#4a9eff"
-                      traces={game.board.alienBoards[1].lifeTraces.filter(t => t.type === LifeTraceType.BLUE)}
-                      game={game}
-                      isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE}
-                      onClick={() => handlePlaceLifeTrace(1, LifeTraceType.BLUE)}
-                      onMouseEnter={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ content: renderAlienSlotTooltip(1, LifeTraceType.BLUE), rect });
-                      }}
-                      onMouseLeave={() => setActiveTooltip(null)}
-                    />
                     {/* Yellow Life Trace Slot */}
                     <AlienTriangleSlot color="#ffd700"
                       traces={game.board.alienBoards[1].lifeTraces.filter(t => t.type === LifeTraceType.YELLOW)}
@@ -4396,6 +4431,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
                         setActiveTooltip({ content: renderAlienSlotTooltip(1, LifeTraceType.YELLOW), rect });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                    />
+                    {/* Blue Life Trace Slot */}
+                    <AlienTriangleSlot color="#4a9eff"
+                      traces={game.board.alienBoards[1].lifeTraces.filter(t => t.type === LifeTraceType.BLUE)}
+                      game={game}
+                      isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE}
+                      onClick={() => handlePlaceLifeTrace(1, LifeTraceType.BLUE)}
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ content: renderAlienSlotTooltip(1, LifeTraceType.BLUE), rect });
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
                     />

@@ -390,7 +390,7 @@ export class BoardManager {
       'III',
       TechnologyCategory.EXPLORATION,
       [{ type: 'LAND_COST_REDUCTION', value: 1 }],
-      'Réduit le coût en crédits pour poser une sonde sur une planète de 1 crédit. Cette réduction s\'applique en plus des autres réductions (par exemple, si un orbiteur est déjà présent sur la planète, le coût passe de 2 à 1 crédit au lieu de 3 à 2).',
+      'Réduit le coût en énergie pour poser une sonde sur une planète de 1 énergie. Cette réduction s\'applique en plus des autres réductions (par exemple, si un orbiteur est déjà présent sur la planète, le coût passe de 2 à 1 énergie au lieu de 3 à 2).',
       'Atterrissage réduit'
     );
 

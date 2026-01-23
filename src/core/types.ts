@@ -151,6 +151,7 @@ export interface Game {
   history: GameState[];
   isFirstToPass: boolean;
   gameLog?: GameLogEntry[];
+  neutralMilestonesAvailable: Record<number, number>;
 }
 
 export interface Player {
@@ -174,7 +175,8 @@ export interface Player {
   hasPassed: boolean;
   type: 'human' | 'robot';
   color: string;
-  claimedMilestones: number[];
+  claimedGoldenMilestones: number[];
+  claimedNeutralMilestones: number[];
   visitedPlanetsThisTurn: string[]; // Planètes visitées ce tour-ci
   activeBuffs: CardEffect[]; // Effets passifs temporaires (ex: bonus de visite)
 }
@@ -552,8 +554,8 @@ export const GAME_CONSTANTS = {
   INITIAL_REVENUE_CARDS: 1,
 } as const;
 
-export const MILESTONES = [25, 50, 70] as const;
-export type MilestoneType = typeof MILESTONES[number];
+export const GOLDEN_MILESTONES = [25, 50, 70] as const;
+export const NEUTRAL_MILESTONES = [20, 30] as const;
 
 export const DISK_NAMES: Record<DiskName, number> = {
   A: 0,
