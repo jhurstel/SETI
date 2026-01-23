@@ -413,6 +413,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const [isAlienBoardAOpen, setIsAlienBoardAOpen] = useState(false);
   const [isAlienBoardBOpen, setIsAlienBoardBOpen] = useState(false);
 
+  // État pour la notification de découverte Alien
+  const [alienDiscoveryNotification, setAlienDiscoveryNotification] = useState<{ visible: boolean; message: string } | null>(null);
+
   // État pour le tooltip générique
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
 
@@ -567,7 +570,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Helper pour formater les messages avec des icônes
   const formatHistoryMessage = (message: string) => {
     const resourcePattern = Object.values(RESOURCE_CONFIG).map(c => c.regex.source).join('|');
-    const splitRegex = new RegExp(`(<strong>.*?<\\/strong>|${resourcePattern}|"[^"]+")`, 'g');
+    const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${resourcePattern}|"[^"]+")`, 'g');
 
     return message.split(splitRegex).map((part, index) => {
       // Gestion des cartes (entre guillemets)
@@ -593,15 +596,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }
       }
 
-      for (const config of Object.values(RESOURCE_CONFIG)) {
-        if (new RegExp(`^${config.regex.source}$`).test(part)) {
-          return <span key={index} title={config.label} style={{ color: config.color, cursor: 'help', fontWeight: 'bold' }}>{config.icon}</span>;
-        }
-      }
-
       // Gestion du gras (balises <strong>)
       if (part.includes('<strong>')) {
-        const subParts = part.split(/(<strong>.*?<\/strong>)/g);
+        const subParts = part.split(/(<strong>[\s\S]*?<\/strong>)/g);
         return (
           <span key={index}>
             {subParts.map((subPart, subIndex) => {
@@ -612,6 +609,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             })}
           </span>
         );
+      }
+
+      // Gestion des icones de ressource
+      for (const config of Object.values(RESOURCE_CONFIG)) {
+        if (new RegExp(`^${config.regex.source}$`).test(part)) {
+          return <span key={index} title={config.label} style={{ color: config.color, cursor: 'help', fontWeight: 'bold' }}>{config.icon}</span>;
+        }
       }
 
       return part;
@@ -1842,6 +1846,35 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       playerId: currentPlayer.id
     });
 
+    // Vérifier si une espèce Alien est découverte (1 marqueur de chaque couleur sur ce plateau)
+    const traces = board.lifeTraces;
+    const hasRed = traces.some(t => t.type === LifeTraceType.RED);
+    const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
+    const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
+    
+    const tracesBefore = traces.slice(0, -1);
+    const hadRed = tracesBefore.some(t => t.type === LifeTraceType.RED);
+    const hadYellow = tracesBefore.some(t => t.type === LifeTraceType.YELLOW);
+    const hadBlue = tracesBefore.some(t => t.type === LifeTraceType.BLUE);
+    
+    let discoveryLog = "";
+    if (hasRed && hasYellow && hasBlue && !(hadRed && hadYellow && hadBlue)) {
+         setAlienDiscoveryNotification({ visible: true, message: "Découverte d'une nouvelle espèce Alien !" });
+         setTimeout(() => setAlienDiscoveryNotification(null), 4000);
+         discoveryLog = " et découvre une nouvelle espèce Alien !";
+    }
+
+    const ALIEN_SPECIES = ['Centauriens', 'Exertiens', 'Oumuamua']
+
+    // Assigner une espèce aléatoire au plateau si pas déjà fait
+    if (!board.speciesId) {
+      //const availableSpecies = Object.keys(ALIEN_SPECIES_TOPOLOGIES);
+      // Filtrer les espèces déjà découvertes sur d'autres plateaux (si on veut l'unicité)
+      // Pour l'instant, simple random
+      const randomSpecies = ALIEN_SPECIES[Math.floor(Math.random() * ALIEN_SPECIES.length)];
+      board.speciesId = randomSpecies;
+    }
+
     const track = board.lifeTraces.filter(t => t.type === color);
 
     const isFirst = track.length === 1;
@@ -1862,6 +1895,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (logs.length > 0) {
       message += ` et ${logs.join(', ')}`;
     }
+    message += discoveryLog;
     addToHistory(message, currentPlayer.id, game, undefined, sequenceId);
     historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, gameAfterBonus, undefined, sequenceId));
 
@@ -3830,6 +3864,58 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         </div>
       )}
 
+      {/* Alien Discovery Notification */}
+      {alienDiscoveryNotification && alienDiscoveryNotification.visible && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          zIndex: 10000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          animation: 'fadeIn 0.5s ease-out',
+          backdropFilter: 'blur(5px)'
+        }}>
+          <div style={{
+            fontSize: '2.5rem',
+            fontWeight: 'bold',
+            color: '#0f0',
+            textShadow: '0 0 10px #0f0, 0 0 20px #0f0, 0 0 30px #0f0',
+            textAlign: 'center',
+            animation: 'alien-discovery-appear 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+            padding: '40px 60px',
+            border: '4px solid #0f0',
+            borderRadius: '20px',
+            backgroundColor: 'rgba(0, 20, 0, 0.9)',
+            boxShadow: '0 0 50px rgba(0, 255, 0, 0.5), inset 0 0 30px rgba(0, 255, 0, 0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px'
+          }}>
+            <div style={{ fontSize: '6rem', animation: 'alien-bounce 1s infinite alternate' }}>👽</div>
+            <div>{alienDiscoveryNotification.message}</div>
+          </div>
+          <style>{`
+            @keyframes alien-discovery-appear {
+              0% { transform: scale(0.5); opacity: 0; }
+              60% { transform: scale(1.1); opacity: 1; }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            @keyframes alien-bounce {
+              from { transform: translateY(0); }
+              to { transform: translateY(-10px); }
+            }
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+          `}</style>
+        </div>
+      )}
+
       {/* Modale de confirmation */}
       {confirmModalState.visible && (
         <div style={{
@@ -4328,6 +4414,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                   <span className="panel-title">Alien Board</span>
                 </div>
                 <div className="seti-foldable-content" style={{ display: 'flex', flexDirection: 'column' }}>
+                  {/* Extension Espèce Alien (si découverte) */}
+                  {game.board.alienBoards[0].speciesId && (
+                    <div style={{ position: 'relative', height: '200px', width: '100%', borderBottom: '1px dashed #444', marginBottom: '10px' }}>
+                      <div style={{ position: 'absolute', top: '5px', left: '5px', fontSize: '0.7em', color: '#aaa' }}>Espèce: {game.board.alienBoards[0].speciesId}</div>
+                    </div>
+                  )}
                   {/* Contenu vide pour l'instant */}
                   <div style={{
                     display: 'flex',
@@ -4401,6 +4493,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                   <span className="panel-title">Alien Board</span>
                 </div>
                 <div className="seti-foldable-content" style={{ display: 'flex', flexDirection: 'column' }}>
+                  {/* Extension Espèce Alien (si découverte) */}
+                  {game.board.alienBoards[1].speciesId && (
+                    <div style={{ position: 'relative', height: '200px', width: '100%', borderBottom: '1px dashed #444', marginBottom: '10px' }}>
+                      <div style={{ position: 'absolute', top: '5px', left: '5px', fontSize: '0.7em', color: '#aaa' }}>Espèce: {game.board.alienBoards[1].speciesId}</div>
+                    </div>
+                  )}
                   {/* Contenu vide pour l'instant */}
                   <div style={{
                     display: 'flex',

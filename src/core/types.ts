@@ -271,6 +271,7 @@ export interface AlienBoard {
   firstBonus: Bonus;
   nextBonus: Bonus;
   isFirstBoard: boolean;
+  speciesId?: string; // ID de l'espèce découverte sur ce plateau
 }
 
 export interface LifeTrace {
