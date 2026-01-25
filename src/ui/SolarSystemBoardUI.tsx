@@ -12,6 +12,7 @@ import {
   CelestialObject
 } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
+import './SolarSystemBoardUI.css'
 
 interface SolarSystemBoardUIProps {
   game: Game;

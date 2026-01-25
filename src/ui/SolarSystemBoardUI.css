@@ -1,0 +1,32 @@
+.seti-solar-system-container {
+    /* Le conteneur système solaire est maintenant le panel lui-même */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  
+  /* Soleil au centre */
+  .seti-sun {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8%; /* Diamètre du soleil (rayon 4% * 2) - correspond aux calculs */
+    height: 8%;
+    border-radius: 50%;
+    background: radial-gradient(circle, #ffdd66, #cc9933);
+    box-shadow: 0 0 20px rgba(255, 221, 102, 0.6);
+    z-index: 10;
+    aspect-ratio: 1; /* Force un cercle parfait */
+  }
+  
+  /* Disques concentriques (A-E) */
+  .seti-solar-disk {
+    transition: transform 0.5s ease-in-out;
+  }
+  
+  /* Planètes sur le système solaire */
+  .seti-planet {
+    position: relative;
+  }
+  
