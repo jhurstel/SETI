@@ -18,8 +18,11 @@ import { AIBehavior } from '../ai/AIBehavior';
 import { DebugPanel } from './DebugPanel';
 import { PassModal } from './modals/PassModal';
 import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal } from './modals/GameModals';
-import { CardTooltip, getSectorColorCode } from './CardTooltip';
 import { Tooltip } from './Tooltip';
+import { ObjectiveBoardUI } from './ObjectiveBoardUI';
+import { HistoryBoardUI, HistoryEntry, RESOURCE_CONFIG } from './HistoryBoardUI';
+import { CardRowUI } from './CardRowUI';
+import { AlienBoardUI } from './AlienBoardUI';
 import './BoardUI.css';
 
 interface BoardUIProps {
@@ -68,46 +71,6 @@ const getInteractionLabel = (state: InteractionState): string => {
   }
 };
 
-interface HistoryEntry {
-  id: string;
-  message: string;
-  playerId?: string;
-  previousState?: Game;
-  previousInteractionState?: InteractionState;
-  previousHasPerformedMainAction?: boolean;
-  previousPendingInteractions?: InteractionState[];
-  timestamp: number;
-  sequenceId?: string;
-}
-
-// Configuration des ressources pour l'affichage et les logs
-const RESOURCE_CONFIG: Record<string, { label: string, plural: string, icon: string, color: string, regex: RegExp }> = {
-  CREDIT: {
-    label: 'Crédit', plural: 'Crédits', icon: '₢', color: '#ffd700',
-    regex: /Crédit(?:s?)|crédit(?:s?)/
-  },
-  ENERGY: {
-    label: 'Énergie', plural: 'Énergie', icon: '⚡', color: '#4caf50',
-    regex: /Énergie|énergie|Energie|energie/
-  },
-  MEDIA: {
-    label: 'Média', plural: 'Médias', icon: '🎤', color: '#ff6b6b',
-    regex: /Média(?:s?)|Media(?:s?)|média(?:s?)|media(?:s?)/
-  },
-  DATA: {
-    label: 'Donnée', plural: 'Données', icon: '💾', color: '#03a9f4',
-    regex: /Donnée(?:s?)|donnée(?:s?)|Data|data/
-  },
-  CARD: {
-    label: 'Carte', plural: 'Cartes', icon: '🃏', color: '#aaffaa',
-    regex: /Carte(?:s?)|carte(?:s?)/
-  },
-  PV: {
-    label: 'PV', plural: 'PV', icon: '🏆', color: '#fff',
-    regex: /\bPV\b/
-  }
-};
-
 // Helper pour formater une quantité de ressource (ex: "2 Crédits")
 const formatResource = (amount: number, type: string) => {
   let key = type.toUpperCase();
@@ -124,51 +87,6 @@ const formatResource = (amount: number, type: string) => {
   }
   return `${amount} ${type}`;
 };
-
-const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseEnter, onMouseLeave }: { color: string, traces: any[], game: Game, onClick?: () => void, isClickable?: boolean, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
-  <div
-    style={{ position: 'relative', width: '60px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isClickable ? 'pointer' : 'help' }}
-    onMouseEnter={onMouseEnter}
-    onMouseLeave={onMouseLeave}
-    onClick={() => { if (isClickable && onClick) onClick(); }}
-  >
-    <svg width="60" height="50" viewBox="0 0 60 50" style={{ position: 'absolute', top: 0, left: 0, overflow: 'visible' }}>
-      <path
-        d="M10 5
-           Q30 -5 50 5
-           Q60 10 55 15
-           L35 45
-           Q30 50 25 45
-           L5 15
-           Q0 10 10 5 Z"
-        fill={isClickable ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.5)"}
-        stroke={color}
-        strokeWidth={isClickable ? "3" : "2"}
-        style={{ transition: 'all 0.3s ease', filter: isClickable ? `drop-shadow(0 0 5px ${color})` : 'none' }}
-      />
-      {isClickable && (
-        <animate attributeName="opacity" values="1;0.7;1" dur="1.5s" repeatCount="indefinite" />
-      )}
-    </svg>
-    <div style={{ zIndex: 1, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '2px', width: '40px', height: '30px', overflow: 'hidden' }}>
-      {traces.map((trace, idx) => {
-        const player = game.players.find(p => p.id === trace.playerId);
-        const isNeutral = trace.playerId === 'neutral';
-        return (
-          <div key={idx} style={{
-            width: '10px',
-            height: '10px',
-            borderRadius: '50%',
-            backgroundColor: isNeutral ? '#888' : (player?.color || '#fff'),
-            border: '1px solid rgba(255,255,255,0.8)',
-            boxShadow: '0 0 2px rgba(0,0,0,0.8)',
-            zIndex: 2
-          }} />
-        );
-      })}
-    </div>
-  </div>
-);
 
 export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // États pour le jeu
@@ -188,7 +106,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // États pour l'UI
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
-  const historyContentRef = useRef<HTMLDivElement>(null);
   const [historyLog, setHistoryLog] = useState<HistoryEntry[]>(() => {
     if (initialGame.gameLog && initialGame.gameLog.length > 0) {
       return [...initialGame.gameLog].map(log => ({
@@ -204,10 +121,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const [pendingInteractions, setPendingInteractions] = useState<InteractionState[]>([]);
   const [hasPerformedMainAction, setHasPerformedMainAction] = useState(false);
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
-  const [isTechOpen, setIsTechOpen] = useState(false);
-  const [isObjectivesOpen, setIsObjectivesOpen] = useState(false);
-  const [isRowOpen, setIsRowOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(true);
   const [isAlienBoardAOpen, setIsAlienBoardAOpen] = useState(false);
   const [isAlienBoardBOpen, setIsAlienBoardBOpen] = useState(false);
 
@@ -219,23 +132,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Auto-open tech & row panel when researching or selecting card
   useEffect(() => {
-    if (interactionState.type === 'ACQUIRING_TECH') {
-      setIsTechOpen(true);
-    }
-    if (interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') {
-      setIsRowOpen(true);
-    }
-    if (interactionState.type === 'PLACING_OBJECTIVE_MARKER') {
-      setIsObjectivesOpen(true);
-    }
     if (interactionState.type === 'PLACING_LIFE_TRACE') {
       setIsAlienBoardAOpen(true);
       setIsAlienBoardBOpen(true);
-    }
-    if (interactionState.type === 'IDLE') {
-      setIsTechOpen(false);
-      setIsRowOpen(false);
-      setIsObjectivesOpen(false);
     }
   }, [interactionState.type]);
 
@@ -278,109 +177,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   useEffect(() => { interactionStateRef.current = interactionState; }, [interactionState]);
   const pendingInteractionsRef = useRef(pendingInteractions);
   useEffect(() => { pendingInteractionsRef.current = pendingInteractions; }, [pendingInteractions]);
-
-  // Scroll automatique vers le bas de l'historique
-  useEffect(() => {
-    if (historyContentRef.current) {
-      historyContentRef.current.scrollTo({ top: historyContentRef.current.scrollHeight, behavior: 'smooth' });
-    }
-  }, [historyLog]);
-
-  const findCardByName = useCallback((name: string) => {
-    if (!name) return undefined;
-    const cleanName = name.trim();
-    const searchIn = (list?: Card[]) => list?.find(c => c.name === cleanName);
-
-    // Check players hands
-    for (const p of game.players) {
-      const c = searchIn(p.cards);
-      if (c) return c;
-    }
-    // Check row
-    const cRow = searchIn(game.decks.cardRow);
-    if (cRow) return cRow;
-
-    // Check deck (if accessible, usually hidden but in game state it is there)
-    const cDeck = searchIn(game.decks.cards);
-    if (cDeck) return cDeck;
-
-    // Check discard
-    const cDiscard = searchIn(game.decks.discardPile);
-    if (cDiscard) return cDiscard;
-
-    // Check round decks
-    if (game.decks.roundDecks) {
-      for (const key in game.decks.roundDecks) {
-        const cRound = searchIn(game.decks.roundDecks[key]);
-        if (cRound) return cRound;
-      }
-    }
-
-    // Check species cards
-    if (game.species) {
-      for (const s of game.species) {
-        const cSpecies = searchIn(s.cards);
-        if (cSpecies) return cSpecies;
-      }
-    }
-
-    return undefined;
-  }, [game]);
-
-  // Helper pour formater les messages avec des icônes
-  const formatHistoryMessage = (message: string) => {
-    const resourcePattern = Object.values(RESOURCE_CONFIG).map(c => c.regex.source).join('|');
-    const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${resourcePattern}|"[^"]+")`, 'g');
-
-    return message.split(splitRegex).map((part, index) => {
-      // Gestion des cartes (entre guillemets)
-      if (part.startsWith('"') && part.endsWith('"')) {
-        const cardName = part.slice(1, -1);
-        if (!cardName) return part;
-        const card = findCardByName(cardName);
-
-        if (card) {
-          return (
-            <span
-              key={index}
-              style={{ color: '#4a9eff', cursor: 'help', borderBottom: '1px dotted #4a9eff' }}
-              onMouseEnter={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                setActiveTooltip({ content: <CardTooltip card={card} />, rect });
-              }}
-              onMouseLeave={() => setActiveTooltip(null)}
-            >
-              "{cardName}"
-            </span>
-          );
-        }
-      }
-
-      // Gestion du gras (balises <strong>)
-      if (part.includes('<strong>')) {
-        const subParts = part.split(/(<strong>[\s\S]*?<\/strong>)/g);
-        return (
-          <span key={index}>
-            {subParts.map((subPart, subIndex) => {
-              if (subPart.startsWith('<strong>') && subPart.endsWith('</strong>')) {
-                return <strong key={subIndex}>{subPart.replace(/<\/?strong>/g, '')}</strong>;
-              }
-              return subPart;
-            })}
-          </span>
-        );
-      }
-
-      // Gestion des icones de ressource
-      for (const config of Object.values(RESOURCE_CONFIG)) {
-        if (new RegExp(`^${config.regex.source}$`).test(part)) {
-          return <span key={index} title={config.label} style={{ color: config.color, cursor: 'help', fontWeight: 'bold' }}>{config.icon}</span>;
-        }
-      }
-
-      return part;
-    });
-  };
 
   // Helper pour formater les logs de rotation
   const formatRotationLogs = (baseMessage: string, rotationLogs: string[]) => {
@@ -692,7 +488,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       if (currentPlayer.score >= m && !currentPlayer.claimedGoldenMilestones.includes(m)) {
         setInteractionState({ type: 'PLACING_OBJECTIVE_MARKER', milestone: m });
         setToast({ message: `Palier de ${m} PV atteint ! Placez un marqueur sur un objectif avant de terminer le tour.`, visible: true });
-        setIsObjectivesOpen(true);
         return; // Interrompre le passage au joueur suivant
       }
     }
@@ -1351,7 +1146,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
       setInteractionState({ type: 'ACQUIRING_TECH', isBonus: false, sequenceId });
-      setIsTechOpen(true);
       setToast({ message: "Système pivoté. Sélectionnez une technologie.", visible: true });
     }
     else if (actionType === ActionType.ANALYZE_DATA) {
@@ -2786,7 +2580,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       if (!card) return;
 
       setInteractionState({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId: interactionState.sequenceId, cardId: card.id });
-      setIsRowOpen(false);
       setToast({ message: `Sélectionnez un secteur ${card.scanSector}`, visible: true });
     } else
       // Cas 2: 
@@ -2860,7 +2653,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           setToast({ message: `Encore ${interactionState.count - 1} carte(s) à choisir`, visible: true });
         } else {
           setInteractionState({ type: 'IDLE' });
-          setIsRowOpen(false);
         }
       }
   };
@@ -2916,7 +2708,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
     setInteractionState({ type: 'IDLE' });
-    setIsTechOpen(false);
     setHasPerformedMainAction(true);
     setToast({ message: `Technologie ${tech.name} acquise !`, visible: true });
     addToHistory(`acquiert la technologie "${tech.type} ${tech.name}"${gains.length > 0 ? ` et gagne ${gains.join(', ')}` : ''}`, currentPlayer.id, currentGame, undefined, interactionState.sequenceId);
@@ -3127,63 +2918,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     return [];
   };
 
-  // Helper pour le tooltip des slots Alien
-  const renderAlienSlotTooltip = (boardIndex: number, colorType: LifeTraceType) => {
-    const board = game.board.alienBoards[boardIndex];
-    if (!board) return null;
-
-    const traces = board.lifeTraces.filter(t => t.type === colorType);
-    let colorName = "";
-    let colorHex = "";
-
-    if (colorType === LifeTraceType.RED) {
-      colorName = "Rouge";
-      colorHex = "#ff6b6b";
-    } else if (colorType === LifeTraceType.BLUE) {
-      colorName = "Bleue";
-      colorHex = "#4a9eff";
-    } else if (colorType === LifeTraceType.YELLOW) {
-      colorName = "Jaune";
-      colorHex = "#ffd700";
-    }
-
-    const formatBonusSimple = (bonus: any) => {
-      const parts = [];
-      if (bonus.pv) parts.push(`${bonus.pv} PV`);
-      if (bonus.media) parts.push(`${bonus.media} Média`);
-      return parts.join(', ') || 'Aucun';
-    };
-
-    return (
-      <div style={{ textAlign: 'center', minWidth: '180px' }}>
-        <div style={{ fontWeight: 'bold', color: colorHex, marginBottom: '6px', borderBottom: '1px solid #555', paddingBottom: '4px' }}>
-          Trace de vie {colorName}
-        </div>
-
-        {traces.length > 0 ? (
-          <div style={{ marginBottom: '8px' }}>
-            <div style={{ fontSize: '0.8em', color: '#aaa', marginBottom: '2px' }}>Découvert par :</div>
-            {traces.map((trace, idx) => {
-              const player = game.players.find(p => p.id === trace.playerId);
-              return (
-                <div key={idx} style={{ color: player?.color || '#fff', fontWeight: 'bold', fontSize: '0.9em' }}>
-                  {player?.name || 'Inconnu'}
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div style={{ fontStyle: 'italic', color: '#888', marginBottom: '8px', fontSize: '0.9em' }}>Aucune trace découverte</div>
-        )}
-
-        <div style={{ fontSize: '0.8em', marginTop: '4px', borderTop: '1px solid #555', paddingTop: '4px', textAlign: 'left' }}>
-          <div style={{ color: '#ccc', marginBottom: '2px' }}>Bonus 1ère découverte : <span style={{ color: '#ffd700', float: 'right' }}>{formatBonusSimple(board.firstBonus)}</span></div>
-          <div style={{ color: '#ccc' }}>Bonus suivants : <span style={{ color: '#ffd700', float: 'right' }}>{formatBonusSimple(board.nextBonus)}</span></div>
-        </div>
-      </div>
-    );
-  };
-
   const currentPlayer = game.players[game.currentPlayerIndex];
   const canResearch = !hasPerformedMainAction && interactionState.type === 'IDLE' && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
 
@@ -3197,6 +2931,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         setHasPerformedMainAction={setHasPerformedMainAction}
         setViewedPlayerId={setViewedPlayerId}
         interactionState={interactionState} />
+
       {/* Toast Notification */}
       {toast && toast.visible && (
         <div className="seti-toast">
@@ -3225,21 +2960,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         <MediaOrMoveModal onChoice={handleMediaOrMoveChoice} />
       )}
 
-      {/* Modale pour Observation 2 */}
+      {/* Modale pour Observation 2 (Scanner un secteur) */}
       {interactionState.type === 'CHOOSING_OBS2_ACTION' && (
         <Observation2Modal onChoice={handleObs2Choice} />
       )}
 
-      {/* Modale pour Observation 3 */}
+      {/* Modale pour Observation 3 (Scanner un secteur) */}
       {interactionState.type === 'CHOOSING_OBS3_ACTION' && (
         <Observation3Modal onChoice={handleObs3Choice} />
       )}
 
-      {/* Modale pour Observation 4 */}
+      {/* Modale pour Observation 4 (Scanner un secteur) */}
       {interactionState.type === 'CHOOSING_OBS4_ACTION' && (() => {
         const canLaunch = currentPlayer.energy >= 1 && ProbeSystem.canLaunchProbe(game, currentPlayer.id, false).canLaunch;
         const canMove = currentPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
-
         return (
           <Observation4Modal onChoice={handleObs4Choice} canLaunch={canLaunch} canMove={canMove} />
         );
@@ -3287,9 +3021,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }} onClick={() => {
           if (interactionState.type === 'ACQUIRING_CARD') {
             setInteractionState({ type: 'IDLE' });
-            setIsRowOpen(false);
           } else if (interactionState.type === 'SELECTING_SCAN_CARD') {
-            setIsRowOpen(false);
             // Cannot cancel easily in middle of sequence, maybe toast warning?
           } else if (interactionState.type === 'RESERVING_CARD') {
             setToast({ message: "Veuillez sélectionner une carte à réserver", visible: true });
@@ -3393,479 +3125,66 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             overflowY: 'auto',
             pointerEvents: 'none',
           }}>
-            <div className={`seti-foldable-container seti-icon-panel ${isObjectivesOpen ? 'open' : 'collapsed'}`} style={{ pointerEvents: 'auto' }}>
-              <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
-                <span className="panel-icon">🏆</span>
-                <span className="panel-title">Objectifs</span>
-              </div>
-              <div className="seti-foldable-content">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  {game.board.objectiveTiles && game.board.objectiveTiles.map(tile => (
-                    <div key={tile.id}
-                      onClick={() => handleObjectiveClick(tile.id)}
-                      style={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        border: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '1px solid #4a9eff' : '1px solid #555',
-                        borderRadius: '6px',
-                        padding: '8px',
-                        display: 'flex',
-                        cursor: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? 'pointer' : 'default',
-                        boxShadow: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '0 0 10px rgba(74, 158, 255, 0.3)' : 'none',
-                        flexDirection: 'column',
-                        gap: '4px',
-                        minHeight: '100px'
-                      }}>
-                      <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', marginBottom: 'auto' }}>{tile.description}</div>
+            {/* Objectifs */}
+            <ObjectiveBoardUI
+              game={game}
+              interactionState={interactionState}
+              onObjectiveClick={handleObjectiveClick}
+              setActiveTooltip={setActiveTooltip}
+              isInitiallyOpen={interactionState.type === 'PLACING_OBJECTIVE_MARKER'}
+            />
 
-                      {/* Piste de score avec 4 cercles */}
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', position: 'relative', padding: '0 5px' }}>
-                        {/* Ligne de connexion */}
-                        <div style={{ position: 'absolute', top: '50%', left: '10px', right: '10px', height: '2px', backgroundColor: '#555', zIndex: 0 }}></div>
+            {/* Technologies */}
+            <TechnologyBoardUI
+              game={game}
+              interactionState={interactionState}
+              onTechClick={handleTechClick}
+              setActiveTooltip={setActiveTooltip}
+              isInitiallyOpen={interactionState.type === 'ACQUIRING_TECH'}
+              canResearch={canResearch}
+            />
 
-                        {/* Cercles (1er, 2eme, Autre, Autre) */}
-                        {[tile.rewards.first, tile.rewards.second, tile.rewards.others, tile.rewards.others].map((pv, idx) => {
-                          const markerPlayerId = tile.markers[idx];
-                          const player = markerPlayerId ? game.players.find(p => p.id === markerPlayerId) : null;
-
-                          const currentPlayer = game.players[game.currentPlayerIndex];
-                          const isPlacingMarker = interactionState.type === 'PLACING_OBJECTIVE_MARKER';
-                          const hasMarkerOnTile = tile.markers.includes(currentPlayer.id);
-                          const isNextAvailable = isPlacingMarker && !hasMarkerOnTile && idx === tile.markers.length;
-
-                          let statusText = "";
-                          let statusColor = "";
-                          let actionText = null;
-                          let milestoneText = null;
-
-                          if (player) {
-                            statusText = `Atteint par ${player.name}`;
-                            statusColor = player.color || "#ccc";
-                          } else if (isNextAvailable) {
-                            statusText = "Disponible";
-                            statusColor = "#4a9eff";
-                            actionText = "Cliquez pour placer un marqueur";
-                          } else if (hasMarkerOnTile) {
-                            statusText = "Déjà validé";
-                            statusColor = "#aaa";
-                          } else {
-                            statusText = "Indisponible";
-                            statusColor = "#ff6b6b";
-                            if (idx === tile.markers.length) {
-                              const nextMilestone = GOLDEN_MILESTONES.find(m => !currentPlayer.claimedGoldenMilestones.includes(m));
-                              if (nextMilestone) {
-                                milestoneText = `Atteindre ${nextMilestone} PVs pour sélectionner l'objectif`;
-                              } else {
-                                actionText = "Tous les paliers atteints";
-                              }
-                            } else {
-                              actionText = "Nécessite le palier précédent";
-                            }
-                          }
-
-                          const tooltipContent = (
-                            <div style={{ textAlign: 'center' }}>
-                              <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>{statusText}</div>
-                              <div style={{ fontSize: '0.9em', color: '#ccc' }}>Gain : <span style={{ color: '#ffd700' }}>{pv} PV</span></div>
-                              {milestoneText && <div style={{ fontSize: '0.8em', color: '#4a9eff', marginTop: '4px', fontStyle: 'italic' }}>{milestoneText}</div>}
-                              {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
-                            </div>
-                          );
-
-                          return (
-                            <div key={idx} style={{
-                              width: '22px', height: '22px', borderRadius: '50%',
-                              backgroundColor: player ? (player.color || '#fff') : (isNextAvailable ? 'rgba(74, 158, 255, 0.3)' : '#222'),
-                              border: player ? '2px solid #fff' : (isNextAvailable ? '2px solid #4a9eff' : '1px solid #777'),
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              zIndex: 1, fontSize: '0.75em', fontWeight: 'bold',
-                              color: player ? '#000' : '#fff',
-                              boxShadow: isNextAvailable ? '0 0 8px #4a9eff' : (player ? '0 0 4px rgba(0,0,0,0.5)' : 'none'),
-                              transform: isNextAvailable ? 'scale(1.2)' : 'scale(1)',
-                              transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                              cursor: isNextAvailable ? 'pointer' : 'help',
-                            }}
-                              onMouseEnter={(e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setActiveTooltip({ content: tooltipContent, rect });
-                              }}
-                              onMouseLeave={() => setActiveTooltip(null)}
-                            >
-                              {player ? '' : pv}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className={`seti-foldable-container seti-icon-panel ${isTechOpen ? 'open' : 'collapsed'} ${canResearch && !isTechOpen ? 'container-flash' : ''}`}
-              style={{
-                pointerEvents: 'auto',
-                ...(interactionState.type === 'ACQUIRING_TECH' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
-              }}
-            >
-              <div className="seti-foldable-header" onClick={() => setIsTechOpen(!isTechOpen)}>
-                <span className={`panel-icon ${canResearch ? 'icon-flash' : ''}`}>🔬</span>
-                <span className="panel-title">Technologies</span>
-              </div>
-              <div className="seti-foldable-content">
-                <TechnologyBoardUI
-                  game={game}
-                  isResearching={interactionState.type === 'ACQUIRING_TECH'}
-                  researchCategory={interactionState.type === 'ACQUIRING_TECH' ? interactionState.category : undefined}
-                  sharedTechOnly={interactionState.type === 'ACQUIRING_TECH' ? interactionState.sharedOnly : false}
-                  onTechClick={handleTechClick}
-                  hasPerformedMainAction={hasPerformedMainAction}
-                />
-              </div>
-            </div>
-
-            <div className={`seti-foldable-container seti-icon-panel ${isRowOpen ? 'open' : 'collapsed'}`}
-              style={{
-                pointerEvents: 'auto',
-                ...(interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD' ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
-              }}
-            >
-              <div className="seti-foldable-header" onClick={() => setIsRowOpen(!isRowOpen)}>
-                <span className="panel-icon">🃏</span>
-                <span className="panel-title">Rangée Principale</span>
-              </div>
-              <div className="seti-foldable-content">
-                <div style={{ display: 'flex', overflowX: 'auto', gap: '8px', padding: '8px' }}>
-                  {/* Pile de pioche */}
-                  <div
-                    onClick={() => handleCardRowClick(undefined)}
-                    className="seti-common-card"
-                    style={{
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: '4px',
-                      backgroundImage: 'repeating-linear-gradient(45deg, #222 0, #222 10px, #2a2a2a 10px, #2a2a2a 20px)',
-                      cursor: interactionState.type === 'ACQUIRING_CARD' ? 'pointer' : 'default',
-                      borderColor: interactionState.type === 'ACQUIRING_CARD' ? '#4a9eff' : '#555'
-                    }}>
-                    <div style={{ fontWeight: 'bold', color: '#aaa', textAlign: 'center' }}>Pioche</div>
-                    <div style={{ fontSize: '0.8em', color: '#888' }}>{game.decks.cards.length || 0} cartes</div>
-                  </div>
-
-                  {/* Pile de défausse */}
-                  {/*
-                    <div
-                      className="seti-common-card"
-                      style={{
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        gap: '4px',
-                        backgroundColor: 'rgba(0,0,0,0.3)',
-                        border: '1px dashed #555',
-                        cursor: 'help'
-                      }}
-                      title="Pile de défausse"
-                      >
-                      <div style={{ fontWeight: 'bold', color: '#aaa', textAlign: 'center' }}>Défausse</div>
-                      <div style={{ fontSize: '0.8em', color: '#888' }}>{game.decks.discardPile?.length || 0} cartes</div>
-                    </div>
-                    */}
-                  {game.decks.cardRow && game.decks.cardRow.map(card => (
-                    <div key={card.id}
-                      onClick={() => handleCardRowClick(card.id)}
-                      onMouseEnter={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ content: <CardTooltip card={card} />, rect });
-                      }}
-                      onMouseLeave={() => setActiveTooltip(null)}
-                      className="seti-common-card"
-                      style={{
-                        border: (interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? '1px solid #4a9eff' : '1px solid #555',
-                        cursor: (interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? 'pointer' : 'default',
-                        animation: 'cardAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                      }}>
-                      <div style={{ fontWeight: 'bold', color: '#fff', lineHeight: '1.1', marginBottom: '4px', fontSize: '0.75rem', height: '2.2em', overflow: 'hidden' }}>{card.name}</div>
-                      <div style={{ fontSize: '0.75em', color: '#aaa' }}>Jouer la carte (coût: <span style={{ color: '#ffd700' }}>{card.cost}</span>)</div>
-                      {card.description && <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', margin: '4px 0', lineHeight: '1.2', flex: 1, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75em', color: '#ddd', marginBottom: '2px' }}>
-                        {card.freeAction && <div>Act: {card.freeAction}</div>}
-                        {card.revenue && <div>Rev: {card.revenue}</div>}
-                      </div>
-                      <div style={{
-                        marginTop: 'auto',
-                        padding: '4px',
-                        backgroundColor: 'rgba(255,255,255,0.05)',
-                        borderRadius: '4px',
-                        textAlign: 'center',
-                        border: `1px solid ${getSectorColorCode(card.scanSector)}`,
-                      }}>
-                        <div style={{ fontSize: '0.7em', textTransform: 'uppercase', color: '#ddd', marginBottom: '2px' }}>Scan</div>
-                        <div style={{
-                          color: getSectorColorCode(card.scanSector),
-                          fontWeight: 'bold',
-                          fontSize: '1.1em'
-                        }}>
-                          {card.scanSector}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {(!game.decks.cardRow || game.decks.cardRow.length === 0) && (
-                    <div style={{ gridColumn: '2 / -1', color: '#888', fontStyle: 'italic', padding: '10px', textAlign: 'center' }}>Aucune carte disponible</div>
-                  )}
-                </div>
-              </div>
-            </div>
+            {/* Rangée de Cartes */}
+            <CardRowUI
+              game={game}
+              interactionState={interactionState}
+              onCardClick={handleCardRowClick}
+              setActiveTooltip={setActiveTooltip}
+              isInitiallyOpen={interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD'}
+            />
           </div>
 
           {/* Historique en haut à droite */}
-          <div style={{
-            position: 'absolute',
-            top: '15px',
-            right: '15px',
-            width: '300px',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            pointerEvents: 'none',
-            alignItems: 'flex-end'
-          }}>
-            <div className={`seti-foldable-container seti-history-container seti-icon-panel ${isHistoryOpen ? 'open' : 'collapsed'}`} style={{ display: 'flex', flexDirection: 'column', pointerEvents: 'auto' }}>
-              <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
-                <span className="panel-icon">📜</span>
-                <span className="panel-title" style={{ flex: 1 }}>Historique</span>
-                {historyLog.length > 0 && historyLog[historyLog.length - 1].previousState && (
-                  <button
-                    className="panel-title"
-                    onClick={(e) => { e.stopPropagation(); handleUndo(); }}
-                    style={{ fontSize: '0.7rem', padding: '2px 6px', cursor: 'pointer', backgroundColor: '#555', border: '1px solid #777', color: '#fff', borderRadius: '4px', marginRight: '5px' }}
-                    title="Annuler la dernière action"
-                  >
-                    ↩
-                  </button>
-                )}
-              </div>
-              <div className="seti-foldable-content" ref={historyContentRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
-                <div className="seti-history-list">
-                  {historyLog.length === 0 && <div style={{ fontStyle: 'italic', padding: '4px', textAlign: 'center' }}>Aucune action</div>}
-                  {historyLog.map((entry, index) => {
-                    if (entry.message.startsWith('---')) {
-                      return (
-                        <div key={entry.id} style={{ display: 'flex', alignItems: 'center', margin: '10px 0', color: '#aaa', fontSize: '0.75rem', textTransform: 'none', letterSpacing: '0.05em' }}>
-                          <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
-                          <div style={{ padding: '0 10px' }}>{entry.message.replace(/---/g, '').trim()}</div>
-                          <div style={{ flex: 1, height: '1px', backgroundColor: '#555' }}></div>
-                        </div>
-                      );
-                    }
-
-                    const isSequence = !!entry.sequenceId;
-                    const prevEntry = index > 0 ? historyLog[index - 1] : null;
-                    //const nextEntry = index < historyLog.length - 1 ? historyLog[index + 1] : null;
-
-                    // Est un enfant si fait partie d'une séquence et que le précédent aussi (même séquence)
-                    const isSequenceChild = isSequence && prevEntry && prevEntry.sequenceId === entry.sequenceId;
-                    // Est le dernier enfant si le suivant n'est pas dans la même séquence
-                    //const isLastChild = isSequenceChild && (!nextEntry || nextEntry.sequenceId !== entry.sequenceId);
-
-                    let player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
-                    // Fallback : essayer de trouver le joueur par son nom au début du message (pour les logs d'init)
-                    if (!player) {
-                      player = game.players.find(p => entry.message.startsWith(p.name));
-                    }
-
-                    const color = player ? (player.color || '#ccc') : '#ccc';
-                    return (
-                      <div key={entry.id} className="seti-history-item" style={{
-                        borderLeft: `3px solid ${color}`,
-                        paddingLeft: '8px',
-                        marginBottom: '2px',
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        backgroundColor: isSequenceChild ? 'rgba(255,255,255,0.02)' : 'transparent'
-                      }}>
-                        {isSequenceChild && (
-                          <div style={{
-                            marginRight: '6px',
-                            color: '#666',
-                            fontFamily: 'monospace',
-                            fontSize: '1.1em',
-                            lineHeight: '1.4',
-                            userSelect: 'none'
-                          }}>
-                            └─ {/* {isLastChild ? '└─' : '├─'} */}
-                          </div>
-                        )}
-                        <div style={{ flex: 1, padding: '2px 0' }}>
-                          <span style={{ color: '#ddd', fontSize: isSequenceChild ? '0.9em' : '1em' }}>
-                            {player && !entry.message.startsWith(player.name) && <strong style={{ color: color }}>{player.name} </strong>}
-                            {formatHistoryMessage(entry.message)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
+          <HistoryBoardUI
+            historyLog={historyLog}
+            game={game}
+            onUndo={handleUndo}
+            setActiveTooltip={setActiveTooltip}
+          />
 
           {/* Plateau Alien A en bas à gauche */}
-          <div style={{
-            position: 'absolute',
-            bottom: '15px',
-            left: '15px',
-            width: '240px',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            pointerEvents: 'none',
-            alignItems: 'flex-start'
-          }}>
-            <div className={`seti-foldable-container seti-icon-panel ${isAlienBoardAOpen ? 'open' : 'collapsed'}`} style={{
-              pointerEvents: 'auto',
-              flexDirection: 'column-reverse',
-              borderTopLeftRadius: '50px',
-              borderTopRightRadius: '50px',
-            }}>
-              <div className="seti-foldable-header" onClick={() => setIsAlienBoardAOpen(!isAlienBoardAOpen)}>
-                <span className="panel-icon">👽</span>
-                <span className="panel-title">Alien Board</span>
-              </div>
-              <div className="seti-foldable-content" style={{ display: 'flex', flexDirection: 'column' }}>
-                {/* Extension Espèce Alien (si découverte) */}
-                {game.board.alienBoards[0].speciesId && (
-                  <div style={{ position: 'relative', height: '200px', width: '100%', borderBottom: '1px dashed #444', marginBottom: '10px' }}>
-                    <div style={{ position: 'absolute', top: '5px', left: '5px', fontSize: '0.7em', color: '#aaa' }}>Espèce: {game.board.alienBoards[0].speciesId}</div>
-                  </div>
-                )}
-                {/* Contenu vide pour l'instant */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-around',
-                  width: '100%',
-                  padding: '10px 15px',
-                  marginTop: 'auto', // Push to bottom
-                  borderTop: '1px solid #444'
-                }}>
-                  {/* Red Life Trace Slot */}
-                  <AlienTriangleSlot color="#ff6b6b"
-                    traces={game.board.alienBoards[0].lifeTraces.filter(t => t.type === LifeTraceType.RED)}
-                    game={game}
-                    isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.RED}
-                    onClick={() => handlePlaceLifeTrace(0, LifeTraceType.RED)}
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveTooltip({ content: renderAlienSlotTooltip(0, LifeTraceType.RED), rect });
-                    }}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                  />
-                  {/* Yellow Life Trace Slot */}
-                  <AlienTriangleSlot color="#ffd700"
-                    traces={game.board.alienBoards[0].lifeTraces.filter(t => t.type === LifeTraceType.YELLOW)}
-                    game={game}
-                    isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.YELLOW}
-                    onClick={() => handlePlaceLifeTrace(0, LifeTraceType.YELLOW)}
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveTooltip({ content: renderAlienSlotTooltip(0, LifeTraceType.YELLOW), rect });
-                    }}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                  />
-                  {/* Blue Life Trace Slot */}
-                  <AlienTriangleSlot color="#4a9eff"
-                    traces={game.board.alienBoards[0].lifeTraces.filter(t => t.type === LifeTraceType.BLUE)}
-                    game={game}
-                    isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE}
-                    onClick={() => handlePlaceLifeTrace(0, LifeTraceType.BLUE)}
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveTooltip({ content: renderAlienSlotTooltip(0, LifeTraceType.BLUE), rect });
-                    }}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          <AlienBoardUI
+            game={game}
+            boardIndex={0}
+            interactionState={interactionState}
+            isOpen={isAlienBoardAOpen}
+            onToggle={() => setIsAlienBoardAOpen(!isAlienBoardAOpen)}
+            onPlaceLifeTrace={handlePlaceLifeTrace}
+            setActiveTooltip={setActiveTooltip}
+            side="left"
+          />
 
           {/* Plateau Alien B en bas à droite */}
-          <div style={{
-            position: 'absolute',
-            bottom: '15px',
-            right: '15px',
-            width: '240px',
-            zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            pointerEvents: 'none',
-            alignItems: 'flex-end'
-          }}>
-            <div className={`seti-foldable-container seti-icon-panel ${isAlienBoardBOpen ? 'open' : 'collapsed'}`} style={{
-              pointerEvents: 'auto',
-              flexDirection: 'column-reverse',
-              borderTopLeftRadius: '50px',
-              borderTopRightRadius: '50px',
-            }}>
-              <div className="seti-foldable-header" onClick={() => setIsAlienBoardBOpen(!isAlienBoardBOpen)}>
-                <span className="panel-icon">👽</span>
-                <span className="panel-title">Alien Board</span>
-              </div>
-              <div className="seti-foldable-content" style={{ display: 'flex', flexDirection: 'column' }}>
-                {/* Extension Espèce Alien (si découverte) */}
-                {game.board.alienBoards[1].speciesId && (
-                  <div style={{ position: 'relative', height: '200px', width: '100%', borderBottom: '1px dashed #444', marginBottom: '10px' }}>
-                    <div style={{ position: 'absolute', top: '5px', left: '5px', fontSize: '0.7em', color: '#aaa' }}>Espèce: {game.board.alienBoards[1].speciesId}</div>
-                  </div>
-                )}
-                {/* Contenu vide pour l'instant */}
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-around',
-                  width: '100%',
-                  padding: '10px 15px',
-                  marginTop: 'auto', // Push to bottom
-                  borderTop: '1px solid #444'
-                }}>
-                  {/* Red Life Trace Slot */}
-                  <AlienTriangleSlot color="#ff6b6b"
-                    traces={game.board.alienBoards[1].lifeTraces.filter(t => t.type === LifeTraceType.RED)}
-                    game={game}
-                    isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.RED}
-                    onClick={() => handlePlaceLifeTrace(1, LifeTraceType.RED)}
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveTooltip({ content: renderAlienSlotTooltip(1, LifeTraceType.RED), rect });
-                    }}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                  />
-                  {/* Yellow Life Trace Slot */}
-                  <AlienTriangleSlot color="#ffd700"
-                    traces={game.board.alienBoards[1].lifeTraces.filter(t => t.type === LifeTraceType.YELLOW)}
-                    game={game}
-                    isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.YELLOW}
-                    onClick={() => handlePlaceLifeTrace(1, LifeTraceType.YELLOW)}
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveTooltip({ content: renderAlienSlotTooltip(1, LifeTraceType.YELLOW), rect });
-                    }}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                  />
-                  {/* Blue Life Trace Slot */}
-                  <AlienTriangleSlot color="#4a9eff"
-                    traces={game.board.alienBoards[1].lifeTraces.filter(t => t.type === LifeTraceType.BLUE)}
-                    game={game}
-                    isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE}
-                    onClick={() => handlePlaceLifeTrace(1, LifeTraceType.BLUE)}
-                    onMouseEnter={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setActiveTooltip({ content: renderAlienSlotTooltip(1, LifeTraceType.BLUE), rect });
-                    }}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+          <AlienBoardUI
+            game={game}
+            boardIndex={1}
+            interactionState={interactionState}
+            isOpen={isAlienBoardBOpen}
+            onToggle={() => setIsAlienBoardBOpen(!isAlienBoardBOpen)}
+            onPlaceLifeTrace={handlePlaceLifeTrace}
+            setActiveTooltip={setActiveTooltip}
+            side="right"
+          />
         </div>
       </div>
     </div>

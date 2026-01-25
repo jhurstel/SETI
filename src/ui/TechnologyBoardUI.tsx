@@ -1,118 +1,29 @@
-import React, { useState, useRef, useLayoutEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Game, Technology, TechnologyCategory, Bonus, GAME_CONSTANTS } from '../core/types';
+import React, { useState, useEffect } from 'react';
+import { Game, Technology, TechnologyCategory, Bonus, InteractionState } from '../core/types';
 import './TechnologyBoardUI.css';
 
 interface TechnologyBoardUIProps {
   game: Game;
-  isResearching?: boolean;
-  researchCategory?: TechnologyCategory;
-  onTechClick?: (tech: Technology) => void;
-  hasPerformedMainAction?: boolean;
-  sharedTechOnly?: boolean;
+  interactionState: InteractionState;
+  onTechClick: (tech: Technology) => void;
+  setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
+  isInitiallyOpen: boolean;
+  canResearch: boolean;
 }
 
-const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect: DOMRect }) => {
-  const tooltipRef = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
-  const tooltipId = useRef(Math.random().toString(36).substr(2, 9));
-
-  useLayoutEffect(() => {
-    if (tooltipRef.current && targetRect) {
-      const rect = tooltipRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const margin = 8;
-      const padding = 10;
-
-      let left = targetRect.left + (targetRect.width / 2) - (rect.width / 2);
-
-      if (left < padding) left = padding;
-      if (left + rect.width > viewportWidth - padding) {
-        left = viewportWidth - rect.width - padding;
-      }
-
-      let top = targetRect.top - rect.height - margin;
-
-      if (top < padding) {
-        const bottomPosition = targetRect.bottom + margin;
-        if (bottomPosition + rect.height <= viewportHeight - padding) {
-            top = bottomPosition;
-        } else {
-            if (targetRect.top > (viewportHeight - targetRect.bottom)) {
-                top = padding;
-            } else {
-                top = viewportHeight - rect.height - padding;
-            }
-        }
-      }
-
-      // Gestion des superpositions
-      const width = rect.width;
-      const height = rect.height;
-      let finalTop = top;
-      let finalLeft = left;
-      
-      const others = ((window as any).__SETI_TOOLTIPS__ || []).filter((t: any) => t.id !== tooltipId.current);
-      let collision = true;
-      let iterations = 0;
-
-      while (collision && iterations < 10) {
-          collision = false;
-          const myRect = { left: finalLeft, top: finalTop, right: finalLeft + width, bottom: finalTop + height };
-          
-          for (const other of others) {
-              const otherRect = other.rect;
-              if (myRect.left < otherRect.right &&
-                  myRect.right > otherRect.left &&
-                  myRect.top < otherRect.bottom &&
-                  myRect.bottom > otherRect.top) {
-                  
-                  finalTop = otherRect.bottom + 5;
-                  collision = true;
-                  if (finalTop + height > viewportHeight - 10) {
-                      finalTop = top;
-                      finalLeft = otherRect.right + 5;
-                  }
-                  break;
-              }
-          }
-          iterations++;
-      }
-
-      const registry = (window as any).__SETI_TOOLTIPS__ || [];
-      (window as any).__SETI_TOOLTIPS__ = [...registry.filter((t: any) => t.id !== tooltipId.current), { id: tooltipId.current, rect: { left: finalLeft, top: finalTop, right: finalLeft + width, bottom: finalTop + height } }];
-
-      setStyle({
-        top: finalTop,
-        left: finalLeft,
-        opacity: 1
-      });
-      return () => {
-          const reg = (window as any).__SETI_TOOLTIPS__ || [];
-          (window as any).__SETI_TOOLTIPS__ = reg.filter((t: any) => t.id !== tooltipId.current);
-      };
-    }
-    return;
-  }, [targetRect, content]);
-
-  return createPortal(
-    <div
-      ref={tooltipRef}
-      className="seti-tech-tooltip"
-      style={style}
-    >
-      {content}
-    </div>
-  , document.body);
-};
-
-export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isResearching, researchCategory, onTechClick, hasPerformedMainAction, sharedTechOnly }) => {
+export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, interactionState, onTechClick, setActiveTooltip, isInitiallyOpen, canResearch }) => {
+  const [isOpen, setIsOpen] = useState(isInitiallyOpen);
   const techBoard = game.board.technologyBoard;
   const categories = techBoard.categorySlots || [];
   const currentPlayer = game.players[game.currentPlayerIndex];
-  const canAffordResearch = !hasPerformedMainAction && currentPlayer.mediaCoverage >= (GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA || 6);
-  const [customTooltip, setCustomTooltip] = useState<{ content: React.ReactNode, targetRect: DOMRect } | null>(null);
+
+  const isResearching = interactionState.type === 'ACQUIRING_TECH';
+  const researchCategory = isResearching ? interactionState.category : undefined;
+  const sharedTechOnly = isResearching ? interactionState.sharedOnly : false;
+
+  useEffect(() => {
+    setIsOpen(isInitiallyOpen);
+  }, [isInitiallyOpen]);
 
   // Calculer les technologies partagées si nécessaire
   const sharedBaseIds = React.useMemo(() => {
@@ -127,18 +38,6 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
     });
     return ids;
   }, [game.players, currentPlayer.id, sharedTechOnly]);
-
-  const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setCustomTooltip({
-      content,
-      targetRect: rect
-    });
-  };
-
-  const handleTooltipLeave = () => {
-    setCustomTooltip(null);
-  };
 
   // Fonction pour regrouper les technologies par pile (même ID de base)
   const getStacks = (technologies: Technology[]) => {
@@ -188,8 +87,17 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
   };
 
   return (
-    <div className="seti-panel">
-      <div className="seti-panel-title">Technologies</div>
+    <div className={`seti-foldable-container seti-icon-panel ${isOpen ? 'open' : 'collapsed'} ${canResearch && !isOpen ? 'container-flash' : ''}`}
+      style={{
+        pointerEvents: 'auto',
+        ...(isResearching ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
+      }}
+    >
+      <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
+        <span className={`panel-icon ${canResearch ? 'icon-flash' : ''}`}>🔬</span>
+        <span className="panel-title">Technologies</span>
+      </div>
+      <div className="seti-foldable-content">
       <div className="seti-tech-categories">
         {categories.map((slot) => {
           const stacks = getStacks(slot.technologies);
@@ -220,7 +128,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                     return t.id.substring(0, tLastDash) === baseId;
                   });
 
-                  const isClickable = (isResearching || canAffordResearch) 
+                  const isClickable = (isResearching || canResearch) 
                     && (!researchCategory || slot.category === researchCategory)
                     && (!sharedTechOnly || sharedBaseIds.has(baseId))
                     && !hasTech;
@@ -258,7 +166,9 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                       key={topCard.id} 
                       className={cardClass}
                       onClick={() => isClickable && onTechClick && onTechClick(topCard)}
-                      onMouseEnter={(e) => handleTooltipHover(e, (
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ content: (
                         <div className="seti-tech-tooltip-content">
                           <div className="seti-tech-tooltip-header">
                             <span className="seti-tech-tooltip-name">{topCard.name}</span>
@@ -274,8 +184,9 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
                             {count} exemplaire{count > 1 ? 's' : ''} restant{count > 1 ? 's' : ''}
                           </div>
                         </div>
-                      ))}
-                      onMouseLeave={handleTooltipLeave}
+                        ), rect });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
                       style={cardStyle}
                     >
                       {hasExtraPv && (
@@ -326,9 +237,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, isRe
           );
         })}
       </div>
-      {customTooltip && (
-        <Tooltip content={customTooltip.content} targetRect={customTooltip.targetRect} />
-      )}
+      </div>
     </div>
   );
 };

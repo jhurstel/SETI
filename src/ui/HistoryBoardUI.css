@@ -1,0 +1,13 @@
+.seti-history-container:hover, .seti-history-container.open {
+    max-height: 33vh !important;
+}
+  
+.seti-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+  
+.seti-history-item {
+    transition: background-color 0.3s ease;
+}

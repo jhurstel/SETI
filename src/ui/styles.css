@@ -92,9 +92,6 @@ body {
   from { opacity: 0; transform: translateY(-20px) scale(0.95); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.seti-history-container:hover, .seti-history-container.open {
-  max-height: 33vh !important;
-}
 .seti-icon-panel {
   width: 100%;
 }
@@ -214,27 +211,6 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   flex-shrink: 0;
-}
-
-/* Historique */
-.seti-history-panel {
-  display: flex;
-  flex-direction: column;
-}
-
-.seti-history-list {
-  overflow-y: auto;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.75rem;
-  color: #ccc;
-}
-
-.seti-history-item {
-  padding: 4px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /*
