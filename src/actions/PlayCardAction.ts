@@ -1,36 +1,28 @@
-/**
- * Action : Jouer une carte
- */
-
-import {
-  Game,
-  ActionType,
-  ValidationResult
-} from '../core/types';
 import { BaseAction } from './Action';
+import { Game, ActionType, ValidationResult } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 
 export class PlayCardAction extends BaseAction {
-  constructor(
-    playerId: string,
-    public cardId: string
-  ) {
-    super(ActionType.PLAY_CARD, playerId);
-  }
-
-  validate(game: Game): ValidationResult {
-    const validation = CardSystem.canPlayCard(game, this.playerId, this.cardId);
-    
-    if (!validation.canPlay) {
-      return this.createInvalidResult(validation.reason || 'Jouer la carte impossible');
+    constructor(public playerId: string, public cardId: string) {
+        super(playerId, ActionType.PLAY_CARD);
     }
 
-    return this.createValidResult();
-  }
+    validate(game: Game): ValidationResult {
+        const player = game.players.find(p => p.id === this.playerId);
+        const card = player?.cards.find(c => c.id === this.cardId);
 
-  execute(game: Game): Game {
-    const result = CardSystem.playCard(game, this.playerId, this.cardId);
-    return result.updatedGame;
-  }
+        if (!player || !card) {
+            return { valid: false, errors: [{ code: 'CARD_NOT_FOUND', message: 'Carte non trouvée' }], warnings: [] };
+        }
+
+        if (player.credits < card.cost) {
+            return { valid: false, errors: [{ code: 'INSUFFICIENT_CREDITS', message: `Crédits insuffisants (Requis: ${card.cost})` }], warnings: [] };
+        }
+        return { valid: true, errors: [], warnings: [] };
+    }
+
+    execute(game: Game): Game {
+        const result = CardSystem.playCard(game, this.playerId, this.cardId);
+        return result.updatedGame;
+    }
 }
-

@@ -77,6 +77,8 @@ export class TurnManager {
     updatedGame.players = updatedGame.players.map(player => ({
       ...player,
       hasPassed: false,
+      visitedPlanetsThisTurn: [],
+      activeBuffs: [],
       hasPerformedMainAction: false
     }));
 

@@ -37,6 +37,8 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   // État pour le tooltip des slots (orbite/atterrissage) pour qu'il s'affiche par-dessus celui de la planète
   const [slotTooltip, setSlotTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
 
+  const hasPerformedMainAction = game.players[game.currentPlayerIndex].hasPerformedMainAction;
+
   // État pour contrôler la visibilité des plateaux rotatifs
   //const [showLevel1, setShowLevel1] = useState<boolean>(true);
   //const [showLevel2, setShowLevel2] = useState<boolean>(true);
@@ -164,7 +166,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
   const allowSatelliteLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '12';
   const isRemovingOrbiter = interactionState.type === 'REMOVING_ORBITER';
-  const hasPerformedMainAction = game.players[game.currentPlayerIndex].hasPerformedMainAction;
 
   // Utiliser les angles de rotation depuis le jeu, ou les angles initiaux si non définis
   const initialAngle1 = (sectorToIndex[game.board.solarSystem.initialSectorLevel1] || 0) * 45;

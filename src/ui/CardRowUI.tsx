@@ -5,7 +5,7 @@ import { CardTooltip, getSectorColorCode } from './CardTooltip';
 interface CardRowUIProps {
     game: Game;
     interactionState: InteractionState;
-    onCardClick: (cardId: string) => void;
+    onCardClick: (cardId?: string) => void;
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
 
@@ -29,9 +29,10 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
                 <span className="panel-title">Rangée Principale</span>
             </div>
             <div className="seti-foldable-content">
-                <div style={{ display: 'flex', overflowX: 'auto', gap: '8px', padding: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', padding: '8px' }}>
                     {/* Pile de pioche */}
                     <div
+                        onClick={() => onCardClick(undefined)}
                         className="seti-common-card"
                         style={{
                             justifyContent: 'center',

@@ -160,7 +160,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
   const handleComputerBonus = (type: string, amount: number, sequenceId?: string) => {
     if (type === 'reservation') {
-      if (onComputerBonus) onComputerBonus(type, amount, sequenceId);
+      onComputerBonus(type, amount, sequenceId);
     } else if (type === 'card' && onDrawCard) {
       onDrawCard(amount, 'Bonus Ordinateur');
     }

@@ -1,14 +1,4 @@
-/**
- * Action : Déplacer une sonde
- */
-
-import {
-  Game,
-  ActionType,
-  ValidationResult,
-  DiskName,
-  SectorNumber
-} from '../core/types';
+import { Game, ActionType, ValidationResult, DiskName, SectorNumber } from '../core/types';
 import { BaseAction } from './Action';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { createRotationState, getCell, rotateSector } from '../core/SolarSystemPosition';
@@ -20,7 +10,7 @@ export class MoveProbeAction extends BaseAction {
     public targetPosition: { disk: DiskName; sector: SectorNumber },
     public useFreeMovement: boolean = false
   ) {
-    super(ActionType.MOVE_PROBE, playerId);
+    super(playerId, ActionType.MOVE_PROBE);
   }
 
   validate(game: Game): ValidationResult {
@@ -29,18 +19,18 @@ export class MoveProbeAction extends BaseAction {
     // Si on utilise le mouvement gratuit, on déduit 1 du coût
     const finalCost = this.useFreeMovement ? Math.max(0, cost - 1) : cost;
 
-    const validation = ProbeSystem.canMoveProbe(
+    const check = ProbeSystem.canMoveProbe(
       game,
       this.playerId,
       this.probeId,
       finalCost
     );
     
-    if (!validation.canMove) {
-      return this.createInvalidResult(validation.reason || 'Déplacement impossible');
+    if (!check.canMove) {
+      return { valid: false, errors: [{ code: 'CANNOT_MOVE', message: check.reason || 'Déplacement impossible' }], warnings: [] };
     }
 
-    return this.createValidResult();
+    return { valid: true, errors: [], warnings: [] };
   }
 
   execute(game: Game): Game {

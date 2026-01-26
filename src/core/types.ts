@@ -173,7 +173,7 @@ export interface Player {
   lifeTraces: LifeTrace[];
   score: number;
   hasPassed: boolean;
-  hasPerformedMainAction: boolean; // Le joueur a-t-il effectué son action principale du tour ?
+  hasPerformedMainAction: boolean;
   type: 'human' | 'robot';
   color: string;
   claimedGoldenMilestones: number[];

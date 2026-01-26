@@ -1,49 +1,24 @@
-/**
- * Action : Scanner un secteur
- */
-
-import {
-  Game,
-  ActionType,
-  ValidationResult
-} from '../core/types';
 import { BaseAction } from './Action';
+import { Game, ActionType, ValidationResult, GAME_CONSTANTS } from '../core/types';
 import { SectorSystem } from '../systems/SectorSystem';
 
 export class ScanSectorAction extends BaseAction {
-  constructor(
-    playerId: string,
-    public sectorId: string,
-    public signalIds: string[] // Au moins 2 signaux à marquer
-  ) {
-    super(ActionType.SCAN_SECTOR, playerId);
-  }
-
-  validate(game: Game): ValidationResult {
-    if (this.signalIds.length < 2) {
-      return this.createInvalidResult('Au moins 2 signaux doivent être marqués');
+    constructor(playerId: string) {
+        super(playerId, ActionType.SCAN_SECTOR);
     }
 
-    const validation = SectorSystem.canScanSector(
-      game,
-      this.playerId
-    );
-    
-    if (!validation.canScan) {
-      return this.createInvalidResult(validation.reason || 'Scan impossible');
+    validate(game: Game): ValidationResult {
+        const check = SectorSystem.canScanSector(game, this.playerId);
+        if (!check.canScan) {
+            return { valid: false, errors: [{ code: 'CANNOT_SCAN', message: check.reason || 'Scan impossible' }], warnings: [] };
+        }
+        return { valid: true, errors: [], warnings: [] };
     }
 
-    return this.createValidResult();
-  }
-
-  execute(game: Game): Game {
-    const result = SectorSystem.scanSector(
-      game,
-      this.playerId,
-      this.sectorId,
-      this.signalIds
-    );
-    return result.updatedGame;
-  }
+    execute(game: Game): Game {
+        const player = game.players.find(p => p.id === this.playerId)!;
+        player.credits -= GAME_CONSTANTS.SCAN_COST_CREDITS;
+        player.energy -= GAME_CONSTANTS.SCAN_COST_ENERGY;
+        return game;
+    }
 }
-

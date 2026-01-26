@@ -1,18 +1,4 @@
-/**
- * Action : Passer son tour
- * 
- * Effets :
- * - Le joueur ne joue plus cette manche
- * - Défausse à 4 cartes
- * - Choix d'une carte Fin de manche
- * - Peut déclencher rotation du système (premier Pass)
- */
-
-import {
-  Game,
-  ActionType,
-  ValidationResult
-} from '../core/types';
+import { Game, ActionType, ValidationResult } from '../core/types';
 import { BaseAction } from './Action';
 import { TurnManager } from '../core/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
@@ -25,18 +11,18 @@ export class PassAction extends BaseAction {
     public cardIdsToKeep: string[], // Cartes à garder (max 4)
     public selectedCardId?: string // Carte du paquet de manche choisie
   ) {
-    super(ActionType.PASS, playerId);
+    super(playerId, ActionType.PASS);
   }
 
   validate(game: Game): ValidationResult {
     const player = game.players.find(p => p.id === this.playerId);
     if (!player) {
-      return this.createInvalidResult('Joueur introuvable');
+      return { valid: false, errors: [{ code: 'INVALID_PLAYER', message: 'Joueur non trouvé' }], warnings: [] };
     }
 
     // Vérifier le nombre de cartes à garder
     if (this.cardIdsToKeep.length > 4) {
-      return this.createInvalidResult('Maximum 4 cartes à garder');
+      return { valid: false, errors: [{ code: 'INVALID_CARDS', message: 'Cartes à garder trop nombreuses' }], warnings: [] };
     }
 
     // Vérifier que les cartes existent
@@ -44,7 +30,7 @@ export class PassAction extends BaseAction {
       cardId => !player.cards.some(c => c.id === cardId)
     );
     if (invalidCards.length > 0) {
-      return this.createInvalidResult('Certaines cartes sont invalides');
+      return { valid: false, errors: [{ code: 'INVALID_CARDS', message: 'Cartes à garder invalides' }], warnings: [] };
     }
 
     // Vérifier si une carte de manche doit être choisie
@@ -54,11 +40,11 @@ export class PassAction extends BaseAction {
     // Si le paquet existe et n'est pas vide, une carte doit être sélectionnée (sauf si géré automatiquement pour robot, mais l'action doit valider la cohérence)
     if (roundDeck && roundDeck.length > 0 && this.selectedCardId) {
        if (!roundDeck.some(c => c.id === this.selectedCardId)) {
-         return this.createInvalidResult('La carte sélectionnée n\'est pas dans le paquet de la manche');
+        return { valid: false, errors: [{ code: 'INVALID_CARDS', message: 'Carte sélectionnée invalides' }], warnings: [] };
        }
     }
 
-    return this.createValidResult();
+    return { valid: true, errors: [], warnings: [] };
   }
 
   execute(game: Game): Game {

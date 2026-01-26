@@ -1,36 +1,23 @@
-/**
- * Action : Mettre une sonde en orbite
- */
-
-import {
-  Game,
-  ActionType,
-  ValidationResult
-} from '../core/types';
 import { BaseAction } from './Action';
+import { Game, ActionType, ValidationResult } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 
 export class OrbitAction extends BaseAction {
-  constructor(
-    playerId: string,
-    public probeId: string
-  ) {
-    super(ActionType.ORBIT, playerId);
-  }
-
-  validate(game: Game): ValidationResult {
-    const validation = ProbeSystem.canOrbit(game, this.playerId, this.probeId);
-    
-    if (!validation.canOrbit) {
-      return this.createInvalidResult(validation.reason || 'Mise en orbite impossible');
+    constructor(public playerId: string, public probeId: string, public planetId: string) {
+        super(playerId, ActionType.ORBIT);
     }
 
-    return this.createValidResult();
-  }
+    validate(game: Game): ValidationResult {
+        const check = ProbeSystem.canOrbit(game, this.playerId, this.probeId);
+        if (!check.canOrbit) {
+            return { valid: false, errors: [{ code: 'CANNOT_ORBIT', message: check.reason || 'Mise en orbite impossible' }], warnings: [] };
+        }
+        return { valid: true, errors: [], warnings: [] };
+    }
 
-  execute(game: Game): Game {
-    const result = ProbeSystem.orbitProbe(game, this.playerId, this.probeId);
-    return result.updatedGame;
-  }
+    execute(game: Game): Game {
+        // L'exécution réelle est gérée dans l'UI pour les bonus.
+        const result = ProbeSystem.orbitProbe(game, this.playerId, this.probeId, this.planetId);
+        return result.updatedGame;
+    }
 }
-

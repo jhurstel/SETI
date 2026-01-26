@@ -12,7 +12,7 @@ interface TechnologyBoardUIProps {
 export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, interactionState, onTechClick, setActiveTooltip }) => {
   const currentPlayer = game.players[game.currentPlayerIndex];
   const isAcquiringTech = interactionState.type === 'ACQUIRING_TECH';
-  const canResearch = !currentPlayer?.hasPerformedMainAction && interactionState.type === 'IDLE' && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
+  const canResearch = !currentPlayer.hasPerformedMainAction && interactionState.type === 'IDLE' && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
 
   const [isOpen, setIsOpen] = useState(isAcquiringTech);
   const techBoard = game.board.technologyBoard;

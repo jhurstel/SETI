@@ -1,36 +1,23 @@
-/**
- * Action : Faire atterrir une sonde
- */
-
-import {
-  Game,
-  ActionType,
-  ValidationResult
-} from '../core/types';
 import { BaseAction } from './Action';
+import { Game, ActionType, ValidationResult } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 
 export class LandAction extends BaseAction {
-  constructor(
-    playerId: string,
-    public probeId: string
-  ) {
-    super(ActionType.LAND, playerId);
-  }
-
-  validate(game: Game): ValidationResult {
-    const validation = ProbeSystem.canLand(game, this.playerId, this.probeId);
-    
-    if (!validation.canLand) {
-      return this.createInvalidResult(validation.reason || 'Atterrissage impossible');
+    constructor(public playerId: string, public probeId: string, public planetId: string) {
+        super(playerId, ActionType.LAND);
     }
 
-    return this.createValidResult();
-  }
+    validate(game: Game): ValidationResult {
+        const check = ProbeSystem.canLand(game, this.playerId, this.probeId);
+        if (!check.canLand) {
+            return { valid: false, errors: [{ code: 'CANNOT_LAND', message: check.reason || 'Atterrissage impossible' }], warnings: [] };
+        }
+        return { valid: true, errors: [], warnings: [] };
+    }
 
-  execute(game: Game): Game {
-    const result = ProbeSystem.landProbe(game, this.playerId, this.probeId);
-    return result.updatedGame;
-  }
+    execute(game: Game): Game {
+        // L'exécution réelle est gérée dans l'UI pour les bonus.
+        const result = ProbeSystem.landProbe(game, this.playerId, this.probeId, this.planetId);
+        return result.updatedGame;
+    }
 }
-
