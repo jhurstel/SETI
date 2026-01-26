@@ -106,7 +106,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const [alienDiscoveryNotification, setAlienDiscoveryNotification] = useState<{ visible: boolean; message: string } | null>(null);
 
   // État pour le tooltip générique
-  const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
+  const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null>(null);
 
   // Auto-open tech & row panel when researching or selecting card
   useEffect(() => {
@@ -2825,11 +2825,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   }
 
-  // Utiliser les positions initiales depuis le jeu
-  const initialSector1 = game.board.solarSystem.initialSectorLevel1 || 1;
-  const initialSector2 = game.board.solarSystem.initialSectorLevel2 || 1;
-  const initialSector3 = game.board.solarSystem.initialSectorLevel3 || 1;
-
   const humanPlayer = game.players.find(p => (p as any).type === 'human');
   const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id;
 
@@ -2853,7 +2848,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       )}
 
       {activeTooltip && (
-        <Tooltip content={activeTooltip.content} targetRect={activeTooltip.rect} />
+        <Tooltip 
+          content={activeTooltip.content} 
+          targetRect={activeTooltip.rect} 
+          pointerEvents={activeTooltip.pointerEvents}
+          onMouseEnter={activeTooltip.onMouseEnter}
+          onMouseLeave={activeTooltip.onMouseLeave}
+        />
       )}
 
       {/* Modale de sélection de carte de fin de manche */}
@@ -2974,13 +2975,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             onPlanetClick={handlePlanetClick}
             onOrbit={handleOrbit}
             onLand={handleLand}
-            initialSector1={initialSector1}
-            initialSector2={initialSector2}
-            initialSector3={initialSector3}
             onSectorClick={handleSectorClick}
             hasPerformedMainAction={currentPlayer?.hasPerformedMainAction || false}
             onBackgroundClick={handleBackgroundClick}
-            //TODO setActiveTooltip={setActiveTooltip}
+            setActiveTooltip={setActiveTooltip}
           />
 
           {/* Plateaux annexes en haut à gauche */}

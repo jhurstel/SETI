@@ -6,13 +6,13 @@ import './HistoryBoardUI.css';
 export interface HistoryEntry {
     id: string;
     message: string;
-    playerId?: string;
-    previousState?: Game;
-    previousInteractionState?: InteractionState;
-    previousHasPerformedMainAction?: boolean;
-    previousPendingInteractions?: InteractionState[];
+    playerId: string;
+    previousState: Game;
+    previousInteractionState: InteractionState;
+    previousHasPerformedMainAction: boolean;
+    previousPendingInteractions: InteractionState[];
     timestamp: number;
-    sequenceId?: string;
+    sequenceId: string;
 }
 
 export const RESOURCE_CONFIG: Record<string, { label: string, plural: string, icon: string, color: string, regex: RegExp }> = {

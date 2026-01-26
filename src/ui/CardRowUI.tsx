@@ -5,7 +5,7 @@ import { CardTooltip, getSectorColorCode } from './CardTooltip';
 interface CardRowUIProps {
     game: Game;
     interactionState: InteractionState;
-    onCardClick: (cardId?: string) => void;
+    onCardClick: (cardId: string) => void;
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
 

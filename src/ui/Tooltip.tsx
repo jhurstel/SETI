@@ -1,7 +1,7 @@
 import React, { useRef, useState, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 
-export const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEnter, onMouseLeave }: { content: React.ReactNode, targetRect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void }) => {
+export const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEnter, onMouseLeave, disableCollision = false }: { content: React.ReactNode, targetRect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void, disableCollision?: boolean }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
   const tooltipId = useRef(Math.random().toString(36).substr(2, 9));
@@ -36,23 +36,66 @@ export const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEn
         }
       }
 
+      // Gestion des superpositions (Collision Detection)
+      let finalTop = top;
+      let finalLeft = left;
+      
+      if (!disableCollision) {
+        const width = rect.width;
+        const height = rect.height;
+        
+        const others = ((window as any).__SETI_TOOLTIPS__ || []).filter((t: any) => t.id !== tooltipId.current);
+        let collision = true;
+        let iterations = 0;
+
+        while (collision && iterations < 10) {
+            collision = false;
+            const myRect = { left: finalLeft, top: finalTop, right: finalLeft + width, bottom: finalTop + height };
+            
+            for (const other of others) {
+                const otherRect = other.rect;
+                if (myRect.left < otherRect.right &&
+                    myRect.right > otherRect.left &&
+                    myRect.top < otherRect.bottom &&
+                    myRect.bottom > otherRect.top) {
+                    
+                    // Collision détectée : on décale vers le bas
+                    finalTop = otherRect.bottom + 5;
+                    collision = true;
+                    
+                    // Si on sort de l'écran en bas, on essaie de décaler à droite
+                    if (finalTop + height > viewportHeight - 10) {
+                        finalTop = top; // Reset top
+                        finalLeft = otherRect.right + 5;
+                    }
+                    break;
+                }
+            }
+            iterations++;
+        }
+      }
+
       // Enregistrer la position finale
-      const registry = (window as any).__SETI_TOOLTIPS__ || [];
-      (window as any).__SETI_TOOLTIPS__ = [...registry.filter((t: any) => t.id !== tooltipId.current), { id: tooltipId.current, rect: { left, top, right: left + rect.width, bottom: top + rect.height } }];
+      if (!disableCollision) {
+        const registry = (window as any).__SETI_TOOLTIPS__ || [];
+        (window as any).__SETI_TOOLTIPS__ = [...registry.filter((t: any) => t.id !== tooltipId.current), { id: tooltipId.current, rect: { left: finalLeft, top: finalTop, right: finalLeft + rect.width, bottom: finalTop + rect.height } }];
+      }
 
       setStyle({
-        top,
-        left,
+        top: finalTop,
+        left: finalLeft,
         opacity: 1
       });
 
       return () => {
-          const reg = (window as any).__SETI_TOOLTIPS__ || [];
-          (window as any).__SETI_TOOLTIPS__ = reg.filter((t: any) => t.id !== tooltipId.current);
+          if (!disableCollision) {
+            const reg = (window as any).__SETI_TOOLTIPS__ || [];
+            (window as any).__SETI_TOOLTIPS__ = reg.filter((t: any) => t.id !== tooltipId.current);
+          }
       };
     }
     return;
-  }, [targetRect, content]);
+  }, [targetRect, content, disableCollision]);
 
   return createPortal(
     <div

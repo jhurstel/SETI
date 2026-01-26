@@ -1,23 +1,21 @@
 import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, Bonus, ProbeState, GAME_CONSTANTS, SectorColor, SignalType, InteractionState } from '../core/types';
 import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, CelestialObject, getObjectPosition, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
+import { Tooltip } from './Tooltip';
 import './SolarSystemBoardUI.css'
 
 interface SolarSystemBoardUIProps {
   game: Game;
   interactionState: InteractionState;
-  onProbeMove?: (probeId: string, path: string[]) => void;
-  onPlanetClick?: (planetId: string) => void;
-  onOrbit?: (planetId: string, slotIndex?: number) => void;
-  onLand?: (planetId: string, slotIndex?: number) => void;
-  initialSector1?: number; // Secteur initial (1-8) pour positionner le plateau niveau 1
-  initialSector2?: number; // Secteur initial (1-8) pour positionner le plateau niveau 2
-  initialSector3?: number; // Secteur initial (1-8) pour positionner le plateau niveau 3
-  hasPerformedMainAction?: boolean;
-  onBackgroundClick?: () => void;
-  onSectorClick?: (sectorNumber: number) => void;
+  onProbeMove: (probeId: string, path: string[]) => void;
+  onPlanetClick: (planetId: string) => void;
+  onOrbit: (planetId: string, slotIndex?: number) => void;
+  onLand: (planetId: string, slotIndex?: number) => void;
+  hasPerformedMainAction: boolean;
+  onBackgroundClick: () => void;
+  onSectorClick: (sectorNumber: number) => void;
+  setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
 
 export interface SolarSystemBoardUIRef {
@@ -29,159 +27,7 @@ export interface SolarSystemBoardUIRef {
   rotateCounterClockwise3: () => void;
 }
 
-// Helper pour les arcs SVG
-const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
-  const angleInRadians = (angleInDegrees) * Math.PI / 180.0;
-  return {
-    x: centerX + (radius * Math.cos(angleInRadians)),
-    y: centerY + (radius * Math.sin(angleInRadians))
-  };
-};
-
-// Helper pour les arcs SVG
-const describeArc = (x: number, y: number, radius: number, startAngle: number, endAngle: number, reverse: boolean = false) => {
-    const start = polarToCartesian(x, y, radius, endAngle);
-    const end = polarToCartesian(x, y, radius, startAngle);
-    const largeArcFlag = Math.abs(endAngle - startAngle) <= 180 ? "0" : "1";
-    
-    if (reverse) {
-        // Sens anti-horaire (Start -> End) pour le texte du bas
-        return [
-            "M", end.x, end.y, 
-            "A", radius, radius, 0, largeArcFlag, 0, start.x, start.y
-        ].join(" ");
-    }
-
-    // Sens horaire (End -> Start) pour le texte du haut
-    return [
-        "M", start.x, start.y, 
-        "A", radius, radius, 0, largeArcFlag, 1, end.x, end.y
-    ].join(" ");
-};
-
-const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEnter, onMouseLeave }: { content: React.ReactNode, targetRect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void }) => {
-  const tooltipRef = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
-  const tooltipId = useRef(Math.random().toString(36).substr(2, 9));
-
-  useLayoutEffect(() => {
-    if (tooltipRef.current && targetRect) {
-      const rect = tooltipRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const margin = 8;
-      const padding = 10;
-
-      let left = targetRect.left + (targetRect.width / 2) - (rect.width / 2);
-
-      if (left < padding) left = padding;
-      if (left + rect.width > viewportWidth - padding) {
-        left = viewportWidth - rect.width - padding;
-      }
-
-      let top = targetRect.top - rect.height - margin;
-
-      if (top < padding) {
-        const bottomPosition = targetRect.bottom + margin;
-        if (bottomPosition + rect.height <= viewportHeight - padding) {
-            top = bottomPosition;
-        } else {
-            if (targetRect.top > (viewportHeight - targetRect.bottom)) {
-                top = padding;
-            } else {
-                top = viewportHeight - rect.height - padding;
-            }
-        }
-      }
-
-      // Gestion des superpositions (Collision Detection)
-      const width = rect.width;
-      const height = rect.height;
-      let finalTop = top;
-      let finalLeft = left;
-      
-      const others = ((window as any).__SETI_TOOLTIPS__ || []).filter((t: any) => t.id !== tooltipId.current);
-      let collision = true;
-      let iterations = 0;
-
-      while (collision && iterations < 10) {
-          collision = false;
-          const myRect = { left: finalLeft, top: finalTop, right: finalLeft + width, bottom: finalTop + height };
-          
-          for (const other of others) {
-              const otherRect = other.rect;
-              if (myRect.left < otherRect.right &&
-                  myRect.right > otherRect.left &&
-                  myRect.top < otherRect.bottom &&
-                  myRect.bottom > otherRect.top) {
-                  
-                  // Collision détectée : on décale vers le bas
-                  finalTop = otherRect.bottom + 5;
-                  collision = true;
-                  
-                  // Si on sort de l'écran en bas, on essaie de décaler à droite
-                  if (finalTop + height > viewportHeight - 10) {
-                      finalTop = top; // Reset top
-                      finalLeft = otherRect.right + 5;
-                  }
-                  break;
-              }
-          }
-          iterations++;
-      }
-
-      // Enregistrer la position finale
-      const registry = (window as any).__SETI_TOOLTIPS__ || [];
-      (window as any).__SETI_TOOLTIPS__ = [...registry.filter((t: any) => t.id !== tooltipId.current), { id: tooltipId.current, rect: { left: finalLeft, top: finalTop, right: finalLeft + width, bottom: finalTop + height } }];
-
-      setStyle({
-        top: finalTop,
-        left: finalLeft,
-        opacity: 1
-      });
-
-      return () => {
-          const reg = (window as any).__SETI_TOOLTIPS__ || [];
-          (window as any).__SETI_TOOLTIPS__ = reg.filter((t: any) => t.id !== tooltipId.current);
-      };
-    }
-    return;
-  }, [targetRect, content]);
-
-  return createPortal(
-    <div
-      ref={tooltipRef}
-      style={{
-        position: 'fixed',
-        zIndex: 9999,
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        padding: '6px 10px',
-        borderRadius: '4px',
-        border: '1px solid #78a0ff',
-        color: '#fff',
-        textAlign: 'center',
-        minWidth: '120px',
-        whiteSpace: 'pre-line',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
-        transition: 'opacity 0.1s ease-in-out',
-        pointerEvents,
-        ...style
-      }}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-    >
-      {content}
-    </div>
-  , document.body);
-};
-
-export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, hasPerformedMainAction = false, onBackgroundClick, onSectorClick }, ref) => {
-
-  // État pour gérer l'affichage des tooltips au survol
-  const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
-  const [hoveredObjectRect, setHoveredObjectRect] = useState<DOMRect | null>(null);
-  const [hoveredProbe, setHoveredProbe] = useState<string | null>(null);
-  const [hoveredProbeRect, setHoveredProbeRect] = useState<DOMRect | null>(null);
+export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, hasPerformedMainAction = false, onBackgroundClick, onSectorClick, setActiveTooltip }, ref) => {
   
   // État pour gérer la sonde sélectionnée et les cases accessibles
   const [selectedProbeId, setSelectedProbeId] = useState<string | null>(null);
@@ -189,13 +35,38 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
   const planetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  // État pour le tooltip personnalisé des slots
+  // État pour le tooltip des slots (orbite/atterrissage) pour qu'il s'affiche par-dessus celui de la planète
   const [slotTooltip, setSlotTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
 
   // État pour contrôler la visibilité des plateaux rotatifs
   //const [showLevel1, setShowLevel1] = useState<boolean>(true);
   //const [showLevel2, setShowLevel2] = useState<boolean>(true);
   //const [showLevel3, setShowLevel3] = useState<boolean>(true);
+
+
+  // Helper pour les arcs SVG
+  const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
+    const angleInRadians = (angleInDegrees) * Math.PI / 180.0;
+    return {
+      x: centerX + (radius * Math.cos(angleInRadians)),
+      y: centerY + (radius * Math.sin(angleInRadians))
+    };
+  };
+
+  // Helper pour les arcs SVG
+  const describeArc = (x: number, y: number, radius: number, startAngle: number, endAngle: number, reverse: boolean = false) => {
+      const start = polarToCartesian(x, y, radius, endAngle);
+      const end = polarToCartesian(x, y, radius, startAngle);
+      const largeArcFlag = Math.abs(endAngle - startAngle) <= 180 ? "0" : "1";
+      
+      if (reverse) {
+          // Sens anti-horaire (Start -> End) pour le texte du bas
+          return [ "M", end.x, end.y, "A", radius, radius, 0, largeArcFlag, 0, start.x, start.y ].join(" ");
+      }
+
+      // Sens horaire (End -> Start) pour le texte du haut
+      return [ "M", start.x, start.y, "A", radius, radius, 0, largeArcFlag, 1, end.x, end.y ].join(" ");
+  };
 
 
   // Calculer l'angle initial basé sur le secteur (1-8)
@@ -296,9 +167,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   const isRemovingOrbiter = interactionState.type === 'REMOVING_ORBITER';
 
   // Utiliser les angles de rotation depuis le jeu, ou les angles initiaux si non définis
-  const initialAngle1 = (sectorToIndex[initialSector1] || 0) * 45;
-  const initialAngle2 = (sectorToIndex[initialSector2] || 0) * 45;
-  const initialAngle3 = (sectorToIndex[initialSector3] || 0) * 45;
+  const initialAngle1 = (sectorToIndex[game.board.solarSystem.initialSectorLevel1] || 0) * 45;
+  const initialAngle2 = (sectorToIndex[game.board.solarSystem.initialSectorLevel2] || 0) * 45;
+  const initialAngle3 = (sectorToIndex[game.board.solarSystem.initialSectorLevel3] || 0) * 45;
   const gameAngle1 = useMemo(() => game.board.solarSystem.rotationAngleLevel1 ?? initialAngle1, [game.board.solarSystem.rotationAngleLevel1, initialAngle1]);
   const gameAngle2 = useMemo(() => game.board.solarSystem.rotationAngleLevel2 ?? initialAngle2, [game.board.solarSystem.rotationAngleLevel2, initialAngle2]);
   const gameAngle3 = useMemo(() => game.board.solarSystem.rotationAngleLevel3 ?? initialAngle3, [game.board.solarSystem.rotationAngleLevel3, initialAngle3]);
@@ -332,16 +203,12 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
-    setHoveredObject(obj);
-    setHoveredObjectRect(e.currentTarget.getBoundingClientRect());
+    // Le contenu du tooltip est généré dans le JSX, donc on ne peut pas le passer ici directement.
+    // On va devoir le reconstruire.
   };
 
   const handleMouseLeaveObject = () => {
-    hoverTimeoutRef.current = setTimeout(() => {
-      setHoveredObject(null);
-      setHoveredObjectRect(null);
-      setSlotTooltip(null);
-    }, 300);
+    hoverTimeoutRef.current = setTimeout(() => setActiveTooltip(null), 300);
   };
 
   // Gestion du redimensionnement pour maintenir le ratio carré
@@ -570,12 +437,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         &gt;
       </div>
     );
-  };
-
-  // Rendu du tooltip personnalisé
-  const renderSlotTooltip = () => {
-    if (!slotTooltip) return null;
-    return <Tooltip content={slotTooltip.content} targetRect={slotTooltip.rect} pointerEvents="auto" />;
   };
 
   // Helper pour rendre le contenu du bonus dans le cercle (SVG)
@@ -886,8 +747,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                     if (isSatClickable && onLand) { e.stopPropagation(); onLand(satellite.id, 0); }
                 }}
                 onMouseEnter={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setSlotTooltip({ content: tooltipContent, rect });
+                    setSlotTooltip({ content: tooltipContent, rect: e.currentTarget.getBoundingClientRect() });
                 }}
                 onMouseLeave={() => setSlotTooltip(null)}
                 >
@@ -1150,11 +1010,11 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                         onClick={(e) => {
                         if (isClickable && onOrbit && planetData) { e.stopPropagation(); onOrbit(planetData.id, i); }
                       }}
-                      onMouseEnter={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setSlotTooltip({ content: tooltipContent, rect });
-                      }}
-                      onMouseLeave={() => setSlotTooltip(null)}
+                        onMouseEnter={(e) => {
+                          if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); // Garde le tooltip principal ouvert
+                          setSlotTooltip({ content: tooltipContent, rect: e.currentTarget.getBoundingClientRect() });
+                        }}
+                        onMouseLeave={() => setSlotTooltip(null)}
                       >
                         {isClickable && <circle r={orbiterCircleRadius + 6} fill="none" stroke="#00ff00" strokeWidth="3" opacity="0.6" />}
                         {isFirst ? (
@@ -1220,11 +1080,11 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                         onClick={(e) => {
                         if (isClickable && onLand && planetData) { e.stopPropagation(); onLand(planetData.id, i); }
                       }}
-                      onMouseEnter={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setSlotTooltip({ content: tooltipContent, rect });
-                      }}
-                      onMouseLeave={() => setSlotTooltip(null)}
+                        onMouseEnter={(e) => {
+                          if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); // Garde le tooltip principal ouvert
+                          setSlotTooltip({ content: tooltipContent, rect: e.currentTarget.getBoundingClientRect() });
+                        }}
+                        onMouseLeave={() => setSlotTooltip(null)}
                       >
                         {isClickable && <circle r={landerCircleRadius + 6} fill="none" stroke="#00ff00" strokeWidth="3" opacity="0.6" />}
                         {isFullSlot ? (
@@ -1387,7 +1247,65 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           cursor: 'pointer',
           pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
-        onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
+        onMouseEnter={(e) => {
+          if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+            hoverTimeoutRef.current = null;
+          }
+          let content: React.ReactNode;
+          const planetData = game.board.planets.find(p => p.id === obj.id);
+
+          if (planetData) {
+            content = (
+              <div style={{ minWidth: '350px' }}>
+                <div style={{ borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '12px', textAlign: 'left' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '1.2em', color: '#78a0ff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                    {planetData.name}
+                  </div>
+                  <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>
+                    Visiter pour gagner 1 media
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px' }}>
+                  {renderPlanetIcon(planetData.id, 220, planetData)}
+                </div>
+              </div>
+            );
+          } else {
+            // Fallback for Earth or other objects without detailed data
+            let subContent;
+            const currentPlayer = game.players[game.currentPlayerIndex];
+            const isRobot = (currentPlayer as any).type === 'robot';
+            if (obj.id === 'earth') {
+              const check = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
+              let text = `Lancer une sonde (coût: ${GAME_CONSTANTS.PROBE_LAUNCH_COST} Crédits)`;
+              let color = '#aaa';
+              if (hasPerformedMainAction || isRobot) {
+                  text = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
+                  color = '#ff6b6b';
+              } else if (!check.canLaunch) {
+                  text = check.reason || "Impossible";
+                  color = '#ff6b6b';
+              } else if (check.canLaunch) {
+                  color = '#4a9eff';
+              }
+              subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: color, fontStyle: 'italic' }}>{text}</div>;
+            } else {
+              subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>Visiter pour gagner 1 Média</div>;
+            }
+            content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{subContent}</>;
+          }
+
+          setActiveTooltip({ 
+            content, 
+            rect: e.currentTarget.getBoundingClientRect(),
+            ...(planetData && {
+              onMouseEnter: () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); },
+              onMouseLeave: handleMouseLeaveObject,
+              pointerEvents: 'auto'
+            })
+          });
+        }}
         onMouseLeave={handleMouseLeaveObject}
         onClick={() => onPlanetClick && onPlanetClick(obj.id)}
       >
@@ -1535,7 +1453,18 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           cursor: 'help',
           pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
-        onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
+        onMouseEnter={(e) => {
+          if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+            hoverTimeoutRef.current = null;
+          }
+          const subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>Visiter pour gagner 1 Média</div>;
+          const content = <div style={{ fontWeight: 'bold' }}>{obj.name}</div>;
+          setActiveTooltip({
+            content: <>{content}{subContent}</>,
+            rect: e.currentTarget.getBoundingClientRect()
+          });
+        }}
         onMouseLeave={handleMouseLeaveObject}
       >
         <div
@@ -1739,10 +1668,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                   }
                 }}
                 onMouseEnter={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setSlotTooltip({ content: slotTooltipContent, rect });
+                  setActiveTooltip({ content: slotTooltipContent, rect: e.currentTarget.getBoundingClientRect() });
                 }}
-                onMouseLeave={() => setSlotTooltip(null)}
+                onMouseLeave={() => setActiveTooltip(null)}
               >
                 <circle r="4" fill="transparent" stroke="none" />
                 {isFlashing && (
@@ -1776,10 +1704,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
                </defs>
                <text fill={color} fontSize="2.5" fontWeight="bold" letterSpacing="0.5" opacity="0.9" style={{ cursor: 'help', pointerEvents: 'auto' }}
                   onMouseEnter={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    setSlotTooltip({ content: sectorTooltipContent, rect });
+                    setActiveTooltip({ content: sectorTooltipContent, rect: e.currentTarget.getBoundingClientRect() });
                   }}
-                  onMouseLeave={() => setSlotTooltip(null)}
+                  onMouseLeave={() => setActiveTooltip(null)}
                >
                  <textPath href={`#${textPathId}`} startOffset="50%" textAnchor="middle">
                    {sector.name.toUpperCase()}
@@ -1826,7 +1753,21 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           cursor: 'help',
           pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
-        onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
+        onMouseEnter={(e) => {
+          if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+            hoverTimeoutRef.current = null;
+          }
+          const currentPlayer = game.players[game.currentPlayerIndex];
+          const hasTech = currentPlayer.technologies.some(t => t.id.startsWith('exploration-2'));
+          const subContent = (
+            <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>
+              {hasTech ? 'Visiter pour gagner 1 Média' : 'Quitter nécessite 1 déplacement supplémentaire'}
+            </div>
+          );
+          const content = <div style={{ fontWeight: 'bold' }}>{obj.name}</div>;
+          setActiveTooltip({ content: <>{content}{subContent}</>, rect: e.currentTarget.getBoundingClientRect() });
+        }}
         onMouseLeave={handleMouseLeaveObject}
       >
         {Array.from({ length: asteroidCount }).map((_, i) => {
@@ -1885,13 +1826,15 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           handleProbeClick(probe);
         }}
         onMouseEnter={(e) => {
-          setHoveredProbe(probe.id);
-          setHoveredProbeRect(e.currentTarget.getBoundingClientRect());
+          const content = (
+            <>
+              <div style={{ fontWeight: 'bold' }}>{playerName}</div>
+              <div style={{ fontSize: '0.8em', color: '#ccc', marginTop: '2px' }}>Déplacer la sonde</div>
+            </>
+          );
+          setActiveTooltip({ content, rect: e.currentTarget.getBoundingClientRect() });
         }}
-        onMouseLeave={() => {
-          setHoveredProbe(null);
-          setHoveredProbeRect(null);
-        }}
+        onMouseLeave={() => setActiveTooltip(null)}
         style={{
           position: 'absolute',
           top: `calc(50% + ${y + offsetY}%)`,
@@ -2035,25 +1978,9 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     );
   };
 
-  // Fonction helper pour rendre un tooltip de sonde
-  const renderProbeTooltip = () => {
-    if (!hoveredProbe || !hoveredProbeRect) return null;
-    const probe = game.board.solarSystem.probes.find(p => p.id === hoveredProbe);
-    const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-    const playerName = player?.name || 'Joueur inconnu';
-    const content = (
-      <>
-        <div style={{ fontWeight: 'bold' }}>{playerName}</div>
-        <div style={{ fontSize: '0.8em', color: '#ccc', marginTop: '2px' }}>Déplacer la sonde</div>
-      </>
-    );
-    return <Tooltip content={content} targetRect={hoveredProbeRect} />;
-  };
-
   // Fonction pour gérer le clic sur une sonde
   const handleProbeClick = (probe: Probe) => {
-    setHoveredObject(null);
-    setSlotTooltip(null);
+    setActiveTooltip(null);
     if (selectedProbeId === probe.id) {
       // Désélectionner si déjà sélectionnée
       setSelectedProbeId(null);
@@ -2525,90 +2452,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           //)}
           }
 
-          {/* Conteneur fixe pour les tooltips des planètes rotatives */}
-          {/* Les tooltips sont maintenant gérés par Portal, mais on garde la logique de calcul ici */}
-            {/* Tooltip dynamique pour l'objet survolé (Planète, Comète, Astéroïde) */}
-            {hoveredObject && hoveredObjectRect && (() => {
-              // Affichage spécial pour les planètes (Hover Card)
-              if (hoveredObject.type === 'planet') {
-                const planetData = game.board.planets.find(p => p.id === hoveredObject.id);
-                
-                if (planetData) {
-                  const content = (
-                    <div style={{
-                        minWidth: '350px',
-                    }}>
-                      <div style={{ borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '12px', textAlign: 'left' }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '1.2em', color: '#78a0ff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-                          {planetData.name}
-                        </div>
-                        <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>
-                          Visiter pour gagner 1 media
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px' }}>
-                        {renderPlanetIcon(planetData.id, 220, planetData)}
-                      </div>
-                    </div>
-                  );
-                  
-                  return (
-                    <Tooltip 
-                        content={content} 
-                        targetRect={hoveredObjectRect} 
-                        pointerEvents="auto"
-                        onMouseEnter={() => {
-                            if (hoverTimeoutRef.current) {
-                                clearTimeout(hoverTimeoutRef.current);
-                                hoverTimeoutRef.current = null;
-                            }
-                        }}
-                        onMouseLeave={handleMouseLeaveObject}
-                    />
-                  );
-                }
-              }
-
-              let content = <div style={{ fontWeight: 'bold' }}>{hoveredObject.name}</div>;
-              let subContent = null;
-
-              if (hoveredObject.type === 'comet') {
-                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>Visiter pour gagner 1 Média</div>;
-              } else if (hoveredObject.type === 'asteroid') {
-                const currentPlayer = game.players[game.currentPlayerIndex];
-                // Utilisation de exploration-2 qui correspond au bonus d'astéroïdes dans Board.ts
-                const hasTech = currentPlayer.technologies.some(t => t.id.startsWith('exploration-2'));
-                subContent = (
-                  <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>
-                    {hasTech ? 'Visiter pour gagner 1 Média' : 'Quitter nécessite 1 déplacement supplémentaire'}
-                  </div>
-                );
-              } else if (hoveredObject.type === 'planet' && hoveredObject.id !== 'earth') {
-                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>Visiter pour gagner 1 Média</div>;
-              } else {
-                const currentPlayer = game.players[game.currentPlayerIndex];
-                const isRobot = (currentPlayer as any).type === 'robot';
-                const check = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
-                let text = `Lancer une sonde (coût: ${GAME_CONSTANTS.PROBE_LAUNCH_COST} Crédits)`;
-                let color = '#aaa';
-                if (hasPerformedMainAction || isRobot) {
-                    text = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
-                    color = '#ff6b6b';
-                } else if (!check.canLaunch) {
-                    text = check.reason || "Impossible";
-                    color = '#ff6b6b';
-                } else if (check.canLaunch) {
-                    color = '#4a9eff';
-                }
-                subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: color, fontStyle: 'italic' }}>{text}</div>;
-              }
-
-              return <Tooltip content={<>{content}{subContent}</>} targetRect={hoveredObjectRect} />;
-            })()}
-
-            {/* Tooltips des sondes */}
-            {renderProbeTooltip()}
-
           {/* Backdrop pour désélectionner si on clique à côté (quand une sonde est sélectionnée) */}
           {selectedProbeId && (
             <div 
@@ -2870,8 +2713,15 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
       </div>
       </div>
       
-      {/* Tooltip personnalisé pour les slots */}
-      {renderSlotTooltip()}
+      {/* Tooltip pour les slots, rendu par-dessus le tooltip principal */}
+      {slotTooltip && <Tooltip 
+        content={slotTooltip.content} 
+        targetRect={slotTooltip.rect}
+        pointerEvents="auto"
+        onMouseEnter={() => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); }}
+        onMouseLeave={handleMouseLeaveObject}
+        disableCollision={true}
+      />}
     </>
   );
 });

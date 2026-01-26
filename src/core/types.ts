@@ -196,17 +196,17 @@ export interface SolarSystem {
   currentRotation: number;
   probes: Probe[];
   // Positions initiales des plateaux rotatifs (1-8)
-  initialSectorLevel1?: number; // Position initiale du plateau niveau 1 (1-8)
-  initialSectorLevel2?: number; // Position initiale du plateau niveau 2 (1-8)
-  initialSectorLevel3?: number; // Position initiale du plateau niveau 3 (1-8)
+  initialSectorLevel1: number; // Position initiale du plateau niveau 1 (1-8)
+  initialSectorLevel2: number; // Position initiale du plateau niveau 2 (1-8)
+  initialSectorLevel3: number; // Position initiale du plateau niveau 3 (1-8)
   // Angles de rotation initiaux (en degrés)
-  initialAngleLevel1?: number; // Angle de rotation initiale du plateau niveau 1 (en degrés)
-  initialAngleLevel2?: number; // Angle de rotation initiale du plateau niveau 2 (en degrés)
-  initialAngleLevel3?: number; // Angle de rotation initiale du plateau niveau 3 (en degrés)
+  initialAngleLevel1: number; // Angle de rotation initiale du plateau niveau 1 (en degrés)
+  initialAngleLevel2: number; // Angle de rotation initiale du plateau niveau 2 (en degrés)
+  initialAngleLevel3: number; // Angle de rotation initiale du plateau niveau 3 (en degrés)
   // Angles de rotation actuels (en degrés)
-  rotationAngleLevel1?: number; // Angle de rotation actuel du plateau niveau 1 (en degrés)
-  rotationAngleLevel2?: number; // Angle de rotation actuel du plateau niveau 2 (en degrés)
-  rotationAngleLevel3?: number; // Angle de rotation actuel du plateau niveau 3 (en degrés)
+  rotationAngleLevel1: number; // Angle de rotation actuel du plateau niveau 1 (en degrés)
+  rotationAngleLevel2: number; // Angle de rotation actuel du plateau niveau 2 (en degrés)
+  rotationAngleLevel3: number; // Angle de rotation actuel du plateau niveau 3 (en degrés)
   nextRingLevel: number; // Prochain niveau à tourner (1, 2 ou 3)
 }
 

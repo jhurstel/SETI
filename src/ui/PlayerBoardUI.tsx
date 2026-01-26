@@ -9,28 +9,28 @@ import './PlayerBoardUI.css';
 
 interface PlayerBoardUIProps {
   game: Game;
-  playerId?: string;
+  playerId: string;
   interactionState: InteractionState;
-  onViewPlayer?: (playerId: string) => void;
-  onAction?: (actionType: ActionType) => void;
-  onCardClick?: (cardId: string) => void;
-  onConfirmDiscard?: () => void;
-  onDiscardCardAction?: (cardId: string) => void;
-  onPlayCard?: (cardId: string) => void;
-  onBuyCardAction?: () => void;
-  onTradeCardAction?: (targetGain?: string) => void;
-  onConfirmTrade?: () => void;
-  onCancelTrade?: () => void;
-  onGameUpdate?: (game: Game) => void;
-  onDrawCard?: (count: number, source: string) => void;
-  onComputerSlotSelect?: (col: number) => void;
-  hasPerformedMainAction?: boolean;
-  onNextPlayer?: () => void;
-  onHistory?: (message: string, sequenceId?: string) => void;
-  onComputerBonus?: (type: string, amount: number, sequenceId?: string) => void;
-  onConfirmReservation?: () => void;
-  onDirectTradeAction?: (spendType: string, gainType: string) => void;
-  onConfirmDiscardForSignal?: () => void;
+  onViewPlayer: (playerId: string) => void;
+  onAction: (actionType: ActionType) => void;
+  onCardClick: (cardId: string) => void;
+  onConfirmDiscard: () => void;
+  onDiscardCardAction: (cardId: string) => void;
+  onPlayCard: (cardId: string) => void;
+  onBuyCardAction: () => void;
+  onTradeCardAction: (targetGain?: string) => void;
+  onConfirmTrade: () => void;
+  onCancelTrade: () => void;
+  onGameUpdate: (game: Game) => void;
+  onDrawCard: (count: number, source: string) => void;
+  onComputerSlotSelect: (col: number) => void;
+  hasPerformedMainAction: boolean;
+  onNextPlayer: () => void;
+  onHistory: (message: string, sequenceId?: string) => void;
+  onComputerBonus: (type: string, amount: number, sequenceId?: string) => void;
+  onConfirmReservation: () => void;
+  onDirectTradeAction: (spendType: string, gainType: string) => void;
+  onConfirmDiscardForSignal: () => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
 
@@ -504,7 +504,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
           {!isRobot && (
           <button
             onClick={onNextPlayer}
-            disabled={!isCurrentTurn || isInteractiveMode}
+            disabled={!isCurrentTurn || !hasPerformedMainAction || isInteractiveMode}
             className={`seti-next-player-btn ${(isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? 'enabled' : 'disabled'}`}
             onMouseEnter={(e) => handleTooltipHover(e, hasPerformedMainAction ? "Terminer le tour" : "Effectuez une action principale d'abord")}
             onMouseLeave={handleTooltipLeave}
