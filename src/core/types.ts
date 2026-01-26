@@ -434,7 +434,9 @@ export interface Bonus {
   bluelifetrace?: number;
   revenue?: number;
   rotation?: number;
-  technology?: number;
+  yellowtechnology?: number;
+  redtechnology?: number;
+  bluetechnology?: number;
   anytechnology?: number;
   probe?: number;
   movements?: number;

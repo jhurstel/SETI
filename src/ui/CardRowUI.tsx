@@ -32,7 +32,6 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
                 <div style={{ display: 'flex', overflowX: 'auto', gap: '8px', padding: '8px' }}>
                     {/* Pile de pioche */}
                     <div
-                        onClick={() => onCardClick(undefined)}
                         className="seti-common-card"
                         style={{
                             justifyContent: 'center',

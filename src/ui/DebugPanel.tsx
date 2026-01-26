@@ -5,9 +5,7 @@ import { Game, Card, InteractionState } from '../core/types';
 interface DebugPanelProps {
   game: Game;
   setGame: (game: Game) => void;
-  onHistory: (msg: string, playerId?: string) => void;
-  setHasPerformedMainAction: (val: boolean) => void;
-  setViewedPlayerId: (id: string) => void;
+  onHistory: (msg: string, playerId?: string, previousState?: Game) => void;
   interactionState: InteractionState;
 }
 
@@ -15,8 +13,6 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   game, 
   setGame, 
   onHistory, 
-  setHasPerformedMainAction, 
-  setViewedPlayerId, 
   interactionState 
 }) => {
   const [cardId, setCardId] = useState('');
@@ -54,7 +50,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
     const player = updatedGame.players[updatedGame.currentPlayerIndex];
     player[resourceType] = (player[resourceType] || 0) + amount;
     setGame(updatedGame);
-    onHistory(`DEBUG: Added ${amount} ${resourceType} to ${player.name}`, player.id);
+    onHistory(`DEBUG: Added ${amount} ${resourceType} to ${player.name}`, player.id, updatedGame);
   };
 
   const handleAddCard = () => {
@@ -74,19 +70,10 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
     if (card) {
       player.cards.push(structuredClone(card));
       setGame(updatedGame);
-      onHistory(`DEBUG: Added card "${card.name}" to ${player.name}`, player.id);
+      onHistory(`DEBUG: Added card "${card.name}" to ${player.name}`, player.id, updatedGame);
     } else {
-      onHistory(`DEBUG: Card with ID/name part "${cardId}" not found.`);
+      onHistory(`DEBUG: Card with ID/name part "${cardId}" not found.`, player.id, updatedGame);
     }
-  };
-
-  const changePlayer = (offset: number) => {
-    const newIndex = (game.currentPlayerIndex + offset + game.players.length) % game.players.length;
-    const updatedGame = { ...game, currentPlayerIndex: newIndex };
-    setGame(updatedGame);
-    setHasPerformedMainAction(false);
-    setViewedPlayerId(updatedGame.players[newIndex].id);
-    onHistory(`DEBUG: Switched to player ${updatedGame.players[newIndex].name}`);
   };
 
   if (process.env.NODE_ENV !== 'development') {
@@ -129,11 +116,6 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
         <div>
           <input type="text" value={cardId} onChange={e => setCardId(e.target.value)} placeholder="Card ID/Name" style={{width: '100%', boxSizing: 'border-box', background: '#222', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '4px', marginTop: '4px'}} />
           <button onClick={handleAddCard} style={{width: '100%', marginTop: '5px'}}>Add Card to Hand</button>
-        </div>
-        <button onClick={() => setHasPerformedMainAction(false)}>Reset Main Action</button>
-        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px'}}>
-          <button onClick={() => changePlayer(-1)}>Prev Player</button>
-          <button onClick={() => changePlayer(1)}>Next Player</button>
         </div>
         <div style={{ marginTop: '10px', borderTop: '1px solid #555', paddingTop: '5px' }}>
           <div style={{ fontSize: '0.8em', color: '#aaa' }}>Interaction State:</div>

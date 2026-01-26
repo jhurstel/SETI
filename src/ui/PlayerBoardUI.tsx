@@ -20,7 +20,6 @@ interface PlayerBoardUIProps {
   onBuyCardAction: () => void;
   onTradeCardAction: (targetGain?: string) => void;
   onConfirmTrade: () => void;
-  onCancelTrade: () => void;
   onGameUpdate: (game: Game) => void;
   onDrawCard: (count: number, source: string) => void;
   onComputerSlotSelect: (col: number) => void;
@@ -321,7 +320,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         onMouseEnter={(e) => {
           handleTooltipHover(e, tooltip);
         }}
-        onMouseLeave={(e) => {
+        onMouseLeave={() => {
           handleTooltipLeave();
         }}
       >
@@ -603,7 +602,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                         }
                       }}
                       style={{
-                        cursor: available && onAction ? 'pointer' : 'not-allowed',
+                        cursor: available ? 'pointer' : 'not-allowed',
                       }}
                       onMouseEnter={(e) => { if (tooltip) handleTooltipHover(e, tooltip); }}
                       onMouseLeave={handleTooltipLeave}

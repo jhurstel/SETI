@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Card, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Player, Mission, InteractionState } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Mission, InteractionState } from '../core/types';
 import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -86,35 +86,27 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // États pour l'UI
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
   const [historyLog, setHistoryLog] = useState<HistoryEntry[]>(() => {
-    if (initialGame.gameLog && initialGame.gameLog.length > 0) {
-      return [...initialGame.gameLog].map(log => ({
-        id: log.id,
-        message: log.message,
-        playerId: log.playerId,
-        timestamp: log.timestamp
-      }));
-    }
-    return [];
+    return (initialGame.gameLog || []).map((log): HistoryEntry => ({
+      id: log.id,
+      message: log.message,
+      playerId: log.playerId,
+      timestamp: log.timestamp,
+      // Les entrées de log initiales ne sont pas des actions annulables
+      previousState: undefined,
+      previousInteractionState: { type: 'IDLE' },
+      previousPendingInteractions: [],
+      sequenceId: undefined,
+    }));
   });
   const [interactionState, setInteractionState] = useState<InteractionState>({ type: 'IDLE' });
   const [pendingInteractions, setPendingInteractions] = useState<InteractionState[]>([]);
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
-  const [isAlienBoardAOpen, setIsAlienBoardAOpen] = useState(false);
-  const [isAlienBoardBOpen, setIsAlienBoardBOpen] = useState(false);
 
   // État pour la notification de découverte Alien
   const [alienDiscoveryNotification, setAlienDiscoveryNotification] = useState<{ visible: boolean; message: string } | null>(null);
 
   // État pour le tooltip générique
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null>(null);
-
-  // Auto-open tech & row panel when researching or selecting card
-  useEffect(() => {
-    if (interactionState.type === 'PLACING_LIFE_TRACE') {
-      setIsAlienBoardAOpen(true);
-      setIsAlienBoardBOpen(true);
-    }
-  }, [interactionState.type]);
 
   // Effet pour afficher un message toast si l'interaction en contient un
   useEffect(() => {
@@ -771,7 +763,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
       setToast({ message: 'Secteur couvert !', visible: true });
       if (coverageLogs.length > 0) {
-        historyEntries.push({ message: coverageLogs.join(', '), playerId: coverageResult.winnerId });
+        historyEntries.push({ message: coverageLogs.join(', '), playerId: coverageResult.winnerId || playerId });
       }
     } else {
       // 6. Log scan only
@@ -784,8 +776,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Helper pour effectuer une séquence de scan complète
   const performScanAction = (
     gameToUpdate: Game,
-    sequenceId?: string,
-    initialLogs: string[] = []
+    sequenceId?: string
   ): { updatedGame: Game, historyEntries: { message: string, playerId: string }[] } => {
     let updatedGame = gameToUpdate;
     const historyEntries: { message: string, playerId: string }[] = [];
@@ -907,46 +898,52 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       let updatedGame = structuredClone(game);
       const initialLogs: string[] = [];
 
-      // Défausser la carte de la rangée si une carte a été utilisée pour la couleur
-      let card: Card | undefined;
-      card = game.decks.cardRow.find(c => c.id === interactionState.cardId);
-      if (card) {
-        const row = updatedGame.decks.cardRow;
-        const cardIndex = row.findIndex(c => c.id === card.id);
-        if (cardIndex !== -1) {
-          const removedCard = row[cardIndex];
-          row.splice(cardIndex, 1);
-          if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
-          updatedGame.decks.discardPile.push(removedCard);
-          initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la rangée`);
-        }
-      }
+      if (interactionState.cardId) {
+        let cardFoundAndProcessed = false;
 
-      // Défausser la carte de la pioche si une carte a été utilisée pour la couleur
-      card = game.decks.cards.find(c => c.id === interactionState.cardId);
-      if (card) {
-        const deck = updatedGame.decks.cards;
-        const cardIndex = deck.findIndex(c => c.id === card.id);
-        if (cardIndex !== -1) {
-          const removedCard = deck[cardIndex];
-          deck.splice(cardIndex, 1);
-          if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
-          updatedGame.decks.discardPile.push(removedCard);
-          initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la pioche`);
+        // Chercher et traiter dans la rangée de cartes
+        const cardFromRow = game.decks.cardRow.find(c => c.id === interactionState.cardId);
+        if (cardFromRow) {
+          const row = updatedGame.decks.cardRow;
+          const cardIndex = row.findIndex(c => c.id === cardFromRow.id);
+          if (cardIndex !== -1) {
+            const removedCard = row.splice(cardIndex, 1)[0];
+            if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+            updatedGame.decks.discardPile.push(removedCard);
+            initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la rangée`);
+            cardFoundAndProcessed = true;
+          }
         }
-      }
 
-      // Défausser la carte de la main si une carte a été utilisée pour la couleur
-      card = currentPlayer.cards.find(c => c.id === interactionState.cardId);
-      if (card) {
-        const hand = updatedGame.players[updatedGame.currentPlayerIndex].cards;
-        const cardIndex = hand.findIndex(c => c.id === card.id);
-        if (cardIndex !== -1) {
-          const removedCard = hand[cardIndex];
-          hand.splice(cardIndex, 1);
-          if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
-          updatedGame.decks.discardPile.push(removedCard);
-          initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la main`);
+        // Si non trouvée, chercher et traiter dans la pioche
+        if (!cardFoundAndProcessed) {
+          const cardFromDeck = game.decks.cards.find(c => c.id === interactionState.cardId);
+          if (cardFromDeck) {
+            const deck = updatedGame.decks.cards;
+            const cardIndex = deck.findIndex(c => c.id === cardFromDeck.id);
+            if (cardIndex !== -1) {
+              const removedCard = deck.splice(cardIndex, 1)[0];
+              if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+              updatedGame.decks.discardPile.push(removedCard);
+              initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la pioche`);
+              cardFoundAndProcessed = true;
+            }
+          }
+        }
+
+        // Si non trouvée, chercher et traiter dans la main du joueur
+        if (!cardFoundAndProcessed) {
+          const cardFromHand = currentPlayer.cards.find(c => c.id === interactionState.cardId);
+          if (cardFromHand) {
+            const hand = updatedGame.players[updatedGame.currentPlayerIndex].cards;
+            const cardIndex = hand.findIndex(c => c.id === cardFromHand.id);
+            if (cardIndex !== -1) {
+              const removedCard = hand.splice(cardIndex, 1)[0];
+              if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+              updatedGame.decks.discardPile.push(removedCard);
+              initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la main`);
+            }
+          }
         }
       }
 
@@ -983,19 +980,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
 
       setInteractionState({ type: 'IDLE' });
-      setHasPerformedMainAction(true);
       return;
     }
 
     // Cas 2: Clic direct depuis Idle (Raccourci Action Scan)
     if (interactionState.type === 'IDLE' && !game.players[game.currentPlayerIndex].hasPerformedMainAction) {
-      handleAction(ActionType.SCAN_SECTOR, { sectorId: `sector_${sectorNumber}` });
+      handleAction(ActionType.SCAN_SECTOR);
       return;
     }
   };
 
   // Gestionnaire pour les actions
-  const handleAction = (actionType: ActionType, payload?: any) => {
+  const handleAction = (actionType: ActionType) => {
     if (!gameEngineRef.current) return;
 
     // Atomicité : Si on est dans un mode interactif, on ne peut pas lancer d'autre action
@@ -1295,9 +1291,19 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (count > 0) newPendingInteractions.push({ type: 'RESERVING_CARD', count: count, selectedCards: [] });
       }
     }
-    if (bonuses.technology) {
-      for (let i = 0; i < bonuses.technology.amount; i++) {
-        newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true, category: bonuses.technology.color, sharedOnly: bonuses.technology.sharedOnly, noTileBonus: bonuses.technology.noTileBonus });
+    if (bonuses.yellowtechnology) {
+      for (let i = 0; i < bonuses.yellowtechnology; i++) {
+        newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true, category: TechnologyCategory.EXPLORATION, sharedOnly: bonuses.sharedOnly, noTileBonus: bonuses.noTileBonus });
+      }
+    }
+    if (bonuses.redtechnology) {
+      for (let i = 0; i < bonuses.redtechnology; i++) {
+        newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true, category: TechnologyCategory.OBSERVATION, sharedOnly: bonuses.sharedOnly, noTileBonus: bonuses.noTileBonus });
+      }
+    }
+    if (bonuses.bluetechnology) {
+      for (let i = 0; i < bonuses.bluetechnology; i++) {
+        newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true, category: TechnologyCategory.COMPUTING, sharedOnly: bonuses.sharedOnly, noTileBonus: bonuses.noTileBonus });
       }
     }
     if (bonuses.anytechnology) {
@@ -1588,7 +1594,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleObs2Choice = (accepted: boolean) => {
     if (interactionState.type !== 'CHOOSING_OBS2_ACTION') return;
 
-    const currentPlayer = game.players[game.currentPlayerIndex];
     const sequenceId = interactionState.sequenceId;
 
     if (accepted) {
@@ -1639,7 +1644,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleObs4Choice = (choice: 'PROBE' | 'MOVE') => {
     if (interactionState.type !== 'CHOOSING_OBS4_ACTION') return;
 
-    const currentPlayer = game.players[game.currentPlayerIndex];
     const sequenceId = interactionState.sequenceId;
     let updatedGame = structuredClone(game);
     const player = updatedGame.players[updatedGame.currentPlayerIndex];
@@ -1953,7 +1957,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           return;
         }
 
-        if ((bonus.technology || bonus.anytechnology) && !canAcquireTech(game, currentPlayer.id, bonus.technology?.color)) {
+        const catToCheck = (bonus.yellowtechnology ? TechnologyCategory.EXPLORATION : bonus.redtechnology ? TechnologyCategory.OBSERVATION : bonus.bluetechnology ? TechnologyCategory.COMPUTING : undefined);
+        if ((bonus.yellowtechnology || bonus.redtechnology || bonus.bluetechnology|| bonus.anytechnology) && !canAcquireTech(game, currentPlayer.id, catToCheck)) {
           setConfirmModalState({
             visible: true,
             cardId: null,
@@ -2086,7 +2091,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           return;
         }
 
-        if ((bonus.technology || bonus.anytechnology) && !canAcquireTech(game, currentPlayer.id, bonus.technology?.color)) {
+        const catToCheck = (bonus.yellowtechnology ? TechnologyCategory.EXPLORATION : bonus.redtechnology ? TechnologyCategory.OBSERVATION : bonus.bluetechnology ? TechnologyCategory.COMPUTING : undefined);
+        if ((bonus.yellowtechnology || bonus.redtechnology || bonus.bluetechnology || bonus.anytechnology) && !canAcquireTech(game, currentPlayer.id, catToCheck)) {
           setConfirmModalState({
             visible: true,
             cardId: null,
@@ -2407,9 +2413,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setGame(gameAfterBonuses);
     if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonuses);
 
-    const gainsText = passiveGains.length > 0 ? ` (Gains: ${passiveGains.join(', ')})` : '';
-    //setToast({ message: `Carte jouée: ${card.name}${gainsText}`, visible: true });
-
     // Construction du message d'historique unifié
     let message = `paye ${card.cost} crédit${card.cost > 1 ? 's' : ''} pour jouer carte "${card.name}"`;
 
@@ -2672,7 +2675,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
     setInteractionState({ type: 'IDLE' });
-    setHasPerformedMainAction(true);
     setToast({ message: `Technologie ${tech.name} acquise !`, visible: true });
     addToHistory(`acquiert la technologie "${tech.type} ${tech.name}"${gains.length > 0 ? ` et gagne ${gains.join(', ')}` : ''}`, currentPlayer.id, currentGame, undefined, interactionState.sequenceId);
   };
@@ -2825,8 +2827,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   }
 
-  const humanPlayer = game.players.find(p => (p as any).type === 'human');
-  const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id;
+  const humanPlayer = game.players.find(p => p.type === 'human');
+  const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id || game.players[game.currentPlayerIndex].id;
 
   const currentPlayer = game.players[game.currentPlayerIndex];
 
@@ -2837,7 +2839,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         game={game}
         setGame={setGame}
         onHistory={addToHistory}
-        setViewedPlayerId={setViewedPlayerId}
         interactionState={interactionState} />
 
       {/* Toast Notification */}
@@ -3016,28 +3017,22 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             setActiveTooltip={setActiveTooltip}
           />
 
-          {/* Plateau Alien A en bas à gauche */}
+          {/* Plateau Alien en bas à gauche */}
           <AlienBoardUI
             game={game}
             boardIndex={0}
             interactionState={interactionState}
-            isOpen={isAlienBoardAOpen}
-            onToggle={() => setIsAlienBoardAOpen(!isAlienBoardAOpen)}
             onPlaceLifeTrace={handlePlaceLifeTrace}
             setActiveTooltip={setActiveTooltip}
-            side="left"
           />
 
-          {/* Plateau Alien B en bas à droite */}
+          {/* Plateau Alien en bas à droite */}
           <AlienBoardUI
             game={game}
             boardIndex={1}
             interactionState={interactionState}
-            isOpen={isAlienBoardBOpen}
-            onToggle={() => setIsAlienBoardBOpen(!isAlienBoardBOpen)}
             onPlaceLifeTrace={handlePlaceLifeTrace}
             setActiveTooltip={setActiveTooltip}
-            side="right"
           />
         </div>
       </div>

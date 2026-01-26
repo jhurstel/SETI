@@ -1,4 +1,4 @@
-import { Game, Card, Player, ProbeState, FreeActionType, GAME_CONSTANTS, RevenueType } from '../core/types';
+import { Game, Card, Player, ProbeState, FreeActionType, GAME_CONSTANTS, RevenueType, TechnologyCategory } from '../core/types';
 import {
     createRotationState,
     calculateAbsolutePosition,
@@ -229,13 +229,14 @@ export class CardSystem {
                             bonuses.movements = (bonuses.movements || 0) + effect.value;
                             break;
                         case 'TECH':
-                            if (typeof effect.value === 'object' && effect.value !== null) {
-                                bonuses.technology = {
-                                    amount: (bonuses.technology?.amount || 0) + effect.value.amount,
-                                    color: effect.value.color // last one wins, which is fine for single tech bonus
-                                };
-                            } else { // fallback for old format
-                                bonuses.technology = { amount: (bonuses.technology?.amount || 0) + effect.value };
+                            if (effect.value.color === TechnologyCategory.EXPLORATION) {
+                                bonuses.yellowtechnology = (bonuses.yellowtechnology || 0) + effect.value.amount;
+                            } else if (effect.value.color === TechnologyCategory.OBSERVATION) {
+                                bonuses.redtechnology = (bonuses.redtechnology || 0) + effect.value.amount;
+                            } else if (effect.value.color == TechnologyCategory.COMPUTING) {
+                                bonuses.bluetechnology = (bonuses.bluetechnology || 0) + effect.value.amount;
+                            } else {
+                                bonuses.anytechnology = (bonuses.anytechnology || 0) + effect.value.amount;
                             }
                             break;
                         case 'SCAN':
@@ -294,10 +295,8 @@ export class CardSystem {
                 } else if (effect.type === 'MEDIA_IF_SHARED_TECH') {
                     player.activeBuffs.push({ ...effect, source: card.name });
                 } else if (effect.type === 'SHARED_TECH_ONLY_NO_BONUS') {
-                    if (bonuses.technology) {
-                        bonuses.technology.sharedOnly = true;
-                        bonuses.technology.noTileBonus = true;
-                    }
+                    bonuses.sharedOnly = true;
+                    bonuses.noTileBonus = true;
                 } else if (effect.type === 'GAIN_ENERGY_PER_ENERGY_REVENUE') {
                     let energyCardsCount = 0;
                     player.cards.forEach(c => {

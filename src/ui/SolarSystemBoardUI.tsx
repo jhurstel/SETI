@@ -1,4 +1,4 @@
-import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef } from 'react';
 import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, Bonus, ProbeState, GAME_CONSTANTS, SectorColor, SignalType, InteractionState } from '../core/types';
 import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, CelestialObject, getObjectPosition, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -600,7 +600,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
         }
     }
 
-    let landEnergyCost;
+    let landEnergyCost: number | undefined;
     let canLand = false;
     let landReason = "Nécessite une sonde sur la planète";
     if (playerProbe) {

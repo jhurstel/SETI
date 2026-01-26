@@ -1,15 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Game, InteractionState, LifeTraceType } from '../core/types';
 
 interface AlienBoardUIProps {
     game: Game;
     boardIndex: number;
     interactionState: InteractionState;
-    isOpen: boolean;
-    onToggle: () => void;
     onPlaceLifeTrace: (boardIndex: number, color: LifeTraceType) => void;
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
-    side: 'left' | 'right';
 }
 
 const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseEnter, onMouseLeave }: { color: string, traces: any[], game: Game, onClick?: () => void, isClickable?: boolean, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
@@ -57,8 +54,18 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
   </div>
 );
 
-export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, isOpen, onToggle, onPlaceLifeTrace, setActiveTooltip, side }) => {
+export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, onPlaceLifeTrace, setActiveTooltip }) => {
     const board = game.board.alienBoards[boardIndex];
+    const side = boardIndex === 0 ? 'left' : 'right';
+    const isPlacingTrace = interactionState.type === 'PLACING_LIFE_TRACE';
+    const [isOpen, setIsOpen] = useState(isPlacingTrace);
+
+    useEffect(() => {
+        if (isPlacingTrace) {
+            setIsOpen(true);
+        }
+    }, [isPlacingTrace]);
+
     if (!board) return null;
 
     const renderAlienSlotTooltip = (colorType: LifeTraceType) => {
@@ -132,7 +139,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 borderTopLeftRadius: '50px',
                 borderTopRightRadius: '50px',
             }}>
-                <div className="seti-foldable-header" onClick={onToggle}>
+                <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
                     <span className="panel-icon">👽</span>
                     <span className="panel-title">Alien Board</span>
                 </div>
