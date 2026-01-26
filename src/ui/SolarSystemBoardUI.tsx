@@ -12,10 +12,9 @@ interface SolarSystemBoardUIProps {
   onPlanetClick: (planetId: string) => void;
   onOrbit: (planetId: string, slotIndex?: number) => void;
   onLand: (planetId: string, slotIndex?: number) => void;
-  hasPerformedMainAction: boolean;
   onBackgroundClick: () => void;
   onSectorClick: (sectorNumber: number) => void;
-  setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
+  setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null) => void;
 }
 
 export interface SolarSystemBoardUIRef {
@@ -27,7 +26,7 @@ export interface SolarSystemBoardUIRef {
   rotateCounterClockwise3: () => void;
 }
 
-export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, hasPerformedMainAction = false, onBackgroundClick, onSectorClick, setActiveTooltip }, ref) => {
+export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, onBackgroundClick, onSectorClick, setActiveTooltip }, ref) => {
   
   // État pour gérer la sonde sélectionnée et les cases accessibles
   const [selectedProbeId, setSelectedProbeId] = useState<string | null>(null);
@@ -165,6 +164,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
   const allowSatelliteLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '12';
   const isRemovingOrbiter = interactionState.type === 'REMOVING_ORBITER';
+  const hasPerformedMainAction = game.players[game.currentPlayerIndex].hasPerformedMainAction;
 
   // Utiliser les angles de rotation depuis le jeu, ou les angles initiaux si non définis
   const initialAngle1 = (sectorToIndex[game.board.solarSystem.initialSectorLevel1] || 0) * 45;
@@ -198,13 +198,91 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   // Ref pour le timeout de fermeture du tooltip
   const hoverTimeoutRef = useRef<any>(null);
 
-  const handleMouseEnterObject = (e: React.MouseEvent, obj: CelestialObject) => {
+  const handleMouseEnterObject = (e: React.MouseEvent<HTMLDivElement>, obj: CelestialObject) => {
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
-    // Le contenu du tooltip est généré dans le JSX, donc on ne peut pas le passer ici directement.
-    // On va devoir le reconstruire.
+
+    let content: React.ReactNode;
+    let tooltipProps: Partial<Parameters<typeof setActiveTooltip>[0]> = {};
+
+    const currentPlayer = game.players[game.currentPlayerIndex];
+
+    switch (obj.type) {
+      case 'planet': {
+        const planetData = game.board.planets.find(p => p.id === obj.id);
+        if (planetData) {
+          content = (
+            <div style={{ minWidth: '350px' }}>
+              <div style={{ borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '12px', textAlign: 'left' }}>
+                <div style={{ fontWeight: 'bold', fontSize: '1.2em', color: '#78a0ff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                  {planetData.name}
+                </div>
+                <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>
+                  Visiter pour gagner 1 media
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px' }}>
+                {renderPlanetIcon(planetData.id, 220, planetData)}
+              </div>
+            </div>
+          );
+          tooltipProps = {
+            onMouseEnter: () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); },
+            onMouseLeave: handleMouseLeaveObject,
+            pointerEvents: 'auto'
+          };
+        } else {
+          // Fallback for Earth or other objects without detailed data
+          let subContent;
+          const isRobot = currentPlayer.type === 'robot';
+          if (obj.id === 'earth') {
+            const check = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
+            let text = `Lancer une sonde (coût: ${GAME_CONSTANTS.PROBE_LAUNCH_COST} Crédits)`;
+            let color = '#aaa';
+            if (hasPerformedMainAction || isRobot) {
+                text = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
+                color = '#ff6b6b';
+            } else if (!check.canLaunch) {
+                text = check.reason || "Impossible";
+                color = '#ff6b6b';
+            } else if (check.canLaunch) {
+                color = '#4a9eff';
+            }
+            subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: color, fontStyle: 'italic' }}>{text}</div>;
+          } else {
+            subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>Visiter pour gagner 1 Média</div>;
+          }
+          content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{subContent}</>;
+        }
+        break;
+      }
+      case 'comet': {
+        const subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>Visiter pour gagner 1 Média</div>;
+        content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{subContent}</>;
+        break;
+      }
+      case 'asteroid': {
+        const hasTech = currentPlayer.technologies.some(t => t.id.startsWith('exploration-2'));
+        const subContent = (
+          <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>
+            {hasTech ? 'Visiter pour gagner 1 Média' : 'Quitter nécessite 1 déplacement supplémentaire'}
+          </div>
+        );
+        content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{subContent}</>;
+        break;
+      }
+      default:
+        content = <div style={{ fontWeight: 'bold' }}>{obj.name}</div>;
+        break;
+    }
+
+    setActiveTooltip({
+      content,
+      rect: e.currentTarget.getBoundingClientRect(),
+      ...tooltipProps
+    });
   };
 
   const handleMouseLeaveObject = () => {
@@ -1247,65 +1325,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           cursor: 'pointer',
           pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
-        onMouseEnter={(e) => {
-          if (hoverTimeoutRef.current) {
-            clearTimeout(hoverTimeoutRef.current);
-            hoverTimeoutRef.current = null;
-          }
-          let content: React.ReactNode;
-          const planetData = game.board.planets.find(p => p.id === obj.id);
-
-          if (planetData) {
-            content = (
-              <div style={{ minWidth: '350px' }}>
-                <div style={{ borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '12px', textAlign: 'left' }}>
-                  <div style={{ fontWeight: 'bold', fontSize: '1.2em', color: '#78a0ff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
-                    {planetData.name}
-                  </div>
-                  <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>
-                    Visiter pour gagner 1 media
-                  </div>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px' }}>
-                  {renderPlanetIcon(planetData.id, 220, planetData)}
-                </div>
-              </div>
-            );
-          } else {
-            // Fallback for Earth or other objects without detailed data
-            let subContent;
-            const currentPlayer = game.players[game.currentPlayerIndex];
-            const isRobot = (currentPlayer as any).type === 'robot';
-            if (obj.id === 'earth') {
-              const check = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
-              let text = `Lancer une sonde (coût: ${GAME_CONSTANTS.PROBE_LAUNCH_COST} Crédits)`;
-              let color = '#aaa';
-              if (hasPerformedMainAction || isRobot) {
-                  text = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
-                  color = '#ff6b6b';
-              } else if (!check.canLaunch) {
-                  text = check.reason || "Impossible";
-                  color = '#ff6b6b';
-              } else if (check.canLaunch) {
-                  color = '#4a9eff';
-              }
-              subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: color, fontStyle: 'italic' }}>{text}</div>;
-            } else {
-              subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>Visiter pour gagner 1 Média</div>;
-            }
-            content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{subContent}</>;
-          }
-
-          setActiveTooltip({ 
-            content, 
-            rect: e.currentTarget.getBoundingClientRect(),
-            ...(planetData && {
-              onMouseEnter: () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); },
-              onMouseLeave: handleMouseLeaveObject,
-              pointerEvents: 'auto'
-            })
-          });
-        }}
+        onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
         onClick={() => onPlanetClick && onPlanetClick(obj.id)}
       >
@@ -1453,18 +1473,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           cursor: 'help',
           pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
-        onMouseEnter={(e) => {
-          if (hoverTimeoutRef.current) {
-            clearTimeout(hoverTimeoutRef.current);
-            hoverTimeoutRef.current = null;
-          }
-          const subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>Visiter pour gagner 1 Média</div>;
-          const content = <div style={{ fontWeight: 'bold' }}>{obj.name}</div>;
-          setActiveTooltip({
-            content: <>{content}{subContent}</>,
-            rect: e.currentTarget.getBoundingClientRect()
-          });
-        }}
+        onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
         <div
@@ -1753,21 +1762,7 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
           cursor: 'help',
           pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
-        onMouseEnter={(e) => {
-          if (hoverTimeoutRef.current) {
-            clearTimeout(hoverTimeoutRef.current);
-            hoverTimeoutRef.current = null;
-          }
-          const currentPlayer = game.players[game.currentPlayerIndex];
-          const hasTech = currentPlayer.technologies.some(t => t.id.startsWith('exploration-2'));
-          const subContent = (
-            <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>
-              {hasTech ? 'Visiter pour gagner 1 Média' : 'Quitter nécessite 1 déplacement supplémentaire'}
-            </div>
-          );
-          const content = <div style={{ fontWeight: 'bold' }}>{obj.name}</div>;
-          setActiveTooltip({ content: <>{content}{subContent}</>, rect: e.currentTarget.getBoundingClientRect() });
-        }}
+        onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
         {Array.from({ length: asteroidCount }).map((_, i) => {

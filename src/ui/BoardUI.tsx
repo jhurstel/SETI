@@ -2958,7 +2958,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               onPlayCard={handlePlayCardRequest}
               onGameUpdate={(newGame) => { setGame(newGame); if (gameEngineRef.current) gameEngineRef.current.setState(newGame); }}
               onComputerSlotSelect={handleComputerColumnSelect}
-              hasPerformedMainAction={currentPlayer?.hasPerformedMainAction || false}
               onNextPlayer={handleNextPlayer}
               onHistory={(message, sequenceId) => addToHistory(message, game.players[game.currentPlayerIndex].id, game, undefined, sequenceId)}
               onComputerBonus={handleComputerBonus}
@@ -2977,7 +2976,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             onOrbit={handleOrbit}
             onLand={handleLand}
             onSectorClick={handleSectorClick}
-            hasPerformedMainAction={currentPlayer?.hasPerformedMainAction || false}
             onBackgroundClick={handleBackgroundClick}
             setActiveTooltip={setActiveTooltip}
           />

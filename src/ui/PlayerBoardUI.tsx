@@ -23,7 +23,6 @@ interface PlayerBoardUIProps {
   onGameUpdate: (game: Game) => void;
   onDrawCard: (count: number, source: string) => void;
   onComputerSlotSelect: (col: number) => void;
-  hasPerformedMainAction: boolean;
   onNextPlayer: () => void;
   onHistory: (message: string, sequenceId?: string) => void;
   onComputerBonus: (type: string, amount: number, sequenceId?: string) => void;
@@ -44,7 +43,7 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.PASS]: 'Passer définitivement',
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onDrawCard, onComputerSlotSelect, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, onConfirmReservation, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onDrawCard, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReservation, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -53,6 +52,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   const isRobot = currentPlayer.type === 'robot';
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
 
+  const hasPerformedMainAction = currentPlayer.hasPerformedMainAction;
   const isDiscarding = interactionState.type === 'DISCARDING_CARD';
   const isTrading = interactionState.type === 'TRADING_CARD';
   const isReserving = interactionState.type === 'RESERVING_CARD';
