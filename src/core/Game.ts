@@ -9,6 +9,7 @@
  */
 
 import {
+  ActionType,
   Game,
   GamePhase,
   Player,
@@ -85,6 +86,23 @@ export class GameEngine {
     try {
       // Exécuter l'action
       this.state = action.execute(this.state);
+
+      // Marquer l'action principale comme effectuée
+      const MAIN_ACTION_TYPES: ActionType[] = [
+        ActionType.LAUNCH_PROBE,
+        ActionType.ORBIT,
+        ActionType.LAND,
+        ActionType.SCAN_SECTOR,
+        ActionType.ANALYZE_DATA,
+        ActionType.PLAY_CARD,
+        ActionType.RESEARCH_TECH,
+      ];
+      const isMainAction = MAIN_ACTION_TYPES.includes(action.type as ActionType);
+
+      if (isMainAction) {
+        // Il est sûr d'utiliser currentPlayerIndex car il est validé auparavant
+        this.state.players[this.state.currentPlayerIndex].hasPerformedMainAction = true;
+      }
 
       return {
         success: true,
@@ -176,10 +194,9 @@ export class GameEngine {
     // Réinitialiser les joueurs
     this.state.players.forEach(player => {
       player.hasPassed = false;
+      player.hasPerformedMainAction = false;
       player.score = 0;
       // TODO: Réinitialiser toutes les ressources
     });
   }
 }
-
-

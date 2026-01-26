@@ -6,12 +6,11 @@ interface ObjectiveBoardUIProps {
     interactionState: InteractionState;
     onObjectiveClick: (tileId: string) => void;
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
-    isInitiallyOpen: boolean;
 }
 
-export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, interactionState, onObjectiveClick, setActiveTooltip, isInitiallyOpen }) => {
+export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, interactionState, onObjectiveClick, setActiveTooltip }) => {
+    const isInitiallyOpen = interactionState.type === 'PLACING_OBJECTIVE_MARKER';
     const [isObjectivesOpen, setIsObjectivesOpen] = useState(isInitiallyOpen);
-
     useEffect(() => {
         setIsObjectivesOpen(isInitiallyOpen);
     }, [isInitiallyOpen]);

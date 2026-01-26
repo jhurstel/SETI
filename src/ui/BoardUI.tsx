@@ -8,7 +8,7 @@ import { MoveProbeAction } from '../actions/MoveProbeAction';
 import { PassAction } from '../actions/PassAction';
 import { GameEngine } from '../core/Game';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../core/SolarSystemPosition';
+import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { DataSystem } from '../systems/DataSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -28,27 +28,6 @@ import './BoardUI.css';
 interface BoardUIProps {
   game: Game;
 }
-
-const getAbsoluteSectorForProbe = (solarPosition: { disk: DiskName, sector: SectorNumber }, rotationState: { level1Angle: number, level2Angle: number, level3Angle: number }): number => {
-  let angle = 0;
-  // Disk C is level 1 (innermost), B is 2, A is 3 (outermost)
-  if (solarPosition.disk === 'A') {
-    angle = rotationState.level3Angle;
-  } else if (solarPosition.disk === 'B') {
-    angle = rotationState.level2Angle;
-  } else if (solarPosition.disk === 'C') {
-    angle = rotationState.level1Angle;
-  }
-
-  const offset = angle / 45; // e.g., -1 for -45deg
-
-  // ( ( (value - 1) % N ) + N ) % N to handle negative results of %
-  const baseSector = solarPosition.sector - 1; // 0-7
-  const absoluteSectorIndex = baseSector + offset;
-  const absoluteSector = ((absoluteSectorIndex % 8) + 8) % 8 + 1;
-
-  return absoluteSector;
-};
 
 // Helper pour les libellés des interactions
 const getInteractionLabel = (state: InteractionState): string => {
@@ -119,7 +98,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   });
   const [interactionState, setInteractionState] = useState<InteractionState>({ type: 'IDLE' });
   const [pendingInteractions, setPendingInteractions] = useState<InteractionState[]>([]);
-  const [hasPerformedMainAction, setHasPerformedMainAction] = useState(false);
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
   const [isAlienBoardAOpen, setIsAlienBoardAOpen] = useState(false);
   const [isAlienBoardBOpen, setIsAlienBoardBOpen] = useState(false);
@@ -197,13 +175,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       playerId,
       previousState,
       previousInteractionState: customInteractionState || interactionStateRef.current,
-      previousHasPerformedMainAction: hasPerformedMainAction,
       previousPendingInteractions: pendingInteractionsRef.current,
       timestamp: Date.now(),
       sequenceId
     };
     setHistoryLog(prev => [...prev, entry]);
-  }, [hasPerformedMainAction]);
+  }, []);
 
   // Gestionnaire pour annuler une action
   const handleUndo = () => {
@@ -226,9 +203,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
         // Restaurer les états depuis la première entrée
         setInteractionState(firstEntry.previousInteractionState || { type: 'IDLE' });
-        if (firstEntry.previousHasPerformedMainAction !== undefined) {
-          setHasPerformedMainAction(firstEntry.previousHasPerformedMainAction);
-        }
         if (firstEntry.previousPendingInteractions) {
           setPendingInteractions(firstEntry.previousPendingInteractions);
         }
@@ -242,10 +216,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       if (gameEngineRef.current) gameEngineRef.current.setState(lastEntry.previousState);
       setHistoryLog(prev => prev.slice(0, -1));
       setInteractionState(lastEntry.previousInteractionState || { type: 'IDLE' });
-
-      if (lastEntry.previousHasPerformedMainAction !== undefined) {
-        setHasPerformedMainAction(lastEntry.previousHasPerformedMainAction);
-      }
 
       if (lastEntry.previousPendingInteractions) {
         setPendingInteractions(lastEntry.previousPendingInteractions);
@@ -379,7 +349,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
 
       setGame(newGame);
-      setHasPerformedMainAction(false); // Réinitialiser pour le prochain joueur
     } else {
       console.error("Erreur lors de l'action Passer:", result.error);
       setToast({ message: `Erreur lors de l'action Passer: ${result.error}`, visible: true });
@@ -551,7 +520,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     gameEngineRef.current.nextPlayer();
     setGame(gameEngineRef.current.getState());
-    setHasPerformedMainAction(false);
     setInteractionState({ type: 'IDLE' });
     setPendingInteractions([]);
     setToast({ message: "Au tour du joueur suivant", visible: true });
@@ -1020,7 +988,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     // Cas 2: Clic direct depuis Idle (Raccourci Action Scan)
-    if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
+    if (interactionState.type === 'IDLE' && !game.players[game.currentPlayerIndex].hasPerformedMainAction) {
       handleAction(ActionType.SCAN_SECTOR, { sectorId: `sector_${sectorNumber}` });
       return;
     }
@@ -1034,7 +1002,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (interactionState.type !== 'IDLE') return;
 
     // Si une action principale a déjà été faite, on ne peut pas en faire d'autre (sauf PASS qui est géré spécifiquement)
-    if (hasPerformedMainAction && actionType !== ActionType.PASS) return;
+    if (game.players[game.currentPlayerIndex].hasPerformedMainAction && actionType !== ActionType.PASS) return;
 
     // Synchroniser l'état de GameEngine avec le jeu actuel (pour préserver les angles de rotation)
     gameEngineRef.current.setState(gameRef.current);
@@ -1049,7 +1017,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       if (result.success && result.updatedState) {
         console.log('Sonde lancée, nouvelles sondes:', result.updatedState.board.solarSystem.probes);
         setGame(result.updatedState);
-        setHasPerformedMainAction(true);
 
         // Calculer la position de la Terre pour le log
         const earthPos = getObjectPosition(
@@ -1181,7 +1148,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         // Finaliser la transaction
         setGame(updatedGame);
         if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-        setHasPerformedMainAction(true);
         setInteractionState({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE, sequenceId });
         setToast({ message: "Données analysées. Placez une trace de vie bleue.", visible: true });
         addToHistory(`paye 1 énergie pour <strong>Analyser les données</strong>`, player.id, previousState, { type: 'IDLE' }, sequenceId);
@@ -1744,7 +1710,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     successMessage: string
   ): boolean => {
     if (interactionState.type !== 'IDLE' && interactionState.type !== 'LANDING_PROBE') return false;
-    if (hasPerformedMainAction && interactionState.type !== 'LANDING_PROBE') {
+    if (game.players[game.currentPlayerIndex].hasPerformedMainAction && interactionState.type !== 'LANDING_PROBE') {
       setToast({ message: "Action principale déjà effectuée", visible: true });
       return false;
     }
@@ -1799,7 +1765,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-      setHasPerformedMainAction(true);
 
       let interactionTriggered = false;
       if (newPendingInteractions.length > 1) {
@@ -2295,7 +2260,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour jouer une carte (payer son coût en crédits)
   const handlePlayCardRequest = (cardId: string) => {
     if (interactionState.type !== 'IDLE') return;
-    if (hasPerformedMainAction) {
+    if (game.players[game.currentPlayerIndex].hasPerformedMainAction) {
       setToast({ message: "Action principale déjà effectuée", visible: true });
       return;
     };
@@ -2441,7 +2406,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const card = currentGame.players[currentGame.currentPlayerIndex].cards.find(c => c.id === cardId)!;
     setGame(gameAfterBonuses);
     if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonuses);
-    setHasPerformedMainAction(true);
 
     const gainsText = passiveGains.length > 0 ? ` (Gains: ${passiveGains.join(', ')})` : '';
     //setToast({ message: `Carte jouée: ${card.name}${gainsText}`, visible: true });
@@ -2728,7 +2692,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
     } else
       // Cas 2: Clic direct depuis IDLE (Raccourci Action Recherche)
-      if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
+      if (interactionState.type === 'IDLE' && !game.players[game.currentPlayerIndex].hasPerformedMainAction) {
         const currentPlayer = game.players[game.currentPlayerIndex];
         if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) {
           setToast({ message: `Pas assez de couverture médiatique (Requis: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA})`, visible: true });
@@ -2853,6 +2817,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     handleNextPlayer();
   };
 
+  // Gestionnaire pour le clic sur le background
+  const handleBackgroundClick = () => {
+    if (interactionState.type === 'MOVING_PROBE') {
+      setInteractionState({ type: 'IDLE' });
+      setToast({ message: "Déplacements terminés", visible: true });
+    }
+  }
+
   // Utiliser les positions initiales depuis le jeu
   const initialSector1 = game.board.solarSystem.initialSectorLevel1 || 1;
   const initialSector2 = game.board.solarSystem.initialSectorLevel2 || 1;
@@ -2861,65 +2833,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const humanPlayer = game.players.find(p => (p as any).type === 'human');
   const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id;
 
-  // Calcul des secteurs à mettre en surbrillance (flash vert)
-  const getHighlightedSectors = () => {
-    if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
-      if (interactionState.onlyProbes) {
-        const rotationState = createRotationState(
-          game.board.solarSystem.rotationAngleLevel1 || 0,
-          game.board.solarSystem.rotationAngleLevel2 || 0,
-          game.board.solarSystem.rotationAngleLevel3 || 0
-        );
-        const currentPlayer = game.players[game.currentPlayerIndex];
-        const sectorsWithProbes = new Set<string>();
-
-        currentPlayer.probes.forEach(p => {
-          if (p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition) {
-            const absoluteSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
-            sectorsWithProbes.add(`sector_${absoluteSector}`);
-          }
-        });
-        return Array.from(sectorsWithProbes);
-      }
-      if (interactionState.adjacents) {
-        const rotationState = createRotationState(
-          game.board.solarSystem.rotationAngleLevel1 || 0,
-          game.board.solarSystem.rotationAngleLevel2 || 0,
-          game.board.solarSystem.rotationAngleLevel3 || 0
-        );
-        const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
-        if (earthPos) {
-          return game.board.sectors.filter(s => Math.abs(parseInt(s.id.split('_')[1]) - earthPos.absoluteSector) <= 1 || Math.abs(parseInt(s.id.split('_')[1]) - earthPos.absoluteSector) === 7).map(s => s.id);
-        }
-      }
-      if (interactionState.color === SectorColor.ANY) {
-        return game.board.sectors.map(s => s.id);
-      }
-      return game.board.sectors.filter(s => s.color === interactionState.color).map(s => s.id);
-    }
-    if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
-      // Earth sector
-      const earthPos = getObjectPosition('earth', game.board.solarSystem.rotationAngleLevel1 || 0, game.board.solarSystem.rotationAngleLevel2 || 0, game.board.solarSystem.rotationAngleLevel3 || 0);
-      if (earthPos) {
-        const sectors = [`sector_${earthPos.absoluteSector}`];
-
-        const currentPlayer = game.players[game.currentPlayerIndex];
-        const hasObs1 = currentPlayer.technologies.some(t => t.id.startsWith('observation-1'));
-
-        if (hasObs1) {
-          const prev = earthPos.absoluteSector === 1 ? 8 : earthPos.absoluteSector - 1;
-          const next = earthPos.absoluteSector === 8 ? 1 : earthPos.absoluteSector + 1;
-          sectors.push(`sector_${prev}`);
-          sectors.push(`sector_${next}`);
-        }
-        return sectors;
-      }
-    }
-    return [];
-  };
-
   const currentPlayer = game.players[game.currentPlayerIndex];
-  const canResearch = !hasPerformedMainAction && interactionState.type === 'IDLE' && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
 
   return (
     <div className="seti-root">
@@ -2928,7 +2842,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         game={game}
         setGame={setGame}
         onHistory={addToHistory}
-        setHasPerformedMainAction={setHasPerformedMainAction}
         setViewedPlayerId={setViewedPlayerId}
         interactionState={interactionState} />
 
@@ -3009,16 +2922,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       {/* Overlay pour la recherche de technologie ou l'achat de carte */}
       {(interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'RESERVING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-          zIndex: 1500,
-          backdropFilter: 'blur(2px)'
-        }} onClick={() => {
+        <div className="seti-interaction-overlay" onClick={() => {
           if (interactionState.type === 'ACQUIRING_CARD') {
             setInteractionState({ type: 'IDLE' });
           } else if (interactionState.type === 'SELECTING_SCAN_CARD') {
@@ -3033,50 +2937,31 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       <div className="seti-root-inner">
         <div className="seti-left-panel">
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: 0,
-            position: interactionState.type === 'RESERVING_CARD' ? 'relative' : 'static',
-            zIndex: interactionState.type === 'RESERVING_CARD' ? 1501 : 'auto'
-          }}>
+          <div className={`seti-left-panel-wrapper ${interactionState.type === 'RESERVING_CARD' ? 'reserving' : ''}`}>
             <PlayerBoardUI
               game={game}
               playerId={currentPlayerIdToDisplay}
+              interactionState={interactionState}
               onViewPlayer={setViewedPlayerId}
               onAction={handleAction}
-              isDiscarding={interactionState.type === 'DISCARDING_CARD'}
-              isTrading={interactionState.type === 'TRADING_CARD'}
-              isReserving={interactionState.type === 'RESERVING_CARD'}
-              selectedCardIds={interactionState.type === 'DISCARDING_CARD' || interactionState.type === 'TRADING_CARD' || interactionState.type === 'RESERVING_CARD' || interactionState.type === 'DISCARDING_FOR_SIGNAL' ? interactionState.selectedCards : []}
               onCardClick={handleCardClick}
               onDiscardCardAction={handleDiscardCardAction}
               onConfirmDiscard={handleConfirmDiscard}
               onTradeCardAction={(targetGain) => handleTradeCardAction({ targetGain })}
               onConfirmTrade={handleConfirmTrade}
-              reservationCount={interactionState.type === 'RESERVING_CARD' ? interactionState.count : 0}
               onConfirmReservation={handleConfirmReservation}
               onBuyCardAction={handleBuyCardAction}
               onDirectTradeAction={handleDirectTrade}
               onDrawCard={handleDrawCard}
               onPlayCard={handlePlayCardRequest}
-              onGameUpdate={(newGame) => {
-                setGame(newGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(newGame);
-              }}
-              isSelectingComputerSlot={interactionState.type === 'SELECTING_COMPUTER_SLOT'}
+              onGameUpdate={(newGame) => { setGame(newGame); if (gameEngineRef.current) gameEngineRef.current.setState(newGame); }}
               onComputerSlotSelect={handleComputerColumnSelect}
-              isAnalyzing={interactionState.type === 'ANALYZING'}
-              hasPerformedMainAction={hasPerformedMainAction}
+              hasPerformedMainAction={currentPlayer?.hasPerformedMainAction || false}
               onNextPlayer={handleNextPlayer}
               onHistory={(message, sequenceId) => addToHistory(message, game.players[game.currentPlayerIndex].id, game, undefined, sequenceId)}
               onComputerBonus={handleComputerBonus}
-              isPlacingLifeTrace={interactionState.type === 'PLACING_LIFE_TRACE'}
-              isSelectingSector={interactionState.type === 'SELECTING_SCAN_SECTOR' || interactionState.type === 'SELECTING_SCAN_CARD'}
-              isDiscardingForSignal={interactionState.type === 'DISCARDING_FOR_SIGNAL'}
               onConfirmDiscardForSignal={handleConfirmDiscardForSignal}
-              discardForSignalCount={interactionState.type === 'DISCARDING_FOR_SIGNAL' ? interactionState.count : 0}
+              setActiveTooltip={setActiveTooltip}
             />
           </div>
         </div>
@@ -3084,6 +2969,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           <SolarSystemBoardUI
             ref={solarSystemRef}
             game={game}
+            interactionState={interactionState}
             onProbeMove={handleProbeMove}
             onPlanetClick={handlePlanetClick}
             onOrbit={handleOrbit}
@@ -3092,46 +2978,19 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             initialSector2={initialSector2}
             initialSector3={initialSector3}
             onSectorClick={handleSectorClick}
-            highlightPlayerProbes={interactionState.type === 'MOVING_PROBE'}
-            highlightedSectorSlots={getHighlightedSectors()}
-            animateSectorSlots={interactionState.type === 'IDLE'}
-            freeMovementCount={interactionState.type === 'MOVING_PROBE' ? interactionState.count : 0}
-            hasPerformedMainAction={hasPerformedMainAction}
-            autoSelectProbeId={interactionState.type === 'MOVING_PROBE' ? interactionState.autoSelectProbeId : undefined}
-            isLandingInteraction={interactionState.type === 'LANDING_PROBE'}
-            allowOccupiedLanding={interactionState.type === 'LANDING_PROBE' && interactionState.source === '16'}
-            allowSatelliteLanding={interactionState.type === 'LANDING_PROBE' && interactionState.source === '12'}
-            onBackgroundClick={() => {
-              if (interactionState.type === 'MOVING_PROBE') {
-                setInteractionState({ type: 'IDLE' });
-                setToast({ message: "Déplacements terminés", visible: true });
-              }
-            }}
-            isRemovingOrbiter={interactionState.type === 'REMOVING_ORBITER'}
+            hasPerformedMainAction={currentPlayer?.hasPerformedMainAction || false}
+            onBackgroundClick={handleBackgroundClick}
+            //TODO setActiveTooltip={setActiveTooltip}
           />
 
           {/* Plateaux annexes en haut à gauche */}
-          <div style={{
-            position: 'absolute',
-            top: '-5px',
-            left: '-5px',
-            width: '600px',
-            padding: '20px',
-            zIndex: (interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? 1501 : 1000,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-            maxHeight: 'calc(100% - 10px)',
-            overflowY: 'auto',
-            pointerEvents: 'none',
-          }}>
+          <div className={`seti-side-panels-container ${(interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? 'high-z-index' : ''}`}>
             {/* Objectifs */}
             <ObjectiveBoardUI
               game={game}
               interactionState={interactionState}
               onObjectiveClick={handleObjectiveClick}
               setActiveTooltip={setActiveTooltip}
-              isInitiallyOpen={interactionState.type === 'PLACING_OBJECTIVE_MARKER'}
             />
 
             {/* Technologies */}
@@ -3140,8 +2999,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               interactionState={interactionState}
               onTechClick={handleTechClick}
               setActiveTooltip={setActiveTooltip}
-              isInitiallyOpen={interactionState.type === 'ACQUIRING_TECH'}
-              canResearch={canResearch}
             />
 
             {/* Rangée de Cartes */}
@@ -3150,7 +3007,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               interactionState={interactionState}
               onCardClick={handleCardRowClick}
               setActiveTooltip={setActiveTooltip}
-              isInitiallyOpen={interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD'}
             />
           </div>
 

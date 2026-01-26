@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Game, Technology, TechnologyCategory, Bonus, InteractionState } from '../core/types';
+import { Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
 import './TechnologyBoardUI.css';
 
 interface TechnologyBoardUIProps {
@@ -7,23 +7,24 @@ interface TechnologyBoardUIProps {
   interactionState: InteractionState;
   onTechClick: (tech: Technology) => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
-  isInitiallyOpen: boolean;
-  canResearch: boolean;
 }
 
-export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, interactionState, onTechClick, setActiveTooltip, isInitiallyOpen, canResearch }) => {
-  const [isOpen, setIsOpen] = useState(isInitiallyOpen);
+export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, interactionState, onTechClick, setActiveTooltip }) => {
+  const currentPlayer = game.players[game.currentPlayerIndex];
+  const isAcquiringTech = interactionState.type === 'ACQUIRING_TECH';
+  const canResearch = !currentPlayer?.hasPerformedMainAction && interactionState.type === 'IDLE' && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
+
+  const [isOpen, setIsOpen] = useState(isAcquiringTech);
   const techBoard = game.board.technologyBoard;
   const categories = techBoard.categorySlots || [];
-  const currentPlayer = game.players[game.currentPlayerIndex];
 
   const isResearching = interactionState.type === 'ACQUIRING_TECH';
   const researchCategory = isResearching ? interactionState.category : undefined;
   const sharedTechOnly = isResearching ? interactionState.sharedOnly : false;
 
   useEffect(() => {
-    setIsOpen(isInitiallyOpen);
-  }, [isInitiallyOpen]);
+    setIsOpen(isAcquiringTech);
+  }, [isAcquiringTech]);
 
   // Calculer les technologies partagées si nécessaire
   const sharedBaseIds = React.useMemo(() => {

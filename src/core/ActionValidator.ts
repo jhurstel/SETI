@@ -2,11 +2,18 @@
  * Validateur principal pour les actions
  */
 
-import {
-  Game,
-  ValidationResult
-} from '../core/types';
+import { ActionType, Game, ValidationResult } from './types';
 import { BaseAction } from '../actions/Action';
+
+const MAIN_ACTION_TYPES: ActionType[] = [
+  ActionType.LAUNCH_PROBE,
+  ActionType.ORBIT,
+  ActionType.LAND,
+  ActionType.SCAN_SECTOR,
+  ActionType.ANALYZE_DATA,
+  ActionType.PLAY_CARD,
+  ActionType.RESEARCH_TECH
+];
 
 export class ActionValidator {
   /**
@@ -50,6 +57,21 @@ export class ActionValidator {
       };
     }
 
+    // Vérifier si une action principale a déjà été effectuée
+    const isMainAction = MAIN_ACTION_TYPES.includes(action.type as ActionType);
+
+    // Cas spécial pour MoveProbeAction qui peut être une action principale (payante) ou une action gratuite (bonus)
+    if (isMainAction && currentPlayer.hasPerformedMainAction) {
+      return {
+        valid: false,
+        errors: [{
+          code: 'MAIN_ACTION_ALREADY_PERFORMED',
+          message: 'Vous avez déjà effectué votre action principale pour ce tour'
+        }],
+        warnings: []
+      };
+    }
+
     // Valider l'action elle-même
     return action.validate(game);
   }
@@ -62,4 +84,3 @@ export class ActionValidator {
     return validation.valid;
   }
 }
-

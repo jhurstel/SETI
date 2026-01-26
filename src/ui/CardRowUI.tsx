@@ -7,10 +7,10 @@ interface CardRowUIProps {
     interactionState: InteractionState;
     onCardClick: (cardId?: string) => void;
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
-    isInitiallyOpen: boolean;
 }
 
-export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, onCardClick, setActiveTooltip, isInitiallyOpen }) => {
+export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, onCardClick, setActiveTooltip }) => {
+    const isInitiallyOpen = interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD';
     const [isOpen, setIsOpen] = useState(isInitiallyOpen);
 
     useEffect(() => {

@@ -62,3 +62,48 @@
   box-shadow: 0 0 20px rgba(74, 158, 255, 0.2);
   text-align: center;
 }
+
+.seti-interaction-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 1500;
+  backdrop-filter: blur(2px);
+}
+
+.seti-side-panels-container {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  width: 600px;
+  padding: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: calc(100% - 10px);
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.seti-side-panels-container.high-z-index {
+  z-index: 1501;
+}
+
+.seti-left-panel-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: static;
+  z-index: auto;
+}
+
+.seti-left-panel-wrapper.reserving {
+  position: relative;
+  z-index: 1501;
+}
+}

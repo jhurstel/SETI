@@ -50,6 +50,7 @@ export class TurnManager {
     // Réinitialiser les données temporaires du nouveau joueur actif
     updatedGame.players[nextIndex].visitedPlanetsThisTurn = [];
     updatedGame.players[nextIndex].activeBuffs = [];
+    updatedGame.players[nextIndex].hasPerformedMainAction = false;
 
     return updatedGame;
   }
@@ -75,7 +76,8 @@ export class TurnManager {
     // Réinitialiser l'état des joueurs
     updatedGame.players = updatedGame.players.map(player => ({
       ...player,
-      hasPassed: false
+      hasPassed: false,
+      hasPerformedMainAction: false
     }));
 
     // Changer le premier joueur (rotation horaire)

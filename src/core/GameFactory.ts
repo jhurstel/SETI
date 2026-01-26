@@ -121,6 +121,7 @@ export class GameFactory {
       lifeTraces: [],
       score: initialScore,
       hasPassed: false,
+      hasPerformedMainAction: false,
       type: 'human',
       color: '#4a90e2' as string,
       claimedGoldenMilestones: [],

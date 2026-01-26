@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, SectorColor } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, SectorColor, InteractionState } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { DataSystem } from '../systems/DataSystem';
+import { DataSystem } from '../systems/DataSystem'; 
 import { CardSystem } from '../systems/CardSystem';
 import { SectorSystem } from '../systems/SectorSystem';
 import { PlayerComputerUI } from './PlayerComputerUI';
@@ -10,37 +10,28 @@ import './PlayerBoardUI.css';
 interface PlayerBoardUIProps {
   game: Game;
   playerId?: string;
+  interactionState: InteractionState;
   onViewPlayer?: (playerId: string) => void;
   onAction?: (actionType: ActionType) => void;
-  isDiscarding?: boolean;
-  selectedCardIds?: string[];
   onCardClick?: (cardId: string) => void;
   onConfirmDiscard?: () => void;
   onDiscardCardAction?: (cardId: string) => void;
   onPlayCard?: (cardId: string) => void;
   onBuyCardAction?: () => void;
   onTradeCardAction?: (targetGain?: string) => void;
-  isTrading?: boolean;
   onConfirmTrade?: () => void;
   onCancelTrade?: () => void;
   onGameUpdate?: (game: Game) => void;
   onDrawCard?: (count: number, source: string) => void;
-  isSelectingComputerSlot?: boolean;
   onComputerSlotSelect?: (col: number) => void;
-  isAnalyzing?: boolean;
   hasPerformedMainAction?: boolean;
   onNextPlayer?: () => void;
   onHistory?: (message: string, sequenceId?: string) => void;
   onComputerBonus?: (type: string, amount: number, sequenceId?: string) => void;
-  isReserving?: boolean;
-  reservationCount?: number;
   onConfirmReservation?: () => void;
-  isPlacingLifeTrace?: boolean;
   onDirectTradeAction?: (spendType: string, gainType: string) => void;
-  isSelectingSector?: boolean;
-  isDiscardingForSignal?: boolean;
   onConfirmDiscardForSignal?: () => void;
-  discardForSignalCount?: number;
+  setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
 
 const ACTION_NAMES: Record<ActionType, string> = {
@@ -54,116 +45,7 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.PASS]: 'Passer définitivement',
 };
 
-const Tooltip = ({ content, targetRect }: { content: React.ReactNode, targetRect: DOMRect }) => {
-  const tooltipRef = useRef<HTMLDivElement>(null);
-  const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
-  const tooltipId = useRef(Math.random().toString(36).substr(2, 9));
-
-  React.useLayoutEffect(() => {
-    if (tooltipRef.current && targetRect) {
-      const rect = tooltipRef.current.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const margin = 8;
-      const padding = 10;
-
-      let left = targetRect.left + (targetRect.width / 2) - (rect.width / 2);
-
-      if (left < padding) left = padding;
-      if (left + rect.width > viewportWidth - padding) {
-        left = viewportWidth - rect.width - padding;
-      }
-
-      let top = targetRect.top - rect.height - margin;
-
-      if (top < padding) {
-        const bottomPosition = targetRect.bottom + margin;
-        if (bottomPosition + rect.height <= viewportHeight - padding) {
-            top = bottomPosition;
-        } else {
-            if (targetRect.top > (viewportHeight - targetRect.bottom)) {
-                top = padding;
-            } else {
-                top = viewportHeight - rect.height - padding;
-            }
-        }
-      }
-
-      // Gestion des superpositions
-      const width = rect.width;
-      const height = rect.height;
-      let finalTop = top;
-      let finalLeft = left;
-      
-      const others = ((window as any).__SETI_TOOLTIPS__ || []).filter((t: any) => t.id !== tooltipId.current);
-      let collision = true;
-      let iterations = 0;
-
-      while (collision && iterations < 10) {
-          collision = false;
-          const myRect = { left: finalLeft, top: finalTop, right: finalLeft + width, bottom: finalTop + height };
-          
-          for (const other of others) {
-              const otherRect = other.rect;
-              if (myRect.left < otherRect.right &&
-                  myRect.right > otherRect.left &&
-                  myRect.top < otherRect.bottom &&
-                  myRect.bottom > otherRect.top) {
-                  
-                  finalTop = otherRect.bottom + 5;
-                  collision = true;
-                  if (finalTop + height > viewportHeight - 10) {
-                      finalTop = top;
-                      finalLeft = otherRect.right + 5;
-                  }
-                  break;
-              }
-          }
-          iterations++;
-      }
-
-      const registry = (window as any).__SETI_TOOLTIPS__ || [];
-      (window as any).__SETI_TOOLTIPS__ = [...registry.filter((t: any) => t.id !== tooltipId.current), { id: tooltipId.current, rect: { left: finalLeft, top: finalTop, right: finalLeft + width, bottom: finalTop + height } }];
-
-      setStyle({
-        top: finalTop,
-        left: finalLeft,
-        opacity: 1
-      });
-      return () => {
-          const reg = (window as any).__SETI_TOOLTIPS__ || [];
-          (window as any).__SETI_TOOLTIPS__ = reg.filter((t: any) => t.id !== tooltipId.current);
-      };
-    }
-    return;
-  }, [targetRect, content]);
-
-  return (
-    <div
-      ref={tooltipRef}
-      style={{
-        position: 'fixed',
-        zIndex: 9999,
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        padding: '6px 10px',
-        borderRadius: '4px',
-        border: '1px solid #78a0ff',
-        color: '#fff',
-        textAlign: 'center',
-        minWidth: '120px',
-        pointerEvents: 'none',
-        whiteSpace: 'pre-line',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
-        transition: 'opacity 0.1s ease-in-out',
-        ...style
-      }}
-    >
-      {content}
-    </div>
-  );
-};
-
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, onViewPlayer, onAction, isDiscarding = false, selectedCardIds = [], onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, isTrading = false, onConfirmTrade, onGameUpdate, onDrawCard, isSelectingComputerSlot, onComputerSlotSelect, isAnalyzing, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, isReserving = false, reservationCount = 0, onConfirmReservation, isPlacingLifeTrace = false, onDirectTradeAction, isSelectingSector = false, isDiscardingForSignal = false, onConfirmDiscardForSignal, discardForSignalCount = 0 }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onDrawCard, onComputerSlotSelect, hasPerformedMainAction = false, onNextPlayer, onHistory, onComputerBonus, onConfirmReservation, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -171,7 +53,22 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
   const isCurrentTurn = game.players[game.currentPlayerIndex].id === currentPlayer.id;
   const isRobot = currentPlayer.type === 'robot';
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
-  const [customTooltip, setCustomTooltip] = useState<{ content: React.ReactNode, targetRect: DOMRect } | null>(null);
+
+  const isDiscarding = interactionState.type === 'DISCARDING_CARD';
+  const isTrading = interactionState.type === 'TRADING_CARD';
+  const isReserving = interactionState.type === 'RESERVING_CARD';
+  const isDiscardingForSignal = interactionState.type === 'DISCARDING_FOR_SIGNAL';
+  const isSelectingComputerSlot = interactionState.type === 'SELECTING_COMPUTER_SLOT';
+  const isAnalyzing = interactionState.type === 'ANALYZING';
+  const isPlacingLifeTrace = interactionState.type === 'PLACING_LIFE_TRACE';
+  const isSelectingSector = interactionState.type === 'SELECTING_SCAN_SECTOR' || interactionState.type === 'SELECTING_SCAN_CARD';
+
+  const selectedCardIds = (isDiscarding || isTrading || isReserving || isDiscardingForSignal)
+    ? (interactionState as any).selectedCards
+    : [];
+
+  const reservationCount = isReserving ? (interactionState as any).count : 0;
+  const discardForSignalCount = isDiscardingForSignal ? (interactionState as any).count : 0;
 
   const getSectorColorCode = (color: SectorColor) => {
     switch(color) {
@@ -212,14 +109,11 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
 
   const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    setCustomTooltip({
-      content,
-      targetRect: rect
-    });
+    setActiveTooltip({ content, rect });
   };
 
   const handleTooltipLeave = () => {
-    setCustomTooltip(null);
+    setActiveTooltip(null);
   };
   
   const isInteractiveMode = isDiscarding || isTrading || isReserving || isSelectingComputerSlot || isAnalyzing || isPlacingLifeTrace || isSelectingSector;
@@ -910,9 +804,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, on
 
         </div>
       </div>
-      {customTooltip && (
-          <Tooltip content={customTooltip.content} targetRect={customTooltip.targetRect} />
-        )}
     </div>
   );
 };

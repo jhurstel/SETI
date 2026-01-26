@@ -646,3 +646,27 @@ export function getCell(
   const cells = getAllCells(rotationState);
   return cells.get(`${disk}${sector}`) || null;
 }
+
+export function getAbsoluteSectorForProbe(
+  solarPosition: { disk: DiskName, sector: SectorNumber }, 
+  rotationState: { level1Angle: number, level2Angle: number, level3Angle: number }
+): number {
+  let angle = 0;
+  // Disk C is level 1 (innermost), B is 2, A is 3 (outermost)
+  if (solarPosition.disk === 'A') {
+    angle = rotationState.level3Angle;
+  } else if (solarPosition.disk === 'B') {
+    angle = rotationState.level2Angle;
+  } else if (solarPosition.disk === 'C') {
+    angle = rotationState.level1Angle;
+  }
+
+  const offset = angle / 45; // e.g., -1 for -45deg
+
+  // ( ( (value - 1) % N ) + N ) % N to handle negative results of %
+  const baseSector = solarPosition.sector - 1; // 0-7
+  const absoluteSectorIndex = baseSector + offset;
+  const absoluteSector = ((absoluteSectorIndex % 8) + 8) % 8 + 1;
+
+  return absoluteSector;
+};

@@ -1,21 +1,13 @@
 import React, { useState, useImperativeHandle, forwardRef, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, Bonus, ProbeState, GAME_CONSTANTS, SectorColor, SignalType } from '../core/types';
-import { 
-  createRotationState, 
-  calculateReachableCellsWithEnergy,
-  calculateAbsolutePosition,
-  FIXED_OBJECTS,
-  INITIAL_ROTATING_LEVEL1_OBJECTS,
-  INITIAL_ROTATING_LEVEL2_OBJECTS,
-  INITIAL_ROTATING_LEVEL3_OBJECTS,
-  CelestialObject
-} from '../core/SolarSystemPosition';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, Bonus, ProbeState, GAME_CONSTANTS, SectorColor, SignalType, InteractionState } from '../core/types';
+import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, CelestialObject, getObjectPosition, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import './SolarSystemBoardUI.css'
 
 interface SolarSystemBoardUIProps {
   game: Game;
+  interactionState: InteractionState;
   onProbeMove?: (probeId: string, path: string[]) => void;
   onPlanetClick?: (planetId: string) => void;
   onOrbit?: (planetId: string, slotIndex?: number) => void;
@@ -23,18 +15,9 @@ interface SolarSystemBoardUIProps {
   initialSector1?: number; // Secteur initial (1-8) pour positionner le plateau niveau 1
   initialSector2?: number; // Secteur initial (1-8) pour positionner le plateau niveau 2
   initialSector3?: number; // Secteur initial (1-8) pour positionner le plateau niveau 3
-  highlightPlayerProbes?: boolean; // Mettre en surbrillance les sondes du joueur courant
-  freeMovementCount?: number; // Nombre de déplacements gratuits disponibles
   hasPerformedMainAction?: boolean;
-  autoSelectProbeId?: string;
-  isLandingInteraction?: boolean;
   onBackgroundClick?: () => void;
-  allowOccupiedLanding?: boolean;
   onSectorClick?: (sectorNumber: number) => void;
-  highlightedSectorSlots?: string[]; // IDs des secteurs dont le premier slot disponible doit flasher
-  animateSectorSlots?: boolean;
-  isRemovingOrbiter?: boolean;
-  allowSatelliteLanding?: boolean;
 }
 
 export interface SolarSystemBoardUIRef {
@@ -45,6 +28,36 @@ export interface SolarSystemBoardUIRef {
   resetRotation3: () => void;
   rotateCounterClockwise3: () => void;
 }
+
+// Helper pour les arcs SVG
+const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
+  const angleInRadians = (angleInDegrees) * Math.PI / 180.0;
+  return {
+    x: centerX + (radius * Math.cos(angleInRadians)),
+    y: centerY + (radius * Math.sin(angleInRadians))
+  };
+};
+
+// Helper pour les arcs SVG
+const describeArc = (x: number, y: number, radius: number, startAngle: number, endAngle: number, reverse: boolean = false) => {
+    const start = polarToCartesian(x, y, radius, endAngle);
+    const end = polarToCartesian(x, y, radius, startAngle);
+    const largeArcFlag = Math.abs(endAngle - startAngle) <= 180 ? "0" : "1";
+    
+    if (reverse) {
+        // Sens anti-horaire (Start -> End) pour le texte du bas
+        return [
+            "M", end.x, end.y, 
+            "A", radius, radius, 0, largeArcFlag, 0, start.x, start.y
+        ].join(" ");
+    }
+
+    // Sens horaire (End -> Start) pour le texte du haut
+    return [
+        "M", start.x, start.y, 
+        "A", radius, radius, 0, largeArcFlag, 1, end.x, end.y
+    ].join(" ");
+};
 
 const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEnter, onMouseLeave }: { content: React.ReactNode, targetRect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -162,36 +175,8 @@ const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEnter, on
   , document.body);
 };
 
-// Helper pour les arcs SVG
-const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
-  const angleInRadians = (angleInDegrees) * Math.PI / 180.0;
-  return {
-    x: centerX + (radius * Math.cos(angleInRadians)),
-    y: centerY + (radius * Math.sin(angleInRadians))
-  };
-};
+export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, hasPerformedMainAction = false, onBackgroundClick, onSectorClick }, ref) => {
 
-const describeArc = (x: number, y: number, radius: number, startAngle: number, endAngle: number, reverse: boolean = false) => {
-    const start = polarToCartesian(x, y, radius, endAngle);
-    const end = polarToCartesian(x, y, radius, startAngle);
-    const largeArcFlag = Math.abs(endAngle - startAngle) <= 180 ? "0" : "1";
-    
-    if (reverse) {
-        // Sens anti-horaire (Start -> End) pour le texte du bas
-        return [
-            "M", end.x, end.y, 
-            "A", radius, radius, 0, largeArcFlag, 0, start.x, start.y
-        ].join(" ");
-    }
-
-    // Sens horaire (End -> Start) pour le texte du haut
-    return [
-        "M", start.x, start.y, 
-        "A", radius, radius, 0, largeArcFlag, 1, end.x, end.y
-    ].join(" ");
-};
-
-export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemBoardUIProps>(({ game, onProbeMove, onPlanetClick, onOrbit, onLand, initialSector1 = 1, initialSector2 = 1, initialSector3 = 1, highlightPlayerProbes = false, freeMovementCount = 0, hasPerformedMainAction = false, autoSelectProbeId, isLandingInteraction, onBackgroundClick, allowOccupiedLanding, onSectorClick, highlightedSectorSlots = [], animateSectorSlots = false, isRemovingOrbiter = false, allowSatelliteLanding = false }, ref) => {
   // État pour gérer l'affichage des tooltips au survol
   const [hoveredObject, setHoveredObject] = useState<CelestialObject | null>(null);
   const [hoveredObjectRect, setHoveredObjectRect] = useState<DOMRect | null>(null);
@@ -203,20 +188,6 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   const [reachableCells, setReachableCells] = useState<Map<string, { movements: number; path: string[] }>>(new Map());
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
   const planetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-
-  // Effet pour sélectionner automatiquement la sonde demandée
-  useEffect(() => {
-    if (autoSelectProbeId) {
-       setSelectedProbeId(autoSelectProbeId);
-    }
-  }, [autoSelectProbeId]);
-
-  // Effet pour réinitialiser la sélection à la fin du tour
-  useEffect(() => {
-    setSelectedProbeId(null);
-    setReachableCells(new Map());
-    setHighlightedPath([]);
-  }, [game.currentPlayerIndex]);
 
   // État pour le tooltip personnalisé des slots
   const [slotTooltip, setSlotTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
@@ -257,6 +228,73 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
     return 'normal';
   };
   
+  // Calcul des secteurs à mettre en surbrillance (flash vert)
+  const getHighlightedSectors = () => {
+    if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
+      if (interactionState.onlyProbes) {
+        const rotationState = createRotationState(
+          game.board.solarSystem.rotationAngleLevel1 || 0,
+          game.board.solarSystem.rotationAngleLevel2 || 0,
+          game.board.solarSystem.rotationAngleLevel3 || 0
+        );
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        const sectorsWithProbes = new Set<string>();
+
+        currentPlayer.probes.forEach(p => {
+          if (p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition) {
+            const absoluteSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
+            sectorsWithProbes.add(`sector_${absoluteSector}`);
+          }
+        });
+        return Array.from(sectorsWithProbes);
+      }
+      if (interactionState.adjacents) {
+        const rotationState = createRotationState(
+          game.board.solarSystem.rotationAngleLevel1 || 0,
+          game.board.solarSystem.rotationAngleLevel2 || 0,
+          game.board.solarSystem.rotationAngleLevel3 || 0
+        );
+        const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+        if (earthPos) {
+          return game.board.sectors.filter(s => Math.abs(parseInt(s.id.split('_')[1]) - earthPos.absoluteSector) <= 1 || Math.abs(parseInt(s.id.split('_')[1]) - earthPos.absoluteSector) === 7).map(s => s.id);
+        }
+      }
+      if (interactionState.color === SectorColor.ANY) {
+        return game.board.sectors.map(s => s.id);
+      }
+      return game.board.sectors.filter(s => s.color === interactionState.color).map(s => s.id);
+    }
+    if (interactionState.type === 'IDLE' && !hasPerformedMainAction) {
+      // Earth sector
+      const earthPos = getObjectPosition('earth', game.board.solarSystem.rotationAngleLevel1 || 0, game.board.solarSystem.rotationAngleLevel2 || 0, game.board.solarSystem.rotationAngleLevel3 || 0);
+      if (earthPos) {
+        const sectors = [`sector_${earthPos.absoluteSector}`];
+
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        const hasObs1 = currentPlayer.technologies.some(t => t.id.startsWith('observation-1'));
+
+        if (hasObs1) {
+          const prev = earthPos.absoluteSector === 1 ? 8 : earthPos.absoluteSector - 1;
+          const next = earthPos.absoluteSector === 8 ? 1 : earthPos.absoluteSector + 1;
+          sectors.push(`sector_${prev}`);
+          sectors.push(`sector_${next}`);
+        }
+        return sectors;
+      }
+    }
+    return [];
+  };
+
+  const highlightPlayerProbes = interactionState.type === 'MOVING_PROBE';
+  const highlightedSectorSlots = getHighlightedSectors();
+  const animateSectorSlots = interactionState.type === 'IDLE';
+  const freeMovementCount = interactionState.type === 'MOVING_PROBE' ? interactionState.count : 0;
+  const autoSelectProbeId = interactionState.type === 'MOVING_PROBE' ? interactionState.autoSelectProbeId : undefined;
+  const isLandingInteraction = interactionState.type === 'LANDING_PROBE';
+  const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
+  const allowSatelliteLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '12';
+  const isRemovingOrbiter = interactionState.type === 'REMOVING_ORBITER';
+
   // Utiliser les angles de rotation depuis le jeu, ou les angles initiaux si non définis
   const initialAngle1 = (sectorToIndex[initialSector1] || 0) * 45;
   const initialAngle2 = (sectorToIndex[initialSector2] || 0) * 45;
@@ -271,6 +309,20 @@ export const SolarSystemBoardUI = forwardRef<SolarSystemBoardUIRef, SolarSystemB
   const [rotationAngle3, setRotationAngle3] = useState<number>(() => gameAngle3);
 
   const nextRingLevel = game.board.solarSystem.nextRingLevel || 3;
+
+  // Effet pour sélectionner automatiquement la sonde demandée
+  useEffect(() => {
+    if (autoSelectProbeId) {
+       setSelectedProbeId(autoSelectProbeId);
+    }
+  }, [autoSelectProbeId]);
+
+  // Effet pour réinitialiser la sélection à la fin du tour
+  useEffect(() => {
+    setSelectedProbeId(null);
+    setReachableCells(new Map());
+    setHighlightedPath([]);
+  }, [game.currentPlayerIndex]);
 
   // Ref pour le timeout de fermeture du tooltip
   const hoverTimeoutRef = useRef<any>(null);
