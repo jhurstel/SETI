@@ -277,7 +277,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const oldGame = currentGame;
       const newGame = result.updatedState;
 
-      // PATCH: Ajouter les cartes défaussées à la pile de défausse
+      // Ajouter les cartes défaussées à la pile de défausse
       const cardsToDiscard = enginePlayer.cards.filter(c => !cardsToKeep.includes(c.id));
       if (cardsToDiscard.length > 0) {
         if (!newGame.decks.discardPile) newGame.decks.discardPile = [];
@@ -2623,7 +2623,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         } else {
           setInteractionState({ type: 'IDLE' });
         }
-      }
+    }
   };
 
   // Gestionnaire pour l'échange de cartes contre des resources crédit/énergie
@@ -2836,9 +2836,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   }
 
   const humanPlayer = game.players.find(p => p.type === 'human');
-  const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id || game.players[game.currentPlayerIndex].id;
-
   const currentPlayer = game.players[game.currentPlayerIndex];
+  const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id || currentPlayer.id;
 
   return (
     <div className="seti-root">

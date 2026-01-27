@@ -18,6 +18,75 @@ interface SolarSystemBoardUIProps {
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null) => void;
 }
 
+const PLANET_STYLES: { [key: string]: any } = {
+  'neptune': {
+    background: 'radial-gradient(circle, #4166f5, #1e3a8a)',
+    border: '2px solid #60a5fa',
+    boxShadow: '0 0 8px rgba(65, 102, 245, 0.6)',
+  },
+  'uranus': {
+    background: 'radial-gradient(circle, #4fd0e7, #1e88a8)',
+    border: '2px solid #7dd3fc',
+    boxShadow: '0 0 8px rgba(79, 208, 231, 0.6)',
+  },
+  'saturn': {
+    background: 'radial-gradient(circle, #fad5a5, #d4a574)',
+    border: '2px solid #e8c99a',
+    boxShadow: '0 0 8px rgba(250, 213, 165, 0.6)',
+    hasRings: true,
+  },
+  'jupiter': {
+    background: 'radial-gradient(circle, #d8ca9d, #b89d6a)',
+    border: '2px solid #c4b082',
+    boxShadow: '0 0 8px rgba(216, 202, 157, 0.6)',
+    hasBands: true,
+  },
+  'mars': {
+    background: 'radial-gradient(circle, #cd5c5c, #8b3a3a)',
+    border: '2px solid #dc7878',
+    boxShadow: '0 0 8px rgba(205, 92, 92, 0.6)',
+  },
+  'earth': {
+    background: 'radial-gradient(circle, #4a90e2, #2c5282)',
+    border: '2px solid #63b3ed',
+    boxShadow: '0 0 8px rgba(74, 144, 226, 0.6)',
+    hasContinents: true,
+  },
+  'venus': {
+    background: 'radial-gradient(circle, #ffd700, #b8860b)',
+    border: '2px solid #ffed4e',
+    boxShadow: '0 0 8px rgba(255, 215, 0, 0.6)',
+  },
+  'mercury': {
+    background: 'radial-gradient(circle, #8c7853, #5a4a35)',
+    border: '2px solid #a08d6b',
+    boxShadow: '0 0 8px rgba(140, 120, 83, 0.6)',
+  },
+};
+
+const PLANET_SIZES: { [key: string]: number } = {
+  'neptune': 32,
+  'uranus': 32,
+  'saturn': 28,
+  'jupiter': 36,
+  'mars': 24,
+  'earth': 26,
+  'venus': 24,
+  'mercury': 20,
+};
+
+const SATELLITE_STYLES: { [key: string]: string } = {
+  'phobosdeimos': 'radial-gradient(circle at 30% 30%, #8b7355, #4a3c31)', // Brun rocheux sombre
+  'io': 'radial-gradient(circle at 30% 30%, #fffacd, #ffd700, #ff8c00)', // Jaune soufre volcanique
+  'europa': 'radial-gradient(circle at 30% 30%, #f0f8ff, #b0c4de)', // Blanc glace bleuté
+  'ganymede': 'radial-gradient(circle at 30% 30%, #d3d3d3, #8b8b83)', // Gris/Brun cratérisé
+  'callisto': 'radial-gradient(circle at 30% 30%, #696969, #2f4f4f)', // Gris sombre ancien
+  'titan': 'radial-gradient(circle at 30% 30%, #f4a460, #cd853f)', // Orange atmosphère épaisse
+  'enceladus': 'radial-gradient(circle at 30% 30%, #ffffff, #e0ffff)', // Blanc pur glace
+  'titania': 'radial-gradient(circle at 30% 30%, #dcdcdc, #708090)', // Gris neutre
+  'triton': 'radial-gradient(circle at 30% 30%, #ffe4e1, #bc8f8f)', // Rose pâle glace azote
+};
+
 export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, onBackgroundClick, onSectorClick, setActiveTooltip }) => {
 
   // État pour gérer la sonde sélectionnée et les cases accessibles
@@ -525,53 +594,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
   // Fonction helper pour rendre la planète (utilisé dans la hover card)
   const renderPlanetIcon = (id: string, size: number, planetData?: Planet) => {
-    const styles: { [key: string]: any } = {
-      'neptune': {
-        background: 'radial-gradient(circle, #4166f5, #1e3a8a)',
-        border: '2px solid #60a5fa',
-        boxShadow: '0 0 8px rgba(65, 102, 245, 0.6)',
-      },
-      'uranus': {
-        background: 'radial-gradient(circle, #4fd0e7, #1e88a8)',
-        border: '2px solid #7dd3fc',
-        boxShadow: '0 0 8px rgba(79, 208, 231, 0.6)',
-      },
-      'saturn': {
-        background: 'radial-gradient(circle, #fad5a5, #d4a574)',
-        border: '2px solid #e8c99a',
-        boxShadow: '0 0 8px rgba(250, 213, 165, 0.6)',
-        hasRings: true,
-      },
-      'jupiter': {
-        background: 'radial-gradient(circle, #d8ca9d, #b89d6a)',
-        border: '2px solid #c4b082',
-        boxShadow: '0 0 8px rgba(216, 202, 157, 0.6)',
-        hasBands: true,
-      },
-      'mars': {
-        background: 'radial-gradient(circle, #cd5c5c, #8b3a3a)',
-        border: '2px solid #dc7878',
-        boxShadow: '0 0 8px rgba(205, 92, 92, 0.6)',
-      },
-      'earth': {
-        background: 'radial-gradient(circle, #4a90e2, #2c5282)',
-        border: '2px solid #63b3ed',
-        boxShadow: '0 0 8px rgba(74, 144, 226, 0.6)',
-        hasContinents: true,
-      },
-      'venus': {
-        background: 'radial-gradient(circle, #ffd700, #b8860b)',
-        border: '2px solid #ffed4e',
-        boxShadow: '0 0 8px rgba(255, 215, 0, 0.6)',
-      },
-      'mercury': {
-        background: 'radial-gradient(circle, #8c7853, #5a4a35)',
-        border: '2px solid #a08d6b',
-        boxShadow: '0 0 8px rgba(140, 120, 83, 0.6)',
-      },
-    };
-
-    const style = styles[id] || {
+    const style = PLANET_STYLES[id] || {
       background: 'radial-gradient(circle, #888, #555)',
       border: '2px solid #aaa',
       boxShadow: '0 0 8px rgba(136, 136, 136, 0.6)',
@@ -590,9 +613,9 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const playerProbe = targetObj && game.board.solarSystem.probes.find(p =>
       p.ownerId === currentPlayer.id &&
       p.state === ProbeState.IN_SOLAR_SYSTEM &&
-      p.solarPosition?.disk === targetObj.position.disk &&
-      p.solarPosition?.sector === targetObj.position.sector &&
-      (p.solarPosition?.level || 0) === (targetObj.level || 0)
+      p.solarPosition.disk === targetObj.position.disk &&
+      p.solarPosition.sector === targetObj.position.sector &&
+      p.solarPosition.level === targetObj.level
     );
 
     let canOrbit = false;
@@ -611,10 +634,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     let canLand = false;
     let landReason = "Nécessite une sonde sur la planète";
     if (playerProbe) {
-      if ((currentPlayer.hasPerformedMainAction && !interactionState.type === 'LANDING_PROBE') || isRobot) {
+      if ((currentPlayer.hasPerformedMainAction && !(interactionState.type === 'LANDING_PROBE')) || isRobot) {
         landReason = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
       } else {
-        const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !interactionState.type === 'LANDING_PROBE');
+        const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !(interactionState.type === 'LANDING_PROBE'));
         canLand = check.canLand;
         landEnergyCost = check.energyCost;
         landReason = check.canLand ? `Cliquez pour atterrir (Coût: ${check.energyCost} Énergie)` : (check.reason || "Impossible");
@@ -626,29 +649,18 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const renderRings = (isFront: boolean) => (
       <>
         <div
+          className="seti-planet-icon-ring-outer"
           style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%) rotate(15deg)',
             width: `${size * 1.4}px`,
             height: `${size * 0.5}px`,
-            borderRadius: '50%',
-            border: '2px solid rgba(200, 180, 150, 0.8)',
-            boxShadow: '0 0 4px rgba(200, 180, 150, 0.4)',
             clipPath: isFront ? 'inset(50% 0 0 0)' : undefined,
           }}
         />
         <div
+          className="seti-planet-icon-ring-inner"
           style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%) rotate(15deg)',
             width: `${size * 1.25}px`,
             height: `${size * 0.4}px`,
-            borderRadius: '50%',
-            border: '1px solid rgba(180, 160, 130, 0.6)',
             clipPath: isFront ? 'inset(50% 0 0 0)' : undefined,
           }}
         />
@@ -706,18 +718,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           </>
         );
 
-        const satStyles: { [key: string]: string } = {
-          'phobosdeimos': 'radial-gradient(circle at 30% 30%, #8b7355, #4a3c31)', // Brun rocheux sombre
-          'io': 'radial-gradient(circle at 30% 30%, #fffacd, #ffd700, #ff8c00)', // Jaune soufre volcanique
-          'europa': 'radial-gradient(circle at 30% 30%, #f0f8ff, #b0c4de)', // Blanc glace bleuté
-          'ganymede': 'radial-gradient(circle at 30% 30%, #d3d3d3, #8b8b83)', // Gris/Brun cratérisé
-          'callisto': 'radial-gradient(circle at 30% 30%, #696969, #2f4f4f)', // Gris sombre ancien
-          'titan': 'radial-gradient(circle at 30% 30%, #f4a460, #cd853f)', // Orange atmosphère épaisse
-          'enceladus': 'radial-gradient(circle at 30% 30%, #ffffff, #e0ffff)', // Blanc pur glace
-          'titania': 'radial-gradient(circle at 30% 30%, #dcdcdc, #708090)', // Gris neutre
-          'triton': 'radial-gradient(circle at 30% 30%, #ffe4e1, #bc8f8f)', // Rose pâle glace azote
-        };
-
         return (
           <div
             key={`sat-${index}`}
@@ -728,7 +728,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               width: `${satSize}px`,
               height: `${satSize}px`,
               borderRadius: '50%',
-              background: satStyles[satellite.id] || 'radial-gradient(circle at 30% 30%, #d0d0d0, #808080)',
+              background: SATELLITE_STYLES[satellite.id] || 'radial-gradient(circle at 30% 30%, #d0d0d0, #808080)',
               border: '1px solid #666',
               boxShadow: '2px 2px 6px rgba(0,0,0,0.6)',
               zIndex: 10 + index,
@@ -778,19 +778,13 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       <div style={{ width: `${size}px`, height: `${size}px`, position: 'relative' }}>
         {style.hasRings && renderRings(false)}
         <div
+          className="seti-planet-icon-body"
           style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
             width: `${size - 4}px`,
             height: `${size - 4}px`,
-            borderRadius: '50%',
             background: style.background,
             border: style.border,
             boxShadow: style.boxShadow,
-            overflow: 'hidden',
-            zIndex: 1,
           }}
         >
           {style.hasBands && (
@@ -798,38 +792,22 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               {[30, 45, 60, 75].map((top, i) => (
                 <div
                   key={i}
+                  className="seti-planet-icon-band"
                   style={{
-                    position: 'absolute',
                     top: `${top}%`,
-                    left: '50%',
-                    transform: 'translate(-50%, -50%) rotate(-20deg)',
-                    width: '150%',
                     height: i % 2 === 0 ? `${3 * scale}px` : `${2 * scale}px`,
                     background: `rgba(${150 - i * 5}, ${120 - i * 5}, ${80 - i * 5}, ${0.8 - i * 0.1})`,
-                    borderRadius: '2px',
                   }}
                 />
               ))}
             </>
           )}
           {style.hasContinents && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '60%',
-                height: '50%',
-                background: 'rgba(34, 139, 34, 0.7)',
-                borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%',
-                clipPath: 'ellipse(60% 50% at 50% 50%)',
-              }}
-            />
+            <div className="seti-planet-icon-continents" />
           )}
         </div>
         {style.hasRings && (
-          <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 2, pointerEvents: 'none' }}>
+          <div className="seti-planet-icon-rings-front">
             {renderRings(true)}
           </div>
         )}
@@ -872,9 +850,9 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                 const centerAngle = 255;
                 const totalArcAngle = (count - 1) * stepDeg;
                 const startAngle = centerAngle - (totalArcAngle / 2);
-
                 const angleDeg = startAngle + (i * stepDeg);
                 const { x, y } = polarToCartesian(0, 0, orbitRadius, angleDeg);
+
                 return {
                   x, y,
                   angle: angleDeg
@@ -924,10 +902,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                   {orbitPositions.length > 1 && (() => {
                     const startAngle = orbitPositions[0].angle;
                     const endAngle = orbitPositions[orbitPositions.length - 1].angle;
-
                     const innerR = orbitRadius - orbiterCircleRadius;
                     const outerR = orbitRadius + orbiterCircleRadius;
-
                     const innerStart = polarToCartesian(0, 0, innerR, startAngle);
                     const innerEnd = polarToCartesian(0, 0, innerR, endAngle);
                     const outerStart = polarToCartesian(0, 0, outerR, startAngle);
@@ -945,10 +921,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                   {landPositions.length > 1 && (() => {
                     const startAngle = landPositions[0].angle;
                     const endAngle = landPositions[landPositions.length - 1].angle;
-
                     const innerR = landRadius - landerCircleRadius;
                     const outerR = landRadius + landerCircleRadius;
-
                     const innerStart = polarToCartesian(0, 0, innerR, startAngle);
                     const innerEnd = polarToCartesian(0, 0, innerR, endAngle);
                     const outerStart = polarToCartesian(0, 0, outerR, startAngle);
@@ -1123,79 +1097,27 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   // Fonction helper pour rendre une planète
   const renderPlanet = (obj: CelestialObject, zIndex: number = 30) => {
     const { x, y } = calculateObjectPosition(obj.position.disk, obj.position.sector);
-    const planetStyles: { [key: string]: any } = {
-      'neptune': {
-        background: 'radial-gradient(circle, #4166f5, #1e3a8a)',
-        border: '2px solid #60a5fa',
-        boxShadow: '0 0 8px rgba(65, 102, 245, 0.6)',
-        size: 32,
-      },
-      'uranus': {
-        background: 'radial-gradient(circle, #4fd0e7, #1e88a8)',
-        border: '2px solid #7dd3fc',
-        boxShadow: '0 0 8px rgba(79, 208, 231, 0.6)',
-        size: 32,
-      },
-      'saturn': {
-        background: 'radial-gradient(circle, #fad5a5, #d4a574)',
-        border: '2px solid #e8c99a',
-        boxShadow: '0 0 8px rgba(250, 213, 165, 0.6)',
-        size: 28,
-        hasRings: true,
-      },
-      'jupiter': {
-        background: 'radial-gradient(circle, #d8ca9d, #b89d6a)',
-        border: '2px solid #c4b082',
-        boxShadow: '0 0 8px rgba(216, 202, 157, 0.6)',
-        size: 36,
-        hasBands: true,
-      },
-      'mars': {
-        background: 'radial-gradient(circle, #cd5c5c, #8b3a3a)',
-        border: '2px solid #dc7878',
-        boxShadow: '0 0 8px rgba(205, 92, 92, 0.6)',
-        size: 24,
-      },
-      'earth': {
-        background: 'radial-gradient(circle, #4a90e2, #2c5282)',
-        border: '2px solid #63b3ed',
-        boxShadow: '0 0 8px rgba(74, 144, 226, 0.6)',
-        size: 26,
-        hasContinents: true,
-      },
-      'venus': {
-        background: 'radial-gradient(circle, #ffd700, #b8860b)',
-        border: '2px solid #ffed4e',
-        boxShadow: '0 0 8px rgba(255, 215, 0, 0.6)',
-        size: 24,
-      },
-      'mercury': {
-        background: 'radial-gradient(circle, #8c7853, #5a4a35)',
-        border: '2px solid #a08d6b',
-        boxShadow: '0 0 8px rgba(140, 120, 83, 0.6)',
-        size: 20,
-      },
-    };
-    const style = planetStyles[obj.id] || {
+    const style = PLANET_STYLES[obj.id] || {
       background: 'radial-gradient(circle, #888, #555)',
       border: '2px solid #aaa',
       boxShadow: '0 0 8px rgba(136, 136, 136, 0.6)',
-      size: 24,
     };
+    const size = PLANET_SIZES[obj.id] || 24;
 
+    // Check if planet has orbiters on it (dashed circle)
     const planetData = game.board.planets.find(p => p.id === obj.id);
     const hasOrbiters = planetData && planetData.orbiters && planetData.orbiters.length > 0;
 
+    // Check if user can interact with a planet where he has a probe (glow effect)
     const currentPlayer = game.players[game.currentPlayerIndex];
-    const isRobot = (currentPlayer as any).type === 'robot';
-    const playerProbe = game.board.solarSystem.probes.find(p =>
+    const isRobot = currentPlayer.type === 'robot';
+    const playerProbe = currentPlayer.probes.find(p =>
       p.ownerId === currentPlayer.id &&
       p.state === ProbeState.IN_SOLAR_SYSTEM &&
-      p.solarPosition?.disk === obj.position.disk &&
-      p.solarPosition?.sector === obj.position.sector &&
-      (p.solarPosition?.level || 0) === (obj.level || 0)
+      p.solarPosition.disk === obj.position.disk &&
+      p.solarPosition.sector === obj.position.sector &&
+      p.solarPosition.level === obj.level
     );
-
     let canInteract = false;
     if (!currentPlayer.hasPerformedMainAction && !isRobot) {
       if (obj.id === 'earth') {
@@ -1218,8 +1140,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         style={{
           top: `calc(50% + ${y}%)`,
           left: `calc(50% + ${x}%)`,
-          width: `${style.size}px`,
-          height: `${style.size}px`,
+          width: `${size}px`,
+          height: `${size}px`,
           zIndex,
           pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
@@ -1228,28 +1150,25 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         onClick={() => onPlanetClick && onPlanetClick(obj.id)}
       >
         {hasOrbiters && (
-          <div
-            className="seti-planet-orbit-ring"
+          <div className="seti-planet-orbit-ring"
             style={{
-              width: `${style.size + 15}px`,
-              height: `${style.size + 15}px`,
+              width: `${size + 15}px`,
+              height: `${size + 15}px`,
             }}
           />
         )}
         {canInteract && (
-          <div
-            className="seti-planet-interaction-glow"
+          <div className="seti-planet-interaction-glow"
             style={{
-              width: `${style.size + 12}px`,
-              height: `${style.size + 12}px`,
+              width: `${size + 12}px`,
+              height: `${size + 12}px`,
             }}
           />
         )}
-        <div
-          className="seti-planet-body"
+        <div className="seti-planet-body"
           style={{
-            width: `${style.size - 4}px`,
-            height: `${style.size - 4}px`,
+            width: `${size - 4}px`,
+            height: `${size - 4}px`,
             background: style.background,
             border: style.border,
             boxShadow: style.boxShadow,
@@ -1260,65 +1179,32 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               {[30, 45, 60, 75].map((top, i) => (
                 <div
                   key={i}
+                  className="seti-planet-band"
                   style={{
-                    position: 'absolute',
                     top: `${top}%`,
-                    left: '50%',
-                    transform: 'translate(-50%, -50%) rotate(-20deg)',
-                    width: '150%',
                     height: i % 2 === 0 ? '3px' : '2px',
                     background: `rgba(${150 - i * 5}, ${120 - i * 5}, ${80 - i * 5}, ${0.8 - i * 0.1})`,
-                    borderRadius: '2px',
-                    pointerEvents: 'none',
                   }}
                 />
               ))}
             </>
           )}
           {style.hasContinents && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '60%',
-                height: '50%',
-                background: 'rgba(34, 139, 34, 0.7)',
-                borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%',
-                pointerEvents: 'none',
-                clipPath: 'ellipse(60% 50% at 50% 50%)',
-              }}
-            />
+            <div className="seti-planet-continents"/>
           )}
         </div>
         {style.hasRings && (
           <>
-            <div
+            <div className="seti-planet-ring-outer"
               style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%) rotate(15deg)',
-                width: `${style.size + 12}px`,
-                height: `${style.size / 2}px`,
-                borderRadius: '50%',
-                border: '2px solid rgba(200, 180, 150, 0.8)',
-                boxShadow: '0 0 4px rgba(200, 180, 150, 0.4)',
-                pointerEvents: 'none',
+                width: `${size + 12}px`,
+                height: `${size / 2}px`,
               }}
             />
-            <div
+            <div className="seti-planet-ring-inner"
               style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%) rotate(15deg)',
-                width: `${style.size + 8}px`,
-                height: `${(style.size - 2) / 2}px`,
-                borderRadius: '50%',
-                border: '1px solid rgba(180, 160, 130, 0.6)',
-                pointerEvents: 'none',
+                width: `${size + 8}px`,
+                height: `${(size - 2) / 2}px`,
               }}
             />
           </>
@@ -1367,7 +1253,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     );
   };
 
-  // Rendu des détails des secteurs (Nom + Slots) sur le disque E
+  // Fonction help pour rendre les secteurs
   const renderSectorDetails = () => {
     if (!game.board.sectors) return null;
     const currentPlayer = game.players[game.currentPlayerIndex];
