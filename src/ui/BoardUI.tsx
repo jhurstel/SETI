@@ -239,6 +239,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       let player = updatedGame.players[updatedGame.currentPlayerIndex];
       let logMessage = "";
 
+      // Carte 119 - PIXL
       if (effectType === 'SCORE_PER_MEDIA') {
         const pointsGained = player.mediaCoverage * value;
         if (pointsGained > 0) {
@@ -440,23 +441,25 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
         // Utiliser SpeciesSystem pour la logique de placement
         const result = SpeciesSystem.placeNeutralMilestone(currentState, m);
-        
+       
         // Mettre à jour l'état local et le moteur
-        currentState = result.updatedGame;
-        gameEngineRef.current.setState(currentState);
+        const updatedGame = result.updatedGame;
+        gameEngineRef.current.setState(updatedGame);
+        
+        interactionState.sequenceId = `neutral-${Date.now()}`
 
         // Traiter le code de retour
         if (result.code === 'PLACED' || result.code === 'DISCOVERED') {
             const { color } = result.data!;
-            addToHistory(`déclenche un marqueur neutre (Palier ${m} PV) sur la trace ${color} du plateau Alien`, currentPlayer.id, currentState);
+            addToHistory(`déclenche un marqueur neutre (Palier ${m} PV) sur la trace ${color} du plateau Alien`, currentPlayer.id, currentState, undefined, interactionState.sequenceId);
             
             if (result.code === 'DISCOVERED') {
                 setAlienDiscoveryNotification({ visible: true, message: "Découverte d'une nouvelle espèce Alien !" });
                 setTimeout(() => setAlienDiscoveryNotification(null), 4000);
-                addToHistory(`déclenche la découverte d'une nouvelle espèce Alien !`, currentPlayer.id, currentState);
+                addToHistory(`déclenche la découverte d'une nouvelle espèce Alien !`, currentPlayer.id, currentState, undefined, interactionState.sequenceId);
             }
         } else if (result.code === 'NO_SPACE') {
-            addToHistory(`déclenche un marqueur neutre (Palier ${m} PV) mais aucun emplacement libre`, currentPlayer.id, currentState);
+            addToHistory(`déclenche un marqueur neutre (Palier ${m} PV) mais aucun emplacement libre`, currentPlayer.id, currentState, undefined, interactionState.sequenceId);
         }
       }
     }
@@ -481,7 +484,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         // Vérifier qu'on ne sélectionne pas plus que nécessaire
         const currentPlayer = game.players[game.currentPlayerIndex];
         const cardsToKeep = currentPlayer.cards.length - (currentCards.length + 1);
-        if (cardsToKeep >= 4) {
+        if (cardsToKeep >= GAME_CONSTANTS.HAND_SIZE_AFTER_PASS) {
           setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
         }
       }
@@ -489,7 +492,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const currentCards = interactionState.selectedCards;
       if (currentCards.includes(cardId)) {
         setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
-      } else if (currentCards.length < 2) {
+      } else if (currentCards.length < interactionState.count) {
         setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
       }
     } else if (interactionState.type === 'RESERVING_CARD') {
@@ -1005,8 +1008,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
     else if (actionType === ActionType.PASS) {
       // 1. Vérifier la taille de la main
-      if (currentPlayer.cards.length > 4) {
-        setInteractionState({ type: 'DISCARDING_CARD', selectedCards: [] });
+      const toDiscard = currentPlayer.cards.length - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS
+      if (toDiscard > 0) {
+        setInteractionState({ type: 'DISCARDING_CARD', count: toDiscard, selectedCards: [] });
         setToast({ message: "Veuillez défausser pour ne garder que 4 cartes en main", visible: true });
         return;
       }
@@ -1107,7 +1111,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const newPendingInteractions: InteractionState[] = [];
     const logs: string[] = [];
     const historyEntries: { message: string, playerId: string }[] = [];
-    const passiveGains: string[] = []; // For summary toast
+    const passiveGains: string[] = [];
     const launchedProbeIds: string[] = [];
 
     const handleSpecificScan = (count: number, namePart: string) => {
@@ -2154,7 +2158,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
           let message = "";
           if (energySpent > 0) {
-            message = `déplace une sonde vers ${disk}${sector} pour ${energySpent} énergie`;
+            message = `paye ${energySpent} énergie pour déplacer une sonde vers ${disk}${sector}`;
           } else {
             message = `déplace une sonde vers ${disk}${sector} gratuitement`;
           }
@@ -2167,22 +2171,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           consumedBuffs.forEach(buff => {
             if (buff.type === 'VISIT_BONUS') {
               const gainText = formatResource(buff.value, 'PV');
-              message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
-              setToast({ message: `Bonus : +${buff.value} PV (${buff.source})`, visible: true });
+              message += ` et gagne ${gainText}`;
             } else if (buff.type === 'VISIT_ASTEROID') {
               const gainText = formatResource(buff.value, 'DATA');
-              message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
-              setToast({ message: `Bonus : +${buff.value} Donnée (${buff.source})`, visible: true });
+              message += ` et gagne ${gainText}`;
             } else if (buff.type === 'VISIT_COMET') {
               const gainText = formatResource(buff.value, 'PV');
-              message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
-              setToast({ message: `Bonus : +${buff.value} PV (${buff.source})`, visible: true });
+              message += ` et gagne ${gainText}`;
             } else if (buff.type === 'SAME_DISK_MOVE') {
               const gains: string[] = [];
               if (buff.value.pv) gains.push(formatResource(buff.value.pv, 'PV'));
               if (buff.value.media) gains.push(formatResource(buff.value.media, 'MEDIA'));
-              message += ` et gagne ${gains.join(', ')} (${buff.source || 'Bonus'})`;
-              setToast({ message: `Bonus : +${gains.join(', ')} (${buff.source})`, visible: true });
+              message += ` et gagne ${gains.join(', ')}`;
             }
           });
 
@@ -2193,8 +2193,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             planetId;
             uniqueBuffs.forEach(buff => {
               const gainText = formatResource(buff.value, 'PV');
-              message += ` et gagne ${gainText} (${buff.source || 'Bonus'})`;
-              setToast({ message: `Bonus : +${buff.value} PV (${buff.source})`, visible: true });
+              message += ` et gagne ${gainText}`;
             });
           });
 
@@ -2214,7 +2213,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             if (i < path.length - 1) setToast({ message: "Déplacement interrompu pour choix bonus", visible: true });
           }
 
-          addToHistory(message, currentPlayerId, stateBeforeMove);
+          addToHistory(message, currentPlayerId, stateBeforeMove, undefined, interactionState.sequenceId);
         }
 
         currentGame = updatedGame;
@@ -2477,19 +2476,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (card.freeAction === FreeActionType.MEDIA) {
       const res = ResourceSystem.updateMedia(updatedGame, currentPlayer.id, 1);
       updatedGame = res.updatedGame;
-      setToast({ message: "Action gratuite : +1 Média", visible: true });
       addToHistory(`défausse carte "${card.name}" et gagne ${formatResource(1, 'MEDIA')}`, currentPlayer.id, game);
     } else if (card.freeAction === FreeActionType.DATA) {
       const res = ResourceSystem.updateData(updatedGame, currentPlayer.id, 1);
       updatedGame = res.updatedGame;
-      setToast({ message: "Action gratuite : +1 Data", visible: true });
       addToHistory(`défausse carte "${card.name}" et gagne ${formatResource(1, 'DATA')}`, currentPlayer.id, game);
     } else if (card.freeAction === FreeActionType.MOVEMENT) {
       const probes = currentPlayer.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
       const autoSelectProbeId = probes.length === 1 ? probes[0].id : undefined;
-      setInteractionState({ type: 'MOVING_PROBE', count: 1, autoSelectProbeId });
+      interactionState.sequenceId = `move-${Date.now()}`;
+      setInteractionState({ type: 'MOVING_PROBE', count: 1, autoSelectProbeId, sequenceId: interactionState.sequenceId});
       setToast({ message: "Sélectionnez une sonde à déplacer", visible: true });
-      addToHistory(`défausse carte "${card.name}" et gagne 1 déplacement gratuit`, currentPlayer.id, game);
+      addToHistory(`défausse carte "${card.name}" et gagne 1 déplacement gratuit`, currentPlayer.id, game, undefined, interactionState.sequenceId);
     }
 
     // Défausser la carte
@@ -2632,7 +2630,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const targetGain = payload?.targetGain;
     if (!targetGain) return;
 
-    setInteractionState({ type: 'TRADING_CARD', targetGain, selectedCards: [] });
+    setInteractionState({ type: 'TRADING_CARD', count: 2, targetGain, selectedCards: [] });
     setToast({ message: `Veuillez sélectionnez 2 cartes à échanger contre ${formatResource(1, targetGain)}`, visible: true });
   }
 

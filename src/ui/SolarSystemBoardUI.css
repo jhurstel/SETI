@@ -463,3 +463,86 @@
     z-index: 2;
     pointer-events: none;
 }
+
+.seti-planet-band {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-20deg);
+    width: 150%;
+    border-radius: 2px;
+    pointer-events: none;
+}
+
+.seti-planet-continents {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60%;
+    height: 50%;
+    background: rgba(34, 139, 34, 0.7);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    pointer-events: none;
+    clip-path: ellipse(60% 50% at 50% 50%);
+}
+
+.seti-planet-ring-outer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(15deg);
+    border-radius: 50%;
+    border: 2px solid rgba(200, 180, 150, 0.8);
+    box-shadow: 0 0 4px rgba(200, 180, 150, 0.4);
+    pointer-events: none;
+}
+
+.seti-planet-ring-inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(15deg);
+    border-radius: 50%;
+    border: 1px solid rgba(180, 160, 130, 0.6);
+    pointer-events: none;
+}
+
+.seti-planet-interaction-base {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 3px solid #4caf50;
+    pointer-events: none;
+    box-shadow: 0 0 5px #4caf50;
+    opacity: 0.8;
+}
+
+@keyframes pulse-green {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.7;
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1.8);
+        opacity: 0;
+    }
+}
+
+.seti-pulse-green-svg {
+    animation: pulse-green-svg 2s infinite;
+    transform-origin: center;
+    pointer-events: none;
+}
+
+@keyframes pulse-green-svg {
+    0% {
+        r: 3.5px;
+        opacity: 0.7;
+    }
+    100% {
+        r: 9px;
+        opacity: 0;
+    }
+}

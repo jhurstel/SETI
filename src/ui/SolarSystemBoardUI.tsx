@@ -1158,12 +1158,20 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           />
         )}
         {canInteract && (
-          <div className="seti-planet-interaction-glow"
-            style={{
-              width: `${size + 12}px`,
-              height: `${size + 12}px`,
-            }}
-          />
+          <>
+            <div className="seti-planet-interaction-base"
+              style={{
+                width: `${size + 12}px`,
+                height: `${size + 12}px`,
+              }}
+            />
+            <div className="seti-planet-interaction-glow"
+              style={{
+                width: `${size + 12}px`,
+                height: `${size + 12}px`,
+              }}
+            />
+          </>
         )}
         <div className="seti-planet-body"
           style={{
@@ -1257,6 +1265,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   const renderSectorDetails = () => {
     if (!game.board.sectors) return null;
     const currentPlayer = game.players[game.currentPlayerIndex];
+    const highlightedSectorSlots = getHighlightedSectors();
+
     return (
       <svg
         className="seti-sector-details-svg"
@@ -1277,7 +1287,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           const textPathId = `sector-text-path-${i}`;
 
           // Vérifier si ce secteur doit avoir son slot en surbrillance
-          const highlightedSectorSlots = getHighlightedSectors();
           const shouldFlashSlot = highlightedSectorSlots.includes(sector.id);
           const isSectorClickable = !!onSectorClick && shouldFlashSlot;
 
@@ -1421,16 +1430,13 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               >
                 <circle r="4" fill="transparent" stroke="none" />
                 {isFlashing && (
-                  interactionState.type === 'IDLE' && canAffordScan ? (
+                  canAffordScan && interactionState.type === 'IDLE' ? (
                     <>
-                      <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1" opacity="0.8" />
-                      <circle r="3.5" fill="none" stroke="#4caf50" strokeWidth="1">
-                        <animate attributeName="r" values="3.5; 8" dur="2s" repeatCount="indefinite" />
-                        <animate attributeName="opacity" values="0.6; 0" dur="2s" repeatCount="indefinite" />
-                      </circle>
+                      <circle r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" opacity="1" />
+                      <circle className="seti-pulse-green-svg" r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" />
                     </>
-                  ) : (
-                    <circle r="4" fill="none" stroke="#00ff00" strokeWidth="1" opacity="0.6" />
+                  ) : interactionState.type === 'SELECTING_SCAN_SECTOR' && (
+                    <circle r="4" fill="none" stroke="#4caf50" strokeWidth="0.5" opacity="1" />
                   )
                 )}
                 <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" strokeDasharray={isLastSlot ? "1 1" : undefined} />
@@ -1566,7 +1572,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           left: `calc(50% + ${x + offsetX}%)`,
           zIndex,
         }}
-        title={playerName}
       >
         {/* Effet de surbrillance (pour action gratuite mouvement) */}
         {shouldHighlight && (
@@ -1669,22 +1674,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
   return (
     <>
-      <style>{`
-        @keyframes pulse-green {
-          0% {
-            transform: translate(-50%, -50%) scale(0.95);
-            box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
-          }
-          70% {
-            transform: translate(-50%, -50%) scale(1);
-            box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
-          }
-          100% {
-            transform: translate(-50%, -50%) scale(0.95);
-            box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
-          }
-        }
-      `}</style>
       <div className="seti-panel seti-solar-system-container">
         <div className="seti-panel-title">Système solaire</div>
 
@@ -1779,15 +1768,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                         zIndex: 2 + index + 0.5,
                       }}
                     />
-                    {/* Label du disque - positionné en haut à 12h */}
-                    <div
-                      className="seti-disk-label"
-                      style={{
-                        top: `calc(50% - ${(innerRadius + outerRadius) / 2}%)`,
-                      }}
-                    >
-                      {disk}
-                    </div>
                   </React.Fragment>
                 );
               })}
@@ -1979,6 +1959,28 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               {/* Indicateur de rotation pour Terre */}
               {game.board.solarSystem.nextRingLevel === 1 && renderRotationIndicator('earth', '#4a9eff')}
             </div>
+
+            {/* Labels des disques (A à D) - Positionnés au-dessus des plateaux rotatifs */}
+            {Object.keys(DISK_NAMES).map((disk, index) => {
+              if (disk === 'E') return null;
+              const diskWidth = 8;
+              const sunRadius = 4;
+              const innerRadius = sunRadius + (index * diskWidth);
+              const outerRadius = sunRadius + ((index + 1) * diskWidth);
+
+              return (
+                <div
+                  key={`label-${disk}`}
+                  className="seti-disk-label"
+                  style={{
+                    top: `calc(50% - ${(innerRadius + outerRadius) / 2}%)`,
+                    zIndex: 60,
+                  }}
+                >
+                  {disk}
+                </div>
+              );
+            })}
 
             {/* Backdrop pour désélectionner si on clique à côté (quand une sonde est sélectionnée) */}
             {selectedProbeId && (

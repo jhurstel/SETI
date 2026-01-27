@@ -1,21 +1,24 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Game, Card, InteractionState } from '../core/types';
+import { Game, Card, InteractionState, Technology, TechnologyCategory } from '../core/types';
 
 interface DebugPanelProps {
   game: Game;
   setGame: (game: Game) => void;
   onHistory: (msg: string, playerId?: string, previousState?: Game) => void;
   interactionState: InteractionState;
+  setInteractionState?: (state: InteractionState) => void;
 }
 
 export const DebugPanel: React.FC<DebugPanelProps> = ({ 
   game, 
   setGame, 
   onHistory, 
-  interactionState 
+  interactionState,
+  setInteractionState
 }) => {
   const [cardId, setCardId] = useState('');
+  const [techId, setTechId] = useState('');
   const [amount, setAmount] = useState(1);
   const [isVisible, setIsVisible] = useState(true);
   const [position, setPosition] = useState({ x: 20, y: 150 });
@@ -76,6 +79,38 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
     }
   };
 
+  const handleAddTech = () => {
+    const updatedGame = structuredClone(game);
+    const player = updatedGame.players[updatedGame.currentPlayerIndex];
+    const techToFind = techId.toLowerCase();
+
+    let foundTech: Technology | undefined;
+
+    if (updatedGame.board.technologyBoard && updatedGame.board.technologyBoard.categorySlots) {
+      for (const slot of updatedGame.board.technologyBoard.categorySlots) {
+        const tech = slot.technologies.find(t => t.id === techId || t.name.toLowerCase().includes(techToFind));
+        if (tech) {
+          foundTech = tech;
+          break;
+        }
+      }
+    }
+
+    if (foundTech) {
+      if (foundTech.type === TechnologyCategory.COMPUTING && setInteractionState) {
+        setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech: foundTech });
+        onHistory(`DEBUG: Triggering slot selection for tech "${foundTech.name}"`, player.id, game);
+        return;
+      }
+
+      player.technologies.push(structuredClone(foundTech));
+      setGame(updatedGame);
+      onHistory(`DEBUG: Added tech "${foundTech.name}" to ${player.name}`, player.id, updatedGame);
+    } else {
+      onHistory(`DEBUG: Tech with ID/name part "${techId}" not found.`, player.id, updatedGame);
+    }
+  };
+
   if (process.env.NODE_ENV !== 'development') {
     return null;
   }
@@ -116,6 +151,10 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
         <div>
           <input type="text" value={cardId} onChange={e => setCardId(e.target.value)} placeholder="Card ID/Name" style={{width: '100%', boxSizing: 'border-box', background: '#222', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '4px', marginTop: '4px'}} />
           <button onClick={handleAddCard} style={{width: '100%', marginTop: '5px'}}>Add Card to Hand</button>
+        </div>
+        <div>
+          <input type="text" value={techId} onChange={e => setTechId(e.target.value)} placeholder="Tech ID/Name" style={{width: '100%', boxSizing: 'border-box', background: '#222', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '4px', marginTop: '4px'}} />
+          <button onClick={handleAddTech} style={{width: '100%', marginTop: '5px'}}>Add Tech</button>
         </div>
         <div style={{ marginTop: '10px', borderTop: '1px solid #555', paddingTop: '5px' }}>
           <div style={{ fontSize: '0.8em', color: '#aaa' }}>Interaction State:</div>

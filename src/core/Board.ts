@@ -8,7 +8,7 @@
  * - Plateau de technologies
  */
 
-import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, RotationDisk, TechnologyCategory, Technology, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorColor, SignalType, Signal } from './types';
+import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, RotationDisk, TechnologyCategory, Technology, TechnologyEffect, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorColor, SignalType, Signal } from './types';
 import { sectorToIndex } from './SolarSystemPosition';
 
 export class BoardManager {
@@ -324,7 +324,7 @@ export class BoardManager {
       id: string,
       name: string,
       type: TechnologyCategory,
-      effects: any[],
+      effects: TechnologyEffect[],
       description: string,
       shorttext: string,
       extraBonus?: Bonus

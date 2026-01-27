@@ -321,7 +321,6 @@ export class GameFactory {
   //      freeAction: freeActions[Math.floor(Math.random() * freeActions.length)],
   //      scanSector: colors[Math.floor(Math.random() * colors.length)],
   //      revenue: revenues[Math.floor(Math.random() * revenues.length)],
-  //      effects: [],
   //      description: "Carte random"
   //  };
   //}
@@ -445,9 +444,8 @@ export class GameFactory {
             freeAction: this.mapFreeActionType(actionGratuite.trim()),
             scanSector: this.mapSectorColor(couleurScan.trim()),
             revenue: this.mapRevenueType(revenue.trim()),
-            effects: [],
-            immediateEffects: this.parseGainColumn(gain.trim()),
-            passiveEffects: this.parseConstraintColumn(contrainte.trim())
+            immediateEffects: this.parseImmediateEffects(gain.trim()),
+            passiveEffects: this.parsePassiveEffects(contrainte.trim())
         });
       }
     }
@@ -488,7 +486,7 @@ export class GameFactory {
       return RevenueType.CREDIT; // Valeur par défaut
   }
 
-  private static parseGainColumn(gain: string): CardEffect[] {
+  private static parseImmediateEffects(gain: string): CardEffect[] {
     if (!gain) return [];
     const effects: CardEffect[] = [];
     
@@ -502,17 +500,29 @@ export class GameFactory {
         const match = lower.match(/^(\d+)\s+(.+)$/);
         const amount = match ? parseInt(match[1], 10) : 1;
 
-        if (lower.includes('média') || lower.includes('media')) effects.push({ type: 'GAIN', target: 'MEDIA', value: amount });
-        else if (lower.includes('crédit') || lower.includes('credit')) effects.push({ type: 'GAIN', target: 'CREDIT', value: amount });
-        else if (lower.includes('energie') || lower.includes('énergie')) effects.push({ type: 'GAIN', target: 'ENERGY', value: amount });
-        else if (lower.includes('donnée') || lower.includes('data')) effects.push({ type: 'GAIN', target: 'DATA', value: amount });
-        else if (lower.includes('pioche')) effects.push({ type: 'GAIN', target: 'CARD', value: amount });
-        else if (lower.includes('carte')) effects.push({ type: 'ACTION', target: 'ANYCARD', value: amount });
-        else if (lower.includes('déplacement') || lower.includes('deplacement')) effects.push({ type: 'ACTION', target: 'MOVEMENT', value: amount });
-        else if (lower.includes('rotation')) effects.push({ type: 'ACTION', target: 'ROTATION', value: amount });
-        else if (lower.includes('atterrissage')) effects.push({ type: 'ACTION', target: 'LAND', value: amount });
-        else if (lower.includes('scan')) effects.push({ type: 'ACTION', target: 'SCAN', value: amount });
-        else if (lower.includes('signal') || lower.includes('signaux')) {
+        if (lower.includes('média') || lower.includes('media')) {
+          effects.push({ type: 'GAIN', target: 'MEDIA', value: amount });
+        } else if (lower.includes('crédit') || lower.includes('credit')) {
+          effects.push({ type: 'GAIN', target: 'CREDIT', value: amount });
+        } else if (lower.includes('energie') || lower.includes('énergie')) {
+          effects.push({ type: 'GAIN', target: 'ENERGY', value: amount });
+        } else if (lower.includes('donnée') || lower.includes('data')) {
+          effects.push({ type: 'GAIN', target: 'DATA', value: amount });
+        } else if (lower.includes('sonde')) {
+          effects.push({ type: 'GAIN', target: 'PROBE', value: amount });
+        } else if (lower.includes('pioche')) {
+          effects.push({ type: 'GAIN', target: 'CARD', value: amount });
+        } else if (lower.includes('carte')) {
+          effects.push({ type: 'ACTION', target: 'ANYCARD', value: amount });
+        } else if (lower.includes('déplacement') || lower.includes('deplacement')) {
+          effects.push({ type: 'ACTION', target: 'MOVEMENT', value: amount });
+        } else if (lower.includes('rotation')) {
+          effects.push({ type: 'ACTION', target: 'ROTATION', value: amount });
+        } else if (lower.includes('atterrissage')) {
+          effects.push({ type: 'ACTION', target: 'LAND', value: amount });
+        } else if (lower.includes('scan')) {
+          effects.push({ type: 'ACTION', target: 'SCAN', value: amount });
+        } else if (lower.includes('signal') || lower.includes('signaux')) {
           let scope = 'ANY';
           if (lower.includes('rangée') || lower.includes('rangee')) scope = 'ROW';
           else if (lower.includes('terre')) scope = 'EARTH';
@@ -526,23 +536,19 @@ export class GameFactory {
           else if (lower.includes('barnard')) scope = 'BARNARD';
           else if (lower.includes('procyon')) scope = 'PROCYON';
           else if (lower.includes('véga')) scope = 'VEGA';
-          
           effects.push({ type: 'ACTION', target: 'SIGNAL', value: { amount, scope } });
-        }
-        else if (lower.includes('sonde')) effects.push({ type: 'GAIN', target: 'PROBE', value: amount });
-        else if (lower.includes('tech')) {
+        } else if (lower.includes('tech')) {
             let techColor: TechnologyCategory | undefined = undefined;
             if (lower.includes('informatique') || lower.includes('bleu')) techColor = TechnologyCategory.COMPUTING;
             else if (lower.includes('exploration') || lower.includes('jaune')) techColor = TechnologyCategory.EXPLORATION;
             else if (lower.includes('observation') || lower.includes('rouge')) techColor = TechnologyCategory.OBSERVATION;
-            
             effects.push({ type: 'ACTION', target: 'TECH', value: { amount, color: techColor } });
         }
     }
     return effects;
   }
 
-  private static parseConstraintColumn(constraint: string): CardEffect[] {
+  private static parsePassiveEffects(constraint: string): CardEffect[] {
     if (!constraint) return [];
     
     // Gestion du format VISIT_PLANET:mars:4

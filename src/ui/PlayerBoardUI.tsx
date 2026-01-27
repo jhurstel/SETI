@@ -486,7 +486,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                }}
              >
                {p.type === 'robot' ? '🤖' : '👤'} {p.name}
-               {isFirstPlayer && <span title="Premier joueur">👑</span>}
+               {isFirstPlayer && <span>👑</span>}
                {isActive && <span className="seti-player-tab-indicator"></span>}
              </div>
            );
@@ -622,10 +622,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
               {currentPlayer.technologies.length > 0 ? (
                 currentPlayer.technologies.map((tech) => (
                   <div key={tech.id} className="seti-player-list-item seti-tech-list-item">
-                    <div className="seti-tech-icon" title={tech.id.split('-')[0]}>{getTechIcon(tech.id)}</div>
+                    <div className="seti-tech-icon">{getTechIcon(tech.id)}</div>
                     <div className="seti-tech-name">{tech.name}</div>
                     {tech.description && (
-                      <div className="seti-tech-desc" title={tech.description}>
+                      <div className="seti-tech-desc">
                         {tech.description}
                       </div>
                     )}

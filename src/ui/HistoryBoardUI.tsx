@@ -158,7 +158,6 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                         <button
                             className="panel-title seti-history-undo-btn"
                             onClick={(e) => { e.stopPropagation(); onUndo(); }}
-                            title="Annuler la dernière action"
                         >
                             ↩
                         </button>

@@ -321,7 +321,6 @@ export interface Card {
   freeAction: FreeActionType;
   scanSector: SectorColor;
   revenue: RevenueType;
-  effects: CardEffect[];
   ownerId?: string;
   immediateEffects?: CardEffect[];
   passiveEffects?: CardEffect[];
@@ -333,7 +332,6 @@ export interface CardEffect {
   type: string;
   value: any;
   target?: string;
-  condition?: string;
   source?: string;
 }
 
@@ -515,9 +513,9 @@ export type InteractionState =
   /** Le joueur a un bonus de réservation et doit choisir une carte à glisser sous son plateau. */
   | { type: 'RESERVING_CARD', count: number, sequenceId?: string, selectedCards: string[] }
   /** Le joueur doit défausser des cartes (ex: fin de manche). */
-  | { type: 'DISCARDING_CARD', selectedCards: string[], sequenceId?: string }
+  | { type: 'DISCARDING_CARD', count: number, selectedCards: string[], sequenceId?: string }
   /** Le joueur a initié un échange et doit choisir la ressource à dépenser. */
-  | { type: 'TRADING_CARD', targetGain: string, selectedCards: string[], sequenceId?: string }
+  | { type: 'TRADING_CARD', count: number, targetGain: string, selectedCards: string[], sequenceId?: string }
   /** Le joueur acquiert une carte (gratuitement ou en payant) et doit la sélectionner dans la pioche ou la rangée. */
   | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, sequenceId?: string, triggerFreeAction?: boolean }
   /** Le joueur a des déplacements gratuits à effectuer. */

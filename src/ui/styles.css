@@ -213,14 +213,6 @@ body {
   flex-shrink: 0;
 }
 
-/*
-@keyframes pulse-green {
-  0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 5px #4caf50; opacity: 0.7; }
-  70% { transform: translate(-50%, -50%) scale(1.15); box-shadow: 0 0 15px #4caf50; opacity: 1; }
-  100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 5px #4caf50; opacity: 0.7; }
-}
-  */
-
 /* Style commun pour toutes les cartes (Main, Missions, Rangée, Pioche) */
 .seti-common-card {
   width: 120px;
