@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Mission, InteractionState } from '../core/types';
-import { SolarSystemBoardUI, SolarSystemBoardUIRef } from './SolarSystemBoardUI';
+import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
 import { ActionValidator } from '../core/ActionValidator';
@@ -144,9 +144,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
     }
   }, [game.currentRound, game.players, interactionState.type]);
-
-  // Ref pour contrôler le plateau solaire
-  const solarSystemRef = useRef<SolarSystemBoardUIRef>(null);
 
   // Ref pour accéder à l'état d'interaction actuel dans addToHistory sans dépendance
   const interactionStateRef = useRef(interactionState);
@@ -2979,7 +2976,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         </div>
         <div className="seti-right-panel">
           <SolarSystemBoardUI
-            ref={solarSystemRef}
             game={game}
             interactionState={interactionState}
             onProbeMove={handleProbeMove}

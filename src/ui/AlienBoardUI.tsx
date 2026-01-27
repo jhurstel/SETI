@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Game, InteractionState, LifeTraceType } from '../core/types';
+import { formatBonus } from '../core/Bonus';
 
 interface AlienBoardUIProps {
     game: Game;
@@ -84,13 +85,6 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
             colorHex = "#ffd700";
         }
 
-        const formatBonusSimple = (bonus: any) => {
-            const parts = [];
-            if (bonus.pv) parts.push(`${bonus.pv} PV`);
-            if (bonus.media) parts.push(`${bonus.media} Média`);
-            return parts.join(', ') || 'Aucun';
-        };
-
         return (
             <div style={{ textAlign: 'center', minWidth: '180px' }}>
                 <div style={{ fontWeight: 'bold', color: colorHex, marginBottom: '6px', borderBottom: '1px solid #555', paddingBottom: '4px' }}>
@@ -114,8 +108,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 )}
 
                 <div style={{ fontSize: '0.8em', marginTop: '4px', borderTop: '1px solid #555', paddingTop: '4px', textAlign: 'left' }}>
-                    <div style={{ color: '#ccc', marginBottom: '2px' }}>Bonus 1ère découverte : <span style={{ color: '#ffd700', float: 'right' }}>{formatBonusSimple(board.firstBonus)}</span></div>
-                    <div style={{ color: '#ccc' }}>Bonus suivants : <span style={{ color: '#ffd700', float: 'right' }}>{formatBonusSimple(board.nextBonus)}</span></div>
+                    <div style={{ color: '#ccc', marginBottom: '2px' }}>Bonus 1ère découverte : <span style={{ color: '#ffd700', float: 'right' }}>{formatBonus(board.firstBonus).join(', ')}</span></div>
+                    <div style={{ color: '#ccc' }}>Bonus suivants : <span style={{ color: '#ffd700', float: 'right' }}>{formatBonus(board.nextBonus).join(', ')}</span></div>
                 </div>
             </div>
         );

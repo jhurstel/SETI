@@ -8,23 +8,8 @@
  * - Plateau de technologies
  */
 
-import {
-  Board,
-  SolarSystem,
-  Sector,
-  Planet,
-  Bonus,
-  TechnologyBoard,
-  RotationDisk,
-  TechnologyCategory,
-  Technology,
-  AlienBoard,
-  ObjectiveTile,
-  ObjectiveCategory,
-  SectorColor,
-  SignalType,
-  Signal
-} from './types';
+import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, RotationDisk, TechnologyCategory, Technology, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorColor, SignalType, Signal } from './types';
+import { sectorToIndex } from './SolarSystemPosition';
 
 export class BoardManager {
   /**
@@ -53,7 +38,6 @@ export class BoardManager {
     const initialSector1 = Math.floor(Math.random() * 8) + 1;
     const initialSector2 = Math.floor(Math.random() * 8) + 1;
     const initialSector3 = Math.floor(Math.random() * 8) + 1;
-    const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
     const sectorIndex1 = sectorToIndex[initialSector1] || 0;
     const initialAngle1 = sectorIndex1 * 45;
     const sectorIndex2 = sectorToIndex[initialSector2] || 0;

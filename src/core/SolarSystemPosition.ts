@@ -3,7 +3,7 @@
  * Gère le calcul des positions absolues, la visibilité des objets, et le calcul de trajectoires
  */
 
-import { DiskName, SectorNumber } from './types';
+import { DiskName, DISK_NAMES, SectorNumber } from './types';
 
 /**
  * Position d'un objet céleste
@@ -177,6 +177,14 @@ export const INITIAL_ROTATING_LEVEL1_OBJECTS: CelestialObject[] = [
   { id: 'hollow-a8-l1', type: 'hollow', name: 'Creux A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 1 },
 ];
 
+// Conversion secteur -> index (sens trigonométrique/anti-horaire: 1=0, 2=1, 3=2, 4=3, 5=4, 6=5, 7=6, 8=7)
+// Secteur 1 = 0° (en haut), secteur 2 = 45°, secteur 3 = 90°, etc. dans le sens anti-horaire
+// Calculer l'angle initial basé sur le secteur (1-8)
+// Secteurs numérotés de droite à gauche (sens horaire) en partant de 12h : 1, 2, 3, 4, 5, 6, 7, 8
+// Secteur 1 = 0° (12h), secteur 2 = -45° (sens horaire), secteur 3 = -90°, etc.
+export const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
+export const indexToSector: { [key: number]: SectorNumber } = { 0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8 };
+
 /**
  * Crée un RotationState à partir des angles de rotation du composant React
  */
@@ -211,11 +219,6 @@ export function getAllCelestialObjects(): CelestialObject[] {
  * @returns Secteur absolu (1-8)
  */
 export function rotateSector(relativeSector: SectorNumber, rotationAngle: number): SectorNumber {
-  // Conversion secteur -> index (sens trigonométrique/anti-horaire: 1=0, 2=1, 3=2, 4=3, 5=4, 6=5, 7=6, 8=7)
-  // Secteur 1 = 0° (en haut), secteur 2 = 45°, secteur 3 = 90°, etc. dans le sens anti-horaire
-  const sectorToIndex: { [key: number]: number } = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7 };
-  const indexToSector: { [key: number]: SectorNumber } = { 0: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8 };
-  
   const sectorIndex = sectorToIndex[relativeSector];
   // Convertir l'angle en nombre de secteurs (45° par secteur, rotation anti-horaire = négative)
   // L'angle est en degrés, négatif pour rotation anti-horaire
@@ -225,6 +228,26 @@ export function rotateSector(relativeSector: SectorNumber, rotationAngle: number
   const newIndex = (sectorIndex - sectorsRotated + 8) % 8;
   return indexToSector[newIndex];
 }
+
+// Fonction helper pour calculer la position d'un objet céleste
+// Les secteurs sont rendus avec un offset de -90° pour commencer à 12h
+export function calculateObjectPosition(disk: DiskName, sector: SectorNumber, rotationAngle: number = 0) {
+  const diskIndex = DISK_NAMES[disk];
+  const sectorIndex = sectorToIndex[sector];
+  const diskWidth = 8;
+  const sunRadius = 4;
+  const innerRadius = sunRadius + (diskIndex * diskWidth);
+  const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
+  const objectRadius = (innerRadius + outerRadius) / 2;
+  // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
+  const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
+  const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
+  const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
+  // Appliquer la rotation
+  const rotatedAngle = sectorCenterAngle + rotationAngle;
+  const { x, y } = polarToCartesian(0, 0, objectRadius, rotatedAngle);
+  return { x, y, sectorCenterAngle, diskIndex };
+};
 
 /**
  * Calcule la position absolue d'un objet céleste après toutes les rotations
@@ -669,4 +692,50 @@ export function getAbsoluteSectorForProbe(
   const absoluteSector = ((absoluteSectorIndex % 8) + 8) % 8 + 1;
 
   return absoluteSector;
+};
+
+export function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
+  const angleInRadians = (angleInDegrees) * Math.PI / 180.0;
+  return {
+    x: centerX + (radius * Math.cos(angleInRadians)),
+    y: centerY + (radius * Math.sin(angleInRadians))
+  };
+};
+
+export function describeArc(x: number, y: number, radius: number, startAngle: number, endAngle: number, reverse: boolean = false) {
+    const start = polarToCartesian(x, y, radius, endAngle);
+    const end = polarToCartesian(x, y, radius, startAngle);
+    const largeArcFlag = Math.abs(endAngle - startAngle) <= 180 ? "0" : "1";
+    
+    if (reverse) {
+        // Sens anti-horaire (Start -> End) pour le texte du bas
+        return [ "M", end.x, end.y, "A", radius, radius, 0, largeArcFlag, 0, start.x, start.y ].join(" ");
+    }
+
+    // Sens horaire (End -> Start) pour le texte du haut
+    return [ "M", start.x, start.y, "A", radius, radius, 0, largeArcFlag, 1, end.x, end.y ].join(" ");
+};
+
+// Fonction helper pour déterminer le type de secteur (normal, hollow, empty) pour tous les niveaux
+export function getSectorType(level: number, disk: DiskName, relativeSector: SectorNumber): 'normal' | 'hollow' | 'empty' {
+  let obj: CelestialObject | undefined;
+  
+  // Chercher dans le bon tableau selon le niveau
+  if (level === 1) {
+    obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(
+      o => o.level === level && o.position.disk === disk && o.position.sector === relativeSector
+    );
+  } else if (level === 2) {
+    obj = INITIAL_ROTATING_LEVEL2_OBJECTS.find(
+      o => o.level === level && o.position.disk === disk && o.position.sector === relativeSector
+    );
+  } else if (level === 3) {
+    obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(
+      o => o.level === level && o.position.disk === disk && o.position.sector === relativeSector
+    );
+  }
+  
+  if (obj?.type === 'hollow') return 'hollow';
+  if (obj?.type === 'empty') return 'empty';
+  return 'normal';
 };
