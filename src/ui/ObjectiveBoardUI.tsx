@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Game, InteractionState, GOLDEN_MILESTONES } from '../core/types';
+import './ObjectiveBoardUI.css';
 
 interface ObjectiveBoardUIProps {
     game: Game;
@@ -16,34 +17,24 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
     }, [isInitiallyOpen]);
 
     return (
-        <div className={`seti-foldable-container seti-icon-panel ${isObjectivesOpen ? 'open' : 'collapsed'}`} style={{ pointerEvents: 'auto' }}>
+        <div className={`seti-foldable-container seti-icon-panel seti-objective-container ${isObjectivesOpen ? 'open' : 'collapsed'}`}>
             <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
                 <span className="panel-icon">🏆</span>
                 <span className="panel-title">Objectifs</span>
             </div>
             <div className="seti-foldable-content">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div className="seti-objective-grid">
                     {game.board.objectiveTiles && game.board.objectiveTiles.map(tile => (
                         <div key={tile.id}
                             onClick={() => onObjectiveClick(tile.id)}
-                            style={{
-                                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                                border: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '1px solid #4a9eff' : '1px solid #555',
-                                borderRadius: '6px',
-                                padding: '8px',
-                                display: 'flex',
-                                cursor: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? 'pointer' : 'default',
-                                boxShadow: interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? '0 0 10px rgba(74, 158, 255, 0.3)' : 'none',
-                                flexDirection: 'column',
-                                gap: '4px',
-                                minHeight: '100px'
-                            }}>
-                            <div style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', marginBottom: 'auto' }}>{tile.description}</div>
+                            className={`seti-objective-tile ${interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? 'active' : ''}`}
+                        >
+                            <div className="seti-objective-desc">{tile.description}</div>
 
                             {/* Piste de score avec 4 cercles */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', position: 'relative', padding: '0 5px' }}>
+                            <div className="seti-objective-track">
                                 {/* Ligne de connexion */}
-                                <div style={{ position: 'absolute', top: '50%', left: '10px', right: '10px', height: '2px', backgroundColor: '#555', zIndex: 0 }}></div>
+                                <div className="seti-objective-line"></div>
 
                                 {/* Cercles (1er, 2eme, Autre, Autre) */}
                                 {[tile.rewards.first, tile.rewards.second, tile.rewards.others, tile.rewards.others].map((pv, idx) => {
@@ -94,19 +85,15 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                                         </div>
                                     );
 
+                                    let markerClass = 'seti-objective-marker';
+                                    if (player) markerClass += ' occupied';
+                                    else if (isNextAvailable) markerClass += ' available';
+                                    else markerClass += ' default';
+
                                     return (
-                                        <div key={idx} style={{
-                                            width: '22px', height: '22px', borderRadius: '50%',
-                                            backgroundColor: player ? (player.color || '#fff') : (isNextAvailable ? 'rgba(74, 158, 255, 0.3)' : '#222'),
-                                            border: player ? '2px solid #fff' : (isNextAvailable ? '2px solid #4a9eff' : '1px solid #777'),
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            zIndex: 1, fontSize: '0.75em', fontWeight: 'bold',
-                                            color: player ? '#000' : '#fff',
-                                            boxShadow: isNextAvailable ? '0 0 8px #4a9eff' : (player ? '0 0 4px rgba(0,0,0,0.5)' : 'none'),
-                                            transform: isNextAvailable ? 'scale(1.2)' : 'scale(1)',
-                                            transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                                            cursor: isNextAvailable ? 'pointer' : 'help',
-                                        }}
+                                        <div key={idx} 
+                                            className={markerClass}
+                                            style={player ? { backgroundColor: player.color || '#fff' } : {}}
                                             onMouseEnter={(e) => {
                                                 const rect = e.currentTarget.getBoundingClientRect();
                                                 setActiveTooltip({ content: tooltipContent, rect });

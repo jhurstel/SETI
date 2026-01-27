@@ -1,0 +1,119 @@
+.seti-card-row-container {
+    pointer-events: auto;
+}
+
+.seti-card-row-container.active {
+    border-color: #4a9eff;
+    box-shadow: 0 0 20px rgba(74, 158, 255, 0.3);
+}
+
+.seti-card-row-content {
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+}
+
+.seti-deck-card {
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    background-image: repeating-linear-gradient(45deg, #222 0, #222 10px, #2a2a2a 10px, #2a2a2a 20px);
+    cursor: default;
+    border-color: #555;
+}
+
+.seti-deck-card.active {
+    cursor: pointer;
+    border-color: #4a9eff;
+}
+
+.seti-deck-label {
+    font-weight: bold;
+    color: #aaa;
+    text-align: center;
+}
+
+.seti-deck-count {
+    font-size: 0.8em;
+    color: #888;
+}
+
+.seti-row-card {
+    border: 1px solid #555;
+    cursor: default;
+    animation: cardAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.seti-row-card.active {
+    border: 1px solid #4a9eff;
+    cursor: pointer;
+}
+
+.seti-row-card-name {
+    font-weight: bold;
+    color: #fff;
+    line-height: 1.1;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+    height: 2.2em;
+    overflow: hidden;
+}
+
+.seti-row-card-cost {
+    font-size: 0.75em;
+    color: #aaa;
+}
+
+.seti-row-card-cost span {
+    color: #ffd700;
+}
+
+.seti-row-card-desc {
+    font-size: 0.7em;
+    color: #ccc;
+    font-style: italic;
+    margin: 4px 0;
+    line-height: 1.2;
+    flex: 1;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
+}
+
+.seti-row-card-details {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75em;
+    color: #ddd;
+    margin-bottom: 2px;
+}
+
+.seti-row-card-scan-box {
+    margin-top: auto;
+    padding: 4px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    text-align: center;
+}
+
+.seti-row-card-scan-label {
+    font-size: 0.7em;
+    text-transform: uppercase;
+    color: #ddd;
+    margin-bottom: 2px;
+}
+
+.seti-row-card-scan-value {
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.seti-card-row-empty {
+    grid-column: 2 / -1;
+    color: #888;
+    font-style: italic;
+    padding: 10px;
+    text-align: center;
+}

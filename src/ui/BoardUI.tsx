@@ -241,7 +241,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       let updatedGame = structuredClone(game);
       let player = updatedGame.players[updatedGame.currentPlayerIndex];
       let logMessage = "";
-      let toastMessage = "";
 
       if (effectType === 'SCORE_PER_MEDIA') {
         const pointsGained = player.mediaCoverage * value;
@@ -589,9 +588,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (playerIndex === -1) {
       playerIndex = updatedGame.currentPlayerIndex;
     }
-    const currentPlayer = updatedGame.players[playerIndex];
+    let currentPlayer = updatedGame.players[playerIndex];
 
     currentPlayer.cards = [...currentPlayer.cards];
+    currentPlayer.reservedCards = [...(currentPlayer.reservedCards || [])];
 
     // Traiter toutes les cartes sélectionnées
     for (const cardId of interactionState.selectedCards) {
@@ -602,10 +602,12 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       if (!card.revenue) continue;
 
       // Retirer la carte
-      currentPlayer.cards.splice(cardIndex, 1);
+      const [reservedCard] = currentPlayer.cards.splice(cardIndex, 1);
+      currentPlayer.reservedCards.push(reservedCard);
 
       // Appliquer le bonus
       let gainMsg = "";
+      let drawnCardName = "";
       if (card.revenue === RevenueType.CREDIT) {
         currentPlayer.revenueCredits += 1;
         currentPlayer.credits += 1;
@@ -617,30 +619,21 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       } else if (card.revenue === RevenueType.CARD) {
         currentPlayer.revenueCards += 1;
         gainMsg = formatResource(1, 'CARD');
-      }
-
-      addToHistory(`réserve carte "${card.name}" et gagne ${gainMsg}`, currentPlayer.id, game, { type: 'IDLE' }, interactionState.sequenceId);
-
-      // Si le bonus est une carte, on pioche immédiatement (attention aux effets de bord dans la boucle)
-      // Pour simplifier, on applique la pioche à la fin ou on modifie updatedGame directement
-      if (card.revenue === RevenueType.CARD) {
-        // On utilise CardSystem sur updatedGame qui est une copie locale
-        // Attention: CardSystem.drawCards retourne un nouveau Game
-        // Il faut faire attention à ne pas perdre les modifs précédentes de la boucle
-        // Ici c'est un peu tricky car drawCards est pur.
-        // On va simplifier en ajoutant manuellement la carte si possible ou en appelant drawCards sur l'objet courant
-        // Comme drawCards est complexe, on va le faire après la boucle si possible, ou accepter que updatedGame soit écrasé
-        // MAIS drawCards modifie decks et players.
-        // Solution simple: appeler drawCards et mettre à jour updatedGame
+        
+        // Pioche immédiate
         const res = CardSystem.drawCards(updatedGame, currentPlayer.id, 1, 'Bonus immédiat réservation');
-        // Mettre à jour les références locales
         updatedGame.decks = res.decks;
         updatedGame.players = res.players;
-        // currentPlayer est une référence à l'ancien tableau de joueurs, il faut le rafraichir
-        // Mais on est dans une boucle sur currentPlayer.cards...
-        // Pour éviter les problèmes, on ne supporte qu'une réservation à la fois pour l'instant dans la boucle
-        // Ou on accepte que la pioche se fasse sur l'état final.
+        
+        // Mettre à jour la référence locale du joueur et récupérer la carte piochée
+        currentPlayer = updatedGame.players.find(p => p.id === currentPlayer.id)!;
+        if (currentPlayer.cards.length > 0) {
+            const newCard = currentPlayer.cards[currentPlayer.cards.length - 1];
+            drawnCardName = ` "${newCard.name}"`;
+        }
       }
+
+      addToHistory(`réserve carte "${card.name}" et gagne ${gainMsg}${drawnCardName}`, currentPlayer.id, game, { type: 'IDLE' }, interactionState.sequenceId);
     }
 
     setGame(updatedGame);
@@ -2536,11 +2529,21 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       return;
     }
 
+    // Détecter si une carte a été piochée (pour l'afficher dans le log)
+    let extraMsg = "";
+    if (gainType === 'card') {
+        const updatedPlayer = result.updatedGame.players.find(p => p.id === currentPlayer.id);
+        if (updatedPlayer && updatedPlayer.cards.length > currentPlayer.cards.length) {
+            const newCard = updatedPlayer.cards[updatedPlayer.cards.length - 1];
+            extraMsg = ` "${newCard.name}"`;
+        }
+    }
+
     // Finaliser la transaction
     setGame(result.updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
     setInteractionState({ type: 'IDLE' });
-    addToHistory(`échange ${formatResource(2, spendType)} contre ${formatResource(1, gainType)}`, currentPlayer.id, game);
+    addToHistory(`échange ${formatResource(2, spendType)} contre ${formatResource(1, gainType)}${extraMsg}`, currentPlayer.id, game);
   };
 
   // Gestionnaire pour la sélection d'une carte de la pioche ou de la rangée principale
@@ -2607,8 +2610,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
 
         const logMsg = interactionState.isFree
-          ? (cardId ? `choisit la carte "${cardName}" (Bonus)` : `pioche la carte "${cardName}" (Bonus)`)
-          : (cardId ? `achète la carte "${cardName}" pour 3 médias` : `achète la carte "${cardName}" (pioche) pour 3 médias`);
+          ? (cardId ? `choisit la carte "${cardName}"` : `pioche la carte "${cardName}"`)
+          : (cardId ? `paye 3 médias pour acheter la carte "${cardName}" depuis la rangée` : `paye 3 médias pour acheter la carte "${cardName}" depuis la pioche`);
 
         const sequenceId = interactionState.sequenceId;
 
@@ -2643,6 +2646,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     // Capturer les cartes avant qu'elles ne soient retirées
     const cardsToDiscard = currentPlayer.cards.filter(c => interactionState.selectedCards.includes(c.id));
+    const cardNames = cardsToDiscard.map(c => `"${c.name}"`).join(' et ');
 
     // Mettre à jour GameEngine
     const result = ResourceSystem.tradeResources(game, currentPlayer.id, 'card', interactionState.targetGain, interactionState.selectedCards);
@@ -2662,7 +2666,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
     setInteractionState({ type: 'IDLE' });
     setToast({ message: '', visible: false });
-    addToHistory(`échange ${formatResource(2, 'card')} contre ${formatResource(1, interactionState.targetGain)}`, currentPlayer.id, game, { type: 'IDLE' });
+    addToHistory(`échange ${cardNames} contre ${formatResource(1, interactionState.targetGain)}`, currentPlayer.id, game, { type: 'IDLE' });
   };
 
   // Fonction interne pour traiter l'achat (commune à l'achat direct et après sélection)

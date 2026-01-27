@@ -183,7 +183,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     
     if (onHistory) {
         const gainText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
-        onHistory(`transfère une donnée vers l'ordinateur (${slotId})${gainText}`, sequenceId);
+        onHistory(`transfère 1 donnée vers l'ordinateur (${slotId})${gainText}`, sequenceId);
     }
     
     if (onGameUpdate) onGameUpdate(updatedGame);

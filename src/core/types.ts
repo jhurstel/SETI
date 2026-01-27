@@ -168,6 +168,7 @@ export interface Player {
   technologies: Technology[];
   cards: Card[];
   playedCards: Card[]; // Cartes jouées qui restent en jeu (ex: Missions Fin de partie)
+  reservedCards: Card[]; // Cartes réservées sous le plateau
   missions: Mission[];
   dataComputer: DataComputer;
   lifeTraces: LifeTrace[];

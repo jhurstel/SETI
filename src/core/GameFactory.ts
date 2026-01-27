@@ -116,6 +116,7 @@ export class GameFactory {
       technologies: [],
       cards: [],
       playedCards: [],
+      reservedCards: [],
       missions: [],
       dataComputer: this.createDataComputer(),
       lifeTraces: [],
@@ -190,7 +191,9 @@ export class GameFactory {
             const card = currentPlayer.cards[randomIndex];
             
             // Retirer la carte
-            currentPlayer.cards.splice(randomIndex, 1);
+            const [reservedCard] = currentPlayer.cards.splice(randomIndex, 1);
+            if (!currentPlayer.reservedCards) currentPlayer.reservedCards = [];
+            currentPlayer.reservedCards.push(reservedCard);
             
             let gainMsg = "";
             // Appliquer le revenu et le bonus immédiat
@@ -369,7 +372,7 @@ export class GameFactory {
 65;Radiotélescope FAST;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée, 1 Rotation et 1 Technologie Observation;1 Déplacement;Noir;1 Crédit;4 Crédits;1 Rotation + 1 Tech Observation + 2 Signaux Rangée;
 67;Radiotélescope d'Eupatoria;Action;Gagnez 1 Média, 1 Rotation et 1 Technologie Observation. Puis vous pouvez défausser 1 carte de votre main pour son signal.;1 Déplacement;Bleu;1 Pioche;3 Crédits;1 Média + 1 Rotation + 1 Tech Observation;GAIN_SIGNAL_FROM_HAND:1
 114;Chasseurs de Planètes;Action;Gagnez 1 Carte.Vous pouvez ensuite défausser jusqu'à 3 cartes de votre main pour leurs signaux.;1 Média;Rouge;1 Energie;1 Crédit;1 Carte;GAIN_SIGNAL_FROM_HAND:3
-83;Signal "Wow!";Action;Gagnez 1 Média et 2 Signaux dans le secteur de la Terre.;1 Déplacement;Bleu;1 Energie;2 Crédits;1 Média + 2 Signaux Terre;
+83;Signal Wow!;Action;Gagnez 1 Média et 2 Signaux dans le secteur de la Terre.;1 Déplacement;Bleu;1 Energie;2 Crédits;1 Média + 2 Signaux Terre;
 47;Very Large Array;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Donnée.;1 Média;Jaune;1 Energie;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:data:1
 46;Observatoire ALMA;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Pioche.;1 Déplacement;Jaune;1 Crédit;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:draw:1
 45;Allen Telescope Array;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Energie.;1 Média;Rouge;1 Pioche;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:energy:1

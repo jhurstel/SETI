@@ -45,6 +45,11 @@ export class CardSystem {
 
         // Retirer la carte
         player = this.discardCard(player, cardId);
+        
+        // Ajouter aux cartes réservées
+        if (!player.reservedCards) player.reservedCards = [];
+        player.reservedCards.push(card);
+        
         updatedGame.players[playerIndex] = player;
 
         // Appliquer le revenu et le bonus immédiat

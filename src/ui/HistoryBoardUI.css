@@ -1,5 +1,44 @@
+.seti-history-wrapper {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 300px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;
+    align-items: flex-end;
+}
+
+.seti-history-container {
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+}
+
 .seti-history-container:hover, .seti-history-container.open {
     max-height: 33vh !important;
+}
+
+.seti-history-title {
+    flex: 1;
+}
+
+.seti-history-undo-btn {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    cursor: pointer;
+    background-color: #555;
+    border: 1px solid #777;
+    color: #fff;
+    border-radius: 4px;
+    margin-right: 5px;
+}
+
+.seti-history-content {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
 }
   
 .seti-history-list {
@@ -7,7 +46,71 @@
     flex-direction: column;
     gap: 2px;
 }
+
+.seti-history-empty {
+    font-style: italic;
+    padding: 4px;
+    text-align: center;
+}
+
+.seti-history-separator {
+    display: flex;
+    align-items: center;
+    margin: 10px 0;
+    color: #aaa;
+    font-size: 0.75rem;
+    text-transform: none;
+    letter-spacing: 0.05em;
+}
+
+.seti-history-separator-line {
+    flex: 1;
+    height: 1px;
+    background-color: #555;
+}
+
+.seti-history-separator-text {
+    padding: 0 10px;
+}
   
 .seti-history-item {
     transition: background-color 0.3s ease;
+    padding-left: 8px;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: flex-start;
+}
+
+.seti-history-sequence-indicator {
+    margin-right: 6px;
+    color: #666;
+    font-family: monospace;
+    font-size: 1.1em;
+    line-height: 1.4;
+    user-select: none;
+}
+
+.seti-history-message {
+    flex: 1;
+    padding: 2px 0;
+}
+
+.seti-history-text {
+    color: #ddd;
+    font-size: 1em;
+}
+
+.seti-history-text.child {
+    font-size: 0.9em;
+}
+
+.seti-history-card-ref {
+    color: #4a9eff;
+    cursor: help;
+    border-bottom: 1px dotted #4a9eff;
+}
+
+.seti-history-resource-icon {
+    cursor: help;
+    font-weight: bold;
 }
