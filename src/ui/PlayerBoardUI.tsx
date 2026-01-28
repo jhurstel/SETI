@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, SectorColor, InteractionState } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, Mission, InteractionState } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { DataSystem } from '../systems/DataSystem'; 
 import { CardSystem } from '../systems/CardSystem';
 import { SectorSystem } from '../systems/SectorSystem';
 import { PlayerComputerUI } from './PlayerComputerUI';
+import { CardTooltip, CardDescription } from './CardTooltip';
 import './PlayerBoardUI.css';
 
 interface PlayerBoardUIProps {
@@ -68,43 +69,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
   const reservationCount = isReserving ? (interactionState as any).count : 0;
   const discardForSignalCount = isDiscardingForSignal ? (interactionState as any).count : 0;
-
-  const getSectorColorCode = (color: SectorColor) => {
-    switch(color) {
-        case SectorColor.BLUE: return '#4a9eff';
-        case SectorColor.RED: return '#ff6b6b';
-        case SectorColor.YELLOW: return '#ffd700';
-        case SectorColor.BLACK: return '#aaaaaa';
-        default: return '#fff';
-    }
-  };
-
-  const renderCardTooltip = (card: Card) => {
-    const descriptionParts = card.description ? card.description.split('Mission:') : [card.description];
-    const mainDescription = descriptionParts[0];
-    const missionDescription = descriptionParts.length > 1 ? descriptionParts[1] : null;
-
-    return (
-    <div className="seti-card-tooltip">
-      <div className="seti-card-tooltip-title">{card.name}</div>
-      <div className="seti-card-tooltip-desc">
-        {mainDescription}
-        {missionDescription && (
-            <div className="seti-card-tooltip-mission">
-                <strong>Mission:</strong>{missionDescription}
-            </div>
-        )}
-      </div>
-      <div className="seti-card-tooltip-stats">
-         <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
-         <div>Type: {card.type === CardType.ACTION ? 'Action' : 'Mission'} ({card.id})</div>
-         <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
-         <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
-         <div className="seti-card-tooltip-scan">Scan: <span style={{ color: getSectorColorCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
-      </div>
-    </div>
-    );
-  };
 
   const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -435,7 +399,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
       <div 
         key={card.id} 
         className={`seti-common-card seti-card-wrapper ${phaseClass}`}
-        onMouseEnter={e => handleTooltipHover(e, renderCardTooltip(card))}
+        onMouseEnter={e => handleTooltipHover(e, <CardTooltip card={card} />)}
         onMouseLeave={handleTooltipLeave}
         onClick={e => {
           e;
@@ -685,10 +649,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             </div>
             {isDiscarding && (
               <div className="seti-cards-warning">
-                Veuillez défausser des cartes pour n'en garder que 4.
+                Veuillez défausser des cartes pour n'en garder que {GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}.
                 <br />
-                Sélectionnées : {selectedCardIds.length} / {Math.max(0, currentPlayer.cards.length - 4)}
-                {currentPlayer.cards.length - selectedCardIds.length === 4 && (
+                Sélectionnées : {selectedCardIds.length} / {Math.max(0, currentPlayer.cards.length - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS)}
+                {currentPlayer.cards.length - selectedCardIds.length === GAME_CONSTANTS.HAND_SIZE_AFTER_PASS && (
                   <button 
                     onClick={onConfirmDiscard}
                     className="seti-confirm-btn"
@@ -746,12 +710,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 currentPlayer.cards.length > 0 ? (
                   currentPlayer.cards.map(renderHandCard)
                 ) : (
-                  <div className="seti-player-list-empty">Aucune carte</div>
+                  <div className="seti-player-list-empty">Aucune carte en main</div>
                 )
               ) : (
-                <div className="seti-player-list-empty" style={{ fontStyle: 'italic', color: '#aaa' }}>
-                  {currentPlayer.cards.length} carte(s) en main (Masqué)
-                </div>
+                <div className="seti-player-list-empty">{currentPlayer.cards.length} carte{currentPlayer.cards.length > 1 ? 's' : ''} en main (Masqué)</div>
               )}
             </div>
           </div>
@@ -762,10 +724,28 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             <div className="seti-player-list seti-cards-list">
               {((currentPlayer.missions && currentPlayer.missions.length > 0) || (currentPlayer.playedCards && currentPlayer.playedCards.length > 0)) ? (
                 <>
-                {(currentPlayer.missions || []).map((mission: any) => (
-                  <div key={mission.id} className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`}>
+                {(currentPlayer.missions || []).map((mission: Mission) => (
+                  <div key={mission.id} className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`}
+                    onMouseEnter={(e) => handleTooltipHover(e, (
+                      <div className="seti-card-tooltip">
+                        <div className="seti-card-tooltip-title">{mission.name}</div>
+                        <div className="seti-card-tooltip-desc">
+                          <CardDescription description={mission.description} />
+                        </div>
+                        <div className="seti-card-tooltip-stats">
+                           <div style={{ gridColumn: '1 / -1', textAlign: 'center' }}>
+                             {mission.completed ? 
+                               <span style={{color: '#4caf50', fontWeight: 'bold'}}>MISSION ACCOMPLIE</span> : 
+                               <span style={{color: '#aaa'}}>Progression: {mission.progress.current} / {mission.progress.target}</span>}
+                           </div>
+                        </div>
+                      </div>
+                    ))}
+                    onMouseLeave={handleTooltipLeave}
+                  >
                     <div className="seti-mission-header">
                       <div className="seti-mission-title">{mission.name}</div>
+                      <span className="seti-played-card-tag">MIS</span>
                       {mission.completed && <span className="seti-mission-check">✓</span>}
                     </div>
                     {mission.description && (
@@ -776,11 +756,11 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   </div>
                 ))}
                 {(currentPlayer.playedCards || []).map((card: Card) => {
-                  const descriptionParts = card.description ? card.description.split('Mission:') : [];
+                  const descriptionParts = card.description ? card.description.split('Fin de jeu:') : [];
                   const missionText = descriptionParts.length > 1 ? descriptionParts[1].trim() : card.description;
                   return (
                   <div key={card.id} className="seti-common-card seti-played-card"
-                  onMouseEnter={(e) => handleTooltipHover(e, renderCardTooltip(card))}
+                  onMouseEnter={(e) => handleTooltipHover(e, <CardTooltip card={card} />)}
                   onMouseLeave={handleTooltipLeave}
                   >
                     <div className="seti-mission-header">

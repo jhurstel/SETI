@@ -1,0 +1,47 @@
+sequenceDiagram
+    actor User
+    participant UI as BoardUI
+    participant Engine as GameEngine
+    participant Action as LaunchProbeAction
+    participant Validator as ActionValidator
+    participant System as ProbeSystem
+
+    User->>UI: Click Earth / Launch Probe
+    activate UI
+    
+    UI->>UI: handleAction(LAUNCH_PROBE)
+    create participant ActionInstance as action: LaunchProbeAction
+    UI->>ActionInstance: new(playerId)
+    
+    UI->>Engine: executeAction(action)
+    activate Engine
+    
+    Engine->>Validator: validateAction(game, action)
+    activate Validator
+    Validator-->>Engine: ValidationResult (valid)
+    deactivate Validator
+    
+    Engine->>ActionInstance: execute(game)
+    activate ActionInstance
+    
+    ActionInstance->>System: launchProbe(game, playerId)
+    activate System
+    
+    Note right of System: Check resources (Credits)<br/>Check probe limit
+    System->>System: Deduct Credits
+    System->>System: Update Player Probes
+    System->>System: Update Board (Add Probe)
+    
+    System-->>ActionInstance: Updated Game State
+    deactivate System
+    
+    ActionInstance-->>Engine: Updated Game State
+    deactivate ActionInstance
+    
+    Engine-->>UI: ActionResult (success, newState)
+    deactivate Engine
+    
+    UI->>UI: setGame(newState)
+    UI->>UI: addToHistory("Paid X credits to Launch Probe...")
+    
+    deactivate UI

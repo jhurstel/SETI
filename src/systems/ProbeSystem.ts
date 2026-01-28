@@ -610,6 +610,30 @@ export class ProbeSystem {
       if (slotBonus) applyAndAccumulate(slotBonus);
     }
 
+    // Traitement des buffs permanents
+    updatedPlayer.permanentBuffs.forEach(buff => {
+      if (buff.type === 'GAIN_ON_ORBIT') {
+            const bonus: Bonus = {};
+            if (buff.target === 'media') bonus.media = buff.value;
+            else if (buff.target === 'data') bonus.data = buff.value;
+            else if (buff.target === 'credit') bonus.credits = buff.value;
+            else if (buff.target === 'energy') bonus.energy = buff.value;
+            else if (buff.target === 'pv') bonus.pv = buff.value;
+            
+            applyAndAccumulate(bonus);
+
+            if (buff.source) {
+              const mission = updatedPlayer.missions.find(m => m.name === buff.source);
+              if (mission) {
+                  mission.progress.current += 1;
+                  if (mission.progress.current >= mission.progress.target) {
+                      mission.completed = true;
+                  }
+              }
+            }           
+      }
+    });
+  
     updatedGame.players[playerIndex] = updatedPlayer;
 
     return {
@@ -800,6 +824,30 @@ export class ProbeSystem {
             applyAndAccumulate((updatedTargetBody as Satellite).landBonus);
         }
     }
+
+    // Traitement des buffs permanents
+    updatedPlayer.permanentBuffs.forEach(buff => {
+      if (buff.type === 'GAIN_ON_LAND') {
+           const bonus: Bonus = {};
+           if (buff.target === 'media') bonus.media = buff.value;
+           else if (buff.target === 'data') bonus.data = buff.value;
+           else if (buff.target === 'credit') bonus.credits = buff.value;
+           else if (buff.target === 'energy') bonus.energy = buff.value;
+           else if (buff.target === 'pv') bonus.pv = buff.value;
+           
+           applyAndAccumulate(bonus);
+
+           if (buff.source) {
+               const mission = updatedPlayer.missions.find(m => m.name === buff.source);
+               if (mission) {
+                   mission.progress.current += 1;
+                   if (mission.progress.current >= mission.progress.target) {
+                       mission.completed = true;
+                   }
+               }
+           }
+      }
+    });
 
     updatedGame.players[playerIndex] = updatedPlayer;
 

@@ -156,14 +156,13 @@ export class ScoreManager {
               // Série de 3 types de traces de vie
               const tCounts = new Map<LifeTraceType, number>();
               player.lifeTraces.forEach(t => tCounts.set(t.type, (tCounts.get(t.type) || 0) + 1));
-              
-              const cA = tCounts.get(LifeTraceType.TYPE_A) || 0;
-              const cB = tCounts.get(LifeTraceType.TYPE_B) || 0;
-              const cC = tCounts.get(LifeTraceType.TYPE_C) || 0;
-              count = Math.min(cA, cB, cC);
+              const cBlue = tCounts.get(LifeTraceType.BLUE) || 0;
+              const cRed = tCounts.get(LifeTraceType.RED) || 0;
+              const cYellow = tCounts.get(LifeTraceType.YELLOW) || 0;
+              count = Math.min(cBlue, cRed, cYellow);
             } else {
               // Paire secteur couvert / sonde (orbiteur ou atterrisseur)
-              const coveredSectors = board.sectors.filter(s => s.coveredBy === player.id).length;
+              const coveredSectors = board.sectors.filter(s => s.coveredBy.includes(player.id)).length;
               const probes = player.probes.filter(p => p.state === ProbeState.IN_ORBIT || p.state === ProbeState.LANDED).length;
               count = Math.min(coveredSectors, probes);
             }

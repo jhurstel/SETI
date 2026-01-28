@@ -181,6 +181,7 @@ export interface Player {
   claimedNeutralMilestones: number[];
   visitedPlanetsThisTurn: string[]; // Planètes visitées ce tour-ci
   activeBuffs: CardEffect[]; // Effets passifs temporaires (ex: bonus de visite)
+  permanentBuffs: CardEffect[]; // Effets passifs permanents (ex: carte mission)
 }
 
 export interface Board {
@@ -324,6 +325,7 @@ export interface Card {
   ownerId?: string;
   immediateEffects?: CardEffect[];
   passiveEffects?: CardEffect[];
+  permanentEffects?: CardEffect[];
   scoringModifiers?: ScoringModifier[];
   isRevealed?: boolean;
 }
@@ -341,15 +343,9 @@ export interface Mission {
   name: string;
   description: string;
   ownerId: string;
-  requirements: MissionRequirement[];
+  requirements: CardEffect[];
   progress: MissionProgress;
   completed: boolean;
-  completedAt?: number;
-}
-
-export interface MissionRequirement {
-  type: string;
-  target: number;
 }
 
 export interface MissionProgress {

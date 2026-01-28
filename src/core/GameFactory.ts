@@ -128,7 +128,8 @@ export class GameFactory {
       claimedGoldenMilestones: [],
       claimedNeutralMilestones: [],
       visitedPlanetsThisTurn: [],
-      activeBuffs: []
+      activeBuffs: [],
+      permanentBuffs: []
     };
   }
 
@@ -399,19 +400,20 @@ export class GameFactory {
 98;Spectrographe Coronal;Action;Marquez 1 Trace de Vie Rouge pour une espèce pour laquelle vous avez déjà marqué 1 Trace de Vie Rouge.;1 Donnée;Rouge;1 Energie;1 Crédit;;GAIN_LIFETRACE_IF_ALREADY:red:1
 99;Microscope Electronique;Action;Marquez 1 Trace de Vie Jaune pour une espèce pour laquelle vous avez déjà marqué 1 Trace de Vie Jaune.;1 Donnée;Jaune;1 Pioche;1 Crédit;;GAIN_LIFETRACE_IF_ALREADY:yellow:1
 100;Supercalculateur Exascale;Action;Marquez 1 Trace de Vie Bleu pour une espèce pour laquelle vous avez déjà marqué 1 Trace de Vie Bleu.;1 Donnée;Bleu;1 Crédit;1 Crédit;;GAIN_LIFETRACE_IF_ALREADY:blue:1
-86;Télescope Géant Magellan;Fin de jeu;Gagnez 1 Signal dans un secteur d'une carte de la rangée. Mission: Gagnez 1 PV pour chaque secteur où vous avez un signal.;1 Média;Rouge;1 Energie;1 Crédit;1 Signal Rangée;
-40;Observatoire de Kepler-22;Fin de jeu;Gagnez 2 Signaux dans le secteur de Kepler-22. Mission: Gagnez 3PVs pour chaque secteur Jaune que vous avez couvert.;1 Média;Rouge;1 Crédit;2 Crédits;2 Signaux Kepler-22;
-38;Observatoire de l'Etoile de Barnard;Fin de jeu;Gagnez 2 Signaux dans le secteur de l'Etoile de Barnard. Mission: Gagnez 3 PVs pour chaque secteur Rouge que vous avez couvert.;1 Média;Bleu;1 Energie;2 Crédits;2 Signaux Etoile de Barnard;
-42;Observatoire de Procyon;Fin de jeu;Gagnez 2 Signaux dans le secteur de Procyon. Mission: Gagnez 3 PVs pour chaque secteur Bleu que vous avez couvert.;1 Média;Jaune;1 Pioche;2 Crédits;2 Signaux Procyon;
-44;Observatoire de Vega;Fin de jeu;Gagnez 1 Signal dans le secteur de Véga. Mission: Gagnez 3 PVs pour chaque secteur Noir que vous avez couvert.;1 Média;Rouge;1 Crédit;1 Crédit;1 Signal Véga;
-126;Télescope Spatial Euclide;Fin de jeu;Gagnez 1 Rotation et 1 Technologie Exploration ou Observation. Mission: Gagnez 2 PVs pour chaque Technologie Informatique.;1 Média;Bleu;1 Pioche;3 Crédits;1 Rotation + 1 Tech;CHOICE_EXPLO_OR_OBSERV
-14;Mars Science Laboratory;Fin de jeu;Gagnez 1 Média et 2 Données. Mission: Gagnez 4 PVs pour chacun de vos Orbiteurs et Atterrisseurs sur Mars (lunes comprises).;1 Déplacement;Rouge;1 Crédit;2 Crédits;1 Média + 2 Données;
-12;Europa Clipper;Fin de jeu;Gagnez 1 Atterrissage sur une planète ou une lune, même sans la technologie requise. Mission: Gagnez 3 PVs pour chacun de vos Orbiteurs et Atterrisseurs sur Jupiter (lunes comprises).;1 Média;Noir;1 Crédit;2 Crédits;1 Atterrissage;IGNORE_SATELLITE_LIMIT
-127;NEAR Shoemaker;Fin de jeu;Gagnez 2 Médias. Mission: Si vous avez une sonde sur un champ d'astéroïdes, gagnez 13 PVs.;1 Donnée;Jaune;1 Crédit;1 Crédit;2 Médias;
-113;Congrès Solvay;Fin de jeu;Gagnez 2 Médias. Mission: résolvez la case la plus à droite d'une tuile Score dorée sur laquelle vou sn'avez pas placé de marqueur.;1 Donnée;Bleu;1 Pioche;2 Crédits;2 Médias;
-63;SHERLOC;Fin de jeu;Gagnez 1 Rotation et 1 Technologie Exploration. Mission: Gagnez 2 PVs pour chaque Trace de Vie Jaune.;1 Déplacement;Bleu;1 Crédit;3 Crédits;1 Rotation + 1 Tech Exploration;
-68;DUNE;Fin de jeu;Gagnez 1 Rotation et 1 Technologie Informatique. Mission: Gagnez 2 PVs pour chaque Trace de Vie Bleu.;1 Média;Rouge;1 Crédit;3 Crédits;1 Rotation + 1 Tech Informatique;
-62;Observatoire Spatial d'Onsala;Fin de jeu;Gagnez 1 Rotation et 1 Technologie Observation. Mission: Gagnez 2 PVs pour chaque Trace de Vie Rouge.;1 Donnée;Rouge;1 Crédit;3 Crédits;1 Rotation + 1 Tech Observation;
+86;Télescope Géant Magellan;Fin de jeu;Gagnez 1 Signal dans un secteur d'une carte de la rangée. Fin de jeu: Gagnez 1 PV pour chaque secteur où vous avez un signal.;1 Média;Rouge;1 Energie;1 Crédit;1 Signal Rangée;
+40;Observatoire de Kepler-22;Fin de jeu;Gagnez 2 Signaux dans le secteur de Kepler-22. Fin de jeu: Gagnez 3PVs pour chaque secteur Jaune que vous avez couvert.;1 Média;Rouge;1 Crédit;2 Crédits;2 Signaux Kepler-22;
+38;Observatoire de l'Etoile de Barnard;Fin de jeu;Gagnez 2 Signaux dans le secteur de l'Etoile de Barnard. Fin de jeu: Gagnez 3 PVs pour chaque secteur Rouge que vous avez couvert.;1 Média;Bleu;1 Energie;2 Crédits;2 Signaux Etoile de Barnard;
+42;Observatoire de Procyon;Fin de jeu;Gagnez 2 Signaux dans le secteur de Procyon. Fin de jeu: Gagnez 3 PVs pour chaque secteur Bleu que vous avez couvert.;1 Média;Jaune;1 Pioche;2 Crédits;2 Signaux Procyon;
+44;Observatoire de Vega;Fin de jeu;Gagnez 1 Signal dans le secteur de Véga. Fin de jeu: Gagnez 3 PVs pour chaque secteur Noir que vous avez couvert.;1 Média;Rouge;1 Crédit;1 Crédit;1 Signal Véga;
+126;Télescope Spatial Euclide;Fin de jeu;Gagnez 1 Rotation et 1 Technologie Exploration ou Observation. Fin de jeu: Gagnez 2 PVs pour chaque Technologie Informatique.;1 Média;Bleu;1 Pioche;3 Crédits;1 Rotation + 1 Tech;CHOICE_EXPLO_OR_OBSERV
+14;Mars Science Laboratory;Fin de jeu;Gagnez 1 Média et 2 Données. Fin de jeu: Gagnez 4 PVs pour chacun de vos Orbiteurs et Atterrisseurs sur Mars (lunes comprises).;1 Déplacement;Rouge;1 Crédit;2 Crédits;1 Média + 2 Données;
+12;Europa Clipper;Fin de jeu;Gagnez 1 Atterrissage sur une planète ou une lune, même sans la technologie requise. Fin de jeu: Gagnez 3 PVs pour chacun de vos Orbiteurs et Atterrisseurs sur Jupiter (lunes comprises).;1 Média;Noir;1 Crédit;2 Crédits;1 Atterrissage;IGNORE_SATELLITE_LIMIT
+127;NEAR Shoemaker;Fin de jeu;Gagnez 2 Médias. Fin de jeu: Si vous avez une sonde sur un champ d'astéroïdes, gagnez 13 PVs.;1 Donnée;Jaune;1 Crédit;1 Crédit;2 Médias;
+113;Congrès Solvay;Fin de jeu;Gagnez 2 Médias. Fin de jeu: résolvez la case la plus à droite d'une tuile Score dorée sur laquelle vou sn'avez pas placé de marqueur.;1 Donnée;Bleu;1 Pioche;2 Crédits;2 Médias;
+63;SHERLOC;Fin de jeu;Gagnez 1 Rotation et 1 Technologie Exploration. Fin de jeu: Gagnez 2 PVs pour chaque Trace de Vie Jaune.;1 Déplacement;Bleu;1 Crédit;3 Crédits;1 Rotation + 1 Tech Exploration;
+68;DUNE;Fin de jeu;Gagnez 1 Rotation et 1 Technologie Informatique. Fin de jeu: Gagnez 2 PVs pour chaque Trace de Vie Bleu.;1 Média;Rouge;1 Crédit;3 Crédits;1 Rotation + 1 Tech Informatique;
+62;Observatoire Spatial d'Onsala;Fin de jeu;Gagnez 1 Rotation et 1 Technologie Observation. Fin de jeu: Gagnez 2 PVs pour chaque Trace de Vie Rouge.;1 Donnée;Rouge;1 Crédit;3 Crédits;1 Rotation + 1 Tech Observation;
+82;Johnson Space Center;Mission conditionnelle;Mission: Gagnez 2 Médias après avoir effectué l'action Mettre en orbite. Mission: Gagnez 2 Médias après avoir effectué une action Poser une sonde.;1 Donnée;Jaune;1 Energie;1 Crédit;;GAIN_ON_ORBIT:media:2 + GAIN_ON_LAND:media:2
 `
     return this.parseCSV(csvContent);
   }
@@ -445,7 +447,8 @@ export class GameFactory {
             scanSector: this.mapSectorColor(couleurScan.trim()),
             revenue: this.mapRevenueType(revenue.trim()),
             immediateEffects: this.parseImmediateEffects(gain.trim()),
-            passiveEffects: this.parsePassiveEffects(contrainte.trim())
+            passiveEffects: this.parsePassiveEffects(contrainte.trim()),
+            permanentEffects: this.parsePermanentEffects(contrainte.trim())
         });
       }
     }
@@ -455,7 +458,7 @@ export class GameFactory {
   private static mapCardType(value: string): CardType {
     const v = value.toLowerCase();
     if (v.includes('action')) return CardType.ACTION;
-    if (v.includes('conditionnel')) return CardType.CONDITIONAL_MISSION;
+    if (v.includes('conditionnelle')) return CardType.CONDITIONAL_MISSION;
     if (v.includes('déclenchable')) return CardType.TRIGGERED_MISSION;
     if (v.includes('fin')) return CardType.END_GAME
     return CardType.ACTION; // Valeur par défaut
@@ -550,200 +553,353 @@ export class GameFactory {
 
   private static parsePassiveEffects(constraint: string): CardEffect[] {
     if (!constraint) return [];
+    const effects: CardEffect[] = [];
+
+    // Séparer les effets multiples (ex: "GAIN_ON_ORBIT:media:2 + GAIN_ON_LAND:media:2")
+    const passives = constraint.split('+').map(p => p.trim());
+
+    for (const passive of passives) {
     
-    // Gestion du format VISIT_PLANET:mars:4
-    if (constraint.startsWith('VISIT_PLANET:')) {
-        const parts = constraint.split(':');
-        if (parts.length === 3) {
-            return [{ type: 'VISIT_BONUS', target: parts[1], value: parseInt(parts[2], 10) }];
-        }
-    }
+      // Gestion du format VISIT_PLANET:mars:4
+      if (passive.startsWith('VISIT_PLANET:')) {
+          const parts = passive.split(':');
+          if (parts.length === 3) {
+            effects.push({ type: 'VISIT_BONUS', target: parts[1], value: parseInt(parts[2], 10) });
+          }
+      }
 
-    // Gestion du format VISIT_UNIQUE:1
-    if (constraint.startsWith('VISIT_UNIQUE:')) {
-        const parts = constraint.split(':');
-        if (parts.length === 2) {
-            return [{ type: 'VISIT_UNIQUE', value: parseInt(parts[1], 10) }];
-        }
-    }
+      // Gestion du format VISIT_UNIQUE:1
+      else if (passive.startsWith('VISIT_UNIQUE:')) {
+          const parts = passive.split(':');
+          if (parts.length === 2) {
+            effects.push({ type: 'VISIT_UNIQUE', value: parseInt(parts[1], 10) });
+          }
+      }
 
-    // Gestion du format ASTEROID_EXIT_COST:1
-    if (constraint.startsWith('ASTEROID_EXIT_COST:')) {
-        const parts = constraint.split(':');
-        if (parts.length === 2) {
-            return [{ type: 'ASTEROID_EXIT_COST', value: parseInt(parts[1], 10) }];
-        }
-    }
+      // Gestion du format ASTEROID_EXIT_COST:1
+      else if (passive.startsWith('ASTEROID_EXIT_COST:')) {
+          const parts = passive.split(':');
+          if (parts.length === 2) {
+            effects.push({ type: 'ASTEROID_EXIT_COST', value: parseInt(parts[1], 10) });
+          }
+      }
 
-    // Gestion du format VISIT_ASTEROID:1
-    if (constraint.startsWith('VISIT_ASTEROID:')) {
-        const parts = constraint.split(':');
-        if (parts.length === 2) {
-            return [{ type: 'VISIT_ASTEROID', value: parseInt(parts[1], 10) }];
-        }
-    }
+      // Gestion du format VISIT_ASTEROID:1
+      else if (passive.startsWith('VISIT_ASTEROID:')) {
+          const parts = passive.split(':');
+          if (parts.length === 2) {
+            effects.push({ type: 'VISIT_ASTEROID', value: parseInt(parts[1], 10) });
+          }
+      }
 
-    // Gestion du format VISIT_COMET:4
-    if (constraint.startsWith('VISIT_COMET:')) {
-        const parts = constraint.split(':');
-        if (parts.length === 2) {
-            return [{ type: 'VISIT_COMET', value: parseInt(parts[1], 10) }];
-        }
-    }
+      // Gestion du format VISIT_COMET:4
+      else if (passive.startsWith('VISIT_COMET:')) {
+          const parts = passive.split(':');
+          if (parts.length === 2) {
+            effects.push({ type: 'VISIT_COMET', value: parseInt(parts[1], 10) });
+          }
+      }
 
-    // Gestion du format SAME_DISK_MOVE:3:1 (3 PV, 1 Media)
-    if (constraint.startsWith('SAME_DISK_MOVE:')) {
-        const parts = constraint.split(':');
-        if (parts.length === 3) {
-            return [{ type: 'SAME_DISK_MOVE', value: { pv: parseInt(parts[1], 10), media: parseInt(parts[2], 10) } }];
-        }
-    }
+      // Gestion du format SAME_DISK_MOVE:3:1 (3 PV, 1 Media)
+      else if (passive.startsWith('SAME_DISK_MOVE:')) {
+          const parts = passive.split(':');
+          if (parts.length === 3) {
+            effects.push({ type: 'SAME_DISK_MOVE', value: { pv: parseInt(parts[1], 10), media: parseInt(parts[2], 10) } });
+          }
+      }
 
-    // Gestion du format REVEAL_AND_TRIGGER_FREE_ACTION
-    if (constraint === 'REVEAL_AND_TRIGGER_FREE_ACTION') {
-        return [{ type: 'REVEAL_AND_TRIGGER_FREE_ACTION', value: 1 }];
-    }
+      // Gestion du format REVEAL_AND_TRIGGER_FREE_ACTION
+      else if (passive === 'REVEAL_AND_TRIGGER_FREE_ACTION') {
+        effects.push({ type: 'REVEAL_AND_TRIGGER_FREE_ACTION', value: 1 });
+      }
 
-    // Gestion du format SCORE_PER_MEDIA:1
-    if (constraint.startsWith('SCORE_PER_MEDIA:')) {
-        const parts = constraint.split(':');
-        if (parts.length === 2) {
-            return [{ type: 'SCORE_PER_MEDIA', value: parseInt(parts[1], 10) }];
-        }
-    }
+      // Gestion du format SCORE_PER_MEDIA:1
+      else if (passive.startsWith('SCORE_PER_MEDIA:')) {
+          const parts = passive.split(':');
+          if (parts.length === 2) {
+            effects.push({ type: 'SCORE_PER_MEDIA', value: parseInt(parts[1], 10) });
+          }
+      }
 
-    // Gestion du format SCORE_PER_TECH_TYPE:2
-    if (constraint.startsWith('SCORE_PER_TECH_TYPE:')) {
-        const parts = constraint.split(':');
-        if (parts.length === 2) {
-            return [{ type: 'SCORE_PER_TECH_TYPE', value: parseInt(parts[1], 10) }];
-        }
-    }
+      // Gestion du format SCORE_PER_TECH_TYPE:2
+      else if (passive.startsWith('SCORE_PER_TECH_TYPE:')) {
+          const parts = passive.split(':');
+          if (parts.length === 2) {
+            effects.push({ type: 'SCORE_PER_TECH_TYPE', value: parseInt(parts[1], 10) });
+          }
+      }
 
-    // Gestion du format MEDIA_IF_SHARED_TECH:2
-    if (constraint.startsWith('MEDIA_IF_SHARED_TECH:')) {
-        const parts = constraint.split(':');
-        if (parts.length === 2) {
-            return [{ type: 'MEDIA_IF_SHARED_TECH', value: parseInt(parts[1], 10) }];
-        }
-    }
+      // Gestion du format MEDIA_IF_SHARED_TECH:2
+      else if (passive.startsWith('MEDIA_IF_SHARED_TECH:')) {
+          const parts = passive.split(':');
+          if (parts.length === 2) {
+            effects.push({ type: 'MEDIA_IF_SHARED_TECH', value: parseInt(parts[1], 10) });
+          }
+      }
 
-    // Gestion du format REVEAL_MOVEMENT_CARDS_FOR_BONUS
-    if (constraint === 'REVEAL_MOVEMENT_CARDS_FOR_BONUS') {
-        return [{ type: 'REVEAL_MOVEMENT_CARDS_FOR_BONUS', value: 1 }];
-    }
+      // Gestion du format REVEAL_MOVEMENT_CARDS_FOR_BONUS
+      else if (passive === 'REVEAL_MOVEMENT_CARDS_FOR_BONUS') {
+        effects.push({ type: 'REVEAL_MOVEMENT_CARDS_FOR_BONUS', value: 1 });
+      }
 
-    // Gestion du format GAIN_ENERGY_PER_ENERGY_REVENUE
-    if (constraint === 'GAIN_ENERGY_PER_ENERGY_REVENUE') {
-        return [{ type: 'GAIN_ENERGY_PER_ENERGY_REVENUE', value: 1 }];
-    }
+      // Gestion du format GAIN_ENERGY_PER_ENERGY_REVENUE
+      else if (passive === 'GAIN_ENERGY_PER_ENERGY_REVENUE') {
+        effects.push({ type: 'GAIN_ENERGY_PER_ENERGY_REVENUE', value: 1 });
+      }
 
-    // Gestion du format GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE
-    if (constraint === 'GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE') {
-        return [{ type: 'GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE', value: 1 }];
-    }
+      // Gestion du format GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE
+      else if (passive === 'GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE') {
+        effects.push({ type: 'GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE', value: 1 });
+      }
 
-    // Gestion du format GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE
-    if (constraint === 'GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE') {
-        return [{ type: 'GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE', value: 1 }];
-    }
+      // Gestion du format GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE
+      else if (passive === 'GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE') {
+        effects.push({ type: 'GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE', value: 1 });
+      }
 
-    // Gestion du format GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE
-    if (constraint === 'GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE') {
-        return [{ type: 'GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE', value: 1 }];
-    }
+      // Gestion du format GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE
+      else if (passive === 'GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE') {
+        effects.push({ type: 'GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE', value: 1 });
+      }
 
-    // Gestion du format SHARED_TECH_ONLY_NO_BONUS
-    if (constraint === 'SHARED_TECH_ONLY_NO_BONUS') {
-        return [{ type: 'SHARED_TECH_ONLY_NO_BONUS', value: 1 }];
-    }
+      // Gestion du format SHARED_TECH_ONLY_NO_BONUS
+      else if (passive === 'SHARED_TECH_ONLY_NO_BONUS') {
+        effects.push({ type: 'SHARED_TECH_ONLY_NO_BONUS', value: 1 });
+      }
 
-    // Gestion du format OPTIMAL_LAUNCH_WINDOW
-    if (constraint === 'OPTIMAL_LAUNCH_WINDOW') {
-        return [{ type: 'OPTIMAL_LAUNCH_WINDOW', value: 1 }];
-    }
+      // Gestion du format OPTIMAL_LAUNCH_WINDOW
+      else if (passive === 'OPTIMAL_LAUNCH_WINDOW') {
+        effects.push({ type: 'OPTIMAL_LAUNCH_WINDOW', value: 1 });
+      }
 
-    // Gestion du format OSIRIS_REX_BONUS
-    if (constraint === 'OSIRIS_REX_BONUS') {
-        return [{ type: 'OSIRIS_REX_BONUS', value: 1 }];
-    }
+      // Gestion du format OSIRIS_REX_BONUS
+      else if (passive === 'OSIRIS_REX_BONUS') {
+        effects.push({ type: 'OSIRIS_REX_BONUS', value: 1 });
+      }
 
-    // Gestion du format DISCARD_ROW_FOR_FREE_ACTIONS
-    if (constraint === 'DISCARD_ROW_FOR_FREE_ACTIONS') {
-        return [{ type: 'DISCARD_ROW_FOR_FREE_ACTIONS', value: 1 }];
-    }
+      // Gestion du format DISCARD_ROW_FOR_FREE_ACTIONS
+      else if (passive === 'DISCARD_ROW_FOR_FREE_ACTIONS') {
+        effects.push({ type: 'DISCARD_ROW_FOR_FREE_ACTIONS', value: 1 });
+      }
 
-    // Gestion du format ATMOSPHERIC_ENTRY
-    if (constraint === 'ATMOSPHERIC_ENTRY') {
-        return [{ type: 'ATMOSPHERIC_ENTRY', value: 1 }];
-    }
+      // Gestion du format ATMOSPHERIC_ENTRY
+      else if (passive === 'ATMOSPHERIC_ENTRY') {
+        effects.push({ type: 'ATMOSPHERIC_ENTRY', value: 1 });
+      }
 
-    // Gestion du format IGNORE_PROBE_LIMIT
-    if (constraint === 'IGNORE_PROBE_LIMIT') {
-        return [{ type: 'IGNORE_PROBE_LIMIT', value: true }];
-    }
+      // Gestion du format IGNORE_PROBE_LIMIT
+      else if (passive === 'IGNORE_PROBE_LIMIT') {
+        effects.push({ type: 'IGNORE_PROBE_LIMIT', value: true });
+      }
 
-    // Gestion du format CHOICE_MEDIA_OR_MOVE
-    if (constraint === 'CHOICE_MEDIA_OR_MOVE') {
-      return [{ type: 'CHOICE_MEDIA_OR_MOVE', value: true }];
+      // Gestion du format CHOICE_MEDIA_OR_MOVE
+      else if (passive === 'CHOICE_MEDIA_OR_MOVE') {
+        effects.push({ type: 'CHOICE_MEDIA_OR_MOVE', value: true });
+      }
+
+      // Gestion du format GAIN_SIGNAL_FROM_HAND:x
+      else if (passive.startsWith('GAIN_SIGNAL_FROM_HAND:')) {
+          const parts = passive.split(':');
+          effects.push({ type: 'GAIN_SIGNAL_FROM_HAND', value: parseInt(parts[1], 10) });
+      }
+
+      // Gestion du format BONUS_IF_COVERED:type
+      else if (passive.startsWith('BONUS_IF_COVERED:')) {
+          const parts = passive.split(':');
+          effects.push({ type: 'BONUS_IF_COVERED', target: parts[1], value: 1 });
+      }
+
+      // Gestion du format SCORE_IF_UNIQUE:x
+      else if (passive.startsWith('SCORE_IF_UNIQUE:')) {
+          const parts = passive.split(':');
+          effects.push({ type: 'SCORE_IF_UNIQUE', value: parseInt(parts[1], 10) });
+      }
+
+      // Gestion du format KEEP_CARD_IF_ONLY
+      else if (passive === 'KEEP_CARD_IF_ONLY') {
+        effects.push({ type: 'KEEP_CARD_IF_ONLY', value: true });
+      }
+
+      // Gestion du format NO_DATA
+      else if (passive === 'NO_DATA') {
+        effects.push({ type: 'NO_DATA', value: true });
+      }
+
+      // Gestion du format ANY_PROBE
+      else if (passive === 'ANY_PROBE'){
+        effects.push({ type: 'ANY_PROBE', value: true });
+      }
+
+      // Gestion du format GAIN_SIGNAL_ADJACENTS
+      else if (passive === 'GAIN_SIGNAL_ADJACENTS') {
+        effects.push({ type: 'GAIN_SIGNAL_ADJACENTS', value: true });
+      }
+
+      // Gestion du format SCORE_PER_SECTOR:color:value
+      else if (passive.startsWith('SCORE_PER_SECTOR:')) {
+          const parts = passive.split(':');
+          if (parts.length === 3) {
+            effects.push({ type: 'SCORE_PER_SECTOR', target: parts[1], value: parseInt(parts[2], 10) });
+          }
+      }
+
+      // Gestion du format CHOICE_EXPLO_OR_OBSERV
+      else if (passive === 'CHOICE_EXPLO_OR_OBSERV') {
+        effects.push({ type: 'CHOICE_EXPLO_OR_OBSERV', value: true });
+      }
+
+      // Gestion du format IGNORE_SATELLITE_LIMIT
+      else if (passive === 'IGNORE_SATELLITE_LIMIT') {
+        effects.push({ type: 'IGNORE_SATELLITE_LIMIT', value: true });
+      }
+    }
+    return effects;
   }
 
-    // Gestion du format GAIN_SIGNAL_FROM_HAND:x
-    if (constraint.startsWith('GAIN_SIGNAL_FROM_HAND:')) {
-        const parts = constraint.split(':');
-        return [{ type: 'GAIN_SIGNAL_FROM_HAND', value: parseInt(parts[1], 10) }];
-    }
+  private static parsePermanentEffects(constraint: string): CardEffect[] {
+    if (!constraint) return [];
+    const effects: CardEffect[] = [];
 
-    // Gestion du format BONUS_IF_COVERED:type
-    if (constraint.startsWith('BONUS_IF_COVERED:')) {
-        const parts = constraint.split(':');
-        return [{ type: 'BONUS_IF_COVERED', target: parts[1], value: 1 }];
-    }
+    // Séparer les effets multiples (ex: "GAIN_ON_ORBIT:media:2 + GAIN_ON_LAND:media:2")
+    const permanents = constraint.split('+').map(p => p.trim());
 
-    // Gestion du format SCORE_IF_UNIQUE:x
-    if (constraint.startsWith('SCORE_IF_UNIQUE:')) {
-        const parts = constraint.split(':');
-        return [{ type: 'SCORE_IF_UNIQUE', value: parseInt(parts[1], 10) }];
-    }
-
-    // Gestion du format KEEP_CARD_IF_ONLY
-    if (constraint === 'KEEP_CARD_IF_ONLY') {
-      return [{ type: 'KEEP_CARD_IF_ONLY', value: true }];
-    }
-
-    // Gestion du format NO_DATA
-    if (constraint === 'NO_DATA') {
-      return [{ type: 'NO_DATA', value: true }];
-    }
-
-    // Gestion du format ANY_PROBE
-    if (constraint === 'ANY_PROBE'){
-      return [{ type: 'ANY_PROBE', value: true }];
-    }
-
-    // Gestion du format GAIN_SIGNAL_ADJACENTS
-    if (constraint === 'GAIN_SIGNAL_ADJACENTS') {
-      return [{ type: 'GAIN_SIGNAL_ADJACENTS', value: true }];
-    }
-
-    // Gestion du format SCORE_PER_SECTOR:color:value
-    if (constraint.startsWith('SCORE_PER_SECTOR:')) {
-        const parts = constraint.split(':');
+    for (const permanent of permanents) {
+      // Gestion du format GAIN_ON_ORBIT:target:value
+      if (permanent.startsWith('GAIN_ON_ORBIT:')) {
+        const parts = permanent.split(':');
         if (parts.length === 3) {
-            return [{ type: 'SCORE_PER_SECTOR', target: parts[1], value: parseInt(parts[2], 10) }];
+          effects.push({ type: 'GAIN_ON_ORBIT', target: parts[1], value: parseInt(parts[2], 10) });
         }
-    }
+      }
 
-    // Gestion du format CHOICE_EXPLO_OR_OBSERV
-    if (constraint === 'CHOICE_EXPLO_OR_OBSERV') {
-      return [{ type: 'CHOICE_EXPLO_OR_OBSERV', value: true }];
-    }
+      // Gestion du format GAIN_ON_LAND:target:value
+      else if (permanent.startsWith('GAIN_ON_LAND:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_LAND', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
 
-    // Gestion du format IGNORE_SATELLITE_LIMIT
-    if (constraint === 'IGNORE_SATELLITE_LIMIT') {
-      return [{ type: 'IGNORE_SATELLITE_LIMIT', value: true }];
-    }
+      // Gestion du format GAIN_ON_ORBIT_ORLAND:target:value
+      else if (permanent.startsWith('GAIN_ON_ORBIT_ORLAND:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_ORBIT_OR_LAND', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
 
-    return [{ type: 'PASSIVE', target: constraint, value: 1 }];
+      // Gestion du format GAIN_ON_LAUNCH:target:value
+      else if (permanent.startsWith('GAIN_ON_LAUNCH:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_LAUNCH', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_SCAN:target:value
+      else if (permanent.startsWith('GAIN_ON_SCAN:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_SCAN', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_RED_SIGNAL:target:value
+      else if (permanent.startsWith('GAIN_ON_RED_SIGNAL:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_RED_SIGNAL', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_YELLOW_SIGNAL:target:value
+      else if (permanent.startsWith('GAIN_ON_YELLOW_SIGNAL:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_YELLOW_SIGNAL', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_BLUE_SIGNAL:target:value
+      else if (permanent.startsWith('GAIN_ON_BLUE_SIGNAL:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_BLUE_SIGNAL', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_RED_TECH:target:value
+      else if (permanent.startsWith('GAIN_ON_RED_TECH:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_RED_TECH', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_YELLOW_TECH:target:value
+      else if (permanent.startsWith('GAIN_ON_YELLOW_TECH:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_YELLOW_TECH', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_BLUE_TECH:target:value
+      else if (permanent.startsWith('GAIN_ON_BLUE_TECH:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_BLUE_TECH', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_RED_LIFETRACE:target:value
+      else if (permanent.startsWith('GAIN_ON_RED_LIFETRACE:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_RED_LIFETRACE', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_YELLOW_LIFETRACE:target:value
+      else if (permanent.startsWith('GAIN_ON_YELLOW_LIFETRACE:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_YELLOW_LIFETRACE', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_BLUE_LIFETRACE:target:value
+      else if (permanent.startsWith('GAIN_ON_BLUE_LIFETRACE:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_BLUE_LIFETRACE', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_VISIT:target:value
+      else if (permanent.startsWith('GAIN_ON_VISIT:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_VISIT', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_PLAY:target:value
+      else if (permanent.startsWith('GAIN_ON_PLAY:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_PLAY', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+
+      // Gestion du format GAIN_ON_DISCARD:target:value
+      else if (permanent.startsWith('GAIN_ON_DISCARD:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_ON_DISCARD', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+    }
+    return effects;
   }
 }

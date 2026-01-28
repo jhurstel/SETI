@@ -1,0 +1,109 @@
+classDiagram
+    direction LR
+
+    package "UI Layer (React Components)" {
+        class UI_Components {
+            <<View>>
+            SolarSystemBoardUI
+            PlayerHandUI
+            DebugPanel
+        }
+    }
+
+    package "Engine & Actions" {
+        class GameEngine {
+            -state: Game
+            +executeAction(IAction)
+            +getState(): Game
+            +nextPlayer()
+        }
+
+        class IAction {
+            <<Interface>>
+            +playerId: string
+            +execute(Game): Game
+            +validate(Game): ValidationResult
+        }
+        class LandAction {
+            +execute(Game)
+        }
+        class ScanSectorAction {
+            +execute(Game)
+        }
+        class PlayCardAction {
+            +execute(Game)
+        }
+    }
+
+    package "Systems (Game Logic)" {
+        class GameSystems {
+            <<Static Services>>
+            ProbeSystem
+            SectorSystem
+            CardSystem
+            TechnologySystem
+            DataSystem
+            ResourceSystem
+            SpeciesSystem
+            MediaSystem
+        }
+    }
+
+    package "Core Model (Data)" {
+        class GameState {
+            <<Data Transfer Object>>
+            Game
+            Player
+            Board
+            Card
+            Technology
+            Probe
+        }
+    }
+
+    package "Managers & Factories" {
+        class Managers {
+            <<Static Utilities>>
+            GameFactory
+            BoardManager
+            TurnManager
+            ScoreManager
+            ActionValidator
+        }
+    }
+
+    ' --- Relationships ---
+
+    ' UI -> Engine
+    UI_Components -->> GameEngine : "1. User interaction triggers action"
+
+    ' Engine validates and executes action
+    GameEngine ->> ActionValidator : "2. Validates action"
+    ActionValidator ->> IAction : " "
+    GameEngine ->> IAction : "3. Executes action"
+
+    ' Actions use Systems
+    IAction <|-- LandAction
+    IAction <|-- ScanSectorAction
+    IAction <|-- PlayCardAction
+    note for IAction "And many others..."
+
+    LandAction ..> ProbeSystem : "4. Action delegates to System"
+    ScanSectorAction ..> SectorSystem : " "
+    PlayCardAction ..> CardSystem : " "
+
+    ' Systems modify State
+    GameSystems ..> GameState : "5. System computes new state"
+
+    ' Engine updates its state
+    GameEngine o-- GameState : "6. Engine updates its internal state"
+
+    ' UI re-renders from new state
+    UI_Components <<-- GameEngine : "7. UI gets updated state and re-renders"
+
+
+    ' Other Manager relationships
+    GameFactory ..> BoardManager : "uses to create board"
+    GameFactory ..> GameState : "creates initial"
+    TurnManager ..> ScoreManager : "uses for final scoring"
+    TurnManager ..> CardSystem : "uses for revenue cards"

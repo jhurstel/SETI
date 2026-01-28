@@ -1,4 +1,4 @@
-import { Game, Card, Player, ProbeState, FreeActionType, GAME_CONSTANTS, RevenueType, TechnologyCategory } from '../core/types';
+import { Game, Card, Player, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, TechnologyCategory } from '../core/types';
 import {
     createRotationState,
     calculateAbsolutePosition,
@@ -190,7 +190,7 @@ export class CardSystem {
         // mais on applique les effets immédiats.
 
         // Traitement des effets immédiats
-        const bonuses: any = {};
+        const bonuses: Bonus = {};
 
         if (card.immediateEffects) {
             card.immediateEffects.forEach(effect => {
@@ -473,6 +473,18 @@ export class CardSystem {
                     bonuses.chooseTechType = true;
                 } else if (effect.type === 'IGNORE_SATELLITE_LIMIT') {
                     bonuses.ignoreSatelliteLimit = true;
+                }
+            });
+        }
+
+        // Traitement des effets passifs temporaires (Buffs de tour)
+        if (card.permanentEffects) {
+            card.permanentEffects.forEach(effect => {
+
+                if (effect.type === 'GAIN_ON_ORBIT' && effect.target && effect.value) {
+                    player.permanentBuffs.push({ ...effect, source: card.name });
+                } else if (effect.type === 'GAIN_ON_LAND' && effect.target && effect.value) {
+                    player.permanentBuffs.push({ ...effect, source: card.name });
                 }
             });
         }

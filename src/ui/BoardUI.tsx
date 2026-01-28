@@ -2392,8 +2392,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             name: cardPlayed.name,
             description: cardPlayed.description,
             ownerId: currentPlayer.id,
-            requirements: [], // TODO: Parser les prérequis depuis la carte
-            progress: { current: 0, target: 1 },
+            requirements: cardPlayed.permanentEffects || [],
+            progress: { current: 0, target: cardPlayed.permanentEffects?.length || 0 },
             completed: false
           };
           playerInNewGame.missions.push(newMission);
