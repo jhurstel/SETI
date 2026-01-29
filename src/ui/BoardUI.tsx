@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Mission, InteractionState } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorColor, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Mission, InteractionState, GamePhase } from '../core/types';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -20,6 +20,7 @@ import { DataSystem } from '../systems/DataSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
+import { ScoreManager } from '../core/ScoreManager';
 import { SectorSystem } from '../systems/SectorSystem';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { AIBehavior } from '../ai/AIBehavior';
@@ -79,6 +80,64 @@ const formatResource = (amount: number, type: string) => {
     return `${amount} ${label}`;
   }
   return `${amount} ${type}`;
+};
+
+const EndGameModal = ({ game }: { game: Game }) => {
+  const scoresData = game.players.map(p => {
+    const bonuses = ScoreManager.calculateFinalScore(game, p.id);
+    // Le score dans game.players est déjà le score final (mis à jour par TurnManager)
+    // On recalcule le score de base pour l'affichage
+    const baseScore = p.score - bonuses.total;
+    return {
+      player: p,
+      bonuses,
+      baseScore,
+      total: p.score
+    };
+  }).sort((a, b) => b.total - a.total);
+
+  const winner = scoresData[0];
+
+  return (
+    <div className="seti-endgame-overlay">
+      <div className="seti-endgame-modal">
+        <div className="seti-endgame-header">
+          <h1>FIN DE PARTIE</h1>
+          <div className="seti-endgame-winner">
+            Vainqueur : <span style={{ color: winner.player.color }}>{winner.player.name}</span>
+          </div>
+        </div>
+        
+        <div className="seti-endgame-scores">
+          <div className="seti-endgame-row header">
+            <div className="col-rank">#</div>
+            <div className="col-player">Joueur</div>
+            <div className="col-score">Base</div>
+            <div className="col-score">Obj.</div>
+            <div className="col-score">Miss.</div>
+            <div className="col-score">Alien</div>
+            <div className="col-total">Total</div>
+          </div>
+          
+          {scoresData.map((data, index) => (
+            <div key={data.player.id} className="seti-endgame-row">
+              <div className="col-rank">{index + 1}</div>
+              <div className="col-player" style={{ color: data.player.color }}>{data.player.name}</div>
+              <div className="col-score">{data.baseScore}</div>
+              <div className="col-score">{data.bonuses.objectiveTiles}</div>
+              <div className="col-score">{data.bonuses.missionEndGame}</div>
+              <div className="col-score">{data.bonuses.speciesBonuses}</div>
+              <div className="col-total">{data.total}</div>
+            </div>
+          ))}
+        </div>
+        
+        <button className="seti-endgame-btn" onClick={() => window.location.reload()}>
+          Nouvelle Partie
+        </button>
+      </div>
+    </div>
+  );
 };
 
 export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
@@ -319,6 +378,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }
       }
 
+      // TODO: gerer la fin de partie
+      // si newGame.phase === GamePhase.FINAL_SCORING
+      
       setGame(newGame);
     } else {
       console.error("Erreur lors de l'action Passer:", result.error);
@@ -533,9 +595,14 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Réinitialiser l'état de défausse
     setInteractionState({ type: 'IDLE' });
 
-    // Vérifier s'il y a un paquet de manche pour déclencher la modale
-    setPassModalState({ visible: true, cards: game.decks.roundDecks[game.currentRound], selectedCardId: null, cardsToKeep });
-    // Note: performPass sera appelé après la confirmation dans la modale
+    // Vérifier s'il y a un paquet de manche pour déclencher la modale (pas à la manche 5)
+    const roundDeck = game.decks.roundDecks[game.currentRound];
+    if (roundDeck && roundDeck.length > 0) {
+      setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
+    } else {
+      // S'il n'y a pas de paquet (ex: fin de la manche 5), on passe directement
+      performPass(cardsToKeep);
+    }
   };
 
   // Gestionnaire pour confirmer la défausse pour signaux
@@ -1150,7 +1217,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     if (!bonuses) return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };
 
-    // Gains passifs pour le résumé
+    // Gains passifs pour le résumé (déjà effectué dans CardSystem)
     if (bonuses.media) { const txt = formatResource(bonuses.media, 'MEDIA'); passiveGains.push(txt); }
     if (bonuses.credits) { const txt = formatResource(bonuses.credits, 'CREDIT'); passiveGains.push(txt); }
     if (bonuses.energy) { const txt = formatResource(bonuses.energy, 'ENERGY'); passiveGains.push(txt); }
@@ -2926,6 +2993,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           setConfirmModalState({ visible: false, cardId: null, message: '', onConfirm: undefined });
         }}
       />
+
+      {/* Ecran de fin de partie */}
+      {game.phase === GamePhase.FINAL_SCORING && <EndGameModal game={game} />}
 
       {/* Overlay pour la recherche de technologie ou l'achat de carte */}
       {(interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'RESERVING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') && (

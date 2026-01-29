@@ -143,6 +143,32 @@ export class ProbeSystem {
       probes: [...player.probes, probe]
     };
 
+    // Traitement des buffs permanents
+    updatedPlayer.permanentBuffs.forEach(buff => {
+      if (buff.type === 'GAIN_ON_LAUNCH') {
+           const bonus: Bonus = {};
+           if (buff.target === 'movement') bonus.movements = buff.value;
+           else if (buff.target === 'credit') bonus.credits = buff.value;
+           else if (buff.target === 'card') bonus.card = buff.value;
+           else if (buff.target === 'pv') bonus.pv = buff.value;
+           
+           // TODO: card et movement ne sont aps traités dans applyBonus.
+           // Doit-on faire comme pour orbitProbe te landProbe et appelé applyAndAccumulate.
+           // Necessiterait de traiter les bonus de lancement de sonde a posteriori.
+           this.applyBonus(updatedPlayer, bonus);
+
+           if (buff.source) {
+               const mission = updatedPlayer.missions.find(m => m.name === buff.source);
+               if (mission) {
+                   mission.progress.current += 1;
+                   if (mission.progress.current >= mission.progress.target) {
+                       mission.completed = true;
+                   }
+               }
+           }
+      }
+    });
+
     updatedGame.players[playerIndex] = updatedPlayer;
 
     // Ajouter la sonde au système solaire en préservant tous les champs (y compris les angles de rotation)
@@ -433,6 +459,24 @@ export class ProbeSystem {
     return { hasProbe: false };
   }
   
+  static applyAndAccumulateBonus(player: Player, bonus: Bonus, accumulatedBonuses: Bonus) {
+      this.applyBonus(player, bonus);
+      for (const key in bonus) {
+          const k = key as keyof Bonus;
+          const val = bonus[k];
+          if (typeof val === 'number') {
+              (accumulatedBonuses as any)[k] = ((accumulatedBonuses[k] as number) || 0) + val;
+          } else if (val !== undefined) {
+              if (k === 'gainSignal' && Array.isArray(val)) {
+                  const existing = (accumulatedBonuses[k] as any[]) || [];
+                  (accumulatedBonuses as any)[k] = [...existing, ...val];
+              } else {
+                  (accumulatedBonuses as any)[k] = val;
+              }
+          }
+      }
+  }
+
   static applyBonus(updatedPlayer: Player, bonus: Bonus) {
     if (bonus.pv) {
       updatedPlayer.score += bonus.pv || 0;
@@ -585,42 +629,22 @@ export class ProbeSystem {
     const updatedPlanet = updatedGame.board.planets.find(p => p.id === planetId);
 
     const accumulatedBonuses: Bonus = {};
-    const applyAndAccumulate = (bonus: Bonus) => {
-        this.applyBonus(updatedPlayer, bonus);
-        for (const key in bonus) {
-            const k = key as keyof Bonus;
-            const val = bonus[k];
-            if (typeof val === 'number') {
-                (accumulatedBonuses as any)[k] = ((accumulatedBonuses[k] as number) || 0) + val;
-            } else if (val !== undefined) {
-                if (k === 'gainSignal' && Array.isArray(val)) {
-                    const existing = (accumulatedBonuses[k] as any[]) || [];
-                    (accumulatedBonuses as any)[k] = [...existing, ...val];
-                } else {
-                    (accumulatedBonuses as any)[k] = val;
-                }
-            }
-        }
-    };
-
     // Bonus planète
     if (updatedPlanet && updatedPlanet.orbitSlots) {
       const index = updatedPlanet.orbiters.length - 1;
       const slotBonus = updatedPlanet.orbitSlots[index];
-      if (slotBonus) applyAndAccumulate(slotBonus);
+      if (slotBonus) this.applyAndAccumulateBonus(updatedPlayer, slotBonus, accumulatedBonuses);
     }
 
     // Traitement des buffs permanents
     updatedPlayer.permanentBuffs.forEach(buff => {
-      if (buff.type === 'GAIN_ON_ORBIT') {
+      if (buff.type === 'GAIN_ON_ORBIT' || buff.type === 'GAIN_ON_ORBIT_OR_LAND') {
             const bonus: Bonus = {};
             if (buff.target === 'media') bonus.media = buff.value;
-            else if (buff.target === 'data') bonus.data = buff.value;
-            else if (buff.target === 'credit') bonus.credits = buff.value;
             else if (buff.target === 'energy') bonus.energy = buff.value;
-            else if (buff.target === 'pv') bonus.pv = buff.value;
+            else if (buff.target === 'probe') bonus.probe = buff.value;
             
-            applyAndAccumulate(bonus);
+            this.applyAndAccumulateBonus(updatedPlayer, bonus, accumulatedBonuses);
 
             if (buff.source) {
               const mission = updatedPlayer.missions.find(m => m.name === buff.source);
@@ -796,46 +820,26 @@ export class ProbeSystem {
     }
 
     const accumulatedBonuses: Bonus = {};
-    const applyAndAccumulate = (bonus: Bonus) => {
-        this.applyBonus(updatedPlayer, bonus);
-        for (const key in bonus) {
-            const k = key as keyof Bonus;
-            const val = bonus[k];
-            if (typeof val === 'number') {
-                (accumulatedBonuses as any)[k] = ((accumulatedBonuses[k] as number) || 0) + val;
-            } else if (val !== undefined) {
-                if (k === 'gainSignal' && Array.isArray(val)) {
-                    const existing = (accumulatedBonuses[k] as any[]) || [];
-                    (accumulatedBonuses as any)[k] = [...existing, ...val];
-                } else {
-                    (accumulatedBonuses as any)[k] = val;
-                }
-            }
-        }
-    };
-
     // Bonus planète (atterrissage)
     if (updatedTargetBody) {
         if ((updatedTargetBody as Planet).landSlots) {
             const index = forcedSlotIndex !== undefined ? forcedSlotIndex : updatedTargetBody.landers.length - 1;
             const slotBonus = (updatedTargetBody as Planet).landSlots[index];
-            if (slotBonus) applyAndAccumulate(slotBonus);
+            if (slotBonus) this.applyAndAccumulateBonus(updatedPlayer, slotBonus, accumulatedBonuses);
         } else if ((updatedTargetBody as Satellite).landBonus) {
-            applyAndAccumulate((updatedTargetBody as Satellite).landBonus);
+            this.applyAndAccumulateBonus(updatedPlayer, (updatedTargetBody as Satellite).landBonus, accumulatedBonuses);
         }
     }
 
     // Traitement des buffs permanents
     updatedPlayer.permanentBuffs.forEach(buff => {
-      if (buff.type === 'GAIN_ON_LAND') {
+      if (buff.type === 'GAIN_ON_LAND' || buff.type === 'GAIN_ON_ORBIT_OR_LAND') {
            const bonus: Bonus = {};
            if (buff.target === 'media') bonus.media = buff.value;
-           else if (buff.target === 'data') bonus.data = buff.value;
-           else if (buff.target === 'credit') bonus.credits = buff.value;
            else if (buff.target === 'energy') bonus.energy = buff.value;
-           else if (buff.target === 'pv') bonus.pv = buff.value;
+           else if (buff.target === 'probe') bonus.probe = buff.value;
            
-           applyAndAccumulate(bonus);
+           this.applyAndAccumulateBonus(updatedPlayer, bonus, accumulatedBonuses);
 
            if (buff.source) {
                const mission = updatedPlayer.missions.find(m => m.name === buff.source);

@@ -440,17 +440,17 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     let colorShadow: string = "";
 
     if (obj.level === 3) {
-      colorFill = "rgba(60, 80, 120, 1)"
-      colorStroke = "rgba(255, 215, 0, 0.8)"
-      colorShadow = "rgba(255, 215, 0, 0.5)"
+      colorFill = "rgba(40, 60, 100, 1)"
+      colorStroke = "rgba(74, 158, 255, 0.8)"
+      colorShadow = "rgba(74, 158, 255, 0.5)"
     } else if (obj.level === 2) {
       colorFill = "rgba(40, 60, 100, 1)"
       colorStroke = "rgba(255, 107, 107, 0.8)"
       colorShadow = "rgba(255, 107, 107, 0.5)"
     } else if (obj.level === 1) {
-      colorFill = "rgba(40, 60, 100, 1)"
-      colorStroke = "rgba(74, 158, 255, 0.8)"
-      colorShadow = "rgba(74, 158, 255, 0.5)"
+      colorFill = "rgba(60, 80, 120, 1)"
+      colorStroke = "rgba(255, 215, 0, 0.8)"
+      colorShadow = "rgba(255, 215, 0, 0.5)"
     }
 
     // Ne pas afficher les secteurs hollow
@@ -475,16 +475,21 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   };
 
   // Fonction helper pour rendre l'indicateur de rotation (signe >) adossé à la tuile
-  const renderRotationIndicator = (planetId: string, color: string) => {
+  const renderRotationIndicator = (planetId: string, color: string, sectorOffset: number = 0, keySuffix: string = '') => {
     let obj: CelestialObject | undefined;
-    if (planetId === 'saturn') obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'saturn');
-    else if (planetId === 'jupiter') obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'jupiter');
-    else if (planetId === 'mars') obj = INITIAL_ROTATING_LEVEL2_OBJECTS.find(o => o.id === 'mars');
-    else if (planetId === 'earth') obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(o => o.id === 'earth');
+    if (planetId === 'saturn') { obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'saturn');
+    } else if (planetId === 'jupiter') { obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'jupiter');
+    } else if (planetId === 'mars') { obj = INITIAL_ROTATING_LEVEL2_OBJECTS.find(o => o.id === 'mars');
+    } else if (planetId === 'earth') { obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(o => o.id === 'earth');
+    } else if (planetId === 'mercury') { obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(o => o.id === 'mercury');
+    }
 
     if (!obj) return null;
 
-    const { sectorCenterAngle, diskIndex } = calculateObjectPosition(obj.position.disk, obj.position.sector);
+    const originalSector = obj.position.sector;
+    const newSector = ( ( (originalSector - 1) + sectorOffset) % 8 ) + 1 as SectorNumber;
+
+    const { sectorCenterAngle, diskIndex } = calculateObjectPosition(obj.position.disk, newSector);
 
     // Positionner sur le bord extérieur du disque
     const diskWidth = 8;
@@ -500,7 +505,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
     return (
       <div
-        key={`indicator-${planetId}`}
+        key={`indicator-${planetId}${keySuffix}`}
         className="seti-rotation-indicator"
         style={{
           left: `calc(50% + ${x}%)`,
@@ -1858,7 +1863,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               })}
 
               {/* Indicateur de rotation pour Saturne */}
-              {game.board.solarSystem.nextRingLevel === 3 && renderRotationIndicator('saturn', '#ffd700')}
+              {game.board.solarSystem.nextRingLevel === 3 && renderRotationIndicator('saturn', '#4a9eff')}
+              {game.board.solarSystem.nextRingLevel === 3 && renderRotationIndicator('jupiter', '#4a9eff', 1, '-offset1')}
             </div>
 
             {/* Plateau rotatif niveau 2 avec 2 disques (A, B) - se superpose au niveau 3 */}
@@ -1915,6 +1921,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
               {/* Indicateur de rotation pour Mars */}
               {game.board.solarSystem.nextRingLevel === 2 && renderRotationIndicator('mars', '#ff6b6b')}
+              {game.board.solarSystem.nextRingLevel === 2 && renderRotationIndicator('mars', '#ff6b6b', 5, '-offset5')}
             </div>
 
             {/* Plateau rotatif niveau 1 avec 1 disque (A) - se superpose au niveau 2 */}
@@ -1957,7 +1964,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               })}
 
               {/* Indicateur de rotation pour Terre */}
-              {game.board.solarSystem.nextRingLevel === 1 && renderRotationIndicator('earth', '#4a9eff')}
+              {game.board.solarSystem.nextRingLevel === 1 && renderRotationIndicator('earth', '#ffd700')}
+              {game.board.solarSystem.nextRingLevel === 1 && renderRotationIndicator('mercury', '#ffd700')}
             </div>
 
             {/* Labels des disques (A à D) - Positionnés au-dessus des plateaux rotatifs */}

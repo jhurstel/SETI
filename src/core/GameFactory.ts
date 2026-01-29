@@ -529,6 +529,11 @@ export class GameFactory {
           let scope = 'ANY';
           if (lower.includes('rangée') || lower.includes('rangee')) scope = 'ROW';
           else if (lower.includes('terre')) scope = 'EARTH';
+          else if (lower.includes('mercure')) scope = 'MERCURY';
+          else if (lower.includes('vénus')) scope = 'VENUS';
+          else if (lower.includes('jupiter')) scope = 'JUPITER';
+          else if (lower.includes('saturne')) scope = 'SATURN';
+          else if (lower.includes('mars')) scope = 'MARS';
           else if (lower.includes('sonde')) scope = 'PROBE';
           else if (lower.includes('jaune')) scope = 'YELLOW';
           else if (lower.includes('bleu')) scope = 'BLUE';
@@ -536,9 +541,13 @@ export class GameFactory {
           else if (lower.includes('noir')) scope = 'BLACK';
           else if (lower.includes('deck')) scope = 'DECK';
           else if (lower.includes('kepler')) scope = 'KEPLER';
+          else if (lower.includes('virginis')) scope = 'VIRGINIS';
           else if (lower.includes('barnard')) scope = 'BARNARD';
+          else if (lower.includes('proxima')) scope = 'PROXIMA';
           else if (lower.includes('procyon')) scope = 'PROCYON';
+          else if (lower.includes('sirius')) scope = 'SIRIUS';
           else if (lower.includes('véga')) scope = 'VEGA';
+          else if (lower.includes('pictoris')) scope = 'PICTORIS';
           effects.push({ type: 'ACTION', target: 'SIGNAL', value: { amount, scope } });
         } else if (lower.includes('tech')) {
             let techColor: TechnologyCategory | undefined = undefined;
@@ -560,7 +569,7 @@ export class GameFactory {
 
     for (const passive of passives) {
     
-      // Gestion du format VISIT_PLANET:mars:4
+      // Gestion du format VISIT_PLANET:mars:4 (4 PV)
       if (passive.startsWith('VISIT_PLANET:')) {
           const parts = passive.split(':');
           if (parts.length === 3) {
@@ -568,7 +577,7 @@ export class GameFactory {
           }
       }
 
-      // Gestion du format VISIT_UNIQUE:1
+      // Gestion du format VISIT_UNIQUE:1 (1 PV)
       else if (passive.startsWith('VISIT_UNIQUE:')) {
           const parts = passive.split(':');
           if (parts.length === 2) {
@@ -576,7 +585,7 @@ export class GameFactory {
           }
       }
 
-      // Gestion du format ASTEROID_EXIT_COST:1
+      // Gestion du format ASTEROID_EXIT_COST:1 (1 Déplacement)
       else if (passive.startsWith('ASTEROID_EXIT_COST:')) {
           const parts = passive.split(':');
           if (parts.length === 2) {
@@ -584,7 +593,7 @@ export class GameFactory {
           }
       }
 
-      // Gestion du format VISIT_ASTEROID:1
+      // Gestion du format VISIT_ASTEROID:1 (1 PV)
       else if (passive.startsWith('VISIT_ASTEROID:')) {
           const parts = passive.split(':');
           if (parts.length === 2) {
@@ -592,7 +601,7 @@ export class GameFactory {
           }
       }
 
-      // Gestion du format VISIT_COMET:4
+      // Gestion du format VISIT_COMET:4 (4 PV)
       else if (passive.startsWith('VISIT_COMET:')) {
           const parts = passive.split(':');
           if (parts.length === 2) {
@@ -780,8 +789,8 @@ export class GameFactory {
         }
       }
 
-      // Gestion du format GAIN_ON_ORBIT_ORLAND:target:value
-      else if (permanent.startsWith('GAIN_ON_ORBIT_ORLAND:')) {
+      // Gestion du format GAIN_ON_ORBIT_OR_LAND:target:value
+      else if (permanent.startsWith('GAIN_ON_ORBIT_OR_LAND:')) {
         const parts = permanent.split(':');
         if (parts.length === 3) {
           effects.push({ type: 'GAIN_ON_ORBIT_OR_LAND', target: parts[1], value: parseInt(parts[2], 10) });
@@ -804,99 +813,68 @@ export class GameFactory {
         }
       }
 
-      // Gestion du format GAIN_ON_RED_SIGNAL:target:value
-      else if (permanent.startsWith('GAIN_ON_RED_SIGNAL:')) {
+      // Gestion du format GAIN_ON_SIGNAL:color:target:value
+      else if (permanent.startsWith('GAIN_ON_SIGNAL:')) {
         const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_RED_SIGNAL', target: parts[1], value: parseInt(parts[2], 10) });
+        if (parts.length === 4) {
+          if (parts[1] === 'yellow') effects.push({ type: 'GAIN_ON_RED_SIGNAL', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'red') effects.push({ type: 'GAIN_ON_RED_SIGNAL', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'blue') effects.push({ type: 'GAIN_ON_BLUE_SIGNAL', target: parts[2], value: parseInt(parts[3], 10) });
         }
       }
 
-      // Gestion du format GAIN_ON_YELLOW_SIGNAL:target:value
-      else if (permanent.startsWith('GAIN_ON_YELLOW_SIGNAL:')) {
+      // Gestion du format GAIN_ON_TECH:color:target:value
+      else if (permanent.startsWith('GAIN_ON_TECH:')) {
         const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_YELLOW_SIGNAL', target: parts[1], value: parseInt(parts[2], 10) });
+        if (parts.length === 4) {
+          if (parts[1] === 'yellow') effects.push({ type: 'GAIN_ON_YELLOW_TECH', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'red') effects.push({ type: 'GAIN_ON_RED_TECH', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'blue') effects.push({ type: 'GAIN_ON_BLUE_TECH', target: parts[2], value: parseInt(parts[3], 10) });
         }
       }
 
-      // Gestion du format GAIN_ON_BLUE_SIGNAL:target:value
-      else if (permanent.startsWith('GAIN_ON_BLUE_SIGNAL:')) {
+      // Gestion du format GAIN_ON_LIFETRACE:color:target:value
+      else if (permanent.startsWith('GAIN_ON_LIFETRACE:')) {
         const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_BLUE_SIGNAL', target: parts[1], value: parseInt(parts[2], 10) });
+        if (parts.length === 4) {
+          if (parts[1] === 'yellow') effects.push({ type: 'GAIN_ON_YELLOW_LIFETRACE', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'red') effects.push({ type: 'GAIN_ON_RED_LIFETRACE', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'blue') effects.push({ type: 'GAIN_ON_BLUE_LIFETRACE', target: parts[2], value: parseInt(parts[3], 10) });
         }
       }
 
-      // Gestion du format GAIN_ON_RED_TECH:target:value
-      else if (permanent.startsWith('GAIN_ON_RED_TECH:')) {
-        const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_RED_TECH', target: parts[1], value: parseInt(parts[2], 10) });
-        }
-      }
-
-      // Gestion du format GAIN_ON_YELLOW_TECH:target:value
-      else if (permanent.startsWith('GAIN_ON_YELLOW_TECH:')) {
-        const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_YELLOW_TECH', target: parts[1], value: parseInt(parts[2], 10) });
-        }
-      }
-
-      // Gestion du format GAIN_ON_BLUE_TECH:target:value
-      else if (permanent.startsWith('GAIN_ON_BLUE_TECH:')) {
-        const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_BLUE_TECH', target: parts[1], value: parseInt(parts[2], 10) });
-        }
-      }
-
-      // Gestion du format GAIN_ON_RED_LIFETRACE:target:value
-      else if (permanent.startsWith('GAIN_ON_RED_LIFETRACE:')) {
-        const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_RED_LIFETRACE', target: parts[1], value: parseInt(parts[2], 10) });
-        }
-      }
-
-      // Gestion du format GAIN_ON_YELLOW_LIFETRACE:target:value
-      else if (permanent.startsWith('GAIN_ON_YELLOW_LIFETRACE:')) {
-        const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_YELLOW_LIFETRACE', target: parts[1], value: parseInt(parts[2], 10) });
-        }
-      }
-
-      // Gestion du format GAIN_ON_BLUE_LIFETRACE:target:value
-      else if (permanent.startsWith('GAIN_ON_BLUE_LIFETRACE:')) {
-        const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_BLUE_LIFETRACE', target: parts[1], value: parseInt(parts[2], 10) });
-        }
-      }
-
-      // Gestion du format GAIN_ON_VISIT:target:value
+      // Gestion du format GAIN_ON_VISIT:object:target:value
       else if (permanent.startsWith('GAIN_ON_VISIT:')) {
         const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_VISIT', target: parts[1], value: parseInt(parts[2], 10) });
+        if (parts.length === 4) {
+          if (parts[1] === 'jupiter') effects.push({ type: 'GAIN_ON_VISIT_JUPITER', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'saturn') effects.push({ type: 'GAIN_ON_VISIT_SATURN', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'mercury') effects.push({ type: 'GAIN_ON_VISIT_MERCURY', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'venus') effects.push({ type: 'GAIN_ON_VISIT_VENUS', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'uranus') effects.push({ type: 'GAIN_ON_VISIT_URANUS', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'neptune') effects.push({ type: 'GAIN_ON_VISIT_NEPTUNE', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'planet') effects.push({ type: 'GAIN_ON_VISIT_PLANET', target: parts[2], value: parseInt(parts[3], 10) }); // excluding earth
+          else if (parts[1] === 'asteroid') effects.push({ type: 'GAIN_ON_VISIT_ASTEROID', target: parts[2], value: parseInt(parts[3], 10) });
         }
       }
 
-      // Gestion du format GAIN_ON_PLAY:target:value
+      // Gestion du format GAIN_ON_PLAY:cost:target:value
       else if (permanent.startsWith('GAIN_ON_PLAY:')) {
         const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_PLAY', target: parts[1], value: parseInt(parts[2], 10) });
+        if (parts.length === 4) {
+          if (parts[1] === '1') effects.push({ type: 'GAIN_ON_PLAY_1_CREDIT', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === '2') effects.push({ type: 'GAIN_ON_PLAY_2_CREDITS', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === '3') effects.push({ type: 'GAIN_ON_PLAY_3_CREDITS', target: parts[2], value: parseInt(parts[3], 10) });
         }
       }
 
-      // Gestion du format GAIN_ON_DISCARD:target:value
+      // Gestion du format GAIN_ON_DISCARD:resource:target:value
       else if (permanent.startsWith('GAIN_ON_DISCARD:')) {
         const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_DISCARD', target: parts[1], value: parseInt(parts[2], 10) });
+        if (parts.length === 4) {
+          if (parts[1] === 'media') effects.push({ type: 'GAIN_ON_DISCARD_MEDIA', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'data') effects.push({ type: 'GAIN_ON_DISCARD_DATA', target: parts[2], value: parseInt(parts[3], 10) });
+          else if (parts[1] === 'move') effects.push({ type: 'GAIN_ON_DISCARD_MOVE', target: parts[2], value: parseInt(parts[3], 10) });
         }
       }
     }

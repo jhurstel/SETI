@@ -96,11 +96,12 @@ export class TurnManager {
       updatedGame.phase = GamePhase.FINAL_SCORING;
       
       // Calculer et appliquer les scores finaux
+      console.log(updatedGame);
       const finalScores = ScoreManager.calculateAllScores(updatedGame);
       updatedGame.players = updatedGame.players.map(player => {
         const playerScore = finalScores.find(fs => fs.playerId === player.id);
         // On met à jour le score du joueur avec le total calculé
-        return { ...player, score: playerScore ? playerScore.scores.total : player.score };
+        return { ...player, score: player.score + (playerScore ? playerScore.scores.total : 0) };
       });
     }
 

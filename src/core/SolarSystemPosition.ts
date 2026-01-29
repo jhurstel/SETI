@@ -112,7 +112,7 @@ export const FIXED_OBJECTS: CelestialObject[] = [
 ];
 
 /**
- * Configuration initiale des objets célestes rotatifs (niveau 3 - Jaune)
+ * Configuration initiale des objets célestes rotatifs (niveau 3 - Bleu)
  */
 export const INITIAL_ROTATING_LEVEL3_OBJECTS: CelestialObject[] = [
   { id: 'saturn', type: 'planet', name: 'Saturne', position: { disk: 'C', sector: 1, x: 0, y: 0 }, level: 3 },
@@ -164,7 +164,7 @@ export const INITIAL_ROTATING_LEVEL2_OBJECTS: CelestialObject[] = [
 ];
 
 /**
- * Configuration initiale des objets célestes rotatifs (niveau 1 - Bleu)
+ * Configuration initiale des objets célestes rotatifs (niveau 1 - Jaune)
  */
 export const INITIAL_ROTATING_LEVEL1_OBJECTS: CelestialObject[] = [
   { id: 'empty-a1-l1', type: 'empty', name: 'Vide A1', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 1 },
