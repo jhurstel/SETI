@@ -1048,4 +1048,73 @@ export class ProbeSystem {
       }
     };
   }
+
+  /**
+   * Vérifie si un joueur a une présence (orbiteur ou atterrisseur) sur une planète ou ses lunes
+   */
+  static hasPresenceOnPlanet(game: Game, playerId: string, planetId: string): boolean {
+    const planet = game.board.planets.find(p => p.id === planetId);
+    if (!planet) return false;
+
+    // Vérifier orbiteurs sur la planète
+    if (planet.orbiters.some(p => p.ownerId === playerId)) return true;
+    
+    // Vérifier atterrisseurs sur la planète
+    if (planet.landers.some(p => p.ownerId === playerId)) return true;
+
+    // Vérifier satellites
+    if (planet.satellites) {
+      for (const sat of planet.satellites) {
+        if (sat.landers && sat.landers.some(p => p.ownerId === playerId)) return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Évalue une condition de mission déclenchable et retourne le bonus si la condition est remplie
+   * Format attendu: CONDITION:TARGET:BONUS1:VALUE1:BONUS2:VALUE2...
+   */
+  static evaluateMission(
+    game: Game,
+    playerId: string,
+    missionString: string
+  ): Bonus | null {
+    if (!missionString) return null;
+
+    const parts = missionString.split(':');
+    if (parts.length < 2) return null;
+
+    const conditionType = parts[0];
+    const target = parts[1];
+    
+    // Extraction des bonus (paires clé:valeur à partir de l'index 2)
+    const rewards: Bonus = {};
+    for (let i = 2; i < parts.length; i += 2) {
+      if (i + 1 < parts.length) {
+        const bonusType = parts[i];
+        const bonusValue = parseInt(parts[i+1], 10);
+        
+        if (!isNaN(bonusValue)) {
+          if (bonusType === 'pv') rewards.pv = (rewards.pv || 0) + bonusValue;
+          else if (bonusType === 'media') rewards.media = (rewards.media || 0) + bonusValue;
+          else if (bonusType === 'credit' || bonusType === 'credits') rewards.credits = (rewards.credits || 0) + bonusValue;
+          else if (bonusType === 'energy') rewards.energy = (rewards.energy || 0) + bonusValue;
+          else if (bonusType === 'data') rewards.data = (rewards.data || 0) + bonusValue;
+          else if (bonusType === 'draw') rewards.draw = (rewards.draw || 0) + bonusValue;
+          else if (bonusType === 'card') rewards.card = (rewards.card || 0) + bonusValue;
+          else if (bonusType === 'probe') rewards.probe = (rewards.probe || 0) + bonusValue;
+        }
+      }
+    }
+
+    // Vérification des conditions
+    if (conditionType === 'GAIN_IF_ORBITER_OR_LANDER' || conditionType === 'GAIN_IF_ORBITEUR_OR_LANDER') {
+      const hasPresence = this.hasPresenceOnPlanet(game, playerId, target);
+      if (hasPresence) return rewards;
+    }
+    
+    return null;
+  }
 }
