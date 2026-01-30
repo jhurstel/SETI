@@ -39,10 +39,10 @@ classDiagram
         class GameSystems {
             <<Static Services>>
             ProbeSystem
-            SectorSystem
+            ScanSystem
             CardSystem
             TechnologySystem
-            DataSystem
+            ComputerSystem
             ResourceSystem
             SpeciesSystem
             MediaSystem
@@ -89,7 +89,7 @@ classDiagram
     note for IAction "And many others..."
 
     LandAction ..> ProbeSystem : "4. Action delegates to System"
-    ScanSectorAction ..> SectorSystem : " "
+    ScanSectorAction ..> ScanSystem : " "
     PlayCardAction ..> CardSystem : " "
 
     ' Systems modify State

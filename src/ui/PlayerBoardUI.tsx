@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, Mission, InteractionState } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { DataSystem } from '../systems/DataSystem'; 
+import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
-import { SectorSystem } from '../systems/SectorSystem';
+import { ScanSystem } from '../systems/ScanSystem';
 import { PlayerComputerUI } from './PlayerComputerUI';
 import { CardTooltip, CardDescription } from './CardTooltip';
 import './PlayerBoardUI.css';
@@ -137,7 +137,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     // Cela garantit que 'game' reste valide comme 'previousState' pour l'historique
     const gameCopy = structuredClone(game);
 
-    const { updatedGame, gains, bonusEffects } = DataSystem.fillSlot(gameCopy, currentPlayer.id, slotId);
+    const { updatedGame, gains, bonusEffects } = ComputerSystem.fillSlot(gameCopy, currentPlayer.id, slotId);
     
     const sequenceId = `computer-${Date.now()}`;
 
@@ -203,8 +203,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     [ActionType.LAUNCH_PROBE]: isCurrentTurn && !isRobot && !hasPerformedMainAction && ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch,
     [ActionType.ORBIT]: isCurrentTurn && !isRobot && !hasPerformedMainAction && currentPlayer.probes.some(probe => ProbeSystem.canOrbit(game, currentPlayer.id, probe.id).canOrbit),
     [ActionType.LAND]: isCurrentTurn && !isRobot && !hasPerformedMainAction && currentPlayer.probes.some(probe => ProbeSystem.canLand(game, currentPlayer.id, probe.id).canLand),
-    [ActionType.SCAN_SECTOR]: isCurrentTurn && !isRobot && !hasPerformedMainAction && SectorSystem.canScanSector(game, currentPlayer.id).canScan,
-    [ActionType.ANALYZE_DATA]: isCurrentTurn && !isRobot && !hasPerformedMainAction && DataSystem.canAnalyzeData(game, currentPlayer.id).canAnalyze,
+    [ActionType.SCAN_SECTOR]: isCurrentTurn && !isRobot && !hasPerformedMainAction && ScanSystem.canScanSector(game, currentPlayer.id).canScan,
+    [ActionType.ANALYZE_DATA]: isCurrentTurn && !isRobot && !hasPerformedMainAction && ComputerSystem.canAnalyzeData(game, currentPlayer.id).canAnalyze,
     [ActionType.PLAY_CARD]: isCurrentTurn && !isRobot && !hasPerformedMainAction && CardSystem.canPlayCards(game, currentPlayer.id).canPlay,
     [ActionType.RESEARCH_TECH]: isCurrentTurn && !isRobot && !hasPerformedMainAction && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA,
     [ActionType.PASS]: isCurrentTurn && !isRobot && !hasPerformedMainAction,

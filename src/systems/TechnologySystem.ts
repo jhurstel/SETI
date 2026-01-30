@@ -1,5 +1,5 @@
 import { Game, Technology, GAME_CONSTANTS } from '../core/types';
-import { DataSystem } from './DataSystem';
+import { ComputerSystem } from './ComputerSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { CardSystem } from './CardSystem';
 
@@ -29,7 +29,7 @@ export class TechnologySystem {
 
     // Assign to computer slot (if needed)
     if (targetComputerCol !== undefined) {
-      DataSystem.assignTechnology(player, tech, targetComputerCol);
+      ComputerSystem.assignTechnology(player, tech, targetComputerCol);
     }
 
     // Apply bonuses

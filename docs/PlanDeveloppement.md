@@ -65,9 +65,9 @@ Développement en 6 phases progressives, chaque phase ajoutant une couche de com
 - Traces de vie
 
 ### Livrables
-- [ ] `SectorSystem` avec scans
+- [ ] `ScanSystem` avec scans
 - [ ] Système de majorités avec gestion d'égalités
-- [ ] `DataSystem` avec ordinateur
+- [ ] `ComputerSystem` avec ordinateur
 - [ ] Actions d'analyse
 - [ ] Gestion des traces de vie
 - [ ] Tests de majorités et égalités

@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, ProbeState, Bonus, GAME_CONSTANTS, SectorColor, SignalType, InteractionState } from '../core/types';
 import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, CelestialObject, getObjectPosition, getAbsoluteSectorForProbe, polarToCartesian, describeArc, sectorToIndex, indexToSector, calculateObjectPosition, getSectorType } from '../core/SolarSystemPosition';
-import { formatBonus } from '../core/Bonus';
 import { ProbeSystem } from '../systems/ProbeSystem';
+import { ResourceSystem } from '../systems/ResourceSystem';
 import { Tooltip } from './Tooltip';
 import './SolarSystemBoardUI.css'
 
@@ -676,7 +676,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         const probe = satellite.landers && satellite.landers[0];
         const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
 
-        const bonusText = (formatBonus(bonus) || []).join(', ') || 'Aucun';
+        const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
 
         const isOccupied = !!player;
         const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
@@ -925,7 +925,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                     const pos = orbitPositions[i];
                     const probe = planetData.orbiters[i];
                     const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-                    const bonusText = (formatBonus(bonus) || []).join(', ') || 'Aucun';
+                    const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
 
                     const isOccupied = !!player;
                     const isNextAvailable = i === planetData.orbiters.length;
@@ -1001,7 +1001,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                     const pos = landPositions[i];
                     const probe = planetData.landers[i];
                     const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-                    const bonusText = (formatBonus(bonus) || []).join(', ') || 'Aucun';
+                    const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
 
                     const isOccupied = !!player;
                     const isNextAvailable = i === planetData.landers.length;
@@ -1289,8 +1289,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
           // Préparation du tooltip Secteur
           const mediaBonusText = "1 Média pour chaque joueur présent";
-          const firstBonusStr = (formatBonus(sector.firstBonus) || []).join(', ') || 'Aucun';
-          const nextBonusStr = (formatBonus(sector.nextBonus) || []).join(', ') || 'Aucun';
+          const firstBonusStr = (ResourceSystem.formatBonus(sector.firstBonus) || []).join(', ') || 'Aucun';
+          const nextBonusStr = (ResourceSystem.formatBonus(sector.nextBonus) || []).join(', ') || 'Aucun';
 
           let bonusDisplay;
           if (firstBonusStr === nextBonusStr) {
@@ -1362,7 +1362,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
             // Préparation du tooltip Slot
             const baseGain = isWhiteSlot ? [] : ["1 Donnée"];
-            const bonusGain = signal.bonus ? formatBonus(signal.bonus) : null;
+            const bonusGain = signal.bonus ? ResourceSystem.formatBonus(signal.bonus) : null;
             const gains = [...baseGain, ...(bonusGain || [])];
 
             let stateText = "Disponible";

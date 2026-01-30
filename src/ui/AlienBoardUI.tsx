@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Game, InteractionState, LifeTraceType } from '../core/types';
-import { formatBonus } from '../core/Bonus';
+import { ResourceSystem } from '../systems/ResourceSystem';
 
 interface AlienBoardUIProps {
     game: Game;
@@ -108,8 +108,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 )}
 
                 <div style={{ fontSize: '0.8em', marginTop: '4px', borderTop: '1px solid #555', paddingTop: '4px', textAlign: 'left' }}>
-                    <div style={{ color: '#ccc', marginBottom: '2px' }}>Bonus 1ère découverte : <span style={{ color: '#ffd700', float: 'right' }}>{formatBonus(board.firstBonus).join(', ')}</span></div>
-                    <div style={{ color: '#ccc' }}>Bonus suivants : <span style={{ color: '#ffd700', float: 'right' }}>{formatBonus(board.nextBonus).join(', ')}</span></div>
+                    <div style={{ color: '#ccc', marginBottom: '2px' }}>Bonus 1ère découverte : <span style={{ color: '#ffd700', float: 'right' }}>{ResourceSystem.formatBonus(board.firstBonus)?.join(', ')}</span></div>
+                    <div style={{ color: '#ccc' }}>Bonus suivants : <span style={{ color: '#ffd700', float: 'right' }}>{ResourceSystem.formatBonus(board.nextBonus)?.join(', ')}</span></div>
                 </div>
             </div>
         );

@@ -251,20 +251,20 @@ export class ProbeSystem {
 
     // Vérifier les bonus média
     const targetCell = getCell(targetDisk, targetSector, rotationState);
-    let mediaBonus = 0;
+    let bonus = { media: 0, data: 0, pv: 0};
     if (targetCell) {
-      if (targetCell.hasComet) mediaBonus += 1;
+      if (targetCell.hasComet) bonus.media += 1;
       // La Terre ne donne pas de bonus de média
-      if (targetCell.hasPlanet && targetCell.planetId !== 'earth') mediaBonus += 1;
-      if (targetCell.hasAsteroid && player.technologies.some(t => t.id.startsWith('exploration-2'))) mediaBonus += 1;
+      if (targetCell.hasPlanet && targetCell.planetId !== 'earth') bonus.media += 1;
+      if (targetCell.hasAsteroid && player.technologies.some(t => t.id.startsWith('exploration-2'))) bonus.media += 1;
     }
 
     // Gestion Card 19 (Assistance Gravitationnelle)
     const hasChoiceBuff = player.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
     if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
         // On retire le bonus de média lié à la planète pour laisser le choix au joueur via l'UI
-        if (mediaBonus > 0) {
-            mediaBonus -= 1;
+        if (bonus.media > 0) {
+          bonus.media -= 1;
         }
     }
 
@@ -280,8 +280,6 @@ export class ProbeSystem {
     }
 
     // Gestion des visites de planètes et bonus associés
-    let scoreBonus = 0;
-    let dataBonus = 0;
     let newVisitedPlanets = [...player.visitedPlanetsThisTurn];
     let newActiveBuffs = [...player.activeBuffs];
 
@@ -299,7 +297,7 @@ export class ProbeSystem {
         const buffsToTrigger = newActiveBuffs.filter(buff => buff.type === 'VISIT_BONUS' && buff.target === planetId);
         
         buffsToTrigger.forEach(buff => {
-            scoreBonus += buff.value;
+            bonus.pv += buff.value;
             message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
         });
 
@@ -312,7 +310,7 @@ export class ProbeSystem {
         if (isNewVisit) {
             const uniqueBuffs = newActiveBuffs.filter(buff => buff.type === 'VISIT_UNIQUE');
             uniqueBuffs.forEach(buff => {
-                scoreBonus += buff.value;
+                bonus.pv += buff.value;
                 message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
             });
         }
@@ -322,7 +320,7 @@ export class ProbeSystem {
     if (targetCell && targetCell.hasAsteroid) {
         const asteroidBuffs = newActiveBuffs.filter(buff => buff.type === 'VISIT_ASTEROID');
         asteroidBuffs.forEach(buff => {
-            dataBonus += buff.value;
+            bonus.data += buff.value;
             message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'DATA')} ("${buff.source}")`;
         });
         if (asteroidBuffs.length > 0) {
@@ -334,7 +332,7 @@ export class ProbeSystem {
     if (targetCell && targetCell.hasComet) {
         const cometBuffs = newActiveBuffs.filter(buff => buff.type === 'VISIT_COMET');
         cometBuffs.forEach(buff => {
-            scoreBonus += buff.value;
+            bonus.pv += buff.value;
             message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
         });
         if (cometBuffs.length > 0) {
@@ -346,8 +344,8 @@ export class ProbeSystem {
     if (targetDisk === probe.solarPosition.disk) {
         const sameDiskBuffs = newActiveBuffs.filter(buff => buff.type === 'SAME_DISK_MOVE');
         sameDiskBuffs.forEach(buff => {
-            if (buff.value.pv) scoreBonus += buff.value.pv;
-            if (buff.value.media) mediaBonus += buff.value.media; // Note: mediaBonus is applied to player.mediaCoverage later
+            if (buff.value.pv) bonus.pv += buff.value.pv;
+            if (buff.value.media) bonus.media += buff.value.media; // Note: mediaBonus is applied to player.mediaCoverage later
             
             const gains: string[] = [];
             if (buff.value.pv) gains.push(ResourceSystem.formatResource(buff.value.pv, 'PV'));
@@ -359,7 +357,7 @@ export class ProbeSystem {
         }
     }
 
-    const actualMediaGain = Math.min(player.mediaCoverage + mediaBonus, GAME_CONSTANTS.MAX_MEDIA_COVERAGE) - player.mediaCoverage;
+    const actualMediaGain = Math.min(player.mediaCoverage + bonus.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE) - player.mediaCoverage;
     if (actualMediaGain > 0) {
       message += ` et gagne ${actualMediaGain} média (${objectName})`;
     }
@@ -367,12 +365,12 @@ export class ProbeSystem {
     // Débiter l'énergie et appliquer le bonus de média
     const updatedPlayer = {
       ...player,
-      score: player.score + scoreBonus,
-      data: Math.min(player.data + dataBonus, GAME_CONSTANTS.MAX_DATA),
+      score: player.score + bonus.pv,
+      data: Math.min(player.data + bonus.data, GAME_CONSTANTS.MAX_DATA),
       visitedPlanetsThisTurn: newVisitedPlanets, // Mettre à jour la liste
       activeBuffs: newActiveBuffs, // Mettre à jour la liste des buffs
       energy: Math.max(0, player.energy - (validation.energyCost || 0)),
-      mediaCoverage: Math.min(player.mediaCoverage + mediaBonus, GAME_CONSTANTS.MAX_MEDIA_COVERAGE),
+      mediaCoverage: Math.min(player.mediaCoverage + bonus.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE),
       probes: player.probes.map((p, idx) => {
         if (idx === probeIndex) {
           return {
@@ -431,7 +429,7 @@ export class ProbeSystem {
                 
                 this.applyBonus(updatedPlayer, bonus);
 
-                if (buff.target === 'draw' || buff.target === 'card') {
+                if (buff.target === 'card') {
                     for(let i=0; i<buff.value; i++) {
                         if (updatedGame.decks.cards.length > 0) {
                             const card = updatedGame.decks.cards.shift();
@@ -446,7 +444,7 @@ export class ProbeSystem {
                     if (mission) {
                         mission.progress.current += 1;
                         if (gains.length > 0) {
-                            message += ` et gagne ${gains.join(', ')} (Mission: ${buff.source})`;
+                            message += ` et gagne ${gains.join(', ')} (Mission "${buff.source}")`;
                         }
                         if (mission.progress.current >= mission.progress.target) {
                             mission.completed = true;
@@ -573,6 +571,7 @@ export class ProbeSystem {
     if (bonus.data) {
       updatedPlayer.data = Math.min(updatedPlayer.data + (bonus.data || 0), GAME_CONSTANTS.MAX_DATA);
     }
+
     if (bonus.planetscan || bonus.redscan || bonus.bluescan || bonus.yellowscan || bonus.blackscan) {
       // Géré via intéraction utilisateur dans orbitProbe/landProbe côté UI
     }
@@ -1179,8 +1178,8 @@ export class ProbeSystem {
           else if (bonusType === 'credit' || bonusType === 'credits') rewards.credits = (rewards.credits || 0) + bonusValue;
           else if (bonusType === 'energy') rewards.energy = (rewards.energy || 0) + bonusValue;
           else if (bonusType === 'data') rewards.data = (rewards.data || 0) + bonusValue;
-          else if (bonusType === 'draw') rewards.draw = (rewards.draw || 0) + bonusValue;
           else if (bonusType === 'card') rewards.card = (rewards.card || 0) + bonusValue;
+          else if (bonusType === 'anycard') rewards.anycard = (rewards.anycard || 0) + bonusValue;
           else if (bonusType === 'probe') rewards.probe = (rewards.probe || 0) + bonusValue;
         }
       }

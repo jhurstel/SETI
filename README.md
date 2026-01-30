@@ -17,8 +17,8 @@ src/
 │
 ├── systems/           # Systèmes de jeu
 │   ├── ProbeSystem.ts      # Gestion des sondes
-│   ├── SectorSystem.ts     # Scans et majorités
-│   ├── DataSystem.ts       # Ordinateur et analyse
+│   ├── ScanSystem.ts     # Scans et majorités
+│   ├── ComputerSystem.ts       # Ordinateur et analyse
 │   ├── TechnologySystem.ts # Technologies
 │   ├── CardSystem.ts       # Cartes et missions
 │   ├── SpeciesSystem.ts    # Espèces extraterrestres

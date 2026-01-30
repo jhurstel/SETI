@@ -1,6 +1,6 @@
 import { BaseAction } from './Action';
 import { Game, ActionType, ValidationResult, GAME_CONSTANTS } from '../core/types';
-import { SectorSystem } from '../systems/SectorSystem';
+import { ScanSystem } from '../systems/ScanSystem';
 
 export class ScanSectorAction extends BaseAction {
     constructor(playerId: string) {
@@ -8,7 +8,7 @@ export class ScanSectorAction extends BaseAction {
     }
 
     validate(game: Game): ValidationResult {
-        const check = SectorSystem.canScanSector(game, this.playerId);
+        const check = ScanSystem.canScanSector(game, this.playerId);
         if (!check.canScan) {
             return { valid: false, errors: [{ code: 'CANNOT_SCAN', message: check.reason || 'Scan impossible' }], warnings: [] };
         }

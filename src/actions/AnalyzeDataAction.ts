@@ -1,6 +1,6 @@
 import { BaseAction } from './Action';
 import { Game, ActionType, ValidationResult } from '../core/types';
-import { DataSystem } from '../systems/DataSystem';
+import { ComputerSystem } from '../systems/ComputerSystem';
 
 export class AnalyzeDataAction extends BaseAction {
     constructor(playerId: string) {
@@ -8,7 +8,7 @@ export class AnalyzeDataAction extends BaseAction {
     }
 
     validate(game: Game): ValidationResult {
-        const check = DataSystem.canAnalyzeData(game, this.playerId);
+        const check = ComputerSystem.canAnalyzeData(game, this.playerId);
         if (!check.canAnalyze) {
             return { valid: false, errors: [{ code: 'CANNOT_ANALYZE', message: check.reason || 'Analyse impossible' }], warnings: [] };
         }
@@ -20,7 +20,7 @@ export class AnalyzeDataAction extends BaseAction {
         // Cette méthode est pour la complétude et une future exécution par le moteur.
         const player = game.players.find(p => p.id === this.playerId)!;
         player.energy -= 1;
-        DataSystem.clearComputer(player);
+        ComputerSystem.clearComputer(player);
         return game;
     }
 }

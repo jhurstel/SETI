@@ -16,11 +16,11 @@ import { ScanSectorAction } from '../actions/ScanSectorAction';
 import { GameEngine } from '../core/Game';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
-import { DataSystem } from '../systems/DataSystem';
+import { ComputerSystem } from '../systems/ComputerSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
-import { SectorSystem } from '../systems/SectorSystem';
+import { ScanSystem } from '../systems/ScanSystem';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { AIBehavior } from '../ai/AIBehavior';
 import { DebugPanel } from './DebugPanel';
@@ -661,7 +661,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const scanLogs: string[] = [...initialLogs];
 
     // 1. Scan
-    const scanResult = SectorSystem.scanSector(updatedGame, playerId, sectorId, false, noData);
+    const scanResult = ScanSystem.scanSector(updatedGame, playerId, sectorId, false, noData);
     updatedGame = scanResult.updatedGame;
     scanLogs.push(...scanResult.logs);
 
@@ -680,13 +680,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     // 3. Check if covered
-    if (SectorSystem.isSectorCovered(updatedGame, sectorId)) {
+    if (ScanSystem.isSectorCovered(updatedGame, sectorId)) {
       scanLogs.push(`et complète le secteur !`);
       historyEntries.push({ message: scanLogs.join(', '), playerId });
 
       const coverageLogs: string[] = [];
       // 4. Cover sector
-      const coverageResult = SectorSystem.coverSector(updatedGame, playerId, sectorId);
+      const coverageResult = ScanSystem.coverSector(updatedGame, playerId, sectorId);
       updatedGame = coverageResult.updatedGame;
       coverageLogs.push(...coverageResult.logs);
 
@@ -1086,7 +1086,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         player.energy -= 1;
 
         // Mettre à jour GameEngine
-        DataSystem.clearComputer(player);
+        ComputerSystem.clearComputer(player);
 
         // Marquer l'action principale comme effectuée manuellement
         const playerIndex = updatedGame.players.findIndex(p => p.id === player.id);
@@ -1102,8 +1102,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   };
 
-  // Helper pour traiter les bonus (Orbite/Atterrissage)
-  const processBonuses = (bonuses: any, currentGame: Game, playerId: string, sourceId?: string, sequenceId?: string, planetId?: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[], historyEntries: { message: string, playerId: string }[] } => {
+  // Helper pour traiter les bonus
+  const processBonuses = (bonuses: Bonus, currentGame: Game, playerId: string, sourceId?: string, sequenceId?: string, planetId?: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[], historyEntries: { message: string, playerId: string }[] } => {
     let updatedGame = currentGame;
     const newPendingInteractions: InteractionState[] = [];
     const logs: string[] = [];
@@ -1115,7 +1115,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       for (let i = 0; i < count; i++) {
         const sector = updatedGame.board.sectors.find(s => s.name.includes(namePart));
         if (sector) {
-          const scanResult = SectorSystem.scanSector(updatedGame, playerId, sector.id, false, bonuses.noData);
+          const scanResult = ScanSystem.scanSector(updatedGame, playerId, sector.id, false, bonuses.noData);
           updatedGame = scanResult.updatedGame;
           logs.push(...scanResult.logs);
 
@@ -1128,8 +1128,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             historyEntries.push(...sub.historyEntries);
           }
 
-          if (SectorSystem.isSectorCovered(updatedGame, sector.id)) {
-            const coverResult = SectorSystem.coverSector(updatedGame, playerId, sector.id);
+          if (ScanSystem.isSectorCovered(updatedGame, sector.id)) {
+            const coverResult = ScanSystem.coverSector(updatedGame, playerId, sector.id);
             updatedGame = coverResult.updatedGame;
             logs.push(...coverResult.logs);
             if (coverResult.bonuses) {
@@ -1198,7 +1198,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (earthPos) {
           const earthSector = game.board.sectors[earthPos.absoluteSector - 1];
           if (earthSector) {
-            const result = SectorSystem.scanSector(updatedGame, playerId, earthSector.id, false, bonuses.noData);
+            const result = ScanSystem.scanSector(updatedGame, playerId, earthSector.id, false, bonuses.noData);
             updatedGame = result.updatedGame;
             logs.push(result.logs.join(', '));
           }
@@ -1220,7 +1220,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (planetPos) {
           const planetSector = game.board.sectors[planetPos.absoluteSector - 1];
           if (planetSector) {
-            const result = SectorSystem.scanSector(updatedGame, playerId, planetSector.id, false, bonuses.noData);
+            const result = ScanSystem.scanSector(updatedGame, playerId, planetSector.id, false, bonuses.noData);
             updatedGame = result.updatedGame;
             logs.push(result.logs.join(', '));
           }
@@ -1347,7 +1347,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           if (absoluteSector) {
             const sectorId = `sector_${absoluteSector}`;
 
-            const scanResult = SectorSystem.scanSector(updatedGame, playerId, sectorId, false, bonuses.noData);
+            const scanResult = ScanSystem.scanSector(updatedGame, playerId, sectorId, false, bonuses.noData);
             updatedGame = scanResult.updatedGame;
             logs.push(...scanResult.logs);
 
@@ -1360,8 +1360,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               historyEntries.push(...sub.historyEntries);
             }
 
-            if (SectorSystem.isSectorCovered(updatedGame, sectorId)) {
-              const coverResult = SectorSystem.coverSector(updatedGame, playerId, sectorId);
+            if (ScanSystem.isSectorCovered(updatedGame, sectorId)) {
+              const coverResult = ScanSystem.coverSector(updatedGame, playerId, sectorId);
               updatedGame = coverResult.updatedGame;
               logs.push(...coverResult.logs);
               if (coverResult.bonuses) {

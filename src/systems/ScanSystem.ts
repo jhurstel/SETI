@@ -16,7 +16,7 @@ import {
   GAME_CONSTANTS
 } from '../core/types';
 
-export class SectorSystem {
+export class ScanSystem {
   /**
    * Vérifie si un joueur peut scanner un secteur
    */

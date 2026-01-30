@@ -15,7 +15,7 @@ import {
   Player
 } from '../core/types';
 
-export class DataSystem {
+export class ComputerSystem {
   static canAnalyzeData(game: Game, playerId: string): {
     canAnalyze: boolean;
     reason?: string;

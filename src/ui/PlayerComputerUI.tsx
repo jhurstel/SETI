@@ -1,6 +1,6 @@
 import React from 'react';
 import { Player, ComputerSlot } from '../core/types';
-import { DataSystem } from '../systems/DataSystem';
+import { ComputerSystem } from '../systems/ComputerSystem';
 import './PlayerComputerUI.css';
 
 const ComputerSlotUI = ({ 
@@ -159,7 +159,7 @@ export const PlayerComputerUI = ({
                   key={slot.id} 
                   slot={slot} 
                   onClick={() => onSlotClick(slot.id)} 
-                  canFill={!disabled && DataSystem.canFillSlot(player, slot.id)} 
+                  canFill={!disabled && ComputerSystem.canFillSlot(player, slot.id)} 
                   hasData={hasData}
                   onHover={onHover}
                   onLeave={onLeave}
