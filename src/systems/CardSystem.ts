@@ -485,6 +485,22 @@ export class CardSystem {
                     player.permanentBuffs.push({ ...effect, source: card.name });
                 } else if (effect.type === 'GAIN_ON_LAND' && effect.target && effect.value) {
                     player.permanentBuffs.push({ ...effect, source: card.name });
+                } else if (effect.type === 'GAIN_ON_VISIT_JUPITER' && effect.target && effect.value) {
+                    player.permanentBuffs.push({ ...effect, source: card.name });
+                } else if (effect.type === 'GAIN_ON_VISIT_SATURN' && effect.target && effect.value) {
+                    player.permanentBuffs.push({ ...effect, source: card.name });
+                } else if (effect.type === 'GAIN_ON_VISIT_MERCURY' && effect.target && effect.value) {
+                    player.permanentBuffs.push({ ...effect, source: card.name });
+                } else if (effect.type === 'GAIN_ON_VISIT_VENUS' && effect.target && effect.value) {
+                    player.permanentBuffs.push({ ...effect, source: card.name });
+                } else if (effect.type === 'GAIN_ON_VISIT_URANUS' && effect.target && effect.value) {
+                    player.permanentBuffs.push({ ...effect, source: card.name });
+                } else if (effect.type === 'GAIN_ON_VISIT_NEPTUNE' && effect.target && effect.value) {
+                    player.permanentBuffs.push({ ...effect, source: card.name });
+                } else if (effect.type === 'GAIN_ON_VISIT_PLANET' && effect.target && effect.value) {
+                    player.permanentBuffs.push({ ...effect, source: card.name });
+                } else if (effect.type === 'GAIN_ON_VISIT_ASTEROID' && effect.target && effect.value) {
+                    player.permanentBuffs.push({ ...effect, source: card.name });
                 }
             });
         }

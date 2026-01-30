@@ -4,6 +4,8 @@ import { ProbeSystem } from '../systems/ProbeSystem';
 import { createRotationState, getCell, rotateSector } from '../core/SolarSystemPosition';
 
 export class MoveProbeAction extends BaseAction {
+  public executionMessage: string = "";
+
   constructor(
     playerId: string,
     public probeId: string,
@@ -37,7 +39,7 @@ export class MoveProbeAction extends BaseAction {
     const cost = this.calculateCost(game);
     const finalCost = this.useFreeMovement ? Math.max(0, cost - 1) : cost;
 
-    return ProbeSystem.moveProbe(
+    const result = ProbeSystem.moveProbe(
       game,
       this.playerId,
       this.probeId,
@@ -45,6 +47,8 @@ export class MoveProbeAction extends BaseAction {
       this.targetPosition.disk,
       this.targetPosition.sector
     );
+    this.executionMessage = result.message;
+    return result.updatedGame;
   }
 
   /**

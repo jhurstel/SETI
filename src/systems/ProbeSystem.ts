@@ -9,26 +9,9 @@
  * - Limites (max 1 sonde dans le système solaire sans technologie)
  */
 
-import {
-  Game,
-  Player,
-  Probe,
-  ProbeState,
-  Planet,
-  Satellite,
-  Bonus,
-  GAME_CONSTANTS,
-  DiskName,
-  SectorNumber
-} from '../core/types';
-import { 
-  getObjectPosition, 
-  createRotationState, 
-  getVisibleLevel, 
-  getCell, 
-  rotateSector,
-  RotationState 
-} from '../core/SolarSystemPosition';
+import { Game, Player, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber } from '../core/types';
+import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState } from '../core/SolarSystemPosition';
+import { ResourceSystem } from './ResourceSystem';
 
 export class ProbeSystem {
   /**
@@ -235,7 +218,7 @@ export class ProbeSystem {
     energyCost: number,
     targetDisk: DiskName,
     targetSector: SectorNumber
-  ): Game {
+  ): { updatedGame: Game, message: string } {
     const validation = this.canMoveProbe(game, playerId, probeId, energyCost);
     if (!validation.canMove) {
       throw new Error(validation.reason || 'Déplacement impossible');
@@ -285,6 +268,17 @@ export class ProbeSystem {
         }
     }
 
+    // Construction du message
+    let message = "";
+    const objectName = targetCell?.hasComet ? "Visite de Comète" : targetCell?.hasAsteroid ? "Visite d'Astéroïdes" : targetCell?.hasPlanet ? `Visite de ${targetCell?.planetName}` : "une case vide";
+    const energySpent = validation.energyCost || 0;
+
+    if (energySpent > 0) {
+        message = `paye ${energySpent} énergie pour déplacer une sonde vers ${targetDisk}${targetSector}`;
+    } else {
+        message = `déplace une sonde vers ${targetDisk}${targetSector} gratuitement`;
+    }
+
     // Gestion des visites de planètes et bonus associés
     let scoreBonus = 0;
     let dataBonus = 0;
@@ -306,6 +300,7 @@ export class ProbeSystem {
         
         buffsToTrigger.forEach(buff => {
             scoreBonus += buff.value;
+            message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
         });
 
         // Retirer les buffs consommés (pour ne pas gagner 2x les points si on revient sur la planète)
@@ -318,6 +313,7 @@ export class ProbeSystem {
             const uniqueBuffs = newActiveBuffs.filter(buff => buff.type === 'VISIT_UNIQUE');
             uniqueBuffs.forEach(buff => {
                 scoreBonus += buff.value;
+                message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
             });
         }
     }
@@ -327,6 +323,7 @@ export class ProbeSystem {
         const asteroidBuffs = newActiveBuffs.filter(buff => buff.type === 'VISIT_ASTEROID');
         asteroidBuffs.forEach(buff => {
             dataBonus += buff.value;
+            message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'DATA')} ("${buff.source}")`;
         });
         if (asteroidBuffs.length > 0) {
             newActiveBuffs = newActiveBuffs.filter(buff => buff.type !== 'VISIT_ASTEROID');
@@ -338,6 +335,7 @@ export class ProbeSystem {
         const cometBuffs = newActiveBuffs.filter(buff => buff.type === 'VISIT_COMET');
         cometBuffs.forEach(buff => {
             scoreBonus += buff.value;
+            message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
         });
         if (cometBuffs.length > 0) {
             newActiveBuffs = newActiveBuffs.filter(buff => buff.type !== 'VISIT_COMET');
@@ -349,13 +347,23 @@ export class ProbeSystem {
         const sameDiskBuffs = newActiveBuffs.filter(buff => buff.type === 'SAME_DISK_MOVE');
         sameDiskBuffs.forEach(buff => {
             if (buff.value.pv) scoreBonus += buff.value.pv;
-            if (buff.value.media) mediaBonus += buff.value.media;
+            if (buff.value.media) mediaBonus += buff.value.media; // Note: mediaBonus is applied to player.mediaCoverage later
+            
+            const gains: string[] = [];
+            if (buff.value.pv) gains.push(ResourceSystem.formatResource(buff.value.pv, 'PV'));
+            if (buff.value.media) gains.push(ResourceSystem.formatResource(buff.value.media, 'MEDIA'));
+            message += ` et gagne ${gains.join(', ')} ("${buff.source}")`;
         });
         if (sameDiskBuffs.length > 0) {
             newActiveBuffs = newActiveBuffs.filter(buff => buff.type !== 'SAME_DISK_MOVE');
         }
     }
-    
+
+    const actualMediaGain = Math.min(player.mediaCoverage + mediaBonus, GAME_CONSTANTS.MAX_MEDIA_COVERAGE) - player.mediaCoverage;
+    if (actualMediaGain > 0) {
+      message += ` et gagne ${actualMediaGain} média (${objectName})`;
+    }
+
     // Débiter l'énergie et appliquer le bonus de média
     const updatedPlayer = {
       ...player,
@@ -379,6 +387,75 @@ export class ProbeSystem {
         return p;
       })
     };
+    
+    // Traitement des missions conditionnelles (GAIN_ON_VISIT_xxx)
+    if (targetCell) {
+        updatedPlayer.permanentBuffs.forEach(buff => {
+            let shouldTrigger = false;
+            
+            // Planètes
+            if (targetCell.hasPlanet && targetCell.planetId) {
+                if (buff.type === `GAIN_ON_VISIT_${targetCell.planetId.toUpperCase()}`) {
+                    shouldTrigger = true;
+                }
+                if (buff.type === 'GAIN_ON_VISIT_PLANET' && targetCell.planetId !== 'earth') {
+                    shouldTrigger = true;
+                }
+            }
+            
+            // Astéroïdes
+            if (targetCell.hasAsteroid && buff.type === 'GAIN_ON_VISIT_ASTEROID') {
+                shouldTrigger = true;
+            }
+
+            if (shouldTrigger) {
+                const bonus: Bonus = {};
+                const gains: string[] = [];
+
+                if (buff.target === 'pv') {
+                    bonus.pv = buff.value;
+                    gains.push(ResourceSystem.formatResource(buff.value, 'PV'));
+                } else if (buff.target === 'media') {
+                    bonus.media = buff.value;
+                    gains.push(ResourceSystem.formatResource(buff.value, 'MEDIA'));
+                } else if (buff.target === 'credit') {
+                    bonus.credits = buff.value;
+                    gains.push(ResourceSystem.formatResource(buff.value, 'CREDIT'));
+                } else if (buff.target === 'energy') {
+                    bonus.energy = buff.value;
+                    gains.push(ResourceSystem.formatResource(buff.value, 'ENERGY'));
+                } else if (buff.target === 'data') {
+                    bonus.data = buff.value;
+                    gains.push(ResourceSystem.formatResource(buff.value, 'DATA'));
+                }
+                
+                this.applyBonus(updatedPlayer, bonus);
+
+                if (buff.target === 'draw' || buff.target === 'card') {
+                    for(let i=0; i<buff.value; i++) {
+                        if (updatedGame.decks.cards.length > 0) {
+                            const card = updatedGame.decks.cards.shift();
+                            if (card) updatedPlayer.cards.push(card);
+                        }
+                    }
+                    gains.push(ResourceSystem.formatResource(buff.value, 'CARD'));
+                }
+
+                if (buff.source) {
+                    const mission = updatedPlayer.missions.find(m => m.name === buff.source);
+                    if (mission) {
+                        mission.progress.current += 1;
+                        if (gains.length > 0) {
+                            message += ` et gagne ${gains.join(', ')} (Mission: ${buff.source})`;
+                        }
+                        if (mission.progress.current >= mission.progress.target) {
+                            mission.completed = true;
+                        }
+                    }
+                }
+            }
+        });
+    }
 
     updatedGame.players[playerIndex] = updatedPlayer;
 
@@ -405,7 +482,7 @@ export class ProbeSystem {
       }
     };
 
-    return updatedGame;
+    return { updatedGame, message };
   }
 
   /**

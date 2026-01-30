@@ -59,7 +59,8 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   const handleAddCard = () => {
     const updatedGame = structuredClone(game);
     const player = updatedGame.players[updatedGame.currentPlayerIndex];
-    const cardToFind = cardId.toLowerCase();
+    const cardToFind = cardId.trim().toLowerCase();
+    const isNumeric = /^\d+$/.test(cardId.trim());
 
     const allCards: Card[] = [
         ...(updatedGame.decks.cards || []),
@@ -68,7 +69,12 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
         ...Object.values(updatedGame.decks.roundDecks || {}).flat()
     ];
     
-    const card = allCards.find(c => c.id === cardId || c.name.toLowerCase().includes(cardToFind));
+    let card: Card | undefined;
+    if (isNumeric) {
+      card = allCards.find(c => c.id === cardId.trim());
+    } else {
+      card = allCards.find(c => c.name.toLowerCase().includes(cardToFind));
+    }
     
     if (card) {
       player.cards.push(structuredClone(card));

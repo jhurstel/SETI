@@ -394,6 +394,21 @@
     font-family: monospace;
 }
 
+.seti-rotation-indicator.level-1 {
+    color: #ffd700;
+    text-shadow: 0 0 5px #ffd700, 0 0 2px black;
+}
+
+.seti-rotation-indicator.level-2 {
+    color: #ff4747; /* Rouge accentué */
+    text-shadow: 0 0 5px #ff4747, 0 0 2px black;
+}
+
+.seti-rotation-indicator.level-3 {
+    color: #4a9eff;
+    text-shadow: 0 0 5px #4a9eff, 0 0 2px black;
+}
+
 .seti-rotating-sector-svg {
     position: absolute;
     top: 50%;
@@ -405,6 +420,32 @@
     transform-origin: center center;
 }
 
+.seti-rotating-sector-svg path {
+    transition: fill 0.3s ease, stroke 0.3s ease;
+    stroke-width: 1.5; /* Bordure plus épaisse */
+}
+
+/* Level 1 - Jaune */
+.seti-rotating-sector-svg.level-1 path {
+    fill: rgb(91, 121, 83);
+    stroke: rgba(255, 215, 0, 0.7);
+    filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0,2));
+}
+
+/* Level 2 - Rouge */
+.seti-rotating-sector-svg.level-2 path {
+    fill: rgb(82, 66, 56);
+    stroke: rgba(255, 71, 71, 0.7);
+    filter: drop-shadow(0 0 3px rgba(255, 71, 71, 0.2));
+}
+  
+/* Level 3 - Bleu */
+.seti-rotating-sector-svg.level-3 path {
+    fill: rgba(40, 60, 100, 1);
+    stroke: rgba(74, 158, 255, 0.7);
+    filter: drop-shadow(0 0 2px rgba(74, 158, 255, 0.2));
+}
+  
 .seti-planet-icon-body {
     position: absolute;
     top: 50%;

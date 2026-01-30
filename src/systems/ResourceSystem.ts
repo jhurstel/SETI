@@ -2,6 +2,22 @@ import { Game, GAME_CONSTANTS } from '../core/types';
 import { CardSystem } from './CardSystem';
 
 export class ResourceSystem {
+  static formatResource(amount: number, type: string): string {
+    const absAmount = Math.abs(amount);
+    const plural = absAmount > 1 ? 's' : '';
+    let label = type;
+    const key = type.toUpperCase();
+
+    if (key === 'PV') label = 'PV';
+    else if (key === 'MEDIA' || key === 'MEDIAS') label = `Média${plural}`;
+    else if (key === 'DATA' || key === 'DATAS') label = `Donnée${plural}`;
+    else if (key === 'CREDIT' || key === 'CREDITS') label = `Crédit${plural}`;
+    else if (key === 'ENERGY' || key === 'ENERGIE') label = `Énergie${plural}`;
+    else if (key === 'CARD' || key === 'CARDS' || key === 'CARTES') label = `Carte${plural}`;
+    
+    return `${amount} ${label}`;
+  }
+
   static buyCard(game: Game, playerId: string, cardIdFromRow?: string, isFree: boolean = false): { updatedGame: Game, error?: string } {
     let updatedGame = { ...game };
     

@@ -1,4 +1,5 @@
-import { InteractionState } from '../../core/types';
+import { InteractionState, Game } from '../../core/types';
+import { ScoreManager } from '../../core/ScoreManager';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {
   if (!visible) return null;
@@ -122,6 +123,64 @@ export const BonusChoiceModal = ({ interactionState, onChoice, onFinish }: { int
         {interactionState.choices.every(c => c.done) && (
           <button onClick={onFinish} style={{ marginTop: '20px', width: '100%', padding: '10px', backgroundColor: '#4caf50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Terminer</button>
         )}
+      </div>
+    </div>
+  );
+}
+
+export const EndGameModal = ({ game }: { game: Game }) => {
+  const scoresData = game.players.map(p => {
+    const bonuses = ScoreManager.calculateFinalScore(game, p.id);
+    // Le score dans game.players est déjà le score final (mis à jour par TurnManager)
+    // On recalcule le score de base pour l'affichage
+    const baseScore = p.score - bonuses.total;
+    return {
+      player: p,
+      bonuses,
+      baseScore,
+      total: p.score
+    };
+  }).sort((a, b) => b.total - a.total);
+
+  const winner = scoresData[0];
+
+  return (
+    <div className="seti-endgame-overlay">
+      <div className="seti-endgame-modal">
+        <div className="seti-endgame-header">
+          <h1>FIN DE PARTIE</h1>
+          <div className="seti-endgame-winner">
+            Vainqueur : <span style={{ color: winner.player.color }}>{winner.player.name}</span>
+          </div>
+        </div>
+        
+        <div className="seti-endgame-scores">
+          <div className="seti-endgame-row header">
+            <div className="col-rank">#</div>
+            <div className="col-player">Joueur</div>
+            <div className="col-score">Base</div>
+            <div className="col-score">Obj.</div>
+            <div className="col-score">Miss.</div>
+            <div className="col-score">Alien</div>
+            <div className="col-total">Total</div>
+          </div>
+          
+          {scoresData.map((data, index) => (
+            <div key={data.player.id} className="seti-endgame-row">
+              <div className="col-rank">{index + 1}</div>
+              <div className="col-player" style={{ color: data.player.color }}>{data.player.name}</div>
+              <div className="col-score">{data.baseScore}</div>
+              <div className="col-score">{data.bonuses.objectiveTiles}</div>
+              <div className="col-score">{data.bonuses.missionEndGame}</div>
+              <div className="col-score">{data.bonuses.speciesBonuses}</div>
+              <div className="col-total">{data.total}</div>
+            </div>
+          ))}
+        </div>
+        
+        <button className="seti-endgame-btn" onClick={() => window.location.reload()}>
+          Nouvelle Partie
+        </button>
       </div>
     </div>
   );
