@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, ProbeState, Bonus, GAME_CONSTANTS, SectorColor, SignalType, InteractionState } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, ProbeState, Bonus, GAME_CONSTANTS, SectorType, SignalType, InteractionState } from '../core/types';
 import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, CelestialObject, getObjectPosition, getAbsoluteSectorForProbe, polarToCartesian, describeArc, sectorToIndex, indexToSector, calculateObjectPosition, getSectorType } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -130,7 +130,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           return game.board.sectors.filter(s => Math.abs(parseInt(s.id.split('_')[1]) - earthPos.absoluteSector) <= 1 || Math.abs(parseInt(s.id.split('_')[1]) - earthPos.absoluteSector) === 7).map(s => s.id);
         }
       }
-      if (interactionState.color === SectorColor.ANY) {
+      if (interactionState.color === SectorType.ANY) {
         return game.board.sectors.map(s => s.id);
       }
       return game.board.sectors.filter(s => s.color === interactionState.color).map(s => s.id);
@@ -1278,10 +1278,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           const textArc = describeArc(100, 100, textRadius, startAngle, endAngle, isBottom);
 
           const colorMap: Record<string, string> = {
-            [SectorColor.BLUE]: '#4a9eff',
-            [SectorColor.RED]: '#ff6b6b',
-            [SectorColor.YELLOW]: '#ffd700',
-            [SectorColor.BLACK]: '#aaaaaa'
+            [SectorType.BLUE]: '#4a9eff',
+            [SectorType.RED]: '#ff6b6b',
+            [SectorType.YELLOW]: '#ffd700',
+            [SectorType.BLACK]: '#aaaaaa'
           };
           const color = colorMap[sector.color] || '#fff';
 

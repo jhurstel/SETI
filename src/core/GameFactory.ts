@@ -14,7 +14,7 @@ import {
   Card,
   CardType,
   FreeActionType,
-  SectorColor,
+  SectorType,
   RevenueType,
   CardEffect,
   GameLogEntry,
@@ -311,7 +311,7 @@ export class GameFactory {
    * Mock
    */
   //private static createRandomCard(id: number): Card {
-  //  const colors = [SectorColor.BLUE, SectorColor.RED, SectorColor.YELLOW, SectorColor.BLACK];
+  //  const colors = [SectorType.BLUE, SectorType.RED, SectorType.YELLOW, SectorType.BLACK];
   //  const freeActions = [FreeActionType.DATA, FreeActionType.MEDIA, FreeActionType.MOVEMENT];
   //  const revenues = [RevenueType.CREDIT, RevenueType.ENERGY, RevenueType.CARD];
   //  return {
@@ -500,7 +500,7 @@ export class GameFactory {
             type: this.mapCardType(type.trim()),
             cost: parseInt(cout.trim(), 10) || 0,
             freeAction: this.mapFreeActionType(actionGratuite.trim()),
-            scanSector: this.mapSectorColor(couleurScan.trim()),
+            scanSector: this.mapSectorType(couleurScan.trim()),
             revenue: this.mapRevenueType(revenue.trim()),
             immediateEffects: this.parseImmediateEffects(gain.trim()),
             passiveEffects: this.parsePassiveEffects(contrainte.trim()),
@@ -528,13 +528,13 @@ export class GameFactory {
       return FreeActionType.DATA; // Valeur par défaut
   }
 
-  private static mapSectorColor(value: string): SectorColor {
+  private static mapSectorType(value: string): SectorType {
       const v = value.toLowerCase();
-      if (v.includes('bleu') || v.includes('blue')) return SectorColor.BLUE;
-      if (v.includes('rouge') || v.includes('red')) return SectorColor.RED;
-      if (v.includes('jaune') || v.includes('yellow')) return SectorColor.YELLOW;
-      if (v.includes('noir') || v.includes('black')) return SectorColor.BLACK;
-      return SectorColor.BLUE; // Valeur par défaut
+      if (v.includes('bleu') || v.includes('blue')) return SectorType.BLUE;
+      if (v.includes('rouge') || v.includes('red')) return SectorType.RED;
+      if (v.includes('jaune') || v.includes('yellow')) return SectorType.YELLOW;
+      if (v.includes('noir') || v.includes('black')) return SectorType.BLACK;
+      return SectorType.ANY; // Valeur par défaut
   }
 
   private static mapRevenueType(value: string): RevenueType {
@@ -582,35 +582,35 @@ export class GameFactory {
         } else if (lower.includes('scan')) {
           effects.push({ type: 'ACTION', target: 'SCAN', value: amount });
         } else if (lower.includes('signal') || lower.includes('signaux')) {
-          let scope = 'ANY';
-          if (lower.includes('rangée') || lower.includes('rangee')) scope = 'ROW';
-          else if (lower.includes('terre')) scope = 'EARTH';
-          else if (lower.includes('mercure')) scope = 'MERCURY';
-          else if (lower.includes('vénus')) scope = 'VENUS';
-          else if (lower.includes('jupiter')) scope = 'JUPITER';
-          else if (lower.includes('saturne')) scope = 'SATURN';
-          else if (lower.includes('mars')) scope = 'MARS';
-          else if (lower.includes('sonde')) scope = 'PROBE';
-          else if (lower.includes('jaune')) scope = 'YELLOW';
-          else if (lower.includes('bleu')) scope = 'BLUE';
-          else if (lower.includes('rouge')) scope = 'RED';
-          else if (lower.includes('noir')) scope = 'BLACK';
-          else if (lower.includes('deck')) scope = 'DECK';
-          else if (lower.includes('kepler')) scope = 'KEPLER';
-          else if (lower.includes('virginis')) scope = 'VIRGINIS';
-          else if (lower.includes('barnard')) scope = 'BARNARD';
-          else if (lower.includes('proxima')) scope = 'PROXIMA';
-          else if (lower.includes('procyon')) scope = 'PROCYON';
-          else if (lower.includes('sirius')) scope = 'SIRIUS';
-          else if (lower.includes('véga')) scope = 'VEGA';
-          else if (lower.includes('pictoris')) scope = 'PICTORIS';
+          let scope = SectorType.ANY;
+          if (lower.includes('rangée') || lower.includes('rangee')) scope = SectorType.ROW;
+          else if (lower.includes('terre')) scope = SectorType.EARTH;
+          else if (lower.includes('mercure')) scope = SectorType.MERCURY;
+          else if (lower.includes('vénus')) scope = SectorType.VENUS;
+          else if (lower.includes('jupiter')) scope = SectorType.JUPITER;
+          else if (lower.includes('saturne')) scope = SectorType.SATURN;
+          else if (lower.includes('mars')) scope = SectorType.MARS;
+          else if (lower.includes('sonde')) scope = SectorType.PROBE;
+          else if (lower.includes('jaune')) scope = SectorType.YELLOW;
+          else if (lower.includes('bleu')) scope = SectorType.BLUE;
+          else if (lower.includes('rouge')) scope = SectorType.RED;
+          else if (lower.includes('noir')) scope = SectorType.BLACK;
+          else if (lower.includes('deck')) scope = SectorType.DECK;
+          else if (lower.includes('kepler')) scope = SectorType.KEPLER;
+          else if (lower.includes('virginis')) scope = SectorType.VIRGINIS;
+          else if (lower.includes('barnard')) scope = SectorType.BARNARD;
+          else if (lower.includes('proxima')) scope = SectorType.PROXIMA;
+          else if (lower.includes('procyon')) scope = SectorType.PROCYON;
+          else if (lower.includes('sirius')) scope = SectorType.SIRIUS;
+          else if (lower.includes('véga')) scope = SectorType.VEGA;
+          else if (lower.includes('pictoris')) scope = SectorType.PICTORIS;
           effects.push({ type: 'ACTION', target: 'SIGNAL', value: { amount, scope } });
         } else if (lower.includes('tech')) {
-            let techColor: TechnologyCategory | undefined = undefined;
-            if (lower.includes('informatique') || lower.includes('bleu')) techColor = TechnologyCategory.COMPUTING;
-            else if (lower.includes('exploration') || lower.includes('jaune')) techColor = TechnologyCategory.EXPLORATION;
-            else if (lower.includes('observation') || lower.includes('rouge')) techColor = TechnologyCategory.OBSERVATION;
-            effects.push({ type: 'ACTION', target: 'TECH', value: { amount, color: techColor } });
+          let scope = TechnologyCategory.ANY;
+          if (lower.includes('informatique') || lower.includes('bleu')) scope = TechnologyCategory.COMPUTING;
+          else if (lower.includes('exploration') || lower.includes('jaune')) scope = TechnologyCategory.EXPLORATION;
+          else if (lower.includes('observation') || lower.includes('rouge')) scope = TechnologyCategory.OBSERVATION;
+          effects.push({ type: 'ACTION', target: 'TECH', value: { amount, scope } });
         }
     }
     return effects;

@@ -3,7 +3,8 @@
  * Gère le calcul des positions absolues, la visibilité des objets, et le calcul de trajectoires
  */
 
-import { DiskName, DISK_NAMES, SectorNumber } from './types';
+import { ProbeSystem } from '../systems/ProbeSystem';
+import { DiskName, DISK_NAMES, SectorNumber, Game } from './types';
 
 /**
  * Position d'un objet céleste
@@ -739,3 +740,61 @@ export function getSectorType(level: number, disk: DiskName, relativeSector: Sec
   if (obj?.type === 'empty') return 'empty';
   return 'normal';
 };
+
+// Helper pour formater les logs de rotation
+export function formatRotationLogs(baseMessage: string, rotationLogs: string[]) {
+  if (rotationLogs.length === 0) return baseMessage;
+
+  const details = rotationLogs.map(log => {
+    return log.replace(/^Sonde de /, '').replace(/ poussée vers /, ' -> ');
+  }).join(', ');
+
+  return `${baseMessage}. Poussée(s) : ${details}`;
+};
+
+export function getRotationLevelName(level: number): string {
+  switch (level) {
+    case 1: return 'Jaune';
+    case 2: return 'Rouge';
+    case 3: return 'Bleu';
+    default: return `Niveau ${level}`;
+  }
+};
+
+// Helper pour effectuer une rotation du système solaire
+export function performRotation(currentGame: Game): { updatedGame: Game, logs: string[] }
+{
+    let updatedGame = structuredClone(currentGame);
+    const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 3;
+    const oldRotationState = createRotationState(
+      updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+    );
+
+    if (currentLevel === 3) {
+      updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+    } else if (currentLevel === 2) {
+      updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+    } else if (currentLevel === 1) {
+      updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+    }
+
+    updatedGame.board.solarSystem.nextRingLevel = currentLevel === 3 ? 1 : currentLevel + 1;
+
+    const newRotationState = createRotationState(
+      updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+    );
+
+    const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
+    updatedGame = rotationResult.game;
+
+    const log = formatRotationLogs(`fait tourner le Système Solaire (${getRotationLevelName(currentLevel)})`, rotationResult.logs);
+    return { updatedGame, logs: [log] };
+  }
+

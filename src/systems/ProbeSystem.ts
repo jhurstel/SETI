@@ -56,7 +56,7 @@ export class ProbeSystem {
   }
 
   /**
-   * Lance une sonde (place sur Terre)
+   * Lance une sonde (place sur Terre) pour un joueur donné. Tient compte si action bonus (gratuit) et si limit ignorée.
    */
   static launchProbe(
     game: Game, 
@@ -66,29 +66,25 @@ export class ProbeSystem {
   ): {
     updatedGame: Game;
     probeId: string | null;
+    message: string;
   } {
     const updatedGame = { ...game };
     updatedGame.players = [...game.players];
+    const solarSystem = updatedGame.board.solarSystem;
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
+    const updatedPlayer = { ...player };
+    let message = '';
 
-    // Calculer la position réelle de la Terre
-    // La Terre est sur le plateau niveau 3, en secteur 2 (A2) par rapport au plateau
-    // Utiliser les angles de rotation actuels depuis le jeu
-    let earthDisk: DiskName = 'A';
-    let earthSector: SectorNumber = 2;
-    let earthLevel: number = 1; // Terre sur le plateau 1 (Bleu)
-    
-    // Obtenir les angles de rotation actuels depuis le jeu
-    const rotationAngle1 = updatedGame.board.solarSystem.rotationAngleLevel1 || 0;
-    const rotationAngle2 = updatedGame.board.solarSystem.rotationAngleLevel2 || 0;
-    const rotationAngle3 = updatedGame.board.solarSystem.rotationAngleLevel3 || 0;
-    
-    // Utiliser getObjectPosition pour calculer la position absolue avec les angles réels
-    const earthPos = getObjectPosition('earth', rotationAngle1, rotationAngle2, rotationAngle3);
+    // Calculer la position réelle absolue de la Terre
+    let earthDisk: DiskName;
+    let earthSector: SectorNumber;
+    const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
     if (earthPos) {
       earthDisk = earthPos.disk;
       earthSector = earthPos.sector;
+    } else {
+      return { updatedGame: game, probeId: null, message: `Terre non trouvée dna sle système solaire` };
     }
 
     // Vérifier la limite de sondes (même pour un lancement gratuit)
@@ -98,33 +94,29 @@ export class ProbeSystem {
         const maxProbes = hasExploration1 ? (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY || 2) : (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM || 1);
 
         if (probesInSystem.length >= maxProbes) {
-            return { updatedGame: game, probeId: null };
+            return { updatedGame: game, probeId: null, message: `Limite de sondes atteinte (max ${maxProbes}) dans le système solaire)` };
         }
     }
 
+    // Instancier la nouvelle sonde
     const probe: Probe = {
       id: `probe_${Date.now()}_${Math.floor(Math.random() * 10000)}_${playerId}`,
       ownerId: playerId,
-      position: {
-        x: 0,
-        y: 0
-      },
-      solarPosition: {
-        disk: earthDisk,
-        sector: earthSector,
-        level: earthLevel,
-      },
+      position: { x: 0, y: 0 },
+      solarPosition: { disk: earthDisk, sector: earthSector, level: 1 },
       state: ProbeState.IN_SOLAR_SYSTEM,
       isOrbiter: false,
       isLander: false
     };
+    updatedPlayer.probes = [...player.probes, probe];
 
-    // Débiter les crédits
-    const updatedPlayer = {
-      ...player,
-      credits: player.credits - (free ? 0 : GAME_CONSTANTS.PROBE_LAUNCH_COST),
-      probes: [...player.probes, probe]
-    };
+    // Payer les crédits
+    if (!free) {
+      updatedPlayer.credits -= GAME_CONSTANTS.PROBE_LAUNCH_COST;
+      message = `paye ${ResourceSystem.formatResource(GAME_CONSTANTS.PROBE_LAUNCH_COST, 'CREDIT')} pour <strong>Lancer une sonde</strong> depuis la Terre`;
+    } else {
+      message = `gagne l'action bonus	<strong>Lancer une sonde</strong> depuis la Terre`;
+    }
 
     // Traitement des buffs permanents
     updatedPlayer.permanentBuffs.forEach(buff => {
@@ -152,6 +144,7 @@ export class ProbeSystem {
       }
     });
 
+    // Ajouter le joueur
     updatedGame.players[playerIndex] = updatedPlayer;
 
     // Ajouter la sonde au système solaire en préservant tous les champs (y compris les angles de rotation)
@@ -165,7 +158,8 @@ export class ProbeSystem {
 
     return {
       updatedGame,
-      probeId: probe.id
+      probeId: probe.id,
+      message
     };
   }
 
@@ -572,20 +566,17 @@ export class ProbeSystem {
       updatedPlayer.data = Math.min(updatedPlayer.data + (bonus.data || 0), GAME_CONSTANTS.MAX_DATA);
     }
 
-    if (bonus.planetscan || bonus.redscan || bonus.bluescan || bonus.yellowscan || bonus.blackscan) {
-      // Géré via intéraction utilisateur dans orbitProbe/landProbe côté UI
+    if (bonus.signals || bonus.scan) {
+      // Géré via intéraction utilisateur côté UI
     }
     if (bonus.card || bonus.anycard) {
-      // Géré via intéraction utilisateur dans orbitProbe/landProbe côté UI
+      // Géré via intéraction utilisateur côté UI
     }
-    if (bonus.yellowlifetrace || bonus.redlifetrace || bonus.bluelifetrace) {
-      // Géré via intéraction utilisateur dans orbitProbe/landProbe côté UI
+    if (bonus.lifetraces) {
+      // Géré via intéraction utilisateur côté UI
     }
     if (bonus.revenue) {
-      // Géré via intéraction utilisateur dans orbitProbe/landProbe côté UI
-    }
-    if (bonus.anytechnology) {
-      // Géré via intéraction utilisateur dans orbitProbe/landProbe côté UI
+      // Géré via intéraction utilisateur côté UI
     }
   }
 

@@ -89,7 +89,7 @@ const moveAction = new MoveProbeAction(
 );
 
 // Scanner un secteur
-const scanAction = new ScanSectorAction(
+const scan = new ScanSectorAction(
   'player_0',
   'sector_1',
   ['signal_1', 'signal_2']

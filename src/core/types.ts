@@ -65,24 +65,43 @@ export enum RevenueType {
   CARD = "Carte"
 }
 
-export enum SectorColor {
+export enum SectorType {
   BLUE = "Bleu",
   RED = "Rouge",
   YELLOW = "Jaune",
   BLACK = "Noir",
-  ANY = "Tout"
+  DECK = "Pioche",
+  ROW = "Rangée",
+  PROBE = "Sonde",
+  EARTH = "Terre",
+  MERCURY = "Mercure",
+  VENUS = "Venus",
+  MARS = "Mars",
+  JUPITER = "Jupiter",
+  SATURN = "Saturne",
+  VIRGINIS = "61 Virginis",
+  KEPLER = "Kepler 22",
+  PROXIMA = "Proxima Centauri",
+  BARNARD = "Etoile de Barnard",
+  SIRIUS = "Sirius A",
+  PROCYON = "Procyon",
+  VEGA = "Vega",
+  PICTORIS = "Beta Pictoris",
+  ANY = "N'importe quelle couleur"
 }
 
 export enum TechnologyCategory {
   EXPLORATION = "Exploration",
   OBSERVATION = "Observation",
-  COMPUTING = "Informatique"
+  COMPUTING = "Informatique",
+  ANY = "N'importe quelle type"
 }
 
 export enum LifeTraceType {
   RED = "Rouge",
   YELLOW = "Jaune",
-  BLUE = "Bleu"
+  BLUE = "Bleu",
+  ANY = "N'importe quelle couleur"
 }
 
 export enum EventType {
@@ -231,7 +250,7 @@ export interface Probe {
 export interface Sector {
   id: string;
   name: string;
-  color: SectorColor;
+  color: SectorType;
   signals: Signal[];
   playerMarkers: PlayerMarker[];
   isCovered: boolean;
@@ -320,7 +339,7 @@ export interface Card {
   type: CardType;
   cost: number;
   freeAction: FreeActionType;
-  scanSector: SectorColor;
+  scanSector: SectorType;
   revenue: RevenueType;
   ownerId?: string;
   immediateEffects?: CardEffect[];
@@ -407,32 +426,14 @@ export interface Bonus {
   media?: number;
   data?: number;
   pv?: number;
-  planetscan?: number;
-  redscan?: number;
-  bluescan?: number;
-  yellowscan?: number;
-  blackscan?: number;
-  probescan?: number;
-  earthscan?: number;
-  rowscan?: number;
-  deckscan?: number;
-  anyscan?: number;
-  keplerscan?: number;
-  barnardscan?: number;
-  procyonscan?: number;
-  vegascan?: number;
-  scanAction?: number;
+  signals?: { amount: number, scope: SectorType }[];
+  scan?: number;
   card?: number;
   anycard?: number;
-  yellowlifetrace?: number;
-  redlifetrace?: number;
-  bluelifetrace?: number;
+  lifetraces?: { amount: number, scope: LifeTraceType }[];
   revenue?: number;
   rotation?: number;
-  yellowtechnology?: number;
-  redtechnology?: number;
-  bluetechnology?: number;
-  anytechnology?: number;
+  technologies?: { amount: number, scope: TechnologyCategory }[];
   probe?: number;
   movements?: number;
   landing?: number;
@@ -476,6 +477,12 @@ export interface TechnologyCategorySlots {
 // Action interface moved to actions/Action.ts
 // Keeping for backward compatibility
 export type Action = import('../actions/Action').IAction;
+
+export interface ExecutionResult {
+  success: boolean;
+  error?: string;
+  updatedState?: Game;
+}
 
 // ============================================================================
 // VALIDATION
@@ -531,7 +538,7 @@ export type InteractionState =
   /** Le joueur scanne un secteur (2ème étape : choix de la carte). */
   | { type: 'SELECTING_SCAN_CARD', sequenceId?: string }
   /** Le joueur scanne un secteur (3ème étape : choix du secteur couleur). */
-  | { type: 'SELECTING_SCAN_SECTOR', color: SectorColor, noData?: boolean, onlyProbes?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string, message?: string }
+  | { type: 'SELECTING_SCAN_SECTOR', color: SectorType, noData?: boolean, onlyProbes?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string, message?: string }
   /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
   | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string, remainingMoves?: number }
   /** Le joueur doit choisir s'il utilise la technologie Observation 2 (Payer 1 Média pour scanner Mercure). */

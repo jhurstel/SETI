@@ -1,4 +1,4 @@
-import { Game, Card, Player, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, TechnologyCategory } from '../core/types';
+import { Game, Card, Player, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType } from '../core/types';
 import {
     createRotationState,
     calculateAbsolutePosition,
@@ -161,7 +161,7 @@ export class CardSystem {
     /**
      * Joue une carte de la main du joueur
      */
-    static playCard(game: Game, playerId: string, cardId: string): { updatedGame: Game, error?: string, bonuses?: any } {
+    static playCard(game: Game, playerId: string, cardId: string): { updatedGame: Game, error?: string, bonuses?: Bonus } {
         let updatedGame = structuredClone(game);
         const player = updatedGame.players.find(p => p.id === playerId);
 
@@ -234,34 +234,15 @@ export class CardSystem {
                             bonuses.movements = (bonuses.movements || 0) + effect.value;
                             break;
                         case 'TECH':
-                            if (effect.value.color === TechnologyCategory.EXPLORATION) {
-                                bonuses.yellowtechnology = (bonuses.yellowtechnology || 0) + effect.value.amount;
-                            } else if (effect.value.color === TechnologyCategory.OBSERVATION) {
-                                bonuses.redtechnology = (bonuses.redtechnology || 0) + effect.value.amount;
-                            } else if (effect.value.color == TechnologyCategory.COMPUTING) {
-                                bonuses.bluetechnology = (bonuses.bluetechnology || 0) + effect.value.amount;
-                            } else {
-                                bonuses.anytechnology = (bonuses.anytechnology || 0) + effect.value.amount;
-                            }
+                            bonuses.technologies = (bonuses.technologies || []);
+                            bonuses.technologies.push(effect.value);
                             break;
                         case 'SCAN':
-                            bonuses.scanAction = (bonuses.scanAction || 0) + effect.value;
+                            bonuses.scan = (bonuses.scan || 0) + effect.value;
                             break;
                         case 'SIGNAL':
-                            const { amount, scope } = effect.value;
-                            if (scope === 'YELLOW') bonuses.yellowscan = (bonuses.yellowscan || 0) + amount;
-                            else if (scope === 'BLUE') bonuses.bluescan = (bonuses.bluescan || 0) + amount;
-                            else if (scope === 'RED') bonuses.redscan = (bonuses.redscan || 0) + amount;
-                            else if (scope === 'BLACK') bonuses.blackscan = (bonuses.blackscan || 0) + amount;
-                            else if (scope === 'PROBE') bonuses.probescan = (bonuses.probescan || 0) + amount;
-                            else if (scope === 'EARTH') bonuses.earthscan = (bonuses.earthscan || 0) + amount;
-                            else if (scope === 'ROW') bonuses.rowscan = (bonuses.rowscan || 0) + amount;
-                            else if (scope === 'DECK') bonuses.deckscan = (bonuses.deckscan || 0) + amount;
-                            else if (scope === 'KEPLER') bonuses.keplerscan = (bonuses.keplerscan || 0) + amount;
-                            else if (scope === 'BARNARD') bonuses.barnardscan = (bonuses.barnardscan || 0) + amount;
-                            else if (scope === 'PROCYON') bonuses.procyonscan = (bonuses.procyonscan || 0) + amount;
-                            else if (scope === 'VEGA') bonuses.vegascan = (bonuses.vegascan || 0) + amount;
-                            else if (scope === 'ANY') bonuses.anyscan = (bonuses.anyscan || 0) + amount;
+                            bonuses.signals = (bonuses.signals || []);
+                            bonuses.signals.push(effect.value);
                             break;
                     }
                 }

@@ -1,5 +1,8 @@
-import { Game, GAME_CONSTANTS, Bonus } from '../core/types';
+import { createRotationState, getAbsoluteSectorForProbe, getObjectPosition, performRotation } from '../core/SolarSystemPosition';
+import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, ProbeState } from '../core/types';
 import { CardSystem } from './CardSystem';
+import { ProbeSystem } from './ProbeSystem';
+import { ScanSystem } from './ScanSystem';
 
 export class ResourceSystem {  
   static formatResource(amount: number, type: string): string {
@@ -21,31 +24,41 @@ export class ResourceSystem {
   // Helper pour formater les bonus
   static formatBonus(bonus: Bonus) {
     if (!bonus) return null;
-    const items = [];
+    const items: string[] = [];
     if (bonus.pv) items.push(`${bonus.pv} PV`);
     if (bonus.media) items.push(`${bonus.media} Média`);
     if (bonus.credits) items.push(`${bonus.credits} Crédit`);
     if (bonus.energy) items.push(`${bonus.energy} Énergie`);
     if (bonus.card) items.push(`${bonus.card} Pioche`);
     if (bonus.data) items.push(`${bonus.data} Donnée`);
-    if (bonus.planetscan) items.push(`${bonus.planetscan} Scan (Planète)`);
-    if (bonus.redscan) items.push(`${bonus.redscan} Scan Rouge`);
-    if (bonus.yellowscan) items.push(`${bonus.yellowscan} Scan Jaune`);
-    if (bonus.bluescan) items.push(`${bonus.bluescan} Scan Bleu`);
-    if (bonus.blackscan) items.push(`${bonus.blackscan} Scan Noir`);
-    if (bonus.probescan) items.push(`${bonus.probescan} Scan Sonde`);
-    if (bonus.earthscan) items.push(`${bonus.earthscan} Scan Terre`);
-    if (bonus.rowscan) items.push(`${bonus.rowscan} Scan Rangée`);
-    if (bonus.deckscan) items.push(`${bonus.deckscan} Scan Pioche`);
-    if (bonus.anyscan) items.push(`${bonus.anyscan} Scan Quelconque`);
+
+    if (bonus.signals) {
+      bonus.signals.forEach(s => {
+        items.push(`${s.amount} Signal (${s.scope})`);
+      });
+    }
+
+    if (bonus.scan) items.push(`${bonus.scan} Scan`);
+
     if (bonus.revenue) items.push(`${bonus.revenue} Réservation`);
     if (bonus.anycard) items.push(`${bonus.anycard} Carte`);
-    if (bonus.redlifetrace) items.push(`Trace Rouge`);
-    if (bonus.yellowlifetrace) items.push(`Trace Jaune`);
-    if (bonus.bluelifetrace) items.push(`Trace Bleu`);
-    if (bonus.anytechnology) items.push(`${bonus.anytechnology} Tech`);
+
+    if (bonus.lifetraces) {
+      bonus.lifetraces.forEach(l => {
+        items.push(`${l.amount} Trace ${l.scope}`);
+      });
+    }
+
+    if (bonus.technologies) {
+      bonus.technologies.forEach(t => {
+        items.push(`${t.amount} Tech ${t.scope}`);
+      });
+    }
+
     if (bonus.probe) items.push(`${bonus.probe} Sonde`);
     if (bonus.landing) items.push(`${bonus.landing} Atterrisseur`);
+    if (bonus.movements) items.push(`${bonus.movements} Déplacement`);
+
     return items;
   };
 
@@ -159,4 +172,235 @@ export class ResourceSystem {
     player.data = Math.min(player.data + count, GAME_CONSTANTS.MAX_DATA);
     return { updatedGame };
   }
+
+  // Helper pour traiter les bonus
+  static processBonuses(bonuses: Bonus, currentGame: Game, playerId: string, sourceId: string, sequenceId: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[], historyEntries: { message: string, playerId: string, sequenceId: string }[] }
+  {
+    let updatedGame = currentGame;
+    const newPendingInteractions: InteractionState[] = [];
+    const logs: string[] = [];
+    const historyEntries: { message: string, playerId: string, sequenceId: string}[] = [];
+    const passiveGains: string[] = [];
+    const launchedProbeIds: string[] = [];
+
+    if (!bonuses) return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };
+
+    // Gains passifs pour le résumé (déjà effectué dans CardSystem)
+    if (bonuses.media) { const txt = ResourceSystem.formatResource(bonuses.media, 'MEDIA'); passiveGains.push(txt); }
+    if (bonuses.credits) { const txt = ResourceSystem.formatResource(bonuses.credits, 'CREDIT'); passiveGains.push(txt); }
+    if (bonuses.energy) { const txt = ResourceSystem.formatResource(bonuses.energy, 'ENERGY'); passiveGains.push(txt); }
+    if (bonuses.data) { const txt = ResourceSystem.formatResource(bonuses.data, 'DATA'); passiveGains.push(txt); }
+    if (bonuses.pv) { const txt = ResourceSystem.formatResource(bonuses.pv, 'PV'); passiveGains.push(txt); }
+    const gainsText = passiveGains.length > 0 ? `${passiveGains.join(', ')}` : '';
+    if (gainsText) logs.push(`gagne ${gainsText}`);
+
+    // Effets immédiats
+    if (bonuses.rotation) {
+      for (let i = 0; i < bonuses.rotation; i++) {
+        const rotationResult = performRotation(updatedGame);
+        updatedGame = rotationResult.updatedGame;
+        logs.push(...rotationResult.logs);
+      }
+    }
+    if (bonuses.card) {
+      updatedGame = CardSystem.drawCards(updatedGame, playerId, bonuses.card, 'Bonus de carte');
+      const txt = ResourceSystem.formatResource(bonuses.card, 'CARD');
+      passiveGains.push(txt);
+      logs.push(`pioche ${txt}`);
+    }
+    if (bonuses.probe) {
+      const ignoreLimit = bonuses.ignoreProbeLimit || false;
+      for (let i = 0; i < bonuses.probe; i++) {
+        const result = ProbeSystem.launchProbe(updatedGame, playerId, true, ignoreLimit); // free launch
+        if (result.probeId) {
+          updatedGame = result.updatedGame;
+          launchedProbeIds.push(result.probeId);
+          logs.push(`lance une sonde gratuitement`);
+        } else {
+          logs.push(`ne peut pas lancer de sonde (limite atteinte)`);
+        }
+      }
+      const txt = `${bonuses.probe} Sonde${bonuses.probe > 1 ? 's' : ''}`;
+      passiveGains.push(txt);
+    }
+    if (bonuses.signals) {
+      for (const signalBonus of bonuses.signals) {
+        for (let i = 0; i < signalBonus.amount; i++) {
+          let targetSectorId: string | undefined;
+          let objectId: string | undefined;
+
+          switch (signalBonus.scope) {
+            case SectorType.EARTH: objectId = 'earth'; break;
+            case SectorType.MERCURY: objectId = 'mercury'; break;
+            case SectorType.VENUS: objectId = 'venus'; break;
+            case SectorType.MARS: objectId = 'mars'; break;
+            case SectorType.JUPITER: objectId = 'jupiter'; break;
+            case SectorType.SATURN: objectId = 'saturn'; break;
+          }
+
+          if (objectId) {
+            const solarSystem = updatedGame.board.solarSystem;
+            const pos = getObjectPosition(objectId, solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
+            if (pos) {
+              const sector = updatedGame.board.sectors[pos.absoluteSector - 1];
+              if (sector) targetSectorId = sector.id;
+            }
+          } else {
+            let searchName = '';
+            switch (signalBonus.scope) {
+              case SectorType.VEGA: searchName = 'Véga'; break;
+              case SectorType.PICTORIS: searchName = 'Pictoris'; break;
+              case SectorType.KEPLER: searchName = 'Kepler'; break;
+              case SectorType.VIRGINIS: searchName = 'Virginis'; break;
+              case SectorType.BARNARD: searchName = 'Barnard'; break;
+              case SectorType.PROXIMA: searchName = 'Proxima'; break;
+              case SectorType.PROCYON: searchName = 'Procyon'; break;
+              case SectorType.SIRIUS: searchName = 'Sirius'; break;
+            }
+            if (searchName) {
+              const sector = updatedGame.board.sectors.find(s => s.name.includes(searchName));
+              if (sector) targetSectorId = sector.id;
+            }
+          }
+
+          if (targetSectorId) {
+            const result = ScanSystem.scanSector(updatedGame, playerId, targetSectorId, false, bonuses.noData);
+            updatedGame = result.updatedGame;
+            logs.push(result.logs.join(', '));
+            continue;
+          }
+
+          // Scans interactifs
+          if (signalBonus.scope === SectorType.ROW) {
+            newPendingInteractions.push({ type: 'SELECTING_SCAN_CARD' });
+          } else if (signalBonus.scope === SectorType.DECK) {
+            if (updatedGame.decks.cards.length > 0) {
+              const drawnCard = updatedGame.decks.cards.shift();
+              if (drawnCard) {
+                updatedGame.decks.discardPile.push(drawnCard);
+                newPendingInteractions.push({
+                  type: 'SELECTING_SCAN_SECTOR',
+                  color: drawnCard.scanSector,
+                  cardId: drawnCard.id,
+                  message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")`
+                });
+              }
+            }
+          } else if (signalBonus.scope === SectorType.PROBE) {
+            const currentPlayer = updatedGame.players.find(p => p.id === playerId);
+            const probesInSystem = currentPlayer ? currentPlayer.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition) : [];
+
+            if (probesInSystem.length === 1) {
+              const probe = probesInSystem[0];
+              const rotationState = createRotationState(
+                updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+                updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+                updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+              );
+              const absoluteSector = getAbsoluteSectorForProbe(probe.solarPosition!, rotationState);
+
+              if (absoluteSector) {
+                const sectorId = `sector_${absoluteSector}`;
+                const result = ScanSystem.scanSector(updatedGame, playerId, sectorId, false, bonuses.noData);
+                updatedGame = result.updatedGame;
+                logs.push(result.logs.join(', '));
+
+                if (bonuses.keepCardIfOnly && sourceId) {
+                  const updatedSector = updatedGame.board.sectors[absoluteSector - 1];
+                  const playerSignals = (updatedSector as any).signals?.filter((s: any) => s.markedBy === playerId) || [];
+
+                  if (playerSignals.length === 1) {
+                    const discardPile = updatedGame.decks.discardPile;
+                    const cardIndex = discardPile.findIndex(c => c.id === sourceId);
+
+                    if (cardIndex !== -1) {
+                      const card = discardPile[cardIndex];
+                      discardPile.splice(cardIndex, 1);
+
+                      const pIndex = updatedGame.players.findIndex(p => p.id === playerId);
+                      if (pIndex !== -1) {
+                        updatedGame.players[pIndex].cards.push(card);
+                        logs.push(`récupère la carte "${card.name}" en main`);
+                        passiveGains.push("Carte récupérée");
+                      }
+                    }
+                  }
+                }
+              }
+            } else {
+              newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorType.PROBE, noData: bonuses.noData, onlyProbes: true, keepCardIfOnly: bonuses.keepCardIfOnly, cardId: sourceId });
+            }
+          } else if ([SectorType.RED, SectorType.BLUE, SectorType.YELLOW, SectorType.BLACK, SectorType.ANY].includes(signalBonus.scope)) {
+            newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: signalBonus.scope, noData: bonuses.noData });
+          }
+        }
+      }
+    }
+    if (bonuses.scan) {
+      for (let i = 0; i < bonuses.scan; i++) {
+        const res = ScanSystem.performScanAction(updatedGame, sequenceId);
+        updatedGame = res.updatedGame;
+        historyEntries.push(...res.historyEntries);
+      }
+    }
+
+    // Effets interactifs (File d'attente)
+    if (bonuses.anycard) {
+      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: bonuses.anycard, isFree: true });
+    }
+    if (bonuses.revenue) {
+      const player = updatedGame.players.find(p => p.id === playerId);
+      if (player) {
+        const count = Math.min(bonuses.revenue, player.cards.length);
+        if (count > 0) newPendingInteractions.push({ type: 'RESERVING_CARD', count: count, selectedCards: [] });
+      }
+    }
+    if (bonuses.technologies) {
+      for (const techBonus of bonuses.technologies) {
+        for (let i = 0; i < techBonus.amount; i++) {
+          newPendingInteractions.push({
+            type: 'ACQUIRING_TECH',
+            isBonus: true,
+            category: techBonus.scope === TechnologyCategory.ANY ? undefined : techBonus.scope,
+            sharedOnly: bonuses.sharedOnly,
+            noTileBonus: bonuses.noTileBonus
+          });
+        }
+      }
+    }
+    if (bonuses.movements) {
+      newPendingInteractions.push({ type: 'MOVING_PROBE', count: bonuses.movements, autoSelectProbeId: launchedProbeIds.length > 0 ? launchedProbeIds[launchedProbeIds.length - 1] : undefined });
+      logs.push(`obtient ${bonuses.movements} déplacement${bonuses.movements > 1 ? 's' : ''} gratuit${bonuses.movements > 1 ? 's' : ''}`);
+    }
+    if (bonuses.landing) {
+      newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId });
+    }
+    if (bonuses.lifetraces) {
+      for (const lifetraceBonus of bonuses.lifetraces) {
+        for (let i = 0; i < lifetraceBonus.amount; i++) {
+          newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: lifetraceBonus.scope });
+        }
+      }
+    }
+
+    // Effets interactifs (File d'attente)
+    if (bonuses.scorePerMedia) {
+      newPendingInteractions.push({ type: 'TRIGGER_CARD_EFFECT', effectType: 'SCORE_PER_MEDIA', value: bonuses.scorePerMedia });
+    }
+    if (bonuses.revealAndTriggerFreeAction) {
+      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: 1, isFree: true, triggerFreeAction: true });
+    }
+    if (bonuses.choiceMediaOrMove) {
+      newPendingInteractions.push({ type: 'CHOOSING_MEDIA_OR_MOVE' });
+    }
+    if (bonuses.atmosphericEntry) {
+      newPendingInteractions.push({ type: 'REMOVING_ORBITER' });
+    }
+    if (bonuses.gainSignalFromHand) {
+      newPendingInteractions.push({ type: 'DISCARDING_FOR_SIGNAL', count: bonuses.gainSignalFromHand, selectedCards: [] });
+    }
+
+    return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };
+  };
+
 }

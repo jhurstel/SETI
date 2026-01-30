@@ -8,7 +8,7 @@
  * - Plateau de technologies
  */
 
-import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, RotationDisk, TechnologyCategory, Technology, TechnologyEffect, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorColor, SignalType, Signal } from './types';
+import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, RotationDisk, TechnologyCategory, Technology, TechnologyEffect, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorType, SignalType, Signal, LifeTraceType } from './types';
 import { sectorToIndex } from './SolarSystemPosition';
 
 export class BoardManager {
@@ -78,20 +78,20 @@ export class BoardManager {
     // Définition des 4 plateaux doubles (Gauche/Droite)
     const plates = [
       { 
-        right: { name: 'Kepler 22', color: SectorColor.YELLOW, slots: 5, firstBonus: { redlifetrace: 1 }, nextBonus: { pv: 3 } },
-        left: { name: 'Proxima Centauri', color: SectorColor.RED, slots: 6, firstBonus: { redlifetrace: 1 }, nextBonus: { redlifetrace: 1 } } 
+        right: { name: 'Kepler 22', color: SectorType.YELLOW, slots: 5, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { pv: 3 } },
+        left: { name: 'Proxima Centauri', color: SectorType.RED, slots: 6, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] } } 
       },
       { 
-        right: { name: 'Sirius A', color: SectorColor.BLUE, slots: 6, firstBonus: { redlifetrace: 1 }, nextBonus: { redlifetrace: 1 } }, 
-        left: { name: "Barnard's Star", color: SectorColor.RED, slots: 5, firstBonus: { redlifetrace: 1 }, nextBonus: { pv: 3 } } 
+        right: { name: 'Sirius A', color: SectorType.BLUE, slots: 6, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] } }, 
+        left: { name: "Barnard's Star", color: SectorType.RED, slots: 5, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { pv: 3 } } 
       },
       { 
-        right: { name: '61 Virginis', color: SectorColor.YELLOW, slots: 6, firstBonus: { redlifetrace: 1 }, nextBonus: { redlifetrace: 1 } }, 
-        left: { name: 'Beta Pictoris', color: SectorColor.BLACK, slots: 5, firstBonus: { redlifetrace: 1, pv: 3 }, nextBonus: { redlifetrace: 1 } } 
+        right: { name: '61 Virginis', color: SectorType.YELLOW, slots: 6, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] } }, 
+        left: { name: 'Beta Pictoris', color: SectorType.BLACK, slots: 5, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }], pv: 3 }, nextBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] } } 
       },
       { 
-        right: { name: 'Procyon', color: SectorColor.BLUE, slots: 5, firstBonus: { redlifetrace: 1 }, nextBonus: { pv: 3 } }, 
-        left: { name: 'Vega', color: SectorColor.BLACK, slots: 4, firstBonus: { redlifetrace: 1, pv: 2}, nextBonus: { pv: 5 } } 
+        right: { name: 'Procyon', color: SectorType.BLUE, slots: 5, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { pv: 3 } }, 
+        left: { name: 'Vega', color: SectorType.BLACK, slots: 4, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }], pv: 2}, nextBonus: { pv: 5 } } 
       },
     ];
 
@@ -99,7 +99,7 @@ export class BoardManager {
     const shuffledPlates = this.shuffle(plates);
 
     // Aplatir pour obtenir la séquence des 8 secteurs
-    const sectorSequence: { name: string, color: SectorColor, slots: number, firstBonus: Bonus, nextBonus: Bonus }[] = [];
+    const sectorSequence: { name: string, color: SectorType, slots: number, firstBonus: Bonus, nextBonus: Bonus }[] = [];
     shuffledPlates.forEach(plate => {
       sectorSequence.push(plate.left);
       sectorSequence.push(plate.right);
@@ -200,9 +200,9 @@ export class BoardManager {
         orbiters: [],
         landers: [],
         orbitFirstBonus: { pv: 3 },
-        orbitNextBonus: { card: 1, planetscan: 2, revenue: 1 },
+        orbitNextBonus: { card: 1, signals: [{ amount: 2, scope: SectorType.MERCURY }], revenue: 1 },
         landFirstBonus: { data: 3 },
-        landNextBonus: { pv: 12, yellowlifetrace: 1 },
+        landNextBonus: { pv: 12, lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] },
         orbitSlots: [],
         landSlots: []
       },
@@ -214,7 +214,7 @@ export class BoardManager {
         orbitFirstBonus: { pv: 3 },
         orbitNextBonus: { pv: 6, revenue: 1 },
         landFirstBonus: { data: 2 },
-        landNextBonus: { pv: 5, yellowlifetrace: 1 },
+        landNextBonus: { pv: 5, lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }]},
         orbitSlots: [],
         landSlots: []
       },
@@ -224,10 +224,10 @@ export class BoardManager {
         orbiters: [],
         landers: [],
         orbitFirstBonus: { pv: 3 },
-        orbitNextBonus: { anycard: 1, planetscan: 1, revenue: 1 },
+        orbitNextBonus: { anycard: 1, signals: [{ amount: 1, scope: SectorType.MARS }], revenue: 1 },
         landFirstBonus: { data: 2 },
         landSecondBonus: { data: 1 },
-        landNextBonus: { pv: 6, yellowlifetrace: 1 },
+        landNextBonus: { pv: 6, lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] },
         satellites: [
           { id: 'phobosdeimos', name: 'Phobos, Deimos', planetId: 'mars', landers: [], landBonus: { pv: 8, revenue: 2} },
         ],
@@ -240,12 +240,12 @@ export class BoardManager {
         orbiters: [],
         landers: [],
         orbitFirstBonus: { pv: 3 },
-        orbitNextBonus: { data: 1, planetscan: 1, revenue: 1 },
+        orbitNextBonus: { data: 1, signals: [{ amount: 1, scope: SectorType.JUPITER }], revenue: 1 },
         landFirstBonus: { data: 2 },
-        landNextBonus: { pv: 7, yellowlifetrace: 1 },
+        landNextBonus: { pv: 7, lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] },
         satellites: [
           { id: 'io', name: 'Io', planetId: 'jupiter', landers: [], landBonus: { pv: 10, energy: 4 } },
-          { id: 'europa', name: 'Europe', planetId: 'jupiter', landers: [], landBonus: { pv: 7, yellowlifetrace: 2 } },
+          { id: 'europa', name: 'Europe', planetId: 'jupiter', landers: [], landBonus: { pv: 7, lifetraces: [{ amount: 2, scope: LifeTraceType.YELLOW }] } },
           { id: 'ganymede', name: 'Ganymède', planetId: 'jupiter', landers: [], landBonus: { pv: 12, media: 5 } },
           { id: 'callisto', name: 'Callisto', planetId: 'jupiter', landers: [], landBonus: { pv: 1, data: 4 } },
         ],
@@ -258,12 +258,12 @@ export class BoardManager {
         orbiters: [],
         landers: [],
         orbitFirstBonus: { pv: 3 },
-        orbitNextBonus: { media: 2, planetscan: 1, revenue: 1 },
+        orbitNextBonus: { media: 2, signals: [{ amount: 1, scope: SectorType.SATURN }], revenue: 1 },
         landFirstBonus: { data: 2 },
-        landNextBonus: { pv: 8, yellowlifetrace: 1 },
+        landNextBonus: { pv: 8, lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] },
         satellites: [
-          { id: 'titan', name: 'Titan', planetId: 'saturn', landers: [], landBonus: { pv: 7, anytechnology: 2 } },
-          { id: 'enceladus', name: 'Encelade', planetId: 'saturn', landers: [], landBonus: { pv: 12, redscan: 1, bluescan: 1, yellowscan: 1 } },
+          { id: 'titan', name: 'Titan', planetId: 'saturn', landers: [], landBonus: { pv: 7, technologies: [{ amount: 2, scope: TechnologyCategory.ANY }] } },
+          { id: 'enceladus', name: 'Encelade', planetId: 'saturn', landers: [], landBonus: { pv: 12, signals: [{ amount: 1, scope: SectorType.RED }, { amount: 1, scope: SectorType.BLUE }, { amount: 1, scope: SectorType.YELLOW }] } },
         ],
         orbitSlots: [],
         landSlots: []
@@ -274,9 +274,9 @@ export class BoardManager {
         orbiters: [],
         landers: [],
         orbitFirstBonus: { pv: 3 },
-        orbitNextBonus: { pv: 8, card: 3, blackscan: 1 },
+        orbitNextBonus: { pv: 8, card: 3, signals: [{ amount: 1, scope: SectorType.BLACK }] },
         landFirstBonus: { data: 3 },
-        landNextBonus: { pv: 9, yellowlifetrace: 1 },
+        landNextBonus: { pv: 9, lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] },
         satellites: [
           { id: 'titania', name: 'Titania', planetId: 'uranus', landers: [], landBonus: { pv: 25 } },
         ],
@@ -289,9 +289,9 @@ export class BoardManager {
         orbiters: [],
         landers: [],
         orbitFirstBonus: { pv: 3 },
-        orbitNextBonus: { pv: 7, data: 4, blackscan: 1 },
+        orbitNextBonus: { pv: 7, data: 4, signals: [{ amount: 1, scope: SectorType.BLACK }] },
         landFirstBonus: { data: 3 },
-        landNextBonus: { pv: 10, yellowlifetrace: 1 },
+        landNextBonus: { pv: 10, lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] },
         satellites: [
           { id: 'triton', name: 'Triton', planetId: 'neptune', landers: [], landBonus: { pv: 26 } },
         ],
