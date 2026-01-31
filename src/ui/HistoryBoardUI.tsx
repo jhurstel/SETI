@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Card, Game, InteractionState } from '../core/types';
+import { Card, Game, InteractionState, Technology, TechnologyCategory } from '../core/types';
 import { CardTooltip } from './CardTooltip';
 import './HistoryBoardUI.css';
 
@@ -17,11 +17,11 @@ export interface HistoryEntry {
 export const RESOURCE_CONFIG: Record<string, { label: string, plural: string, icon: string, color: string, regex: RegExp }> = {
     CREDIT: {
         label: 'Crédit', plural: 'Crédits', icon: '₢', color: '#ffd700',
-        regex: /Crédit(?:s?)|crédit(?:s?)/
+        regex: /Crédit(?:s?)|Credit(?:s?)|crédit(?:s?)|credit(?:s?)/
     },
     ENERGY: {
-        label: 'Énergie', plural: 'Énergie', icon: '⚡', color: '#4caf50',
-        regex: /Énergie|énergie|Energie|energie/
+        label: 'Énergie', plural: 'Énergies', icon: '⚡', color: '#4caf50',
+        regex: /Énergie(?:s?)|énergie(?:s?)|Energie(?:s?)|energie(?:s?)/
     },
     MEDIA: {
         label: 'Média', plural: 'Médias', icon: '🎤', color: '#ff6b6b',
@@ -36,8 +36,16 @@ export const RESOURCE_CONFIG: Record<string, { label: string, plural: string, ic
         regex: /Carte(?:s?)|carte(?:s?)/
     },
     PV: {
-        label: 'PV', plural: 'PV', icon: '🏆', color: '#fff',
+        label: 'PV', plural: 'PVs', icon: '🏆', color: '#fff',
         regex: /\bPV\b/
+    },
+    SONDE: {
+        label: 'Sonde', plural: 'Sondes', icon: '🚀', color: '#fff',
+        regex: /Sonde(?:s?)|sonde(?:s?)/
+    },
+    TECH: {
+        label: 'Technologie', plural: 'Technologies', icon: '🔬', color: '#fff',
+        regex: /Technologie(?:s?)|technologie(?:s?)/
     }
 };
 
@@ -97,6 +105,81 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         return undefined;
     }, [game]);
 
+    const findTechByName = useCallback((name: string): Technology | undefined => {
+        if (!name) return undefined;
+        const cleanName = name.trim();
+        
+        // 1. Check available
+        let tech = game.board.technologyBoard.available?.find(t => t.name === cleanName);
+        if (tech) return tech;
+
+        // 2. Check slots
+        if (game.board.technologyBoard.categorySlots) {
+             for (const slot of game.board.technologyBoard.categorySlots) {
+                 tech = slot.technologies.find(t => t.name === cleanName);
+                 if (tech) return tech;
+             }
+        }
+
+        // 3. Check players
+        for (const p of game.players) {
+            tech = p.technologies.find(t => t.name === cleanName);
+            if (tech) return tech;
+        }
+
+        return undefined;
+    }, [game]);
+
+    const renderTechTooltip = (tech: Technology) => {
+        let categoryColor = '#fff';
+        if (tech.type === TechnologyCategory.EXPLORATION) categoryColor = '#ffeb3b';
+        if (tech.type === TechnologyCategory.OBSERVATION) categoryColor = '#ff6b6b';
+        if (tech.type === TechnologyCategory.COMPUTING) categoryColor = '#4a9eff';
+
+        const getTechLevel = (id: string) => {
+            const parts = id.split('-');
+            // Format attendu: category-level-index (ex: exploration-1-0)
+            if (parts.length >= 2) {
+                const level = parseInt(parts[1], 10);
+                if (!isNaN(level)) {
+                    if (level === 1) return 'I';
+                    if (level === 2) return 'II';
+                    if (level === 3) return 'III';
+                    if (level === 4) return 'IV';
+                    return level.toString();
+                }
+            }
+            return '';
+        };
+
+        const level = getTechLevel(tech.id);
+        const displayName = level ? `${tech.type} ${level}` : tech.name;
+
+        const renderBonus = (bonus: any) => {
+            const elements = [];
+            if (bonus.pv) elements.push(<span key="pv" style={{ color: '#8affc0', fontWeight: 'bold' }}>{bonus.pv} PV</span>);
+            if (bonus.media) elements.push(<span key="media" style={{ color: '#ff6b6b' }}>{bonus.media} Média</span>);
+            if (bonus.energy) elements.push(<span key="energy" style={{ color: '#4caf50' }}>{bonus.energy} Énergie</span>);
+            if (bonus.card) elements.push(<span key="card" style={{ color: '#fff' }}>{bonus.card} Carte</span>);
+            if (bonus.probe) elements.push(<span key="probe" style={{ color: '#fff', border: '1px solid #fff', padding: '0 2px', borderRadius: '2px' }}>{bonus.probe} Sonde</span>);
+            if (bonus.data) elements.push(<span key="data" style={{ color: '#fff', border: '1px solid #aaa', padding: '0 2px', borderRadius: '2px', backgroundColor: '#333' }}>{bonus.data} Data</span>);
+            return <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>{elements}</div>;
+        };
+
+        return (
+            <div style={{ textAlign: 'center', minWidth: '200px' }}>
+                <div style={{ borderBottom: '1px solid #555', paddingBottom: '4px', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: 'bold', color: categoryColor, fontSize: '1.1em' }}>{displayName}</span>
+                </div>
+                <div style={{ fontSize: '0.9em', marginBottom: '8px', color: '#ccc' }}>{tech.description || tech.shorttext}</div>
+                <div style={{ fontSize: '0.8em' }}>
+                    <div style={{ color: '#aaa', marginBottom: '2px' }}>Gains immédiats :</div>
+                    {renderBonus(tech.bonus)}
+                </div>
+            </div>
+        );
+    };
+
     const formatHistoryMessage = (message: string) => {
         const resourcePattern = Object.values(RESOURCE_CONFIG).map(c => c.regex.source).join('|');
         const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${resourcePattern}|"[^"]+")`, 'g');
@@ -105,8 +188,8 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
             if (part.startsWith('"') && part.endsWith('"')) {
                 const cardName = part.slice(1, -1);
                 if (!cardName) return part;
+                
                 const card = findCardByName(cardName);
-
                 if (card) {
                     return (
                         <span
@@ -115,6 +198,23 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                             onMouseEnter={(e) => {
                                 const rect = e.currentTarget.getBoundingClientRect();
                                 setActiveTooltip({ content: <CardTooltip card={card} />, rect });
+                            }}
+                            onMouseLeave={() => setActiveTooltip(null)}
+                        >
+                            "{cardName}"
+                        </span>
+                    );
+                }
+
+                const tech = findTechByName(cardName);
+                if (tech) {
+                    return (
+                        <span
+                            key={index}
+                            className="seti-history-card-ref"
+                            onMouseEnter={(e) => {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setActiveTooltip({ content: renderTechTooltip(tech), rect });
                             }}
                             onMouseLeave={() => setActiveTooltip(null)}
                         >

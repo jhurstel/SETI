@@ -621,7 +621,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
 
       // Validate onlyProbes (Card 120, etc.)
-      if ((interactionState as any).onlyProbes) {
+      if (interactionState.onlyProbes) {
         const rotationState = createRotationState(
           game.board.solarSystem.rotationAngleLevel1 || 0,
           game.board.solarSystem.rotationAngleLevel2 || 0,
@@ -767,9 +767,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const result = gameEngineRef.current.executeAction(action);
       if (result.success && result.updatedState) {
         setGame(result.updatedState);
-
-        // Ajouter les logs
-        action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, result.updatedState, undefined, entry.sequenceId));
+        action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
 
         // Ajouter les nouvelles interactions et lancer la première
         const [first, ...rest] = action.newPendingInteractions;
@@ -799,36 +797,23 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
      */
     else if (actionType === ActionType.RESEARCH_TECH) {
       const action = new ResearchTechAction(currentPlayer.id);
-      const validation = ActionValidator.validateAction(currentGame, action);
-      if (!validation.valid) {
-        setToast({ message: validation.errors[0]?.message || "Recherche impossible", visible: true });
-        return;
+      const result = gameEngineRef.current.executeAction(action);
+      if (result.success && result.updatedState) {
+        setGame(result.updatedState);
+        action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
+
+        // Ajouter les nouvelles interactions et lancer la première
+        const [first, ...rest] = action.newPendingInteractions;
+        setInteractionState(first);
+        setPendingInteractions(prev => [...rest, ...prev]);
+      } else {
+        console.error("Erreur lors de la recherche de technologie:", result.error);
+        alert(result.error || 'Impossible de rechercher une technologie');
       }
-
-      let updatedGame = structuredClone(game);
-      const player = updatedGame.players[updatedGame.currentPlayerIndex];
-
-      // Initier la séquence
-      const sequenceId = `tech-${Date.now()}`;
-
-      // Payer le coût
-      player.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
-      addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias pour <strong>Rechercher une technologie</strong>`, player.id, game, undefined, sequenceId);
-
-      // Faire tourner le systeme solaire
-      const rotationRes = performRotation(updatedGame);
-      updatedGame = rotationRes.updatedGame;
-      rotationRes.logs.forEach(log => addToHistory(log, player.id, game, undefined, sequenceId));
-
-      // Marquer l'action principale comme effectuée manuellement
-      const playerIndex = updatedGame.players.findIndex(p => p.id === player.id);
-      if (playerIndex !== -1) updatedGame.players[playerIndex].hasPerformedMainAction = true;
-
-      setGame(updatedGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-      setInteractionState({ type: 'ACQUIRING_TECH', isBonus: false, sequenceId });
-      setToast({ message: "Système pivoté. Sélectionnez une technologie.", visible: true });
     }
+    /***
+     * ANALYZE DATA
+     */
     else if (actionType === ActionType.ANALYZE_DATA) {
       const action = new AnalyzeDataAction(currentPlayer.id);
       const validation = ActionValidator.validateAction(currentGame, action);
@@ -845,27 +830,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       // Délai pour l'animation avant d'appliquer les effets
       setTimeout(() => {
-        const currentGame = gameRef.current;
-        const updatedGame = structuredClone(currentGame);
-        const player = updatedGame.players[updatedGame.currentPlayerIndex];
-        const sequenceId = `analyze-${Date.now()}`;
+        if (!gameEngineRef.current) return;
+        gameEngineRef.current.setState(gameRef.current);
 
-        // Payer le coût
-        player.energy -= 1;
-
-        // Mettre à jour GameEngine
-        ComputerSystem.clearComputer(player);
-
-        // Marquer l'action principale comme effectuée manuellement
-        const playerIndex = updatedGame.players.findIndex(p => p.id === player.id);
-        if (playerIndex !== -1) updatedGame.players[playerIndex].hasPerformedMainAction = true;
-
-        // Finaliser la transaction
-        setGame(updatedGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-        setInteractionState({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE, sequenceId });
-        setToast({ message: "Données analysées. Placez une trace de vie bleue.", visible: true });
-        addToHistory(`paye 1 énergie pour <strong>Analyser les données</strong>`, player.id, previousState, { type: 'IDLE' }, sequenceId);
+        const result = gameEngineRef.current.executeAction(action);
+        if (result.success && result.updatedState) {
+          const sequenceId = `analyze-${Date.now()}`;
+          setGame(result.updatedState);
+          setInteractionState({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE, sequenceId });
+          addToHistory(`paye ${ResourceSystem.formatResource(1, 'ENERGY')} pour <strong>Analyser les données</strong>`, currentPlayer.id, previousState, { type: 'IDLE' }, sequenceId);
+        } else {
+          console.error("Erreur lors de l'analyse:", result.error);
+          setToast({ message: result.error || "Erreur lors de l'analyse", visible: true });
+          setInteractionState({ type: 'IDLE' });
+        }
       }, 1500);
     }
     /***
@@ -1220,41 +1198,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   };
 
-  // Helper pour vérifier si le joueur peut acquérir une technologie
-  const canAcquireTech = (game: Game, playerId: string, category?: TechnologyCategory): boolean => {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) return false;
-
-    const techBoard = game.board.technologyBoard;
-    if (!techBoard || !techBoard.categorySlots) return false;
-
-    for (const slot of techBoard.categorySlots) {
-      if (category && slot.category !== category) continue;
-
-      // Group by baseId
-      const stacks = new Map<string, Technology[]>();
-      slot.technologies.forEach(tech => {
-        const lastDashIndex = tech.id.lastIndexOf('-');
-        const baseId = tech.id.substring(0, lastDashIndex);
-        if (!stacks.has(baseId)) stacks.set(baseId, []);
-        stacks.get(baseId)!.push(tech);
-      });
-
-      for (const [baseId, stack] of stacks) {
-        if (stack.length > 0) {
-          // Check if player has this tech
-          const hasTech = player.technologies.some(t => {
-            const tLastDash = t.id.lastIndexOf('-');
-            return t.id.substring(0, tLastDash) === baseId;
-          });
-
-          if (!hasTech) return true;
-        }
-      }
-    }
-    return false;
-  };
-
   // Gestionnaire pour la mise en orbite via la hover card
   const handleOrbit = (planetId: string, slotIndex?: number) => {
     const currentPlayer = game.players[game.currentPlayerIndex];
@@ -1369,7 +1312,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (bonus.technologies) {
           const isTechLost = bonus.technologies.some(t => {
             const cat = t.scope === TechnologyCategory.ANY ? undefined : t.scope;
-            return !canAcquireTech(game, currentPlayer.id, cat);
+            return !TechnologySystem.canAcquireTech(game, currentPlayer.id, cat);
           });
           if (isTechLost) {
             setConfirmModalState({
@@ -1527,7 +1470,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         if (bonus.technologies) {
           const isTechLost = bonus.technologies.some(t => {
             const cat = t.scope === TechnologyCategory.ANY ? undefined : t.scope;
-            return !canAcquireTech(game, currentPlayer.id, cat);
+            return !TechnologySystem.canAcquireTech(game, currentPlayer.id, cat);
           });
           if (isTechLost) {
             setConfirmModalState({
@@ -1725,7 +1668,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         } else if (techEffect.value) {
           catToCheck = techEffect.value.color || techEffect.value.category;
         }
-        if (!canAcquireTech(currentGame, currentPlayer.id, catToCheck)) {
+        if (!TechnologySystem.canAcquireTech(currentGame, currentPlayer.id, catToCheck)) {
           setConfirmModalState({
             visible: true,
             cardId: cardId,
@@ -2057,7 +2000,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
     setInteractionState({ type: 'IDLE' });
-    addToHistory(`acquiert la technologie "${tech.type} ${tech.name}"${gains.length > 0 ? ` et gagne ${gains.join(', ')}` : ''}`, currentPlayer.id, currentGame, undefined, interactionState.sequenceId);
+    addToHistory(`acquiert technologie "${tech.type} ${tech.name}"${gains.length > 0 ? ` et gagne ${gains.join(', ')}` : ''}`, currentPlayer.id, currentGame, undefined, interactionState.sequenceId);
   };
 
   // Gestionnaire pour l'achat de technologie (clic initial)

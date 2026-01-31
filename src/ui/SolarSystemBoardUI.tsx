@@ -22,45 +22,45 @@ const PLANET_STYLES: { [key: string]: any } = {
   'neptune': {
     background: 'radial-gradient(circle, #4166f5, #1e3a8a)',
     border: '2px solid #60a5fa',
-    boxShadow: '0 0 8px rgba(65, 102, 245, 0.6)',
+    boxShadow: '0 0 3px rgba(65, 102, 245, 0.8)',
   },
   'uranus': {
     background: 'radial-gradient(circle, #4fd0e7, #1e88a8)',
     border: '2px solid #7dd3fc',
-    boxShadow: '0 0 8px rgba(79, 208, 231, 0.6)',
+    boxShadow: '0 0 3px rgba(79, 208, 231, 0.8)',
   },
   'saturn': {
     background: 'radial-gradient(circle, #fad5a5, #d4a574)',
     border: '2px solid #e8c99a',
-    boxShadow: '0 0 8px rgba(250, 213, 165, 0.6)',
+    boxShadow: '0 0 3px rgba(250, 213, 165, 0.8)',
     hasRings: true,
   },
   'jupiter': {
     background: 'radial-gradient(circle, #d8ca9d, #b89d6a)',
     border: '2px solid #c4b082',
-    boxShadow: '0 0 8px rgba(216, 202, 157, 0.6)',
+    boxShadow: '0 0 3px rgba(216, 202, 157, 0.8)',
     hasBands: true,
   },
   'mars': {
     background: 'radial-gradient(circle, #cd5c5c, #8b3a3a)',
     border: '2px solid #dc7878',
-    boxShadow: '0 0 8px rgba(205, 92, 92, 0.6)',
+    boxShadow: '0 0 3px rgba(205, 92, 92, 0.8)',
   },
   'earth': {
     background: 'radial-gradient(circle, #4a90e2, #2c5282)',
     border: '2px solid #63b3ed',
-    boxShadow: '0 0 8px rgba(74, 144, 226, 0.6)',
+    boxShadow: '0 0 3px rgba(74, 144, 226, 0.8)',
     hasContinents: true,
   },
   'venus': {
     background: 'radial-gradient(circle, #ffd700, #b8860b)',
     border: '2px solid #ffed4e',
-    boxShadow: '0 0 8px rgba(255, 215, 0, 0.6)',
+    boxShadow: '0 0 3px rgba(255, 215, 0, 0.8)',
   },
   'mercury': {
     background: 'radial-gradient(circle, #8c7853, #5a4a35)',
     border: '2px solid #a08d6b',
-    boxShadow: '0 0 8px rgba(140, 120, 83, 0.6)',
+    boxShadow: '0 0 3px rgba(140, 120, 83, 0.8)',
   },
 };
 
@@ -581,7 +581,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const style = PLANET_STYLES[id] || {
       background: 'radial-gradient(circle, #888, #555)',
       border: '2px solid #aaa',
-      boxShadow: '0 0 8px rgba(136, 136, 136, 0.6)',
+      boxShadow: '0 0 3px rgba(136, 136, 136, 0.8)',
     };
 
     const scale = size / 30;
@@ -1084,7 +1084,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const style = PLANET_STYLES[obj.id] || {
       background: 'radial-gradient(circle, #888, #555)',
       border: '2px solid #aaa',
-      boxShadow: '0 0 8px rgba(136, 136, 136, 0.6)',
+      boxShadow: '0 0 3px rgba(136, 136, 136, 0.8)',
     };
     const size = PLANET_SIZES[obj.id] || 24;
 
@@ -1128,6 +1128,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           height: `${size}px`,
           zIndex,
           pointerEvents: selectedProbeId ? 'none' : 'auto',
+          filter: 'drop-shadow(0 0 1px rgba(255,255,255,0.4))',
         }}
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
@@ -1238,7 +1239,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         <div
           className="seti-comet-nucleus"
           style={{
-            transform: `translate(-50%, -50%) rotate(${tailAngle}deg) translateX(${nucleusOffset}px)`,
+            transform: `translate(-50%, -50%) rotate(${tailAngle}deg) translateX(${nucleusOffset}px)`
           }}
         />
       </div>
@@ -1507,6 +1508,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                 transform: `translate(calc(-50% + ${asteroidX}px), calc(-50% + ${asteroidY}px))`,
                 width: `${size}px`,
                 height: `${size}px`,
+                boxShadow: '0 0 2px rgba(0,0,0,0.8)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                boxShadow: '0 0 1px rgba(0,0,0,1)',
+                border: '1px solid rgba(255,255,255,0.6)',
               }}
             />
           );

@@ -1,9 +1,44 @@
-import { Game, Technology, GAME_CONSTANTS } from '../core/types';
+import { Game, Technology, GAME_CONSTANTS, TechnologyCategory } from '../core/types';
 import { ComputerSystem } from './ComputerSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { CardSystem } from './CardSystem';
 
 export class TechnologySystem {
+
+  public static canAcquireTech(game: Game, playerId: string, category?: TechnologyCategory): boolean {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return false;
+
+    const techBoard = game.board.technologyBoard;
+    if (!techBoard || !techBoard.categorySlots) return false;
+
+    for (const slot of techBoard.categorySlots) {
+      if (category && slot.category !== category) continue;
+
+      // Group by baseId
+      const stacks = new Map<string, Technology[]>();
+      slot.technologies.forEach(tech => {
+        const lastDashIndex = tech.id.lastIndexOf('-');
+        const baseId = tech.id.substring(0, lastDashIndex);
+        if (!stacks.has(baseId)) stacks.set(baseId, []);
+        stacks.get(baseId)!.push(tech);
+      });
+
+      for (const [baseId, stack] of stacks) {
+        if (stack.length > 0) {
+          // Check if player has this tech
+          const hasTech = player.technologies.some(t => {
+            const tLastDash = t.id.lastIndexOf('-');
+            return t.id.substring(0, tLastDash) === baseId;
+          });
+
+          if (!hasTech) return true;
+        }
+      }
+    }
+    return false;
+  }
+
   static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[] } {
     let updatedGame = structuredClone(game);
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
