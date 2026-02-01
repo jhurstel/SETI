@@ -15,7 +15,7 @@ interface PlayerBoardUIProps {
   onViewPlayer: (playerId: string) => void;
   onAction: (actionType: ActionType) => void;
   onCardClick: (cardId: string) => void;
-  onConfirmDiscard: () => void;
+  onConfirmDiscardForEndTurn: () => void;
   onDiscardCardAction: (cardId: string) => void;
   onPlayCard: (cardId: string) => void;
   onBuyCardAction: () => void;
@@ -27,7 +27,7 @@ interface PlayerBoardUIProps {
   onNextPlayer: () => void;
   onHistory: (message: string, sequenceId?: string) => void;
   onComputerBonus: (type: string, amount: number, sequenceId?: string) => void;
-  onConfirmReservation: () => void;
+  onConfirmReserve: () => void;
   onDirectTradeAction: (spendType: string, gainType: string) => void;
   onConfirmDiscardForSignal: () => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
@@ -44,7 +44,7 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.PASS]: 'Passer définitivement',
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscard, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onDrawCard, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReservation, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onDrawCard, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -654,7 +654,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 Sélectionnées : {selectedCardIds.length} / {Math.max(0, currentPlayer.cards.length - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS)}
                 {currentPlayer.cards.length - selectedCardIds.length === GAME_CONSTANTS.HAND_SIZE_AFTER_PASS && (
                   <button 
-                    onClick={onConfirmDiscard}
+                    onClick={onConfirmDiscardForEndTurn}
                     className="seti-confirm-btn"
                   >
                     Confirmer
@@ -684,7 +684,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 Sélectionnées: {selectedCardIds.length} / {reservationCount}
                 {selectedCardIds.length === reservationCount && (
                   <button 
-                      onClick={onConfirmReservation}
+                      onClick={onConfirmReserve}
                       className="seti-confirm-btn"
                     >
                       Confirmer

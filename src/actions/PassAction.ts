@@ -1,11 +1,15 @@
-import { Game, ActionType, ValidationResult } from '../core/types';
+import { Game, ActionType, ValidationResult, InteractionState } from '../core/types';
 import { BaseAction } from './Action';
 import { TurnManager } from '../core/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { createRotationState } from '../core/SolarSystemPosition';
+import { createRotationState, getRotationLevelName, performRotation } from '../core/SolarSystemPosition';
+import { ResourceSystem } from '../systems/ResourceSystem';
 
 export class PassAction extends BaseAction {
+  public historyEntries: { message: string, playerId: string, sequenceId: string }[] = [];
+  public newPendingInteractions: InteractionState[] = [];
+  
   constructor(
     playerId: string,
     public cardIdsToKeep: string[], // Cartes à garder (max 4)
@@ -54,10 +58,10 @@ export class PassAction extends BaseAction {
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
     updatedGame.board = { ...updatedGame.board };
     const playerIndex = updatedGame.players.findIndex(p => p.id === this.playerId);
-    const player = updatedGame.players[playerIndex];
 
     // Défausser à 4 cartes
-    const updatedPlayer = CardSystem.discardToHandSize(player, this.cardIdsToKeep);
+    updatedGame = CardSystem.discardToHandSize(updatedGame, this.playerId, this.cardIdsToKeep);
+    const updatedPlayer = updatedGame.players[playerIndex];
 
     // Gérer la carte de fin de manche
     const currentRound = updatedGame.currentRound;
@@ -84,53 +88,35 @@ export class PassAction extends BaseAction {
 
     // Vérifier si c'est le premier Pass de la manche
     // (déclenche la rotation du système solaire)
-    if (TurnManager.isFirstPassOfRound(updatedGame)) {
-      //const techBoard = { ...updatedGame.board.technologyBoard };
-      //updatedGame.board.technologyBoard = techBoard;
-      
+    if (TurnManager.isFirstPassOfRound(updatedGame)) {      
       const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 1;
+      this.historyEntries.push({ message: `passe son tour en premier, fait tourner le Système Solaire (${getRotationLevelName(currentLevel)}) et choisit une carte à garder`, playerId: updatedPlayer.id, sequenceId: '' });
+
+      performRotation(updatedGame);
       
-      // Sauvegarder l'ancien état de rotation
-      const oldRotationState = createRotationState(
-        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-      );
-
-      // Copie du système solaire
-      updatedGame.board.solarSystem = { ...updatedGame.board.solarSystem };
-
-      // Pivoter le plateau courant (-45 degrés = sens anti-horaire)
-      if (currentLevel === 1) {
-        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-      } else if (currentLevel === 2) {
-        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-      } else if (currentLevel === 3) {
-        updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-        updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-        updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
-      }
-
-      // Incrémenter le plateau modulo 3
-      updatedGame.board.solarSystem.nextRingLevel = (currentLevel % 3) + 1;
-
-      // Nouvel état de rotation
-      const newRotationState = createRotationState(
-        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-      );
-
-      // Mettre à jour les positions des sondes
-      const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
-      updatedGame = rotationResult.game;
-
       updatedGame.isFirstToPass = true;
+    } else {
+      this.historyEntries.push({ message: "passe son tour et choisit une carte à garder", playerId: updatedPlayer.id, sequenceId: '' });
     }
 
     // Passer au joueur suivant ou terminer la manche
     updatedGame = TurnManager.nextPlayer(updatedGame);
+    if (updatedGame.isRoundEnd) {
+      this.historyEntries.push({ message: `--- FIN DE LA MANCHE ${game.currentRound} ---`, playerId: '', sequenceId: '' });
+
+      // Log des revenus pour chaque joueur
+      updatedGame.players.forEach(player => {
+        const gains: string[] = [];
+        if (player.revenueCredits > 0) gains.push(ResourceSystem.formatResource(player.revenueCredits, 'CREDIT'));
+        if (player.revenueEnergy > 0) gains.push(ResourceSystem.formatResource(player.revenueEnergy, 'ENERGY'));
+        if (player.revenueCards > 0) gains.push(ResourceSystem.formatResource(player.revenueCards, 'CARD'));
+        if (gains.length > 0) this.historyEntries.push({ message: `perçoit ses revenus : ${gains.join(', ')}`, playerId: player.id, sequenceId: '' });
+      });
+
+      // Log du changement de premier joueur
+      this.historyEntries.push({ message: `devient le Premier Joueur`, playerId: updatedGame.players[updatedGame.firstPlayerIndex].id, sequenceId: '' });
+    }
+
 
     return updatedGame;
   }

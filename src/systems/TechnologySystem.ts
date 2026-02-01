@@ -5,6 +5,29 @@ import { CardSystem } from './CardSystem';
 
 export class TechnologySystem {
 
+  static getAvailableTechs(game: Game): Technology[] {
+    const availableTechs: Technology[] = [];
+    if (game.board.technologyBoard.categorySlots) {
+      game.board.technologyBoard.categorySlots.forEach(slot => {
+        if (slot.technologies.length > 0) {
+          availableTechs.push(slot.technologies[0]);
+        }
+      });
+    }
+    return availableTechs;
+  }
+
+  static canResearchTech(game: Game, playerId: string): { canResearch: boolean, reason?: string } {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return { canResearch: false, reason: "Joueur non trouvé" };
+
+    if (player.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) {
+        return { canResearch: false, reason: `Couverture médiatique insuffisante (Requis: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA})` };
+    }
+    
+    return { canResearch: true };
+  }
+  
   public static canAcquireTech(game: Game, playerId: string, category?: TechnologyCategory): boolean {
     const player = game.players.find(p => p.id === playerId);
     if (!player) return false;

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Mission, InteractionState, GamePhase } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Mission, InteractionState, GamePhase, Sector, Signal } from '../core/types';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -16,7 +16,6 @@ import { ScanSectorAction } from '../actions/ScanSectorAction';
 import { GameEngine } from '../core/Game';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, getRotationLevelName, performRotation } from '../core/SolarSystemPosition';
-import { ComputerSystem } from '../systems/ComputerSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
@@ -245,56 +244,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     const action = new PassAction(enginePlayer.id, cardsToKeep, selectedCardId);
     const result = gameEngineRef.current.executeAction(action);
-
     if (result.success && result.updatedState) {
-      const oldGame = currentGame;
-      const newGame = result.updatedState;
-
-      // Ajouter les cartes défaussées à la pile de défausse
-      const cardsToDiscard = enginePlayer.cards.filter(c => !cardsToKeep.includes(c.id));
-      if (cardsToDiscard.length > 0) {
-        if (!newGame.decks.discardPile) newGame.decks.discardPile = [];
-        newGame.decks.discardPile.push(...cardsToDiscard);
-      }
-
-      if (newGame.isFirstToPass) {
-        const currentLevel = oldGame.board.solarSystem.nextRingLevel || 1;
-        addToHistory(`passe son tour en premier, fait tourner le Système Solaire (${getRotationLevelName(currentLevel)}) et choisit une carte à garder`, enginePlayer.id, oldGame);
-      } else {
-        addToHistory("passe son tour et choisit une carte à garder", enginePlayer.id, oldGame);
-      }
-
-      // Détecter la fin de manche (si le numéro de manche a augmenté)
-      if (newGame.currentRound > oldGame.currentRound) {
-        addToHistory(`--- FIN DE LA MANCHE ${oldGame.currentRound} ---`);
-
-        // Log des revenus pour chaque joueur
-        newGame.players.forEach(newPlayer => {
-          const oldPlayer = oldGame.players.find(p => p.id === newPlayer.id);
-          if (oldPlayer) {
-            const creditsGain = newPlayer.revenueCredits;
-            const energyGain = newPlayer.revenueEnergy;
-            const cardsGain = newPlayer.revenueCards;
-            const gains: string[] = [];
-            if (creditsGain > 0) gains.push(ResourceSystem.formatResource(creditsGain, 'CREDIT'));
-            if (energyGain > 0) gains.push(ResourceSystem.formatResource(energyGain, 'ENERGY'));
-            if (cardsGain > 0) gains.push(ResourceSystem.formatResource(cardsGain, 'CARD'));
-            if (gains.length > 0) addToHistory(`perçoit ses revenus : ${gains.join(', ')}`, newPlayer.id, newGame);
-          }
-        });
-
-        // Log du changement de premier joueur
-        const newFirstPlayer = newGame.players[newGame.firstPlayerIndex];
-        const oldFirstPlayer = oldGame.players[oldGame.firstPlayerIndex];
-        if (newFirstPlayer.id !== oldFirstPlayer.id) {
-          addToHistory(`devient le Premier Joueur`, newFirstPlayer.id, newGame);
-        }
+      if (action.historyEntries) {
+        action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, result.updatedState));
       }
 
       // TODO: gerer la fin de partie
       // si newGame.phase === GamePhase.FINAL_SCORING
       
-      setGame(newGame);
+      setGame(result.updatedState);
     } else {
       console.error("Erreur lors de l'action Passer:", result.error);
       setToast({ message: `Erreur lors de l'action Passer: ${result.error}`, visible: true });
@@ -305,48 +263,188 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   useEffect(() => {
     const currentPlayer = game.players[game.currentPlayerIndex];
     if (currentPlayer && currentPlayer.type === 'robot') {
-      const timer = setTimeout(() => {
-        const milestoneClaim = AIBehavior.checkAndClaimMilestone(game, currentPlayer);
+      console.log(`[BoardUI] Robot ${currentPlayer.name} turn detected. Main action performed: ${currentPlayer.hasPerformedMainAction}`);
+      // Synchroniser le moteur avec l'état actuel pour l'IA
+      if (gameEngineRef.current) gameEngineRef.current.setState(game);
 
-        if (milestoneClaim) {
-          // This logic is now handled in handleNextPlayer, so the AI doesn't need to check it before its action.
-          // For now, we keep it simple.
-          return; // On attend le prochain cycle pour jouer l'action suivante
+      const timer = setTimeout(() => {
+        // Si le robot a déjà joué son action principale, il passe son tour
+        if (currentPlayer.hasPerformedMainAction) {
+          console.log(`[BoardUI] Robot ${currentPlayer.name} has already performed main action. Passing turn.`);
+          handleNextPlayer();
+          return;
         }
 
-        const decision = AIBehavior.decideAction(game, currentPlayer);
-        if (decision && decision.action === 'PASS') {
-          // Logique pour rendre la décision de l'IA valide pour l'action Passer
-          let cardsToKeep = decision.cardsToKeep;
-          const handIds = currentPlayer.cards.map(c => c.id);
+        // Décision de l'IA (Niveau FACILE)
+        console.log(`[BoardUI] Requesting AI decision for ${currentPlayer.name}...`);
+        const decision = AIBehavior.decideAction(game, currentPlayer, 'EASY');
+        console.log(`[BoardUI] AI decision:`, decision);
 
-          // Validation stricte des cartes à garder (IDs valides et nombre correct)
-          let areCardsValid = Array.isArray(cardsToKeep) && cardsToKeep.every(id => handIds.includes(id));
-
-          const maxHandSize = GAME_CONSTANTS.HAND_SIZE_AFTER_PASS;
-          const currentHandSize = currentPlayer.cards.length;
-          const expectedKeepCount = Math.min(currentHandSize, maxHandSize);
-
-          if (!areCardsValid || (cardsToKeep && cardsToKeep.length !== expectedKeepCount)) {
-            console.warn(`AI ${currentPlayer.name} invalid cardsToKeep. Forcing default selection.`);
-            cardsToKeep = currentPlayer.cards.slice(0, expectedKeepCount).map(c => c.id);
-          }
-
-          let selectedCardId = decision.selectedCardId;
-          const roundDeck = game.decks.roundDecks[game.currentRound];
-          const isDeckAvailable = roundDeck && roundDeck.length > 0;
-
-          if (isDeckAvailable) {
-            const isValidSelection = selectedCardId && roundDeck.some(c => c.id === selectedCardId);
-            if (!isValidSelection) {
-              console.warn(`AI ${currentPlayer.name} invalid selectedCardId. Picking first.`);
-              selectedCardId = roundDeck[0].id;
+        if (decision) {
+          switch (decision.action) {
+            case ActionType.LAUNCH_PROBE: {
+              const action = new LaunchProbeAction(currentPlayer.id);
+              const result = gameEngineRef.current!.executeAction(action);
+              if (result.success && result.updatedState) {
+                setGame(result.updatedState);
+                addToHistory(`lance une sonde`, currentPlayer.id, game);
+              }
+              break;
             }
-          } else {
-            selectedCardId = undefined;
-          }
+            case ActionType.SCAN_SECTOR: {
+              const action = new ScanSectorAction(currentPlayer.id);
+              const result = gameEngineRef.current!.executeAction(action);
+              
+              if (result.success && result.updatedState) {
+                let aiGame = result.updatedState;
+                const sequenceId = `ai-scan-${Date.now()}`;
+                
+                if (action.historyEntries) {
+                    action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
+                }
 
-          performPass(cardsToKeep, selectedCardId);
+                const queue = [...(action.newPendingInteractions || [])];
+                
+                while (queue.length > 0) {
+                    const interaction = queue.shift()!;
+                    
+                    if (interaction.type === 'SELECTING_SCAN_SECTOR') {
+                        // Filtre les secteurs déjà couverts
+                        let validSectors = aiGame.board.sectors.filter(s => !s.isCovered);
+                        
+                        // Filtre les secteurs de la couleur demandée
+                        if (interaction.color && interaction.color !== SectorType.ANY) {
+                            validSectors = validSectors.filter(s => s.color === interaction.color);
+                        }
+                        
+                        // Filtre les secteurs adjacents à la Terre
+                        if (interaction.adjacents) {
+                              const solarSystem = aiGame.board.solarSystem;
+                              const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
+                              if (earthPos) {
+                                  validSectors = validSectors.filter(s => {
+                                      const sNum = parseInt(s.id.replace('sector_', ''));
+                                      const diff = Math.abs(earthPos.absoluteSector - sNum);
+                                      return diff <= 1 || diff === 7;
+                                  });
+                              }
+                        }
+                        
+                        if (validSectors.length > 0) {
+                            const chosen = validSectors[Math.floor(Math.random() * validSectors.length)];
+
+                            // Gestion de la défausse de carte (si issue de SELECTING_SCAN_CARD)
+                            if (interaction.cardId) {
+                                const cardIndex = aiGame.decks.cardRow.findIndex(c => c.id === interaction.cardId);
+                                if (cardIndex !== -1) {
+                                    const [removed] = aiGame.decks.cardRow.splice(cardIndex, 1);
+                                    if (!aiGame.decks.discardPile) aiGame.decks.discardPile = [];
+                                    aiGame.decks.discardPile.push(removed);
+                                    addToHistory(`défausse carte "${removed.name}" (${removed.scanSector}) de la rangée`, currentPlayer.id, aiGame, undefined, sequenceId);
+                                }
+                            }
+
+                            const res = ScanSystem.performScanAndCover(aiGame, currentPlayer.id, chosen.id, [], false, sequenceId);
+                            aiGame = res.updatedGame;
+                            res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
+                            if (res.newPendingInteractions) {
+                                queue.unshift(...res.newPendingInteractions);
+                            }
+                        }
+                    } else if (interaction.type === 'SELECTING_SCAN_CARD') {
+                        const row = aiGame.decks.cardRow;
+                        if (row.length > 0) {
+                            const randomCard = row[Math.floor(Math.random() * row.length)];
+                            queue.unshift({
+                                type: 'SELECTING_SCAN_SECTOR',
+                                color: randomCard.scanSector,
+                                sequenceId: sequenceId,
+                                cardId: randomCard.id
+                            });
+                        }
+                    }
+                }
+
+                const pIndex = aiGame.players.findIndex(p => p.id === currentPlayer.id);
+                if (pIndex !== -1) aiGame.players[pIndex].hasPerformedMainAction = true;
+
+                setGame(aiGame);
+                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
+              }
+              break;
+            }
+            case ActionType.ANALYZE_DATA: {
+              const action = new AnalyzeDataAction(currentPlayer.id);
+              const result = gameEngineRef.current!.executeAction(action);
+              if (result.success && result.updatedState) {
+                // Simuler le choix de couleur aléatoire pour la trace
+                const colors = [LifeTraceType.BLUE, LifeTraceType.RED, LifeTraceType.YELLOW];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                const aiGame = result.updatedState;
+                const board = aiGame.board.alienBoards[0]; // Toujours le premier plateau pour l'IA simple
+                
+                board.lifeTraces.push({
+                  id: `trace-${Date.now()}`,
+                  type: randomColor,
+                  playerId: currentPlayer.id
+                });
+                
+                setGame(aiGame);
+                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
+                addToHistory(`analyse des données et place une trace ${randomColor}`, currentPlayer.id, game);
+              }
+              break;
+            }
+            case ActionType.RESEARCH_TECH: {
+              const action = new ResearchTechAction(currentPlayer.id);
+              const result = gameEngineRef.current!.executeAction(action);
+              if (result.success && result.updatedState) {
+                // Finaliser l'acquisition
+                const { updatedGame } = TechnologySystem.acquireTechnology(result.updatedState, currentPlayer.id, decision.data.tech);
+                setGame(updatedGame);
+                if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+                addToHistory(`recherche technologie "${decision.data.tech.name}"`, currentPlayer.id, game);
+              }
+              break;
+            }
+            case ActionType.PLAY_CARD: {
+              const card = currentPlayer.cards.find(c => c.id === decision.data.cardId);
+              if (card) {
+                const action = new PlayCardAction(currentPlayer.id, card.id);
+                const result = gameEngineRef.current!.executeAction(action);
+                if (result.success && result.updatedState) {
+                  executePlayCard(card.id);
+                  setGame(result.updatedState);
+                  if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedState);
+                }
+              }
+              break;
+            }
+            case ActionType.ORBIT: {
+              let { updatedGame } = ProbeSystem.orbitProbe(game, currentPlayer.id, decision.data.probeId, decision.data.planetId);
+              const pIndex = updatedGame.players.findIndex(p => p.id === currentPlayer.id);
+              if (pIndex !== -1) updatedGame.players[pIndex].hasPerformedMainAction = true;
+
+              setGame(updatedGame);
+              if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+              addToHistory(`met une sonde en orbite`, currentPlayer.id, game);
+              break;
+            }
+            case ActionType.LAND: {
+              let { updatedGame } = ProbeSystem.landProbe(game, currentPlayer.id, decision.data.probeId, decision.data.planetId, false);
+              const pIndex = updatedGame.players.findIndex(p => p.id === currentPlayer.id);
+              if (pIndex !== -1) updatedGame.players[pIndex].hasPerformedMainAction = true;
+
+              setGame(updatedGame);
+              if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+              addToHistory(`fait atterrir une sonde`, currentPlayer.id, game);
+              break;
+            }
+            case ActionType.PASS: {
+              performPass(decision.data.cardsToKeep);
+              break;
+            }
+          }
         }
       }, 1500);
       return () => clearTimeout(timer);
@@ -465,56 +563,56 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour confirmer la défausse
   const handleConfirmDiscard = () => {
-    if (interactionState.type !== 'DISCARDING_CARD') return;
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    const cardsToKeep = currentPlayer.cards.filter(c => !interactionState.selectedCards.includes(c.id)).map(c => c.id);
+    // Cas 1: Défausse pour fin de tour
+    if (interactionState.type === 'DISCARDING_CARD') {
+      const currentPlayer = game.players[game.currentPlayerIndex];
+      const cardsToKeep = currentPlayer.cards.filter(c => !interactionState.selectedCards.includes(c.id)).map(c => c.id);
 
-    // Réinitialiser l'état de défausse
-    setInteractionState({ type: 'IDLE' });
-
-    // Vérifier s'il y a un paquet de manche pour déclencher la modale (pas à la manche 5)
-    const roundDeck = game.decks.roundDecks[game.currentRound];
-    if (roundDeck && roundDeck.length > 0) {
-      setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
-    } else {
-      // S'il n'y a pas de paquet (ex: fin de la manche 5), on passe directement
-      performPass(cardsToKeep);
-    }
-  };
-
-  // Gestionnaire pour confirmer la défausse pour signaux
-  const handleConfirmDiscardForSignal = () => {
-    if (interactionState.type !== 'DISCARDING_FOR_SIGNAL') return;
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    const sequenceId = interactionState.sequenceId;
-
-    const selectedCards = interactionState.selectedCards;
-    if (selectedCards.length === 0) {
-      // Si aucune carte n'est sélectionnée, on annule/termine l'interaction sans rien faire
+      // Réinitialiser l'état de défausse
       setInteractionState({ type: 'IDLE' });
-      addToHistory(`ne défausse aucune carte pour marquer des signaux`, currentPlayer.id, game, undefined, sequenceId);
-      return;
+
+      // Vérifier s'il y a un paquet de manche pour déclencher la modale (pas à la manche 5)
+      const roundDeck = game.decks.roundDecks[game.currentRound];
+      if (roundDeck && roundDeck.length > 0) {
+        setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
+      } else {
+        // S'il n'y a pas de paquet (ex: fin de la manche 5), on passe directement
+        performPass(cardsToKeep);
+      }
     }
+    // Cas 2: Défausse pour signal
+    else if (interactionState.type === 'DISCARDING_FOR_SIGNAL') {
+      const currentPlayer = game.players[game.currentPlayerIndex];
+      const sequenceId = interactionState.sequenceId;
 
-    let updatedGame = structuredClone(game);
-    let updatedPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
+      const selectedCards = interactionState.selectedCards;
+      if (selectedCards.length === 0) {
+        // Si aucune carte n'est sélectionnée, on annule/termine l'interaction sans rien faire
+        setInteractionState({ type: 'IDLE' });
+        addToHistory(`ne défausse aucune carte pour marquer des signaux`, currentPlayer.id, game, undefined, sequenceId);
+        return;
+      }
 
-    const cardsToDiscard = updatedPlayer.cards.filter(c => selectedCards.includes(c.id));
+      let updatedGame = structuredClone(game);
+      let updatedPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
 
-    // Générer les interactions de signal pour chaque carte
-    const newInteractions: InteractionState[] = [];
+      const cardsToDiscard = updatedPlayer.cards.filter(c => selectedCards.includes(c.id));
 
-    cardsToDiscard.forEach(card => {
-      newInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId, cardId: card.id });
-    });
+      // Générer les interactions de signal pour chaque carte
+      const newInteractions: InteractionState[] = [];
 
-    setGame(updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+      cardsToDiscard.forEach(card => {
+        newInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId, cardId: card.id });
+      });
 
-    // Ajouter les interactions de marquage et lancer la première
-    const [first, ...rest] = newInteractions;
-    setInteractionState(first);
-    setPendingInteractions(prev => [...rest, ...prev]);
+      setGame(updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+
+      // Ajouter les interactions de marquage et lancer la première
+      const [first, ...rest] = newInteractions;
+      setInteractionState(first);
+      setPendingInteractions(prev => [...rest, ...prev]);
+    }
   };
 
   // Gestionnaire pour la réservation de carte
@@ -602,12 +700,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       if (interactionState.color !== SectorType.ANY && sector.color !== interactionState.color) {
         let isAdjacentAllowed = false;
         if (interactionState.adjacents) {
-          const rotationState = createRotationState(
-            game.board.solarSystem.rotationAngleLevel1 || 0,
-            game.board.solarSystem.rotationAngleLevel2 || 0,
-            game.board.solarSystem.rotationAngleLevel3 || 0
-          );
-          const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+          const solarSystem = game.board.solarSystem;
+          const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
           if (earthPos) {
             const diff = Math.abs(earthPos.absoluteSector - sectorNumber);
             if (diff === 1 || diff === 7 || diff === 0) isAdjacentAllowed = true;
@@ -695,13 +789,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, interactionState.sequenceId));
 
       // Handle keepCardIfOnly (Card 120)
-      if ((interactionState as any).keepCardIfOnly && (interactionState as any).cardId) {
+      if (interactionState.keepCardIfOnly && interactionState.cardId) {
         const updatedSector = updatedGame.board.sectors[sectorNumber - 1];
-        const playerSignals = (updatedSector as any).signals?.filter((s: any) => s.playerId === currentPlayer.id) || [];
+        const playerSignals = updatedSector.signals.filter(s => s.markedBy === currentPlayer.id) || [];
 
         if (playerSignals.length === 1) {
           const discardPile = updatedGame.decks.discardPile || [];
-          const cardId = (interactionState as any).cardId;
+          const cardId = interactionState.cardId;
           const cardIndex = discardPile.findIndex(c => c.id === cardId);
 
           if (cardIndex !== -1) {
@@ -791,6 +885,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     else if (actionType === ActionType.LAND) {
       // TODO: Ouvrir les tooltip des planetes ou une sonde du joueur est presente
       setToast({ message: "Veuillez sélectionner un emplacement d'atterrissage sur une planète.", visible: true });
+    }
+    /***
+     * PLAY CARD
+     */
+    else if (actionType === ActionType.PLAY_CARD) {
+      // TODO: Ouvrir les cartes qui peuvent être jouées
+      setToast({ message: "Veuillez sélectionner une carte.", visible: true });
     }
     /***
      * RESEARCH TECH
@@ -1795,12 +1896,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const card = currentPlayer.cards.find(c => c.id === cardId);
     if (!card) return;
 
-    // PATCH: Ajouter à la pile de défausse
-    if (card) {
-      if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
-      updatedGame.decks.discardPile.push(card);
-    }
-
     // Appliquer l'effet de l'action gratuite
     if (card.freeAction === FreeActionType.MEDIA) {
       const res = ResourceSystem.updateMedia(updatedGame, currentPlayer.id, 1);
@@ -1820,14 +1915,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
 
     // Défausser la carte
-    const playerToUpdate = updatedGame.players.find(p => p.id === currentPlayer.id);
-    if (playerToUpdate) {
-      const newPlayer = CardSystem.discardCard(playerToUpdate, cardId);
-      updatedGame = {
-        ...updatedGame,
-        players: updatedGame.players.map(p => p.id === currentPlayer.id ? newPlayer : p)
-      };
-    }
+    updatedGame = CardSystem.discardCard(updatedGame, currentPlayer.id, cardId);
 
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
@@ -2267,10 +2355,10 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               onAction={handleAction}
               onCardClick={handleCardClick}
               onDiscardCardAction={handleDiscardCardAction}
-              onConfirmDiscard={handleConfirmDiscard}
+              onConfirmDiscardForEndTurn={handleConfirmDiscard}
               onTradeCardAction={(targetGain) => handleTradeCardAction({ targetGain })}
               onConfirmTrade={handleConfirmTrade}
-              onConfirmReservation={handleConfirmReservation}
+              onConfirmReserve={handleConfirmReservation}
               onBuyCardAction={handleBuyCardAction}
               onDirectTradeAction={handleDirectTrade}
               onDrawCard={handleDrawCard}
@@ -2280,7 +2368,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               onNextPlayer={handleNextPlayer}
               onHistory={(message, sequenceId) => addToHistory(message, game.players[game.currentPlayerIndex].id, game, undefined, sequenceId)}
               onComputerBonus={handleComputerBonus}
-              onConfirmDiscardForSignal={handleConfirmDiscardForSignal}
+              onConfirmDiscardForSignal={handleConfirmDiscard}
               setActiveTooltip={setActiveTooltip}
             />
           </div>

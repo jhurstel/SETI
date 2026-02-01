@@ -30,7 +30,7 @@ export class TurnManager {
    * Passe au joueur suivant dans l'ordre horaire
    */
   static nextPlayer(game: Game): Game {
-    const updatedGame = { ...game };
+    const updatedGame = { ...game, isRoundEnd: false };
     const activePlayers = updatedGame.players.filter(p => !p.hasPassed);
     
     if (activePlayers.length === 0) {
@@ -59,7 +59,7 @@ export class TurnManager {
    * Termine la manche actuelle
    */
   static endRound(game: Game): Game {
-    let updatedGame = { ...game };
+    let updatedGame = { ...game, isRoundEnd: true };
     
     // Calculer les revenus de fin de manche
     updatedGame.players = updatedGame.players.map(player => 

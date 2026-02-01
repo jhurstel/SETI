@@ -2,6 +2,7 @@ import { BaseAction } from './Action';
 import { Game, ActionType, ValidationResult, GAME_CONSTANTS, InteractionState } from '../core/types';
 import { performRotation } from '../core/SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
+import { TechnologySystem } from '../systems/TechnologySystem';
 
 export class ResearchTechAction extends BaseAction {
     public historyEntries: { message: string, playerId: string, sequenceId: string }[] = [];
@@ -12,13 +13,9 @@ export class ResearchTechAction extends BaseAction {
     }
 
     validate(game: Game): ValidationResult {
-        const player = game.players.find(p => p.id === this.playerId);
-        if (!player) {
-            return { valid: false, errors: [{ code: 'PLAYER_NOT_FOUND', message: 'Joueur introuvable' }], warnings: [] };
-        }
-
-        if (player.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) {
-            return { valid: false, errors: [{ code: 'INSUFFICIENT_MEDIA', message: `Couverture médiatique insuffisante (Requis: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA})` }], warnings: [] };
+        const check = TechnologySystem.canResearchTech(game, this.playerId);
+        if (!check.canResearch) {
+            return { valid: false, errors: [{ code: 'CANNOT_RESEARCH', message: check.reason || 'Recherche impossible' }], warnings: [] };
         }
 
         return { valid: true, errors: [], warnings: [] };

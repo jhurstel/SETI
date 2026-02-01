@@ -91,6 +91,7 @@ export class GameFactory {
       discoveredSpecies: [],
       history: [],
       isFirstToPass: false,
+      isRoundEnd: false,
       gameLog,
       neutralMilestonesAvailable
     };

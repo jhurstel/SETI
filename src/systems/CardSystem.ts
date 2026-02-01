@@ -40,11 +40,12 @@ export class CardSystem {
         if (playerIndex === -1) return game;
         let player = updatedGame.players[playerIndex];
 
-        const card = player.cards.find(c => c.id === cardId);
-        if (!card) return game;
+        const cardIndex = player.cards.findIndex(c => c.id === cardId);
+        if (cardIndex === -1) return game;
+        const card = player.cards[cardIndex];
 
         // Retirer la carte
-        player = this.discardCard(player, cardId);
+        player.cards.splice(cardIndex, 1);
         
         // Ajouter aux cartes réservées
         if (!player.reservedCards) player.reservedCards = [];
@@ -489,16 +490,35 @@ export class CardSystem {
         return { updatedGame, bonuses };
     }
 
-    static discardToHandSize(player: Player, cardIdsToKeep: string[]): Player {
-        const updatedPlayer = { ...player };
-        updatedPlayer.cards = player.cards.filter(c => cardIdsToKeep.includes(c.id));
-        return updatedPlayer;
+    static discardToHandSize(game: Game, playerId: string, cardIdsToKeep: string[]): Game {
+        const updatedGame = structuredClone(game);
+        const player = updatedGame.players.find(p => p.id === playerId);
+        if (!player) return updatedGame;
+
+        const cardsToDiscard = player.cards.filter(c => !cardIdsToKeep.includes(c.id));
+        player.cards = player.cards.filter(c => cardIdsToKeep.includes(c.id));
+
+        if (cardsToDiscard.length > 0) {
+            if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+            updatedGame.decks.discardPile.push(...cardsToDiscard);
+        }
+
+        return updatedGame;
     }
 
-    static discardCard(player: Player, cardId: string): Player {
-        const updatedPlayer = { ...player };
-        updatedPlayer.cards = player.cards.filter(c => c.id !== cardId);
-        return updatedPlayer;
+    static discardCard(game: Game, playerId: string, cardId: string): Game {
+        const updatedGame = structuredClone(game);
+        const player = updatedGame.players.find(p => p.id === playerId);
+        if (!player) return updatedGame;
+
+        const cardIndex = player.cards.findIndex(c => c.id === cardId);
+        if (cardIndex !== -1) {
+            const [card] = player.cards.splice(cardIndex, 1);
+            if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+            updatedGame.decks.discardPile.push(card);
+        }
+
+        return updatedGame;
     }
 
     static refillCardRow(game: Game): Game {
