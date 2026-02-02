@@ -169,8 +169,8 @@ export interface Game {
   discoveredSpecies: Species[];
   history: GameState[];
   isFirstToPass: boolean;
-  isRoundEnd?: boolean;
-  gameLog?: GameLogEntry[];
+  isRoundEnd: boolean;
+  gameLog: GameLogEntry[];
   neutralMilestonesAvailable: Record<number, number>;
 }
 

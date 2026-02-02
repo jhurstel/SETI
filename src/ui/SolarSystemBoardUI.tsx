@@ -510,17 +510,11 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       bonus.energy ||
       bonus.card ||
       bonus.data ||
-      bonus.planetscan ||
-      bonus.redscan ||
-      bonus.yellowscan ||
-      bonus.bluescan ||
-      bonus.blackscan ||
+      bonus.signals ||
       bonus.revenue ||
       bonus.anycard ||
-      bonus.anytechnology ||
-      bonus.yellowlifetrace ||
-      bonus.redlifetrace ||
-      bonus.bluelifetrace ||
+      bonus.technologies ||
+      bonus.lifetraces ||
       bonus.probe ||
       bonus.landing;
 
@@ -546,17 +540,11 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           else if (bonus.energy) { label = 'E'; color = '#4caf50'; }
           else if (bonus.card) { label = '🃏'; color = '#aaffaa'; }
           else if (bonus.data) { label = 'D'; color = '#8affc0'; }
-          else if (bonus.planetscan) { label = 'S'; color = '#fff'; }
-          else if (bonus.redscan) { label = 'S'; color = '#fff'; }
-          else if (bonus.yellowscan) { label = 'Y'; color = '#fff'; }
-          else if (bonus.bluescan) { label = 'B'; color = '#fff'; }
-          else if (bonus.blackscan) { label = 'B'; color = '#fff'; }
+          else if (bonus.signals && bonus.signals.length > 0) { label = 'S'; color = '#fff'; }
           else if (bonus.revenue) { label = 'R'; color = '#fff'; }
           else if (bonus.anycard) { label = '🃏'; color = '#fff'; }
-          else if (bonus.anytechnology) { label = 'T'; color = '#fff'; }
-          else if (bonus.yellowlifetrace) { label = 'Tr'; color = '#fff'; }
-          else if (bonus.redlifetrace) { label = 'Tr'; color = '#fff'; }
-          else if (bonus.bluelifetrace) { label = 'Tr'; color = '#fff'; }
+          else if (bonus.technologies && bonus.technologies.length > 0) { label = 'T'; color = '#fff'; }
+          else if (bonus.lifetraces && bonus.lifetraces.length > 0) { label = 'Tr'; color = '#fff'; }
           else if (bonus.probe) { label = 'Pr'; color = '#fff'; }
           else if (bonus.landing) { label = 'La'; color = '#fff'; }
           return (
@@ -1510,8 +1498,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                 height: `${size}px`,
                 boxShadow: '0 0 2px rgba(0,0,0,0.8)',
                 border: '1px solid rgba(255,255,255,0.15)',
-                boxShadow: '0 0 1px rgba(0,0,0,1)',
-                border: '1px solid rgba(255,255,255,0.6)',
               }}
             />
           );

@@ -132,6 +132,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   };
 
   const handleComputerSlotClick = (slotId: string) => {
+    if (isRobot) return;
     if (isInteractiveMode && !isSelectingComputerSlot) return;
 
     // Créer une copie profonde pour éviter la mutation de l'état actuel
@@ -627,10 +628,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
               <PlayerComputerUI 
                 player={currentPlayer} 
                 onSlotClick={handleComputerSlotClick}
-                isSelecting={isSelectingComputerSlot}
+                isSelecting={isSelectingComputerSlot && !isRobot}
                 onColumnSelect={onComputerSlotSelect}
                 isAnalyzing={isAnalyzing}
-                disabled={isInteractiveMode}
+                disabled={isInteractiveMode || isRobot}
                 onHover={handleTooltipHover}
                 onLeave={handleTooltipLeave}
               />

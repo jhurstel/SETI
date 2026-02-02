@@ -1,4 +1,4 @@
-import { Game, Player, ActionType, GAME_CONSTANTS, ProbeState, TechnologyCategory, Technology } from '../core/types';
+import { Game, Player, ActionType, GAME_CONSTANTS, ProbeState } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ScanSystem } from '../systems/ScanSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';

@@ -23,6 +23,7 @@ import {
 } from './types';
 import { BoardManager } from './Board';
 import { CardSystem } from '../systems/CardSystem';
+import { Logger } from './Logger';
 
 export class GameFactory {
   /**
@@ -191,19 +192,13 @@ export class GameFactory {
     // Distribuer les cartes initiales
     for (let i = 0; i < updatedGame.players.length; i++) {
         const playerId = updatedGame.players[i].id;
-        updatedGame = CardSystem.drawCards(updatedGame, playerId, GAME_CONSTANTS.INITIAL_HAND_SIZE, "Main de départ");
+        updatedGame = CardSystem.drawCards(updatedGame, playerId, GAME_CONSTANTS.INITIAL_HAND_SIZE);
     }
 
     // Mélanger les technologies et appliquer les bonus de pile
     this.shuffleTechnologies(updatedGame);
 
-    if (updatedGame.gameLog) {
-      updatedGame.gameLog.push({
-          id: `log_robot_reserve_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-          message: "--- PHASE DE RÉSERVATION ---",
-          timestamp: Date.now()
-      });
-    }
+    Logger.log(updatedGame, "--- PHASE DE RÉSERVATION ---");
 
     return updatedGame;
   }
