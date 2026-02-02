@@ -1,4 +1,4 @@
-import { Game, ActionType, ValidationResult, InteractionState } from '../core/types';
+import { Game, ActionType, ValidationResult, InteractionState, HistoryEntry } from '../core/types';
 import { BaseAction } from './Action';
 import { TurnManager } from '../core/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
@@ -7,7 +7,7 @@ import { createRotationState, getRotationLevelName, performRotation } from '../c
 import { ResourceSystem } from '../systems/ResourceSystem';
 
 export class PassAction extends BaseAction {
-  public historyEntries: { message: string, playerId: string, sequenceId: string }[] = [];
+  public historyEntries: HistoryEntry[] = [];
   public newPendingInteractions: InteractionState[] = [];
   
   constructor(
@@ -59,6 +59,20 @@ export class PassAction extends BaseAction {
     updatedGame.board = { ...updatedGame.board };
     const playerIndex = updatedGame.players.findIndex(p => p.id === this.playerId);
 
+    // Log des cartes défaussées
+    const originalPlayer = game.players.find(p => p.id === this.playerId);
+    if (originalPlayer) {
+      const discardedCards = originalPlayer.cards.filter(c => !this.cardIdsToKeep.includes(c.id));
+      if (discardedCards.length > 0) {
+        const cardNames = discardedCards.map(c => `"${c.name}"`).join(', ');
+        this.historyEntries.push({ 
+          message: `défausse ${cardNames}`, 
+          playerId: this.playerId, 
+          sequenceId: '' 
+        });
+      }
+    }
+
     // Défausser à 4 cartes
     updatedGame = CardSystem.discardToHandSize(updatedGame, this.playerId, this.cardIdsToKeep);
     const updatedPlayer = updatedGame.players[playerIndex];
@@ -90,13 +104,13 @@ export class PassAction extends BaseAction {
     // (déclenche la rotation du système solaire)
     if (TurnManager.isFirstPassOfRound(updatedGame)) {      
       const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 1;
-      this.historyEntries.push({ message: `passe son tour en premier, fait tourner le Système Solaire (${getRotationLevelName(currentLevel)}) et choisit une carte à garder`, playerId: updatedPlayer.id, sequenceId: '' });
+      this.historyEntries.push({ message: `passe son tour en premier, fait tourner le Système Solaire (${getRotationLevelName(currentLevel)}) et choisit 1 carte à garder`, playerId: updatedPlayer.id, sequenceId: '' });
 
       performRotation(updatedGame);
       
       updatedGame.isFirstToPass = true;
     } else {
-      this.historyEntries.push({ message: "passe son tour et choisit une carte à garder", playerId: updatedPlayer.id, sequenceId: '' });
+      this.historyEntries.push({ message: "passe son tour et choisit 1 carte à garder", playerId: updatedPlayer.id, sequenceId: '' });
     }
 
     // Passer au joueur suivant ou terminer la manche
@@ -115,6 +129,12 @@ export class PassAction extends BaseAction {
 
       // Log du changement de premier joueur
       this.historyEntries.push({ message: `devient le Premier Joueur`, playerId: updatedGame.players[updatedGame.firstPlayerIndex].id, sequenceId: '' });
+      
+      const firstPlayer = updatedGame.players[updatedGame.firstPlayerIndex];
+      this.historyEntries.push({ message: `--- Tour de ${firstPlayer.name} ---`, playerId: firstPlayer.id, sequenceId: '' });
+    } else {
+      const nextPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
+      this.historyEntries.push({ message: `--- Tour de ${nextPlayer.name} ---`, playerId: nextPlayer.id, sequenceId: '' });
     }
 
 

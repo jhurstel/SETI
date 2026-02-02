@@ -1,5 +1,5 @@
 import { createRotationState, getAbsoluteSectorForProbe, getObjectPosition, performRotation } from '../core/SolarSystemPosition';
-import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, ProbeState } from '../core/types';
+import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, ProbeState, HistoryEntry, Sector, Signal } from '../core/types';
 import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';
@@ -174,12 +174,12 @@ export class ResourceSystem {
   }
 
   // Helper pour traiter les bonus
-  static processBonuses(bonuses: Bonus, currentGame: Game, playerId: string, sourceId: string, sequenceId: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[], historyEntries: { message: string, playerId: string, sequenceId: string }[] }
+  static processBonuses(bonuses: Bonus, currentGame: Game, playerId: string, sourceId: string, sequenceId: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[], historyEntries: HistoryEntry[] }
   {
     let updatedGame = currentGame;
     const newPendingInteractions: InteractionState[] = [];
     const logs: string[] = [];
-    const historyEntries: { message: string, playerId: string, sequenceId: string}[] = [];
+    const historyEntries: HistoryEntry[] = [];
     const passiveGains: string[] = [];
     const launchedProbeIds: string[] = [];
 
@@ -223,6 +223,8 @@ export class ResourceSystem {
       const txt = `${bonuses.probe} Sonde${bonuses.probe > 1 ? 's' : ''}`;
       passiveGains.push(txt);
     }
+
+    // Effets interactifs (File d'attente)
     if (bonuses.signals) {
       for (const signalBonus of bonuses.signals) {
         for (let i = 0; i < signalBonus.amount; i++) {
@@ -264,9 +266,10 @@ export class ResourceSystem {
           }
 
           if (targetSectorId) {
-            const result = ScanSystem.scanSector(updatedGame, playerId, targetSectorId, false, bonuses.noData);
+            const result = ScanSystem.performSignalAndCover(updatedGame, playerId, targetSectorId, logs, bonuses.noData, sequenceId);
             updatedGame = result.updatedGame;
-            logs.push(result.logs.join(', '));
+            historyEntries.push(...result.historyEntries);
+            newPendingInteractions.push(...result.newPendingInteractions);
             continue;
           }
 
@@ -278,12 +281,7 @@ export class ResourceSystem {
               const drawnCard = updatedGame.decks.cards.shift();
               if (drawnCard) {
                 updatedGame.decks.discardPile.push(drawnCard);
-                newPendingInteractions.push({
-                  type: 'SELECTING_SCAN_SECTOR',
-                  color: drawnCard.scanSector,
-                  cardId: drawnCard.id,
-                  message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")`
-                });
+                newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: drawnCard.scanSector, cardId: drawnCard.id, message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")` });
               }
             }
           } else if (signalBonus.scope === SectorType.PROBE) {
@@ -301,13 +299,14 @@ export class ResourceSystem {
 
               if (absoluteSector) {
                 const sectorId = `sector_${absoluteSector}`;
-                const result = ScanSystem.scanSector(updatedGame, playerId, sectorId, false, bonuses.noData);
+                const result = ScanSystem.performSignalAndCover(updatedGame, playerId, sectorId, undefined, bonuses.noData, sequenceId);
                 updatedGame = result.updatedGame;
-                logs.push(result.logs.join(', '));
+                historyEntries.push(...result.historyEntries);
+                newPendingInteractions.push(...result.newPendingInteractions);
 
                 if (bonuses.keepCardIfOnly && sourceId) {
                   const updatedSector = updatedGame.board.sectors[absoluteSector - 1];
-                  const playerSignals = (updatedSector as any).signals?.filter((s: any) => s.markedBy === playerId) || [];
+                  const playerSignals = updatedSector.signals.filter((s: Signal) => s.markedBy === playerId) || [];
 
                   if (playerSignals.length === 1) {
                     const discardPile = updatedGame.decks.discardPile;
@@ -336,18 +335,20 @@ export class ResourceSystem {
         }
       }
     }
+
     if (bonuses.scan) {
       for (let i = 0; i < bonuses.scan; i++) {
-        const res = ScanSystem.performScanAction(updatedGame, sequenceId);
+        const res = ScanSystem.performScanAction(updatedGame, true, sequenceId);
         updatedGame = res.updatedGame;
         historyEntries.push(...res.historyEntries);
+        newPendingInteractions.push(...res.newPendingInteractions);
       }
     }
 
-    // Effets interactifs (File d'attente)
     if (bonuses.anycard) {
       newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: bonuses.anycard, isFree: true });
     }
+
     if (bonuses.revenue) {
       const player = updatedGame.players.find(p => p.id === playerId);
       if (player) {
@@ -355,26 +356,24 @@ export class ResourceSystem {
         if (count > 0) newPendingInteractions.push({ type: 'RESERVING_CARD', count: count, selectedCards: [] });
       }
     }
+
     if (bonuses.technologies) {
       for (const techBonus of bonuses.technologies) {
         for (let i = 0; i < techBonus.amount; i++) {
-          newPendingInteractions.push({
-            type: 'ACQUIRING_TECH',
-            isBonus: true,
-            category: techBonus.scope === TechnologyCategory.ANY ? undefined : techBonus.scope,
-            sharedOnly: bonuses.sharedOnly,
-            noTileBonus: bonuses.noTileBonus
-          });
+          newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true, category: techBonus.scope === TechnologyCategory.ANY ? undefined : techBonus.scope, sharedOnly: bonuses.sharedOnly, noTileBonus: bonuses.noTileBonus });
         }
       }
     }
+
     if (bonuses.movements) {
       newPendingInteractions.push({ type: 'MOVING_PROBE', count: bonuses.movements, autoSelectProbeId: launchedProbeIds.length > 0 ? launchedProbeIds[launchedProbeIds.length - 1] : undefined });
       logs.push(`obtient ${bonuses.movements} déplacement${bonuses.movements > 1 ? 's' : ''} gratuit${bonuses.movements > 1 ? 's' : ''}`);
     }
+
     if (bonuses.landing) {
       newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId });
     }
+
     if (bonuses.lifetraces) {
       for (const lifetraceBonus of bonuses.lifetraces) {
         for (let i = 0; i < lifetraceBonus.amount; i++) {

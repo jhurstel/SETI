@@ -366,6 +366,7 @@ export interface Mission {
   requirements: CardEffect[];
   progress: MissionProgress;
   completed: boolean;
+  originalCard?: Card;
 }
 
 export interface MissionProgress {
@@ -479,10 +480,10 @@ export interface TechnologyCategorySlots {
 // Keeping for backward compatibility
 export type Action = import('../actions/Action').IAction;
 
-export interface ExecutionResult {
-  success: boolean;
-  error?: string;
-  updatedState?: Game;
+export interface HistoryEntry {
+  message: string;
+  playerId: string;
+  sequenceId: string;
 }
 
 // ============================================================================

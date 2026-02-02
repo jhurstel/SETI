@@ -521,6 +521,21 @@ export class CardSystem {
         return updatedGame;
     }
 
+    static discardFromRow(game: Game, cardId: string): { updatedGame: Game, discardedCard: Card | null } {
+        const updatedGame = structuredClone(game);
+        const row = updatedGame.decks.cardRow;
+        const index = row.findIndex(c => c.id === cardId);
+        
+        if (index !== -1) {
+            const [card] = row.splice(index, 1);
+            if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+            updatedGame.decks.discardPile.push(card);
+            return { updatedGame, discardedCard: card };
+        }
+        
+        return { updatedGame, discardedCard: null };
+    }
+
     static refillCardRow(game: Game): Game {
         const updatedGame = { ...game };
 

@@ -31,6 +31,7 @@ interface PlayerBoardUIProps {
   onDirectTradeAction: (spendType: string, gainType: string) => void;
   onConfirmDiscardForSignal: () => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
+  onSettingsClick?: () => void;
 }
 
 const ACTION_NAMES: Record<ActionType, string> = {
@@ -44,7 +45,7 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.PASS]: 'Passer définitivement',
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onDrawCard, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onDrawCard, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -455,6 +456,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
              </div>
            );
         })}
+        <button
+            onClick={onSettingsClick}
+            className="seti-action-btn"
+            style={{ marginLeft: 'auto', marginRight: '8px', fontSize: '1.2rem', padding: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', alignSelf: 'center' }}
+            title="Paramètres"
+        >
+            ⚙️
+        </button>
       </div>
 
       {/* Plateau du joueur */}
@@ -464,17 +473,19 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
           <span>
             {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV 🏆
           </span>
-          {!isRobot && (
-          <button
-            onClick={onNextPlayer}
-            disabled={!isCurrentTurn || !hasPerformedMainAction || isInteractiveMode}
-            className={`seti-next-player-btn ${(isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? 'enabled' : 'disabled'}`}
-            onMouseEnter={(e) => handleTooltipHover(e, hasPerformedMainAction ? "Terminer le tour" : "Effectuez une action principale d'abord")}
-            onMouseLeave={handleTooltipLeave}
-          >
-            Prochain joueur
-          </button>
-          )}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {!isRobot && (
+            <button
+              onClick={onNextPlayer}
+              disabled={!isCurrentTurn || !hasPerformedMainAction || isInteractiveMode}
+              className={`seti-next-player-btn ${(isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? 'enabled' : 'disabled'}`}
+              onMouseEnter={(e) => handleTooltipHover(e, hasPerformedMainAction ? "Terminer le tour" : "Effectuez une action principale d'abord")}
+              onMouseLeave={handleTooltipLeave}
+            >
+              Prochain joueur
+            </button>
+            )}
+          </div>
         </div>
         
         <div className="seti-player-layout-container">

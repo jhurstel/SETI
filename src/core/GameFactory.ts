@@ -28,7 +28,7 @@ export class GameFactory {
   /**
    * Crée une nouvelle partie
    */
-  static createGame(playerNames: string[]): Game {
+  static createGame(playerNames: string[], humanIsFirstPlayer: boolean = true): Game {
     if (playerNames.length < GAME_CONSTANTS.MIN_PLAYERS || playerNames.length > GAME_CONSTANTS.MAX_PLAYERS) {
       throw new Error(
         `Nombre de joueurs invalide (min ${GAME_CONSTANTS.MIN_PLAYERS}, max ${GAME_CONSTANTS.MAX_PLAYERS})`
@@ -37,7 +37,7 @@ export class GameFactory {
 
     // Créer les joueurs
     const players: Player[] = playerNames.map((name, index) => 
-      this.createPlayer(`player_${index}`, name, index + 1)
+      this.createPlayer(`player_${index}`, name, index + 1, index)
     );
 
     // Créer les decks
@@ -68,7 +68,7 @@ export class GameFactory {
 
     players.map((p, index) => {
       const suffix = index === 0 ? 'er' : 'ème';
-      addLog(`${p.name} a rejoint la partie (${index + 1}${suffix} joueur) avec ${p.score} PV`);
+      addLog(`${p.name} a rejoint la partie (${index + 1}${suffix} joueur) avec ${p.score} PV`, p.id);
     })
     
     const neutralCount = playerNames.length === 2 ? 2 : (playerNames.length === 3 ? 1 : 0);
@@ -77,12 +77,18 @@ export class GameFactory {
         neutralMilestonesAvailable[m] = neutralCount;
     });
 
+    let firstPlayerIndex = 0;
+    if (!humanIsFirstPlayer && players.length > 1) {
+        // Si l'humain (index 0) ne commence pas, on choisit un robot au hasard (index 1 à N-1)
+        firstPlayerIndex = Math.floor(Math.random() * (players.length - 1)) + 1;
+    }
+
     const game: Game = {
       id: `game_${Date.now()}`,
       currentRound: 1,
       maxRounds: GAME_CONSTANTS.MAX_ROUNDS,
-      currentPlayerIndex: 0,
-      firstPlayerIndex: 0,
+      currentPlayerIndex: firstPlayerIndex,
+      firstPlayerIndex: firstPlayerIndex,
       phase: GamePhase.SETUP,
       players,
       board,
@@ -102,7 +108,8 @@ export class GameFactory {
   /**
    * Crée un joueur initialisé
    */
-  private static createPlayer(id: string, name: string, initialScore: number): Player {
+  private static createPlayer(id: string, name: string, initialScore: number, index: number): Player {
+    const colors = ['#4a90e2', '#ff6b6b', '#ffd700', '#4caf50']; // Bleu, Rouge, Jaune, Vert
     return {
       id,
       name,
@@ -125,7 +132,7 @@ export class GameFactory {
       hasPassed: false,
       hasPerformedMainAction: false,
       type: 'human',
-      color: '#4a90e2' as string,
+      color: colors[index % colors.length],
       claimedGoldenMilestones: [],
       claimedNeutralMilestones: [],
       visitedPlanetsThisTurn: [],
@@ -185,47 +192,6 @@ export class GameFactory {
     for (let i = 0; i < updatedGame.players.length; i++) {
         const playerId = updatedGame.players[i].id;
         updatedGame = CardSystem.drawCards(updatedGame, playerId, GAME_CONSTANTS.INITIAL_HAND_SIZE, "Main de départ");
-        
-        // Logique Robot : Réservation automatique au début de la partie
-        const currentPlayer = updatedGame.players.find(p => p.id === playerId);
-        if (currentPlayer && currentPlayer.type === 'robot' && currentPlayer.cards.length > 0) {
-            const randomIndex = Math.floor(Math.random() * currentPlayer.cards.length);
-            const card = currentPlayer.cards[randomIndex];
-            
-            // Retirer la carte
-            const [reservedCard] = currentPlayer.cards.splice(randomIndex, 1);
-            if (!currentPlayer.reservedCards) currentPlayer.reservedCards = [];
-            currentPlayer.reservedCards.push(reservedCard);
-            
-            let gainMsg = "";
-            // Appliquer le revenu et le bonus immédiat
-            if (card.revenue === RevenueType.CREDIT) {
-                currentPlayer.revenueCredits += 1;
-                currentPlayer.credits += 1;
-                gainMsg = "1 Crédit";
-            } else if (card.revenue === RevenueType.ENERGY) {
-                currentPlayer.revenueEnergy += 1;
-                currentPlayer.energy += 1;
-                gainMsg = "1 Énergie";
-            } else if (card.revenue === RevenueType.CARD) {
-                currentPlayer.revenueCards += 1;
-                gainMsg = "1 Carte";
-                // Pioche immédiate
-                if (updatedGame.decks.cards.length > 0) {
-                    const newCard = updatedGame.decks.cards.shift();
-                    if (newCard) currentPlayer.cards.push(newCard);
-                }
-            }
-
-            if (updatedGame.gameLog) {
-                updatedGame.gameLog.push({
-                    id: `log_robot_reserve_${Date.now()}_${playerId}`,
-                    message: `réserve carte "${card.name}" et gagne ${gainMsg}`,
-                    timestamp: Date.now(),
-                    playerId: currentPlayer.id
-                });
-            }
-        }
     }
 
     // Mélanger les technologies et appliquer les bonus de pile
@@ -234,11 +200,10 @@ export class GameFactory {
     if (updatedGame.gameLog) {
       updatedGame.gameLog.push({
           id: `log_robot_reserve_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-          message: "--- DÉBUT DE LA PARTIE ---",
+          message: "--- PHASE DE RÉSERVATION ---",
           timestamp: Date.now()
       });
     }
-    updatedGame.phase = GamePhase.PLAYING;
 
     return updatedGame;
   }
@@ -435,7 +400,7 @@ export class GameFactory {
 100;Supercalculateur Exascale;Action;Marquez 1 Trace de Vie Bleu pour une espèce pour laquelle vous avez déjà marqué 1 Trace de Vie Bleu.;1 Donnée;Bleu;1 Crédit;1 Crédit;;GAIN_LIFETRACE_IF_ALREADY:blue:1
 101;Temps de Télescope;Mission conditionnelle;Mission: Gagnez 1 Signal dans un secteur Jaune après avoir effectué l'action Scanner un secteur. Mission: Gagnez 1 Signal dans un secteur Rouge après avoir effectué l'action Scanner un secteur. Mission: Gagnez 1 Signal dans un secteur Bleu après avoir effectué l'action Scanner un secteur.;1 Média;Jaune;1 Energie;2 Crédits;;GAIN_ON_SCAN:yellowsignal:1 + GAIN_ON_SCAN:redsignal:1 + GAIN_ON_SCAN:bluesignal:1
 102;Analyse Linguistique;Mission déclenchable;Gagnez 3 Médias. Mission: Gagnez 1 Trace de Vie de n'importe quelle couleur pour une espèce où vous avez acquis 3 Traces de Vie de couleurs différentes.;1 Donnée;Bleu;1 Crédit;2 Crédits;3 Médias;GAIN_IF_3_LIFETRACES:different:lifetrace:1
-103;radiotélexscope de Synthèse de Westerbork;Mission déclenchable;Gagnez 1 Rotation et 1 Technologie Observation. Mission: Gagnez 9 PV si vous avez couvert 2 fois un même secteur.;1 Donnée;Jaune;1 Energie;3 Crédits;1 Rotation + 1 Tech Observation;GAIN_IF_COVERED:same:pv:9
+103;Radiotélescope de Synthèse de Westerbork;Mission déclenchable;Gagnez 1 Rotation et 1 Technologie Observation. Mission: Gagnez 9 PV si vous avez couvert 2 fois un même secteur.;1 Donnée;Jaune;1 Energie;3 Crédits;1 Rotation + 1 Tech Observation;GAIN_IF_COVERED:same:pv:9
 104;Sonde Rosetta;Mission déclenchable;Gagnez 1 Sonde. Mission: Gagnez 3 PV et 1 Donnée si vous avez une sonde sur une comète.;1 Média;Bleu;1 Energie;2 Crédits;1 Sonde;GAIN_IF_PROBE_ON_COMET:pv:3:data:1
 105;Observatoire de Green Bank;Mission déclenchable;Gagnez 1 Scan. Mission: Gagnez 1 Trace de Vie Rouge si vous avez acquis 3 Traces de Vie Rouge.;1 Déplacement;Noir;1 Crédit;2 Crédits;1 Scan;GAIN_IF_3 LIFETRACES:red:redlifetrace:1
 106;Planification Stratégique;Mission conditionnelle;Mission: Gagnez 2 PV après avoir joué une carte pour 1 Crédit. Mission: Gagnez 1 Carte après avoir joué une carte pour 2 Crédits. Mission: Gagnez 2 Média après avoir joué une carte pour 3 Crédits.;1 Déplacement;Jaune;1 Crédit;1 Crédit;;GAIN_ON_PLAY:1:pv:2 + GAIN_ON_PLAY:2:anycard:1 + GAIN_ON_PLAY:3:media:2
@@ -874,7 +839,7 @@ export class GameFactory {
       else if (permanent.startsWith('GAIN_ON_SIGNAL:')) {
         const parts = permanent.split(':');
         if (parts.length === 4) {
-          if (parts[1] === 'yellow') effects.push({ type: 'GAIN_ON_RED_SIGNAL', target: parts[2], value: parseInt(parts[3], 10) });
+          if (parts[1] === 'yellow') effects.push({ type: 'GAIN_ON_YELLOW_SIGNAL', target: parts[2], value: parseInt(parts[3], 10) });
           else if (parts[1] === 'red') effects.push({ type: 'GAIN_ON_RED_SIGNAL', target: parts[2], value: parseInt(parts[3], 10) });
           else if (parts[1] === 'blue') effects.push({ type: 'GAIN_ON_BLUE_SIGNAL', target: parts[2], value: parseInt(parts[3], 10) });
         }

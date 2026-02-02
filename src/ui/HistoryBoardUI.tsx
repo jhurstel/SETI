@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Card, Game, InteractionState, Technology, TechnologyCategory } from '../core/types';
+import { Card, Game, InteractionState, Technology, TechnologyCategory, CardType } from '../core/types';
 import { CardTooltip } from './CardTooltip';
 import './HistoryBoardUI.css';
 
@@ -78,6 +78,21 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
             if (cPlayed) return cPlayed;
             const cReserved = searchIn(p.reservedCards);
             if (cReserved) return cReserved;
+            
+            // Recherche dans les missions (reconstruction partielle de la carte)
+            if (p.missions) {
+                const mission = p.missions.find(m => m.name === cleanName);
+                if (mission) {
+                    if (mission.originalCard) return mission.originalCard;
+                    return {
+                        id: mission.cardId,
+                        name: mission.name,
+                        description: mission.description,
+                        type: CardType.CONDITIONAL_MISSION,
+                        cost: 0,
+                    } as Card;
+                }
+            }
         }
         const cRow = searchIn(game.decks.cardRow);
         if (cRow) return cRow;
@@ -299,8 +314,21 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                                     )}
                                     <div className="seti-history-message">
                                         <span className={`seti-history-text ${isSequenceChild ? 'child' : ''}`}>
-                                            {player && !entry.message.startsWith(player.name) && <strong style={{ color: color }}>{player.name} </strong>}
-                                            {formatHistoryMessage(entry.message)}
+                                            {player ? (
+                                                entry.message.startsWith(player.name) ? (
+                                                    <>
+                                                        <strong style={{ color: color }}>{player.name}</strong>
+                                                        {formatHistoryMessage(entry.message.substring(player.name.length))}
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <strong style={{ color: color }}>{player.name} </strong>
+                                                        {formatHistoryMessage(entry.message)}
+                                                    </>
+                                                )
+                                            ) : (
+                                                formatHistoryMessage(entry.message)
+                                            )}
                                         </span>
                                     </div>
                                 </div>

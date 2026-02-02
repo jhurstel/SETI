@@ -156,8 +156,10 @@ export class GameEngine {
    * Sauvegarde l'état actuel dans l'historique
    */
   saveState(): void {
+    // On exclut l'historique de la sauvegarde pour éviter la référence circulaire
+    const { history, ...stateWithoutHistory } = this.state;
     const gameState: GameState = {
-      state: { ...this.state },
+      state: { ...stateWithoutHistory, history: [] } as Game,
       timestamp: Date.now()
     };
     this.state.history.push(gameState);
@@ -171,9 +173,13 @@ export class GameEngine {
       return false;
     }
 
-    const previousState = this.state.history.pop();
-    if (previousState) {
-      this.state = previousState.state;
+    const previousSnapshot = this.state.history.pop();
+    if (previousSnapshot) {
+      // On restaure l'état mais on conserve l'historique actuel (amputé du dernier état)
+      this.state = {
+        ...previousSnapshot.state,
+        history: this.state.history
+      };
       return true;
     }
 

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Mission, InteractionState, GamePhase, Sector, Signal } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Mission, InteractionState, GamePhase } from '../core/types';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -14,8 +14,9 @@ import { PlayCardAction } from '../actions/PlayCardAction';
 import { ResearchTechAction } from '../actions/ResearchTechAction';
 import { ScanSectorAction } from '../actions/ScanSectorAction';
 import { GameEngine } from '../core/Game';
+import { GameFactory } from '../core/GameFactory';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, getRotationLevelName, performRotation } from '../core/SolarSystemPosition';
+import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, performRotation } from '../core/SolarSystemPosition';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
@@ -30,10 +31,12 @@ import { ObjectiveBoardUI } from './ObjectiveBoardUI';
 import { HistoryBoardUI, HistoryEntry } from './HistoryBoardUI';
 import { CardRowUI } from './CardRowUI';
 import { AlienBoardUI } from './AlienBoardUI';
+import { SettingsModal } from './modals/SettingsModal';
+import { NewGameModal } from './modals/NewGameModal';
 import './BoardUI.css';
 
 interface BoardUIProps {
-  game: Game;
+  game?: Game;
 }
 
 // Helper pour les libellés des interactions
@@ -65,7 +68,7 @@ const getInteractionLabel = (state: InteractionState): string => {
 
 export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // États pour le jeu
-  const [game, setGame] = useState<Game>(initialGame);
+  const [game, setGame] = useState<Game | null>(null);
   const gameEngineRef = useRef<GameEngine | null>(null);
 
   // Ref pour accéder à l'état du jeu le plus récent dans les callbacks
@@ -75,25 +78,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   }, [game]);
 
   // Initialiser le GameEngine
-  if (!gameEngineRef.current) {
+  if (!gameEngineRef.current && game) {
     gameEngineRef.current = new GameEngine(game);
   }
 
   // États pour l'UI
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
-  const [historyLog, setHistoryLog] = useState<HistoryEntry[]>(() => {
-    return (initialGame.gameLog || []).map((log): HistoryEntry => ({
-      id: log.id,
-      message: log.message,
-      playerId: log.playerId,
-      timestamp: log.timestamp,
-      // Les entrées de log initiales ne sont pas des actions annulables
-      previousState: undefined,
-      previousInteractionState: { type: 'IDLE' },
-      previousPendingInteractions: [],
-      sequenceId: undefined,
-    }));
-  });
+  const [historyLog, setHistoryLog] = useState<HistoryEntry[]>([]);
   const [interactionState, setInteractionState] = useState<InteractionState>({ type: 'IDLE' });
   const [pendingInteractions, setPendingInteractions] = useState<InteractionState[]>([]);
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
@@ -101,6 +92,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null>(null);
   const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: any[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
   const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
+  const [settingsVisible, setSettingsVisible] = useState(true); // Open at launch
+  const [newGameModalVisible, setNewGameModalVisible] = useState(false);
+  const [hasAutosave, setHasAutosave] = useState(false);
 
   // Effet pour afficher un message toast si l'interaction en contient un
   useEffect(() => {
@@ -113,19 +107,236 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Effet pour la réservation initiale (Setup) pour le joueur humain
   useEffect(() => {
-    if (game.currentRound === 1 && interactionState.type === 'IDLE') {
-      const humanPlayer = game.players.find(p => p.type === 'human');
-      if (humanPlayer) {
-        const initialTotalRevenue = GAME_CONSTANTS.INITIAL_REVENUE_CREDITS + GAME_CONSTANTS.INITIAL_REVENUE_ENERGY + GAME_CONSTANTS.INITIAL_REVENUE_CARDS;
-        const currentTotalRevenue = humanPlayer.revenueCredits + humanPlayer.revenueEnergy + humanPlayer.revenueCards;
-
-        if (currentTotalRevenue === initialTotalRevenue) {
-          setInteractionState({ type: 'RESERVING_CARD', count: 1, selectedCards: [] });
-          setViewedPlayerId(humanPlayer.id);
+    if (game && game.phase === GamePhase.SETUP && interactionState.type === 'IDLE') {
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        if (currentPlayer.type === 'human') {
+            setInteractionState({ type: 'RESERVING_CARD', count: 1, selectedCards: [] });
+            setViewedPlayerId(currentPlayer.id);
         }
-      }
     }
-  }, [game.currentRound, game.players, interactionState.type]);
+  }, [game, interactionState.type, game?.currentPlayerIndex]);
+
+  // Vérifier s'il y a une sauvegarde automatique au démarrage
+  useEffect(() => {
+    const saved = localStorage.getItem('seti_autosave');
+    setHasAutosave(!!saved);
+  }, []);
+
+  // Sauvegarde automatique à chaque modification du jeu
+  useEffect(() => {
+    if (game) {
+      // Préparer l'objet à sauvegarder avec l'historique à jour
+      const gameToSave = { 
+          ...game,
+          gameLog: historyLog.map(entry => ({
+              id: entry.id,
+              message: entry.message,
+              timestamp: entry.timestamp,
+              playerId: entry.playerId
+          }))
+      };
+      // Sauvegarder l'état complet
+      localStorage.setItem('seti_autosave', JSON.stringify(gameToSave));
+      setHasAutosave(true);
+    }
+  }, [game, historyLog]);
+
+  const handleNewGameRequest = () => {
+      setNewGameModalVisible(true);
+      setSettingsVisible(false);
+  };
+
+  const handleNewGameConfirm = (playerCount: number, difficulty: string, isFirstPlayer: boolean) => {
+      try {
+          const robotNamesPool = ['R2-D2', 'C-3PO', 'HAL 9000', 'Wall-E', 'T-800', 'Data', 'Bender', 'Marvin', 'Bishop', 'GLaDOS', 'Auto', 'EVE'];
+          const shuffledRobots = [...robotNamesPool].sort(() => 0.5 - Math.random());
+
+          const playerNames = ['Jérôme'];
+          for (let i = 1; i < playerCount; i++) {
+              playerNames.push(shuffledRobots[i-1]);
+          }
+          
+          let newGame = GameFactory.createGame(playerNames, isFirstPlayer);
+          
+          // Configure players based on selection
+          newGame.players[0].type = 'human';
+          for(let i=1; i<newGame.players.length; i++) {
+              newGame.players[i].type = 'robot';
+          }
+
+          newGame = GameFactory.initializeGame(newGame);
+          
+          setGame(newGame);
+          if (gameEngineRef.current) {
+              gameEngineRef.current.setState(newGame);
+          } else {
+              gameEngineRef.current = new GameEngine(newGame);
+          }
+          
+          // Reset logs and history
+          if (newGame.gameLog && newGame.gameLog.length > 0) {
+            setHistoryLog(newGame.gameLog.map(log => ({
+              id: log.id,
+              message: log.message,
+              playerId: log.playerId,
+              timestamp: log.timestamp,
+              previousInteractionState: { type: 'IDLE' },
+              previousPendingInteractions: []
+            })));
+          } else {
+            setHistoryLog([]);
+          }
+          setInteractionState({ type: 'IDLE' });
+          setPendingInteractions([]);
+          
+          setNewGameModalVisible(false);
+          setToast({ message: "Nouvelle partie commencée !", visible: true });
+      } catch (e) {
+          console.error(e);
+          setToast({ message: "Erreur lors de la création de la partie", visible: true });
+      }
+  };
+
+  const handleSaveGame = async () => {
+      if (!game) return;
+      try {
+          // Préparer l'objet à sauvegarder avec l'historique à jour
+          const gameToSave = { 
+              ...game,
+              gameLog: historyLog.map(entry => ({
+                  id: entry.id,
+                  message: entry.message,
+                  timestamp: entry.timestamp,
+                  playerId: entry.playerId
+              }))
+          };
+          const gameState = JSON.stringify(gameToSave, null, 2);
+
+          // Utiliser l'API File System Access si disponible pour ouvrir une boîte de dialogue "Enregistrer sous"
+          // @ts-ignore
+          if (window.showSaveFilePicker) {
+              try {
+                  // @ts-ignore
+                  const handle = await window.showSaveFilePicker({
+                      suggestedName: `seti_save_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`,
+                      types: [{
+                          description: 'Sauvegarde SETI',
+                          accept: { 'application/json': ['.json'] },
+                      }],
+                  });
+                  const writable = await handle.createWritable();
+                  await writable.write(gameState);
+                  await writable.close();
+                  setSettingsVisible(false);
+                  return;
+              } catch (err: any) {
+                  if (err.name === 'AbortError') return; // Annulation utilisateur
+                  // Sinon continuer vers le fallback
+              }
+          }
+
+          const blob = new Blob([gameState], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `seti_save_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }, 100);
+          setSettingsVisible(false);
+      } catch (e) {
+          setToast({ message: "Erreur lors de la sauvegarde: " + e, visible: true });
+      }
+  };
+
+  const handleLoadGame = () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+      input.onchange = (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (!file) {
+            document.body.removeChild(input);
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              try {
+                  const savedState = event.target?.result as string;
+                  if (savedState) {
+                      const loadedGame = JSON.parse(savedState);
+                      setGame(loadedGame);
+                      if (gameEngineRef.current) {
+                          gameEngineRef.current.setState(loadedGame);
+                      } else {
+                          gameEngineRef.current = new GameEngine(loadedGame);
+                      }
+                      
+                      if (loadedGame.gameLog) {
+                          setHistoryLog(loadedGame.gameLog.map((l: any) => ({
+                              id: l.id,
+                              message: l.message,
+                              playerId: l.playerId,
+                              timestamp: l.timestamp,
+                              previousInteractionState: { type: 'IDLE' },
+                              previousPendingInteractions: []
+                          })));
+                      } else {
+                          setHistoryLog([]);
+                      }
+                      
+                      setSettingsVisible(false);
+                  }
+              } catch (e) {
+                  console.error(e);
+                  setToast({ message: "Erreur lors du chargement.", visible: true });
+              }
+              document.body.removeChild(input);
+          };
+          reader.readAsText(file);
+      };
+      input.click();
+  };
+
+  const handleContinue = () => {
+      try {
+          const savedState = localStorage.getItem('seti_autosave');
+          if (savedState) {
+              const loadedGame = JSON.parse(savedState);
+              setGame(loadedGame);
+              if (gameEngineRef.current) {
+                  gameEngineRef.current.setState(loadedGame);
+              } else {
+                  gameEngineRef.current = new GameEngine(loadedGame);
+              }
+              
+              if (loadedGame.gameLog) {
+                  setHistoryLog(loadedGame.gameLog.map((l: any) => ({
+                      id: l.id,
+                      message: l.message,
+                      playerId: l.playerId,
+                      timestamp: l.timestamp,
+                      previousInteractionState: { type: 'IDLE' },
+                      previousPendingInteractions: []
+                  })));
+              } else {
+                  setHistoryLog([]);
+              }
+              
+              setSettingsVisible(false);
+          }
+      } catch (e) {
+          console.error(e);
+          setToast({ message: "Erreur lors de la restauration.", visible: true });
+      }
+  };
 
   // Ref pour accéder à l'état d'interaction actuel dans addToHistory sans dépendance
   const interactionStateRef = useRef(interactionState);
@@ -188,7 +399,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Effet pour traiter la file d'attente des interactions (récompenses en chaîne) et le remplissage de la rangée
   useEffect(() => {
-    if (interactionState.type === 'IDLE') {
+    if (interactionState.type === 'IDLE' && game) {
       if (pendingInteractions.length > 0) {
         const [next, ...rest] = pendingInteractions;
         setPendingInteractions(rest);
@@ -203,7 +414,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Effet pour traiter les interactions non-bloquantes (effets de carte)
   useEffect(() => {
-    if (interactionState.type === 'TRIGGER_CARD_EFFECT') {
+    if (interactionState.type === 'TRIGGER_CARD_EFFECT' && game) {
       const { effectType, value, sequenceId } = interactionState;
       const currentPlayer = game.players[game.currentPlayerIndex];
       let updatedGame = structuredClone(game);
@@ -261,6 +472,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Effet pour gérer le tour du joueur Mock
   useEffect(() => {
+    if (!game) return;
+
     const currentPlayer = game.players[game.currentPlayerIndex];
     if (currentPlayer && currentPlayer.type === 'robot') {
       console.log(`[BoardUI] Robot ${currentPlayer.name} turn detected. Main action performed: ${currentPlayer.hasPerformedMainAction}`);
@@ -268,6 +481,28 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       if (gameEngineRef.current) gameEngineRef.current.setState(game);
 
       const timer = setTimeout(() => {
+        // Gestion de la phase de SETUP (Réservation)
+        if (game.phase === GamePhase.SETUP) {
+            const cardId = AIBehavior.decideReservation(game, currentPlayer);
+            if (cardId) {
+                let updatedGame = CardSystem.reserveCard(game, currentPlayer.id, cardId);
+                
+                // Logique de log pour la réservation (similaire à handleConfirmReservation)
+                const card = currentPlayer.cards.find(c => c.id === cardId);
+                let gainMsg = "";
+                if (card) {
+                    if (card.revenue === RevenueType.CREDIT) gainMsg = "1 Crédit";
+                    else if (card.revenue === RevenueType.ENERGY) gainMsg = "1 Énergie";
+                    else if (card.revenue === RevenueType.CARD) gainMsg = "1 Carte";
+                    addToHistory(`réserve carte "${card.name}" et gagne ${gainMsg}`, currentPlayer.id, game);
+                }
+
+                // Passer au joueur suivant
+                handleSetupNextPlayer(updatedGame);
+            }
+            return;
+        }
+
         // Si le robot a déjà joué son action principale, il passe son tour
         if (currentPlayer.hasPerformedMainAction) {
           console.log(`[BoardUI] Robot ${currentPlayer.name} has already performed main action. Passing turn.`);
@@ -287,7 +522,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               const result = gameEngineRef.current!.executeAction(action);
               if (result.success && result.updatedState) {
                 setGame(result.updatedState);
-                addToHistory(`lance une sonde`, currentPlayer.id, game);
+                if (action.historyEntries) {
+                  action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game));
+                }
               }
               break;
             }
@@ -300,7 +537,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 const sequenceId = `ai-scan-${Date.now()}`;
                 
                 if (action.historyEntries) {
-                    action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
+                    action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
                 }
 
                 const queue = [...(action.newPendingInteractions || [])];
@@ -332,21 +569,21 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                         
                         if (validSectors.length > 0) {
                             const chosen = validSectors[Math.floor(Math.random() * validSectors.length)];
+                            const initialLogs: string[] = [];
+                            const stateBeforeStep = aiGame;
 
                             // Gestion de la défausse de carte (si issue de SELECTING_SCAN_CARD)
                             if (interaction.cardId) {
-                                const cardIndex = aiGame.decks.cardRow.findIndex(c => c.id === interaction.cardId);
-                                if (cardIndex !== -1) {
-                                    const [removed] = aiGame.decks.cardRow.splice(cardIndex, 1);
-                                    if (!aiGame.decks.discardPile) aiGame.decks.discardPile = [];
-                                    aiGame.decks.discardPile.push(removed);
-                                    addToHistory(`défausse carte "${removed.name}" (${removed.scanSector}) de la rangée`, currentPlayer.id, aiGame, undefined, sequenceId);
+                                const { updatedGame, discardedCard } = CardSystem.discardFromRow(aiGame, interaction.cardId);
+                                if (discardedCard) {
+                                    aiGame = updatedGame;
+                                    initialLogs.push(`défausse carte "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`);
                                 }
                             }
 
-                            const res = ScanSystem.performScanAndCover(aiGame, currentPlayer.id, chosen.id, [], false, sequenceId);
+                            const res = ScanSystem.performSignalAndCover(aiGame, currentPlayer.id, chosen.id, initialLogs, false, sequenceId);
                             aiGame = res.updatedGame;
-                            res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
+                            res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, stateBeforeStep, undefined, sequenceId));
                             if (res.newPendingInteractions) {
                                 queue.unshift(...res.newPendingInteractions);
                             }
@@ -410,13 +647,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             case ActionType.PLAY_CARD: {
               const card = currentPlayer.cards.find(c => c.id === decision.data.cardId);
               if (card) {
-                const action = new PlayCardAction(currentPlayer.id, card.id);
-                const result = gameEngineRef.current!.executeAction(action);
-                if (result.success && result.updatedState) {
-                  executePlayCard(card.id);
-                  setGame(result.updatedState);
-                  if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedState);
-                }
+                executePlayCard(card.id);
               }
               break;
             }
@@ -452,9 +683,28 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     return;
   }, [game, performPass, addToHistory]);
 
+  // Gestionnaire pour passer au joueur suivant pendant la phase de SETUP
+  const handleSetupNextPlayer = (currentGame: Game) => {
+      let nextGame = { ...currentGame };
+      let nextIndex = nextGame.currentPlayerIndex + 1;
+      
+      if (nextIndex >= nextGame.players.length) {
+          nextGame.phase = GamePhase.PLAYING;
+          nextGame.currentPlayerIndex = nextGame.firstPlayerIndex;
+          addToHistory("--- DÉBUT DE LA PARTIE ---", undefined, nextGame);
+          const firstPlayer = nextGame.players[nextGame.firstPlayerIndex];
+          addToHistory(`--- Tour de ${firstPlayer.name} ---`, firstPlayer.id, nextGame);
+      } else {
+          nextGame.currentPlayerIndex = nextIndex;
+      }
+      
+      setGame(nextGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(nextGame);
+  };
+
   // Gestionnaire pour passer au joueur suivant (fin de tour simple)
   const handleNextPlayer = () => {
-    if (!gameEngineRef.current) return;
+    if (!gameEngineRef.current || !game) return;
 
     // Vérifier les paliers de score avant de passer au joueur suivant
     // Utiliser l'état du moteur pour avoir la version la plus à jour
@@ -505,14 +755,20 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     gameEngineRef.current.nextPlayer();
 
     // Sauvegarde l'état et réinitialise les interactions
-    setGame(gameEngineRef.current.getState());
+    const nextState = gameEngineRef.current.getState();
+    setGame(nextState);
     setInteractionState({ type: 'IDLE' });
     setPendingInteractions([]);
     setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
+
+    const nextPlayer = nextState.players[nextState.currentPlayerIndex];
+    addToHistory(`--- Tour de ${nextPlayer.name} ---`, nextPlayer.id, nextState);
   };
 
   // Gestionnaire pour le clic sur une carte en mode défausse/échange/réservation/signal
   const handleCardClick = (cardId: string) => {
+    if (!game) return;
+
     if (interactionState.type === 'DISCARDING_CARD') {
       const currentCards = interactionState.selectedCards;
       if (currentCards.includes(cardId)) {
@@ -563,6 +819,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour confirmer la défausse
   const handleConfirmDiscard = () => {
+    if (!game) return;
+
     // Cas 1: Défausse pour fin de tour
     if (interactionState.type === 'DISCARDING_CARD') {
       const currentPlayer = game.players[game.currentPlayerIndex];
@@ -617,6 +875,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour la réservation de carte
   const handleConfirmReservation = () => {
+    if (!game) return;
+
     if (interactionState.type !== 'RESERVING_CARD') return;
     if (interactionState.selectedCards.length === 0) return;
 
@@ -686,11 +946,18 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       setInteractionState({ type: 'RESERVING_CARD', count: newCount, sequenceId: interactionState.sequenceId, selectedCards: [] });
     } else {
       setInteractionState({ type: 'IDLE' });
+      
+      // Si on est en phase de SETUP, on passe au joueur suivant
+      if (game.phase === GamePhase.SETUP) {
+          handleSetupNextPlayer(updatedGame);
+      }
     }
   };
 
   // Gestionnaire pour le clic sur un secteur (Scan)
   const handleSectorClick = (sectorNumber: number) => {
+    if (!game) return;
+
     // Cas 1: Mode Scan actif ou bonus
     if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
       const currentPlayer = game.players[game.currentPlayerIndex];
@@ -738,17 +1005,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         let cardFoundAndProcessed = false;
 
         // Chercher et traiter dans la rangée de cartes
-        const cardFromRow = game.decks.cardRow.find(c => c.id === interactionState.cardId);
-        if (cardFromRow) {
-          const row = updatedGame.decks.cardRow;
-          const cardIndex = row.findIndex(c => c.id === cardFromRow.id);
-          if (cardIndex !== -1) {
-            const removedCard = row.splice(cardIndex, 1)[0];
-            if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
-            updatedGame.decks.discardPile.push(removedCard);
-            initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la rangée`);
+        const { updatedGame: gameAfterRowDiscard, discardedCard: rowCard } = CardSystem.discardFromRow(updatedGame, interactionState.cardId);
+        if (rowCard) {
+            updatedGame = gameAfterRowDiscard;
+            initialLogs.push(`défausse carte "${rowCard.name}" (${rowCard.scanSector}) de la rangée`);
             cardFoundAndProcessed = true;
-          }
         }
 
         // Si non trouvée, chercher et traiter dans la pioche
@@ -783,7 +1044,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }
       }
 
-      const res = ScanSystem.performScanAndCover(updatedGame, currentPlayer.id, sector.id, initialLogs, interactionState.noData, interactionState.sequenceId);
+      const res = ScanSystem.performSignalAndCover(updatedGame, currentPlayer.id, sector.id, initialLogs, interactionState.noData, interactionState.sequenceId);
       updatedGame = res.updatedGame;
       // Log immediately for interactive scan
       res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, interactionState.sequenceId));
@@ -827,7 +1088,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour les actions
   const handleAction = (actionType: ActionType) => {
-    if (!gameEngineRef.current) return;
+    if (!gameEngineRef.current || !game) return;
 
     // Atomicité : Si on est dans un mode interactif, on ne peut pas lancer d'autre action
     if (interactionState.type !== 'IDLE') return;
@@ -973,6 +1234,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour placer une trace de vie
   const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType) => {
+    if (!game) return;
+
     if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
 
     if (interactionState.color !== color) {
@@ -1081,6 +1344,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour le choix Observation 2
   const handleObs2Choice = (accepted: boolean) => {
+    if (!game) return;
+
     if (interactionState.type !== 'CHOOSING_OBS2_ACTION') return;
 
     const sequenceId = interactionState.sequenceId;
@@ -1102,7 +1367,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const mercuryPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
       if (mercuryPos) {
         const mercurySector = updatedGame.board.sectors[mercuryPos.absoluteSector - 1];
-        const res = ScanSystem.performScanAndCover(updatedGame, player.id, mercurySector.id, [], false, sequenceId);
+        const res = ScanSystem.performSignalAndCover(updatedGame, player.id, mercurySector.id, [], false, sequenceId);
         updatedGame = res.updatedGame;
         res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, updatedGame, undefined, sequenceId));
       }
@@ -1130,6 +1395,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour le choix Observation 4
   const handleObs4Choice = (choice: 'PROBE' | 'MOVE') => {
+    if (!game) return;
+
     if (interactionState.type !== 'CHOOSING_OBS4_ACTION') return;
 
     const sequenceId = interactionState.sequenceId;
@@ -1160,6 +1427,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour le choix Média ou Déplacement (Carte 19)
   const handleMediaOrMoveChoice = (choice: 'MEDIA' | 'MOVE') => {
+    if (!game) return;
+
     if (interactionState.type !== 'CHOOSING_MEDIA_OR_MOVE') return;
 
     const currentPlayer = game.players[game.currentPlayerIndex];
@@ -1195,6 +1464,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     historyMessagePrefix: string,
     successMessage: string
   ): boolean => {
+    if (!game) return false;
+
     const currentPlayer = game.players[game.currentPlayerIndex];
 
     // Résolution de l'ID de la planète parente si c'est un satellite
@@ -1301,6 +1572,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour la mise en orbite via la hover card
   const handleOrbit = (planetId: string, slotIndex?: number) => {
+    if (!game) return;
+
     const currentPlayer = game.players[game.currentPlayerIndex];
     const probeOnPlanet = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
     
@@ -1433,6 +1706,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour l'atterrissage via la hover card
   const handleLand = (planetId: string, slotIndex?: number) => {
+    if (!game) return;
+
     const currentPlayer = game.players[game.currentPlayerIndex];
     const probeOnPlanet = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
 
@@ -1591,7 +1866,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour le déplacement des sondes
   const handleProbeMove = async (probeId: string, path: string[]) => {
-    if (!gameEngineRef.current) return;
+    if (!gameEngineRef.current || !game || !gameRef.current) return;
 
     // Synchroniser l'état de GameEngine avec le jeu actuel
     gameEngineRef.current.setState(gameRef.current);
@@ -1684,6 +1959,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour jouer une carte (payer son coût en crédits)
   const handlePlayCardRequest = (cardId: string) => {
+    if (!game || !gameRef.current) return;
+
     const currentGame = gameRef.current;
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
     const card = currentPlayer.cards.find(c => c.id === cardId);
@@ -1784,6 +2061,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   };
 
   const executePlayCard = (cardId: string) => {
+    if (!game || !gameRef.current) return;
+
     const currentGame = gameRef.current;
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
 
@@ -1824,7 +2103,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             ownerId: currentPlayer.id,
             requirements: cardPlayed.permanentEffects || [],
             progress: { current: 0, target: cardPlayed.permanentEffects?.length || 0 },
-            completed: false
+            completed: false,
+            originalCard: cardPlayed
           };
           playerInNewGame.missions.push(newMission);
         }
@@ -1891,6 +2171,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour l'action gratuite (défausse de carte)
   const handleDiscardCardAction = (cardId: string) => {
+    if (!game) return;
+
     let updatedGame = game;
     const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
     const card = currentPlayer.cards.find(c => c.id === cardId);
@@ -1931,6 +2213,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour les échanges directs (via les boutons rapides)
   const handleDirectTrade = (spendType: string, gainType: string) => {
+    if (!game) return;
+
     if (interactionState.type !== 'IDLE') return;
     const currentPlayer = game.players[game.currentPlayerIndex];
 
@@ -1960,6 +2244,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour la sélection d'une carte de la pioche ou de la rangée principale
   const handleCardRowClick = (cardId?: string) => { // cardId undefined means deck
+    if (!game) return;
+
     // Cas 1: Sélection pour 2eme action scan
     if (interactionState.type === 'SELECTING_SCAN_CARD') {
       if (!cardId) return; // Cannot select deck for scan color
@@ -2049,6 +2335,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire unifié pour les échanges
   const handleConfirmTrade = () => {
+    if (!game) return;
+
     if (interactionState.type !== 'TRADING_CARD') return;
     const currentPlayer = game.players[game.currentPlayerIndex];
 
@@ -2078,6 +2366,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Fonction interne pour traiter l'achat (commune à l'achat direct et après sélection)
   const processTechPurchase = (tech: Technology, targetComputerCol?: number, noTileBonus?: boolean, baseGame?: Game) => {
+    if (!game) return;
+
     const currentGame = baseGame || gameRef.current;
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
 
@@ -2093,6 +2383,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour l'achat de technologie (clic initial)
   const handleTechClick = (tech: Technology) => {
+    if (!game) return;
+
     // Cas 1: Mode recherche actif ou bonus
     if (interactionState.type === 'ACQUIRING_TECH') {
       if (tech.type === TechnologyCategory.COMPUTING) {
@@ -2147,6 +2439,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour la sélection de la colonne ordinateur
   const handleComputerColumnSelect = (col: number) => {
+    if (!game || !gameRef.current) return;
+
     if (interactionState.type !== 'SELECTING_COMPUTER_SLOT') return;
 
     // Vérifier que c'est une colonne valide (1, 3, 5, 6)
@@ -2166,6 +2460,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour la pioche de carte depuis le PlayerBoardUI (ex: bonus ordinateur)
   const handleDrawCard = (count: number, source: string) => {
+    if (!game) return;
+
     const updatedGame = CardSystem.drawCards(game, game.players[game.currentPlayerIndex].id, count, source);
 
     setGame(updatedGame);
@@ -2182,6 +2478,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour les bonus ordinateur (déclenché depuis PlayerBoardUI)
   const handleComputerBonus = (type: string, amount: number, sequenceId?: string) => {
+    if (!game || !gameRef.current) return;
+
     if (type === 'reservation') {
       const currentPlayer = gameRef.current.players[gameRef.current.currentPlayerIndex];
       const count = Math.min(amount, currentPlayer.cards.length);
@@ -2194,6 +2492,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour le clic sur un objectif (placement de marqueur de palier)
   const handleObjectiveClick = (tileId: string) => {
+    if (!game) return;
+
     if (interactionState.type !== 'PLACING_OBJECTIVE_MARKER') return;
 
     const tile = game.board.objectiveTiles.find(t => t.id === tileId);
@@ -2232,6 +2532,29 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     }
   }
 
+  // Si le jeu n'est pas initialisé, afficher uniquement les modales de démarrage
+  if (!game) {
+    return (
+      <div className="seti-root">
+        <SettingsModal 
+          visible={settingsVisible}
+          onNewGame={handleNewGameRequest}
+          onSaveGame={handleSaveGame}
+          onLoadGame={handleLoadGame}
+          onContinue={handleContinue}
+          hasAutosave={hasAutosave}
+          onClose={() => setSettingsVisible(false)}
+          canClose={false}
+        />
+        <NewGameModal
+          visible={newGameModalVisible}
+          onConfirm={handleNewGameConfirm}
+          onCancel={() => { setNewGameModalVisible(false); setSettingsVisible(true); }}
+        />
+      </div>
+    );
+  }
+
   const humanPlayer = game.players.find(p => p.type === 'human');
   const currentPlayer = game.players[game.currentPlayerIndex];
   const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id || currentPlayer.id;
@@ -2244,13 +2567,6 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         setGame={setGame}
         onHistory={addToHistory}
         interactionState={interactionState} />
-
-      {/* Toast Notification */}
-      {toast && toast.visible && (
-        <div className="seti-toast">
-          {toast.message}
-        </div>
-      )}
 
       {activeTooltip && (
         <Tooltip 
@@ -2326,6 +2642,23 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }}
       />
 
+      <SettingsModal 
+        visible={settingsVisible}
+        onNewGame={handleNewGameRequest}
+        onSaveGame={handleSaveGame}
+        onLoadGame={handleLoadGame}
+        onContinue={handleContinue}
+        hasAutosave={false} // Pas besoin de montrer "Continuer" si on est déjà en jeu (Fermer suffit)
+        onClose={() => setSettingsVisible(false)}
+        canClose={!!game}
+      />
+
+      <NewGameModal
+        visible={newGameModalVisible}
+        onConfirm={handleNewGameConfirm}
+        onCancel={() => { setNewGameModalVisible(false); setSettingsVisible(true); }}
+      />
+
       {/* Ecran de fin de partie */}
       {game.phase === GamePhase.FINAL_SCORING && <EndGameModal game={game} />}
 
@@ -2370,6 +2703,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
               onComputerBonus={handleComputerBonus}
               onConfirmDiscardForSignal={handleConfirmDiscard}
               setActiveTooltip={setActiveTooltip}
+              onSettingsClick={() => setSettingsVisible(true)}
             />
           </div>
         </div>
@@ -2385,6 +2719,13 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             onBackgroundClick={handleBackgroundClick}
             setActiveTooltip={setActiveTooltip}
           />
+
+          {/* Toast Notification */}
+          {toast && toast.visible && (
+            <div className="seti-toast">
+              {toast.message}
+            </div>
+          )}
 
           {/* Plateaux annexes en haut à gauche */}
           <div className={`seti-side-panels-container ${(interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? 'high-z-index' : ''}`}>

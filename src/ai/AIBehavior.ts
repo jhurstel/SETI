@@ -137,6 +137,15 @@ export class AIBehavior {
   }
 
   /**
+   * Décide quelle carte réserver (Setup)
+   */
+  static decideReservation(game: Game, player: Player): string | null {
+      if (player.cards.length === 0) return null;
+      const randomIndex = Math.floor(Math.random() * player.cards.length);
+      return player.cards[randomIndex].id;
+  }
+
+  /**
    * Vérifie si le robot doit réclamer un palier d'objectif.
    * Retourne le palier et l'ID de la tuile objectif choisie.
    */

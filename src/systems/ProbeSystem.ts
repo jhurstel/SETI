@@ -9,7 +9,7 @@
  * - Limites (max 1 sonde dans le système solaire sans technologie)
  */
 
-import { Game, Player, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber } from '../core/types';
+import { Game, Player, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry } from '../core/types';
 import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 
@@ -66,7 +66,7 @@ export class ProbeSystem {
   ): {
     updatedGame: Game;
     probeId: string | null;
-    message: string;
+    historyEntries: HistoryEntry[];
   } {
     const updatedGame = { ...game };
     updatedGame.players = [...game.players];
@@ -74,6 +74,7 @@ export class ProbeSystem {
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     const player = updatedGame.players[playerIndex];
     const updatedPlayer = { ...player };
+    let historyEntries = []
     let message = '';
 
     // Calculer la position réelle absolue de la Terre
@@ -84,7 +85,8 @@ export class ProbeSystem {
       earthDisk = earthPos.disk;
       earthSector = earthPos.sector;
     } else {
-      return { updatedGame: game, probeId: null, message: `Terre non trouvée dna sle système solaire` };
+      historyEntries.push({ message: `Terre non trouvée dans le système solaire`, playerId: player.id, sequenceId: ''});
+      return { updatedGame: game, probeId: null, historyEntries };
     }
 
     // Vérifier la limite de sondes (même pour un lancement gratuit)
@@ -94,7 +96,9 @@ export class ProbeSystem {
         const maxProbes = hasExploration1 ? (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY || 2) : (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM || 1);
 
         if (probesInSystem.length >= maxProbes) {
-            return { updatedGame: game, probeId: null, message: `Limite de sondes atteinte (max ${maxProbes}) dans le système solaire)` };
+            const message = `Limite de sondes atteinte (max ${maxProbes}) dans le système solaire)`;
+            historyEntries.push({ message, playerId: player.id, sequenceId: ''});
+            return { updatedGame: game, probeId: null, historyEntries };
         }
     }
 
@@ -117,6 +121,7 @@ export class ProbeSystem {
     } else {
       message = `gagne l'action bonus	<strong>Lancer une sonde</strong> depuis la Terre`;
     }
+    historyEntries.push({ message, playerId: player.id, sequenceId: ''});
 
     // Traitement des buffs permanents
     updatedPlayer.permanentBuffs.forEach(buff => {
@@ -155,11 +160,10 @@ export class ProbeSystem {
         probes: [...(updatedGame.board.solarSystem.probes || []), probe]
       }
     };
-
     return {
       updatedGame,
       probeId: probe.id,
-      message
+      historyEntries
     };
   }
 

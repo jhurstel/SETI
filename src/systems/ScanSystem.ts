@@ -8,8 +8,8 @@
  * - Réinitialisation après couverture
  */
 
-import { Game, Sector, Bonus, SignalType, GAME_CONSTANTS, InteractionState, ProbeState } from '../core/types';
-import { createRotationState, getObjectPosition } from '../core/SolarSystemPosition';
+import { Game, Sector, Bonus, SignalType, GAME_CONSTANTS, InteractionState, ProbeState, HistoryEntry } from '../core/types';
+import { getObjectPosition } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { ProbeSystem } from './ProbeSystem';
 
@@ -78,7 +78,7 @@ export class ScanSystem {
       signal.marked = true;
       signal.markedBy = playerId;
       
-      logs.push(`marque un signal dans le secteur "${sector.name}"`);
+      logs.push(`marque un signal dans le secteur "${sector.name}" (${sector.color})`);
       
       // Base gain: 1 Data (if type is DATA)
       if (signal.type === SignalType.DATA) {
@@ -132,56 +132,57 @@ export class ScanSystem {
     let bonuses: Bonus = {};
     const majority = this.calculateMajority(sector);
     const winnerId = majority.playerId;
+    if (!winnerId) {
+      return { updatedGame, logs: [], bonuses: {} };
+    }
 
-    if (winnerId) {
-        const winner = updatedGame.players.find(p => p.id === winnerId);
-        if (winner) {
-            logs.push('couvre le secteur');
-            
-            // Appliquer les bonus au gagnant
-            const isFirstTime = !sector.isCovered;
-            const sectorBonus = isFirstTime ? sector.firstBonus : sector.nextBonus;
-            if (sectorBonus) {
-                // PV
-                if (sectorBonus.pv) {
-                    winner.score += sectorBonus.pv;
-                    if (winnerId === playerId) bonuses.pv = (bonuses.pv || 0) + sectorBonus.pv;
-                }
-                // Lifetraces
-                if (winnerId === playerId && sectorBonus.lifetraces) {
-                    bonuses.lifetraces = [...(bonuses.lifetraces || []), ...sectorBonus.lifetraces];
-                }
+    const winner = updatedGame.players.find(p => p.id === winnerId);
+    if (winner) {
+        logs.push('couvre le secteur');
+        
+        // Appliquer les bonus au gagnant
+        const isFirstTime = !sector.isCovered;
+        const sectorBonus = isFirstTime ? sector.firstBonus : sector.nextBonus;
+        if (sectorBonus) {
+            // PV
+            if (sectorBonus.pv) {
+                winner.score += sectorBonus.pv;
+                if (winnerId === playerId) bonuses.pv = (bonuses.pv || 0) + sectorBonus.pv;
             }
-
-            // Bonus de Média (Chaque joueur présent gagne 1 Média)
-            const uniquePlayersIds = new Set(sector.signals.map(s => s.markedBy).filter(id => id) as string[]);
-            const participants: string[] = [];
-            uniquePlayersIds.forEach(pId => {
-                const p = updatedGame.players.find(pl => pl.id === pId);
-                if (p) {
-                    p.mediaCoverage = Math.min(p.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-                    if (pId === playerId) {
-                        bonuses.media = (bonuses.media || 0) + 1;
-                    } else {
-                        participants.push(p.name);
-                    }
-                }
-            });
-
-            if (participants.length > 0) {
-                logs.push(`${participants.join(', ')} gagn${participants.length > 1 ? 'ent' : 'e'} 1 Média. ${player.name} `);
+            // Lifetraces
+            if (winnerId === playerId && sectorBonus.lifetraces) {
+                bonuses.lifetraces = [...(bonuses.lifetraces || []), ...sectorBonus.lifetraces];
             }
-
-            // Marquer le secteur comme couvert
-            sector.isCovered = true;
-            sector.coveredBy.push(winnerId);
-            
-            // Reset signals
-            sector.signals.forEach(s => {
-                s.marked = false;
-                s.markedBy = undefined;
-            });
         }
+
+        // Bonus de Média (Chaque joueur présent gagne 1 Média)
+        const uniquePlayersIds = new Set(sector.signals.map(s => s.markedBy).filter(id => id) as string[]);
+        const participants: string[] = [];
+        uniquePlayersIds.forEach(pId => {
+            const p = updatedGame.players.find(pl => pl.id === pId);
+            if (p) {
+                p.mediaCoverage = Math.min(p.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                if (pId === playerId) {
+                    bonuses.media = (bonuses.media || 0) + 1;
+                } else {
+                    participants.push(p.name);
+                }
+            }
+        });
+
+        if (participants.length > 0) {
+            logs.push(`${participants.join(', ')} gagn${participants.length > 1 ? 'ent' : 'e'} 1 Média. ${player.name} `);
+        }
+
+        // Marquer le secteur comme couvert
+        sector.isCovered = true;
+        sector.coveredBy.push(winnerId);
+        
+        // Reset signals
+        sector.signals.forEach(s => {
+            s.marked = false;
+            s.markedBy = undefined;
+        });
     }
     return { updatedGame, logs, bonuses, winnerId};
   }
@@ -258,43 +259,41 @@ export class ScanSystem {
   }
 
   // Helper pour effectuer une séquence de scan complète
-  static performScanAction(game: Game, sequenceId?: string) : { updatedGame: Game, historyEntries: { message: string, playerId: string, sequenceId: string }[], newPendingInteractions: InteractionState[]}
+  static performScanAction(game: Game, isBonus: boolean = false, sequenceId?: string) : { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[]}
   {
       // Initier la séquence
       let updatedGame = structuredClone(game);
       if (!sequenceId) sequenceId = `scan-${Date.now()}`;
-      const historyEntries: { message: string, playerId: string, sequenceId: string }[] = [];
+      const historyEntries: HistoryEntry[] = [];
+      const newPendingInteractions: InteractionState[] = [];
       const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
       const hasObs1 = currentPlayer.technologies.some(t => t.id.startsWith('observation-1'));
       const hasObs2 = currentPlayer.technologies.some(t => t.id.startsWith('observation-2'));
       const hasObs3 = currentPlayer.technologies.some(t => t.id.startsWith('observation-3'));
       const hasObs4 = currentPlayer.technologies.some(t => t.id.startsWith('observation-4'));
-
-      const rotationState = createRotationState(
-      game.board.solarSystem.rotationAngleLevel1 || 0,
-      game.board.solarSystem.rotationAngleLevel2 || 0,
-      game.board.solarSystem.rotationAngleLevel3 || 0
-      );
-
-      const newPendingInteractions: InteractionState[] = [];
   
       // Payer le coût
-      currentPlayer.credits -= GAME_CONSTANTS.SCAN_COST_CREDITS;
-      currentPlayer.energy -= GAME_CONSTANTS.SCAN_COST_ENERGY;
-      historyEntries.push({ message: `paye ${ResourceSystem.formatResource(GAME_CONSTANTS.SCAN_COST_CREDITS, 'CREDIT')} et ${ResourceSystem.formatResource(GAME_CONSTANTS.SCAN_COST_ENERGY, 'ENERGY')} pour <strong>Scanner un secteur</strong>`, playerId: currentPlayer.id, sequenceId});
+      if (!isBonus) {
+        currentPlayer.credits -= GAME_CONSTANTS.SCAN_COST_CREDITS;
+        currentPlayer.energy -= GAME_CONSTANTS.SCAN_COST_ENERGY;
+        historyEntries.push({ message: `paye ${ResourceSystem.formatResource(GAME_CONSTANTS.SCAN_COST_CREDITS, 'CREDIT')} et ${ResourceSystem.formatResource(GAME_CONSTANTS.SCAN_COST_ENERGY, 'ENERGY')} pour <strong>Scanner un secteur</strong>`, playerId: currentPlayer.id, sequenceId});
+      } else {
+        historyEntries.push({ message: `gagne l'action <strong>Scanner un secteur</strong>`, playerId: currentPlayer.id, sequenceId});
+      }
 
       // 1. Signal depuis la Terre
-      const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+      const solarSystem = game.board.solarSystem;
+      const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
       if (earthPos) {
-      const earthSector = game.board.sectors[earthPos.absoluteSector - 1];
-      if (hasObs1) {
-          newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: earthSector.color, sequenceId, adjacents: true })
-      } else {
-          const res = this.performScanAndCover(updatedGame, currentPlayer.id, earthSector.id, [], false, sequenceId);
-          updatedGame = res.updatedGame;
-          historyEntries.push(...res.historyEntries);
-          newPendingInteractions.push(...res.newPendingInteractions);
-      }
+        const earthSector = game.board.sectors[earthPos.absoluteSector - 1];
+        if (hasObs1) {
+            newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: earthSector.color, sequenceId, adjacents: true })
+        } else {
+            const res = this.performSignalAndCover(updatedGame, currentPlayer.id, earthSector.id, [], false, sequenceId);
+            updatedGame = res.updatedGame;
+            historyEntries.push(...res.historyEntries);
+            newPendingInteractions.push(...res.newPendingInteractions);
+        }
       }
 
       // 2. Signal depuis la rangée de carte
@@ -302,49 +301,49 @@ export class ScanSystem {
 
       // 3. Signal depuis Mercure
       if (hasObs2) {
-      if (currentPlayer.mediaCoverage > 0) {
-          newPendingInteractions.push({ type: 'CHOOSING_OBS2_ACTION', sequenceId });
-      } else {
-          historyEntries.push({ message: "ne peut pas utiliser Observation II (manque de Média)", playerId: currentPlayer.id, sequenceId });
-      }
+        if (currentPlayer.mediaCoverage > 0) {
+            newPendingInteractions.push({ type: 'CHOOSING_OBS2_ACTION', sequenceId });
+        } else {
+            historyEntries.push({ message: "ne peut pas utiliser Observation II (manque de Média)", playerId: currentPlayer.id, sequenceId });
+        }
       }
 
       // 4. Signal depuis carte de la main (Obs3)
       if (hasObs3) {
-      if (currentPlayer.cards.length > 0) {
-          newPendingInteractions.push({ type: 'CHOOSING_OBS3_ACTION', sequenceId });
-      } else {
-          historyEntries.push({ message: "ne peut pas utiliser Observation III (manque de cartes en main)", playerId: currentPlayer.id, sequenceId });
-      }
+        if (currentPlayer.cards.length > 0) {
+            newPendingInteractions.push({ type: 'CHOOSING_OBS3_ACTION', sequenceId });
+        } else {
+            historyEntries.push({ message: "ne peut pas utiliser Observation III (manque de cartes en main)", playerId: currentPlayer.id, sequenceId });
+        }
       }
 
       // 5. Lancer une Sonde pour 1 Energie ou 1 Déplacement
       if (hasObs4) {
-      const canLaunch = currentPlayer.energy >= 1 && ProbeSystem.canLaunchProbe(updatedGame, currentPlayer.id, false).canLaunch;
-      const canMove = currentPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+        const canLaunch = currentPlayer.energy >= 1 && ProbeSystem.canLaunchProbe(updatedGame, currentPlayer.id, false).canLaunch;
+        const canMove = currentPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
 
-      if (canLaunch || canMove) {
-          newPendingInteractions.push({ type: 'CHOOSING_OBS4_ACTION', sequenceId });
-      } else {
-          historyEntries.push({ message: "ne peut pas utiliser Observation IV (conditions non remplies)", playerId: currentPlayer.id, sequenceId });
-      }
+        if (canLaunch || canMove) {
+            newPendingInteractions.push({ type: 'CHOOSING_OBS4_ACTION', sequenceId });
+        } else {
+            historyEntries.push({ message: "ne peut pas utiliser Observation IV (conditions non remplies)", playerId: currentPlayer.id, sequenceId });
+        }
       }
 
       return { updatedGame, historyEntries, newPendingInteractions };
   }
 
   // Helper pour effectuer un scan et potentiellement une couverture de secteur
-  static performScanAndCover(
+  static performSignalAndCover(
     gameToUpdate: Game,
     playerId: string,
     sectorId: string,
     initialLogs: string[] = [],
     noData: boolean = false,
     sequenceId: string
-  ): { updatedGame: Game, historyEntries: { message: string, playerId: string, sequenceId: string }[], newPendingInteractions: InteractionState[] }
+  ): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] }
   {
     let updatedGame = gameToUpdate;
-    const historyEntries: { message: string, playerId: string, sequenceId: string }[] = [];
+    const historyEntries: HistoryEntry[] = [];
     const scanLogs: string[] = [...initialLogs];
 
     let newPendingInteractions: InteractionState[] = [];
