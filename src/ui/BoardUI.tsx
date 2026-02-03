@@ -686,9 +686,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Gestionnaire pour passer au joueur suivant pendant la phase de SETUP
   const handleSetupNextPlayer = (currentGame: Game) => {
       let nextGame = { ...currentGame };
-      let nextIndex = nextGame.currentPlayerIndex + 1;
+      let nextIndex = (nextGame.currentPlayerIndex + 1) % nextGame.players.length;
       
-      if (nextIndex >= nextGame.players.length) {
+      if (nextIndex === nextGame.firstPlayerIndex) {
           nextGame.phase = GamePhase.PLAYING;
           nextGame.currentPlayerIndex = nextGame.firstPlayerIndex;
           addToHistory("--- DÉBUT DE LA PARTIE ---", undefined, nextGame);

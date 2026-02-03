@@ -19,6 +19,7 @@ import {
   CardEffect,
   GameLogEntry,
   TechnologyCategory,
+  LifeTraceType,
   NEUTRAL_MILESTONES
 } from './types';
 import { BoardManager } from './Board';
@@ -528,20 +529,6 @@ export class GameFactory {
           effects.push({ type: 'GAIN', target: 'ENERGY', value: amount });
         } else if (lower.includes('donnée') || lower.includes('data')) {
           effects.push({ type: 'GAIN', target: 'DATA', value: amount });
-        } else if (lower.includes('sonde')) {
-          effects.push({ type: 'GAIN', target: 'PROBE', value: amount });
-        } else if (lower.includes('pioche')) {
-          effects.push({ type: 'GAIN', target: 'CARD', value: amount });
-        } else if (lower.includes('carte')) {
-          effects.push({ type: 'ACTION', target: 'ANYCARD', value: amount });
-        } else if (lower.includes('déplacement') || lower.includes('deplacement')) {
-          effects.push({ type: 'ACTION', target: 'MOVEMENT', value: amount });
-        } else if (lower.includes('rotation')) {
-          effects.push({ type: 'ACTION', target: 'ROTATION', value: amount });
-        } else if (lower.includes('atterrissage')) {
-          effects.push({ type: 'ACTION', target: 'LAND', value: amount });
-        } else if (lower.includes('scan')) {
-          effects.push({ type: 'ACTION', target: 'SCAN', value: amount });
         } else if (lower.includes('signal') || lower.includes('signaux')) {
           let scope = SectorType.ANY;
           if (lower.includes('rangée') || lower.includes('rangee')) scope = SectorType.ROW;
@@ -566,12 +553,32 @@ export class GameFactory {
           else if (lower.includes('véga')) scope = SectorType.VEGA;
           else if (lower.includes('pictoris')) scope = SectorType.PICTORIS;
           effects.push({ type: 'ACTION', target: 'SIGNAL', value: { amount, scope } });
+        } else if (lower.includes('sonde')) {
+          effects.push({ type: 'GAIN', target: 'PROBE', value: amount });
+        } else if (lower.includes('pioche')) {
+          effects.push({ type: 'GAIN', target: 'CARD', value: amount });
+        } else if (lower.includes('carte')) {
+          effects.push({ type: 'ACTION', target: 'ANYCARD', value: amount });
+        } else if (lower.includes('déplacement') || lower.includes('deplacement')) {
+          effects.push({ type: 'ACTION', target: 'MOVEMENT', value: amount });
+        } else if (lower.includes('rotation')) {
+          effects.push({ type: 'ACTION', target: 'ROTATION', value: amount });
+        } else if (lower.includes('atterrissage')) {
+          effects.push({ type: 'ACTION', target: 'LAND', value: amount });
+        } else if (lower.includes('scan')) {
+          effects.push({ type: 'ACTION', target: 'SCAN', value: amount });
         } else if (lower.includes('tech')) {
           let scope = TechnologyCategory.ANY;
           if (lower.includes('informatique') || lower.includes('bleu')) scope = TechnologyCategory.COMPUTING;
           else if (lower.includes('exploration') || lower.includes('jaune')) scope = TechnologyCategory.EXPLORATION;
           else if (lower.includes('observation') || lower.includes('rouge')) scope = TechnologyCategory.OBSERVATION;
           effects.push({ type: 'ACTION', target: 'TECH', value: { amount, scope } });
+        } else if (lower.includes('trace')) {
+          let scope: any = 'ANY';
+          if (lower.includes('rouge') || lower.includes('red')) scope = LifeTraceType.RED;
+          else if (lower.includes('bleu') || lower.includes('blue')) scope = LifeTraceType.BLUE;
+          else if (lower.includes('jaune') || lower.includes('yellow')) scope = LifeTraceType.YELLOW;
+          effects.push({ type: 'ACTION', target: 'LIFETRACE', value: { amount, scope } });
         }
     }
     return effects;
@@ -631,6 +638,14 @@ export class GameFactory {
           const parts = passive.split(':');
           if (parts.length === 3) {
             effects.push({ type: 'SAME_DISK_MOVE', value: { pv: parseInt(parts[1], 10), media: parseInt(parts[2], 10) } });
+          }
+      }
+
+      // Gestion du format GAIN_LIFETRACE_IF_ASTEROID:color:value
+      else if (passive.startsWith('GAIN_LIFETRACE_IF_ASTEROID:')) {
+          const parts = passive.split(':');
+          if (parts.length === 3) {
+            effects.push({ type: 'GAIN_LIFETRACE_IF_ASTEROID', target: parts[1], value: parseInt(parts[2], 10) });
           }
       }
 
