@@ -1412,7 +1412,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       const launchRes = ProbeSystem.launchProbe(updatedGame, player.id, true, false);
       if (launchRes.probeId) {
         updatedGame = launchRes.updatedGame;
-        addToHistory(`lance une sonde (Observation IV)`, player.id, updatedGame, undefined, sequenceId);
+        addToHistory(`lance 1 sonde depuis la Terre (Observation IV)`, player.id, updatedGame, undefined, sequenceId);
       }
     } else {
       // Gain 1 Movement

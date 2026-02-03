@@ -93,6 +93,7 @@ export class TechnologySystem {
     // Apply bonuses
     let gains: string[] = [];
     if (!noTileBonus) {
+      //const { updatedGame: gameAfterBonus, newPendingInteractions, passiveGains, logs, historyEntries } = ResourceSystem.processBonuses(tech.bonus, updatedGame, currentPlayer.id);
       if (tech.bonus.pv) {
           player.score += tech.bonus.pv;
           gains.push(`${tech.bonus.pv} PV`);
@@ -122,7 +123,7 @@ export class TechnologySystem {
         if (result.probeId) {
             updatedGame.board = result.updatedGame.board;
             updatedGame.players = result.updatedGame.players;
-            gains.push(`1 Sonde gratuite`);
+            gains.push(`1 Sonde`);
         } else {
             gains.push(`1 Sonde (Perdue: Limite atteinte)`);
         }
