@@ -69,7 +69,7 @@ export class TurnManager {
     // Distribuer les revenus en cartes
     updatedGame.players.forEach(player => {
       if (player.revenueCards > 0) {
-        updatedGame = CardSystem.drawCards(updatedGame, player.id, player.revenueCards, 'Revenus de fin de manche');
+        updatedGame = CardSystem.drawCards(updatedGame, player.id, player.revenueCards);
       }
     });
 

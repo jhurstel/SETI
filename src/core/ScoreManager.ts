@@ -69,7 +69,7 @@ export class ScoreManager {
     const endGameCards : Card[] = (player.playedCards || []).filter(c => c.type === CardType.END_GAME);
 
     endGameCards.forEach(card => {
-      card.scoringModifiers.forEach(modifier => {
+      card.scoringModifiers?.forEach(modifier => {
         // Appliquer les modificateurs selon leur type
         bonus += modifier.value;
       });

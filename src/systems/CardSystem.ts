@@ -1,4 +1,4 @@
-import { Game, Card, Player, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType } from '../core/types';
+import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType } from '../core/types';
 import {
     createRotationState,
     calculateAbsolutePosition,
@@ -13,12 +13,11 @@ export class CardSystem {
     /**
      * Pioche des cartes pour un joueur
      */
-    static drawCards(game: Game, playerId: string, count: number, source: string): Game {
+    static drawCards(game: Game, playerId: string, count: number): Game {
         const updatedGame = structuredClone(game);
         const player = updatedGame.players.find(p => p.id === playerId);
         if (!player) return game;
 
-        source;
         for (let i = 0; i < count; i++) {
             if (updatedGame.decks.cards.length > 0) {
                 const card = updatedGame.decks.cards.shift();
@@ -62,7 +61,7 @@ export class CardSystem {
             player.energy += 1;
         } else if (card.revenue === RevenueType.CARD) {
             player.revenueCards += 1;
-            updatedGame = this.drawCards(updatedGame, playerId, 1, "Réservation");
+            updatedGame = this.drawCards(updatedGame, playerId, 1);
         }
 
         return updatedGame
@@ -327,7 +326,7 @@ export class CardSystem {
                     // Reserve self (Card)
                     player.revenueCards += 1;
                     // Immediate gain from reservation (Draw 1 card)
-                    updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, 'Bonus réservation');
+                    updatedGame = CardSystem.drawCards(updatedGame, playerId, 1);
                     bonuses.card = (bonuses.card || 0) + 1;
                 } else if (effect.type === 'GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE') {
                     const creditRevCards = player.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS;

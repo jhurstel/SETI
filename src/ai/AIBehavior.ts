@@ -129,7 +129,7 @@ export class AIBehavior {
       const keepCount = Math.min(hand.length, GAME_CONSTANTS.HAND_SIZE_AFTER_PASS);
       const shuffled = [...hand].sort(() => 0.5 - Math.random());
       const cardsToKeep = shuffled.slice(0, keepCount).map(c => c.id);
-      
+      game;
       return {
           action: ActionType.PASS,
           data: { cardsToKeep }
@@ -141,6 +141,7 @@ export class AIBehavior {
    */
   static decideReservation(game: Game, player: Player): string | null {
       if (player.cards.length === 0) return null;
+      game;
       const randomIndex = Math.floor(Math.random() * player.cards.length);
       return player.cards[randomIndex].id;
   }

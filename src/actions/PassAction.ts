@@ -2,8 +2,7 @@ import { Game, ActionType, ValidationResult, InteractionState, HistoryEntry } fr
 import { BaseAction } from './Action';
 import { TurnManager } from '../core/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
-import { ProbeSystem } from '../systems/ProbeSystem';
-import { createRotationState, getRotationLevelName, performRotation } from '../core/SolarSystemPosition';
+import { getRotationLevelName, performRotation } from '../core/SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
 
 export class PassAction extends BaseAction {

@@ -35,10 +35,6 @@ import { SettingsModal } from './modals/SettingsModal';
 import { NewGameModal } from './modals/NewGameModal';
 import './BoardUI.css';
 
-interface BoardUIProps {
-  game?: Game;
-}
-
 // Helper pour les libellés des interactions
 const getInteractionLabel = (state: InteractionState): string => {
   switch (state.type) {
@@ -66,7 +62,7 @@ const getInteractionLabel = (state: InteractionState): string => {
   }
 };
 
-export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
+export const BoardUI: React.FC = () => {
   // États pour le jeu
   const [game, setGame] = useState<Game | null>(null);
   const gameEngineRef = useRef<GameEngine | null>(null);
@@ -150,6 +146,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       try {
           const robotNamesPool = ['R2-D2', 'C-3PO', 'HAL 9000', 'Wall-E', 'T-800', 'Data', 'Bender', 'Marvin', 'Bishop', 'GLaDOS', 'Auto', 'EVE'];
           const shuffledRobots = [...robotNamesPool].sort(() => 0.5 - Math.random());
+          difficulty;
 
           const playerNames = ['Jérôme'];
           for (let i = 1; i < playerCount; i++) {
@@ -443,7 +440,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Helper pour exécuter l'action Passer via PassAction
   const performPass = useCallback((cardsToKeep: string[], selectedCardId?: string) => {
-    if (!gameEngineRef.current) return;
+    if (!gameEngineRef.current || !gameRef.current) return;
 
     // Synchroniser l'état
     const currentGame = gameRef.current;
@@ -922,7 +919,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         gainMsg = ResourceSystem.formatResource(1, 'CARD');
         
         // Pioche immédiate
-        const res = CardSystem.drawCards(updatedGame, currentPlayer.id, 1, 'Bonus immédiat réservation');
+        const res = CardSystem.drawCards(updatedGame, currentPlayer.id, 1);
         updatedGame.decks = res.decks;
         updatedGame.players = res.players;
         
@@ -1044,10 +1041,11 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         }
       }
 
-      const res = ScanSystem.performSignalAndCover(updatedGame, currentPlayer.id, sector.id, initialLogs, interactionState.noData, interactionState.sequenceId);
+      const sequenceId = interactionState.sequenceId || `scan-${Date.now()}`;
+      const res = ScanSystem.performSignalAndCover(updatedGame, currentPlayer.id, sector.id, initialLogs, interactionState.noData, sequenceId);
       updatedGame = res.updatedGame;
       // Log immediately for interactive scan
-      res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, interactionState.sequenceId));
+      res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, sequenceId));
 
       // Handle keepCardIfOnly (Card 120)
       if (interactionState.keepCardIfOnly && interactionState.cardId) {
@@ -1088,7 +1086,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Gestionnaire pour les actions
   const handleAction = (actionType: ActionType) => {
-    if (!gameEngineRef.current || !game) return;
+    if (!gameEngineRef.current || !game || !gameRef.current) return;
 
     // Atomicité : Si on est dans un mode interactif, on ne peut pas lancer d'autre action
     if (interactionState.type !== 'IDLE') return;
@@ -1192,7 +1190,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
       // Délai pour l'animation avant d'appliquer les effets
       setTimeout(() => {
-        if (!gameEngineRef.current) return;
+        if (!gameEngineRef.current || !gameRef.current) return;
         gameEngineRef.current.setState(gameRef.current);
 
         const result = gameEngineRef.current.executeAction(action);
@@ -1348,7 +1346,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     if (interactionState.type !== 'CHOOSING_OBS2_ACTION') return;
 
-    const sequenceId = interactionState.sequenceId;
+    const sequenceId = interactionState.sequenceId || `obs2-${Date.now()}`;
 
     if (accepted) {
       let updatedGame = structuredClone(game);
@@ -1382,7 +1380,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleObs3Choice = (accepted: boolean) => {
     if (interactionState.type !== 'CHOOSING_OBS3_ACTION') return;
 
-    const sequenceId = interactionState.sequenceId;
+    const sequenceId = interactionState.sequenceId || `obs3-${Date.now()}`;
 
     if (accepted) {
       setInteractionState({ type: 'DISCARDING_FOR_SIGNAL', count: 1, selectedCards: [], sequenceId });
@@ -1399,7 +1397,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
     if (interactionState.type !== 'CHOOSING_OBS4_ACTION') return;
 
-    const sequenceId = interactionState.sequenceId;
+    const sequenceId = interactionState.sequenceId || `obs4-${Date.now()}`;
     let updatedGame = structuredClone(game);
     const player = updatedGame.players[updatedGame.currentPlayerIndex];
 
@@ -1622,7 +1620,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       // Appliquer les gains : 3 PV, 1 Donnée, 1 Carte
       updatedPlayer.score += 3;
       updatedPlayer.data = Math.min((updatedPlayer.data || 0) + 1, GAME_CONSTANTS.MAX_DATA);
-      updatedGame = CardSystem.drawCards(updatedGame, currentPlayer.id, 1, 'Bonus Rentrée Atmosphérique');
+      updatedGame = CardSystem.drawCards(updatedGame, currentPlayer.id, 1);
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
@@ -2366,7 +2364,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
   // Fonction interne pour traiter l'achat (commune à l'achat direct et après sélection)
   const processTechPurchase = (tech: Technology, targetComputerCol?: number, noTileBonus?: boolean, baseGame?: Game) => {
-    if (!game) return;
+    if (!game || !gameRef.current) return;
 
     const currentGame = baseGame || gameRef.current;
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
@@ -2462,7 +2460,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   const handleDrawCard = (count: number, source: string) => {
     if (!game) return;
 
-    const updatedGame = CardSystem.drawCards(game, game.players[game.currentPlayerIndex].id, count, source);
+    const updatedGame = CardSystem.drawCards(game, game.players[game.currentPlayerIndex].id, count);
 
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);

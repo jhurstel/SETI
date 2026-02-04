@@ -1,5 +1,5 @@
 import { createRotationState, getAbsoluteSectorForProbe, getObjectPosition, performRotation } from '../core/SolarSystemPosition';
-import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, ProbeState, HistoryEntry, Sector, Signal } from '../core/types';
+import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, ProbeState, HistoryEntry, Signal } from '../core/types';
 import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';
@@ -215,7 +215,7 @@ export class ResourceSystem {
         if (result.probeId) {
           updatedGame = result.updatedGame;
           launchedProbeIds.push(result.probeId);
-          logs.push(`lance une sonde gratuitement`);
+          logs.push(`lance 1 sonde depuis la Terre`);
         } else {
           logs.push(`ne peut pas lancer de sonde (limite atteinte)`);
         }
