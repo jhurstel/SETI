@@ -439,7 +439,7 @@ export class ProbeSystem {
 
                 if (buff.source) {
                     const mission = updatedPlayer.missions.find(m => m.name === buff.source);
-                    if (mission.) {
+                    if (mission) {
                         mission.progress.current += 1;
                         if (gains.length > 0) {
                             message += ` et gagne ${gains.join(', ')} (Mission "${buff.source}")`;
