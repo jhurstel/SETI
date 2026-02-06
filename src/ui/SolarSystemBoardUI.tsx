@@ -1523,13 +1523,16 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
     const isOwner = probe.ownerId === game.players[game.currentPlayerIndex].id;
     const shouldHighlight = highlightPlayerProbes && isOwner;
+    const isRobot = player?.type === 'robot';
 
     return (
       <div
         key={probe.id}
         onClick={(e) => {
           e.stopPropagation();
-          handleProbeClick(probe);
+          if (!isRobot) {
+            handleProbeClick(probe);
+          }
         }}
         onMouseEnter={(e) => {
           const content = (
@@ -1546,6 +1549,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           top: `calc(50% + ${y + offsetY}%)`,
           left: `calc(50% + ${x + offsetX}%)`,
           zIndex,
+          cursor: isRobot ? 'default' : 'pointer',
         }}
       >
         {/* Effet de surbrillance (pour action gratuite mouvement) */}

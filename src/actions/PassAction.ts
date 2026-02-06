@@ -91,7 +91,7 @@ export class PassAction extends BaseAction {
         const [card] = deck.splice(cardIndex, 1);
         updatedPlayer.cards.push(card);
         if (updatedPlayer.type === 'robot') {
-          this.historyEntries.push({ message: `choisit 1 carte de fin de manche`, playerId: this.playerId, sequenceId: sequenceId });
+          this.historyEntries.push({ message: `choisit carte Fin de Manche`, playerId: this.playerId, sequenceId: sequenceId });
         } else {
           this.historyEntries.push({ message: `choisit carte "${card.name}" de fin de manche`, playerId: this.playerId, sequenceId: sequenceId });
         }

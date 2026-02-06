@@ -147,15 +147,6 @@ export class CardSystem {
             return { canPlay: false, reason: `Crédits insuffisants (coût: ${card.cost} crédit${card.cost > 1 ? 's' : ''})` };
         }
 
-        // Vérification si la carte donne des déplacements
-        const hasMovementEffect = card.immediateEffects?.some(e => e.type === 'ACTION' && e.target === 'MOVEMENT');
-        if (hasMovementEffect) {
-            const hasProbeInSystem = player.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
-            if (!hasProbeInSystem) {
-                return { canPlay: false, reason: "Nécessite une sonde dans le système solaire" };
-            }
-        }
-
         // TODO: Ajouter d'autres conditions de carte ici
         return { canPlay: true, reason: `Jouer la carte (coût: ${card.cost} crédit${card.cost > 1 ? 's' : ''})` };
     }
@@ -210,8 +201,6 @@ export class CardSystem {
                 originalCard: card
               };
               player.missions.push(newMission);
-              // Vérifier immédiatement si la mission est accomplie (rétroactif ou état actuel)
-              ProbeSystem.checkAndProcessTriggeredMissions(updatedGame, playerId, bonuses, undefined, newMission.id);
             }
           } else {
             if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];

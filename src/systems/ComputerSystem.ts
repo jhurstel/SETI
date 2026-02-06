@@ -129,6 +129,8 @@ export class ComputerSystem {
     
     if (slots[topSlotId]) {
         slots[topSlotId].bonus = '2pv';
+        slots[topSlotId].isOccupied = true;
+        slots[topSlotId].technologyId = tech.id;
     }
     
     // Déterminer le bonus du bas en fonction de la tech
@@ -140,6 +142,8 @@ export class ComputerSystem {
 
     if (slots[bottomSlotId] && bottomBonus) {
         slots[bottomSlotId].bonus = bottomBonus;
+        slots[bottomSlotId].isOccupied = true;
+        slots[bottomSlotId].technologyId = tech.id;
     }
   }
 

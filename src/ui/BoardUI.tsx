@@ -1511,7 +1511,7 @@ export const BoardUI: React.FC = () => {
   const handlePlanetInteraction = (
     action: OrbitAction | LandAction,
     planetId: string,
-    actionFn: (game: Game, playerId: string, probeId: string, targetId: string) => { updatedGame: Game, bonuses?: any },
+    actionFn: (game: Game, playerId: string, probeId: string, targetId: string) => { updatedGame: Game, bonuses?: any, completedMissions?: string[] },
     historyMessagePrefix: string,
     successMessage: string
   ): boolean => {
@@ -1600,10 +1600,14 @@ export const BoardUI: React.FC = () => {
       if (passiveGains.length > 0) {
         message += ` et gagne ${passiveGains.join(', ')}`;
       }
+      
+      if (result.completedMissions && result.completedMissions.length > 0) {
+        message += ` et accomplit la mission "${result.completedMissions.join('", "')}"`;
+      }
 
       addToHistory(message, currentPlayer.id, stateBeforeAction, undefined, sequenceId);
 
-      const otherLogs = allBonusLogs.filter(log => !log.startsWith('gagne '));
+      const otherLogs = allBonusLogs.filter(log => !log.startsWith('gagne ') && !log.startsWith('pioche '));
       if (otherLogs.length > 0) {
         otherLogs.forEach(log => addToHistory(log, currentPlayer.id, updatedGame, undefined, sequenceId));
       }
@@ -2005,7 +2009,7 @@ export const BoardUI: React.FC = () => {
 
   // Gestionnaire pour jouer une carte (payer son coût en crédits)
   const handlePlayCardRequest = (cardId: string) => {
-    if (!game || !gameRef.current) return;
+    if (!game || !gameRef.current || !gameEngineRef.current) return;
 
     const currentGame = structuredClone(game);
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
@@ -2060,6 +2064,24 @@ export const BoardUI: React.FC = () => {
       }
     }
 
+    // Vérifier si la carte donne des déplacements et si le joueur n'a pas de sonde
+    if (card && card.immediateEffects) {
+      const moveEffect = card.immediateEffects.find(e => e.type === 'ACTION' && e.target === 'MOVEMENT');
+      if (moveEffect) {
+        const hasProbeInSystem = currentPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+        const givesProbe = card.immediateEffects.some(e => e.type === 'GAIN' && e.target === 'PROBE');
+        
+        if (!hasProbeInSystem && !givesProbe) {
+          setConfirmModalState({
+            visible: true,
+            cardId: cardId,
+            message: "Vous n'avez aucune sonde dans le système solaire pour effectuer le déplacement. L'action sera perdue. Voulez-vous continuer ?"
+          });
+          return;
+        }
+      }
+    }
+
     // Vérifier si la carte donne des atterisages et si le joueur n'a pas de sonde sur une planète
     if (card && card.immediateEffects) {
       const landEffect = card.immediateEffects.find(e => e.type === 'ACTION' && e.target === 'LAND');
@@ -2098,7 +2120,8 @@ export const BoardUI: React.FC = () => {
     }
 
     const action = new PlayCardAction(currentPlayer.id, cardId);
-    const result = gameEngineRef.current!.executeAction(action);
+    const result = gameEngineRef.current.executeAction(action);
+    console.log(result);
     if (result.success && result.updatedState) {
       setGame(result.updatedState);
       if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedState);
@@ -2225,7 +2248,7 @@ export const BoardUI: React.FC = () => {
               player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
               freeActionLog = " et gagne 1 Donnée (Action gratuite)";
             } else if (card.freeAction === FreeActionType.MOVEMENT) {
-              setPendingInteractions(prev => [{ type: 'MOVING_PROBE', count: 1 }, ...prev]);
+              setPendingInteractions(prev => [{ type: 'MOVING_PROBE', count: 1, autoSelectProbeId: undefined, sequenceId: interactionState.sequenceId}, ...prev]);
               setToast({ message: "Veuillez sélectionnez une sonde à déplacer.", visible: true });
               freeActionLog = " et gagne 1 Déplacement (Action gratuite)";
             }
@@ -2249,8 +2272,8 @@ export const BoardUI: React.FC = () => {
         if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
 
         const logMsg = interactionState.isFree
-          ? (cardId ? `choisit la carte "${cardName}"` : `pioche la carte "${cardName}"`)
-          : (cardId ? `paye 3 médias pour acheter la carte "${cardName}" depuis la rangée` : `paye 3 médias pour acheter la carte "${cardName}" depuis la pioche`);
+          ? (cardId ? `choisit carte "${cardName}"` : `pioche carte "${cardName}"`)
+          : (cardId ? `paye 3 médias pour acheter carte "${cardName}" depuis la rangée` : `paye 3 médias pour acheter carte "${cardName}" depuis la pioche`);
 
         const sequenceId = interactionState.sequenceId;
 
@@ -2478,6 +2501,54 @@ export const BoardUI: React.FC = () => {
     }
   }
 
+  // Gestionnaire pour le clic sur une mission (validation manuelle)
+  const handleMissionClick = (missionId: string, requirementId?: string) => {
+    if (!game || !requirementId) return;
+
+    // Capture state before action for Undo
+    const stateBeforeAction = structuredClone(game);
+    
+    const updatedGame = structuredClone(game);
+    const player = updatedGame.players.find(p => p.id === game.players[game.currentPlayerIndex].id);
+    if (!player) return;
+
+    const mission = player.missions.find(m => m.id === missionId);
+    if (mission && !mission.completedRequirementIds.includes(requirementId)) {
+        // Vérifier et récupérer les bonus si c'est une mission déclenchable
+        const requirement = mission.requirements.find(r => r.id === requirementId);
+        let bonuses: Bonus = {};
+        
+        if (requirement && requirement.type.startsWith('GAIN_IF_')) {
+             const bonus = ProbeSystem.evaluateMission(updatedGame, player.id, requirement.value);
+             if (bonus) {
+                 ResourceSystem.accumulateBonus(bonus, bonuses);
+             } else {
+                 // Sécurité : si la condition n'est plus remplie au moment du clic
+                 setToast({ message: "Conditions non remplies.", visible: true });
+                 return;
+             }
+        }
+
+        mission.completedRequirementIds.push(requirementId);
+        const isCompleted = mission.completedRequirementIds.length >= mission.requirements.length;
+        if (isCompleted) {
+            mission.completed = true;
+        }
+        
+        // Appliquer les bonus et sauvegarder
+        const sequenceId = `mission-claim-${Date.now()}`;
+        const res = ResourceSystem.processBonuses(bonuses, updatedGame, player.id, 'mission-claim', sequenceId);
+        
+        setGame(res.updatedGame);
+        if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
+        
+        // Logs
+        const actionText = isCompleted ? "accomplit" : "valide un objectif de";
+        addToHistory(`${actionText} la mission "${mission.name}"${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, stateBeforeAction, undefined, sequenceId);
+        res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, sequenceId));
+    }
+  };
+
   // Si le jeu n'est pas initialisé, afficher uniquement les modales de démarrage
   if (!game) {
     return (
@@ -2638,6 +2709,7 @@ export const BoardUI: React.FC = () => {
               onConfirmDiscardForSignal={handleConfirmDiscard}
               setActiveTooltip={setActiveTooltip}
               onSettingsClick={() => setSettingsVisible(true)}
+              onMissionClick={handleMissionClick}
             />
           </div>
         </div>

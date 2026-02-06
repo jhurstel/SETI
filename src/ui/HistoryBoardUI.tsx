@@ -46,6 +46,10 @@ export const RESOURCE_CONFIG: Record<string, { label: string, plural: string, ic
     TECH: {
         label: 'Technologie', plural: 'Technologies', icon: '🔬', color: '#fff',
         regex: /Technologie(?:s?)|technologie(?:s?)/
+    },
+    RESERVATION: {
+        label: 'Réservation', plural: 'Réservations', icon: '📥', color: '#fff',
+        regex: /Réservation(?:s?)|réservation(?:s?)|Reservation(?:s?)|reservation(?:s?)/
     }
 };
 

@@ -32,6 +32,7 @@ interface PlayerBoardUIProps {
   onConfirmDiscardForSignal: () => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
   onSettingsClick?: () => void;
+  onMissionClick?: (missionId: string, requirementId?: string) => void;
 }
 
 const ACTION_NAMES: Record<ActionType, string> = {
@@ -45,7 +46,7 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.PASS]: 'Passer définitivement',
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onDrawCard, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onDrawCard, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick, onMissionClick }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -742,12 +743,13 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             <div className="seti-player-list seti-cards-list">
               {((currentPlayer.missions && currentPlayer.missions.length > 0) || (currentPlayer.playedCards && currentPlayer.playedCards.length > 0)) ? (
                 <>
-                {(currentPlayer.missions || []).map((mission: Mission) => (
-                  <div key={mission.id} className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`} onMouseEnter={e => {
-                    const missionRequirementStrings = mission.description.split('Mission:').slice(1).filter(s => s.trim() !== '');
-                    const displayCount = Math.max(missionRequirementStrings.length, mission.requirements.length);
-                    const displayItems = Array.from({ length: displayCount });
+                {(currentPlayer.missions || []).map((mission: Mission) => {
+                  const missionRequirementStrings = mission.description.split('Mission:').slice(1).filter(s => s.trim() !== '');
+                  const displayCount = Math.max(missionRequirementStrings.length, mission.requirements.length);
+                  const displayItems = Array.from({ length: displayCount });
 
+                  return (
+                  <div key={mission.id} className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`} onMouseEnter={e => {
                     const tooltipContent = (
                       <div className="seti-card-tooltip">
                         <div className="seti-card-tooltip-title">{mission.name}</div>
@@ -782,13 +784,64 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                       <span className="seti-played-card-tag">MIS</span>
                       {mission.completed && <span className="seti-mission-check">✓</span>}
                     </div>
+                    
                     {mission.description && (
                       <div className="seti-mission-desc">
                         {mission.description}
                       </div>
                     )}
+
+                    <div className="seti-mission-requirements-row" style={{ display: 'flex', width: '100%', padding: '8px 0 4px 0', marginTop: 'auto', justifyContent: 'space-evenly' }}>
+                        {displayItems.map((_, index) => {
+                            const requirement = mission.requirements[index];
+                            const isCompleted = requirement && requirement.id ? (mission.completedRequirementIds || []).includes(requirement.id) : false;
+                            const text = missionRequirementStrings[index] || (requirement ? `Condition ${index + 1}` : `Mission ${index + 1}`);
+                            
+                            let isFulfillable = false;
+                            if (requirement && requirement.type.startsWith('GAIN_IF_')) {
+                                const bonus = ProbeSystem.evaluateMission(game, currentPlayer.id, requirement.value);
+                                if (bonus) isFulfillable = true;
+                            }
+
+                            const canClick = !isCompleted && isFulfillable && isCurrentTurn && !isRobot;
+
+                            return (
+                                <div 
+                                    key={index}
+                                    className="seti-mission-requirement-circle"
+                                    style={{
+                                        width: '12px',
+                                        height: '12px',
+                                        borderRadius: '50%',
+                                        border: `1px solid ${currentPlayer.color}`,
+                                        backgroundColor: isCompleted ? currentPlayer.color : 'transparent',
+                                        cursor: canClick ? 'pointer' : 'default',
+                                        zIndex: canClick ? 20 : 10,
+                                        opacity: isCompleted || canClick ? 1 : 0.3,
+                                        boxShadow: canClick ? `0 0 8px ${currentPlayer.color}, 0 0 12px #fff` : 'none',
+                                        transform: canClick ? 'scale(1.3)' : 'scale(1)',
+                                        transition: 'all 0.3s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                        e.stopPropagation();
+                                        handleTooltipHover(e, <div style={{padding: '4px', maxWidth: '200px'}}>{text.trim()}</div>);
+                                    }}
+                                    onMouseLeave={(e) => {
+                                        e.stopPropagation();
+                                        handleTooltipLeave();
+                                    }}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (canClick && onMissionClick && requirement?.id) {
+                                            onMissionClick(mission.id, requirement.id);
+                                        }
+                                    }}
+                                />
+                            );
+                        })}
+                    </div>
                   </div>
-                ))}
+                )})}
                 {(currentPlayer.playedCards || []).map((card: Card) => {
                   const descriptionParts = card.description ? card.description.split('Fin de jeu:') : [];
                   const missionText = descriptionParts.length > 1 ? descriptionParts[1].trim() : card.description;

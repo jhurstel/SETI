@@ -95,11 +95,11 @@ const ComputerSlotUI = ({
       style={{ cursor: canFill && !isFilled ? 'pointer' : 'help' }}
     >
       {isFilled && <div className="computer-slot-dot" />}
-      {!isFilled && slot.bonus === 'media' && <span className="computer-slot-bonus media">M</span>}
-      {!isFilled && slot.bonus === 'reservation' && <span className="computer-slot-bonus reservation">R</span>}
-      {!isFilled && slot.bonus === '2pv' && <span className="computer-slot-bonus pv">2PV</span>}
-      {!isFilled && slot.bonus === 'credit' && <span className="computer-slot-bonus credit">C</span>}
-      {!isFilled && slot.bonus === 'energy' && <span className="computer-slot-bonus energy">E</span>}
+      {!isFilled && slot.bonus === 'media' && <span className="computer-slot-bonus media">🎤</span>}
+      {!isFilled && slot.bonus === 'reservation' && <span className="computer-slot-bonus reservation">📥</span>}
+      {!isFilled && slot.bonus === '2pv' && <span className="computer-slot-bonus pv">2🏆</span>}
+      {!isFilled && slot.bonus === 'credit' && <span className="computer-slot-bonus credit">₢</span>}
+      {!isFilled && slot.bonus === 'energy' && <span className="computer-slot-bonus energy">⚡</span>}
       {!isFilled && slot.bonus === 'card' && <span className="computer-slot-bonus card">🃏</span>}
     </div>
   );

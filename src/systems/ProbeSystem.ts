@@ -131,7 +131,10 @@ export class ProbeSystem {
            else if (buff.target === 'pv') bonus.pv = buff.value;
            
            // Les bonus seront traités par processBonuses appelé par l'action ou l'UI
-           this.updateMissionProgress(player, buff);
+           const completedMission = this.updateMissionProgress(player, buff);
+           if (completedMission) {
+               historyEntries.push({ message: `accomplit la mission "${completedMission}"`, playerId: player.id, sequenceId: ''});
+           }
       }
     });
 
@@ -384,17 +387,13 @@ export class ProbeSystem {
                     gains.push(ResourceSystem.formatResource(buff.value, 'CARD'));
                 }
 
-                if (buff.source) {
-                    const mission = player.missions.find(m => m.name === buff.source);
-                    if (mission && buff.id && !mission.completedRequirementIds.includes(buff.id)) {
-                        mission.completedRequirementIds.push(buff.id);
-                        if (gains.length > 0) {
-                            message += ` et gagne ${gains.join(', ')} (Mission "${buff.source}")`;
-                        }
-                        if (mission.completedRequirementIds.length >= mission.requirements.length) {
-                            mission.completed = true;
-                        }
-                    }
+                if (gains.length > 0 && buff.source) {
+                    message += ` et gagne ${gains.join(', ')} (Mission "${buff.source}")`;
+                }
+
+                const completedMission = this.updateMissionProgress(player, buff);
+                if (completedMission) {
+                    message += ` et accomplit la mission "${completedMission}"`;
                 }
             }
         });
@@ -530,6 +529,7 @@ export class ProbeSystem {
     isFirstOrbiter: boolean;
     planetId: string;
     bonuses: Bonus;
+    completedMissions: string[];
   } {
     const validation = this.canOrbit(game, playerId, probeId);
     if (!validation.canOrbit) {
@@ -566,6 +566,7 @@ export class ProbeSystem {
     const updatedPlanet = updatedGame.board.planets.find(p => p.id === planetId);
 
     const accumulatedBonuses: Bonus = {};
+    const completedMissions: string[] = [];
     // Bonus planète
     if (updatedPlanet && updatedPlanet.orbitSlots) {
       const index = updatedPlanet.orbiters.length - 1;
@@ -583,18 +584,17 @@ export class ProbeSystem {
             
             ResourceSystem.accumulateBonus(bonus, accumulatedBonuses);
 
-            this.updateMissionProgress(player, buff);
+            const completed = this.updateMissionProgress(player, buff);
+            if (completed) completedMissions.push(completed);
       }
     });
   
-    // Traitement des missions déclenchables
-    this.checkAndProcessTriggeredMissions(updatedGame, playerId, accumulatedBonuses, planetId);
-
     return {
       updatedGame,
       isFirstOrbiter,
       planetId,
-      bonuses: accumulatedBonuses
+      bonuses: accumulatedBonuses,
+      completedMissions
     };
   }
 
@@ -658,6 +658,7 @@ export class ProbeSystem {
     isSecondLander: boolean;
     planetId: string;
     bonuses: Bonus;
+    completedMissions: string[];
   } {
     const validation = this.canLand(game, playerId, probeId, !free);
     if (!validation.canLand) {
@@ -706,6 +707,7 @@ export class ProbeSystem {
     updatedGame.board.solarSystem.probes = updatedGame.board.solarSystem.probes.filter(p => p.id !== probeId);
 
     const accumulatedBonuses: Bonus = {};
+    const completedMissions: string[] = [];
     // Bonus planète (atterrissage)
     if (targetBody) {
         if ((targetBody as Planet).landSlots) {
@@ -727,19 +729,18 @@ export class ProbeSystem {
            
            ResourceSystem.accumulateBonus(bonus, accumulatedBonuses);
 
-           this.updateMissionProgress(player, buff);
+           const completed = this.updateMissionProgress(player, buff);
+           if (completed) completedMissions.push(completed);
       }
     });
-
-    // Traitement des missions déclenchables
-    this.checkAndProcessTriggeredMissions(updatedGame, playerId, accumulatedBonuses, missionTargetPlanetId);
 
     return {
       updatedGame,
       isFirstLander,
       isSecondLander,
       planetId,
-      bonuses: accumulatedBonuses
+      bonuses: accumulatedBonuses,
+      completedMissions
     };
   }
 
@@ -909,59 +910,20 @@ export class ProbeSystem {
   }
 
   /**
-   * Vérifie et traite les missions déclenchables pour un joueur.
-   * Peut être filtré par cible (pour les actions contextuelles) ou par ID de mission (pour le jeu de carte).
-   */
-  static checkAndProcessTriggeredMissions(
-    game: Game,
-    playerId: string,
-    accumulatedBonuses: Bonus,
-    targetId?: string,
-    specificMissionId?: string
-  ) {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) return;
-
-    player.missions.forEach(mission => {
-      if (mission.completed) return;
-      if (specificMissionId && mission.id !== specificMissionId) return;
-
-      mission.requirements.forEach(req => {
-        // Si une cible contextuelle est fournie, on vérifie si le prérequis la concerne
-        if (targetId && req.target) {
-          const targets = req.target.split('&');
-          if (!targets.includes(targetId)) return;
-        }
-
-        // On ne traite que les missions déclenchables (GAIN_IF_...)
-        if (req.type.startsWith('GAIN_IF_')) {
-          const bonus = this.evaluateMission(game, playerId, req.value as string);
-          
-          if (bonus && req.id && !mission.completedRequirementIds.includes(req.id)) {
-            mission.completedRequirementIds.push(req.id);
-            if (mission.completedRequirementIds.length >= mission.requirements.length) {
-              mission.completed = true;
-              ResourceSystem.accumulateBonus(bonus, accumulatedBonuses);
-            }
-          }
-        }
-      });
-    });
-  }
-
-  /**
    * Met à jour la progression d'une mission conditionnelle (liée à un buff permanent)
    */
-  private static updateMissionProgress(player: Player, buff: CardEffect) {
+  private static updateMissionProgress(player: Player, buff: CardEffect): string | null {
       if (buff.source) {
           const mission = player.missions.find(m => m.name === buff.source);
           if (mission && buff.id && !mission.completedRequirementIds.includes(buff.id)) {
               mission.completedRequirementIds.push(buff.id);
               if (mission.completedRequirementIds.length >= mission.requirements.length) {
                   mission.completed = true;
+                  return mission.name;
               }
           }
       }
+      return null;
   }
 
   /**

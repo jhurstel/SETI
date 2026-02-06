@@ -302,13 +302,13 @@ export class ResourceSystem {
 
           // Scans interactifs
           if (signalBonus.scope === SectorType.ROW) {
-            newPendingInteractions.push({ type: 'SELECTING_SCAN_CARD' });
+            newPendingInteractions.push({ type: 'SELECTING_SCAN_CARD', sequenceId });
           } else if (signalBonus.scope === SectorType.DECK) {
             if (updatedGame.decks.cards.length > 0) {
               const drawnCard = updatedGame.decks.cards.shift();
               if (drawnCard) {
                 updatedGame.decks.discardPile.push(drawnCard);
-                newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: drawnCard.scanSector, cardId: drawnCard.id, message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")` });
+                newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: drawnCard.scanSector, cardId: drawnCard.id, message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")`, sequenceId });
               }
             }
           } else if (signalBonus.scope === SectorType.PROBE) {
@@ -354,10 +354,10 @@ export class ResourceSystem {
                 }
               }
             } else {
-              newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorType.PROBE, noData: bonuses.noData, onlyProbes: true, keepCardIfOnly: bonuses.keepCardIfOnly, cardId: sourceId });
+              newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorType.PROBE, noData: bonuses.noData, onlyProbes: true, keepCardIfOnly: bonuses.keepCardIfOnly, cardId: sourceId, sequenceId });
             }
           } else if ([SectorType.RED, SectorType.BLUE, SectorType.YELLOW, SectorType.BLACK, SectorType.ANY].includes(signalBonus.scope)) {
-            newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: signalBonus.scope, noData: bonuses.noData });
+            newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: signalBonus.scope, noData: bonuses.noData, sequenceId });
           }
         }
       }
@@ -373,32 +373,32 @@ export class ResourceSystem {
     }
 
     if (bonuses.anycard) {
-      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: bonuses.anycard, isFree: true });
+      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: bonuses.anycard, isFree: true, sequenceId });
     }
 
     if (bonuses.revenue) {
       const player = updatedGame.players.find(p => p.id === playerId);
       if (player) {
         const count = Math.min(bonuses.revenue, player.cards.length);
-        if (count > 0) newPendingInteractions.push({ type: 'RESERVING_CARD', count: count, selectedCards: [] });
+        if (count > 0) newPendingInteractions.push({ type: 'RESERVING_CARD', count: count, selectedCards: [], sequenceId });
       }
     }
 
     if (bonuses.technologies) {
       for (const techBonus of bonuses.technologies) {
         for (let i = 0; i < techBonus.amount; i++) {
-          newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true, category: techBonus.scope === TechnologyCategory.ANY ? undefined : techBonus.scope, sharedOnly: bonuses.sharedOnly, noTileBonus: bonuses.noTileBonus });
+          newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true, category: techBonus.scope === TechnologyCategory.ANY ? undefined : techBonus.scope, sharedOnly: bonuses.sharedOnly, noTileBonus: bonuses.noTileBonus, sequenceId });
         }
       }
     }
 
     if (bonuses.movements) {
-      newPendingInteractions.push({ type: 'MOVING_PROBE', count: bonuses.movements, autoSelectProbeId: launchedProbeIds.length > 0 ? launchedProbeIds[launchedProbeIds.length - 1] : undefined });
+      newPendingInteractions.push({ type: 'MOVING_PROBE', count: bonuses.movements, autoSelectProbeId: launchedProbeIds.length > 0 ? launchedProbeIds[launchedProbeIds.length - 1] : undefined, sequenceId });
       logs.push(`obtient ${bonuses.movements} déplacement${bonuses.movements > 1 ? 's' : ''} gratuit${bonuses.movements > 1 ? 's' : ''}`);
     }
 
     if (bonuses.landing) {
-      newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId });
+      newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId, sequenceId });
       logs.push(`obtient ${bonuses.landing} atterrissage`);
     }
 
@@ -406,7 +406,7 @@ export class ResourceSystem {
       let tracesText = [];
       for (const lifetraceBonus of bonuses.lifetraces) {
         for (let i = 0; i < lifetraceBonus.amount; i++) {
-          newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: lifetraceBonus.scope });
+          newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: lifetraceBonus.scope, sequenceId });
         }
         const colorLabel = lifetraceBonus.scope && typeof lifetraceBonus.scope === 'string' ? ` (${lifetraceBonus.scope})` : '';
         tracesText.push(`${lifetraceBonus.amount} trace${lifetraceBonus.amount > 1 ? 's' : ''} de vie${colorLabel}`);
@@ -417,19 +417,19 @@ export class ResourceSystem {
     }
     // Effets interactifs (File d'attente)
     if (bonuses.scorePerMedia) {
-      newPendingInteractions.push({ type: 'TRIGGER_CARD_EFFECT', effectType: 'SCORE_PER_MEDIA', value: bonuses.scorePerMedia });
+      newPendingInteractions.push({ type: 'TRIGGER_CARD_EFFECT', effectType: 'SCORE_PER_MEDIA', value: bonuses.scorePerMedia, sequenceId });
     }
     if (bonuses.revealAndTriggerFreeAction) {
-      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: 1, isFree: true, triggerFreeAction: true });
+      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: 1, isFree: true, triggerFreeAction: true, sequenceId });
     }
     if (bonuses.choiceMediaOrMove) {
-      newPendingInteractions.push({ type: 'CHOOSING_MEDIA_OR_MOVE' });
+      newPendingInteractions.push({ type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId });
     }
     if (bonuses.atmosphericEntry) {
-      newPendingInteractions.push({ type: 'REMOVING_ORBITER' });
+      newPendingInteractions.push({ type: 'REMOVING_ORBITER', sequenceId });
     }
     if (bonuses.gainSignalFromHand) {
-      newPendingInteractions.push({ type: 'DISCARDING_FOR_SIGNAL', count: bonuses.gainSignalFromHand, selectedCards: [] });
+      newPendingInteractions.push({ type: 'DISCARDING_FOR_SIGNAL', count: bonuses.gainSignalFromHand, selectedCards: [], sequenceId });
     }
 
     return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };
