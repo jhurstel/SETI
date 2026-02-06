@@ -1,6 +1,7 @@
 import { BaseAction } from './Action';
 import { Game, ActionType, ValidationResult } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
+import { ResourceSystem } from '../systems/ResourceSystem';
 
 export class LandAction extends BaseAction {
     constructor(public playerId: string, public probeId: string, public planetId: string) {
@@ -18,6 +19,7 @@ export class LandAction extends BaseAction {
     execute(game: Game): Game {
         // L'exécution réelle est gérée dans l'UI pour les bonus.
         const result = ProbeSystem.landProbe(game, this.playerId, this.probeId, this.planetId);
-        return result.updatedGame;
+        const res = ResourceSystem.processBonuses(result.bonuses, result.updatedGame, this.playerId, 'land', `land-${Date.now()}`);
+        return res.updatedGame;
     }
 }

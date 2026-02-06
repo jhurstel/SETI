@@ -306,6 +306,9 @@ export const BoardUI: React.FC = () => {
                   const savedState = event.target?.result as string;
                   if (savedState) {
                       const loadedGame = JSON.parse(savedState);
+                      if (!loadedGame.history) {
+                          loadedGame.history = [];
+                      }
                       setGame(loadedGame);
                       if (gameEngineRef.current) {
                           gameEngineRef.current.setState(loadedGame);
@@ -346,6 +349,9 @@ export const BoardUI: React.FC = () => {
           const savedState = localStorage.getItem('seti_autosave');
           if (savedState) {
               const loadedGame = JSON.parse(savedState);
+              if (!loadedGame.history) {
+                  loadedGame.history = [];
+              }
               setGame(loadedGame);
               if (gameEngineRef.current) {
                   gameEngineRef.current.setState(loadedGame);
@@ -1336,26 +1342,21 @@ export const BoardUI: React.FC = () => {
     const isFirst = track.length === 1;
     const bonus = isFirst ? board.firstBonus : board.nextBonus;
 
-    const playerToUpdate = updatedGame.players.find(p => p.id === currentPlayer.id);
-    if (playerToUpdate) {
-      ProbeSystem.applyBonus(playerToUpdate, bonus);
-    }
+    const result = ResourceSystem.processBonuses(bonus, updatedGame, currentPlayer.id, 'lifetrace', sequenceId);
 
-    const { updatedGame: gameAfterBonus, newPendingInteractions, passiveGains, logs, historyEntries } = ResourceSystem.processBonuses(bonus, updatedGame, currentPlayer.id, 'lifetrace', sequenceId);
-
-    setGame(gameAfterBonus);
-    if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonus);
+    setGame(result.updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
 
     const orderText = (boardIndex === 0) ? "gauche" : " droit";
     let message = `place une trace de vie ${color} sur le plateau Alien ${orderText}`;
-    if (logs.length > 0) {
-      message += ` et ${logs.join(', ')}`;
+    if (result.logs.length > 0) {
+      message += ` et ${result.logs.join(', ')}`;
     }
     message += discoveryLog;
     addToHistory(message, currentPlayer.id, game, undefined, sequenceId);
-    historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, gameAfterBonus, undefined, sequenceId));
+    result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, result.updatedGame, undefined, sequenceId));
 
-    const interactionsWithSeqId = newPendingInteractions.map(i => ({ ...i, sequenceId }));
+    const interactionsWithSeqId = result.newPendingInteractions.map(i => ({ ...i, sequenceId }));
     const allNext = [...interactionsWithSeqId, ...pendingInteractions];
 
     if (allNext.length > 0) {
@@ -1515,8 +1516,8 @@ export const BoardUI: React.FC = () => {
     successMessage: string
   ): boolean => {
     if (!game) return false;
-
     const currentPlayer = game.players[game.currentPlayerIndex];
+    action;
 
     // Résolution de l'ID de la planète parente si c'est un satellite
     let targetPlanetId = planetId;
@@ -1947,7 +1948,6 @@ export const BoardUI: React.FC = () => {
         const message = action.executionMessage;
 
         if (message) {
-          const updatedPlayer = updatedGame.players.find(p => p.id === currentPlayerId);
           const oldPlayer = currentGame.players.find(p => p.id === currentPlayerId);
 
           // Détection Card 19 (Assistance Gravitationnelle)
@@ -1957,11 +1957,7 @@ export const BoardUI: React.FC = () => {
           if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
             // Calculer les mouvements restants après ce pas (si gratuit)
             const remaining = useFree ? freeMovements - 1 : freeMovements;
-            setInteractionState({
-              type: 'CHOOSING_MEDIA_OR_MOVE',
-              sequenceId: `move-${Date.now()}`,
-              remainingMoves: remaining
-            });
+            setInteractionState({ type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId: `move-${Date.now()}`, remainingMoves: remaining });
             interruptedForChoice = true;
             if (i < path.length - 1) {
               setToast({ message: "Déplacement interrompu. Choisissez un bonus.", visible: true });
@@ -1979,7 +1975,7 @@ export const BoardUI: React.FC = () => {
         // Mettre à jour le compteur de mouvements gratuits
         if (useFree) {
           // On ne décrémente que si le mouvement a réellement été gratuit (pas de dépense d'énergie)
-          if (!message.includes('paye')) {
+          if (message && !message.includes('paye')) {
             freeMovements--;
           }
         }

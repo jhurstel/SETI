@@ -62,6 +62,23 @@ export class ResourceSystem {
     return items;
   };
 
+  static accumulateBonus(bonus: Bonus, accumulatedBonuses: Bonus) {
+      for (const key in bonus) {
+          const k = key as keyof Bonus;
+          const val = bonus[k];
+          if (typeof val === 'number') {
+              (accumulatedBonuses as any)[k] = ((accumulatedBonuses[k] as number) || 0) + val;
+          } else if (val !== undefined) {
+              if (k === 'gainSignal' && Array.isArray(val)) {
+                  const existing = (accumulatedBonuses[k] as any[]) || [];
+                  (accumulatedBonuses as any)[k] = [...existing, ...val];
+              } else {
+                  (accumulatedBonuses as any)[k] = val;
+              }
+          }
+      }
+  }
+
   static buyCard(game: Game, playerId: string, cardIdFromRow?: string, isFree: boolean = false): { updatedGame: Game, error?: string } {
     let updatedGame = { ...game };
     
@@ -184,6 +201,16 @@ export class ResourceSystem {
     const launchedProbeIds: string[] = [];
 
     if (!bonuses) return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };
+
+    // Appliquer les ressources simples au joueur
+    const player = updatedGame.players.find(p => p.id === playerId);
+    if (player) {
+        if (bonuses.pv) player.score += bonuses.pv;
+        if (bonuses.credits) player.credits += bonuses.credits;
+        if (bonuses.energy) player.energy += bonuses.energy;
+        if (bonuses.media) player.mediaCoverage = Math.min(player.mediaCoverage + bonuses.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+        if (bonuses.data) player.data = Math.min(player.data + bonuses.data, GAME_CONSTANTS.MAX_DATA);
+    }
 
     // Gains passifs pour le résumé (déjà effectué dans CardSystem)
     if (bonuses.media) { const txt = ResourceSystem.formatResource(bonuses.media, 'MEDIA'); passiveGains.push(txt); }

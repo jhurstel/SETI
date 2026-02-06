@@ -5,7 +5,7 @@ import { ComputerSystem } from '../systems/ComputerSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ScanSystem } from '../systems/ScanSystem';
 import { PlayerComputerUI } from './PlayerComputerUI';
-import { CardTooltip, CardDescription } from './CardTooltip';
+import { CardTooltip } from './CardTooltip';
 import './PlayerBoardUI.css';
 
 interface PlayerBoardUIProps {
@@ -743,24 +743,40 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
               {((currentPlayer.missions && currentPlayer.missions.length > 0) || (currentPlayer.playedCards && currentPlayer.playedCards.length > 0)) ? (
                 <>
                 {(currentPlayer.missions || []).map((mission: Mission) => (
-                  <div key={mission.id} className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`}
-                    onMouseEnter={(e) => handleTooltipHover(e, (
+                  <div key={mission.id} className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`} onMouseEnter={e => {
+                    const missionRequirementStrings = mission.description.split('Mission:').slice(1).filter(s => s.trim() !== '');
+                    const displayCount = Math.max(missionRequirementStrings.length, mission.requirements.length);
+                    const displayItems = Array.from({ length: displayCount });
+
+                    const tooltipContent = (
                       <div className="seti-card-tooltip">
                         <div className="seti-card-tooltip-title">{mission.name}</div>
                         <div className="seti-card-tooltip-desc">
-                          <CardDescription description={mission.description} />
+                          {displayItems.map((_, index) => {
+                            const requirement = mission.requirements[index];
+                            const isCompleted = requirement && requirement.id ? (mission.completedRequirementIds || []).includes(requirement.id) : false;
+                            const text = missionRequirementStrings[index] || (requirement ? `Condition ${index + 1}` : `Mission ${index + 1}`);
+                            return (
+                              <div key={index} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '4px' }}>
+                                <span style={{ marginRight: '8px', color: isCompleted ? '#4caf50' : '#aaa' }}>
+                                  {isCompleted ? '✅' : '🔲'}
+                                </span>
+                                <span>
+                                  <span style={{ fontWeight: 'bold' }}>Mission:</span> {text.trim()}
+                                </span>
+                              </div>
+                            );
+                          })}
                         </div>
-                        <div className="seti-card-tooltip-stats">
-                           <div style={{ gridColumn: '1 / -1', textAlign: 'center' }}>
-                             {mission.completed ? 
-                               <span style={{color: '#4caf50', fontWeight: 'bold'}}>MISSION ACCOMPLIE</span> : 
-                               <span style={{color: '#aaa'}}>Progression: {mission.progress.current} / {mission.progress.target}</span>}
-                           </div>
-                        </div>
+                        {mission.completed && (
+                          <div className="seti-card-tooltip-stats" style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#4caf50', fontWeight: 'bold', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #555' }}>
+                            MISSION ACCOMPLIE
+                          </div>
+                        )}
                       </div>
-                    ))}
-                    onMouseLeave={handleTooltipLeave}
-                  >
+                    );
+                    handleTooltipHover(e, tooltipContent);
+                  }} onMouseLeave={handleTooltipLeave}>
                     <div className="seti-mission-header">
                       <div className="seti-mission-title">{mission.name}</div>
                       <span className="seti-played-card-tag">MIS</span>

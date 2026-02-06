@@ -9,6 +9,7 @@ import {
     getAllCelestialObjects
 } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
+import { ProbeSystem } from './ProbeSystem';
 
 export class CardSystem {
     /**
@@ -184,6 +185,9 @@ export class CardSystem {
         // Retirer la carte de la main
         player.cards.splice(cardIndex, 1);
         
+        // Initialiser les bonus
+        const bonuses: Bonus = {};
+
         // Ajouter la carte jouée à la pile de défausse ou aux cartes jouées (Missions Fin de partie)
         if (card) {    
           if (card.type === CardType.END_GAME) {
@@ -200,12 +204,14 @@ export class CardSystem {
                 name: card.name,
                 description: card.description,
                 ownerId: player.id,
-                requirements: card.permanentEffects || [],
-                progress: { current: 0, target: card.permanentEffects?.length || 0 },
+                requirements: card.permanentEffects || [], // IDs will be added by the factory
+                completedRequirementIds: [],
                 completed: false,
                 originalCard: card
               };
               player.missions.push(newMission);
+              // Vérifier immédiatement si la mission est accomplie (rétroactif ou état actuel)
+              ProbeSystem.checkAndProcessTriggeredMissions(updatedGame, playerId, bonuses, undefined, newMission.id);
             }
           } else {
             if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
@@ -214,26 +220,20 @@ export class CardSystem {
         }    
 
         // Traitement des effets immédiats
-        const bonuses: Bonus = {};
-
         if (card.immediateEffects) {
             card.immediateEffects.forEach(effect => {
                 if (effect.type === 'GAIN') {
                     switch (effect.target) {
                         case 'CREDIT':
-                            player.credits += effect.value;
                             bonuses.credits = (bonuses.credits || 0) + effect.value;
                             break;
                         case 'ENERGY':
-                            player.energy += effect.value;
                             bonuses.energy = (bonuses.energy || 0) + effect.value;
                             break;
                         case 'DATA':
-                            player.data = Math.min((player.data || 0) + effect.value, GAME_CONSTANTS.MAX_DATA);
                             bonuses.data = Math.min((bonuses.data || 0) + effect.value, GAME_CONSTANTS.MAX_DATA);
                             break;
                         case 'MEDIA':
-                            player.mediaCoverage = Math.min((player.mediaCoverage || 0) + effect.value, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
                             bonuses.media = Math.min((bonuses.media || 0) + effect.value, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
                             break;
                         case 'CARD':
@@ -316,7 +316,6 @@ export class CardSystem {
                         }
                     });
                     if (energyCardsCount > 0) {
-                        player.energy += energyCardsCount;
                         bonuses.energy = (bonuses.energy || 0) + energyCardsCount;
                     }
                 } else if (effect.type === 'REVEAL_MOVEMENT_CARDS_FOR_BONUS') {
@@ -334,17 +333,14 @@ export class CardSystem {
                 } else if (effect.type === 'GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE') {
                     const energyRevCards = player.revenueEnergy - GAME_CONSTANTS.INITIAL_REVENUE_ENERGY;
                     if (energyRevCards > 0) {
-                        player.energy += energyRevCards;
                         bonuses.energy = (bonuses.energy || 0) + energyRevCards;
                     }
                     // Reserve self (Energy)
                     player.revenueEnergy += 1;
-                    player.energy += 1; // Immediate gain from reservation
                     bonuses.energy = (bonuses.energy || 0) + 1;
                 } else if (effect.type === 'GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE') {
                     const cardRevCards = player.revenueCards - GAME_CONSTANTS.INITIAL_REVENUE_CARDS;
                     if (cardRevCards > 0) {
-                        player.mediaCoverage = Math.min(player.mediaCoverage + cardRevCards, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
                         bonuses.media = (bonuses.media || 0) + cardRevCards;
                     }
                     // Reserve self (Card)
@@ -356,12 +352,10 @@ export class CardSystem {
                     const creditRevCards = player.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS;
                     if (creditRevCards > 0) {
                         const pvGain = creditRevCards * 3;
-                        player.score += pvGain;
                         bonuses.pv = (bonuses.pv || 0) + pvGain;
                     }
                     // Reserve self (Credit)
                     player.revenueCredits += 1;
-                    player.credits += 1; // Immediate gain from reservation
                     bonuses.credits = (bonuses.credits || 0) + 1;
                 } else if (effect.type === 'OPTIMAL_LAUNCH_WINDOW') {
                     const rotationState = createRotationState(
@@ -439,7 +433,6 @@ export class CardSystem {
                     });
 
                     if (maxDataBonus > 0) {
-                        player.data = Math.min((player.data || 0) + maxDataBonus, GAME_CONSTANTS.MAX_DATA);
                         bonuses.data = (bonuses.data || 0) + maxDataBonus;
                     }
                 } else if (effect.type === 'DISCARD_ROW_FOR_FREE_ACTIONS') {
@@ -448,10 +441,8 @@ export class CardSystem {
                         if (rowCard.freeAction === FreeActionType.MOVEMENT) {
                             bonuses.movements = (bonuses.movements || 0) + 1;
                         } else if (rowCard.freeAction === FreeActionType.DATA) {
-                            player.data = Math.min((player.data || 0) + 1, GAME_CONSTANTS.MAX_DATA);
                             bonuses.data = (bonuses.data || 0) + 1;
                         } else if (rowCard.freeAction === FreeActionType.MEDIA) {
-                            player.mediaCoverage = Math.min((player.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
                             bonuses.media = (bonuses.media || 0) + 1;
                         }
                     });

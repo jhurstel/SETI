@@ -162,6 +162,9 @@ export class GameEngine {
       state: { ...stateWithoutHistory, history: [] } as Game,
       timestamp: Date.now()
     };
+    if (!this.state.history) {
+      this.state.history = [];
+    }
     this.state.history.push(gameState);
   }
 

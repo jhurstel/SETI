@@ -351,6 +351,7 @@ export interface Card {
 }
 
 export interface CardEffect {
+  id?: string;
   type: string;
   value: any;
   target?: string;
@@ -364,14 +365,9 @@ export interface Mission {
   description: string;
   ownerId: string;
   requirements: CardEffect[];
-  progress: MissionProgress;
+  completedRequirementIds: string[];
   completed: boolean;
   originalCard?: Card;
-}
-
-export interface MissionProgress {
-  current: number;
-  target: number;
 }
 
 export interface Species {

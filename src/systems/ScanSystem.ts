@@ -67,7 +67,6 @@ export class ScanSystem {
     if (!sector) {
       return { updatedGame, logs: [], bonuses: {} };
     }
-    const player = updatedGame.players.find(p => p.id === playerId)!;
     
     const logs: string[] = [];
     let bonuses: Bonus = {};
@@ -85,14 +84,12 @@ export class ScanSystem {
           if (noData) {
             logs.push(`sans gagner de Donnée`);
           } else {
-            player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
             bonuses.data = 1;
           }
       }
       
       // Signal bonus: 2PV
       if (signal.bonus) {
-          player.score += signal.bonus.pv || 0;
           bonuses.pv = signal.bonus.pv;
       }
     } else {
@@ -146,8 +143,11 @@ export class ScanSystem {
         if (sectorBonus) {
             // PV
             if (sectorBonus.pv) {
-                winner.score += sectorBonus.pv;
-                if (winnerId === playerId) bonuses.pv = (bonuses.pv || 0) + sectorBonus.pv;
+                if (winnerId === playerId) {
+                    bonuses.pv = (bonuses.pv || 0) + sectorBonus.pv;
+                } else {
+                    winner.score += sectorBonus.pv;
+                }
             }
             // Lifetraces
             if (winnerId === playerId && sectorBonus.lifetraces) {
@@ -161,10 +161,10 @@ export class ScanSystem {
         uniquePlayersIds.forEach(pId => {
             const p = updatedGame.players.find(pl => pl.id === pId);
             if (p) {
-                p.mediaCoverage = Math.min(p.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
                 if (pId === playerId) {
                     bonuses.media = (bonuses.media || 0) + 1;
                 } else {
+                    p.mediaCoverage = Math.min(p.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
                     participants.push(p.name);
                 }
             }
