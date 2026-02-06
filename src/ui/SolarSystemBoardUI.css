@@ -138,9 +138,9 @@
     will-change: transform;
 }
 
-.seti-rotating-level-3 { z-index: 20; }
+.seti-rotating-level-1 { z-index: 20; }
 .seti-rotating-level-2 { z-index: 30; }
-.seti-rotating-level-1 { z-index: 40; }
+.seti-rotating-level-3 { z-index: 40; }
 
 .seti-probe-selection-backdrop {
     position: absolute;
@@ -395,8 +395,8 @@
 }
 
 .seti-rotation-indicator.level-1 {
-    color: #ffd700;
-    text-shadow: 0 0 5px #ffd700, 0 0 2px black;
+    color: #4a9eff;
+    text-shadow: 0 0 5px #4a9eff, 0 0 2px black;
 }
 
 .seti-rotation-indicator.level-2 {
@@ -405,8 +405,8 @@
 }
 
 .seti-rotation-indicator.level-3 {
-    color: #4a9eff;
-    text-shadow: 0 0 5px #4a9eff, 0 0 2px black;
+    color: #ffd700;
+    text-shadow: 0 0 5px #ffd700, 0 0 2px black;
 }
 
 .seti-rotating-sector-svg {
@@ -425,11 +425,11 @@
     stroke-width: 1.5; /* Bordure plus épaisse */
 }
 
-/* Level 1 - Jaune */
+/* Level 1 - Bleu */
 .seti-rotating-sector-svg.level-1 path {
-    fill: rgb(91, 121, 83);
-    stroke: rgba(255, 215, 0, 0.7);
-    filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0,2));
+    fill: rgba(40, 60, 100, 1);
+    stroke: rgba(74, 158, 255, 0.7);
+    filter: drop-shadow(0 0 2px rgba(74, 158, 255, 0.2));
 }
 
 /* Level 2 - Rouge */
@@ -439,11 +439,11 @@
     filter: drop-shadow(0 0 3px rgba(255, 71, 71, 0.2));
 }
   
-/* Level 3 - Bleu */
+/* Level 3 - Jaune */
 .seti-rotating-sector-svg.level-3 path {
-    fill: rgba(40, 60, 100, 1);
-    stroke: rgba(74, 158, 255, 0.7);
-    filter: drop-shadow(0 0 2px rgba(74, 158, 255, 0.2));
+    fill: rgb(91, 121, 83);
+    stroke: rgba(255, 215, 0, 0.7);
+    filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0,2));
 }
   
 .seti-planet-icon-body {

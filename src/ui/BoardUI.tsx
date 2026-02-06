@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, CardType, LifeTraceType, Mission, InteractionState, GamePhase } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, LifeTraceType, InteractionState, GamePhase } from '../core/types';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -121,19 +121,40 @@ export const BoardUI: React.FC = () => {
   // Sauvegarde automatique à chaque modification du jeu
   useEffect(() => {
     if (game) {
-      // Préparer l'objet à sauvegarder avec l'historique à jour
-      const gameToSave = { 
-          ...game,
-          gameLog: historyLog.map(entry => ({
-              id: entry.id,
-              message: entry.message,
-              timestamp: entry.timestamp,
-              playerId: entry.playerId
-          }))
-      };
-      // Sauvegarder l'état complet
-      localStorage.setItem('seti_autosave', JSON.stringify(gameToSave));
-      setHasAutosave(true);
+      try {
+        // Préparer l'objet à sauvegarder avec l'historique à jour
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { history, ...cleanGame } = game;
+
+        const gameToSave = { 
+            ...cleanGame,
+            gameLog: historyLog.map((entry, index) => {
+                // Sauvegarder le previousState uniquement pour la dernière entrée
+                // pour permettre l'undo immédiat après rechargement
+                const isLast = index === historyLog.length - 1;
+                let cleanPreviousState = undefined;
+                if (isLast && entry.previousState) {
+                    // Exclure gameLog et history du previousState pour éviter la récursion/taille
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { gameLog, history, ...rest } = entry.previousState as any;
+                    cleanPreviousState = rest;
+                }
+                return {
+                    id: entry.id,
+                    message: entry.message,
+                    timestamp: entry.timestamp,
+                    playerId: entry.playerId,
+                    sequenceId: entry.sequenceId,
+                    previousState: cleanPreviousState
+                };
+            })
+        };
+        // Sauvegarder l'état complet
+        localStorage.setItem('seti_autosave', JSON.stringify(gameToSave));
+        setHasAutosave(true);
+      } catch (e) {
+        console.warn("Erreur lors de la sauvegarde automatique (QuotaExceededError probable) :", e);
+      }
     }
   }, [game, historyLog]);
 
@@ -178,7 +199,9 @@ export const BoardUI: React.FC = () => {
               playerId: log.playerId,
               timestamp: log.timestamp,
               previousInteractionState: { type: 'IDLE' },
-              previousPendingInteractions: []
+              previousPendingInteractions: [],
+              sequenceId: log.sequenceId,
+              previousState: log.previousState
             })));
           } else {
             setHistoryLog([]);
@@ -197,15 +220,29 @@ export const BoardUI: React.FC = () => {
   const handleSaveGame = async () => {
       if (!game) return;
       try {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { history, ...cleanGame } = game;
+
           // Préparer l'objet à sauvegarder avec l'historique à jour
           const gameToSave = { 
-              ...game,
-              gameLog: historyLog.map(entry => ({
-                  id: entry.id,
-                  message: entry.message,
-                  timestamp: entry.timestamp,
-                  playerId: entry.playerId
-              }))
+              ...cleanGame,
+              gameLog: historyLog.map((entry, index) => {
+                  const isLast = index === historyLog.length - 1;
+                  let cleanPreviousState = undefined;
+                  if (isLast && entry.previousState) {
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                      const { gameLog, history, ...rest } = entry.previousState as any;
+                      cleanPreviousState = rest;
+                  }
+                  return {
+                      id: entry.id,
+                      message: entry.message,
+                      timestamp: entry.timestamp,
+                      playerId: entry.playerId,
+                      sequenceId: entry.sequenceId,
+                      previousState: cleanPreviousState
+                  };
+              })
           };
           const gameState = JSON.stringify(gameToSave, null, 2);
 
@@ -283,7 +320,9 @@ export const BoardUI: React.FC = () => {
                               playerId: l.playerId,
                               timestamp: l.timestamp,
                               previousInteractionState: { type: 'IDLE' },
-                              previousPendingInteractions: []
+                              previousPendingInteractions: [],
+                              sequenceId: l.sequenceId,
+                              previousState: l.previousState
                           })));
                       } else {
                           setHistoryLog([]);
@@ -321,7 +360,9 @@ export const BoardUI: React.FC = () => {
                       playerId: l.playerId,
                       timestamp: l.timestamp,
                       previousInteractionState: { type: 'IDLE' },
-                      previousPendingInteractions: []
+                      previousPendingInteractions: [],
+                      sequenceId: l.sequenceId,
+                      previousState: l.previousState
                   })));
               } else {
                   setHistoryLog([]);
@@ -454,7 +495,7 @@ export const BoardUI: React.FC = () => {
     const result = gameEngineRef.current.executeAction(action);
     if (result.success && result.updatedState) {
       if (action.historyEntries) {
-        action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, result.updatedState));
+        action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, currentGame, undefined, e.sequenceId));
       }
 
       // TODO: gerer la fin de partie
@@ -611,21 +652,11 @@ export const BoardUI: React.FC = () => {
               const action = new AnalyzeDataAction(currentPlayer.id);
               const result = gameEngineRef.current!.executeAction(action);
               if (result.success && result.updatedState) {
-                // Simuler le choix de couleur aléatoire pour la trace
-                const colors = [LifeTraceType.BLUE, LifeTraceType.RED, LifeTraceType.YELLOW];
-                const randomColor = colors[Math.floor(Math.random() * colors.length)];
-                const aiGame = result.updatedState;
-                const board = aiGame.board.alienBoards[0]; // Toujours le premier plateau pour l'IA simple
-                
-                board.lifeTraces.push({
-                  id: `trace-${Date.now()}`,
-                  type: randomColor,
-                  playerId: currentPlayer.id
-                });
-                
-                setGame(aiGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
-                addToHistory(`analyse des données et place une trace ${randomColor}`, currentPlayer.id, game);
+                // Place une trace de vie
+                result.updatedState.board.alienBoards[0].lifeTraces.push({ id: `trace-${Date.now()}`, type: LifeTraceType.BLUE, playerId: currentPlayer.id });
+                setGame(result.updatedState);
+                if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedState);
+                addToHistory(`analyse des données et place une trace Bleu`, currentPlayer.id, game);
               }
               break;
             }
@@ -634,9 +665,15 @@ export const BoardUI: React.FC = () => {
               const result = gameEngineRef.current!.executeAction(action);
               if (result.success && result.updatedState) {
                 // Finaliser l'acquisition
-                const { updatedGame } = TechnologySystem.acquireTechnology(result.updatedState, currentPlayer.id, decision.data.tech);
-                setGame(updatedGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+                const res = TechnologySystem.acquireTechnology(result.updatedState, currentPlayer.id, decision.data.tech);
+                setGame(res.updatedGame);
+                if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
+                if (action.historyEntries) {
+                  action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, e.sequenceId));
+                }
+                if (res.historyEntries) {
+                  res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, e.sequenceId));
+                }
                 addToHistory(`recherche technologie "${decision.data.tech.name}"`, currentPlayer.id, game);
               }
               break;
@@ -644,7 +681,13 @@ export const BoardUI: React.FC = () => {
             case ActionType.PLAY_CARD: {
               const card = currentPlayer.cards.find(c => c.id === decision.data.cardId);
               if (card) {
-                executePlayCard(card.id);
+                const action = new PlayCardAction(currentPlayer.id, card.id);
+                const result = gameEngineRef.current!.executeAction(action);
+                if (result.success && result.updatedState) {
+                  setGame(result.updatedState);
+                  if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedState);
+                  addToHistory(`joue carte "${card.name}"`, currentPlayer.id, game);
+                }
               }
               break;
             }
@@ -737,11 +780,15 @@ export const BoardUI: React.FC = () => {
             const { color } = result.data!;
             addToHistory(`déclenche un marqueur neutre (Palier ${m} PV) sur la trace ${color} du plateau Alien`, currentPlayer.id, currentState, undefined, interactionState.sequenceId);
             
+            let message = `Palier ${m} PV : Trace de vie ${color} placée`;
+
             if (result.code === 'DISCOVERED') {
-                setAlienDiscoveryNotification({ visible: true, message: "Découverte d'une nouvelle espèce Alien !" });
-                setTimeout(() => setAlienDiscoveryNotification(null), 4000);
+                message += " - Espèce découverte !";
                 addToHistory(`déclenche la découverte d'une nouvelle espèce Alien !`, currentPlayer.id, currentState, undefined, interactionState.sequenceId);
             }
+            
+            setAlienDiscoveryNotification({ visible: true, message });
+            setTimeout(() => setAlienDiscoveryNotification(null), 4000);
         } else if (result.code === 'NO_SPACE') {
             addToHistory(`déclenche un marqueur neutre (Palier ${m} PV) mais aucun emplacement libre`, currentPlayer.id, currentState, undefined, interactionState.sequenceId);
         }
@@ -1073,7 +1120,13 @@ export const BoardUI: React.FC = () => {
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
 
-      setInteractionState({ type: 'IDLE' });
+      if (res.newPendingInteractions.length > 0) {
+        const [next, ...rest] = res.newPendingInteractions;
+        setInteractionState(next);
+        setPendingInteractions(prev => [...rest, ...prev]);
+      } else {
+        setInteractionState({ type: 'IDLE' });
+      }
       return;
     }
 
@@ -1198,7 +1251,7 @@ export const BoardUI: React.FC = () => {
           const sequenceId = `analyze-${Date.now()}`;
           setGame(result.updatedState);
           setInteractionState({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE, sequenceId });
-          addToHistory(`paye ${ResourceSystem.formatResource(1, 'ENERGY')} pour <strong>Analyser les données</strong>`, currentPlayer.id, previousState, { type: 'IDLE' }, sequenceId);
+          addToHistory(`paye ${ResourceSystem.formatResource(1, 'ENERGY')} pour <strong>Analyser les données</strong> et gagne une trace de vie Bleu`, currentPlayer.id, previousState, { type: 'IDLE' }, sequenceId);
         } else {
           console.error("Erreur lors de l'analyse:", result.error);
           setToast({ message: result.error || "Erreur lors de l'analyse", visible: true });
@@ -1233,9 +1286,7 @@ export const BoardUI: React.FC = () => {
   // Gestionnaire pour placer une trace de vie
   const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType) => {
     if (!game) return;
-
     if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
-
     if (interactionState.color !== color) {
       setToast({ message: `Veuillez placer une trace de vie ${interactionState.color}.`, visible: true });
       return;
@@ -1244,13 +1295,12 @@ export const BoardUI: React.FC = () => {
     const currentPlayer = game.players[game.currentPlayerIndex];
     let updatedGame = structuredClone(game);
     const board = updatedGame.board.alienBoards[boardIndex];
+
+    // Create sequence id
     const sequenceId = interactionState.sequenceId || `trace-${Date.now()}`;
 
-    board.lifeTraces.push({
-      id: `trace-${Date.now()}`,
-      type: color,
-      playerId: currentPlayer.id
-    });
+    // Create lifetrace object
+    board.lifeTraces.push({ id: `trace-${Date.now()}`, type: color, playerId: currentPlayer.id });
 
     // Vérifier si une espèce Alien est découverte (1 marqueur de chaque couleur sur ce plateau)
     const traces = board.lifeTraces;
@@ -1295,7 +1345,8 @@ export const BoardUI: React.FC = () => {
     setGame(gameAfterBonus);
     if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonus);
 
-    let message = `place une trace de vie ${color} sur le plateau Alien ${boardIndex + 1}`;
+    const orderText = (boardIndex === 0) ? "gauche" : " droit";
+    let message = `place une trace de vie ${color} sur le plateau Alien ${orderText}`;
     if (logs.length > 0) {
       message += ` et ${logs.join(', ')}`;
     }
@@ -1959,16 +2010,10 @@ export const BoardUI: React.FC = () => {
   const handlePlayCardRequest = (cardId: string) => {
     if (!game || !gameRef.current) return;
 
-    const currentGame = gameRef.current;
+    const currentGame = structuredClone(game);
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
     const card = currentPlayer.cards.find(c => c.id === cardId);
-
-    const action = new PlayCardAction(currentPlayer.id, cardId);
-    const validation = ActionValidator.validateAction(currentGame, action);
-    if (!validation.valid) {
-      setToast({ message: validation.errors[0]?.message || "Impossible de jouer cette carte", visible: true });
-      return;
-    }
+    if (!card) return;
 
     // Vérifier si la carte donne une sonde et si le joueur peut la lancer
     if (card && card.immediateEffects) {
@@ -2055,7 +2100,20 @@ export const BoardUI: React.FC = () => {
       }
     }
 
-    executePlayCard(cardId);
+    const action = new PlayCardAction(currentPlayer.id, cardId);
+    const result = gameEngineRef.current!.executeAction(action);
+    if (result.success && result.updatedState) {
+      setGame(result.updatedState);
+      if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedState);
+        // Add history entries from processBonuses (objects)
+        if (action.historyEntries && action.historyEntries.length > 0) {
+          action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, currentGame, undefined, entry.sequenceId));
+        }
+        // Add pending interactions from processBonuses (objects)
+        if (action.newPendingInteractions && action.newPendingInteractions.length > 0) {
+          action.newPendingInteractions.forEach(interaction => setPendingInteractions(prev => [...prev, interaction]));
+        }
+    }
   };
 
   const executePlayCard = (cardId: string) => {
@@ -2065,52 +2123,12 @@ export const BoardUI: React.FC = () => {
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
 
     const result = CardSystem.playCard(currentGame, currentPlayer.id, cardId);
-    if (result.error) {
-      setToast({ message: result.error, visible: true });
-      return;
-    }
 
     const sequenceId = `seq-${Date.now()}`;
 
     console.log(result);
     const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs: allBonusLogs, historyEntries: bonusHistoryEntries } = ResourceSystem.processBonuses(result.bonuses || {}, result.updatedGame, currentPlayer.id, cardId, sequenceId);
     console.log(newPendingInteractions);
-
-    // Marquer l'action principale comme effectuée manuellement
-    const playerIndex = gameAfterBonuses.players.findIndex(p => p.id === currentPlayer.id);
-    if (playerIndex !== -1) gameAfterBonuses.players[playerIndex].hasPerformedMainAction = true;
-
-    // Ajouter la carte jouée à la pile de défausse ou aux cartes jouées (Missions Fin de partie)
-    const cardPlayed = currentPlayer.cards.find(c => c.id === cardId);
-    if (cardPlayed) {
-      const playerInNewGame = gameAfterBonuses.players.find(p => p.id === currentPlayer.id);
-
-      if (cardPlayed.type === CardType.END_GAME) {
-        if (playerInNewGame) {
-          if (!playerInNewGame.playedCards) playerInNewGame.playedCards = [];
-          playerInNewGame.playedCards.push(cardPlayed);
-        }
-      } else if (cardPlayed.type === CardType.CONDITIONAL_MISSION || cardPlayed.type === CardType.TRIGGERED_MISSION) {
-        if (playerInNewGame) {
-          if (!playerInNewGame.missions) playerInNewGame.missions = [];
-          const newMission: Mission = {
-            id: `mission-${cardPlayed.id}-${Date.now()}`,
-            cardId: cardPlayed.id,
-            name: cardPlayed.name,
-            description: cardPlayed.description,
-            ownerId: currentPlayer.id,
-            requirements: cardPlayed.permanentEffects || [],
-            progress: { current: 0, target: cardPlayed.permanentEffects?.length || 0 },
-            completed: false,
-            originalCard: cardPlayed
-          };
-          playerInNewGame.missions.push(newMission);
-        }
-      } else {
-        if (!gameAfterBonuses.decks.discardPile) gameAfterBonuses.decks.discardPile = [];
-        gameAfterBonuses.decks.discardPile.push(cardPlayed);
-      }
-    }
 
     const card = currentGame.players[currentGame.currentPlayerIndex].cards.find(c => c.id === cardId)!;
     setGame(gameAfterBonuses);
@@ -2158,12 +2176,6 @@ export const BoardUI: React.FC = () => {
     // Add history entries from processBonuses (objects)
     if (bonusHistoryEntries && bonusHistoryEntries.length > 0) {
       bonusHistoryEntries.forEach(entry => addToHistory(entry.message, entry.playerId, gameAfterBonuses, undefined, sequenceId));
-    }
-
-    // Gérer les interactions en attente (ex: Mouvements, Tech, Signals, etc.)
-    if (newPendingInteractions.length > 0) {
-      const interactionsWithSeqId = newPendingInteractions.map(i => ({ ...i, sequenceId }));
-      setPendingInteractions(prev => [...interactionsWithSeqId, ...prev]);
     }
   };
 
@@ -2370,13 +2382,14 @@ export const BoardUI: React.FC = () => {
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
 
     // Mettre à jour GameEngine
-    const { updatedGame, gains } = TechnologySystem.acquireTechnology(currentGame, currentPlayer.id, tech, targetComputerCol, noTileBonus);
+    const result = TechnologySystem.acquireTechnology(currentGame, currentPlayer.id, tech, targetComputerCol, noTileBonus);
 
     // Finaliser la transaction
-    setGame(updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+    setGame(result.updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
     setInteractionState({ type: 'IDLE' });
-    addToHistory(`acquiert technologie "${tech.type} ${tech.name}"${gains.length > 0 ? ` et gagne ${gains.join(', ')}` : ''}`, currentPlayer.id, currentGame, undefined, interactionState.sequenceId);
+    addToHistory(`acquiert technologie "${tech.type} ${tech.name}"${result.gains.length > 0 ? ` et gagne ${result.gains.join(', ')}` : ''}`, currentPlayer.id, currentGame, undefined, interactionState.sequenceId);
+    result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, currentGame, undefined, interactionState.sequenceId));
   };
 
   // Gestionnaire pour l'achat de technologie (clic initial)
@@ -2394,7 +2407,7 @@ export const BoardUI: React.FC = () => {
         const { noTileBonus } = interactionState;
         processTechPurchase(tech, undefined, noTileBonus);
       }
-    } else
+    } else if (interactionState.type === 'IDLE') {
       // Cas 2: Clic direct depuis IDLE (Raccourci Action Recherche)
       if (interactionState.type === 'IDLE' && !game.players[game.currentPlayerIndex].hasPerformedMainAction) {
         const currentPlayer = game.players[game.currentPlayerIndex];
@@ -2433,6 +2446,7 @@ export const BoardUI: React.FC = () => {
           processTechPurchase(tech, undefined, false, updatedGame);
         }
       }
+    }
   };
 
   // Gestionnaire pour la sélection de la colonne ordinateur
@@ -2634,7 +2648,7 @@ export const BoardUI: React.FC = () => {
           if (confirmModalState.onConfirm) {
             confirmModalState.onConfirm();
           } else if (confirmModalState.cardId) {
-            executePlayCard(confirmModalState.cardId);
+            handlePlayCardRequest(confirmModalState.cardId);
           }
           setConfirmModalState({ visible: false, cardId: null, message: '', onConfirm: undefined });
         }}

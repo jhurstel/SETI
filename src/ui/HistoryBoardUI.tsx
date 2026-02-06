@@ -269,7 +269,9 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                 <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
                     <span className="panel-icon">📜</span>
                     <span className="panel-title seti-history-title">Historique</span>
-                    {historyLog.length > 0 && historyLog[historyLog.length - 1].previousState && (
+                    {historyLog.length > 0 &&
+                        historyLog[historyLog.length - 1].previousState &&
+                        !historyLog[historyLog.length - 1].message.startsWith('---') && (
                         <button
                             className="panel-title seti-history-undo-btn"
                             onClick={(e) => { e.stopPropagation(); onUndo(); }}

@@ -148,8 +148,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     });
     
     if (onHistory) {
-        const gainText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
-        onHistory(`transfère 1 donnée vers l'ordinateur (${slotId})${gainText}`, sequenceId);
+        let gainText = '';
+        if (gains.length > 0) {
+          gainText = ` et gagne ${gains.join(', ')}`;
+        }
+        if (currentPlayer.dataComputer.canAnalyze) {
+          gainText += " et complète l'ordinateur";
+        }
+        onHistory(`transfère 1 donnée vers l'ordinateur ${gainText}`, sequenceId);
     }
     
     if (onGameUpdate) onGameUpdate(updatedGame);

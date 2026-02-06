@@ -58,7 +58,7 @@ export class BoardManager {
       rotationAngleLevel1: initialAngle1, // Angle de rotation initial calculé
       rotationAngleLevel2: initialAngle2, // Angle de rotation initial calculé
       rotationAngleLevel3: initialAngle3, // Angle de rotation initial calculé
-      nextRingLevel: 1,
+      nextRingLevel: 3,
     };
   }
 

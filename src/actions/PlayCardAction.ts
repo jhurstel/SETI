@@ -1,8 +1,11 @@
 import { BaseAction } from './Action';
-import { Game, ActionType, ValidationResult } from '../core/types';
+import { Game, ActionType, ValidationResult, InteractionState } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 
 export class PlayCardAction extends BaseAction {
+    public historyEntries: { message: string, playerId: string, sequenceId: string }[] = [];
+    public newPendingInteractions: InteractionState[] = [];
+
     constructor(public playerId: string, public cardId: string) {
         super(playerId, ActionType.PLAY_CARD);
     }
@@ -23,6 +26,8 @@ export class PlayCardAction extends BaseAction {
 
     execute(game: Game): Game {
         const result = CardSystem.playCard(game, this.playerId, this.cardId);
+        this.historyEntries = result.historyEntries;
+        this.newPendingInteractions = result.newPendingInteractions;
         return result.updatedGame;
     }
 }

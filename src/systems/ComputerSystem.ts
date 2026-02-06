@@ -117,7 +117,6 @@ export class ComputerSystem {
     // Si la case 6a est remplie, on active la capacité d'analyse
     if (slotId === '6a') {
       player.dataComputer.canAnalyze = true;
-      gains.push("Analyse activée");
     }
 
     return { updatedGame, gains, bonusEffects };

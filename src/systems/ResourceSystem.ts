@@ -203,7 +203,7 @@ export class ResourceSystem {
       }
     }
     if (bonuses.card) {
-      updatedGame = CardSystem.drawCards(updatedGame, playerId, bonuses.card, 'Bonus de carte');
+      updatedGame = CardSystem.drawCards(updatedGame, playerId, bonuses.card);
       const txt = ResourceSystem.formatResource(bonuses.card, 'CARD');
       passiveGains.push(txt);
       logs.push(`pioche ${txt}`);
@@ -372,16 +372,22 @@ export class ResourceSystem {
 
     if (bonuses.landing) {
       newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId });
+      logs.push(`obtient ${bonuses.landing} atterrissage`);
     }
 
     if (bonuses.lifetraces) {
+      let tracesText = [];
       for (const lifetraceBonus of bonuses.lifetraces) {
         for (let i = 0; i < lifetraceBonus.amount; i++) {
           newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: lifetraceBonus.scope });
         }
+        const colorLabel = lifetraceBonus.scope && typeof lifetraceBonus.scope === 'string' ? ` (${lifetraceBonus.scope})` : '';
+        tracesText.push(`${lifetraceBonus.amount} trace${lifetraceBonus.amount > 1 ? 's' : ''} de vie${colorLabel}`);
+      }
+      if (tracesText.length > 0) {
+        logs.push(`obtient ${tracesText.join(' et ')}`);
       }
     }
-
     // Effets interactifs (File d'attente)
     if (bonuses.scorePerMedia) {
       newPendingInteractions.push({ type: 'TRIGGER_CARD_EFFECT', effectType: 'SCORE_PER_MEDIA', value: bonuses.scorePerMedia });

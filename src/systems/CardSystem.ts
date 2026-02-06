@@ -1,4 +1,4 @@
-import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType } from '../core/types';
+import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState } from '../core/types';
 import {
     createRotationState,
     calculateAbsolutePosition,
@@ -8,6 +8,7 @@ import {
     getObjectPosition,
     getAllCelestialObjects
 } from '../core/SolarSystemPosition';
+import { ResourceSystem } from './ResourceSystem';
 
 export class CardSystem {
     /**
@@ -161,20 +162,20 @@ export class CardSystem {
     /**
      * Joue une carte de la main du joueur
      */
-    static playCard(game: Game, playerId: string, cardId: string): { updatedGame: Game, error?: string, bonuses?: Bonus } {
+    static playCard(game: Game, playerId: string, cardId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[]} {
         let updatedGame = structuredClone(game);
         const player = updatedGame.players.find(p => p.id === playerId);
 
-        if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
+        if (!player) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
 
         const cardIndex = player.cards.findIndex(c => c.id === cardId);
-        if (cardIndex === -1) return { updatedGame: game, error: "Carte non trouvée en main" };
+        if (cardIndex === -1) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
 
         const card = player.cards[cardIndex];
 
         // Vérification du coût
         if (player.credits < card.cost) {
-            return { updatedGame: game, error: "Crédits insuffisants" };
+            return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
         }
 
         // Payer le coût
@@ -182,12 +183,35 @@ export class CardSystem {
 
         // Retirer la carte de la main
         player.cards.splice(cardIndex, 1);
-
-        // Ajouter aux cartes jouées (pour les effets passifs/tags)
-        // Note: Dans SETI, les cartes jouées vont souvent dans un tableau personnel ou sont défaussées selon le type.
-        // Ici on suppose qu'elles restent actives pour les passifs ou sont défaussées si instantanées.
-        // Pour simplifier, on ne les stocke pas dans une liste "playedCards" explicite dans Player pour l'instant,
-        // mais on applique les effets immédiats.
+        
+        // Ajouter la carte jouée à la pile de défausse ou aux cartes jouées (Missions Fin de partie)
+        if (card) {    
+          if (card.type === CardType.END_GAME) {
+            if (player) {
+              if (!player.playedCards) player.playedCards = [];
+              player.playedCards.push(card);
+            }
+          } else if (card.type === CardType.CONDITIONAL_MISSION || card.type === CardType.TRIGGERED_MISSION) {
+            if (player) {
+              if (!player.missions) player.missions = [];
+              const newMission: Mission = {
+                id: `mission-${card.id}-${Date.now()}`,
+                cardId: card.id,
+                name: card.name,
+                description: card.description,
+                ownerId: player.id,
+                requirements: card.permanentEffects || [],
+                progress: { current: 0, target: card.permanentEffects?.length || 0 },
+                completed: false,
+                originalCard: card
+              };
+              player.missions.push(newMission);
+            }
+          } else {
+            if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+            updatedGame.decks.discardPile.push(card);
+          }
+        }    
 
         // Traitement des effets immédiats
         const bonuses: Bonus = {};
@@ -486,7 +510,9 @@ export class CardSystem {
             });
         }
 
-        return { updatedGame, bonuses };
+        const sequenceId = `seq-${Date.now()}`;
+        const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs, historyEntries } = ResourceSystem.processBonuses(bonuses || {}, updatedGame, player.id, cardId, sequenceId);
+        return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions };
     }
 
     static discardToHandSize(game: Game, playerId: string, cardIdsToKeep: string[]): Game {

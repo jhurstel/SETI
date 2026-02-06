@@ -11,7 +11,7 @@ export interface AIDecision {
   data?: any;
 }
 
-export type AIDifficulty = 'EASY' | 'MEDIUM' | 'EXPERT';
+export type AIDifficulty = 'PASS' | 'EASY' | 'MEDIUM' | 'EXPERT';
 
 export class AIBehavior {
 
@@ -20,6 +20,8 @@ export class AIBehavior {
    */
   static decideAction(game: Game, player: Player, difficulty: AIDifficulty = 'EASY'): AIDecision {
       switch (difficulty) {
+          case 'PASS':
+            return this.createPassDecision(game, player);  
           case 'EASY':
               return this.decideRandomAction(game, player);
           case 'MEDIUM':

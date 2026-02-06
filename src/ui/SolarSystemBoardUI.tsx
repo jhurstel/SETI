@@ -458,11 +458,11 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   // Fonction helper pour rendre l'indicateur de rotation (signe >) adossé à la tuile
   const renderRotationIndicator = (planetId: string, level: number, sectorOffset: number = 0, keySuffix: string = '') => {
     let obj: CelestialObject | undefined;
-    if (planetId === 'saturn') { obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'saturn');
-    } else if (planetId === 'jupiter') { obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'jupiter');
+    if (planetId === 'saturn') { obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(o => o.id === 'saturn');
+    } else if (planetId === 'jupiter') { obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(o => o.id === 'jupiter');
     } else if (planetId === 'mars') { obj = INITIAL_ROTATING_LEVEL2_OBJECTS.find(o => o.id === 'mars');
-    } else if (planetId === 'earth') { obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(o => o.id === 'earth');
-    } else if (planetId === 'mercury') { obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(o => o.id === 'mercury');
+    } else if (planetId === 'earth') { obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'earth');
+    } else if (planetId === 'mercury') { obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'mercury');
     }
 
     if (!obj) return null;
@@ -579,7 +579,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const isRobot = currentPlayer.type === 'robot';
 
     // Trouver l'objet céleste correspondant à l'ID de la planète pour vérifier la position
-    const targetObj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS].find(o => o.id === id);
+    const targetObj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS].find(o => o.id === id);
 
     // Vérifier si le joueur a une sonde sur cette planète
     const playerProbe = targetObj && game.board.solarSystem.probes.find(p =>
@@ -1460,8 +1460,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   // Fonction helper pour rendre un nuage d'astéroïdes
   const renderAsteroid = (obj: CelestialObject, zIndex: number = 30) => {
     const { x, y } = calculateObjectPosition(obj.position.disk, obj.position.sector);
-    const asteroidCount = obj.position.disk === 'A' ? 3 : 5;
-    const spread = obj.position.disk === 'A' ? 8 : 12;
+    const asteroidCount = obj.position.disk === 'A' ? 4 : obj.position.disk === 'B' ? 5 : 6;
+    const spread = obj.position.disk === 'A' ? 10 : obj.position.disk === 'B' ? 15 : 20;
     // Utiliser l'ID comme seed pour avoir un pattern cohérent
     const seed = obj.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
@@ -1472,7 +1472,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         style={{
           top: `calc(50% + ${y}%)`,
           left: `calc(50% + ${x}%)`,
-          width: `${spread * 2}px`,
+          width: `${spread * 3}px`,
           height: `${spread * 2}px`,
           zIndex,
           pointerEvents: selectedProbeId ? 'none' : 'auto',
@@ -1482,11 +1482,11 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       >
         {Array.from({ length: asteroidCount }).map((_, i) => {
           const angle = (360 / asteroidCount) * i;
-          const random1 = seededRandom(seed + i);
+          const random1 = seededRandom(seed + i + 10);
           const random2 = seededRandom(seed + i + 100);
-          const distance = spread * (0.5 + random1 * 0.5);
+          const distance = 5 + spread * (random1 * 0.8);
           const { x: asteroidX, y: asteroidY } = polarToCartesian(0, 0, distance, angle);
-          const size = 4 + random2 * 4;
+          const size = 4 + random2 * 5;
 
           return (
             <div
@@ -1768,21 +1768,21 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               )}
             </div>
 
-            {/* Plateau rotatif niveau 3 avec 3 disques (A, B, C) - se superpose au plateau fixe */}
+            {/* Plateau rotatif niveau 1 avec 3 disques (A, B, C) - se superpose au plateau fixe */}
             <div
-              className="seti-rotating-overlay seti-rotating-level-3"
+              className="seti-rotating-overlay seti-rotating-level-1"
               style={{
-                transform: `translate(-50%, -50%) rotate(${rotationAngle3}deg)`, // Rotation dynamique
+                transform: `translate(-50%, -50%) rotate(${rotationAngle1}deg)`, // Rotation dynamique
               }}
             >
               {/* Disque C (extérieur) - 8 secteurs */}
               {Array.from({ length: 8 }).map((_, sectorIndex) => {
                 const obj: RotationDisk =
                 {
-                  id: 'disk3C',
+                  id: 'disk1C',
                   sectorIndex: sectorIndex,
                   diskName: 'C',
-                  level: 3,
+                  level: 1,
                 }
                 return renderRotationDisk(obj, 1);
               })}
@@ -1791,10 +1791,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               {Array.from({ length: 8 }).map((_, sectorIndex) => {
                 const obj: RotationDisk =
                 {
-                  id: 'disk3B',
+                  id: 'disk1B',
                   sectorIndex: sectorIndex,
                   diskName: 'B',
-                  level: 3,
+                  level: 1,
                 }
                 return renderRotationDisk(obj, 1);
               })}
@@ -1803,25 +1803,25 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               {Array.from({ length: 8 }).map((_, sectorIndex) => {
                 const obj: RotationDisk =
                 {
-                  id: 'disk3A',
+                  id: 'disk1A',
                   sectorIndex: sectorIndex,
                   diskName: 'A',
-                  level: 3,
+                  level: 1,
                 }
                 return renderRotationDisk(obj, 1);
               })}
 
-              {/* Sondes sur les disques A, B, C (niveau 3) */}
+              {/* Sondes sur les disques A, B, C (niveau 1) */}
               {probesInSystem
                 .filter(probe => {
                   if (!probe.solarPosition) return false;
                   const level = probe.solarPosition.level;
-                  return level === 3;
+                  return level === 1;
                 })
                 .map((probe) => renderProbe(probe, 150))}
 
-              {/* Objets célestes sur le plateau rotatif niveau 3 - basés sur INITIAL_ROTATING_LEVEL3_OBJECTS */}
-              {INITIAL_ROTATING_LEVEL3_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
+              {/* Objets célestes sur le plateau rotatif niveau 1 - basés sur INITIAL_ROTATING_LEVEL1_OBJECTS */}
+              {INITIAL_ROTATING_LEVEL1_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
                 if (obj.type === 'planet') {
                   return renderPlanet(obj, 3);
                 } else if (obj.type === 'comet') {
@@ -1833,8 +1833,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               })}
 
               {/* Indicateur de rotation pour Saturne */}
-              {game.board.solarSystem.nextRingLevel === 3 && renderRotationIndicator('saturn', 3)}
-              {game.board.solarSystem.nextRingLevel === 3 && renderRotationIndicator('jupiter', 3, 1, '-offset1')}
+              {game.board.solarSystem.nextRingLevel === 1 && renderRotationIndicator('saturn', 1)}
+              {game.board.solarSystem.nextRingLevel === 1 && renderRotationIndicator('jupiter', 1, 1, '-offset1')}
             </div>
 
             {/* Plateau rotatif niveau 2 avec 2 disques (A, B) - se superpose au niveau 3 */}
@@ -1894,35 +1894,35 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               {game.board.solarSystem.nextRingLevel === 2 && renderRotationIndicator('mars', 2, 5, '-offset5')}
             </div>
 
-            {/* Plateau rotatif niveau 1 avec 1 disque (A) - se superpose au niveau 2 */}
+            {/* Plateau rotatif niveau 3 avec 1 disque (A) - se superpose au niveau 2 */}
             <div
-              className="seti-rotating-overlay seti-rotating-level-1"
+              className="seti-rotating-overlay seti-rotating-level-3"
               style={{
-                transform: `translate(-50%, -50%) rotate(${rotationAngle1}deg)`, // Rotation dynamique
+                transform: `translate(-50%, -50%) rotate(${rotationAngle3}deg)`, // Rotation dynamique
               }}
             >
               {/* Disque A (intérieur) - 8 secteurs */}
               {Array.from({ length: 8 }).map((_, sectorIndex) => {
                 const obj: RotationDisk =
                 {
-                  id: 'disk1A',
+                  id: 'disk3A',
                   sectorIndex: sectorIndex,
                   diskName: 'A',
-                  level: 1,
+                  level: 3,
                 }
                 return renderRotationDisk(obj, 1);
               })}
 
-              {/* Sondes sur le disque A (niveau 1) */}
+              {/* Sondes sur le disque A (niveau 3) */}
               {probesInSystem.filter(probe => {
                 if (!probe.solarPosition) return false;
                 const level = probe.solarPosition.level;
-                return level === 1;
+                return level === 3;
               }).map((probe) => renderProbe(probe, 150)
               )}
 
-              {/* Objets célestes sur le plateau rotatif niveau 1 - basés sur INITIAL_ROTATING_LEVEL1_OBJECTS */}
-              {INITIAL_ROTATING_LEVEL1_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
+              {/* Objets célestes sur le plateau rotatif niveau 3 - basés sur INITIAL_ROTATING_LEVEL3_OBJECTS */}
+              {INITIAL_ROTATING_LEVEL3_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
                 if (obj.type === 'planet') {
                   return renderPlanet(obj, 3);
                 } else if (obj.type === 'comet') {
@@ -1934,8 +1934,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               })}
 
               {/* Indicateur de rotation pour Terre */}
-              {game.board.solarSystem.nextRingLevel === 1 && renderRotationIndicator('earth', 1)}
-              {game.board.solarSystem.nextRingLevel === 1 && renderRotationIndicator('mercury', 1)}
+              {game.board.solarSystem.nextRingLevel === 3 && renderRotationIndicator('earth', 3)}
+              {game.board.solarSystem.nextRingLevel === 3 && renderRotationIndicator('mercury', 3)}
             </div>
 
             {/* Labels des disques (A à D) - Positionnés au-dessus des plateaux rotatifs */}
@@ -1985,7 +1985,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             const currentPlayer = game.players[game.currentPlayerIndex];
             // Trouver toutes les planètes où le joueur a une sonde
             const planetsWithProbes = new Set<string>();
-            const allObjects = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS];
+            const allObjects = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS];
 
             game.board.solarSystem.probes.forEach(p => {
               if (p.ownerId === currentPlayer.id && p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition) {

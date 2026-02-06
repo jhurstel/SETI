@@ -107,7 +107,7 @@ export class ProbeSystem {
       id: `probe_${Date.now()}_${Math.floor(Math.random() * 10000)}_${playerId}`,
       ownerId: playerId,
       position: { x: 0, y: 0 },
-      solarPosition: { disk: earthDisk, sector: earthSector, level: 1 },
+      solarPosition: { disk: earthDisk, sector: earthSector, level: 3 },
       state: ProbeState.IN_SOLAR_SYSTEM,
       isOrbiter: false,
       isLander: false

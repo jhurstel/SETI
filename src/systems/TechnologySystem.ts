@@ -1,4 +1,4 @@
-import { Game, Technology, GAME_CONSTANTS, TechnologyCategory } from '../core/types';
+import { Game, Technology, GAME_CONSTANTS, TechnologyCategory, HistoryEntry } from '../core/types';
 import { ComputerSystem } from './ComputerSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { CardSystem } from './CardSystem';
@@ -62,11 +62,12 @@ export class TechnologySystem {
     return false;
   }
 
-  static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[] } {
+  static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[], historyEntries: HistoryEntry[] } {
     let updatedGame = structuredClone(game);
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
     const player = updatedGame.players.find(p => p.id === playerId);
-    if (!player) return { updatedGame: game, gains: [] };
+    let historyEntries: HistoryEntry[] = [];
+    if (!player) return { updatedGame: game, gains: [], historyEntries: [] };
 
     const updatedTechBoard = updatedGame.board.technologyBoard;
 
@@ -115,7 +116,7 @@ export class TechnologySystem {
           gains.push(`${tech.bonus.data} Data`);
       }
       if (tech.bonus.card) {
-        updatedGame = CardSystem.drawCards(updatedGame, player.id, tech.bonus.card, `Bonus technologie ${tech.name}`);
+        updatedGame = CardSystem.drawCards(updatedGame, player.id, tech.bonus.card);
         gains.push(`${tech.bonus.card} Carte`);
       }
       if (tech.bonus.probe) {
@@ -123,6 +124,7 @@ export class TechnologySystem {
         if (result.probeId) {
             updatedGame.board = result.updatedGame.board;
             updatedGame.players = result.updatedGame.players;
+            historyEntries = result.historyEntries;
             gains.push(`1 Sonde`);
         } else {
             gains.push(`1 Sonde (Perdue: Limite atteinte)`);
@@ -179,6 +181,6 @@ export class TechnologySystem {
         player.activeBuffs = player.activeBuffs.filter((_, index) => !buffsToRemove.includes(index));
     }
 
-    return { updatedGame, gains };
+    return { updatedGame, gains, historyEntries };
   }
 }
