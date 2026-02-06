@@ -761,7 +761,8 @@ export const BoardUI: React.FC = () => {
     }
 
     // Vérifier les paliers neutres
-    for (const m of NEUTRAL_MILESTONES) {
+    const neutralMilestonesToCheck = currentState.players.length < 4 ? NEUTRAL_MILESTONES : [];
+    for (const m of neutralMilestonesToCheck) {
       if (currentPlayer.score >= m && !currentPlayer.claimedNeutralMilestones.includes(m)) {
         // Marquer comme réclamé pour ce joueur
         currentPlayer.claimedNeutralMilestones.push(m);
@@ -2116,69 +2117,6 @@ export const BoardUI: React.FC = () => {
     }
   };
 
-  const executePlayCard = (cardId: string) => {
-    if (!game || !gameRef.current) return;
-
-    const currentGame = gameRef.current;
-    const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
-
-    const result = CardSystem.playCard(currentGame, currentPlayer.id, cardId);
-
-    const sequenceId = `seq-${Date.now()}`;
-
-    console.log(result);
-    const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs: allBonusLogs, historyEntries: bonusHistoryEntries } = ResourceSystem.processBonuses(result.bonuses || {}, result.updatedGame, currentPlayer.id, cardId, sequenceId);
-    console.log(newPendingInteractions);
-
-    const card = currentGame.players[currentGame.currentPlayerIndex].cards.find(c => c.id === cardId)!;
-    setGame(gameAfterBonuses);
-    if (gameEngineRef.current) gameEngineRef.current.setState(gameAfterBonuses);
-
-    // Construction du message d'historique unifié
-    let message = `paye ${card.cost} crédit${card.cost > 1 ? 's' : ''} pour jouer carte "${card.name}"`;
-
-    if (result.bonuses && result.bonuses.subventionDetails) {
-      const { cardName, bonusText } = result.bonuses.subventionDetails;
-      message += ` et pioche la carte "${cardName}" pour gagner ${bonusText}`;
-
-      if (bonusText === "1 Donnée") {
-        const idx = passiveGains.indexOf(ResourceSystem.formatResource(1, 'DATA'));
-        if (idx > -1) passiveGains.splice(idx, 1);
-      } else if (bonusText === "1 Média") {
-        const idx = passiveGains.indexOf(ResourceSystem.formatResource(1, 'MEDIA'));
-        if (idx > -1) passiveGains.splice(idx, 1);
-      }
-    }
-
-    // Filtrer les logs pour séparer ce qu'on fusionne de ce qu'on garde séparé
-    const isPassiveLog = (log: string) => log.startsWith('gagne ') || log.startsWith('pioche ');
-    const isMovementLog = (log: string) => log.includes('déplacement') && log.includes('gratuit');
-
-    const movementLogs = allBonusLogs.filter(isMovementLog);
-    const otherLogs = allBonusLogs.filter(log => !isPassiveLog(log) && !isMovementLog(log));
-
-    const extras = [];
-    if (passiveGains.length > 0) {
-      extras.push(`gagne ${passiveGains.join(', ')}`);
-    }
-    if (movementLogs.length > 0) {
-      extras.push(movementLogs.join(', '));
-    }
-    if (extras.length > 0) {
-      message += ` et ${extras.join(' et ')}`;
-    }
-
-    addToHistory(message, currentPlayer.id, currentGame, undefined, sequenceId);
-    if (otherLogs.length > 0) {
-      otherLogs.forEach(log => addToHistory(log, currentPlayer.id, gameAfterBonuses, undefined, sequenceId));
-    }
-
-    // Add history entries from processBonuses (objects)
-    if (bonusHistoryEntries && bonusHistoryEntries.length > 0) {
-      bonusHistoryEntries.forEach(entry => addToHistory(entry.message, entry.playerId, gameAfterBonuses, undefined, sequenceId));
-    }
-  };
-
   // Gestionnaire pour l'action gratuite (défausse de carte)
   const handleDiscardCardAction = (cardId: string) => {
     if (!game) return;
@@ -2576,7 +2514,10 @@ export const BoardUI: React.FC = () => {
       {/* Panneau de débogage pour le développement */}
       <DebugPanel
         game={game}
-        setGame={setGame}
+        setGame={(newGame) => {
+          setGame(newGame);
+          if (gameEngineRef.current) gameEngineRef.current.setState(newGame);
+        }}
         onHistory={addToHistory}
         interactionState={interactionState} />
 
@@ -2673,21 +2614,6 @@ export const BoardUI: React.FC = () => {
 
       {/* Ecran de fin de partie */}
       {game.phase === GamePhase.FINAL_SCORING && <EndGameModal game={game} />}
-
-      {/* Overlay pour la recherche de technologie ou l'achat de carte */}
-      {/*(interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'RESERVING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') && (
-        <div className="seti-interaction-overlay" onClick={() => {
-          if (interactionState.type === 'ACQUIRING_CARD') {
-            setInteractionState({ type: 'IDLE' });
-          } else if (interactionState.type === 'SELECTING_SCAN_CARD') {
-            // Cannot cancel easily in middle of sequence, maybe toast warning?
-          } else if (interactionState.type === 'RESERVING_CARD') {
-            setToast({ message: "Veuillez sélectionner une carte à réserver.", visible: true });
-          } else {
-            setToast({ message: "Veuillez sélectionner une technologie.", visible: true });
-          }
-        }} />
-      )*/}
 
       <div className="seti-root-inner">
         <div className="seti-left-panel">

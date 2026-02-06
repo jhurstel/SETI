@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Game, InteractionState, GOLDEN_MILESTONES } from '../core/types';
+import { Game, InteractionState, GOLDEN_MILESTONES, NEUTRAL_MILESTONES } from '../core/types';
 import './ObjectiveBoardUI.css';
 
 interface ObjectiveBoardUIProps {
@@ -16,6 +16,10 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
         setIsObjectivesOpen(isInitiallyOpen);
     }, [isInitiallyOpen]);
 
+    const maxScore = Math.max(...game.players.map(p => p.score));
+    const trackMax = maxScore > 100 ? Math.ceil(maxScore / 100) * 100 : 100;
+    const getPosition = (val: number) => (val / trackMax) * 100;
+
     return (
         <div className={`seti-foldable-container seti-icon-panel seti-objective-container ${isObjectivesOpen ? 'open' : 'collapsed'}`}>
             <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
@@ -23,6 +27,54 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                 <span className="panel-title">Objectifs</span>
             </div>
             <div className="seti-foldable-content">
+                <div className="seti-score-track" style={{ padding: '20px 10px 30px 10px', position: 'relative', borderBottom: '1px solid #444', marginBottom: '10px' }}>
+                    <div style={{ height: '4px', background: '#555', borderRadius: '2px', position: 'relative' }}>
+                        {/* Paliers Neutres */}
+                        {game.players.length < 4 && NEUTRAL_MILESTONES.map(m => (
+                            <div key={`neutral-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '-6px', width: '2px', height: '16px', background: '#aaa', zIndex: 1 }}
+                                onMouseEnter={(e) => setActiveTooltip({ content: <div>Palier Neutre: {m} PV</div>, rect: e.currentTarget.getBoundingClientRect() })}
+                                onMouseLeave={() => setActiveTooltip(null)}
+                            >
+                                <div style={{ position: 'absolute', top: '-15px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: '#aaa' }}>{m}</div>
+                            </div>
+                        ))}
+                        {/* Paliers Objectifs */}
+                        {GOLDEN_MILESTONES.map(m => (
+                            <div key={`golden-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '-8px', width: '2px', height: '20px', background: '#ffd700', zIndex: 1 }}
+                                onMouseEnter={(e) => setActiveTooltip({ content: <div>Palier Objectif: {m} PV</div>, rect: e.currentTarget.getBoundingClientRect() })}
+                                onMouseLeave={() => setActiveTooltip(null)}
+                            >
+                                <div style={{ position: 'absolute', top: '-15px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: '#ffd700' }}>{m}</div>
+                            </div>
+                        ))}
+                        {/* Joueurs */}
+                        {game.players.map(p => {
+                            const playersAtScore = game.players.filter(other => other.score === p.score);
+                            const indexAtScore = playersAtScore.findIndex(other => other.id === p.id);
+                            const offset = indexAtScore * 14 + 8;
+                            
+                            return (
+                                <div key={p.id} style={{
+                                    position: 'absolute',
+                                    left: `${getPosition(p.score)}%`,
+                                    top: `${offset}px`,
+                                    width: '12px',
+                                    height: '12px',
+                                    borderRadius: '50%',
+                                    backgroundColor: p.color,
+                                    border: '1px solid #fff',
+                                    transform: 'translateX(-50%)',
+                                    zIndex: 2,
+                                    cursor: 'help'
+                                }}
+                                onMouseEnter={(e) => setActiveTooltip({ content: <div>{p.name}: {p.score} PV</div>, rect: e.currentTarget.getBoundingClientRect() })}
+                                onMouseLeave={() => setActiveTooltip(null)}
+                                />
+                            );
+                        })}
+                    </div>
+                    <div style={{ position: 'absolute', right: '0', top: '10px', fontSize: '0.7em', color: '#666' }}>{trackMax}</div>
+                </div>
                 <div className="seti-objective-grid">
                     {game.board.objectiveTiles && game.board.objectiveTiles.map(tile => (
                         <div key={tile.id}

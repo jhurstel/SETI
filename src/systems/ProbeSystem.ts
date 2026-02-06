@@ -439,7 +439,7 @@ export class ProbeSystem {
 
                 if (buff.source) {
                     const mission = updatedPlayer.missions.find(m => m.name === buff.source);
-                    if (mission) {
+                    if (mission.) {
                         mission.progress.current += 1;
                         if (gains.length > 0) {
                             message += ` et gagne ${gains.join(', ')} (Mission "${buff.source}")`;
@@ -988,11 +988,11 @@ export class ProbeSystem {
           const newVisibleLevel = getVisibleLevel(pos.disk, absoluteSector, newRotationState);
           
           // Si recouverte par un niveau supérieur qui a bougé -> Poussée
-          // Note: La hiérarchie visuelle est Level 1 (Haut) > Level 2 > Level 3 > Level 0 (Bas/Fixe)
-          // On est recouvert si le nouveau niveau visible est < au nôtre (ex: 1 couvre 2)
+          // Note: La hiérarchie visuelle est Level 3 (Haut) > Level 2 > Level 1 > Level 0 (Bas/Fixe)
+          // On est recouvert si le nouveau niveau visible est > au nôtre (ex: 2 couvre 1)
           // Ou si on est sur le niveau 0 et qu'un niveau > 0 nous couvre
           const currentLevel = pos.level || 0;
-          const isCovered = newVisibleLevel !== 0 && (currentLevel === 0 || newVisibleLevel < currentLevel);
+          const isCovered = newVisibleLevel !== 0 && (currentLevel === 0 || newVisibleLevel > currentLevel);
 
           if (isCovered && pushDirection !== 0) {
             const sectorIndex = (absoluteSector - 1 + pushDirection + 8) % 8;

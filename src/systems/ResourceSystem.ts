@@ -94,7 +94,7 @@ export class ResourceSystem {
         return { updatedGame: game, error: "Carte non trouvée dans la rangée" };
       }
     } else {
-      updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, 'Achat');
+      updatedGame = CardSystem.drawCards(updatedGame, playerId, 1);
     }
 
     return { updatedGame };
@@ -125,7 +125,7 @@ export class ResourceSystem {
     } else if (normalizedGain === 'energy') {
         player.energy += 1;
     } else if (normalizedGain === 'carte' || normalizedGain === 'card') {
-        updatedGame = CardSystem.drawCards(updatedGame, playerId, 1, 'Echange');
+        updatedGame = CardSystem.drawCards(updatedGame, playerId, 1);
     } else {
          return { updatedGame: game, error: "Type de ressource à recevoir invalide" };
     }

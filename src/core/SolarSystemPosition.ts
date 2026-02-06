@@ -260,16 +260,11 @@ export function calculateAbsolutePosition(
   let absoluteSector = object.position.sector;
   
   // Appliquer les rotations selon le niveau
-  if (object.level === 1) {
-    // Le niveau 1 tourne avec le niveau 2 (Rouge) et le niveau 3 (Jaune)
-    absoluteSector = rotateSector(absoluteSector, rotationState.level1Angle);
-  } else if (object.level === 2) {
-    // Le niveau 2 tourne avec le niveau 3 (Jaune)
-    absoluteSector = rotateSector(absoluteSector, rotationState.level2Angle);
-  } else if (object.level === 3) {
-    // Le niveau 3 tourne seul
-    absoluteSector = rotateSector(absoluteSector, rotationState.level3Angle);
-  }
+  // La logique de couplage des rotations (ex: niveau 1 fait tourner 2 et 3)
+  // est gérée en amont par la mise à jour des angles dans rotationState.
+  if (object.level === 1) absoluteSector = rotateSector(absoluteSector, rotationState.level1Angle);
+  else if (object.level === 2) absoluteSector = rotateSector(absoluteSector, rotationState.level2Angle);
+  else if (object.level === 3) absoluteSector = rotateSector(absoluteSector, rotationState.level3Angle);
   // Niveau 0 (fixe) : pas de rotation
   
   // Calculer les coordonnées X et Y (sera calculé plus tard si nécessaire)
@@ -322,7 +317,8 @@ export function getVisibleLevel(
   // Niveau 1 (Bleu - Bot) - Disque A, B, C
   if (disk === 'A' || disk === 'B' || disk === 'C') {
     const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
-    if (!HOLLOW_ZONES.level1.A.includes(level1Sector)) {
+    const hollowZones = HOLLOW_ZONES.level1[disk];
+    if (hollowZones && !hollowZones.includes(level1Sector)) {
       return 1;
     }
   }
@@ -336,46 +332,47 @@ export function getVisibleLevel(
  * On ne vérifie que si les niveaux SUPÉRIEURS à l'objet le cachent.
  */
 function checkVisibilityAboveLevel(
-  objectLevel: number,
-  disk: DiskName,
-  absoluteSector: SectorNumber,
-  rotationState: RotationState
+    objectLevel: number,
+    disk: DiskName,
+    absoluteSector: SectorNumber,
+    rotationState: RotationState
 ): boolean {
-  // Le disque D est toujours visible (pas de plateau rotatif au-dessus)
-  if (disk === 'D') {
+    // Les disques D et E sont toujours visibles car ils sont sur le dessus ou en dehors des plateaux rotatifs.
+    if (disk === 'D' || disk === 'E') {
+        return true;
+    }
+
+    // Vérifier le niveau 3 (Jaune - Top) - Disque A uniquement
+    // Si l'objet est en dessous du niveau 3, on vérifie si le niveau 3 le cache
+    if (objectLevel < 3 && disk === 'A') {
+        const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
+        const hollowZones = HOLLOW_ZONES.level3[disk];
+        if (hollowZones && !hollowZones.includes(level3Sector)) {
+            return false; // Recouvert par le niveau 3
+        }
+    }
+
+    // Vérifier le niveau 2 (Rouge - Mid) - Disques A et B
+    // Si l'objet est en dessous du niveau 2, on vérifie si le niveau 2 le cache
+    if (objectLevel < 2 && (disk === 'A' || disk === 'B')) {
+        const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
+        const hollowZones = HOLLOW_ZONES.level2[disk];
+        if (hollowZones && !hollowZones.includes(level2Sector)) {
+            return false; // Recouvert par le niveau 2
+        }
+    }
+
+    // Vérifier le niveau 1 (Bleu - Bot) - Disques A, B, C
+    // Si l'objet est en dessous du niveau 1, on vérifie si le niveau 1 le cache
+    if (objectLevel < 1 && (disk === 'A' || disk === 'B' || disk === 'C')) {
+        const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
+        const hollowZones = HOLLOW_ZONES.level1[disk];
+        if (hollowZones && !hollowZones.includes(level1Sector)) {
+            return false; // Recouvert par le niveau 1
+        }
+    }
+
     return true;
-  }
-  
-  // Niveau 1 (Bleu - Bot)
-  // Si l'objet est en dessous du niveau 1, on vérifie si le niveau 1 le cache
-  if (objectLevel == 0 && disk === 'A' || disk === 'B' || disk === 'C') {
-    const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
-    if (!HOLLOW_ZONES.level1.A.includes(level1Sector)) {
-      return false; // Recouvert par le niveau 1
-    }
-  }
-  
-  // Niveau 2 (Rouge - Mid)
-  // Si l'objet est en dessous du niveau 2 (donc 1 ou 0), on vérifie si le niveau 2 le cache
-  if ((objectLevel === 1 || objectLevel === 0) && (disk === 'A' || disk === 'B')) {
-    const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
-    const hollowZones = HOLLOW_ZONES.level2[disk];
-    if (hollowZones && !hollowZones.includes(level2Sector)) {
-      return false; // Recouvert par le niveau 2
-    }
-  }
-  
-  // Niveau 3 (Jaune - Top)
-  // Si l'objet est en dessous du niveau 3 (donc 2, 1, ou 0), on vérifie si le niveau 3 le cache
-  if ((objectLevel === 2 || objectLevel === 1 || objectLevel === 0) && (disk === 'A')) {
-    const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
-    const hollowZones = HOLLOW_ZONES.level3[disk];
-    if (hollowZones && !hollowZones.includes(level3Sector)) {
-      return false; // Recouvert par le niveau 3
-    }
-  }
-  
-  return true;
 }
 
 /**
@@ -758,11 +755,10 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
 {
     let updatedGame = structuredClone(game);
     const currentLevel = updatedGame.board.solarSystem.nextRingLevel;
-    const solarSystem = updatedGame.board.solarSystem
     const oldRotationState = createRotationState(
-      solarSystem.rotationAngleLevel1 || 0,
-      solarSystem.rotationAngleLevel2 || 0,
-      solarSystem.rotationAngleLevel3 || 0
+      updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel3 || 0
     );
 
     if (currentLevel === 1) { // Bleu
@@ -770,8 +766,8 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
       updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
       updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
     } else if (currentLevel === 2) { // Rouge
-      updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
       updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+      updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
     } else if (currentLevel === 3) { // Jaune
       updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
     }
@@ -779,9 +775,9 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
     updatedGame.board.solarSystem.nextRingLevel = currentLevel === 1 ? 3 : currentLevel - 1;
 
     const newRotationState = createRotationState(
-      solarSystem.rotationAngleLevel1 || 0,
-      solarSystem.rotationAngleLevel2 || 0,
-      solarSystem.rotationAngleLevel3 || 0
+      updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+      updatedGame.board.solarSystem.rotationAngleLevel3 || 0
     );
 
     const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);

@@ -512,6 +512,46 @@ export class CardSystem {
 
         const sequenceId = `seq-${Date.now()}`;
         const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs, historyEntries } = ResourceSystem.processBonuses(bonuses || {}, updatedGame, player.id, cardId, sequenceId);
+
+        // Construction du message d'historique unifié
+        let message = `paye ${card.cost} crédit${card.cost > 1 ? 's' : ''} pour jouer carte "${card.name}"`;
+
+        if (bonuses && bonuses.subventionDetails) {
+        const { cardName, bonusText } = bonuses.subventionDetails;
+        message += ` et pioche la carte "${cardName}" pour gagner ${bonusText}`;
+
+        if (bonusText === "1 Donnée") {
+            const idx = passiveGains.indexOf(ResourceSystem.formatResource(1, 'DATA'));
+            if (idx > -1) passiveGains.splice(idx, 1);
+        } else if (bonusText === "1 Média") {
+            const idx = passiveGains.indexOf(ResourceSystem.formatResource(1, 'MEDIA'));
+            if (idx > -1) passiveGains.splice(idx, 1);
+        }
+        }
+
+        // Filtrer les logs pour séparer ce qu'on fusionne de ce qu'on garde séparé
+        const isPassiveLog = (log: string) => log.startsWith('gagne ') || log.startsWith('pioche ');
+        const isMovementLog = (log: string) => log.includes('déplacement') && log.includes('gratuit');
+
+        const movementLogs = logs.filter(isMovementLog);
+        const otherLogs = logs.filter(log => !isPassiveLog(log) && !isMovementLog(log));
+
+        const extras = [];
+        if (passiveGains.length > 0) {
+        extras.push(`gagne ${passiveGains.join(', ')}`);
+        }
+        if (movementLogs.length > 0) {
+        extras.push(movementLogs.join(', '));
+        }
+        if (extras.length > 0) {
+        message += ` et ${extras.join(' et ')}`;
+        }
+
+        historyEntries.unshift({message, playerId, sequenceId });
+        if (otherLogs.length > 0) {
+            otherLogs.forEach(log => historyEntries.push({ message: log, playerId, sequenceId }));
+        }
+
         return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions };
     }
 
