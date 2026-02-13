@@ -695,7 +695,15 @@ export class ProbeSystem {
     probe.state = ProbeState.LANDED;
     probe.planetId = planetId;
     probe.isLander = true;
-    probe.planetSlotIndex = (forcedSlotIndex !== undefined) ? forcedSlotIndex : (targetBody.landers || []).length;
+    
+    let slotIndex = forcedSlotIndex;
+    if (slotIndex === undefined) {
+        const occupiedIndices = new Set((targetBody.landers || []).map((p: Probe) => p.planetSlotIndex));
+        let k = 0;
+        while (occupiedIndices.has(k)) k++;
+        slotIndex = k;
+    }
+    probe.planetSlotIndex = slotIndex;
 
     // Ajouter la sonde aux atterrisseurs de la cible
     if (targetBody) {

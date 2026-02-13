@@ -672,7 +672,7 @@ export function getCell(
 export function getAbsoluteSectorForProbe(
   solarPosition: { disk: DiskName, sector: SectorNumber }, 
   rotationState: { level1Angle: number, level2Angle: number, level3Angle: number }
-): number {
+): SectorNumber {
   let angle = 0;
   // Disk C is level 1 (innermost), B is 2, A is 3 (outermost)
   if (solarPosition.disk === 'A') {

@@ -549,6 +549,8 @@ export type InteractionState =
   | { type: 'DISCARDING_FOR_SIGNAL', count: number, selectedCards: string[], sequenceId?: string }
   /** Le joueur doit retirer un orbiteur (Carte 15). */
   | { type: 'REMOVING_ORBITER', sequenceId?: string }
+  /** Le joueur doit retirer un atterrisseur (Carte 84). */
+  | { type: 'REMOVING_LANDER', sequenceId?: string }
   /** Le joueur a reçu plusieurs bonus interactifs et doit choisir l'ordre de résolution. */
   | { type: 'CHOOSING_BONUS_ACTION', bonusesSummary: string, choices: { id: string, label: string, state: InteractionState, done: boolean }[], sequenceId?: string }
   /** Un effet de carte non-interactif est déclenché. */

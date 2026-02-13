@@ -73,6 +73,8 @@ const ComputerSlotUI = ({
       }
       if (isPreviousFilled && slot.type !== 'top') {
         actionLine = <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Nécessite une technologie informatique</div>;
+      } else if (!hasData) {
+        actionLine = <div style={{ fontSize: '0.8em', color: '#ff6b6b', marginTop: '4px', fontStyle: 'italic' }}>Nécessite 1 donnée</div>;
       } else {
         actionLine = <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Nécessite le slot précédent</div>;
       }

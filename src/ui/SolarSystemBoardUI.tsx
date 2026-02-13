@@ -97,6 +97,158 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
   // État pour le tooltip des slots (orbite/atterrissage) pour qu'il s'affiche par-dessus celui de la planète
   const [slotTooltip, setSlotTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
+  const [hoveredSlot, setHoveredSlot] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number, rect: DOMRect } | null>(null);
+
+  // État pour gérer l'animation de retrait
+  const [removingItem, setRemovingItem] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number } | null>(null);
+  const processingRef = useRef(false);
+
+  // Helper pour gérer le clic sur un slot (orbite ou atterrissage) avec animation de retrait si nécessaire
+  const handleSlotClick = (
+    e: React.MouseEvent,
+    isClickable: boolean,
+    actionFn: ((planetId: string, index: number) => void) | undefined,
+    planetId: string,
+    index: number,
+    removalType?: 'orbiter' | 'lander'
+  ) => {
+    if (processingRef.current) return;
+    
+    if (isClickable && actionFn) {
+      e.stopPropagation();
+      if (removalType) {
+        processingRef.current = true;
+        setRemovingItem({ type: removalType, planetId, index });
+        setTimeout(() => {
+          actionFn(planetId, index);
+          setRemovingItem(null);
+          processingRef.current = false;
+        }, 500);
+      } else {
+        actionFn(planetId, index);
+      }
+    }
+  };
+
+  // Fonction pour calculer le contenu du tooltip d'un slot (Orbite/Atterrissage)
+  // Cette fonction est appelée au niveau racine pour éviter les problèmes de rendu dans le SVG
+  const getSlotTooltipContent = () => {
+    if (!hoveredSlot || removingItem) return null;
+    const { type, planetId, index } = hoveredSlot;
+    
+    const planetData = game.board.planets.find(p => p.id === planetId);
+    if (!planetData) return null;
+    
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    const isRobot = currentPlayer.type === 'robot';
+    
+    // Trouver l'objet céleste pour vérifier la position de la sonde du joueur
+    const targetObj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS].find(o => o.id === planetId);
+    const playerProbe = targetObj && game.board.solarSystem.probes.find(p =>
+      p.ownerId === currentPlayer.id &&
+      p.state === ProbeState.IN_SOLAR_SYSTEM &&
+      p.solarPosition.disk === targetObj.position.disk &&
+      p.solarPosition.sector === targetObj.position.sector &&
+      p.solarPosition.level === targetObj.level
+    );
+
+    if (type === 'orbiter') {
+        const orbitSlots = planetData.orbitSlots || [];
+        if (index >= orbitSlots.length) return null;
+        const bonus = orbitSlots[index];
+        const probe = planetData.orbiters[index];
+        const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
+        const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
+        
+        const isOccupied = !!player;
+        const isNextAvailable = index === planetData.orbiters.length;
+        
+        let canOrbit = false;
+        let orbitReason = "";
+        if (playerProbe) {
+             if (currentPlayer.hasPerformedMainAction || isRobot) {
+                orbitReason = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
+             } else {
+                const check = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id);
+                canOrbit = check.canOrbit;
+                orbitReason = check.reason || "Impossible";
+             }
+        } else {
+            orbitReason = "Nécessite une sonde sur la planète";
+        }
+
+        let isClickable = false;
+        if (interactionState.type === 'REMOVING_ORBITER') {
+            isClickable = isOccupied && player?.id === currentPlayer.id && !!onOrbit;
+        } else {
+            isClickable = isNextAvailable && canOrbit && !!onOrbit;
+        }
+        
+        return renderTooltipContent(isOccupied, isClickable, player, bonusText, orbitReason, "Cliquez pour mettre en orbite (Coût: 1 Crédit, 1 Énergie)", interactionState.type === 'REMOVING_ORBITER');
+    }
+    
+    if (type === 'lander') {
+        const landSlots = planetData.landSlots || [];
+        if (index >= landSlots.length) return null;
+        const bonus = landSlots[index];
+        
+        const probesOnSlot = planetData.landers.filter(p => p.planetSlotIndex === index);
+        const probe = probesOnSlot.length > 0 ? probesOnSlot[probesOnSlot.length - 1] : undefined;
+        const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
+        const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
+        
+        const isOccupied = !!player;
+        const isPrevSlotOccupied = index === 0 || planetData.landers.some(p => p.planetSlotIndex === index - 1);
+        const isNextAvailable = !isOccupied && isPrevSlotOccupied;
+        const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
+        
+        let canLand = false;
+        let landReason = "";
+        let landEnergyCost = 0;
+        
+        if (playerProbe) {
+             if ((currentPlayer.hasPerformedMainAction && !(interactionState.type === 'LANDING_PROBE')) || isRobot) {
+                landReason = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
+             } else {
+                const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !(interactionState.type === 'LANDING_PROBE'));
+                canLand = check.canLand;
+                landEnergyCost = check.energyCost || 0;
+                landReason = check.reason || "Impossible";
+             }
+        } else {
+            landReason = "Nécessite une sonde sur la planète";
+        }
+
+        const isClickable = (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
+        
+        const actionTextSuccess = interactionState.type === 'LANDING_PROBE' 
+            ? "Cliquez pour atterrir (Bonus)" 
+            : `Cliquez pour atterrir (Coût: ${landEnergyCost} Énergie)`;
+
+        return renderTooltipContent(isOccupied, isClickable, player, bonusText, landReason, actionTextSuccess, interactionState.type === 'REMOVING_LANDER');
+    }
+    return null;
+  };
+
+  const renderTooltipContent = (isOccupied: boolean, isClickable: boolean, player: any, bonusText: string, reason: string, actionTextSuccess: string, isRemovingMode: boolean) => {
+      let statusText = isOccupied ? `Occupé par ${player?.name}` : (isClickable ? "Disponible" : "Indisponible");
+      let statusColor = isOccupied ? (player?.color || "#ccc") : (isClickable ? "#4a9eff" : "#ff6b6b");
+      let actionText: string | null = isClickable ? actionTextSuccess : reason;
+
+      if (isOccupied && isClickable && isRemovingMode) {
+          statusText = "Cliquez pour retirer";
+          statusColor = "#ff6b6b";
+          actionText = null;
+      }
+
+      return (
+        <div style={{ textAlign: 'center' }}>
+            <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>{statusText}</div>
+            <div style={{ fontSize: '0.9em', color: '#ccc' }}>{isRemovingMode && isClickable ? <>Gain retrait : <span style={{ color: '#ffd700' }}>3 PV, 1 Donnée, 1 Carte</span></> : <>Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span></>}</div>
+            {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
+        </div>
+      );
+  };
 
   // Calcul des secteurs à mettre en surbrillance (flash vert)
   const getHighlightedSectors = () => {
@@ -661,7 +813,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         const left = (size / 2) + x - (satSize / 2);
 
         const bonus = satellite.landBonus;
-        const probe = satellite.landers && satellite.landers[0];
+        const probe = satellite.landers && satellite.landers.length > 0 ? satellite.landers[satellite.landers.length - 1] : undefined;
         const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
 
         const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
@@ -915,14 +1067,15 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                     const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
                     const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
 
+                    const isRemoving = removingItem?.type === 'orbiter' && removingItem?.planetId === planetData.id && removingItem?.index === i;
                     const isOccupied = !!player;
                     const isNextAvailable = i === planetData.orbiters.length;
 
                     let isClickable = false;
                     if (interactionState.type === 'REMOVING_ORBITER') {
-                      isClickable = isOccupied && player?.id === currentPlayer.id && !!onOrbit;
+                      isClickable = !removingItem && isOccupied && player?.id === currentPlayer.id && !!onOrbit;
                     } else {
-                      isClickable = isNextAvailable && canOrbit && !!onOrbit;
+                      isClickable = !removingItem && isNextAvailable && canOrbit && !!onOrbit;
                     }
 
                     let statusText = "";
@@ -952,33 +1105,56 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                           {statusText}
                         </div>
                         <div style={{ fontSize: '0.9em', color: '#ccc' }}>
-                          Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span>
+                          {interactionState.type === 'REMOVING_ORBITER' && isClickable ? (
+                            <>Gain retrait : <span style={{ color: '#ffd700' }}>3 PV, 1 Donnée, 1 Carte</span></>
+                          ) : (
+                            <>Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span></>
+                          )}
                         </div>
                         {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
                       </div>
                     );
 
                     const isFirst = i === 0;
-
+                    const showFullToken = isFirst || !!player;
+                    
                     return (
                       <g key={`orb-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: isClickable ? 'pointer' : 'help', pointerEvents: 'auto' }}
-                        onClick={(e) => {
-                          if (isClickable && onOrbit && planetData) { e.stopPropagation(); onOrbit(planetData.id, i); }
-                        }}
+                        onClick={(e) => handleSlotClick(e, isClickable, onOrbit, planetData.id, i, interactionState.type === 'REMOVING_ORBITER' ? 'orbiter' : undefined)}
                         onMouseEnter={(e) => {
                           if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); // Garde le tooltip principal ouvert
-                          setSlotTooltip({ content: tooltipContent, rect: e.currentTarget.getBoundingClientRect() });
+                          setHoveredSlot({ type: 'orbiter', planetId: planetData.id, index: i, rect: e.currentTarget.getBoundingClientRect() });
                         }}
-                        onMouseLeave={() => setSlotTooltip(null)}
+                        onMouseLeave={() => setHoveredSlot(null)}
                       >
-                        {isClickable && <circle r={orbiterCircleRadius + 6} fill="none" stroke="#00ff00" strokeWidth="3" opacity="0.6" />}
-                        {isFirst ? (
+                        {isClickable && !removingItem && <circle r={orbiterCircleRadius + 6} fill="none" stroke="#00ff00" strokeWidth="3" opacity="0.6" />}
+                        {showFullToken ? (
                           <>
-                            <circle r={orbiterCircleRadius} fill={player?.color || '#222'} stroke="#fff" strokeWidth="1.5" />
+                            <circle 
+                                r={orbiterCircleRadius} 
+                                fill={player?.color || '#222'} 
+                                stroke="#fff" 
+                                strokeWidth="1.5" 
+                                style={{
+                                    transition: 'all 0.5s ease',
+                                    opacity: isRemoving ? 0 : 1,
+                                    transform: isRemoving ? 'scale(0)' : 'scale(1)',
+                                    transformBox: 'fill-box',
+                                    transformOrigin: 'center'
+                                }}
+                            />
                             {!player && renderBonusContent(bonus)}
                           </>
                         ) : (
-                          <circle r={4} fill={player?.color || `url(#corridor-grad-${planetData.id})`} />
+                          <circle r={4} fill={player?.color || `url(#corridor-grad-${planetData.id})`} 
+                            style={{
+                                transition: 'all 0.5s ease',
+                                opacity: isRemoving ? 0 : 1,
+                                transform: isRemoving ? 'scale(0)' : 'scale(1)',
+                                transformBox: 'fill-box',
+                                transformOrigin: 'center'
+                            }}
+                          />
                         )}
                       </g>
                     );
@@ -987,14 +1163,18 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                   {/* Slots Atterrisseurs */}
                   {landSlots.map((bonus, i) => {
                     const pos = landPositions[i];
-                    const probe = planetData.landers[i];
+                    
+                    const probesOnSlot = planetData.landers.filter(p => p.planetSlotIndex === i);
+                    const probe = probesOnSlot.length > 0 ? probesOnSlot[probesOnSlot.length - 1] : undefined;
                     const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
                     const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
+                    const isRemoving = removingItem?.type === 'lander' && removingItem?.planetId === planetData.id && removingItem?.index === i;
 
                     const isOccupied = !!player;
-                    const isNextAvailable = i === planetData.landers.length;
+                    const isPrevSlotOccupied = i === 0 || planetData.landers.some(p => p.planetSlotIndex === i - 1);
+                    const isNextAvailable = !isOccupied && isPrevSlotOccupied;
                     const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
-                    const isClickable = (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
+                    const isClickable = !removingItem && (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
 
                     let statusText = "";
                     let statusColor = "";
@@ -1023,33 +1203,56 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                           {statusText}
                         </div>
                         <div style={{ fontSize: '0.9em', color: '#ccc' }}>
-                          Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span>
+                          {interactionState.type === 'REMOVING_LANDER' && isClickable ? (
+                            <>Gain retrait : <span style={{ color: '#ffd700' }}>3 PV, 1 Donnée, 1 Carte</span></>
+                          ) : (
+                            <>Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span></>
+                          )}
                         </div>
                         {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
                       </div>
                     );
 
                     const isFullSlot = i === 0 || (planetData.id === 'mars' && i === 1);
-
+                    const showFullToken = isFullSlot || !!player;
+                    
                     return (
                       <g key={`land-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: isClickable ? 'pointer' : 'help', pointerEvents: 'auto' }}
-                        onClick={(e) => {
-                          if (isClickable && onLand && planetData) { e.stopPropagation(); onLand(planetData.id, i); }
-                        }}
+                        onClick={(e) => handleSlotClick(e, isClickable, onLand, planetData.id, i, interactionState.type === 'REMOVING_LANDER' ? 'lander' : undefined)}
                         onMouseEnter={(e) => {
                           if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); // Garde le tooltip principal ouvert
-                          setSlotTooltip({ content: tooltipContent, rect: e.currentTarget.getBoundingClientRect() });
+                          setHoveredSlot({ type: 'lander', planetId: planetData.id, index: i, rect: e.currentTarget.getBoundingClientRect() });
                         }}
-                        onMouseLeave={() => setSlotTooltip(null)}
+                        onMouseLeave={() => setHoveredSlot(null)}
                       >
-                        {isClickable && <circle r={landerCircleRadius + 6} fill="none" stroke="#00ff00" strokeWidth="3" opacity="0.6" />}
-                        {isFullSlot ? (
+                        {isClickable && !removingItem && <circle r={landerCircleRadius + 6} fill="none" stroke="#00ff00" strokeWidth="3" opacity="0.6" />}
+                        {showFullToken ? (
                           <>
-                            <circle r={landerCircleRadius} fill={player?.color || 'rgba(0,0,0,0.6)'} stroke="rgba(255,255,255,0.8)" strokeWidth="1.5" />
+                            <circle 
+                                r={landerCircleRadius} 
+                                fill={player?.color || 'rgba(0,0,0,0.6)'} 
+                                stroke="rgba(255,255,255,0.8)" 
+                                strokeWidth="1.5" 
+                                style={{
+                                    transition: 'all 0.5s ease',
+                                    opacity: isRemoving ? 0 : 1,
+                                    transform: isRemoving ? 'scale(0)' : 'scale(1)',
+                                    transformBox: 'fill-box',
+                                    transformOrigin: 'center'
+                                }}
+                            />
                             {!player && renderBonusContent(bonus)}
                           </>
                         ) : (
-                          <circle r={4} fill={player?.color || `url(#land-corridor-grad-${planetData.id})`} />
+                          <circle r={4} fill={player?.color || `url(#land-corridor-grad-${planetData.id})`} 
+                            style={{
+                                transition: 'all 0.5s ease',
+                                opacity: isRemoving ? 0 : 1,
+                                transform: isRemoving ? 'scale(0)' : 'scale(1)',
+                                transformBox: 'fill-box',
+                                transformOrigin: 'center'
+                            }}
+                          />
                         )}
                       </g>
                     );
@@ -1091,7 +1294,13 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       p.solarPosition.level === obj.level
     );
     let canInteract = false;
-    if (!currentPlayer.hasPerformedMainAction && !isRobot) {
+    
+    if (interactionState.type === 'REMOVING_ORBITER') {
+        const planetData = game.board.planets.find(p => p.id === obj.id);
+        if (planetData && planetData.orbiters.some(p => p.ownerId === currentPlayer.id)) {
+            canInteract = true;
+        }
+    } else if (!currentPlayer.hasPerformedMainAction && !isRobot) {
       if (obj.id === 'earth') {
         canInteract = ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch;
       } else if (playerProbe) {
@@ -1668,6 +1877,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               width: boardSize ? `${boardSize}px` : '0px',
               height: boardSize ? `${boardSize}px` : '0px',
               opacity: boardSize ? 1 : 0,
+              pointerEvents: removingItem ? 'none' : 'auto',
             }}>
             {/* Zone de clic arrière-plan pour annuler l'interaction (z-index 0, sous les planètes) */}
             <div
@@ -2037,6 +2247,16 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         onMouseLeave={handleMouseLeaveObject}
         disableCollision={true}
       />}
+      
+      {/* Tooltip pour les slots (recalculé dynamiquement) */}
+      {hoveredSlot && !removingItem && (
+        <Tooltip
+            content={getSlotTooltipContent()}
+            targetRect={hoveredSlot.rect}
+            pointerEvents="auto"
+            disableCollision={true}
+        />
+      )}
     </>
   );
 };

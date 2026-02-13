@@ -1,4 +1,4 @@
-import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState } from '../core/types';
+import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType } from '../core/types';
 import {
     createRotationState,
     calculateAbsolutePosition,
@@ -6,10 +6,10 @@ import {
     getAdjacentCells,
     CelestialObject,
     getObjectPosition,
-    getAllCelestialObjects
+    getAllCelestialObjects,
+    getAbsoluteSectorForProbe
 } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
-import { ProbeSystem } from './ProbeSystem';
 
 export class CardSystem {
     /**
@@ -285,6 +285,30 @@ export class CardSystem {
                     player.activeBuffs.push({ ...effect, source: card.name });
                 } else if (effect.type === 'SAME_DISK_MOVE') {
                     player.activeBuffs.push({ ...effect, source: card.name });
+                } else if (effect.type === 'GAIN_LIFETRACE_IF_ASTEROID') {
+                    const rotationState = createRotationState(
+                        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+                        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+                        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+                    );
+
+                    const hasProbeOnAsteroid = player.probes.some(p => {
+                        if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+                        const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
+                        const cell = getCell(p.solarPosition.disk, absSector, rotationState);
+                        return cell?.hasAsteroid;
+                    });
+
+                    if (hasProbeOnAsteroid) {
+                        console.log(game);
+                        let scope: LifeTraceType = LifeTraceType.ANY;
+                        if (effect.target === 'yellow') scope = LifeTraceType.YELLOW;
+                        else if (effect.target === 'red') scope = LifeTraceType.RED;
+                        else if (effect.target === 'blue') scope = LifeTraceType.BLUE;
+
+                        if (!bonuses.lifetraces) bonuses.lifetraces = [];
+                        bonuses.lifetraces.push({ amount: effect.value, scope });
+                    }
                 } else if (effect.type === 'REVEAL_AND_TRIGGER_FREE_ACTION') {
                     bonuses.revealAndTriggerFreeAction = true;
                 } else if (effect.type === 'SCORE_PER_MEDIA') {
@@ -498,7 +522,7 @@ export class CardSystem {
 
         if (bonuses && bonuses.subventionDetails) {
         const { cardName, bonusText } = bonuses.subventionDetails;
-        message += ` et pioche la carte "${cardName}" pour gagner ${bonusText}`;
+        message += ` et pioche carte "${cardName}" pour gagner ${bonusText}`;
 
         if (bonusText === "1 Donnée") {
             const idx = passiveGains.indexOf(ResourceSystem.formatResource(1, 'DATA'));
@@ -518,13 +542,13 @@ export class CardSystem {
 
         const extras = [];
         if (passiveGains.length > 0) {
-        extras.push(`gagne ${passiveGains.join(', ')}`);
+            extras.push(`gagne ${passiveGains.join(', ')}`);
         }
         if (movementLogs.length > 0) {
-        extras.push(movementLogs.join(', '));
+            extras.push(movementLogs.join(', '));
         }
         if (extras.length > 0) {
-        message += ` et ${extras.join(' et ')}`;
+            message += ` et ${extras.join(' et ')}`;
         }
 
         historyEntries.unshift({message, playerId, sequenceId });

@@ -17,6 +17,9 @@ export class ResourceSystem {
     else if (key === 'CREDIT' || key === 'CREDITS') label = `Crédit${plural}`;
     else if (key === 'ENERGY' || key === 'ENERGIE') label = `Énergie${plural}`;
     else if (key === 'CARD' || key === 'CARDS' || key === 'CARTES') label = `Carte${plural}`;
+    else if (key === 'PROBE' || key === 'PROBES' || key === 'SONDE') label = `Sonde${plural}`;
+    else if (key === 'LANDING' || key === 'LANDINGS') label = `Atterrissage${plural}`;
+    else if (key === 'REVENUE' || key === 'REVENUES') label = `Réservation${plural}`;
     
     return `${amount} ${label}`;
   }
@@ -218,6 +221,9 @@ export class ResourceSystem {
     if (bonuses.energy) { const txt = ResourceSystem.formatResource(bonuses.energy, 'ENERGY'); passiveGains.push(txt); }
     if (bonuses.data) { const txt = ResourceSystem.formatResource(bonuses.data, 'DATA'); passiveGains.push(txt); }
     if (bonuses.pv) { const txt = ResourceSystem.formatResource(bonuses.pv, 'PV'); passiveGains.push(txt); }
+    if (bonuses.probe) { const txt = ResourceSystem.formatResource(bonuses.probe, 'PROBE'); passiveGains.push(txt); }
+    if (bonuses.landing) { const txt = ResourceSystem.formatResource(bonuses.landing, 'LANDING'); passiveGains.push(txt); }
+    if (bonuses.revenue) { const txt = ResourceSystem.formatResource(bonuses.revenue, 'REVENUE'); passiveGains.push(txt); }
     const gainsText = passiveGains.length > 0 ? `${passiveGains.join(', ')}` : '';
     if (gainsText) logs.push(`gagne ${gainsText}`);
 
@@ -230,10 +236,23 @@ export class ResourceSystem {
       }
     }
     if (bonuses.card) {
+      const playerBefore = updatedGame.players.find(p => p.id === playerId);
+      const countBefore = playerBefore ? playerBefore.cards.length : 0;
+
       updatedGame = CardSystem.drawCards(updatedGame, playerId, bonuses.card);
-      const txt = ResourceSystem.formatResource(bonuses.card, 'CARD');
-      passiveGains.push(txt);
-      logs.push(`pioche ${txt}`);
+      
+      const updatedPlayer = updatedGame.players.find(p => p.id === playerId);
+      let cardDetails = "";
+      if (updatedPlayer) {
+          const actualDrawn = updatedPlayer.cards.length - countBefore;
+          if (actualDrawn > 0) {
+              const drawnCards = updatedPlayer.cards.slice(-actualDrawn);
+              cardDetails = ` "${drawnCards.map(c => c.name).join('", "')}"`;
+          }
+      }
+
+      passiveGains.push(ResourceSystem.formatResource(bonuses.card, 'CARD'));
+      logs.push(`pioche carte ${cardDetails}`);
     }
     if (bonuses.probe) {
       const ignoreLimit = bonuses.ignoreProbeLimit || false;
@@ -247,8 +266,6 @@ export class ResourceSystem {
           logs.push(`ne peut pas lancer de sonde (limite atteinte)`);
         }
       }
-      const txt = `${bonuses.probe} Sonde${bonuses.probe > 1 ? 's' : ''}`;
-      passiveGains.push(txt);
     }
 
     // Effets interactifs (File d'attente)
@@ -293,7 +310,7 @@ export class ResourceSystem {
           }
 
           if (targetSectorId) {
-            const result = ScanSystem.performSignalAndCover(updatedGame, playerId, targetSectorId, logs, bonuses.noData, sequenceId);
+            const result = ScanSystem.performSignalAndCover(updatedGame, playerId, targetSectorId, [], bonuses.noData, sequenceId);
             updatedGame = result.updatedGame;
             historyEntries.push(...result.historyEntries);
             newPendingInteractions.push(...result.newPendingInteractions);
@@ -399,7 +416,6 @@ export class ResourceSystem {
 
     if (bonuses.landing) {
       newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId, sequenceId });
-      logs.push(`obtient ${bonuses.landing} atterrissage`);
     }
 
     if (bonuses.lifetraces) {
