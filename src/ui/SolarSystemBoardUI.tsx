@@ -91,7 +91,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
   // État pour gérer la sonde sélectionnée et les cases accessibles
   const [selectedProbeId, setSelectedProbeId] = useState<string | null>(null);
-  const [reachableCells, setReachableCells] = useState<Map<string, { movements: number; path: string[] }>>(new Map());
+  const [reachableCells, setReachableCells] = useState<Map<string, { movements: number; path: string[]; media: number }>>(new Map());
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
   const planetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -367,13 +367,22 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         const hasAsteroidBuff = currentPlayer.activeBuffs.some(b => b.type === 'ASTEROID_EXIT_COST');
         const ignoreAsteroidPenalty = hasAsteroidTech || hasAsteroidBuff;
 
+        const getMediaBonus = (cell: SolarSystemCell) => {
+            let bonus = 0;
+            if (cell.hasComet) bonus++;
+            if (cell.hasPlanet && cell.planetId !== 'earth') bonus++;
+            if (cell.hasAsteroid && hasAsteroidTech) bonus++;
+            return bonus;
+        };
+
         const reachable = calculateReachableCellsWithEnergy(
           probe.solarPosition.disk,
           absPos.absoluteSector,
           movementBonus,
           currentPlayer.energy,
           rotationState,
-          ignoreAsteroidPenalty
+          ignoreAsteroidPenalty,
+          getMediaBonus
         );
 
         // Retirer la case actuelle des cases accessibles
@@ -1836,7 +1845,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             backgroundColor: isTarget ? 'rgba(255, 235, 59, 0.5)' : (isPathStep ? 'rgba(255, 235, 59, 0.3)' : 'rgba(0, 255, 0, 0.2)'),
             zIndex: isTarget ? 2002 : (isPathStep ? 2001 : 2000),
           }}
-          title={`Accessible en ${data.movements} déplacement(s)`}
+          title={`Accessible en ${data.movements} déplacement(s)${data.media > 0 ? ` (+${data.media} Média)` : ''}`}
         >
           {isPathStep && (
             <span className="seti-reachable-cell-text">

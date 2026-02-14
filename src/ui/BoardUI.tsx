@@ -95,7 +95,7 @@ export const BoardUI: React.FC = () => {
   // Effet pour afficher un message toast si l'interaction en contient un
   useEffect(() => {
     if (interactionState.type === 'IDLE') {
-      setToast({ message: 'Veuillez sélectionner une action (principale, gratuite ou passer au joueur suivant).', visible: true });
+      setToast({ message: 'Veuillez sélectionner une action ou passer au prochain joueur.', visible: true });
     } else {
       setToast({ message: getInteractionLabel(interactionState), visible: true });
     }
@@ -403,11 +403,11 @@ export const BoardUI: React.FC = () => {
     setHistoryLog(prev => [...prev, entry]);
   }, []);
 
-  // Helper pour gérer les nouvelles interactions (avec choix si multiple)
-  const handleNewInteractions = (newInteractions: InteractionState[], sequenceId?: string, summary?: string): boolean => {
+  // Helper pour gérer les nouvelles interactions (avec choix si multiple, sauf si forcé)
+  const handleNewInteractions = (newInteractions: InteractionState[], sequenceId?: string, summary?: string, forceStacking: boolean = false): boolean => {
     if (newInteractions.length === 0) return false;
 
-    if (newInteractions.length > 1) {
+    if (newInteractions.length > 1 && !forceStacking) {
       const choices = newInteractions.map((interaction, index) => ({
         id: `choice-${Date.now()}-${index}`,
         label: getInteractionLabel(interaction),
@@ -422,8 +422,12 @@ export const BoardUI: React.FC = () => {
         sequenceId: sequenceId || newInteractions[0].sequenceId
       });
     } else {
-      const interaction = newInteractions[0];
-      setInteractionState({ ...interaction, sequenceId: interaction.sequenceId || sequenceId });
+      const [first, ...rest] = newInteractions;
+      setInteractionState({ ...first, sequenceId: first.sequenceId || sequenceId });
+      
+      if (rest.length > 0) {
+          setPendingInteractions(prev => [...rest.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId })), ...prev]);
+      }
     }
     return true;
   };
@@ -1039,7 +1043,7 @@ export const BoardUI: React.FC = () => {
       const sector = game.board.sectors[sectorNumber - 1];
 
       // Validate color
-      if (interactionState.color !== SectorType.ANY && sector.color !== interactionState.color) {
+      if (interactionState.color !== SectorType.ANY && interactionState.color !== SectorType.PROBE && sector.color !== interactionState.color) {
         let isAdjacentAllowed = false;
         if (interactionState.adjacents) {
           const solarSystem = game.board.solarSystem;
@@ -1057,20 +1061,37 @@ export const BoardUI: React.FC = () => {
       }
 
       // Validate onlyProbes (Card 120, etc.)
+      let usedProbeId: string | undefined;
+
       if (interactionState.onlyProbes) {
         const rotationState = createRotationState(
           game.board.solarSystem.rotationAngleLevel1 || 0,
           game.board.solarSystem.rotationAngleLevel2 || 0,
           game.board.solarSystem.rotationAngleLevel3 || 0
         );
-        const hasProbe = currentPlayer.probes.some(p => {
-          if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-          return getAbsoluteSectorForProbe(p.solarPosition, rotationState) === sectorNumber;
+        
+        // Récupérer toutes les sondes du système (ou seulement celles du joueur)
+        const candidateProbes = interactionState.anyProbe ? game.board.solarSystem.probes : currentPlayer.probes;
+
+        const validProbes = candidateProbes.filter(p => {
+            if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+            return getAbsoluteSectorForProbe(p.solarPosition, rotationState) === sectorNumber;
         });
-        if (!hasProbe) {
-          setToast({ message: "Veuillez sélectionner un secteur contenant une de vos sondes.", visible: true });
+
+        // Filtrer les sondes déjà utilisées dans cette séquence
+        const availableProbes = validProbes.filter(p => !(interactionState.usedProbeIds || []).includes(p.id));
+
+        if (availableProbes.length === 0) {
+          if (validProbes.length > 0) {
+             setToast({ message: "Cette sonde a déjà été sélectionnée pour cette action.", visible: true });
+          } else {
+             setToast({ message: interactionState.anyProbe ? "Veuillez sélectionner un secteur contenant une sonde." : "Veuillez sélectionner un secteur contenant une de vos sondes.", visible: true });
+          }
           return;
         }
+        
+        // On utilise la première sonde disponible (arbitraire si plusieurs dans le même secteur, mais suffisant pour le tracking)
+        usedProbeId = availableProbes[0].id;
       }
 
       let updatedGame = structuredClone(game);
@@ -1083,7 +1104,7 @@ export const BoardUI: React.FC = () => {
         const { updatedGame: gameAfterRowDiscard, discardedCard: rowCard } = CardSystem.discardFromRow(updatedGame, interactionState.cardId);
         if (rowCard) {
             updatedGame = gameAfterRowDiscard;
-            initialLogs.push(`défausse carte "${rowCard.name}" (${rowCard.scanSector}) de la rangée`);
+            initialLogs.push(`utilise carte "${rowCard.name}" (${rowCard.scanSector}) de la rangée`);
             cardFoundAndProcessed = true;
         }
 
@@ -1097,7 +1118,7 @@ export const BoardUI: React.FC = () => {
               const removedCard = deck.splice(cardIndex, 1)[0];
               if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
               updatedGame.decks.discardPile.push(removedCard);
-              initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la pioche`);
+              initialLogs.push(`utilise carte "${removedCard.name}" (${removedCard.scanSector}) de la pioche`);
               cardFoundAndProcessed = true;
             }
           }
@@ -1113,17 +1134,38 @@ export const BoardUI: React.FC = () => {
               const removedCard = hand.splice(cardIndex, 1)[0];
               if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
               updatedGame.decks.discardPile.push(removedCard);
-              initialLogs.push(`défausse carte "${removedCard.name}" (${removedCard.scanSector}) de la main`);
+              initialLogs.push(`utilise carte "${removedCard.name}" (${removedCard.scanSector}) de la main`);
             }
           }
         }
       }
 
       const sequenceId = interactionState.sequenceId || `scan-${Date.now()}`;
-      const res = ScanSystem.performSignalAndCover(updatedGame, currentPlayer.id, sector.id, initialLogs, interactionState.noData, sequenceId);
+      let res = ScanSystem.performSignalAndCover(updatedGame, currentPlayer.id, sector.id, initialLogs, interactionState.noData, sequenceId);
       updatedGame = res.updatedGame;
       // Log immediately for interactive scan
       res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, sequenceId));
+      
+      let allNewInteractions = [...res.newPendingInteractions];
+
+      if (interactionState.markAdjacents) {
+          const prevSectorNum = sectorNumber === 1 ? 8 : sectorNumber - 1;
+          const nextSectorNum = sectorNumber === 8 ? 1 : sectorNumber + 1;
+          
+          // Mark prev
+          const prevSector = updatedGame.board.sectors[prevSectorNum - 1];
+          const resPrev = ScanSystem.performSignalAndCover(updatedGame, currentPlayer.id, prevSector.id, [], interactionState.noData, sequenceId);
+          updatedGame = resPrev.updatedGame;
+          resPrev.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, sequenceId));
+          allNewInteractions.push(...resPrev.newPendingInteractions);
+
+          // Mark next
+          const nextSector = updatedGame.board.sectors[nextSectorNum - 1];
+          const resNext = ScanSystem.performSignalAndCover(updatedGame, currentPlayer.id, nextSector.id, [], interactionState.noData, sequenceId);
+          updatedGame = resNext.updatedGame;
+          resNext.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, sequenceId));
+          allNewInteractions.push(...resNext.newPendingInteractions);
+      }
 
       // Handle keepCardIfOnly (Card 120)
       if (interactionState.keepCardIfOnly && interactionState.cardId) {
@@ -1151,8 +1193,19 @@ export const BoardUI: React.FC = () => {
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
 
-      if (res.newPendingInteractions.length > 0) {
-        const [next, ...rest] = res.newPendingInteractions;
+      // Propager la sonde utilisée aux interactions suivantes de la même séquence
+      if (usedProbeId) {
+          const newUsedProbeIds = [...(interactionState.usedProbeIds || []), usedProbeId];
+          setPendingInteractions(prev => prev.map(i => {
+              if (i.type === 'SELECTING_SCAN_SECTOR' && i.sequenceId === interactionState.sequenceId) {
+                  return { ...i, usedProbeIds: newUsedProbeIds };
+              }
+              return i;
+          }));
+      }
+
+      if (allNewInteractions.length > 0) {
+        const [next, ...rest] = allNewInteractions;
         setInteractionState(next);
         setPendingInteractions(prev => [...rest, ...prev]);
       } else {
@@ -1510,14 +1563,13 @@ export const BoardUI: React.FC = () => {
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
 
       if (remainingMoves > 0) {
-        setInteractionState({ type: 'MOVING_PROBE', count: remainingMoves });
+        setInteractionState({ type: 'MOVING_PROBE', count: remainingMoves, sequenceId });
       } else {
         setInteractionState({ type: 'IDLE' });
       }
-    } else {
+    } else { // choice === 'MOVE'
       // Transition vers le déplacement de sonde
-      setInteractionState({ type: 'MOVING_PROBE', count: remainingMoves + 1 });
-      setToast({ message: "Veuillez sélectionnez une sonde à déplacer.", visible: true });
+      setInteractionState({ type: 'MOVING_PROBE', count: remainingMoves + 1, sequenceId });
       addToHistory(`choisit un déplacement gratuit`, currentPlayer.id, game, { type: 'IDLE' }, sequenceId);
     }
   };
@@ -1928,6 +1980,7 @@ export const BoardUI: React.FC = () => {
 
     let freeMovements = interactionState.type === 'MOVING_PROBE' ? interactionState.count : 0;
     let interruptedForChoice = false;
+    let currentSequenceId = interactionState.sequenceId;
 
     // Parcourir le chemin étape par étape (en ignorant le point de départ à l'index 0)
     for (let i = 1; i < path.length; i++) {
@@ -1939,8 +1992,9 @@ export const BoardUI: React.FC = () => {
       const stateBeforeMove = structuredClone(currentGame);
 
       // Utiliser l'action pour effectuer le mouvement
-      const useFree = freeMovements > 0;
-      const action = new MoveProbeAction(currentPlayerId, probeId, { disk, sector }, useFree);
+      const cost = ProbeSystem.getMovementCost(currentGame, currentPlayerId, probeId);
+      const usedFree = Math.min(cost, freeMovements);
+      const action = new MoveProbeAction(currentPlayerId, probeId, { disk, sector }, freeMovements);
       const result = gameEngineRef.current.executeAction(action);
 
       if (result.success && result.updatedState) {
@@ -1958,15 +2012,21 @@ export const BoardUI: React.FC = () => {
 
           if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
             // Calculer les mouvements restants après ce pas (si gratuit)
-            const remaining = useFree ? freeMovements - 1 : freeMovements;
-            setInteractionState({ type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId: `move-${Date.now()}`, remainingMoves: remaining });
+            const remaining = freeMovements - usedFree;
+            if (!currentSequenceId) currentSequenceId = `move-${Date.now()}`;
+            setInteractionState({ type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId: currentSequenceId, remainingMoves: remaining });
             interruptedForChoice = true;
             if (i < path.length - 1) {
               setToast({ message: "Déplacement interrompu. Choisissez un bonus.", visible: true });
             }
           }
 
-          addToHistory(message, currentPlayerId, stateBeforeMove, undefined, interactionState.sequenceId);
+          let logMessage = message;
+          if (freeMovements > 0) {
+             const remaining = freeMovements - usedFree;
+             logMessage += ` (${remaining} mouvement${remaining > 1 ? 's' : ''} gratuit${remaining > 1 ? 's' : ''} restant${remaining > 1 ? 's' : ''})`;
+          }
+          addToHistory(logMessage, currentPlayerId, stateBeforeMove, undefined, currentSequenceId);
         }
 
         currentGame = updatedGame;
@@ -1975,12 +2035,7 @@ export const BoardUI: React.FC = () => {
         if (gameEngineRef.current) gameEngineRef.current.setState(currentGame); // Mettre à jour l'état du moteur pour la prochaine étape du mouvement
 
         // Mettre à jour le compteur de mouvements gratuits
-        if (useFree) {
-          // On ne décrémente que si le mouvement a réellement été gratuit (pas de dépense d'énergie)
-          if (message && !message.includes('paye')) {
-            freeMovements--;
-          }
-        }
+        freeMovements -= usedFree;
 
         // Petit délai pour l'animation
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -1997,7 +2052,7 @@ export const BoardUI: React.FC = () => {
     }
     if (interactionState.type === 'MOVING_PROBE' && !interruptedForChoice) {
       if (freeMovements > 0) {
-        setInteractionState({ type: 'MOVING_PROBE', count: freeMovements });
+        setInteractionState({ type: 'MOVING_PROBE', count: freeMovements, sequenceId: currentSequenceId });
         setToast({ message: `Encore ${freeMovements} déplacement${freeMovements > 1 ? 's' : ''} gratuit${freeMovements > 1 ? 's' : ''}. Sélectionnez une sonde à déplacer.`, visible: true });
       } else {
         setInteractionState({ type: 'IDLE' });
@@ -2142,7 +2197,8 @@ export const BoardUI: React.FC = () => {
         }
         // Add pending interactions from processBonuses (objects)
         if (action.newPendingInteractions && action.newPendingInteractions.length > 0) {
-          handleNewInteractions(action.newPendingInteractions);
+          const forceStacking = ['27', '28', '29', '30'].includes(cardId);
+          handleNewInteractions(action.newPendingInteractions, undefined, undefined, forceStacking);
         }
     }
   };

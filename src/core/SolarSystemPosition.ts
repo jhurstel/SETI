@@ -488,10 +488,11 @@ export function calculateReachableCellsWithEnergy(
   movements: number,
   energy: number,
   rotationState: RotationState,
-  ignoreAsteroidPenalty: boolean = false
-): Map<string, { movements: number; path: string[] }> {
+  ignoreAsteroidPenalty: boolean = false,
+  getMediaBonus?: (cell: SolarSystemCell) => number
+): Map<string, { movements: number; path: string[]; media: number }> {
   const totalMovements = movements + energyToMovements(energy);
-  return calculateReachableCells(startDisk, startSector, totalMovements, rotationState, ignoreAsteroidPenalty);
+  return calculateReachableCells(startDisk, startSector, totalMovements, rotationState, ignoreAsteroidPenalty, getMediaBonus);
 }
 
 /**
@@ -507,27 +508,29 @@ export function calculateReachableCells(
   startSector: SectorNumber,
   maxMovements: number,
   rotationState: RotationState,
-  ignoreAsteroidPenalty: boolean = false
-): Map<string, { movements: number; path: string[] }> {
-  const reachable = new Map<string, { movements: number; path: string[] }>();
+  ignoreAsteroidPenalty: boolean = false,
+  getMediaBonus?: (cell: SolarSystemCell) => number
+): Map<string, { movements: number; path: string[]; media: number }> {
+  const reachable = new Map<string, { movements: number; path: string[]; media: number }>();
   const cells = getAllCells(rotationState);
   
   // File d'attente pour le parcours en largeur (BFS)
-  const queue: Array<{ disk: DiskName; sector: SectorNumber; movements: number; path: string[] }> = [];
-  queue.push({ disk: startDisk, sector: startSector, movements: 0, path: [`${startDisk}${startSector}`] });
+  const queue: Array<{ disk: DiskName; sector: SectorNumber; movements: number; path: string[]; media: number }> = [];
+  queue.push({ disk: startDisk, sector: startSector, movements: 0, path: [`${startDisk}${startSector}`], media: 0 });
   
   while (queue.length > 0) {
     const current = queue.shift()!;
     const currentKey = `${current.disk}${current.sector}`;
     
-    // Si on a déjà visité cette case avec moins de déplacements, on ignore
+    // Si on a déjà visité cette case avec un meilleur score (moins de déplacements, ou même déplacements et plus de média), on ignore
     const existing = reachable.get(currentKey);
-    if (existing && existing.movements <= current.movements) {
-      continue;
+    if (existing) {
+      if (existing.movements < current.movements) continue;
+      if (existing.movements === current.movements && existing.media >= current.media) continue;
     }
     
-    // Enregistrer cette case
-    reachable.set(currentKey, { movements: current.movements, path: [...current.path] });
+    // Enregistrer cette case (meilleur chemin trouvé pour l'instant)
+    reachable.set(currentKey, { movements: current.movements, path: [...current.path], media: current.media });
     
     // Si on a atteint le maximum de déplacements, on ne continue pas
     if (current.movements >= maxMovements) {
@@ -562,16 +565,25 @@ export function calculateReachableCells(
       }
       
       const newMovements = current.movements + cost;
+      const mediaGain = getMediaBonus ? getMediaBonus(adjCell) : 0;
+      const newMedia = current.media + mediaGain;
       
       if (newMovements <= maxMovements) {
-        // Vérifier si on n'a pas déjà visité avec moins de déplacements
+        // Vérifier si on n'a pas déjà visité avec un meilleur score
         const existing = reachable.get(adjKey);
-        if (!existing || existing.movements > newMovements) {
+        let shouldPush = true;
+        if (existing) {
+          if (existing.movements < newMovements) shouldPush = false;
+          else if (existing.movements === newMovements && existing.media >= newMedia) shouldPush = false;
+        }
+
+        if (shouldPush) {
           queue.push({
             disk: adj.disk,
             sector: adj.sector,
             movements: newMovements,
             path: [...current.path, adjKey],
+            media: newMedia
           });
         }
       }
@@ -670,27 +682,23 @@ export function getCell(
 }
 
 export function getAbsoluteSectorForProbe(
-  solarPosition: { disk: DiskName, sector: SectorNumber }, 
+  solarPosition: { disk: DiskName, sector: SectorNumber, level?: number }, 
   rotationState: { level1Angle: number, level2Angle: number, level3Angle: number }
 ): SectorNumber {
   let angle = 0;
-  // Disk C is level 1 (innermost), B is 2, A is 3 (outermost)
-  if (solarPosition.disk === 'A') {
-    angle = rotationState.level3Angle;
-  } else if (solarPosition.disk === 'B') {
-    angle = rotationState.level2Angle;
-  } else if (solarPosition.disk === 'C') {
-    angle = rotationState.level1Angle;
+  
+  if (solarPosition.level !== undefined) {
+      if (solarPosition.level === 1) angle = rotationState.level1Angle;
+      else if (solarPosition.level === 2) angle = rotationState.level2Angle;
+      else if (solarPosition.level === 3) angle = rotationState.level3Angle;
+  } else {
+      // Fallback si le niveau n'est pas défini (ne devrait pas arriver pour une sonde placée)
+      if (solarPosition.disk === 'A') angle = rotationState.level3Angle;
+      else if (solarPosition.disk === 'B') angle = rotationState.level2Angle;
+      else if (solarPosition.disk === 'C') angle = rotationState.level1Angle;
   }
 
-  const offset = angle / 45; // e.g., -1 for -45deg
-
-  // ( ( (value - 1) % N ) + N ) % N to handle negative results of %
-  const baseSector = solarPosition.sector - 1; // 0-7
-  const absoluteSectorIndex = baseSector + offset;
-  const absoluteSector = ((absoluteSectorIndex % 8) + 8) % 8 + 1;
-
-  return absoluteSector;
+  return rotateSector(solarPosition.sector, angle);
 };
 
 export function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {

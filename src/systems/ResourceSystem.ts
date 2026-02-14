@@ -1,4 +1,4 @@
-import { createRotationState, getAbsoluteSectorForProbe, getObjectPosition, performRotation } from '../core/SolarSystemPosition';
+import { getObjectPosition, performRotation } from '../core/SolarSystemPosition';
 import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, ProbeState, HistoryEntry, Signal } from '../core/types';
 import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
@@ -269,6 +269,11 @@ export class ResourceSystem {
     }
 
     // Effets interactifs (File d'attente)
+    if (bonuses.movements) {
+      newPendingInteractions.push({ type: 'MOVING_PROBE', count: bonuses.movements, autoSelectProbeId: launchedProbeIds.length > 0 ? launchedProbeIds[launchedProbeIds.length - 1] : undefined, sequenceId });
+      logs.push(`obtient ${bonuses.movements} déplacement${bonuses.movements > 1 ? 's' : ''} gratuit${bonuses.movements > 1 ? 's' : ''}`);
+    }
+
     if (bonuses.signals) {
       for (const signalBonus of bonuses.signals) {
         for (let i = 0; i < signalBonus.amount; i++) {
@@ -326,55 +331,13 @@ export class ResourceSystem {
               if (drawnCard) {
                 updatedGame.decks.discardPile.push(drawnCard);
                 newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: drawnCard.scanSector, cardId: drawnCard.id, message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")`, sequenceId });
+                logs.push(`révèle carte "${drawnCard.name}" (${drawnCard.scanSector}) de la pioche`);
               }
             }
           } else if (signalBonus.scope === SectorType.PROBE) {
-            const currentPlayer = updatedGame.players.find(p => p.id === playerId);
-            const probesInSystem = currentPlayer ? currentPlayer.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition) : [];
-
-            if (probesInSystem.length === 1) {
-              const probe = probesInSystem[0];
-              const rotationState = createRotationState(
-                updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-                updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-                updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-              );
-              const absoluteSector = getAbsoluteSectorForProbe(probe.solarPosition!, rotationState);
-
-              if (absoluteSector) {
-                const sectorId = `sector_${absoluteSector}`;
-                const result = ScanSystem.performSignalAndCover(updatedGame, playerId, sectorId, undefined, bonuses.noData, sequenceId);
-                updatedGame = result.updatedGame;
-                historyEntries.push(...result.historyEntries);
-                newPendingInteractions.push(...result.newPendingInteractions);
-
-                if (bonuses.keepCardIfOnly && sourceId) {
-                  const updatedSector = updatedGame.board.sectors[absoluteSector - 1];
-                  const playerSignals = updatedSector.signals.filter((s: Signal) => s.markedBy === playerId) || [];
-
-                  if (playerSignals.length === 1) {
-                    const discardPile = updatedGame.decks.discardPile;
-                    const cardIndex = discardPile.findIndex(c => c.id === sourceId);
-
-                    if (cardIndex !== -1) {
-                      const card = discardPile[cardIndex];
-                      discardPile.splice(cardIndex, 1);
-
-                      const pIndex = updatedGame.players.findIndex(p => p.id === playerId);
-                      if (pIndex !== -1) {
-                        updatedGame.players[pIndex].cards.push(card);
-                        logs.push(`récupère la carte "${card.name}" en main`);
-                        passiveGains.push("Carte récupérée");
-                      }
-                    }
-                  }
-                }
-              }
-            } else {
-              newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorType.PROBE, noData: bonuses.noData, onlyProbes: true, keepCardIfOnly: bonuses.keepCardIfOnly, cardId: sourceId, sequenceId });
-            }
+            newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorType.PROBE, noData: bonuses.noData, onlyProbes: true, keepCardIfOnly: bonuses.keepCardIfOnly, cardId: bonuses.keepCardIfOnly ? sourceId : undefined, sequenceId, markAdjacents: bonuses.gainSignalAdjacents, anyProbe: bonuses.anyProbe });
           } else if ([SectorType.RED, SectorType.BLUE, SectorType.YELLOW, SectorType.BLACK, SectorType.ANY].includes(signalBonus.scope)) {
-            newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: signalBonus.scope, noData: bonuses.noData, sequenceId });
+            newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: signalBonus.scope, noData: bonuses.noData, sequenceId, markAdjacents: bonuses.gainSignalAdjacents });
           }
         }
       }
@@ -407,11 +370,6 @@ export class ResourceSystem {
           newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true, category: techBonus.scope === TechnologyCategory.ANY ? undefined : techBonus.scope, sharedOnly: bonuses.sharedOnly, noTileBonus: bonuses.noTileBonus, sequenceId });
         }
       }
-    }
-
-    if (bonuses.movements) {
-      newPendingInteractions.push({ type: 'MOVING_PROBE', count: bonuses.movements, autoSelectProbeId: launchedProbeIds.length > 0 ? launchedProbeIds[launchedProbeIds.length - 1] : undefined, sequenceId });
-      logs.push(`obtient ${bonuses.movements} déplacement${bonuses.movements > 1 ? 's' : ''} gratuit${bonuses.movements > 1 ? 's' : ''}`);
     }
 
     if (bonuses.landing) {

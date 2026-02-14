@@ -10,7 +10,7 @@
  */
 
 import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, Player, CardEffect } from '../core/types';
-import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState } from '../core/SolarSystemPosition';
+import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { CardSystem } from './CardSystem';
 
@@ -185,6 +185,37 @@ export class ProbeSystem {
     }
 
     return { canMove: true, energyCost };
+  }
+
+  /**
+   * Calcule le coût du déplacement pour une sonde donnée (1 ou 2 si astéroïde)
+   */
+  static getMovementCost(game: Game, playerId: string, probeId: string): number {
+    const player = game.players.find(p => p.id === playerId);
+    const probe = player?.probes.find(p => p.id === probeId);
+    
+    if (!player || !probe || !probe.solarPosition) return 1;
+
+    const rotationState = createRotationState(
+      game.board.solarSystem.rotationAngleLevel1 || 0,
+      game.board.solarSystem.rotationAngleLevel2 || 0,
+      game.board.solarSystem.rotationAngleLevel3 || 0
+    );
+
+    const absoluteSector = getAbsoluteSectorForProbe(probe.solarPosition, rotationState);
+    const currentCell = getCell(probe.solarPosition.disk, absoluteSector, rotationState);
+    
+    let stepCost = 1;
+    
+    if (currentCell?.hasAsteroid) {
+      const hasExploration2 = player.technologies.some(t => t.id.startsWith('exploration-2'));
+      const hasAsteroidBuff = player.activeBuffs.some(b => b.type === 'ASTEROID_EXIT_COST');
+      if (!hasExploration2 && !hasAsteroidBuff) {
+        stepCost += 1;
+      }
+    }
+    
+    return stepCost;
   }
 
   /**
