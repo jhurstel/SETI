@@ -1604,12 +1604,12 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               </div>
             );
 
-            const cursorStyle = isSectorClickable ? 'pointer' : 'help';
+            const cursorStyle = isSectorClickable && !isDisabled ? 'pointer' : 'help';
 
             return (
               <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`} style={{ opacity, cursor: cursorStyle, pointerEvents: 'auto' }}
                 onClick={(e) => {
-                  if (isSectorClickable && onSectorClick) {
+                  if (isSectorClickable && onSectorClick && !isDisabled) {
                     e.stopPropagation();
                     onSectorClick(i + 1);
                   }

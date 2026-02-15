@@ -9,8 +9,8 @@
  * - Limites (max 1 sonde dans le système solaire sans technologie)
  */
 
-import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, Player, CardEffect } from '../core/types';
-import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
+import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, Player, CardEffect, SectorType, LifeTraceType, TechnologyCategory } from '../core/types';
+import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe, getAdjacentCells, calculateReachableCells } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { CardSystem } from './CardSystem';
 
@@ -1003,11 +1003,26 @@ export class ProbeSystem {
     if (parts.length < 2) return null;
 
     const conditionType = parts[0];
-    const target = parts[1];
+    
+    // Liste des conditions qui attendent un paramètre cible (target) en 2ème position
+    const conditionsWithTarget = [
+        'GAIN_IF_ORBITER_OR_LANDER',
+        'GAIN_IF_COVERED',
+        'GAIN_IF_LIFETRACE_BOTH_SPECIES',
+        'GAIN_IF_3_LIFETRACES'
+    ];
+
+    let target: string | undefined;
+    let bonusStartIndex = 1;
+
+    if (conditionsWithTarget.includes(conditionType)) {
+        target = parts[1];
+        bonusStartIndex = 2;
+    }
     
     // Extraction des bonus (paires clé:valeur à partir de l'index 2)
     const rewards: Bonus = {};
-    for (let i = 2; i < parts.length; i += 2) {
+    for (let i = bonusStartIndex; i < parts.length; i += 2) {
       if (i + 1 < parts.length) {
         const bonusType = parts[i];
         const bonusValue = parseInt(parts[i+1], 10);
@@ -1021,15 +1036,191 @@ export class ProbeSystem {
           else if (bonusType === 'card') rewards.card = (rewards.card || 0) + bonusValue;
           else if (bonusType === 'anycard') rewards.anycard = (rewards.anycard || 0) + bonusValue;
           else if (bonusType === 'probe') rewards.probe = (rewards.probe || 0) + bonusValue;
+          else if (bonusType === 'reservation') rewards.revenue = (rewards.revenue || 0) + bonusValue;
+          else if (bonusType === 'yellowlifetrace') {
+             if (!rewards.lifetraces) rewards.lifetraces = [];
+             rewards.lifetraces.push({ amount: bonusValue, scope: LifeTraceType.YELLOW });
+          }
+          else if (bonusType === 'redlifetrace') {
+             if (!rewards.lifetraces) rewards.lifetraces = [];
+             rewards.lifetraces.push({ amount: bonusValue, scope: LifeTraceType.RED });
+          }
+          else if (bonusType === 'bluelifetrace') {
+             if (!rewards.lifetraces) rewards.lifetraces = [];
+             rewards.lifetraces.push({ amount: bonusValue, scope: LifeTraceType.BLUE });
+          }
+          else if (bonusType === 'lifetrace') {
+             if (!rewards.lifetraces) rewards.lifetraces = [];
+             rewards.lifetraces.push({ amount: bonusValue, scope: LifeTraceType.ANY });
+          }
         }
       }
     }
 
     // Vérification des conditions
-    if (conditionType === 'GAIN_IF_ORBITER_OR_LANDER' || conditionType === 'GAIN_IF_ORBITEUR_OR_LANDER') {
-      const targets = target.split('&');
+    if (conditionType === 'GAIN_IF_ORBITER_OR_LANDER') {
+      const targets = (target || '').split('&');
       const hasPresence = targets.every(t => this.hasPresenceOnPlanet(game, playerId, t));
       if (hasPresence) return rewards;
+    }
+
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return null;
+
+    if (conditionType === 'GAIN_IF_3_LANDERS') {
+        const mainPlanets = ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'];
+        const landerCount = player.probes.filter(p => p.state === ProbeState.LANDED && p.planetId && mainPlanets.includes(p.planetId)).length;
+        if (landerCount >= 3) return rewards;
+    }
+
+    if (conditionType === 'GAIN_IF_2_ORBITERS') {
+        const orbiterCount = player.probes.filter(p => p.state === ProbeState.IN_ORBIT).length;
+        if (orbiterCount >= 2) return rewards;
+    }
+
+    if (conditionType === 'GAIN_IF_COVERED') {
+        if (target === 'same') {
+             const doubleCovered = game.board.sectors.some(s => s.coveredBy.filter(id => id === playerId).length >= 2);
+             if (doubleCovered) return rewards;
+        } else {
+            let required = 1;
+            let color: SectorType | undefined;
+            if (target === 'red') { color = SectorType.RED; required = 2; }
+            else if (target === 'blue') { color = SectorType.BLUE; required = 2; }
+            else if (target === 'yellow') { color = SectorType.YELLOW; required = 2; }
+            else if (target === 'black') { color = SectorType.BLACK; required = 1; }
+            
+            if (color) {
+                let count = 0;
+                game.board.sectors.forEach(s => {
+                    if (s.color === color) {
+                        count += s.coveredBy.filter(id => id === playerId).length;
+                    }
+                });
+                if (count >= required) return rewards;
+            }
+        }
+    }
+
+    if (conditionType === 'GAIN_IF_4_SIGNALS') {
+        const sectorsWithSignal = game.board.sectors.filter(s => s.signals.some(sig => sig.markedBy === playerId)).length;
+        if (sectorsWithSignal >= 4) return rewards;
+    }
+
+    if (conditionType === 'GAIN_IF_8_MEDIA') {
+        if (player.mediaCoverage >= 8) return rewards;
+    }
+
+    if (conditionType === 'GAIN_IF_50_PV') {
+        if (player.score >= 50) return rewards;
+    }
+
+    if (conditionType === 'GAIN_IF_LIFETRACE_BOTH_SPECIES') {
+        let type: LifeTraceType | undefined;
+        if (target === 'red') type = LifeTraceType.RED;
+        else if (target === 'blue') type = LifeTraceType.BLUE;
+        else if (target === 'yellow') type = LifeTraceType.YELLOW;
+
+        if (type) {
+            const hasOnBoard0 = game.board.alienBoards[0].lifeTraces.some(t => t.type === type && t.playerId === playerId);
+            const hasOnBoard1 = game.board.alienBoards[1].lifeTraces.some(t => t.type === type && t.playerId === playerId);
+            if (hasOnBoard0 && hasOnBoard1) return rewards;
+        }
+    }
+
+    if (conditionType === 'GAIN_IF_3_LIFETRACES') {
+        if (target === 'different') {
+             const types = new Set(player.lifeTraces.map(t => t.type));
+             if (types.size >= 3) return rewards;
+        } else {
+            let type: LifeTraceType | undefined;
+            if (target === 'red') type = LifeTraceType.RED;
+            else if (target === 'blue') type = LifeTraceType.BLUE;
+            else if (target === 'yellow') type = LifeTraceType.YELLOW;
+            
+            if (type) {
+                const count = player.lifeTraces.filter(t => t.type === type).length;
+                if (count >= 3) return rewards;
+            }
+        }
+    }
+
+    if (conditionType === 'GAIN_IF_PROBE_IN_DEEP_SPACE') {
+        const rotationState = createRotationState(
+            game.board.solarSystem.rotationAngleLevel1 || 0,
+            game.board.solarSystem.rotationAngleLevel2 || 0,
+            game.board.solarSystem.rotationAngleLevel3 || 0
+        );
+        const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+        if (earthPos) {
+            const reachable = calculateReachableCells(earthPos.disk, earthPos.absoluteSector, 100, rotationState, true);
+            const hasDeepProbe = player.probes.some(p => {
+                if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+                const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
+                const key = `${p.solarPosition.disk}${absSector}`;
+                const dist = reachable.get(key)?.movements;
+                // "à moins de 5 cases" -> < 5 ? Or "au moins" -> >= 5?
+                // Given "Deep Space", I assume >= 5.
+                return dist !== undefined && dist >= 5;
+            });
+            if (hasDeepProbe) return rewards;
+        }
+    }
+
+    if (conditionType === 'GAIN_IF_PROBE_ON_COMET') {
+        const rotationState = createRotationState(
+            game.board.solarSystem.rotationAngleLevel1 || 0,
+            game.board.solarSystem.rotationAngleLevel2 || 0,
+            game.board.solarSystem.rotationAngleLevel3 || 0
+        );
+        const hasProbeOnComet = player.probes.some(p => {
+            if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+            const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
+            const cell = getCell(p.solarPosition.disk, absSector, rotationState);
+            return cell?.hasComet;
+        });
+        if (hasProbeOnComet) return rewards;
+    }
+
+    if (conditionType === 'GAIN_IF_PROBE_ON_ASTEROID') {
+        const rotationState = createRotationState(
+            game.board.solarSystem.rotationAngleLevel1 || 0,
+            game.board.solarSystem.rotationAngleLevel2 || 0,
+            game.board.solarSystem.rotationAngleLevel3 || 0
+        );
+        const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+        if (earthPos) {
+            const adjacentCells = getAdjacentCells(earthPos.disk, earthPos.absoluteSector);
+            const hasProbe = player.probes.some(p => {
+                if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+                const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
+                const cell = getCell(p.solarPosition.disk, absSector, rotationState);
+                if (!cell?.hasAsteroid) return false;
+                
+                // Check adjacency to Earth
+                return adjacentCells.some(adj => adj.disk === p.solarPosition!.disk && adj.sector === absSector);
+            });
+            if (hasProbe) return rewards;
+        }
+    }
+
+    if (conditionType === 'GAIN_IF_EMPTY_HAND') {
+        if (player.cards.length === 0) return rewards;
+    }
+
+    if (conditionType === 'GAIN_IF_ORBITER_AND_LANDER') {
+        // Vérifier si une planète a à la fois un orbiteur et un atterrisseur du joueur
+        const hasBoth = game.board.planets.some(p => {
+            const hasOrbiter = p.orbiters.some(o => o.ownerId === playerId);
+            const hasLander = p.landers.some(l => l.ownerId === playerId);
+            return hasOrbiter && hasLander;
+        });
+        if (hasBoth) return rewards;
+    }
+
+    if (conditionType === 'GAIN_IF_3_TECH_OBS') {
+        const obsTechCount = player.technologies.filter(t => t.type === TechnologyCategory.OBSERVATION).length;
+        if (obsTechCount >= 3) return rewards;
     }
     
     return null;

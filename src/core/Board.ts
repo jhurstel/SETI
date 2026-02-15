@@ -91,7 +91,7 @@ export class BoardManager {
       },
       { 
         right: { name: 'Procyon', color: SectorType.BLUE, slots: 5, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { pv: 3 } }, 
-        left: { name: 'Vega', color: SectorType.BLACK, slots: 4, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }], pv: 2}, nextBonus: { pv: 5 } } 
+        left: { name: 'Véga', color: SectorType.BLACK, slots: 4, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }], pv: 2}, nextBonus: { pv: 5 } } 
       },
     ];
 

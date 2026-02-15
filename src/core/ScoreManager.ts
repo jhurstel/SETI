@@ -25,8 +25,10 @@ import {
   ObjectiveCategory,
   TechnologyCategory,
   GAME_CONSTANTS,
-  ProbeState
+  ProbeState,
+  SectorType
 } from '../core/types';
+import { createRotationState, getAbsoluteSectorForProbe, getCell } from './SolarSystemPosition';
 
 export class ScoreManager {
   /**
@@ -45,7 +47,7 @@ export class ScoreManager {
       total: 0
     };
 
-    scores.missionEndGame = this.calculateMissionEndGame(player);
+    scores.missionEndGame = this.calculateMissionEndGame(player, game);
 
     scores.speciesBonuses = this.calculateSpeciesBonuses(player, game.discoveredSpecies);
 
@@ -62,13 +64,105 @@ export class ScoreManager {
   /**
    * Calcule les points des paires missions/cartes fin de partie
    */
-  private static calculateMissionEndGame(player: Player): number {
-    // TODO: Implémenter les bonus selon les règles de chaque espèce
-    // Chaque espèce peut avoir des modificateurs de scoring différents
+  private static calculateMissionEndGame(player: Player, game: Game): number {
     let bonus = 0;
     const endGameCards : Card[] = (player.playedCards || []).filter(c => c.type === CardType.END_GAME);
 
     endGameCards.forEach(card => {
+      // Traitement des règles de scoring définies dans passiveEffects
+      if (card.passiveEffects) {
+        card.passiveEffects.forEach(effect => {
+          if (effect.type === 'SCORE_PER_ORBITER_LANDER') {
+            const planetId = effect.target;
+            if (planetId) {
+              const planet = game.board.planets.find(p => p.id === planetId);
+              if (planet) {
+                let count = 0;
+                // Orbiteurs sur la planète
+                count += planet.orbiters.filter(p => p.ownerId === player.id).length;
+                // Atterrisseurs sur la planète
+                count += planet.landers.filter(p => p.ownerId === player.id).length;
+                // Satellites
+                if (planet.satellites) {
+                  planet.satellites.forEach(sat => {
+                    count += sat.landers.filter(p => p.ownerId === player.id).length;
+                  });
+                }
+                bonus += count * effect.value;
+              }
+            }
+          } else if (effect.type === 'SCORE_PER_COVERED_SECTOR') {
+            const colorStr = effect.target;
+            let color: SectorType | undefined;
+            if (colorStr === 'red') color = SectorType.RED;
+            else if (colorStr === 'blue') color = SectorType.BLUE;
+            else if (colorStr === 'yellow') color = SectorType.YELLOW;
+            else if (colorStr === 'black') color = SectorType.BLACK;
+            
+            if (color) {
+              let count = 0;
+              game.board.sectors.forEach(s => {
+                if (s.color === color) {
+                  count += s.coveredBy.filter(id => id === player.id).length;
+                }
+              });
+              bonus += count * effect.value;
+            }
+          } else if (effect.type === 'SCORE_PER_LIFETRACE') {
+            const colorStr = effect.target;
+            let type: LifeTraceType | undefined;
+            if (colorStr === 'red') type = LifeTraceType.RED;
+            else if (colorStr === 'blue') type = LifeTraceType.BLUE;
+            else if (colorStr === 'yellow') type = LifeTraceType.YELLOW;
+            
+            if (type) {
+              const count = player.lifeTraces.filter(t => t.type === type).length;
+              bonus += count * effect.value;
+            }
+          } else if (effect.type === 'SCORE_PER_SIGNAL') {
+            const count = game.board.sectors.filter(s => s.signals.some(sig => sig.markedBy === player.id)).length;
+            bonus += count * effect.value;
+          } else if (effect.type === 'SCORE_PER_TECH_CATEGORY') {
+            const catStr = effect.target;
+            let category: TechnologyCategory | undefined;
+            if (catStr === 'computing') category = TechnologyCategory.COMPUTING;
+            else if (catStr === 'exploration') category = TechnologyCategory.EXPLORATION;
+            else if (catStr === 'observation') category = TechnologyCategory.OBSERVATION;
+            
+            if (category) {
+              const count = player.technologies.filter(t => t.type === category).length;
+              bonus += count * effect.value;
+            }
+          } else if (effect.type === 'SCORE_IF_PROBE_ON_ASTEROID') {
+            const rotationState = createRotationState(
+              game.board.solarSystem.rotationAngleLevel1 || 0,
+              game.board.solarSystem.rotationAngleLevel2 || 0,
+              game.board.solarSystem.rotationAngleLevel3 || 0
+            );
+            const hasProbe = player.probes.some(p => {
+              if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+              const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
+              const cell = getCell(p.solarPosition.disk, absSector, rotationState);
+              return cell?.hasAsteroid;
+            });
+            if (hasProbe) {
+              bonus += effect.value;
+            }
+          } else if (effect.type === 'SCORE_SOLVAY') {
+            // Trouver le gain maximum parmi les récompenses "others" des tuiles non validées par le joueur
+            let maxPoints = 0;
+            if (game.board.objectiveTiles) {
+              game.board.objectiveTiles.forEach(tile => {
+                if (!tile.markers.includes(player.id)) {
+                  if (tile.rewards.others > maxPoints) maxPoints = tile.rewards.others;
+                }
+              });
+            }
+            bonus += maxPoints;
+          }
+        });
+      }
+
       card.scoringModifiers?.forEach(modifier => {
         // Appliquer les modificateurs selon leur type
         bonus += modifier.value;
@@ -162,7 +256,10 @@ export class ScoreManager {
               count = Math.min(cBlue, cRed, cYellow);
             } else {
               // Paire secteur couvert / sonde (orbiteur ou atterrisseur)
-              const coveredSectors = board.sectors.filter(s => s.coveredBy.includes(player.id)).length;
+              let coveredSectors = 0;
+              board.sectors.forEach(s => {
+                coveredSectors += s.coveredBy.filter(id => id === player.id).length;
+              });
               const probes = player.probes.filter(p => p.state === ProbeState.IN_ORBIT || p.state === ProbeState.LANDED).length;
               count = Math.min(coveredSectors, probes);
             }
