@@ -493,13 +493,13 @@ export class BoardManager {
     return [{
       lifeTraces: [],
       firstBonus: { pv: 5, media: 1 },
-      nextBonus: { pv: 3, media: 1 },
+      nextBonus: { pv: 3 },
       isFirstBoard: true
     },
     {
       lifeTraces: [],
       firstBonus: { pv: 3, media: 1 },
-      nextBonus: { pv: 3, media: 1 },
+      nextBonus: { pv: 3 },
       isFirstBoard: false
     }];
   }
