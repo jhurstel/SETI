@@ -705,14 +705,12 @@ export class ProbeSystem {
 
     // Identifier la cible (Planète ou Satellite)
     let targetBody: any = updatedGame.board.planets.find(p => p.id === planetId);
-    let missionTargetPlanetId = planetId;
     if (!targetBody) {
         for (const p of updatedGame.board.planets) {
             if (p.satellites) {
                 const sat = p.satellites.find(s => s.id === planetId);
                 if (sat) {
                     targetBody = sat;
-                    missionTargetPlanetId = sat.planetId;
                     break;
                 }
             }

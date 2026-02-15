@@ -127,11 +127,11 @@ export class ScanSystem {
     
     const logs: string[] = [];
     let bonuses: Bonus = {};
-    const majority = this.calculateMajority(sector);
-    const winnerId = majority.playerId;
-    if (!winnerId) {
+    const majorities = this.calculateMajorities(sector);
+    if (majorities.length === 0) {
       return { updatedGame, logs: [], bonuses: {} };
     }
+    const winnerId = majorities[0].playerId;
 
     const winner = updatedGame.players.find(p => p.id === winnerId);
     if (winner) {
@@ -174,14 +174,76 @@ export class ScanSystem {
             logs.push(`${participants.join(', ')} gagn${participants.length > 1 ? 'ent' : 'e'} 1 Média. ${player.name} `);
         }
 
+        // Bonus BONUS_IF_COVERED (Cartes 45, 46, 47)
+        const buffsToTrigger = winner.activeBuffs.filter(buff => buff.type === 'BONUS_IF_COVERED');
+        buffsToTrigger.forEach(buff => {
+            if (winnerId === playerId) {
+                if (buff.target === 'energy') {
+                    bonuses.energy = (bonuses.energy || 0) + buff.value;
+                    logs.push(`gagne ${ResourceSystem.formatResource(buff.value, 'ENERGY')} (Bonus carte "${buff.source}")`);
+                } else if (buff.target === 'draw') {
+                    bonuses.card = (bonuses.card || 0) + buff.value;
+                    logs.push(`gagne ${ResourceSystem.formatResource(buff.value, 'CARD')} (Bonus carte "${buff.source}")`);
+                } else if (buff.target === 'data') {
+                    bonuses.data = (bonuses.data || 0) + buff.value;
+                    logs.push(`gagne ${ResourceSystem.formatResource(buff.value, 'DATA')} (Bonus carte "${buff.source}")`);
+                }
+            }
+        });
+
+        if (buffsToTrigger.length > 0) {
+            winner.activeBuffs = winner.activeBuffs.filter(buff => buff.type !== 'BONUS_IF_COVERED');
+        }
+
         // Marquer le secteur comme couvert
         sector.isCovered = true;
         sector.coveredBy.push(winnerId);
-        
+
         // Reset signals
+        // Le gagnant (1er) retire ses marqueurs.
+        // Le 2ème (ou les 2èmes ex-aequo) place un marqueur en 1ère position.
+        // Les autres (3ème et plus) retirent leurs marqueurs.
+        
+        let secondPlacePlayers: string[] = [];
+
+        if (majorities.length > 1) {
+            // Find the score of the actual second place.
+            // This is the first player in the sorted list whose score is less than the winner's.
+            const winnerScore = majorities[0].count;
+            const secondPlaceEntry = majorities.find(p => p.count < winnerScore);
+
+            if (secondPlaceEntry) {
+                const secondPlaceCount = secondPlaceEntry.count;
+                // Find all players who are tied for second place
+                const tiedSecondPlacePlayers = majorities.filter(p => p.count === secondPlaceCount).map(p => p.playerId);
+
+                if (tiedSecondPlacePlayers.length > 1) {
+                    // Tie-breaker: last one to place a marker wins second place.
+                    for (let i = sector.signals.length - 1; i >= 0; i--) {
+                        const s = sector.signals[i];
+                        if (s.marked && s.markedBy && tiedSecondPlacePlayers.includes(s.markedBy)) {
+                            secondPlacePlayers = [s.markedBy];
+                            break;
+                        }
+                    }
+                } else {
+                    secondPlacePlayers = tiedSecondPlacePlayers;
+                }
+            }
+        }
+
         sector.signals.forEach(s => {
             s.marked = false;
             s.markedBy = undefined;
+        });
+
+        // Place markers for 2nd place players
+        secondPlacePlayers.forEach((playerId, index) => {
+            if (index < sector.signals.length) {
+                const signal = sector.signals[index];
+                signal.marked = true;
+                signal.markedBy = playerId;
+            }
         });
     }
     return { updatedGame, logs, bonuses, winnerId};
@@ -240,6 +302,51 @@ export class ScanSystem {
       playerId: maxPlayerId,
       count: maxCount
     };
+  }
+
+  /**
+   * Calcule les majorités dans un secteur et retourne une liste triée des joueurs.
+   */
+  static calculateMajorities(sector: Sector): { playerId: string; count: number }[] {
+    const counts = new Map<string, number>();
+    sector.signals.forEach(signal => {
+      if (signal.marked && signal.markedBy) {
+        const count = counts.get(signal.markedBy) || 0;
+        counts.set(signal.markedBy, count + 1);
+      }
+    });
+
+    if (counts.size === 0) {
+      return [];
+    }
+
+    // Convertir la map en tableau
+    const sortedPlayers = Array.from(counts.entries()).map(([playerId, count]) => ({ playerId, count }));
+
+    // Trier par nombre de marqueurs (décroissant)
+    sortedPlayers.sort((a, b) => b.count - a.count);
+
+    // Gérer les égalités pour la première place : le dernier à avoir posé gagne
+    if (sortedPlayers.length > 1 && sortedPlayers[0].count === sortedPlayers[1].count) {
+      const maxCount = sortedPlayers[0].count;
+      const tiedPlayers = sortedPlayers.filter(p => p.count === maxCount).map(p => p.playerId);
+      
+      for (let i = sector.signals.length - 1; i >= 0; i--) {
+        const s = sector.signals[i];
+        if (s.marked && s.markedBy && tiedPlayers.includes(s.markedBy)) {
+          const winner = s.markedBy;
+          // Mettre le gagnant en première position
+          const winnerIndex = sortedPlayers.findIndex(p => p.playerId === winner);
+          if (winnerIndex > 0) {
+            const winnerData = sortedPlayers.splice(winnerIndex, 1)[0];
+            sortedPlayers.unshift(winnerData);
+          }
+          break;
+        }
+      }
+    }
+
+    return sortedPlayers;
   }
 
   /**

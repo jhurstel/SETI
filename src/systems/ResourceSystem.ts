@@ -1,5 +1,5 @@
 import { getObjectPosition, performRotation } from '../core/SolarSystemPosition';
-import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, ProbeState, HistoryEntry, Signal } from '../core/types';
+import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, HistoryEntry } from '../core/types';
 import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';

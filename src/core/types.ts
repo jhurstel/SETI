@@ -446,6 +446,9 @@ export interface Bonus {
   anyProbe?: boolean;
   gainSignalAdjacents?: boolean;
   scorePerMedia?: number;
+  ignoreSatelliteLimit?: boolean;
+  revealAndTriggerFreeAction?: boolean;
+  chooseTechType?: boolean;
 }
 
 export interface RotationDisk {

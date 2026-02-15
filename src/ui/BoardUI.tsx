@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, LifeTraceType, InteractionState, GamePhase } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, LifeTraceType, InteractionState, GamePhase, Mission, Player } from '../core/types';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -612,11 +612,14 @@ export const BoardUI: React.FC = () => {
             return;
         }
 
-        // Si le robot a déjà joué son action principale, il passe son tour
+        // Tentative d'actions gratuites (avant ou après l'action principale)
+        if (performAIFreeActions(game, currentPlayer)) return;
+
+        // Si le robot a déjà joué son action principale et n'a plus d'actions gratuites à faire
         if (currentPlayer.hasPerformedMainAction) {
-          console.log(`[BoardUI] Robot ${currentPlayer.name} has already performed main action. Passing turn.`);
-          handleNextPlayer();
-          return;
+            console.log(`[BoardUI] Robot ${currentPlayer.name} has already performed main action. Passing turn.`);
+            handleNextPlayer();
+            return;
         }
 
         // Décision de l'IA (Niveau FACILE)
@@ -711,7 +714,41 @@ export const BoardUI: React.FC = () => {
                      // Robot logic: place on first available board (simple logic)
                      const board = aiGame.board.alienBoards[0];
                      board.lifeTraces.push({ id: `trace-${Date.now()}`, type: interaction.color, playerId: currentPlayer.id });
-                     addToHistory(`place une trace de vie ${interaction.color} sur le plateau Alien`, currentPlayer.id, aiGame, undefined, sequenceId);
+                     
+                     // Calculate bonuses
+                     const track = board.lifeTraces.filter(t => t.type === interaction.color);
+                     const isFirst = track.length === 1;
+                     const bonus = isFirst ? board.firstBonus : board.nextBonus;
+
+                     const res = ResourceSystem.processBonuses(bonus, aiGame, currentPlayer.id, 'lifetrace', sequenceId);
+                     aiGame = res.updatedGame;
+
+                     // Check for species discovery
+                     const traces = board.lifeTraces;
+                     const hasRed = traces.some(t => t.type === LifeTraceType.RED);
+                     const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
+                     const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
+                     
+                     let discoveryLog = "";
+                     if (hasRed && hasYellow && hasBlue && !board.speciesId) {
+                         const ALIEN_SPECIES = ['Centauriens', 'Exertiens', 'Oumuamua'];
+                         const randomSpecies = ALIEN_SPECIES[Math.floor(Math.random() * ALIEN_SPECIES.length)];
+                         board.speciesId = randomSpecies;
+                         discoveryLog = " et découvre une nouvelle espèce Alien !";
+                     }
+
+                     let message = `place une trace de vie ${interaction.color} sur le plateau Alien`;
+                     if (res.logs.length > 0) {
+                        message += ` et ${res.logs.join(', ')}`;
+                     }
+                     message += discoveryLog;
+                     
+                     addToHistory(message, currentPlayer.id, aiGame, undefined, sequenceId);
+                     res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
+                     
+                     if (res.newPendingInteractions.length > 0) {
+                        queue.unshift(...res.newPendingInteractions.map(i => ({ ...i, sequenceId })));
+                     }
                 } else if (interaction.type === 'RESERVING_CARD') {
                     const player = aiGame.players.find(p => p.id === currentPlayer.id);
                     if (player && player.cards.length > 0) {
@@ -975,6 +1012,150 @@ export const BoardUI: React.FC = () => {
     }
     return;
   }, [game, performPass, addToHistory]);
+
+  // Helper pour les actions gratuites de l'IA
+  const performAIFreeActions = (currentGame: Game, player: any): boolean => {
+    // 1. Complete Missions
+    if (player.missions && Math.random() < 0.4) {
+        for (const mission of player.missions) {
+            if (mission.completed) continue;
+            for (const req of mission.requirements) {
+                if ((mission.completedRequirementIds || []).includes(req.id)) continue;
+                if (req.type.startsWith('GAIN_IF_')) {
+                    const bonus = ProbeSystem.evaluateMission(currentGame, player.id, req.value);
+                    if (bonus) {
+                        const updatedGame = structuredClone(currentGame);
+                        const p = updatedGame.players.find((p: Player) => p.id === player.id);
+                        if (!p) {
+                            // If player not found, exit early
+                            break;
+                        }
+                        const m = p.missions.find((m: Mission) => m.id === mission.id);
+                        if (!m) {
+                            // If mission not found, exit early
+                            break;
+                        }
+                        m.completedRequirementIds.push(req.id);
+                        if (m.completedRequirementIds.length >= m.requirements.length) {
+                            m.completed = true;
+                        }
+                        const sequenceId = `ai-mission-${Date.now()}`;
+                        const res = ResourceSystem.processBonuses(bonus, updatedGame, player.id, 'mission-claim', sequenceId);
+                        
+                        setGame(res.updatedGame);
+                        if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
+                        
+                        const actionText = m.completed ? "accomplit" : "valide un objectif de";
+                        addToHistory(`${actionText} la mission "${m.name}" (IA)${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, currentGame, undefined, sequenceId);
+                        res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, sequenceId));
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Transfer Data
+    if (player.data > 0 && Math.random() < 0.4) {
+        for (const slotId in player.dataComputer.slots) {
+            if (ComputerSystem.canFillSlot(player, slotId)) {
+                const { updatedGame, gains, bonusEffects } = ComputerSystem.fillSlot(currentGame, player.id, slotId);
+                const sequenceId = `ai-computer-${Date.now()}`;
+                
+                let aiGame = updatedGame;
+                bonusEffects.forEach(effect => {
+                     if (effect.type === 'card') {
+                         aiGame = CardSystem.drawCards(aiGame, player.id, effect.amount);
+                     } else if (effect.type === 'reservation') {
+                         const row = aiGame.decks.cardRow;
+                         if (row.length > 0) {
+                             const card = row[Math.floor(Math.random() * row.length)];
+                             aiGame = CardSystem.reserveCard(aiGame, player.id, card.id);
+                         }
+                     }
+                });
+
+                setGame(aiGame);
+                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
+                let gainText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
+                addToHistory(`transfère 1 donnée vers l'ordinateur (IA)${gainText}`, player.id, currentGame, undefined, sequenceId);
+                return true;
+            }
+        }
+    }
+
+    // 3. Buy Card (Media >= 3)
+    if (player.mediaCoverage >= 3 && Math.random() < 0.1) {
+        const row = currentGame.decks.cardRow;
+        if (row.length > 0) {
+            const card = row[Math.floor(Math.random() * row.length)];
+            const res = ResourceSystem.buyCard(currentGame, player.id, card.id, false);
+            if (!res.error) {
+                setGame(res.updatedGame);
+                if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
+                addToHistory(`achète la carte "${card.name}" (IA)`, player.id, currentGame);
+                return true;
+            }
+        }
+    }
+
+    // 4. Discard Card (Free Action)
+    if (player.cards.length > 0 && Math.random() < 0.1) {
+        const cardsWithAction = player.cards.filter((c: any) => c.freeAction);
+        const card = cardsWithAction.length > 0 ? cardsWithAction[Math.floor(Math.random() * cardsWithAction.length)] : player.cards[Math.floor(Math.random() * player.cards.length)];
+        
+        if (card.freeAction) {
+             let updatedGame = structuredClone(currentGame);
+             let logMsg = "";
+             if (card.freeAction === FreeActionType.MEDIA) {
+                 const res = ResourceSystem.updateMedia(updatedGame, player.id, 1);
+                 updatedGame = res.updatedGame;
+                 logMsg = "gagne 1 Média";
+             } else if (card.freeAction === FreeActionType.DATA) {
+                 const res = ResourceSystem.updateData(updatedGame, player.id, 1);
+                 updatedGame = res.updatedGame;
+                 logMsg = "gagne 1 Donnée";
+             } else if (card.freeAction === FreeActionType.MOVEMENT) {
+                 const probes = player.probes.filter((p: any) => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition);
+                 if (probes.length > 0) {
+                     const probe = probes[Math.floor(Math.random() * probes.length)];
+                     const rotationState = createRotationState(
+                          updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+                          updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+                          updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+                      );
+                      const absPos = getAbsoluteSectorForProbe(probe.solarPosition!, rotationState);
+                      const reachable = calculateReachableCellsWithEnergy(
+                          probe.solarPosition!.disk,
+                          absPos,
+                          1, 0, rotationState, false
+                      );
+                      const destinations = Array.from(reachable.keys()).filter(k => k !== `${probe.solarPosition!.disk}${absPos}`);
+                      if (destinations.length > 0) {
+                          const destKey = destinations[Math.floor(Math.random() * destinations.length)];
+                          const disk = destKey[0] as DiskName;
+                          const sector = parseInt(destKey.substring(1)) as SectorNumber;
+                          const moveRes = ProbeSystem.moveProbe(updatedGame, player.id, probe.id, 0, disk, sector);
+                          updatedGame = moveRes.updatedGame;
+                          logMsg = "déplace une sonde";
+                      } else {
+                          logMsg = "gagne 1 déplacement (inutilisé)";
+                      }
+                 } else {
+                     logMsg = "gagne 1 déplacement (inutilisé)";
+                 }
+             }
+             
+             updatedGame = CardSystem.discardCard(updatedGame, player.id, card.id);
+             setGame(updatedGame);
+             if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+             addToHistory(`défausse "${card.name}" et ${logMsg} (IA)`, player.id, currentGame);
+             return true;
+        }
+    }
+
+    return false;
+  };
 
   // Gestionnaire pour passer au joueur suivant pendant la phase de SETUP
   const handleSetupNextPlayer = (currentGame: Game) => {

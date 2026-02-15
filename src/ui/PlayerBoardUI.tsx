@@ -46,6 +46,90 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.PASS]: 'Passer définitivement',
 };
 
+// Composant extrait pour les cartes en main
+const HandCard: React.FC<{
+  card: Card;
+  game: Game;
+  currentPlayerId: string;
+  interactionState: InteractionState;
+  highlightedCardId: string | null;
+  setHighlightedCardId: (id: string | null) => void;
+  onCardClick: (id: string) => void;
+  onPlayCard: (id: string) => void;
+  onDiscardCardAction: (id: string) => void;
+  handleTooltipHover: (e: React.MouseEvent, content: React.ReactNode) => void;
+  handleTooltipLeave: () => void;
+  renderActionButton: (icon: string, tooltip: string, onClick: () => void, disabled: boolean, color: string, style: React.CSSProperties) => React.ReactNode;
+}> = ({ card, game, currentPlayerId, interactionState, highlightedCardId, setHighlightedCardId, onCardClick, onPlayCard, onDiscardCardAction, handleTooltipHover, handleTooltipLeave, renderActionButton }) => {
+    const currentPlayer = game.players.find(p => p.id === currentPlayerId)!;
+    const hasPerformedMainAction = currentPlayer.hasPerformedMainAction;
+    
+    const isDiscarding = interactionState.type === 'DISCARDING_CARD';
+    const isTrading = interactionState.type === 'TRADING_CARD';
+    const isReserving = interactionState.type === 'RESERVING_CARD';
+    const isDiscardingForSignal = interactionState.type === 'DISCARDING_FOR_SIGNAL';
+    
+    const selectedCardIds = (isDiscarding || isTrading || isReserving || isDiscardingForSignal) ? (interactionState as any).selectedCards : [];
+    const reservationCount = isReserving ? (interactionState as any).count : 0;
+    const discardForSignalCount = isDiscardingForSignal ? (interactionState as any).count : 0;
+
+    const isSelected = selectedCardIds.includes(card.id);
+    const isHighlighted = highlightedCardId === card.id;
+
+    let phaseClass = 'seti-card-idle';
+    let isClickable = true;
+
+    if (isReserving) {
+      phaseClass = 'seti-card-interact-mode';
+      if (isSelected) phaseClass += ' selected';
+      else if (selectedCardIds.length === reservationCount) { phaseClass += ' disabled'; isClickable = false; }
+    } else if (isDiscarding) {
+      phaseClass = 'seti-card-interact-mode';
+      if (isSelected) phaseClass += ' selected';
+      else if (currentPlayer.cards.length - selectedCardIds.length === 4) { phaseClass += ' disabled'; isClickable = false; }
+    } else if (isTrading) {
+      phaseClass = 'seti-card-interact-mode';
+      if (isSelected) phaseClass += ' selected';
+      else if (selectedCardIds.length >= 2) { phaseClass += ' disabled'; isClickable = false; }
+    } else if (isDiscardingForSignal) {
+      phaseClass = 'seti-card-interact-mode';
+      if (isSelected) phaseClass += ' selected';
+      else if (selectedCardIds.length >= (discardForSignalCount || 0) && !isSelected) { phaseClass += ' disabled'; isClickable = false; }
+    } else {
+      if (isHighlighted) phaseClass += ' selected';
+    }
+
+    const { canDiscard, reason: discardTooltip } = CardSystem.canDiscardFreeAction(game, currentPlayerId, card.freeAction);
+    const { canPlay, reason: playTooltip } = CardSystem.canPlayCard(game, currentPlayerId, card);
+    const canPlayAction = canPlay && !hasPerformedMainAction;
+    const effectivePlayTooltip = hasPerformedMainAction ? "Action principale déjà effectuée" : playTooltip;
+
+    return (
+      <div 
+        className={`seti-common-card seti-card-wrapper ${phaseClass}`}
+        onMouseEnter={e => handleTooltipHover(e, <CardTooltip card={card} />)}
+        onMouseLeave={handleTooltipLeave}
+        onClick={e => {
+          e;
+          if (!isClickable) return;
+          if (isReserving || isTrading || isDiscarding || isDiscardingForSignal) { onCardClick(card.id); return; }
+          setHighlightedCardId(isHighlighted ? null : card.id);
+        }}
+      >
+        {isHighlighted && !isDiscarding && !isReserving && !isTrading && !isDiscardingForSignal && (
+          <>
+          {renderActionButton('▶️', effectivePlayTooltip, () => { if (canPlayAction) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlayAction, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 } as React.CSSProperties)}
+          {renderActionButton('🗑️', discardTooltip, () => { if (canDiscard) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canDiscard, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 } as React.CSSProperties)}
+          </>
+        )}
+        <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
+        <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
+        {card.description && <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
+        <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px' }}><div className="seti-card-detail" style={{ display: 'flex', justifyContent: 'space-between' }}>{card.freeAction && <span>Act: {card.freeAction}</span>}{card.scanSector && <span>Scan: {card.scanSector}</span>}</div><div className="seti-card-detail">{card.revenue && <span>Rev: {card.revenue}</span>}</div></div>
+      </div>
+    );
+};
+
 export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onDrawCard, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick, onMissionClick }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
@@ -270,7 +354,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   };
 
   // Helper pour les boutons d'action (factorisé)
-  const renderActionButton = (
+  const renderActionButton = React.useCallback((
     icon: string,
     tooltip: string,
     onClick: (e: React.MouseEvent) => void,
@@ -300,7 +384,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         {icon}
       </button>
     );
-  };
+  }, [handleTooltipHover, handleTooltipLeave]);
 
   // Helper pour le bouton d'achat de carte
   const renderBuyCardButton = (icon: string, tooltip: string) => {
@@ -344,96 +428,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         !canTrade,
         canTrade ? '#ffd700' : '#555',
         { marginLeft: '4px', ...style }
-    );
-  };
-
-  // Helper pour le rendu d'une carte en main (Factorisation)
-  const renderHandCard = (card: Card) => {
-    const isSelectedForDiscard = isDiscarding && selectedCardIds.includes(card.id);
-    const isSelectedForTrade = isTrading && selectedCardIds.includes(card.id);
-    const isSelectedForReservation = isReserving && selectedCardIds.includes(card.id);
-    const isSelectedForDiscardSignal = isDiscardingForSignal && selectedCardIds.includes(card.id);
-    const isHighlighted = highlightedCardId === card.id;
-    
-    // Détermination de la classe CSS selon la phase
-    let phaseClass = 'seti-card-idle';
-    let isClickable = true;
-
-    if (isReserving) {
-      phaseClass = 'seti-card-interact-mode';
-      if (isSelectedForReservation) {
-        phaseClass += ' selected';
-      } else if (selectedCardIds.length === reservationCount) {
-        phaseClass += ' disabled';
-        isClickable = false;
-      }
-    } else if (isDiscarding) {
-      phaseClass = 'seti-card-interact-mode';
-      if (isSelectedForDiscard) {
-        phaseClass += ' selected';
-      } else if (currentPlayer.cards.length - selectedCardIds.length === 4) {
-        phaseClass += ' disabled';
-        isClickable = false;
-      }
-    } else if (isTrading) {
-      phaseClass = 'seti-card-interact-mode';
-      if (isSelectedForTrade) {
-        phaseClass += ' selected';
-      } else if (selectedCardIds.length >= 2) {
-        phaseClass += ' disabled';
-        isClickable = false;
-      }
-    } else if (isDiscardingForSignal) {
-      phaseClass = 'seti-card-interact-mode';
-      if (isSelectedForDiscardSignal) {
-        phaseClass += ' selected';
-      } else if (selectedCardIds.length >= (discardForSignalCount || 0) && !isSelectedForDiscardSignal) {
-        phaseClass += ' disabled';
-        isClickable = false;
-      }
-    } else {
-      // Mode IDLE (Jeu normal)
-      if (isHighlighted) {
-        phaseClass += ' selected';
-      }
-    }
-
-    const { canDiscard, reason: discardTooltip } = CardSystem.canDiscardFreeAction(game, currentPlayer.id, card.freeAction);
-
-    const { canPlay, reason: playTooltip } = CardSystem.canPlayCard(game, currentPlayer.id, card);
-    const canPlayAction = canPlay && !hasPerformedMainAction;
-    const effectivePlayTooltip = hasPerformedMainAction ? "Action principale déjà effectuée" : playTooltip;
-
-    return (
-      <div 
-        key={card.id} 
-        className={`seti-common-card seti-card-wrapper ${phaseClass}`}
-        onMouseEnter={e => handleTooltipHover(e, <CardTooltip card={card} />)}
-        onMouseLeave={handleTooltipLeave}
-        onClick={e => {
-          e;
-          if (!isClickable) return;
-          
-          if (isReserving || isTrading || isDiscarding || isDiscardingForSignal) {
-            if (onCardClick) onCardClick(card.id);
-            return;
-          }
-          
-          // Mode IDLE : Toggle highlight
-          setHighlightedCardId(isHighlighted ? null : card.id);
-        }}
-      >
-        {isHighlighted && !isDiscarding && !isReserving && !isTrading && !isDiscardingForSignal && (
-          <>
-          {renderActionButton('▶️', effectivePlayTooltip, () => { if (canPlayAction && onPlayCard) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlayAction, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 } as React.CSSProperties)}
-          {renderActionButton('🗑️', discardTooltip, () => { if (canDiscard && onDiscardCardAction) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canDiscard, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 } as React.CSSProperties)}
-          </>
-        )}
-        <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
-        <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
-        {card.description && <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
-        <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px' }}><div className="seti-card-detail" style={{ display: 'flex', justifyContent: 'space-between' }}>{card.freeAction && <span>Act: {card.freeAction}</span>}{card.scanSector && <span>Scan: {card.scanSector}</span>}</div><div className="seti-card-detail">{card.revenue && <span>Rev: {card.revenue}</span>}</div></div>
-      </div>
     );
   };
 
@@ -727,7 +721,23 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             <div className="seti-player-list seti-cards-list">
               {!isRobot ? (
                 currentPlayer.cards.length > 0 ? (
-                  currentPlayer.cards.map(renderHandCard)
+                  currentPlayer.cards.map(card => (
+                    <HandCard
+                        key={card.id}
+                        card={card}
+                        game={game}
+                        currentPlayerId={currentPlayer.id}
+                        interactionState={interactionState}
+                        highlightedCardId={highlightedCardId}
+                        setHighlightedCardId={setHighlightedCardId}
+                        onCardClick={onCardClick}
+                        onPlayCard={onPlayCard}
+                        onDiscardCardAction={onDiscardCardAction}
+                        handleTooltipHover={handleTooltipHover}
+                        handleTooltipLeave={handleTooltipLeave}
+                        renderActionButton={renderActionButton as any}
+                    />
+                  ))
                 ) : (
                   <div className="seti-player-list-empty">Aucune carte en main</div>
                 )
