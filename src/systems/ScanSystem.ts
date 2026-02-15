@@ -368,30 +368,9 @@ export class ScanSystem {
 
     // 3. Check if covered
     if (ScanSystem.isSectorCovered(updatedGame, sectorId)) {
-      scanLogs.push(`et complète le secteur !`);
+      scanLogs.push(`complète le secteur`);
       historyEntries.push({ message: scanLogs.join(', '), playerId, sequenceId });
-
-      const coverageLogs: string[] = [];
-      // 4. Cover sector
-      const coverageResult = ScanSystem.coverSector(updatedGame, playerId, sectorId);
-      updatedGame = coverageResult.updatedGame;
-      coverageLogs.push(...coverageResult.logs);
-
-      // 5. Process cover bonuses
-      if (coverageResult.bonuses) {
-        const bonusRes = ResourceSystem.processBonuses(coverageResult.bonuses, updatedGame, playerId, 'scan', sequenceId);
-        updatedGame = bonusRes.updatedGame;
-        coverageLogs.push(...bonusRes.logs);
-        if (bonusRes.historyEntries) {
-          historyEntries.push(...bonusRes.historyEntries);
-        }
-        if (bonusRes.newPendingInteractions.length > 0) {
-          newPendingInteractions = [...newPendingInteractions, ...bonusRes.newPendingInteractions.map(i => ({ ...i, sequenceId }))];
-        }
-      }
-      if (coverageLogs.length > 0) {
-        historyEntries.push({ message: coverageLogs.join(', '), playerId: coverageResult.winnerId || playerId, sequenceId });
-      }
+      newPendingInteractions.push({ type: 'RESOLVING_SECTOR', sectorId, sequenceId });
     } else {
       // 6. Log scan only
       historyEntries.push({ message: scanLogs.join(', '), playerId, sequenceId });
