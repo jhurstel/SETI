@@ -82,44 +82,6 @@ export class ResourceSystem {
       }
   }
 
-  static buyCard(game: Game, playerId: string, cardIdFromRow?: string, isFree: boolean = false): { updatedGame: Game, error?: string } {
-    let updatedGame = { ...game };
-    
-    // Copie profonde du joueur et de ses cartes
-    updatedGame.players = updatedGame.players.map(p => p.id === playerId ? { ...p, cards: [...p.cards] } : p);
-    const player = updatedGame.players.find(p => p.id === playerId);
-    if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
-
-    if (!isFree) {
-      if (player.mediaCoverage < 3) {
-        return { updatedGame: game, error: "Couverture médiatique insuffisante" };
-      }
-
-      player.mediaCoverage -= 3;
-    }
-
-    if (cardIdFromRow) {
-      // Copie profonde de la rangée de cartes avant modification
-      updatedGame.decks = {
-        ...updatedGame.decks,
-        cardRow: [...(updatedGame.decks.cardRow || [])]
-      };
-
-      const cardIndex = updatedGame.decks.cardRow.findIndex(c => c.id === cardIdFromRow);
-      if (cardIndex !== -1) {
-        const [card] = updatedGame.decks.cardRow.splice(cardIndex, 1);
-        player.cards.push(card);
-        updatedGame = CardSystem.refillCardRow(updatedGame);
-      } else {
-        return { updatedGame: game, error: "Carte non trouvée dans la rangée" };
-      }
-    } else {
-      updatedGame = CardSystem.drawCards(updatedGame, playerId, 1);
-    }
-
-    return { updatedGame };
-  }
-
   static tradeResources(game: Game, playerId: string, spendType: string, gainType: string, cardIdsToSpend?: string[]): { updatedGame: Game, error?: string } {
     let updatedGame = { ...game };
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));

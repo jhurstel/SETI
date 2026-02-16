@@ -1,11 +1,8 @@
-import { Game, ActionType, ValidationResult, InteractionState, HistoryEntry } from '../core/types';
+import { Game, ActionType, ValidationResult } from '../core/types';
 import { BaseAction } from './Action';
 import { ProbeSystem } from '../systems/ProbeSystem';
 
 export class LaunchProbeAction extends BaseAction {
-  public historyEntries: HistoryEntry[] = [];
-  public newPendingInteractions: InteractionState[] = [];
-
   constructor(playerId: string) {
     super(playerId, ActionType.LAUNCH_PROBE);
   }
@@ -22,4 +19,3 @@ export class LaunchProbeAction extends BaseAction {
     return result.updatedGame;
   }
 }
-

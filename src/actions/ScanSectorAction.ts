@@ -1,12 +1,8 @@
 import { BaseAction } from './Action';
-import { Game, ActionType, ValidationResult, InteractionState } from '../core/types';
+import { Game, ActionType, ValidationResult } from '../core/types';
 import { ScanSystem } from '../systems/ScanSystem';
 
 export class ScanSectorAction extends BaseAction {
-    public historyEntries: { message: string, playerId: string, sequenceId: string }[] = [];
-    public newPendingInteractions: InteractionState[] = [];
-
-
     constructor(playerId: string) {
         super(playerId, ActionType.SCAN_SECTOR);
     }

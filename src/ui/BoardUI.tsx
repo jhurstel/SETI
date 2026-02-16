@@ -14,7 +14,6 @@ import { PlayCardAction } from '../actions/PlayCardAction';
 import { ResearchTechAction } from '../actions/ResearchTechAction';
 import { ScanSectorAction } from '../actions/ScanSectorAction';
 import { GameEngine } from '../core/Game';
-import { GameFactory } from '../core/GameFactory';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, performRotation, calculateReachableCellsWithEnergy } from '../core/SolarSystemPosition';
 import { CardSystem } from '../systems/CardSystem';
@@ -32,7 +31,6 @@ import { HistoryBoardUI, HistoryEntry } from './HistoryBoardUI';
 import { CardRowUI } from './CardRowUI';
 import { AlienBoardUI } from './AlienBoardUI';
 import { SettingsModal } from './modals/SettingsModal';
-import { NewGameModal } from './modals/NewGameModal';
 import './BoardUI.css';
 import { ComputerSystem } from '../systems/ComputerSystem';
 
@@ -92,8 +90,6 @@ export const BoardUI: React.FC = () => {
   const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
   const [isPassModalMinimized, setIsPassModalMinimized] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(true); // Open at launch
-  const [newGameModalVisible, setNewGameModalVisible] = useState(false);
-  const [hasAutosave, setHasAutosave] = useState(false);
 
   // Effet pour afficher un message toast si l'interaction en contient un
   useEffect(() => {
@@ -121,12 +117,6 @@ export const BoardUI: React.FC = () => {
       setIsPassModalMinimized(false);
     }
   }, [passModalState.visible]);
-
-  // Vérifier s'il y a une sauvegarde automatique au démarrage
-  useEffect(() => {
-    const saved = localStorage.getItem('seti_autosave');
-    setHasAutosave(!!saved);
-  }, []);
 
   // Sauvegarde automatique à chaque modification du jeu
   useEffect(() => {
@@ -161,236 +151,12 @@ export const BoardUI: React.FC = () => {
         };
         // Sauvegarder l'état complet
         localStorage.setItem('seti_autosave', JSON.stringify(gameToSave));
-        setHasAutosave(true);
       } catch (e) {
         console.warn("Erreur lors de la sauvegarde automatique (QuotaExceededError probable) :", e);
       }
     }
   }, [game, historyLog]);
 
-  const handleNewGameRequest = () => {
-      setNewGameModalVisible(true);
-      setSettingsVisible(false);
-  };
-
-  const handleNewGameConfirm = (playerCount: number, difficulty: string, isFirstPlayer: boolean) => {
-      try {
-          const robotNamesPool = ['R2-D2', 'C-3PO', 'HAL 9000', 'Wall-E', 'T-800', 'Data', 'Bender', 'Marvin', 'Bishop', 'GLaDOS', 'Auto', 'EVE'];
-          const shuffledRobots = [...robotNamesPool].sort(() => 0.5 - Math.random());
-          difficulty;
-
-          const playerNames = ['Jérôme'];
-          for (let i = 1; i < playerCount; i++) {
-              playerNames.push(shuffledRobots[i-1]);
-          }
-          
-          let newGame = GameFactory.createGame(playerNames, isFirstPlayer);
-          
-          // Configure players based on selection
-          newGame.players[0].type = 'human';
-          for(let i=1; i<newGame.players.length; i++) {
-              newGame.players[i].type = 'robot';
-          }
-
-          newGame = GameFactory.initializeGame(newGame);
-          
-          setGame(newGame);
-          if (gameEngineRef.current) {
-              gameEngineRef.current.setState(newGame);
-          } else {
-              gameEngineRef.current = new GameEngine(newGame);
-          }
-          
-          // Reset logs and history
-          if (newGame.gameLog && newGame.gameLog.length > 0) {
-            setHistoryLog(newGame.gameLog.map(log => ({
-              id: log.id,
-              message: log.message,
-              playerId: log.playerId,
-              timestamp: log.timestamp,
-              previousInteractionState: { type: 'IDLE' },
-              previousPendingInteractions: [],
-              sequenceId: log.sequenceId,
-              previousState: log.previousState
-            })));
-          } else {
-            setHistoryLog([]);
-          }
-          setInteractionState({ type: 'IDLE' });
-          setPendingInteractions([]);
-          
-          setNewGameModalVisible(false);
-          setToast({ message: "Nouvelle partie commencée !", visible: true });
-      } catch (e) {
-          console.error(e);
-          setToast({ message: "Erreur lors de la création de la partie", visible: true });
-      }
-  };
-
-  const handleSaveGame = async () => {
-      if (!game) return;
-      try {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { history, ...cleanGame } = game;
-
-          // Préparer l'objet à sauvegarder avec l'historique à jour
-          const gameToSave = { 
-              ...cleanGame,
-              gameLog: historyLog.map((entry, index) => {
-                  const isLast = index === historyLog.length - 1;
-                  let cleanPreviousState = undefined;
-                  if (isLast && entry.previousState) {
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                      const { gameLog, history, ...rest } = entry.previousState as any;
-                      cleanPreviousState = rest;
-                  }
-                  return {
-                      id: entry.id,
-                      message: entry.message,
-                      timestamp: entry.timestamp,
-                      playerId: entry.playerId,
-                      sequenceId: entry.sequenceId,
-                      previousState: cleanPreviousState
-                  };
-              })
-          };
-          const gameState = JSON.stringify(gameToSave, null, 2);
-
-          // Utiliser l'API File System Access si disponible pour ouvrir une boîte de dialogue "Enregistrer sous"
-          // @ts-ignore
-          if (window.showSaveFilePicker) {
-              try {
-                  // @ts-ignore
-                  const handle = await window.showSaveFilePicker({
-                      suggestedName: `seti_save_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`,
-                      types: [{
-                          description: 'Sauvegarde SETI',
-                          accept: { 'application/json': ['.json'] },
-                      }],
-                  });
-                  const writable = await handle.createWritable();
-                  await writable.write(gameState);
-                  await writable.close();
-                  setSettingsVisible(false);
-                  return;
-              } catch (err: any) {
-                  if (err.name === 'AbortError') return; // Annulation utilisateur
-                  // Sinon continuer vers le fallback
-              }
-          }
-
-          const blob = new Blob([gameState], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `seti_save_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
-          a.style.display = 'none';
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }, 100);
-          setSettingsVisible(false);
-      } catch (e) {
-          setToast({ message: "Erreur lors de la sauvegarde: " + e, visible: true });
-      }
-  };
-
-  const handleLoadGame = () => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json';
-      input.style.display = 'none';
-      document.body.appendChild(input);
-      input.onchange = (e) => {
-          const file = (e.target as HTMLInputElement).files?.[0];
-          if (!file) {
-            document.body.removeChild(input);
-            return;
-          }
-
-          const reader = new FileReader();
-          reader.onload = (event) => {
-              try {
-                  const savedState = event.target?.result as string;
-                  if (savedState) {
-                      const loadedGame = JSON.parse(savedState);
-                      if (!loadedGame.history) {
-                          loadedGame.history = [];
-                      }
-                      setGame(loadedGame);
-                      if (gameEngineRef.current) {
-                          gameEngineRef.current.setState(loadedGame);
-                      } else {
-                          gameEngineRef.current = new GameEngine(loadedGame);
-                      }
-                      
-                      if (loadedGame.gameLog) {
-                          setHistoryLog(loadedGame.gameLog.map((l: any) => ({
-                              id: l.id,
-                              message: l.message,
-                              playerId: l.playerId,
-                              timestamp: l.timestamp,
-                              previousInteractionState: { type: 'IDLE' },
-                              previousPendingInteractions: [],
-                              sequenceId: l.sequenceId,
-                              previousState: l.previousState
-                          })));
-                      } else {
-                          setHistoryLog([]);
-                      }
-                      
-                      setSettingsVisible(false);
-                  }
-              } catch (e) {
-                  console.error(e);
-                  setToast({ message: "Erreur lors du chargement.", visible: true });
-              }
-              document.body.removeChild(input);
-          };
-          reader.readAsText(file);
-      };
-      input.click();
-  };
-
-  const handleContinue = () => {
-      try {
-          const savedState = localStorage.getItem('seti_autosave');
-          if (savedState) {
-              const loadedGame = JSON.parse(savedState);
-              if (!loadedGame.history) {
-                  loadedGame.history = [];
-              }
-              setGame(loadedGame);
-              if (gameEngineRef.current) {
-                  gameEngineRef.current.setState(loadedGame);
-              } else {
-                  gameEngineRef.current = new GameEngine(loadedGame);
-              }
-              
-              if (loadedGame.gameLog) {
-                  setHistoryLog(loadedGame.gameLog.map((l: any) => ({
-                      id: l.id,
-                      message: l.message,
-                      playerId: l.playerId,
-                      timestamp: l.timestamp,
-                      previousInteractionState: { type: 'IDLE' },
-                      previousPendingInteractions: [],
-                      sequenceId: l.sequenceId,
-                      previousState: l.previousState
-                  })));
-              } else {
-                  setHistoryLog([]);
-              }
-              
-              setSettingsVisible(false);
-          }
-      } catch (e) {
-          console.error(e);
-          setToast({ message: "Erreur lors de la restauration.", visible: true });
-      }
-  };
 
   // Ref pour accéder à l'état d'interaction actuel dans addToHistory sans dépendance
   const interactionStateRef = useRef(interactionState);
@@ -417,22 +183,44 @@ export const BoardUI: React.FC = () => {
   const handleNewInteractions = (newInteractions: InteractionState[], sequenceId?: string, summary?: string, forceStacking: boolean = false): boolean => {
     if (newInteractions.length === 0) return false;
 
-    if (newInteractions.length > 1 && !forceStacking) {
-      const choices = newInteractions.map((interaction, index) => ({
-        id: `choice-${Date.now()}-${index}`,
-        label: getInteractionLabel(interaction),
-        state: { ...interaction, sequenceId: interaction.sequenceId || sequenceId },
-        done: false
-      }));
+    // Séparer les résolutions de secteur des autres interactions
+    const resolutions = newInteractions.filter(i => i.type === 'RESOLVING_SECTOR');
+    const others = newInteractions.filter(i => i.type !== 'RESOLVING_SECTOR');
 
-      setInteractionState({
-        type: 'CHOOSING_BONUS_ACTION',
-        bonusesSummary: summary || "Plusieurs actions disponibles. Choisissez l'ordre de résolution :",
-        choices,
-        sequenceId: sequenceId || newInteractions[0].sequenceId
-      });
+    if (others.length > 0) {
+      if (others.length > 1 && !forceStacking) {
+        const choices = others.map((interaction, index) => ({
+          id: `choice-${Date.now()}-${index}`,
+          label: getInteractionLabel(interaction),
+          state: { ...interaction, sequenceId: interaction.sequenceId || sequenceId },
+          done: false
+        }));
+
+        setInteractionState({
+          type: 'CHOOSING_BONUS_ACTION',
+          bonusesSummary: summary || "Plusieurs actions disponibles. Choisissez l'ordre de résolution :",
+          choices,
+          sequenceId: sequenceId || others[0].sequenceId
+        });
+
+        // Ajouter les résolutions à la fin de la file d'attente
+        if (resolutions.length > 0) {
+             setPendingInteractions(prev => [...prev, ...resolutions.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId }))]);
+        }
+      } else {
+        const [first, ...rest] = others;
+        setInteractionState({ ...first, sequenceId: first.sequenceId || sequenceId });
+        
+        // Placer les autres interactions au début, et les résolutions à la toute fin
+        setPendingInteractions(prev => [
+            ...rest.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId })), 
+            ...prev,
+            ...resolutions.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId }))
+        ]);
+      }
     } else {
-      const [first, ...rest] = newInteractions;
+      // S'il n'y a que des résolutions
+      const [first, ...rest] = resolutions;
       setInteractionState({ ...first, sequenceId: first.sequenceId || sequenceId });
       
       if (rest.length > 0) {
@@ -535,6 +323,16 @@ export const BoardUI: React.FC = () => {
         if (coverageResult.bonuses) {
             const bonusRes = ResourceSystem.processBonuses(coverageResult.bonuses, updatedGame, currentPlayer.id, 'scan', sequenceId || '');
             updatedGame = bonusRes.updatedGame;
+            
+            // Fusionner "couvre le secteur" avec le premier gain (ex: "couvre le secteur et obtient 1 trace de vie")
+            if (coverageLogs.length > 0 && coverageLogs[0] === 'couvre le secteur' && bonusRes.logs.length > 0) {
+                const firstBonusLog = bonusRes.logs[0];
+                if (firstBonusLog.startsWith('obtient') || firstBonusLog.startsWith('gagne')) {
+                     coverageLogs[0] = `couvre le secteur et ${firstBonusLog}`;
+                     bonusRes.logs.shift();
+                }
+            }
+            
             coverageLogs.push(...bonusRes.logs);
             
             bonusRes.historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, sequenceId));
@@ -548,6 +346,45 @@ export const BoardUI: React.FC = () => {
         
         if (coverageLogs.length > 0) {
             addToHistory(coverageLogs.join(', '), coverageResult.winnerId || currentPlayer.id, game, undefined, sequenceId);
+        }
+
+        // Traitement des interactions pour les autres joueurs (ex: gagnant de la majorité)
+        if (coverageResult.newPendingInteractions && coverageResult.newPendingInteractions.length > 0) {
+            const otherInteractions = coverageResult.newPendingInteractions.map(item => ({
+                ...item.interaction,
+                playerId: item.playerId,
+                sequenceId: sequenceId
+            }));
+
+            // Séparer IA et Humain
+            const humanInteractions = otherInteractions.filter(i => {
+                const p = updatedGame.players.find(p => p.id === i.playerId);
+                return p && p.type === 'human';
+            });
+
+            const aiInteractions = otherInteractions.filter(i => {
+                const p = updatedGame.players.find(p => p.id === i.playerId);
+                return p && p.type === 'robot';
+            });
+
+            // Ajouter les interactions humaines à la file d'attente
+            newInteractions.push(...humanInteractions);
+
+            // Résoudre automatiquement les interactions IA simples (ex: placer trace de vie) pour ne pas bloquer
+            aiInteractions.forEach(interaction => {
+                if (interaction.type === 'PLACING_LIFE_TRACE' && interaction.playerId) {
+                     const { updatedGame: ug, isDiscovered, historyEntries } = SpeciesSystem.placeLifeTrace(updatedGame, 0, interaction.color, interaction.playerId, sequenceId);
+                     updatedGame = ug;
+                     historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, sequenceId));
+                     if (isDiscovered) {
+                         addToHistory("découvre une nouvelle espèce Alien !", interaction.playerId, undefined, undefined, sequenceId);
+                     }
+                }
+            });
+            
+            // Mettre à jour le jeu après résolution IA
+            setGame(updatedGame);
+            if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
         }
 
         const summary = coverageLogs.length > 0 ? `Secteur résolu. ${coverageLogs.join(', ')}` : "Secteur résolu.";
@@ -590,6 +427,9 @@ export const BoardUI: React.FC = () => {
   // Effet pour gérer le tour du joueur Mock
   useEffect(() => {
     if (!game) return;
+    
+    // Bloquer l'IA si une interaction est en cours (ex: joueur humain doit placer une trace de vie)
+    if (interactionState.type !== 'IDLE') return;
 
     const currentPlayer = game.players[game.currentPlayerIndex];
     if (currentPlayer && currentPlayer.type === 'robot') {
@@ -719,43 +559,19 @@ export const BoardUI: React.FC = () => {
                         addToHistory(coverageLogs.join(', '), coverageResult.winnerId || currentPlayer.id, aiGame, undefined, sequenceId);
                     }
                 } else if (interaction.type === 'PLACING_LIFE_TRACE') {
-                     // Robot logic: place on first available board (simple logic)
-                     const board = aiGame.board.alienBoards[0];
-                     board.lifeTraces.push({ id: `trace-${Date.now()}`, type: interaction.color, playerId: currentPlayer.id });
+                     const { updatedGame, isDiscovered, historyEntries, newPendingInteractions } = SpeciesSystem.placeLifeTrace(aiGame, 0, interaction.color, currentPlayer.id, sequenceId);
                      
-                     // Calculate bonuses
-                     const track = board.lifeTraces.filter(t => t.type === interaction.color);
-                     const isFirst = track.length === 1;
-                     const bonus = isFirst ? board.firstBonus : board.nextBonus;
+                     historyEntries.forEach((e, index) => addToHistory(e.message, e.playerId, index === 0 ? aiGame : undefined, undefined, sequenceId));
 
-                     const res = ResourceSystem.processBonuses(bonus, aiGame, currentPlayer.id, 'lifetrace', sequenceId);
-                     aiGame = res.updatedGame;
-
-                     // Check for species discovery
-                     const traces = board.lifeTraces;
-                     const hasRed = traces.some(t => t.type === LifeTraceType.RED);
-                     const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
-                     const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
-                     
-                     let discoveryLog = "";
-                     if (hasRed && hasYellow && hasBlue && !board.speciesId) {
-                         const ALIEN_SPECIES = ['Centauriens', 'Exertiens', 'Oumuamua'];
-                         const randomSpecies = ALIEN_SPECIES[Math.floor(Math.random() * ALIEN_SPECIES.length)];
-                         board.speciesId = randomSpecies;
-                         discoveryLog = " et découvre une nouvelle espèce Alien !";
+                     if (isDiscovered) {
+                         addToHistory("découvre une nouvelle espèce Alien !", currentPlayer.id, undefined, undefined, sequenceId);
                      }
 
-                     let message = `place une trace de vie ${interaction.color} sur le plateau Alien`;
-                     if (res.logs.length > 0) {
-                        message += ` et ${res.logs.join(', ')}`;
-                     }
-                     message += discoveryLog;
+                     aiGame = updatedGame;
                      
-                     addToHistory(message, currentPlayer.id, aiGame, undefined, sequenceId);
-                     res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
                      
-                     if (res.newPendingInteractions.length > 0) {
-                        queue.unshift(...res.newPendingInteractions.map(i => ({ ...i, sequenceId })));
+                     if (newPendingInteractions.length > 0) {
+                        queue.unshift(...newPendingInteractions.map(i => ({ ...i, sequenceId })));
                      }
                 } else if (interaction.type === 'RESERVING_CARD') {
                     const player = aiGame.players.find(p => p.id === currentPlayer.id);
@@ -777,7 +593,7 @@ export const BoardUI: React.FC = () => {
                             cardId = row[Math.floor(Math.random() * row.length)].id;
                         }
                         
-                        const res = ResourceSystem.buyCard(aiGame, currentPlayer.id, cardId, interaction.isFree);
+                        const res = CardSystem.buyCard(aiGame, currentPlayer.id, cardId, interaction.isFree);
                         if (!res.error) {
                             aiGame = res.updatedGame;
                             const cardName = cardId ? row.find(c => c.id === cardId)?.name : "Pioche";
@@ -840,7 +656,16 @@ export const BoardUI: React.FC = () => {
                     }
                 } else if (interaction.type === 'ACQUIRING_TECH') {
                     const availableTechs = TechnologySystem.getAvailableTechs(aiGame);
+                    const player = aiGame.players.find(p => p.id === currentPlayer.id);
                     let validTechs = availableTechs;
+                    
+                    if (player) {
+                        validTechs = validTechs.filter(tech => {
+                            const baseId = tech.id.substring(0, tech.id.lastIndexOf('-'));
+                            return !player.technologies.some(t => t.id.startsWith(baseId));
+                        });
+                    }
+
                     if (interaction.category) {
                         validTechs = validTechs.filter(t => t.type === interaction.category);
                     }
@@ -857,6 +682,9 @@ export const BoardUI: React.FC = () => {
                         addToHistory(`acquiert technologie "${tech.name}" (IA)`, currentPlayer.id, aiGame, undefined, sequenceId);
                         if (res.historyEntries) {
                              res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
+                        }
+                        if (res.newPendingInteractions && res.newPendingInteractions.length > 0) {
+                            queue.unshift(...res.newPendingInteractions.map(i => ({ ...i, sequenceId })));
                         }
                     }
                 } else if (interaction.type === 'SELECTING_COMPUTER_SLOT') {
@@ -946,11 +774,25 @@ export const BoardUI: React.FC = () => {
               const action = new AnalyzeDataAction(currentPlayer.id);
               const result = gameEngineRef.current!.executeAction(action);
               if (result.success && result.updatedState) {
-                // Place une trace de vie
-                result.updatedState.board.alienBoards[0].lifeTraces.push({ id: `trace-${Date.now()}`, type: LifeTraceType.BLUE, playerId: currentPlayer.id });
-                setGame(result.updatedState);
-                if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedState);
-                addToHistory(`analyse des données et place une trace Bleu`, currentPlayer.id, game);
+                let aiGame = result.updatedState;
+                const sequenceId = `ai-analyze-${Date.now()}`;
+
+                addToHistory(`paye ${ResourceSystem.formatResource(1, 'ENERGY')} pour <strong>Analyser les données</strong>`, currentPlayer.id, game, undefined, sequenceId);
+                const res = SpeciesSystem.placeLifeTrace(aiGame, 0, LifeTraceType.BLUE, currentPlayer.id, sequenceId);
+                res.historyEntries.forEach((e, index) => addToHistory(e.message, e.playerId, index === 0 ? aiGame : undefined, undefined, sequenceId));
+
+                if (res.isDiscovered) {
+                    addToHistory("découvre une nouvelle espèce Alien !", currentPlayer.id, undefined, undefined, sequenceId);
+                }
+
+                aiGame = res.updatedGame;
+
+                if (res.newPendingInteractions.length > 0) {
+                     aiGame = processAIInteractions(aiGame, res.newPendingInteractions, sequenceId);
+                }
+
+                setGame(aiGame);
+                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
               }
               break;
             }
@@ -960,14 +802,20 @@ export const BoardUI: React.FC = () => {
               if (result.success && result.updatedState) {
                 // Finaliser l'acquisition
                 const res = TechnologySystem.acquireTechnology(result.updatedState, currentPlayer.id, decision.data.tech);
-                setGame(res.updatedGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
+                let aiGame = res.updatedGame;
+                
                 if (action.historyEntries) {
-                  action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, e.sequenceId));
+                  action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, e.sequenceId));
                 }
                 if (res.historyEntries) {
-                  res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, e.sequenceId));
+                  res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, e.sequenceId));
                 }
+                if (res.newPendingInteractions && res.newPendingInteractions.length > 0) {
+                     const sequenceId = `ai-tech-${Date.now()}`;
+                     aiGame = processAIInteractions(aiGame, res.newPendingInteractions, sequenceId);
+                }
+                setGame(aiGame);
+                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
               }
               break;
             }
@@ -993,23 +841,57 @@ export const BoardUI: React.FC = () => {
               break;
             }
             case ActionType.ORBIT: {
-              let { updatedGame } = ProbeSystem.orbitProbe(game, currentPlayer.id, decision.data.probeId, decision.data.planetId);
-              const pIndex = updatedGame.players.findIndex(p => p.id === currentPlayer.id);
-              if (pIndex !== -1) updatedGame.players[pIndex].hasPerformedMainAction = true;
+              const result = ProbeSystem.orbitProbe(game, currentPlayer.id, decision.data.probeId, decision.data.planetId);
+              let aiGame = result.updatedGame;
+              const sequenceId = `ai-orbit-${Date.now()}`;
 
-              setGame(updatedGame);
-              if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-              addToHistory(`met une sonde en orbite`, currentPlayer.id, game);
+              const bonusRes = ResourceSystem.processBonuses(result.bonuses, aiGame, currentPlayer.id, 'orbit', sequenceId);
+              aiGame = bonusRes.updatedGame;
+
+              const pIndex = aiGame.players.findIndex(p => p.id === currentPlayer.id);
+              if (pIndex !== -1) aiGame.players[pIndex].hasPerformedMainAction = true;
+
+              let message = `met une sonde en orbite`;
+              if (result.completedMissions && result.completedMissions.length > 0) {
+                  message += ` et accomplit la mission "${result.completedMissions.join('", "')}"`;
+              }
+
+              addToHistory(message, currentPlayer.id, game, undefined, sequenceId);
+              bonusRes.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
+
+              if (bonusRes.newPendingInteractions.length > 0) {
+                   aiGame = processAIInteractions(aiGame, bonusRes.newPendingInteractions, sequenceId);
+              }
+
+              setGame(aiGame);
+              if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
               break;
             }
             case ActionType.LAND: {
-              let { updatedGame } = ProbeSystem.landProbe(game, currentPlayer.id, decision.data.probeId, decision.data.planetId, false);
-              const pIndex = updatedGame.players.findIndex(p => p.id === currentPlayer.id);
-              if (pIndex !== -1) updatedGame.players[pIndex].hasPerformedMainAction = true;
+              const result = ProbeSystem.landProbe(game, currentPlayer.id, decision.data.probeId, decision.data.planetId, false);
+              let aiGame = result.updatedGame;
+              const sequenceId = `ai-land-${Date.now()}`;
 
-              setGame(updatedGame);
-              if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-              addToHistory(`fait atterrir une sonde`, currentPlayer.id, game);
+              const bonusRes = ResourceSystem.processBonuses(result.bonuses, aiGame, currentPlayer.id, 'land', sequenceId);
+              aiGame = bonusRes.updatedGame;
+
+              const pIndex = aiGame.players.findIndex(p => p.id === currentPlayer.id);
+              if (pIndex !== -1) aiGame.players[pIndex].hasPerformedMainAction = true;
+
+              let message = `fait atterrir une sonde`;
+              if (result.completedMissions && result.completedMissions.length > 0) {
+                  message += ` et accomplit la mission "${result.completedMissions.join('", "')}"`;
+              }
+
+              addToHistory(message, currentPlayer.id, game, undefined, sequenceId);
+              bonusRes.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
+
+              if (bonusRes.newPendingInteractions.length > 0) {
+                   aiGame = processAIInteractions(aiGame, bonusRes.newPendingInteractions, sequenceId);
+              }
+
+              setGame(aiGame);
+              if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
               break;
             }
             case ActionType.PASS: {
@@ -1025,15 +907,16 @@ export const BoardUI: React.FC = () => {
   }, [game, performPass, addToHistory]);
 
   // Helper pour les actions gratuites de l'IA
-  const performAIFreeActions = (currentGame: Game, player: any): boolean => {
+  const performAIFreeActions = (currentGame: Game, player: Player): boolean => {
     // 1. Complete Missions
     if (player.missions && Math.random() < 0.4) {
         for (const mission of player.missions) {
             if (mission.completed) continue;
             for (const req of mission.requirements) {
+                if (!req.id) continue;
                 if ((mission.completedRequirementIds || []).includes(req.id)) continue;
                 if (req.type.startsWith('GAIN_IF_')) {
-                    const bonus = ProbeSystem.evaluateMission(currentGame, player.id, req.value);
+                    const bonus = CardSystem.evaluateMission(currentGame, player.id, req.value);
                     if (bonus) {
                         const updatedGame = structuredClone(currentGame);
                         const p = updatedGame.players.find((p: Player) => p.id === player.id);
@@ -1105,7 +988,7 @@ export const BoardUI: React.FC = () => {
         const row = currentGame.decks.cardRow;
         if (row.length > 0) {
             const card = row[Math.floor(Math.random() * row.length)];
-            const res = ResourceSystem.buyCard(currentGame, player.id, card.id, false);
+            const res = CardSystem.buyCard(currentGame, player.id, card.id, false);
             if (!res.error) {
                 setGame(res.updatedGame);
                 if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
@@ -1795,75 +1678,35 @@ export const BoardUI: React.FC = () => {
     }
   };
 
-  // Gestionnaire pour placer une trace de vie
+  // Gestionnaire pour le clic sur une trace de vie
   const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType) => {
     if (!game) return;
     if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
-    if (interactionState.color !== color) {
-      setToast({ message: `Veuillez placer une trace de vie ${interactionState.color}.`, visible: true });
-      return;
-    }
+    if (interactionState.color !== color) return;
 
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    let updatedGame = structuredClone(game);
-    const board = updatedGame.board.alienBoards[boardIndex];
+    // Utiliser le playerId de l'interaction s'il est défini (cas du bonus hors tour), sinon le joueur actif
+    const targetPlayerId = interactionState.playerId || game.players[game.currentPlayerIndex].id;
+    const board = game.board.alienBoards[boardIndex];
+    if (!board) return;
 
     // Create sequence id
     const sequenceId = interactionState.sequenceId || `trace-${Date.now()}`;
 
-    // Create lifetrace object
-    board.lifeTraces.push({ id: `trace-${Date.now()}`, type: color, playerId: currentPlayer.id });
+    // Utilisation de SpeciesSystem pour placer la trace
+    const { updatedGame, isDiscovered, historyEntries, newPendingInteractions } = SpeciesSystem.placeLifeTrace(game, boardIndex, color, targetPlayerId, sequenceId);
 
-    // Vérifier si une espèce Alien est découverte (1 marqueur de chaque couleur sur ce plateau)
-    const traces = board.lifeTraces;
-    const hasRed = traces.some(t => t.type === LifeTraceType.RED);
-    const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
-    const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
+    historyEntries.forEach((entry, index) => addToHistory(entry.message, entry.playerId, index === 0 ? game : undefined, undefined, sequenceId));
 
-    const tracesBefore = traces.slice(0, -1);
-    const hadRed = tracesBefore.some(t => t.type === LifeTraceType.RED);
-    const hadYellow = tracesBefore.some(t => t.type === LifeTraceType.YELLOW);
-    const hadBlue = tracesBefore.some(t => t.type === LifeTraceType.BLUE);
-
-    let discoveryLog = "";
-    if (hasRed && hasYellow && hasBlue && !(hadRed && hadYellow && hadBlue)) {
-      // Assigner une espèce aléatoire au plateau si pas déjà fait
-      const ALIEN_SPECIES = ['Centauriens', 'Exertiens', 'Oumuamua']
-      if (!board.speciesId) {
-        //const availableSpecies = Object.keys(ALIEN_SPECIES_TOPOLOGIES);
-        // Filtrer les espèces déjà découvertes sur d'autres plateaux (si on veut l'unicité)
-        // Pour l'instant, simple random
-        const randomSpecies = ALIEN_SPECIES[Math.floor(Math.random() * ALIEN_SPECIES.length)];
-        board.speciesId = randomSpecies;
-      }
-
+    if (isDiscovered) {
       setAlienDiscoveryNotification({ visible: true, message: "Découverte d'une nouvelle espèce Alien !" });
       setTimeout(() => setAlienDiscoveryNotification(null), 4000);
-      discoveryLog = " et découvre une nouvelle espèce Alien !";
+      addToHistory("découvre une nouvelle espèce Alien !", targetPlayerId, undefined, undefined, sequenceId);
     }
 
-    const track = board.lifeTraces.filter(t => t.type === color);
+    setGame(updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
 
-    const isFirst = track.length === 1;
-    const bonus = isFirst ? board.firstBonus : board.nextBonus;
-
-    const result = ResourceSystem.processBonuses(bonus, updatedGame, currentPlayer.id, 'lifetrace', sequenceId);
-
-    setGame(result.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-
-    const orderText = (boardIndex === 0) ? "gauche" : " droit";
-    let message = `place une trace de vie ${color} sur le plateau Alien ${orderText}`;
-    if (result.logs.length > 0) {
-      message += ` et ${result.logs.join(', ')}`;
-    }
-    message += discoveryLog;
-    addToHistory(message, currentPlayer.id, game, undefined, sequenceId);
-    result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, result.updatedGame, undefined, sequenceId));
-
-    const interactionsWithSeqId = result.newPendingInteractions.map(i => ({ ...i, sequenceId }));
-    
-    if (!handleNewInteractions(interactionsWithSeqId, sequenceId)) {
+    if (!handleNewInteractions(newPendingInteractions, sequenceId)) {
       setInteractionState({ type: 'IDLE' });
     }
   };
@@ -1896,9 +1739,9 @@ export const BoardUI: React.FC = () => {
   // Gestionnaire pour le choix Observation 2
   const handleObs2Choice = (accepted: boolean) => {
     if (!game) return;
-
     if (interactionState.type !== 'CHOOSING_OBS2_ACTION') return;
 
+    // Create sequence id
     const sequenceId = interactionState.sequenceId || `obs2-${Date.now()}`;
 
     if (accepted) {
@@ -1906,8 +1749,9 @@ export const BoardUI: React.FC = () => {
       const player = updatedGame.players[updatedGame.currentPlayerIndex];
 
       // Payer 1 Média
-      player.mediaCoverage -= 1;
-
+      const res = ResourceSystem.updateMedia(updatedGame, player.id, -1);
+      updatedGame = res.updatedGame;
+      
       // Scanner Mercure
       const rotationState = createRotationState(
         updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
@@ -1920,12 +1764,19 @@ export const BoardUI: React.FC = () => {
         const res = ScanSystem.performSignalAndCover(updatedGame, player.id, mercurySector.id, [`paye 1 Média pour utiliser Observation II`], false, sequenceId);
         updatedGame = res.updatedGame;
         res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, sequenceId));
+        if (res.newPendingInteractions.length > 0) {
+            const interactionsWithSeqId = res.newPendingInteractions.map(i => ({ ...i, sequenceId }));
+            handleNewInteractions(interactionsWithSeqId, sequenceId);
+        } else {
+            setInteractionState({ type: 'IDLE' });
+        }
       }
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+    } else {
+      setInteractionState({ type: 'IDLE' });
     }
 
-    setInteractionState({ type: 'IDLE' });
   };
 
   // Gestionnaire pour le choix Observation 3
@@ -1936,7 +1787,6 @@ export const BoardUI: React.FC = () => {
 
     if (accepted) {
       setInteractionState({ type: 'DISCARDING_FOR_SIGNAL', count: 1, selectedCards: [], sequenceId });
-      setToast({ message: "Veuillez sélectionnez une carte à défausser.", visible: true });
     } else {
       // Passer à l'interaction suivante (ou IDLE)
       setInteractionState({ type: 'IDLE' });
@@ -2637,6 +2487,7 @@ export const BoardUI: React.FC = () => {
   // Gestionnaire pour l'action gratuite (défausse de carte)
   const handleDiscardCardAction = (cardId: string) => {
     if (!game) return;
+    if (interactionState.type !== 'IDLE') return;
 
     let updatedGame = game;
     const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
@@ -2657,7 +2508,6 @@ export const BoardUI: React.FC = () => {
       const autoSelectProbeId = probes.length === 1 ? probes[0].id : undefined;
       interactionState.sequenceId = `move-${Date.now()}`;
       setInteractionState({ type: 'MOVING_PROBE', count: 1, autoSelectProbeId, sequenceId: interactionState.sequenceId});
-      setToast({ message: "Veuillez sélectionnez une sonde à déplacer.", visible: true });
       addToHistory(`défausse carte "${card.name}" et gagne 1 déplacement gratuit`, currentPlayer.id, game, undefined, interactionState.sequenceId);
     }
 
@@ -2668,19 +2518,21 @@ export const BoardUI: React.FC = () => {
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
   };
 
-  // Gestionnaire pour l'action d'achat de carte avec du média
+  // Gestionnaire pour l'action d'achat de carte (payer avec 3 média)
   const handleBuyCardAction = () => {
     if (interactionState.type !== 'IDLE') return;
-
     setInteractionState({ type: 'ACQUIRING_CARD', count: 1 });
-    setToast({ message: "Veuillez sélectionnez une carte dans la rangée ou la pioche.", visible: true });
   };
 
   // Gestionnaire pour les échanges directs (via les boutons rapides)
+  /**
+   * @param spendType - Type de ressource à dépenser (ex: 'energy', 'credits', etc.)
+   * @param gainType - Type de ressource à gagner (ex: 'media', 'card', etc.)
+   */
   const handleDirectTrade = (spendType: string, gainType: string) => {
     if (!game) return;
-
     if (interactionState.type !== 'IDLE') return;
+
     const currentPlayer = game.players[game.currentPlayerIndex];
 
     // Mettre à jour GameEngine
@@ -2718,13 +2570,16 @@ export const BoardUI: React.FC = () => {
       if (!card) return;
 
       setInteractionState({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId: interactionState.sequenceId, cardId: card.id });
-    // Cas 2: Sélection pour achat de carte
+    
+    
+    
+    // Cas 2: Sélection pour achat ou gain de carte (bonus)
     } else if (interactionState.type === 'ACQUIRING_CARD') {
         const currentPlayer = game.players[game.currentPlayerIndex];
         let result: { updatedGame: Game, error?: string };
 
         // Passer interactionState.isFree
-        result = ResourceSystem.buyCard(game, currentPlayer.id, cardId, interactionState.isFree);
+        result = CardSystem.buyCard(game, currentPlayer.id, cardId, interactionState.isFree);
         if (result.error) {
           setToast({ message: result.error, visible: true });
           // On reste dans l'état ACQUIRING_CARD pour permettre de réessayer ou d'annuler via l'overlay
@@ -2747,7 +2602,6 @@ export const BoardUI: React.FC = () => {
               freeActionLog = " et gagne 1 Donnée";
             } else if (card.freeAction === FreeActionType.MOVEMENT) {
               setPendingInteractions(prev => [{ type: 'MOVING_PROBE', count: 1, autoSelectProbeId: undefined, sequenceId: interactionState.sequenceId}, ...prev]);
-              setToast({ message: "Veuillez sélectionnez une sonde à déplacer.", visible: true });
               freeActionLog = " et gagne 1 Déplacement";
             }
           }
@@ -2845,6 +2699,13 @@ export const BoardUI: React.FC = () => {
     setInteractionState({ type: 'IDLE' });
     addToHistory(`acquiert technologie "${tech.type} ${tech.name}"${result.gains.length > 0 ? ` et gagne ${result.gains.join(', ')}` : ''}`, currentPlayer.id, currentGame, undefined, interactionState.sequenceId);
     result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, currentGame, undefined, interactionState.sequenceId));
+
+    if (result.newPendingInteractions && result.newPendingInteractions.length > 0) {
+        const interactionsWithSeqId = result.newPendingInteractions.map(i => ({ ...i, sequenceId: interactionState.sequenceId }));
+        handleNewInteractions(interactionsWithSeqId, interactionState.sequenceId);
+    } else {
+        setInteractionState({ type: 'IDLE' });
+    }
   };
 
   // Gestionnaire pour l'achat de technologie (clic initial)
@@ -3014,7 +2875,7 @@ export const BoardUI: React.FC = () => {
         let bonuses: Bonus = {};
         
         if (requirement && requirement.type.startsWith('GAIN_IF_')) {
-             const bonus = ProbeSystem.evaluateMission(updatedGame, player.id, requirement.value);
+             const bonus = CardSystem.evaluateMission(updatedGame, player.id, requirement.value);
              if (bonus) {
                  ResourceSystem.accumulateBonus(bonus, bonuses);
              } else {
@@ -3055,18 +2916,15 @@ export const BoardUI: React.FC = () => {
       <div className="seti-root">
         <SettingsModal 
           visible={settingsVisible}
-          onNewGame={handleNewGameRequest}
-          onSaveGame={handleSaveGame}
-          onLoadGame={handleLoadGame}
-          onContinue={handleContinue}
-          hasAutosave={hasAutosave}
-          onClose={() => setSettingsVisible(false)}
-          canClose={false}
-        />
-        <NewGameModal
-          visible={newGameModalVisible}
-          onConfirm={handleNewGameConfirm}
-          onCancel={() => { setNewGameModalVisible(false); setSettingsVisible(true); }}
+          setVisible={setSettingsVisible}
+          game={game}
+          setGame={(newGame) => { setGame(newGame); if (gameEngineRef.current) gameEngineRef.current.setState(newGame); }}
+          gameEngineRef={gameEngineRef}
+          historyLog={historyLog}
+          setHistoryLog={setHistoryLog}
+          setInteractionState={setInteractionState}
+          setPendingInteractions={setPendingInteractions}
+          setToast={setToast}
         />
       </div>
     );
@@ -3190,19 +3048,15 @@ export const BoardUI: React.FC = () => {
 
       <SettingsModal 
         visible={settingsVisible}
-        onNewGame={handleNewGameRequest}
-        onSaveGame={handleSaveGame}
-        onLoadGame={handleLoadGame}
-        onContinue={handleContinue}
-        hasAutosave={false} // Pas besoin de montrer "Continuer" si on est déjà en jeu (Fermer suffit)
-        onClose={() => setSettingsVisible(false)}
-        canClose={!!game}
-      />
-
-      <NewGameModal
-        visible={newGameModalVisible}
-        onConfirm={handleNewGameConfirm}
-        onCancel={() => { setNewGameModalVisible(false); setSettingsVisible(true); }}
+        setVisible={setSettingsVisible}
+        game={game}
+        setGame={(newGame) => { setGame(newGame); if (gameEngineRef.current) gameEngineRef.current.setState(newGame); }}
+        gameEngineRef={gameEngineRef}
+        historyLog={historyLog}
+        setHistoryLog={setHistoryLog}
+        setInteractionState={setInteractionState}
+        setPendingInteractions={setPendingInteractions}
+        setToast={setToast}
       />
 
       {/* Ecran de fin de partie */}

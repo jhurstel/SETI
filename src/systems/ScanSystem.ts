@@ -8,10 +8,11 @@
  * - Réinitialisation après couverture
  */
 
-import { Game, Sector, Bonus, SignalType, GAME_CONSTANTS, InteractionState, ProbeState, HistoryEntry } from '../core/types';
+import { Game, Sector, Bonus, SignalType, GAME_CONSTANTS, InteractionState, ProbeState, HistoryEntry, SectorType } from '../core/types';
 import { getObjectPosition } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { ProbeSystem } from './ProbeSystem';
+import { CardSystem } from './CardSystem';
 
 export class ScanSystem {
   /**
@@ -70,6 +71,7 @@ export class ScanSystem {
     
     const logs: string[] = [];
     let bonuses: Bonus = {};
+    const player = updatedGame.players.find(p => p.id === playerId);
   
     // Find first available signal
     const signal = sector.signals.find(s => !s.marked);
@@ -91,6 +93,24 @@ export class ScanSystem {
       // Signal bonus: 2PV
       if (signal.bonus) {
           bonuses.pv = signal.bonus.pv;
+      }
+
+      // Traitement des buffs actifs (SCORE_PER_SECTOR)
+      if (player) {
+          player.activeBuffs.forEach((buff) => {
+              if (buff.type === 'SCORE_PER_SECTOR') {
+                  let match = false;
+                  if (buff.target === 'red' && sector.color === SectorType.RED) match = true;
+                  else if (buff.target === 'blue' && sector.color === SectorType.BLUE) match = true;
+                  else if (buff.target === 'yellow' && sector.color === SectorType.YELLOW) match = true;
+                  else if (buff.target === 'black' && sector.color === SectorType.BLACK) match = true;
+                  
+                  if (match) {
+                      bonuses.pv = (bonuses.pv || 0) + buff.value;
+                      logs.push(`gagne ${ResourceSystem.formatResource(buff.value, 'PV')} (Bonus "${buff.source}")`);
+                  }
+              }
+          });
       }
     } else {
       logs.push(`tente de scanner le secteur ${sector.id} mais il est plein`);
@@ -114,28 +134,30 @@ export class ScanSystem {
     logs: string[];
     bonuses: Bonus;
     winnerId?: string;
+    newPendingInteractions: { interaction: InteractionState, playerId: string }[];
   } {
     let updatedGame = structuredClone(game);
     const player = updatedGame.players.find(p => p.id === playerId)!;
     if (!player) {
-      return { updatedGame, logs: [], bonuses: {} };
+      return { updatedGame, logs: [], bonuses: {}, newPendingInteractions: [] };
     }
     const sector = updatedGame.board.sectors.find(s => s.id === sectorId)!;
     if (!sector) {
-      return { updatedGame, logs: [], bonuses: {} };
+      return { updatedGame, logs: [], bonuses: {}, newPendingInteractions: [] };
     }
     
     const logs: string[] = [];
     let bonuses: Bonus = {};
+    const newPendingInteractions: { interaction: InteractionState, playerId: string }[] = [];
     const majorities = this.calculateMajorities(sector);
     if (majorities.length === 0) {
-      return { updatedGame, logs: [], bonuses: {} };
+      return { updatedGame, logs: [], bonuses: {}, newPendingInteractions: [] };
     }
     const winnerId = majorities[0].playerId;
 
     let winner = updatedGame.players.find(p => p.id === winnerId);
     if (winner) {
-        logs.push('couvre le secteur');
+        logs.push(`couvre le secteur ${sector.name}`);
         
         // Appliquer les bonus au gagnant
         const isFirstTime = !sector.isCovered;
@@ -149,26 +171,34 @@ export class ScanSystem {
                 updatedGame = res.updatedGame;
                 res.logs.forEach(l => logs.push(`${winner!.name} ${l}`));
                 winner = updatedGame.players.find(p => p.id === winnerId);
+                if (res.newPendingInteractions.length > 0) {
+                    res.newPendingInteractions.forEach(i => {
+                        newPendingInteractions.push({ interaction: i, playerId: winnerId });
+                    });
+                }
             }
         }
 
         // Bonus de Média (Chaque joueur présent gagne 1 Média)
         const uniquePlayersIds = new Set(sector.signals.map(s => s.markedBy).filter(id => id) as string[]);
-        const participants: string[] = [];
+        const mediaWinners: string[] = [];
+        
         uniquePlayersIds.forEach(pId => {
             const p = updatedGame.players.find(pl => pl.id === pId);
             if (p) {
-                if (pId === playerId) {
-                    bonuses.media = (bonuses.media || 0) + 1;
-                } else {
-                    p.mediaCoverage = Math.min(p.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-                    participants.push(p.name);
-                }
+                p.mediaCoverage = Math.min(p.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                mediaWinners.push(p.name);
             }
         });
 
-        if (participants.length > 0) {
-            logs.push(`${participants.join(', ')} gagn${participants.length > 1 ? 'ent' : 'e'} 1 Média. ${player.name} `);
+        if (mediaWinners.length > 0) {
+          let winnersText = mediaWinners[0];
+          if (mediaWinners.length > 1) {
+            const last = mediaWinners[mediaWinners.length - 1];
+            const others = mediaWinners.slice(0, -1);
+            winnersText = `${others.join(', ')} et ${last}`;
+          }
+          logs.push(`${winnersText} gagn${mediaWinners.length > 1 ? 'ent' : 'e'} 1 Média`);
         }
 
         // Bonus BONUS_IF_COVERED (Cartes 45, 46, 47)
@@ -243,7 +273,7 @@ export class ScanSystem {
             }
         });
     }
-    return { updatedGame, logs, bonuses, winnerId};
+    return { updatedGame, logs, bonuses, winnerId, newPendingInteractions };
   }
 
   /**
@@ -466,8 +496,63 @@ export class ScanSystem {
         historyEntries.push(...bonusRes.historyEntries);
       }
       if (bonusRes.newPendingInteractions.length > 0) {
-        newPendingInteractions = bonusRes.newPendingInteractions.map(i => ({ ...i, sequenceId }));
+        newPendingInteractions.push(...bonusRes.newPendingInteractions.map(i => ({ ...i, sequenceId })));
       }
+    }
+
+    // Traitement des missions conditionnelles (GAIN_ON_SCAN)
+    const player = updatedGame.players.find(p => p.id === playerId);
+    if (player) {
+        const processedSources = new Set<string>();
+        player.permanentBuffs.forEach(buff => {
+            if (buff.type === 'GAIN_ON_SCAN') {
+                 if (buff.source && processedSources.has(buff.source)) return;
+                 const bonus: Bonus = {};
+                 if (buff.target === 'data') bonus.data = buff.value;
+                 else if (buff.target === 'anycard') bonus.anycard = buff.value;
+                 else if (buff.target === 'pv') bonus.pv = buff.value;
+                 else if (buff.target === 'media') bonus.media = buff.value;
+                 else if (buff.target === 'card') bonus.card = buff.value;
+                 else if (buff.target === 'credit') bonus.credits = buff.value;
+                 else if (buff.target === 'energy') bonus.energy = buff.value;
+                 else if (buff.target === 'yellowsignal') {
+                     if (!bonus.signals) bonus.signals = [];
+                     bonus.signals.push({ amount: buff.value, scope: SectorType.YELLOW });
+                 }
+                 else if (buff.target === 'redsignal') {
+                     if (!bonus.signals) bonus.signals = [];
+                     bonus.signals.push({ amount: buff.value, scope: SectorType.RED });
+                 }
+                 else if (buff.target === 'bluesignal') {
+                     if (!bonus.signals) bonus.signals = [];
+                     bonus.signals.push({ amount: buff.value, scope: SectorType.BLUE });
+                 }
+
+                 const res = ResourceSystem.processBonuses(bonus, updatedGame, playerId, 'scan_mission', sequenceId);
+                 updatedGame = res.updatedGame;
+                 
+                 if (res.logs.length > 0) {
+                     scanLogs.push(...res.logs.map(l => `${l} (Mission "${buff.source}")`));
+                 }
+                 if (res.historyEntries) {
+                     historyEntries.push(...res.historyEntries);
+                 }
+                 if (res.newPendingInteractions) {
+                     newPendingInteractions.push(...res.newPendingInteractions);
+                 }
+
+                 if (buff.source) processedSources.add(buff.source);
+
+                 // Re-récupérer le joueur car updatedGame a pu changer
+                 const currentPlayer = updatedGame.players.find(p => p.id === playerId);
+                 if (currentPlayer) {
+                     const completed = CardSystem.updateMissionProgress(currentPlayer, buff);
+                     if (completed) {
+                         historyEntries.push({ message: `accomplit la mission "${completed}"`, playerId: playerId, sequenceId });
+                     }
+                 }
+            }
+        });
     }
 
     // 3. Check if covered

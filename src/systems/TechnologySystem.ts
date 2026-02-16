@@ -1,7 +1,8 @@
-import { Game, Technology, GAME_CONSTANTS, TechnologyCategory, HistoryEntry } from '../core/types';
+import { Game, Technology, GAME_CONSTANTS, TechnologyCategory, HistoryEntry, InteractionState } from '../core/types';
 import { ComputerSystem } from './ComputerSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { CardSystem } from './CardSystem';
+import { ResourceSystem } from './ResourceSystem';
 
 export class TechnologySystem {
 
@@ -62,12 +63,13 @@ export class TechnologySystem {
     return false;
   }
 
-  static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[], historyEntries: HistoryEntry[] } {
+  static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[], historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
     let updatedGame = structuredClone(game);
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
     const player = updatedGame.players.find(p => p.id === playerId);
     let historyEntries: HistoryEntry[] = [];
-    if (!player) return { updatedGame: game, gains: [], historyEntries: [] };
+    let newPendingInteractions: InteractionState[] = [];
+    if (!player) return { updatedGame: game, gains: [], historyEntries: [], newPendingInteractions: [] };
 
     const updatedTechBoard = updatedGame.board.technologyBoard;
 
@@ -131,6 +133,53 @@ export class TechnologySystem {
         }
       }
     }
+    console.log(updatedGame);
+
+    // Traitement des missions conditionnelles (GAIN_ON_TECH)
+    const processedSources = new Set<string>();
+    player.permanentBuffs.forEach(buff => {
+        let shouldTrigger = false;
+        if (tech.type === TechnologyCategory.EXPLORATION && buff.type === 'GAIN_ON_YELLOW_TECH') shouldTrigger = true;
+        if (tech.type === TechnologyCategory.OBSERVATION && buff.type === 'GAIN_ON_RED_TECH') shouldTrigger = true;
+        if (tech.type === TechnologyCategory.COMPUTING && buff.type === 'GAIN_ON_BLUE_TECH') shouldTrigger = true;
+
+        if (shouldTrigger) {
+             if (buff.source && processedSources.has(buff.source)) return;
+             const bonus: any = {};
+             if (buff.target === 'media') bonus.media = buff.value;
+             else if (buff.target === 'energy') bonus.energy = buff.value;
+             else if (buff.target === 'anycard') bonus.anycard = buff.value;
+             else if (buff.target === 'card') bonus.card = buff.value;
+             else if (buff.target === 'credit') bonus.credits = buff.value;
+             else if (buff.target === 'data') bonus.data = buff.value;
+             else if (buff.target === 'pv') bonus.pv = buff.value;
+
+             const res = ResourceSystem.processBonuses(bonus, updatedGame, playerId, 'tech_mission', '');
+             updatedGame = res.updatedGame;
+             
+             if (res.logs.length > 0) {
+                 gains.push(...res.logs.map(l => `${l} (Mission "${buff.source}")`));
+             }
+             if (res.historyEntries) {
+                 historyEntries.push(...res.historyEntries);
+             }
+             if (res.newPendingInteractions) {
+                 newPendingInteractions.push(...res.newPendingInteractions);
+             }
+
+             if (buff.source) processedSources.add(buff.source);
+
+             console.log(updatedGame);
+             // Re-récupérer le joueur car updatedGame a pu changer (ex: pioche de carte)
+             const currentPlayer = updatedGame.players.find(p => p.id === playerId);
+             if (currentPlayer) {
+                 const completed = CardSystem.updateMissionProgress(currentPlayer, buff);
+                 if (completed) {
+                     historyEntries.push({ message: `accomplit la mission "${completed}"`, playerId: playerId, sequenceId: '' });
+                 }
+             }
+        }
+    });
 
     // Traitement des buffs actifs (ex: Recherche Ciblée, Coopération Scientifique)
     const buffsToRemove: number[] = [];
@@ -181,6 +230,6 @@ export class TechnologySystem {
         player.activeBuffs = player.activeBuffs.filter((_, index) => !buffsToRemove.includes(index));
     }
 
-    return { updatedGame, gains, historyEntries };
+    return { updatedGame, gains, historyEntries, newPendingInteractions };
   }
 }

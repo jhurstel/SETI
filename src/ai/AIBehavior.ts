@@ -58,8 +58,14 @@ export class AIBehavior {
       // 4. RESEARCH_TECH
       if (TechnologySystem.canResearchTech(game, player.id).canResearch) {
           const availableTechs = TechnologySystem.getAvailableTechs(game);
-          if (availableTechs.length > 0) {
-              const randomTech = availableTechs[Math.floor(Math.random() * availableTechs.length)];
+          
+          const validTechs = availableTechs.filter(tech => {
+              const baseId = tech.id.substring(0, tech.id.lastIndexOf('-'));
+              return !player.technologies.some(t => t.id.startsWith(baseId));
+          });
+
+          if (validTechs.length > 0) {
+              const randomTech = validTechs[Math.floor(Math.random() * validTechs.length)];
               possibleActions.push({ action: ActionType.RESEARCH_TECH, data: { tech: randomTech } });
           }
       }

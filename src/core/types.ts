@@ -140,6 +140,8 @@ export interface GameLogEntry {
   message: string;
   timestamp: number;
   playerId?: string;
+  sequenceId?: string;
+  previousState?: Game;
 }
 
 export interface GameState {
@@ -533,7 +535,7 @@ export type InteractionState =
   /** Le joueur a lancé l'action "Analyser", principalement pour l'animation. */
   | { type: 'ANALYZING', sequenceId?: string }
   /** Le joueur doit placer une trace de vie sur le plateau Alien. */
-  | { type: 'PLACING_LIFE_TRACE', color: LifeTraceType, sequenceId?: string }
+  | { type: 'PLACING_LIFE_TRACE', color: LifeTraceType, sequenceId?: string, playerId?: string }
   /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number, sequenceId?: string }
   /** Le joueur scanne un secteur (2ème étape : choix de la carte). */
@@ -605,6 +607,7 @@ export const GAME_CONSTANTS = {
   SCAN_COST_ENERGY: 2,
   ANALYZE_COST_ENERGY: 1,
   TECH_RESEARCH_COST_MEDIA: 6,
+  BUY_CARD_COST_MEDIA: 3,
   SPECIES_DISCOVERY_TRACES: 3,
   HAND_SIZE_AFTER_PASS: 4,
   INITIAL_CREDITS: 4,

@@ -5,7 +5,7 @@ import { ComputerSystem } from '../systems/ComputerSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ScanSystem } from '../systems/ScanSystem';
 import { PlayerComputerUI } from './PlayerComputerUI';
-import { CardTooltip } from './CardTooltip';
+import { CardTooltip, getSectorTypeCode } from './CardTooltip';
 import './PlayerBoardUI.css';
 
 interface PlayerBoardUIProps {
@@ -154,6 +154,29 @@ const HandCard: React.FC<{
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `2px solid ${borderColor}`, borderRadius: '8px', backgroundColor: bgColor, margin: '4px 0', padding: '4px' }}>
                       <div style={{ fontSize: '0.7em', textTransform: 'uppercase', color: card.revenue === RevenueType.CARD ? '#333' : '#ddd', marginBottom: '2px' }}>Réservation</div>
                       <div style={{ fontSize: '1.1em', fontWeight: 'bold', color: color, textAlign: 'center' }}>{card.revenue || 'Aucun'}</div>
+                    </div>
+                );
+            })()}
+          </>
+        ) : isDiscardingForSignal ? (
+          <>
+            <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
+            <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
+            {card.description && <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
+            <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px', justifyContent: 'space-between' }}>
+                {card.freeAction && <div>Act: {card.freeAction}</div>}
+                {card.revenue && <div>Rev: {card.revenue}</div>}
+            </div>
+
+            {(() => {
+                const color = getSectorTypeCode(card.scanSector);
+                const borderColor = color;
+                const bgColor = `${color}26`;
+
+                return (
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `2px solid ${borderColor}`, borderRadius: '8px', backgroundColor: bgColor, margin: '4px 0', padding: '4px' }}>
+                      <div style={{ fontSize: '0.7em', textTransform: 'uppercase', color: '#ddd', marginBottom: '2px' }}>Signal</div>
+                      <div style={{ fontSize: '1.1em', fontWeight: 'bold', color: color, textAlign: 'center' }}>{card.scanSector || 'Aucun'}</div>
                     </div>
                 );
             })()}
@@ -839,10 +862,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                             const requirement = mission.requirements[index];
                             const isCompleted = requirement && requirement.id ? (mission.completedRequirementIds || []).includes(requirement.id) : false;
                             const text = missionRequirementStrings[index] || (requirement ? `Condition ${index + 1}` : `Mission ${index + 1}`);
+                            
+                            const isConditional = requirement && requirement.type.startsWith('GAIN_IF_');
+                            const icon = isCompleted ? '✅' : (isConditional ? '⬜' : '⚪');
+
                             return (
                               <div key={index} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '4px' }}>
-                                <span style={{ marginRight: '8px', color: isCompleted ? '#4caf50' : '#aaa' }}>
-                                  {isCompleted ? '✅' : '🔲'}
+                                <span style={{ marginRight: '8px', color: isCompleted ? '#4caf50' : '#aaa', fontSize: '1.2em', lineHeight: '1' }}>
+                                  {icon}
                                 </span>
                                 <span>
                                   <span style={{ fontWeight: 'bold' }}>Mission:</span> {text.trim()}
@@ -879,27 +906,32 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                             const text = missionRequirementStrings[index] || (requirement ? `Condition ${index + 1}` : `Mission ${index + 1}`);
                             
                             let isFulfillable = false;
-                            if (requirement && requirement.type.startsWith('GAIN_IF_')) {
-                                const bonus = ProbeSystem.evaluateMission(game, currentPlayer.id, requirement.value);
-                                if (bonus) isFulfillable = true;
+                            let isConditional = false;
+                            if (requirement) {
+                                if (requirement.type.startsWith('GAIN_IF_')) {
+                                    isConditional = true;
+                                    const bonus = CardSystem.evaluateMission(game, currentPlayer.id, requirement.value);
+                                    if (bonus) isFulfillable = true;
+                                }
                             }
 
                             const canClick = !isCompleted && isFulfillable && isCurrentTurn && !isRobot && !isInteractiveMode;
+                            const isHighlighted = isCompleted || canClick;
 
                             return (
                                 <div 
                                     key={index}
-                                    className="seti-mission-requirement-circle"
+                                    className="seti-mission-requirement-indicator"
                                     style={{
                                         width: '12px',
                                         height: '12px',
-                                        borderRadius: '50%',
+                                        borderRadius: isConditional ? '50%' : '2px',
                                         border: `1px solid ${currentPlayer.color}`,
                                         backgroundColor: isCompleted ? currentPlayer.color : 'transparent',
                                         cursor: canClick ? 'pointer' : 'default',
                                         zIndex: canClick ? 20 : 10,
-                                        opacity: isCompleted || canClick ? 1 : 0.3,
-                                        boxShadow: canClick ? `0 0 8px ${currentPlayer.color}, 0 0 12px #fff` : 'none',
+                                        opacity: isHighlighted ? 1 : 0.3,
+                                        boxShadow: canClick ? `0 0 8px ${currentPlayer.color}, 0 0 12px #fff` : (isCompleted ? `0 0 5px ${currentPlayer.color}` : 'none'),
                                         transform: canClick ? 'scale(1.3)' : 'scale(1)',
                                         transition: 'all 0.3s ease'
                                     }}

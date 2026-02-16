@@ -1,4 +1,4 @@
-import { Game, ActionType, ValidationResult, InteractionState, HistoryEntry } from '../core/types';
+import { Game, ActionType, ValidationResult } from '../core/types';
 import { BaseAction } from './Action';
 import { TurnManager } from '../core/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
@@ -6,9 +6,6 @@ import { performRotation } from '../core/SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
 
 export class PassAction extends BaseAction {
-  public historyEntries: HistoryEntry[] = [];
-  public newPendingInteractions: InteractionState[] = [];
-  
   constructor(
     playerId: string,
     public cardIdsToKeep: string[], // Cartes à garder (max 4)

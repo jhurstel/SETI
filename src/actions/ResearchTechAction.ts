@@ -1,13 +1,10 @@
 import { BaseAction } from './Action';
-import { Game, ActionType, ValidationResult, GAME_CONSTANTS, InteractionState } from '../core/types';
+import { Game, ActionType, ValidationResult, GAME_CONSTANTS } from '../core/types';
 import { performRotation } from '../core/SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 
 export class ResearchTechAction extends BaseAction {
-    public historyEntries: { message: string, playerId: string, sequenceId: string }[] = [];
-    public newPendingInteractions: InteractionState[] = [];
-
     constructor(playerId: string) {
         super(playerId, ActionType.RESEARCH_TECH);
     }
