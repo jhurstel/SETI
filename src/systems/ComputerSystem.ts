@@ -90,8 +90,12 @@ export class ComputerSystem {
     const bonusEffects: { type: string, amount: number }[] = [];
 
     if (slot.bonus === 'media') {
-       player.mediaCoverage = Math.min((player.mediaCoverage || 0) + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE || 10);
-       gains.push("1 Média");
+       let amount = 1;
+       if (slot.technologyId && slot.technologyId.startsWith('computing-4')) {
+           amount = 2;
+       }
+       player.mediaCoverage = Math.min((player.mediaCoverage || 0) + amount, GAME_CONSTANTS.MAX_MEDIA_COVERAGE || 10);
+       gains.push(`${amount} Média${amount > 1 ? 's' : ''}`);
     }
     if (slot.bonus === 'reservation') {
        bonusEffects.push({ type: 'reservation', amount: 1 });
@@ -110,7 +114,7 @@ export class ComputerSystem {
        gains.push("1 Énergie");
     }
     if (slot.bonus === 'card') {
-       bonusEffects.push({ type: 'card', amount: 1 });
+       bonusEffects.push({ type: 'anycard', amount: 1 });
        gains.push("1 Carte");
     }
 

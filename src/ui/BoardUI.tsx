@@ -814,7 +814,7 @@ export const BoardUI: React.FC = () => {
                             const reachable = calculateReachableCellsWithEnergy(
                                 probe.solarPosition!.disk,
                                 absPos,
-                                1, 0, rotationState, false
+                                1, player.energy, rotationState, false
                             );
                             
                             const destinations = Array.from(reachable.keys());
@@ -826,7 +826,10 @@ export const BoardUI: React.FC = () => {
                                 const disk = destKey[0] as DiskName;
                                 const sector = parseInt(destKey.substring(1)) as SectorNumber;
                                 
-                                const moveRes = ProbeSystem.moveProbe(aiGame, player.id, probe.id, 0, disk, sector);
+                                const stepCost = ProbeSystem.getMovementCost(aiGame, player.id, probe.id);
+                                const energyCost = Math.max(0, stepCost - 1);
+
+                                const moveRes = ProbeSystem.moveProbe(aiGame, player.id, probe.id, energyCost, disk, sector);
                                 aiGame = moveRes.updatedGame;
                                 addToHistory(moveRes.message + " (IA)", player.id, aiGame, undefined, sequenceId);
                             }
@@ -1056,6 +1059,11 @@ export const BoardUI: React.FC = () => {
                         const actionText = m.completed ? "accomplit" : "valide un objectif de";
                         addToHistory(`${actionText} la mission "${m.name}" (IA)${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, currentGame, undefined, sequenceId);
                         res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, sequenceId));
+
+                        if (res.newPendingInteractions.length > 0) {
+                          const interactionsWithSeqId = res.newPendingInteractions.map(i => ({ ...i, sequenceId }));
+                          handleNewInteractions(interactionsWithSeqId, sequenceId);
+                        }
                         return true;
                     }
                 }
@@ -1136,14 +1144,18 @@ export const BoardUI: React.FC = () => {
                       const reachable = calculateReachableCellsWithEnergy(
                           probe.solarPosition!.disk,
                           absPos,
-                          1, 0, rotationState, false
+                          1, player.energy, rotationState, false
                       );
                       const destinations = Array.from(reachable.keys()).filter(k => k !== `${probe.solarPosition!.disk}${absPos}`);
                       if (destinations.length > 0) {
                           const destKey = destinations[Math.floor(Math.random() * destinations.length)];
                           const disk = destKey[0] as DiskName;
                           const sector = parseInt(destKey.substring(1)) as SectorNumber;
-                          const moveRes = ProbeSystem.moveProbe(updatedGame, player.id, probe.id, 0, disk, sector);
+                          
+                          const stepCost = ProbeSystem.getMovementCost(updatedGame, player.id, probe.id);
+                          const energyCost = Math.max(0, stepCost - 1);
+
+                          const moveRes = ProbeSystem.moveProbe(updatedGame, player.id, probe.id, energyCost, disk, sector);
                           updatedGame = moveRes.updatedGame;
                           logMsg = "déplace une sonde";
                       } else {
@@ -1600,21 +1612,34 @@ export const BoardUI: React.FC = () => {
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
 
+      let currentPending = [...pendingInteractions];
+
       // Propager la sonde utilisée aux interactions suivantes de la même séquence
       if (usedProbeId) {
           const newUsedProbeIds = [...(interactionState.usedProbeIds || []), usedProbeId];
-          setPendingInteractions(prev => prev.map(i => {
+          currentPending = currentPending.map(i => {
               if (i.type === 'SELECTING_SCAN_SECTOR' && i.sequenceId === interactionState.sequenceId) {
                   return { ...i, usedProbeIds: newUsedProbeIds };
               }
               return i;
-          }));
+          });
       }
 
-      if (allNewInteractions.length > 0) {
-        const [next, ...rest] = allNewInteractions;
+      const resolutions = allNewInteractions.filter(i => i.type === 'RESOLVING_SECTOR');
+      const others = allNewInteractions.filter(i => i.type !== 'RESOLVING_SECTOR');
+
+      if (others.length > 0) {
+        const [next, ...rest] = others;
         setInteractionState(next);
-        setPendingInteractions(prev => [...rest, ...prev]);
+        setPendingInteractions([...rest, ...currentPending, ...resolutions]);
+      } else if (currentPending.length > 0) {
+        const [next, ...rest] = currentPending;
+        setInteractionState(next);
+        setPendingInteractions([...rest, ...resolutions]);
+      } else if (resolutions.length > 0) {
+        const [next, ...rest] = resolutions;
+        setInteractionState(next);
+        setPendingInteractions([...rest]);
       } else {
         setInteractionState({ type: 'IDLE' });
       }
@@ -2900,17 +2925,6 @@ export const BoardUI: React.FC = () => {
     processTechPurchase(interactionState.tech, col, false);
   };
 
-  // Gestionnaire pour la pioche de carte depuis le PlayerBoardUI (ex: bonus ordinateur)
-  const handleDrawCard = (count: number, source: string) => {
-    if (!game) return;
-
-    const updatedGame = CardSystem.drawCards(game, game.players[game.currentPlayerIndex].id, count);
-
-    setGame(updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-    addToHistory(`pioche ${count} carte${count > 1 ? 's' : ''} (${source})`, game.players[game.currentPlayerIndex].id, game);
-  };
-
   // Gestionnaire pour le clic sur une planète (ex: Terre pour lancer une sonde)
   const handlePlanetClick = (planetId: string) => {
     if (interactionState.type === 'REMOVING_ORBITER') {
@@ -2934,6 +2948,9 @@ export const BoardUI: React.FC = () => {
         const seqId = sequenceId || interactionState.sequenceId;
         setInteractionState({ type: 'RESERVING_CARD', count: count, sequenceId: seqId, selectedCards: [] });
       }
+    } else if (type === 'anycard') {
+        const seqId = sequenceId || interactionState.sequenceId;
+        setInteractionState({ type: 'ACQUIRING_CARD', count: amount, isFree: true, sequenceId: seqId });
     }
   };
 
@@ -3024,6 +3041,11 @@ export const BoardUI: React.FC = () => {
         const actionText = isCompleted ? "accomplit" : "valide un objectif de";
         addToHistory(`${actionText} la mission "${mission.name}"${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, stateBeforeAction, undefined, sequenceId);
         res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, sequenceId));
+
+        if (res.newPendingInteractions.length > 0) {
+          const interactionsWithSeqId = res.newPendingInteractions.map(i => ({ ...i, sequenceId }));
+          handleNewInteractions(interactionsWithSeqId, sequenceId);
+        }
     }
   };
 
@@ -3203,7 +3225,6 @@ export const BoardUI: React.FC = () => {
               onConfirmReserve={handleConfirmReservation}
               onBuyCardAction={handleBuyCardAction}
               onDirectTradeAction={handleDirectTrade}
-              onDrawCard={handleDrawCard}
               onPlayCard={handlePlayCardRequest}
               onGameUpdate={(newGame) => { setGame(newGame); if (gameEngineRef.current) gameEngineRef.current.setState(newGame); }}
               onComputerSlotSelect={handleComputerColumnSelect}

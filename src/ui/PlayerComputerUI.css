@@ -102,4 +102,31 @@
     z-index: 0;
     position: relative;
   }
+
+  /* Tooltip Styles */
+  .computer-tooltip-container {
+    text-align: center;
+  }
   
+  .computer-tooltip-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  
+  .computer-tooltip-title.occupied { color: #aaa; }
+  .computer-tooltip-title.available { color: #4a9eff; }
+  .computer-tooltip-title.unavailable { color: #ff6b6b; }
+  
+  .computer-tooltip-bonus {
+    font-size: 0.9em;
+    color: #ccc;
+  }
+  
+  .computer-tooltip-action {
+    font-size: 0.8em;
+    margin-top: 4px;
+    font-style: italic;
+  }
+  
+  .computer-tooltip-action.normal { color: #aaa; }
+  .computer-tooltip-action.error { color: #ff6b6b; }

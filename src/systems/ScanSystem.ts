@@ -115,7 +115,7 @@ export class ScanSystem {
     bonuses: Bonus;
     winnerId?: string;
   } {
-    const updatedGame = structuredClone(game);
+    let updatedGame = structuredClone(game);
     const player = updatedGame.players.find(p => p.id === playerId)!;
     if (!player) {
       return { updatedGame, logs: [], bonuses: {} };
@@ -133,7 +133,7 @@ export class ScanSystem {
     }
     const winnerId = majorities[0].playerId;
 
-    const winner = updatedGame.players.find(p => p.id === winnerId);
+    let winner = updatedGame.players.find(p => p.id === winnerId);
     if (winner) {
         logs.push('couvre le secteur');
         
@@ -141,17 +141,14 @@ export class ScanSystem {
         const isFirstTime = !sector.isCovered;
         const sectorBonus = isFirstTime ? sector.firstBonus : sector.nextBonus;
         if (sectorBonus) {
-            // PV
-            if (sectorBonus.pv) {
-                if (winnerId === playerId) {
-                    bonuses.pv = (bonuses.pv || 0) + sectorBonus.pv;
-                } else {
-                    winner.score += sectorBonus.pv;
-                }
-            }
-            // Lifetraces
-            if (winnerId === playerId && sectorBonus.lifetraces) {
-                bonuses.lifetraces = [...(bonuses.lifetraces || []), ...sectorBonus.lifetraces];
+            if (winnerId === playerId) {
+                if (sectorBonus.pv) bonuses.pv = (bonuses.pv || 0) + sectorBonus.pv;
+                if (sectorBonus.lifetraces) bonuses.lifetraces = [...(bonuses.lifetraces || []), ...sectorBonus.lifetraces];
+            } else {
+                const res = ResourceSystem.processBonuses(sectorBonus, updatedGame, winnerId, 'sector_cover_passive', '');
+                updatedGame = res.updatedGame;
+                res.logs.forEach(l => logs.push(`${winner!.name} ${l}`));
+                winner = updatedGame.players.find(p => p.id === winnerId);
             }
         }
 
@@ -175,7 +172,7 @@ export class ScanSystem {
         }
 
         // Bonus BONUS_IF_COVERED (Cartes 45, 46, 47)
-        const buffsToTrigger = winner.activeBuffs.filter(buff => buff.type === 'BONUS_IF_COVERED');
+        const buffsToTrigger = winner!.activeBuffs.filter(buff => buff.type === 'BONUS_IF_COVERED');
         buffsToTrigger.forEach(buff => {
             if (winnerId === playerId) {
                 if (buff.target === 'energy') {
@@ -192,7 +189,7 @@ export class ScanSystem {
         });
 
         if (buffsToTrigger.length > 0) {
-            winner.activeBuffs = winner.activeBuffs.filter(buff => buff.type !== 'BONUS_IF_COVERED');
+            winner!.activeBuffs = winner!.activeBuffs.filter(buff => buff.type !== 'BONUS_IF_COVERED');
         }
 
         // Marquer le secteur comme couvert

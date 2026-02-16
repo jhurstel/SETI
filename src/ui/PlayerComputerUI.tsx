@@ -24,65 +24,55 @@ const ComputerSlotUI = ({
   
   let bonusText = '';
   let bonusColor = '#fff';
+  let mediaAmount = 1;
   
-  if (slot.bonus === 'media') { bonusText = '1 Média'; bonusColor = '#ff6b6b'; }
+  if (slot.bonus === 'media') { 
+    if (slot.technologyId && slot.technologyId.startsWith('computing-4')) mediaAmount = 2;
+    bonusText = `${mediaAmount} Média${mediaAmount > 1 ? 's' : ''}`; 
+    bonusColor = '#ff6b6b'; 
+  }
   else if (slot.bonus === 'reservation') { bonusText = '1 Réservation'; bonusColor = '#fff'; }
   else if (slot.bonus === '2pv') { bonusText = '2 PV'; bonusColor = '#8affc0'; }
   else if (slot.bonus === 'credit') { bonusText = '1 Crédit'; bonusColor = '#ffd700'; }
   else if (slot.bonus === 'energy') { bonusText = '1 Énergie'; bonusColor = '#4caf50'; }
   else if (slot.bonus === 'card') { bonusText = '1 Carte'; bonusColor = '#aaffaa'; }
 
-  let title = '';
-  let titleColor = '#fff';
-  let bonusLine = null;
+  let state: 'occupied' | 'clickable' | 'unavailable' = 'unavailable';
+  if (isFilled) state = 'occupied';
+  else if (canFill) state = 'clickable';
+
+  let titleLine = null;
   let actionLine = null;
 
-  if (isFilled) {
-      title = 'Donnée stockée';
-      titleColor = '#aaa';
-      if (bonusText) {
-          bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: bonusColor }}>{bonusText}</span></div>;
-      }
-  } else if (canFill) {
-      if (hasData) {
-          title = 'Disponible';
-          titleColor = '#4a9eff';
-          if (bonusText) {
-              bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: bonusColor, fontWeight: 'bold' }}>{bonusText}</span></div>;
-          } else {
-              bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>;
-          }
-          actionLine = <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Cliquez pour transférer une donnée</div>;
-      } else {
-          title = 'Indisponible';
-          titleColor = '#ff6b6b';
-          if (bonusText) {
-              bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: bonusColor }}>{bonusText}</span></div>;
-          } else {
-              bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>;
-          }
-          actionLine = <div style={{ fontSize: '0.8em', color: '#ff6b6b', marginTop: '4px', fontStyle: 'italic' }}>Nécessite 1 donnée</div>;
-      }
+  const bonusLine = (
+    <div className="computer-tooltip-bonus">
+      {bonusText ? (
+        <>Bonus : <span style={{ color: bonusColor, fontWeight: 'normal' }}>{bonusText}</span></>
+      ) : (
+        'Aucun bonus'
+      )}
+    </div>
+  );
+
+  if (state === 'occupied') {
+    titleLine = <div className="computer-tooltip-title occupied">Donnée stockée</div>
+  } else if (state === 'clickable') {
+    titleLine = <div className="computer-tooltip-title available">Disponible</div>
+    actionLine = <div className="computer-tooltip-action normal">Cliquez pour transférer une donnée</div>;
   } else {
-      title = 'Indisponible';
-      titleColor = '#ff6b6b';
-      if (bonusText) {
-          bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: bonusColor }}>{bonusText}</span></div>;
-      } else {
-          bonusLine = <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>;
-      }
-      if (isPreviousFilled && slot.type !== 'top') {
-        actionLine = <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Nécessite une technologie informatique</div>;
-      } else if (!hasData) {
-        actionLine = <div style={{ fontSize: '0.8em', color: '#ff6b6b', marginTop: '4px', fontStyle: 'italic' }}>Nécessite 1 donnée</div>;
-      } else {
-        actionLine = <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>Nécessite le slot précédent</div>;
-      }
+    titleLine = <div className="computer-tooltip-title unavailable">Indisponible</div>
+    if (isPreviousFilled && slot.type !== 'top' && !slot.bonus) {
+      actionLine = <div className="computer-tooltip-action normal">Nécessite une technologie informatique</div>;
+    } else if (!hasData) {
+      actionLine = <div className="computer-tooltip-action error">Nécessite 1 donnée</div>;
+    } else {
+      actionLine = <div className="computer-tooltip-action normal">Nécessite le slot précédent</div>;
+    }
   }
   
   const tooltipContent = (
-      <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 'bold', marginBottom: '4px', color: titleColor }}>{title}</div>
+      <div className="computer-tooltip-container">
+          {titleLine}
           {bonusLine}
           {actionLine}
       </div>
@@ -97,7 +87,7 @@ const ComputerSlotUI = ({
       style={{ cursor: canFill && !isFilled ? 'pointer' : 'help' }}
     >
       {isFilled && <div className="computer-slot-dot" />}
-      {!isFilled && slot.bonus === 'media' && <span className="computer-slot-bonus media">🎤</span>}
+      {!isFilled && slot.bonus === 'media' && <span className="computer-slot-bonus media">{mediaAmount > 1 ? '2' : ''}🎤</span>}
       {!isFilled && slot.bonus === 'reservation' && <span className="computer-slot-bonus reservation">📥</span>}
       {!isFilled && slot.bonus === '2pv' && <span className="computer-slot-bonus pv">2🏆</span>}
       {!isFilled && slot.bonus === 'credit' && <span className="computer-slot-bonus credit">₢</span>}
@@ -124,7 +114,7 @@ export const PlayerComputerUI = ({
       {isAnalyzing && <div className="scan-line" />}
 
       {columns.map((col, index) => {
-        const colSlots = Object.values(slots).filter((s) => s.col === col).sort((a, b) => a.type === 'top' ? -1 : 1);
+        const colSlots = Object.values(slots).filter((s) => s.col === col).sort((a, _b) => a.type === 'top' ? -1 : 1);
         const hasBottom = colSlots.length > 1;
         
         const topSlot = colSlots.find((s) => s.type === 'top');

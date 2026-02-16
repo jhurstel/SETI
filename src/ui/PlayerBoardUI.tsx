@@ -22,7 +22,6 @@ interface PlayerBoardUIProps {
   onTradeCardAction: (targetGain?: string) => void;
   onConfirmTrade: () => void;
   onGameUpdate: (game: Game) => void;
-  onDrawCard: (count: number, source: string) => void;
   onComputerSlotSelect: (col: number) => void;
   onNextPlayer: () => void;
   onHistory: (message: string, sequenceId?: string) => void;
@@ -202,7 +201,7 @@ const HandCard: React.FC<{
     );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onDrawCard, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick, onMissionClick }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick, onMissionClick }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -237,7 +236,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     setActiveTooltip(null);
   };
   
-  const isInteractiveMode = isDiscarding || isTrading || isReserving || isSelectingComputerSlot || isAnalyzing || isPlacingLifeTrace || isSelectingSector;
+  const isInteractiveMode = isDiscarding || isTrading || isReserving || isSelectingComputerSlot || isAnalyzing || isPlacingLifeTrace || isSelectingSector || isDiscardingForSignal;
 
   // Suivi des changements de ressources pour la notification sur les onglets
   const [tabFlashes, setTabFlashes] = useState<Record<string, boolean>>({});
@@ -283,8 +282,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   const handleComputerBonus = (type: string, amount: number, sequenceId?: string) => {
     if (type === 'reservation') {
       onComputerBonus(type, amount, sequenceId);
-    } else if (type === 'card' && onDrawCard) {
-      onDrawCard(amount, 'Bonus Ordinateur');
+    } else if (type === 'anycard') {
+      onComputerBonus(type, amount, sequenceId);
     }
   };
 
@@ -885,7 +884,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                                 if (bonus) isFulfillable = true;
                             }
 
-                            const canClick = !isCompleted && isFulfillable && isCurrentTurn && !isRobot;
+                            const canClick = !isCompleted && isFulfillable && isCurrentTurn && !isRobot && !isInteractiveMode;
 
                             return (
                                 <div 
