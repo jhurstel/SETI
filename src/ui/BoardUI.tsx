@@ -90,6 +90,7 @@ export const BoardUI: React.FC = () => {
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null>(null);
   const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: any[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
   const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
+  const [isPassModalMinimized, setIsPassModalMinimized] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(true); // Open at launch
   const [newGameModalVisible, setNewGameModalVisible] = useState(false);
   const [hasAutosave, setHasAutosave] = useState(false);
@@ -113,6 +114,13 @@ export const BoardUI: React.FC = () => {
         }
     }
   }, [game, interactionState.type, game?.currentPlayerIndex]);
+
+  // Réinitialiser l'état minimisé lorsque la modale se ferme
+  useEffect(() => {
+    if (!passModalState.visible) {
+      setIsPassModalMinimized(false);
+    }
+  }, [passModalState.visible]);
 
   // Vérifier s'il y a une sauvegarde automatique au démarrage
   useEffect(() => {
@@ -3068,9 +3076,35 @@ export const BoardUI: React.FC = () => {
         />
       )}
 
+      {/* Bouton pour masquer/afficher la modale de fin de manche */}
+      {passModalState.visible && (
+        <button
+            onClick={() => setIsPassModalMinimized(!isPassModalMinimized)}
+            style={{
+                position: 'fixed',
+                top: '20px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 10000,
+                padding: '8px 16px',
+                backgroundColor: isPassModalMinimized ? 'rgba(33, 150, 243, 0.9)' : 'rgba(0, 0, 0, 0.6)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.5)',
+                borderRadius: '20px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(4px)',
+                transition: 'all 0.2s ease'
+            }}
+        >
+            {isPassModalMinimized ? "Revenir au choix de carte" : "Voir le plateau"}
+        </button>
+      )}
+
       {/* Modale de sélection de carte de fin de manche */}
       <PassModal
-        visible={passModalState.visible}
+        visible={passModalState.visible && !isPassModalMinimized}
         cards={passModalState.cards}
         onConfirm={(selectedCardId) => {
           const currentPlayer = game.players[game.currentPlayerIndex];
