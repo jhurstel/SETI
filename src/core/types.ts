@@ -159,7 +159,6 @@ export interface GameState {
 
 export interface Decks {
   cards: Card[];
-  speciesCards: Card[];
   cardRow: Card[];
   discardPile: Card[];
   roundDecks: { [round: number]: Card[] };
@@ -357,7 +356,6 @@ export interface Card {
   immediateEffects?: CardEffect[];
   passiveEffects?: CardEffect[];
   permanentEffects?: CardEffect[];
-  scoringModifiers?: ScoringModifier[];
   isRevealed?: boolean;
 }
 
@@ -385,26 +383,18 @@ export interface Mission {
 export interface Species {
   id: string;
   name: string;
-  lifeTraceTypes: LifeTraceType[];
-  rules: SpeciesRules;
+  fixedSlots: {
+    redlifetrace: Bonus[],
+    yellowlifetrace: Bonus[],
+    bluelifetrace: Bonus[],
+  };
+  infiniteSlots: {
+    redlifetrace: Bonus,
+    yellowlifetrace: Bonus,
+    bluelifetrace: Bonus,
+  };
   cards: Card[];
-  scoringModifiers: ScoringModifier[];
   discovered: boolean;
-}
-
-export interface SpeciesRules {
-  modifications: RuleModification[];
-}
-
-export interface RuleModification {
-  type: string;
-  target: string;
-  value: any;
-}
-
-export interface ScoringModifier {
-  category: string;
-  value: number;
 }
 
 export interface Planet {
@@ -447,6 +437,7 @@ export interface Bonus {
   probe?: number;
   movements?: number;
   landing?: number;
+  token?: number;
   ignoreProbeLimit?: boolean;
   atmosphericEntry?: boolean;
   sharedOnly?: boolean;

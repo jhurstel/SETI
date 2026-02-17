@@ -20,7 +20,8 @@ import {
   GameLogEntry,
   TechnologyCategory,
   LifeTraceType,
-  NEUTRAL_MILESTONES
+  NEUTRAL_MILESTONES,
+  AlienBoardType
 } from './types';
 import { BoardManager } from './Board';
 import { CardSystem } from '../systems/CardSystem';
@@ -45,17 +46,16 @@ export class GameFactory {
     // Créer les decks
     const decks: Decks = {
       cards: this.createActionDeck(),
-      speciesCards: [],
       cardRow: [],
       discardPile: [],
       roundDecks: {}
     };
 
+    // Créer les espèces (non découvertes initialement)
+    const species = this.createSpecies();
+
     // Créer le plateau
     const board = BoardManager.createInitialBoard();
-
-    // Créer les espèces (non découvertes initialement)
-    const species: Species[] = [];
 
     // Initialiser les logs
     const gameLog: GameLogEntry[] = [];
@@ -195,6 +195,14 @@ export class GameFactory {
         const playerId = updatedGame.players[i].id;
         updatedGame = CardSystem.drawCards(updatedGame, playerId, GAME_CONSTANTS.INITIAL_HAND_SIZE);
     }
+
+    // Mélanger les cartes des espèces
+    updatedGame.board.alienBoards.forEach(alienBoard => {
+      const species = updatedGame.species.find(s => s.name === alienBoard.speciesId);
+      if (species) {
+        species.cards = this.shuffleCards(species.cards);
+      }
+    });
 
     // Mélanger les technologies et appliquer les bonus de pile
     this.shuffleTechnologies(updatedGame);
@@ -909,6 +917,7 @@ export class GameFactory {
           if (parts[1] === 'yellow') effects.push({ id: permanent, type: 'GAIN_ON_YELLOW_SIGNAL', target: parts[2], value: permanent });
           else if (parts[1] === 'red') effects.push({ id: permanent, type: 'GAIN_ON_RED_SIGNAL', target: parts[2], value: permanent });
           else if (parts[1] === 'blue') effects.push({ id: permanent, type: 'GAIN_ON_BLUE_SIGNAL', target: parts[2], value: permanent });
+          else if (parts[1] === 'oumuamua') effects.push({ id: permanent, type: 'GAIN_ON_OUMUAMUA_SIGNAL', target: parts[2], value: permanent });
         }
       }
 
@@ -929,6 +938,7 @@ export class GameFactory {
           if (parts[1] === 'yellow') effects.push({ id: permanent, type: 'GAIN_ON_YELLOW_LIFETRACE', target: parts[2], value: permanent });
           else if (parts[1] === 'red') effects.push({ id: permanent, type: 'GAIN_ON_RED_LIFETRACE', target: parts[2], value: permanent });
           else if (parts[1] === 'blue') effects.push({ id: permanent, type: 'GAIN_ON_BLUE_LIFETRACE', target: parts[2], value: permanent });
+          else if (parts[1] === 'any') effects.push({ id: permanent, type: 'GAIN_ON_ANY_LIFETRACE', target: parts[2], value: permanent });
         }
       }
 
@@ -944,6 +954,7 @@ export class GameFactory {
           else if (parts[1] === 'neptune') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_NEPTUNE', target: parts[2], value: permanent });
           else if (parts[1] === 'planet') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_PLANET', target: parts[2], value: permanent }); // excluding earth
           else if (parts[1] === 'asteroid') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_ASTEROID', target: parts[2], value: permanent });
+          else if (parts[1] === 'oumuamua') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_OUMUAMUA', target: parts[2], value: permanent });
         }
       }
 
@@ -967,6 +978,22 @@ export class GameFactory {
         }
       }
 
+      // Gestion du format GAIN_ON_TOKEN:target:value
+      else if (permanent.startsWith('GAIN_ON_TOKEN:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ id: permanent, type: 'GAIN_ON_TOKEN', target: parts[1], value: permanent });
+        }
+      }
+
+      // Gestion du format GAIN_ON_TOKEN_AND_LAND:target:value
+      else if (permanent.startsWith('GAIN_ON_TOKEN_AND_LAND:')) {
+        const parts = permanent.split(':');
+        if (parts.length === 3) {
+          effects.push({ id: permanent, type: 'GAIN_ON_TOKEN_AND_LAND', target: parts[1], value: permanent });
+        }
+      }
+      
       // Gestion du format GAIN_IF_... (Missions conditionnelles)
       else if (permanent.startsWith('GAIN_IF_')) {
         const parts = permanent.split(':').map(p => p.trim());
@@ -975,5 +1002,111 @@ export class GameFactory {
       }
     }
     return effects;
+  }
+
+  /**
+   * Crée les espèces alien
+   */
+  private static createSpecies(): Species[] {
+    const csvContent = {
+      [AlienBoardType.ANOMALIES]: ``,
+      [AlienBoardType.OUMUAMUA]: `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
+ET.21;Visiteur Céleste;Mission Conditionnelle;Gagnez 1 Scan et gagnez 2 PV pour chaque signal que vous marquez sur Oumuamua. Mission: Gagnez 1 Donnée si vous avez marqué une Trace de Vie pour cette espèce qui nécessite un paiement en token.;2 Médias;Bleu;Pioche;2 Crédits;1 Scan;GAIN_ON_SIGNAL:oumuamua:pv:2 + GAIN_IF_PAY_FOR_LIFETRACE:data:1
+ET.22;Modification de Trajectoire;Mission Conditionnelle;Gagnez 1 Scan et gagnez 1 Token si vous marquez au moins un signal sur Oumuamua. Mission: Gagnez 4 PVs si vous avez posé une sonde sur Oumuamua.;1 PV + 1 Déplacement;Rouge;Energie;2 Crédits;1 Scan;GAIN_ON_SIGNAL:oumuamua:token:1 + GAIN_IF_LANDER:oumuamua:pv:4
+ET.23;Découverte d'Exofossiles;Mission Conditionnelle;Gagnez 1 Signal dans le secteur d'Oumuamua. Mission: Défaussez 2 Token et Gagnez 11 PVs si vous avez au moins 3 Tokens.;2 Médias;Jaune;Energie;1 Crédit;1 Signal Oumuamua;GAIN_IF_3_TOKEN:token:-2:pv:11
+ET.24;Cartographie du Terrain;Fin de Jeu;Gagnez 1 Signal dans un secteur Jaune, Rouge et Bleu. Puis vous pouvez défausser 1 Token pour marquer 1 Signal dans n'importe quel secteur. Mission: Gagnez 1 PV pour chaque Trace de Vie que vous avez marquée pour cette espèce.;1 PV + 1 Déplacement;Jaune;Crédit;3 Crédits;1 Signal Jaune + 1 Signal Rouge + 1 Signal Bleu;GAIN_ON_TOKEN:anysignal:1
+ET.25;Adaptation des Sondes;Action;Vous pouvez défaussez 1 Token autant de fois que vous le souhaitez pour gagner 2 Déplacements à chaque fois. Puis gagnez 1 Atterrissage.;1 PV + 1 Donnée;Bleu;Crédit;1 Crédit;;GAIN_ON_TOKEN_AND_LAND:move:1
+ET.26;Course contre la Montre;Action;Gagnez 1 Sonde et 1 Token;2 Médias;Rouge;Energie;1 Crédit;1 Sonde + 1 Token;
+ET.27;Synchronisation Parfaite;Mission Conditionnelle;Gagnez 4 Déplacements. Si vou svisitez Oumuamua ce tour-ci, gagnez 1 Token. Mission: Gagnez 1 Token si vous avez marqué au moins 1 Signal sur Oumuamua.;1 PV + 1 Donnée;Jaune;Crédit;2 Crédits;4 Déplacements;GAIN_ON_VISIT:oumuamua:token:1 + GAIN_IF_SIGNAL:oumuamua:token:1
+ET.28;Echantillons d'Exofossiles;Action;Gagnez 1 Rotation et 1 Technologie Informatique. Puis vous pouvez défausser 1 Token pour gagner 1 Donnée.;1 PV + 1 Déplacement;Bleu;Pioche;2 Crédits;1 Rotation + 1 Tech Informatique;GAIN_ON_TOKEN:data:1
+ET.29;Analyse Comparative;Misison Déclenchable;Gagnez 1 Token. Mission: Gagnez 1 Donnée après avoir marqué une Trace de Vie. Mission: Gagnez 1 Média après avoir marqué une Trace de Vie. Mission: Gagnez 3 PV après avoir marqué une Trace de Vie.;1 PV + 1 Déplacement;Rouge;Energie;1 Crédit;1 Token;GAIN_ON_LIFETRACE:any:data:1 + GAIN_ON_LIFETRACE:any:media:1 + GAIN_ON_LIFETRACE:any:pv:3
+ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous posez une sonde sur Oumuamua grâce à cette action, gagnez 3 PV. Mission: Gagnez 1 Token si vous avez marqué une Trace de Vie Rouge, Bleu et Jaune pour cette espèce.;1 PV + 1 Donnée;Noir;Pioche;1 Crédit;1 Atterrissage;GAIN_ON_LAND:oumuamua:pv:3`,
+      [AlienBoardType.CENTAURIENS]: ``,
+      [AlienBoardType.EXERTIENS]: ``,
+      [AlienBoardType.MASCAMITES]: ``,
+    }
+    // Crée un exemple d'espèce alien
+    return [
+      {
+        id: `species-${Date.now()}`,
+        name: AlienBoardType.ANOMALIES,
+        fixedSlots: {
+          redlifetrace: [{ pv: 4, card: 1 }, { pv: 2, card: 1 }, { pv: 2, media: 1 }, { pv: 3 }],
+          yellowlifetrace: [{ pv: 4, card: 1 }, { pv: 2, card: 1 }, { pv: 2, media: 1 }, { pv: 3 }],
+          bluelifetrace: [{ pv: 4, card: 1 }, { pv: 2, card: 1 }, { pv: 2, media: 1 }, { pv: 3 }]
+        },
+        infiniteSlots: {
+          redlifetrace: { pv: 2},
+          yellowlifetrace: { pv: 2},
+          bluelifetrace: { pv: 2}
+        },
+        cards: this.parseCSV(csvContent[AlienBoardType.ANOMALIES]),
+        discovered: false
+      },
+      {
+        id: `species-${Date.now()}`,
+        name: AlienBoardType.OUMUAMUA,
+        fixedSlots: {
+          redlifetrace: [{ pv: 25, token: -4 }, { pv: 3, card: 1, token: 1 }, { pv: 3, card: 1 }, { pv: 2, token: 1 }],
+          yellowlifetrace: [{ pv: 25, token: -4 }, { pv: 3, card: 1, token: 1 }, { pv: 3, card: 1 }, { pv: 2, token: 1 }],
+          bluelifetrace: [{ pv: 25, token: -4 }, { pv: 3, card: 1, token: 1 }, { pv: 3, card: 1 }, { pv: 2, token: 1 }]
+        },
+        infiniteSlots: {
+          redlifetrace: { pv: 6, token: -1},
+          yellowlifetrace: { pv: 6, token: -1},
+          bluelifetrace: { pv: 6, token: -1}
+        },
+        cards: this.parseCSV(csvContent[AlienBoardType.OUMUAMUA]),
+        discovered: false
+      },
+      {
+        id: `species-${Date.now()}`,
+        name: AlienBoardType.CENTAURIENS,
+        fixedSlots: {
+          redlifetrace: [{ pv: 5, card: 1 }, { pv: 3, card: 1 }, { pv: 5 }, { pv: 15, data: -3 }],
+          yellowlifetrace: [{ pv: 5, card: 1 }, { pv: 3, card: 1 }, { pv: 5 }, { pv: 15, data: -3 }],
+          bluelifetrace: [{ pv: 5, card: 1 }, { pv: 3, card: 1 }, { pv: 5 }, { pv: 15, data: -3 }]
+        },
+        infiniteSlots: {
+          redlifetrace: { pv: 6, data: -1},
+          yellowlifetrace: { pv: 6, data: -1},
+          bluelifetrace: { pv: 6, data: -1}
+        },
+        cards: this.parseCSV(csvContent[AlienBoardType.CENTAURIENS]),
+        discovered: false
+      },
+      {
+        id: `species-${Date.now()}`,
+        name: AlienBoardType.EXERTIENS,
+        fixedSlots: {
+          redlifetrace: [{ pv: 9, credits: 1 }, { pv: 7, credits: 1 }, { pv: 5, credits: 1 }, { pv: 4, credits: 1 }, { pv: 3, media: 1 }],
+          yellowlifetrace: [{ pv: 6, energy: 1, anycard: 1 }, { pv: 4, energy: 1, anycard: 1 }, { pv: 2, energy: 1, anycard: 1 }, { pv: 1, energy: 1, anycard: 1 }, { pv: 3, media: 1 }],
+          bluelifetrace: [{ pv: 6, data: 1, media: 1 }, { pv: 4, data: 1, media: 1 }, { pv: 2, data: 1, media: 1 }, { pv: 1, data: 1, media: 1 }, { pv: 3, media: 1 }]
+        },
+        infiniteSlots: {
+          redlifetrace: {},
+          yellowlifetrace: {},
+          bluelifetrace: {}
+        },
+        cards: this.parseCSV(csvContent[AlienBoardType.EXERTIENS]),
+        discovered: false
+      },
+      {
+        id: `species-${Date.now()}`,
+        name: AlienBoardType.MASCAMITES,
+        fixedSlots: {
+          redlifetrace: [{ pv: 5, card: 1 }, { pv: 3, card: 1 }, { pv: 5 }, { pv: 4 }],
+          yellowlifetrace: [{ pv: 5, card: 1 }, { pv: 3, card: 1 }, { pv: 5 }, { pv: 4 }],
+          bluelifetrace: [{ pv: 5, card: 1 }, { pv: 3, card: 1 }, {}, {}, {}, {}]
+        },
+        infiniteSlots: {
+          redlifetrace: {},
+          yellowlifetrace: {},
+          bluelifetrace: {}
+        },
+        cards: this.parseCSV(csvContent[AlienBoardType.MASCAMITES]),
+        discovered: false
+      }
+    ];
   }
 }

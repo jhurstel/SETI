@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Game, InteractionState, LifeTraceType } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
+import './AlienBoardUI.css';
 
 interface AlienBoardUIProps {
     game: Game;
@@ -71,6 +72,7 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
 
 export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, onPlaceLifeTrace, setActiveTooltip }) => {
     const board = game.board.alienBoards[boardIndex];
+    const species = game.species.find(s => s.name === board.speciesId);
     const side = boardIndex === 0 ? 'left' : 'right';
     const isPlacingTrace = interactionState.type === 'PLACING_LIFE_TRACE';
     const [isOpen, setIsOpen] = useState(isPlacingTrace);
@@ -136,6 +138,258 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
         );
     };
 
+    const getPlayerColor = (playerId: string) => {
+        if (playerId === 'neutral') return '#888';
+        return game.players.find(p => p.id === playerId)?.color || '#fff';
+    };
+
+    const renderSpeciesTrack = (type: LifeTraceType) => {
+        if (!species) return null;
+        
+        let fixedSlots: any[] = [];
+        let infiniteSlot: any = {};
+        
+        if (type === LifeTraceType.RED) {
+            fixedSlots = species.fixedSlots.redlifetrace;
+            infiniteSlot = species.infiniteSlots.redlifetrace;
+        } else if (type === LifeTraceType.YELLOW) {
+            fixedSlots = species.fixedSlots.yellowlifetrace;
+            infiniteSlot = species.infiniteSlots.yellowlifetrace;
+        } else if (type === LifeTraceType.BLUE) {
+            fixedSlots = species.fixedSlots.bluelifetrace;
+            infiniteSlot = species.infiniteSlots.bluelifetrace;
+        }
+
+        const traces = board.lifeTraces.filter(t => t.type === type);
+        const isPlacing = interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === type;
+        const color = type === LifeTraceType.RED ? '#ff6b6b' : type === LifeTraceType.YELLOW ? '#ffd700' : '#4a9eff';
+
+        return (
+            <div className="alien-track-column">
+                <div className="alien-infinite-slot">
+                    <div
+                        className="alien-infinite-corridor"
+                        style={{
+                            position: 'relative',
+                            display: 'flex',
+                            flexDirection: 'column-reverse',
+                            alignItems: 'center',
+                            marginBottom: '18px',
+                            gap: '12px',
+                        }}
+                    >
+                        <div
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                bottom: 0,
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                width: '28px',
+                                borderLeft: '2px solid rgba(255,255,255,0.4)',
+                                borderRight: '2px solid rgba(255,255,255,0.4)',
+                                borderBottom: '2px solid rgba(255,255,255,0.4)',
+                                borderBottomLeftRadius: '16px',
+                                borderBottomRightRadius: '16px',
+                                maskImage: 'linear-gradient(to top, black 20%, rgba(0,0,0,0.25) 80%, transparent 100%)',
+                                WebkitMaskImage: 'linear-gradient(to top, black 20%, rgba(0,0,0,0.25) 80%, transparent 100%)',
+                                zIndex: 0,
+                                pointerEvents: 'none',
+                            }}
+                        />
+                        {[2, 1, 0].map((reverseIdx) => {
+                            // De 0 (haut) à 2 (bas)
+                            const idx = reverseIdx;
+                            const infTraceIndex = fixedSlots.length + idx;
+                            const trace = traces[infTraceIndex];
+                            const isBottom = reverseIdx === 2;
+
+                            // Opacité diminue vers le haut (plus petit idx = plus haut)
+                            const opacity = [0.35, 0.6, 1][reverseIdx];
+
+                            return (
+                                <div
+                                    key={`inf-corridor-${idx}`}
+                                    className={`alien-slot infinite ${isPlacing ? 'clickable' : ''}`}
+                                    style={{
+                                        borderColor: color,
+                                        opacity: opacity,
+                                        zIndex: 1,
+                                        backgroundColor: isBottom ? (isPlacing ? '#32373c' : '#14171a') : (trace ? getPlayerColor(trace.playerId) : color),
+                                        width: isBottom ? '28px' : '8px',
+                                        height: isBottom ? '28px' : '8px',
+                                        borderRadius: '50%',
+                                        border: isBottom ? `2px solid ${color}` : 'none',
+                                        cursor: isPlacing ? 'pointer' : 'help',
+                                        boxShadow: isPlacing && isBottom ? `0 0 8px ${color}` : undefined,
+                                        transition: 'all 0.15s'
+                                    }}
+                                    onClick={() =>
+                                        isPlacing &&
+                                        idx === traces.length - fixedSlots.length &&
+                                        onPlaceLifeTrace(boardIndex, type)
+                                    }
+                                    onMouseEnter={(e) => {
+                                        // Bonus pour cet emplacement
+                                        if (infiniteSlot) {
+                                            const parts = ResourceSystem.formatBonus(infiniteSlot) || [];
+                                            let costText = null;
+                                            if (infiniteSlot.token) {
+                                                if (infiniteSlot.token < 0) {
+                                                    costText = `${Math.abs(infiniteSlot.token)} Token`;
+                                                } else {
+                                                    parts.push(`${infiniteSlot.token} Token`);
+                                                }
+                                            }
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            let statusText = '';
+                                            let statusColor = '';
+                                            if (trace) {
+                                                const player = game.players.find((p) => p.id === trace.playerId);
+                                                statusText = `Occupé par ${player?.name || 'Inconnu'}`;
+                                                statusColor = player?.color || '#ccc';
+                                            } else {
+                                                statusText = 'Disponible';
+                                                statusColor = '#4a9eff';
+                                            }
+                                            setActiveTooltip({
+                                                content: (
+                                                    <div style={{ textAlign: 'center', padding: '4px' }}>
+                                                        <div
+                                                            style={{
+                                                                fontWeight: 'bold',
+                                                                color: statusColor,
+                                                                marginBottom: '4px',
+                                                            }}
+                                                        >
+                                                            {statusText}
+                                                        </div>
+                                                        {costText && (
+                                                            <div style={{ fontSize: '0.9em', color: '#ff6b6b' }}>
+                                                                Coût: <span style={{ color: '#fff' }}>{costText}</span>
+                                                            </div>
+                                                        )}
+                                                        <div style={{ fontSize: '0.9em', color: '#ccc' }}>
+                                                            Bonus:{' '}
+                                                            <span style={{ color: '#ffd700' }}>
+                                                                {parts.length > 0 ? parts.join(', ') : 'Aucun'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ),
+                                                rect,
+                                            });
+                                        }
+                                    }}
+                                    onMouseLeave={() => setActiveTooltip(null)}
+                                >
+                                    {/* 
+                                        A quoi ca sert ?
+
+                                        - Afficher un marqueur de joueur ("alien-marker") si la case de la trace de vie est occupée par un joueur (trace existe)
+                                        - Sinon, si l'utilisateur est en train de placer un marqueur (isPlacing) ET qu'on est sur la première case "infinie" libre,
+                                          alors on affiche un cercle en pointillé comme zone de drop possible du prochain marqueur
+                                    */}
+                                    {isBottom && trace && (
+                                        <div
+                                            className="alien-marker"
+                                            style={{ backgroundColor: getPlayerColor(trace.playerId) }}
+                                        />
+                                    )}
+                                    {isBottom && !trace && isPlacing && idx === traces.length - fixedSlots.length && (
+                                        <div
+                                            style={{
+                                                width: '60%',
+                                                height: '60%',
+                                                borderRadius: '50%',
+                                                border: `1.5px dashed ${color}`,
+                                                margin: 'auto',
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+                <div className="alien-fixed-slots" style={{ display: 'flex', flexDirection: 'column', marginBottom: '15px', gap: '15px', alignItems: 'center' }}>
+                    {[...fixedSlots].reverse().map((bonus, reverseIndex) => {
+                        const index = fixedSlots.length - reverseIndex;
+                        const trace = traces[index];
+                        const isFilled = !!trace;
+
+                        return (
+                            <div
+                                key={`fixed-${index}`}
+                                className={`alien-slot fixed ${isFilled ? 'filled' : ''} ${isPlacing ? 'clickable' : ''}`}
+                                onClick={() => isPlacing && onPlaceLifeTrace(boardIndex, type)}
+                                style={{ borderColor: color, boxShadow: isPlacing ? `0 0 8px ${color}` : 'none' }}
+                                onMouseEnter={(e) => {
+                                    if (bonus) {
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        const parts = ResourceSystem.formatBonus(bonus) || [];
+                                        let costText = null;
+                                        if (bonus.token) {
+                                            if (bonus.token < 0) {
+                                                costText = `${Math.abs(bonus.token)} Token`;
+                                            } else {
+                                                parts.push(`${bonus.token} Token`);
+                                            }
+                                        }
+                                        
+                                        let statusText = "";
+                                        let statusColor = "";
+                                        if (isFilled) {
+                                            const player = game.players.find(p => p.id === trace.playerId);
+                                            statusText = `Occupé par ${player?.name || 'Inconnu'}`;
+                                            statusColor = player?.color || '#ccc';
+                                        } else {
+                                            statusText = "Disponible";
+                                            statusColor = "#4a9eff";
+                                        }
+
+                                        setActiveTooltip({ content: <div style={{textAlign: 'center', padding: '4px'}}>
+                                            <div style={{fontWeight: 'bold', color: statusColor, marginBottom: '4px'}}>{statusText}</div>
+                                            {costText && (
+                                                <div style={{ fontSize: '0.9em', color: '#ff6b6b' }}>
+                                                    Coût: <span style={{ color: '#fff' }}>{costText}</span>
+                                                </div>
+                                            )}
+                                            <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus: <span style={{ color: '#ffd700' }}>{parts.length > 0 ? parts.join(', ') : 'Aucun'}</span></div>
+                                        </div>, rect });
+                                    }
+                                }}
+                                onMouseLeave={() => setActiveTooltip(null)}
+                            >
+                                {isFilled ? (
+                                    <div className="alien-marker" style={{ backgroundColor: getPlayerColor(trace.playerId) }} />
+                                ) : (
+                                    <div
+                                        className={`alien-bonus-circle${isPlacing ? ' clickable' : ''}`}
+                                        style={{
+                                            width: '28px',
+                                            height: '28px',
+                                            borderRadius: '50%',
+                                            border: `2px solid ${color}`,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            background: isPlacing ? '#32373c' : '#14171a',
+                                            cursor: isPlacing ? 'pointer' : 'help',
+                                            boxShadow: isPlacing ? `0 0 8px ${color}` : undefined,
+                                            transition: 'box-shadow 0.15s'
+                                        }}
+                                    >
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div style={{
             position: 'absolute',
@@ -159,53 +413,83 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                     <span className="panel-title">Alien Board</span>
                 </div>
                 <div className="seti-foldable-content" style={{ display: 'flex', flexDirection: 'column' }}>
-                    {board.speciesId && (
-                        <div style={{ position: 'relative', height: '200px', width: '100%', borderBottom: '1px dashed #444', marginBottom: '10px' }}>
-                            <div style={{ position: 'absolute', top: '5px', left: '5px', fontSize: '0.7em', color: '#aaa' }}>Espèce: {board.speciesId}</div>
+                    {board.isDiscovered && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ padding: '5px', textAlign: 'center', borderBottom: '1px solid #444' }}>
+                                <div style={{ fontSize: '1.1em', color: '#aaa', fontWeight: 'bold' }}>{board.speciesId}</div>
+                            </div>
+                            <div style={{ height: '12px', marginBottom: '5px' }}></div>
+                        </div>
+                    )}
+                    {board.isDiscovered && (
+                        <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-around',
+                        width: '100%',
+                        borderBottom: '1px solid #444',
+                        marginBottom: '5px',
+                        flex: 1,
+                        alignItems: 'flex-end'
+                        }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                                {board.isDiscovered && species && renderSpeciesTrack(LifeTraceType.RED)}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                                {board.isDiscovered && species && renderSpeciesTrack(LifeTraceType.YELLOW)}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                                {board.isDiscovered && species && renderSpeciesTrack(LifeTraceType.BLUE)}
+                            </div>
                         </div>
                     )}
                     <div style={{
                         display: 'flex',
                         justifyContent: 'space-around',
                         width: '100%',
-                        padding: '10px 15px',
-                        marginTop: 'auto',
-                        borderTop: '1px solid #444'
+                        padding: '10px 5px',
+                        flex: 1,
+                        alignItems: 'flex-end'
                     }}>
-                        <AlienTriangleSlot color="#ff6b6b"
-                            traces={board.lifeTraces.filter(t => t.type === LifeTraceType.RED)}
-                            game={game}
-                            isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.RED}
-                            onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.RED)}
-                            onMouseEnter={(e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setActiveTooltip({ content: renderAlienSlotTooltip(LifeTraceType.RED), rect });
-                            }}
-                            onMouseLeave={() => setActiveTooltip(null)}
-                        />
-                        <AlienTriangleSlot color="#ffd700"
-                            traces={board.lifeTraces.filter(t => t.type === LifeTraceType.YELLOW)}
-                            game={game}
-                            isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.YELLOW}
-                            onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.YELLOW)}
-                            onMouseEnter={(e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setActiveTooltip({ content: renderAlienSlotTooltip(LifeTraceType.YELLOW), rect });
-                            }}
-                            onMouseLeave={() => setActiveTooltip(null)}
-                        />
-                        <AlienTriangleSlot color="#4a9eff"
-                            traces={board.lifeTraces.filter(t => t.type === LifeTraceType.BLUE)}
-                            game={game}
-                            isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE}
-                            onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.BLUE)}
-                            onMouseEnter={(e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setActiveTooltip({ content: renderAlienSlotTooltip(LifeTraceType.BLUE), rect });
-                            }}
-                            onMouseLeave={() => setActiveTooltip(null)}
-                        />
-                    </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                            <AlienTriangleSlot color="#ff6b6b"
+                                traces={board.lifeTraces.filter(t => t.type === LifeTraceType.RED)}
+                                game={game}
+                                isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.RED}
+                                onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.RED)}
+                                onMouseEnter={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setActiveTooltip({ content: renderAlienSlotTooltip(LifeTraceType.RED), rect });
+                                }}
+                                onMouseLeave={() => setActiveTooltip(null)}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                            <AlienTriangleSlot color="#ffd700"
+                                traces={board.lifeTraces.filter(t => t.type === LifeTraceType.YELLOW)}
+                                game={game}
+                                isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.YELLOW}
+                                onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.YELLOW)}
+                                onMouseEnter={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setActiveTooltip({ content: renderAlienSlotTooltip(LifeTraceType.YELLOW), rect });
+                                }}
+                                onMouseLeave={() => setActiveTooltip(null)}
+                            />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                            <AlienTriangleSlot color="#4a9eff"
+                                traces={board.lifeTraces.filter(t => t.type === LifeTraceType.BLUE)}
+                                game={game}
+                                isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE}
+                                onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.BLUE)}
+                                onMouseEnter={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setActiveTooltip({ content: renderAlienSlotTooltip(LifeTraceType.BLUE), rect });
+                                }}
+                                onMouseLeave={() => setActiveTooltip(null)}
+                            />
+                        </div>
+                     </div>
                 </div>
             </div>
         </div>

@@ -1262,6 +1262,9 @@ export const BoardUI: React.FC = () => {
             if (result.code === 'DISCOVERED') {
                 message += " - Espèce découverte !";
                 addToHistory(`déclenche la découverte d'une nouvelle espèce Alien !`, currentPlayer.id, currentState, undefined, interactionState.sequenceId);
+                if (result.logs) {
+                    result.logs.forEach(log => addToHistory(log, undefined, currentState, undefined, interactionState.sequenceId));
+                }
             }
             
             setAlienDiscoveryNotification({ visible: true, message });

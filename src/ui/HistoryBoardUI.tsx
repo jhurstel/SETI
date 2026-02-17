@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Card, Game, InteractionState, Technology, TechnologyCategory, CardType } from '../core/types';
+import { Card, Game, InteractionState, Technology, TechnologyCategory, CardType, Bonus } from '../core/types';
 import { CardTooltip } from './CardTooltip';
 import './HistoryBoardUI.css';
 
@@ -174,7 +174,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         const level = getTechLevel(tech.id);
         const displayName = level ? `${tech.type} ${level}` : tech.name;
 
-        const renderBonus = (bonus: any) => {
+        const renderBonus = (bonus: Bonus) => {
             const elements = [];
             if (bonus.pv) elements.push(<span key="pv" style={{ color: '#8affc0', fontWeight: 'bold' }}>{bonus.pv} PV</span>);
             if (bonus.media) elements.push(<span key="media" style={{ color: '#ff6b6b' }}>{bonus.media} Média</span>);
@@ -182,6 +182,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
             if (bonus.card) elements.push(<span key="card" style={{ color: '#fff' }}>{bonus.card} Carte</span>);
             if (bonus.probe) elements.push(<span key="probe" style={{ color: '#fff', border: '1px solid #fff', padding: '0 2px', borderRadius: '2px' }}>{bonus.probe} Sonde</span>);
             if (bonus.data) elements.push(<span key="data" style={{ color: '#fff', border: '1px solid #aaa', padding: '0 2px', borderRadius: '2px', backgroundColor: '#333' }}>{bonus.data} Data</span>);
+            if (bonus.token) elements.push(<span key="token" style={{ color: '#fff', border: '1px solid #fff', padding: '0 2px', borderRadius: '50%', backgroundColor: '#555' }}>{bonus.token} Token</span>);
             return <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>{elements}</div>;
         };
 

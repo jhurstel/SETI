@@ -13,8 +13,9 @@ export class SpeciesSystem {
         updatedGame: Game;
         code: SpeciesDiscoveryCode;
         data?: { color: LifeTraceType; speciesId?: string; boardIndex: number };
+        logs?: string[];
     } {
-        const updatedGame = structuredClone(game);
+        let updatedGame = structuredClone(game);
 
         // Vérifier s'il reste des marqueurs neutres pour ce palier
         if (!updatedGame.neutralMilestonesAvailable || updatedGame.neutralMilestonesAvailable[milestone] <= 0) {
@@ -47,10 +48,14 @@ export class SpeciesSystem {
                     if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
                         board.isDiscovered = true;
                         
+                        const distResult = this.distributeDiscoveryCards(updatedGame, i);
+                        updatedGame = distResult.updatedGame;
+
                         return { 
                             updatedGame, 
                             code: 'DISCOVERED', 
-                            data: { color, speciesId: board.speciesId, boardIndex: i } 
+                            data: { color, speciesId: board.speciesId, boardIndex: i },
+                            logs: distResult.logs
                         };
                     }
 
@@ -92,8 +97,12 @@ export class SpeciesSystem {
         const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
         const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
 
+        let discoveryLogs: string[] = [];
         if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
             board.isDiscovered = true;
+            const distResult = this.distributeDiscoveryCards(updatedGame, boardIndex);
+            updatedGame = distResult.updatedGame;
+            discoveryLogs = distResult.logs;
         }
 
         // Calculer le bonus (1ère fois ou suivantes)
@@ -110,6 +119,9 @@ export class SpeciesSystem {
         if (res.logs.length > 0) {
             mainLog += ` et ${res.logs.join(' et ')}`;
         }
+        if (discoveryLogs.length > 0) {
+            mainLog += `. ${discoveryLogs.join('. ')}`;
+        }
 
         res.historyEntries.unshift({ message: mainLog, playerId, sequenceId });
 
@@ -122,4 +134,44 @@ export class SpeciesSystem {
         };
     }
 
+    private static distributeDiscoveryCards(game: Game, boardIndex: number): { updatedGame: Game, logs: string[] } {
+        let updatedGame = game;
+        const board = updatedGame.board.alienBoards[boardIndex];
+        const species = updatedGame.species.find(s => s.name === board.speciesId);
+        const logs: string[] = [];
+        const colors = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE];
+        const cardsPerPlayer: Record<string, number> = {};
+
+        colors.forEach(color => {
+            const traces = board.lifeTraces.filter(t => t.type === color);
+            if (traces.length > 0) {
+                const firstTrace = traces[0];
+                if (firstTrace.playerId !== 'neutral') {
+                    cardsPerPlayer[firstTrace.playerId] = (cardsPerPlayer[firstTrace.playerId] || 0) + 1;
+                }
+            }
+        });
+
+        for (const [playerId, count] of Object.entries(cardsPerPlayer)) {
+            const player = updatedGame.players.find(p => p.id === playerId);
+            if (player && species) {
+                let drawnCount = 0;
+                const drawnCardNames: string[] = [];
+                for (let i = 0; i < count; i++) {
+                    const card = species.cards.shift();
+                    if (card) {
+                        player.cards.push(card);
+                        drawnCount++;
+                        drawnCardNames.push(card.name);
+                    }
+                }
+                if (drawnCount > 0) {
+                    const cardsStr = drawnCardNames.map(name => `"${name}"`).join(', ');
+                    logs.push(`${player.name} pioche ${drawnCount} carte${drawnCount > 1 ? 's' : ''} Alien ${cardsStr} (Découverte)`);
+                }
+            }
+        }
+        
+        return { updatedGame, logs };
+    }
 }
