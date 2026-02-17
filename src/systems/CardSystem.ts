@@ -190,6 +190,30 @@ export class CardSystem {
         // Payer le coût
         player.credits -= card.cost;
 
+        // Check for GAIN_ON_PLAY buffs
+        const processedSources = new Set<string>();
+        const missionsToTrigger: { missionId: string, requirementId: string }[] = [];
+        player.permanentBuffs.forEach(buff => {
+            let buffTypeMatches = false;
+            if (card.cost === 1 && buff.type === 'GAIN_ON_PLAY_1_CREDIT') buffTypeMatches = true;
+            else if (card.cost === 2 && buff.type === 'GAIN_ON_PLAY_2_CREDITS') buffTypeMatches = true;
+            else if (card.cost === 3 && buff.type === 'GAIN_ON_PLAY_3_CREDITS') buffTypeMatches = true;
+
+            if (buffTypeMatches) {
+                if (buff.id && buff.source) {
+                    const mission = player.missions.find(m => m.name === buff.source);
+                    if (mission && (mission.completedRequirementIds.includes(buff.id) || mission.fulfillableRequirementIds?.includes(buff.id))) return;
+                    if (mission && buff.id) {
+                        missionsToTrigger.push({ missionId: mission.id, requirementId: buff.id });
+                    }
+                }
+                if (buff.source && processedSources.has(buff.source)) return;
+                if (buff.source) processedSources.add(buff.source);
+
+                CardSystem.markMissionRequirementFulfillable(player, buff);
+            }
+        });
+
         // Retirer la carte de la main
         player.cards.splice(cardIndex, 1);
         
@@ -214,6 +238,7 @@ export class CardSystem {
                 ownerId: player.id,
                 requirements: card.permanentEffects || [], // IDs will be added by the factory
                 completedRequirementIds: [],
+                fulfillableRequirementIds: [],
                 completed: false,
                 originalCard: card
               };
@@ -588,6 +613,66 @@ export class CardSystem {
         return updatedGame;
     }
 
+    static discardCardForFreeAction(game: Game, playerId: string, cardId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
+        let updatedGame = structuredClone(game);
+        const player = updatedGame.players.find(p => p.id === playerId);
+        if (!player) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+
+        const card = player.cards.find(c => c.id === cardId);
+        if (!card || !card.freeAction) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+
+        const sequenceId = `free-action-discard-${Date.now()}`;
+        const bonuses: Bonus = {};
+        
+        // 1. Get bonus from the card's free action
+        if (card.freeAction === FreeActionType.MEDIA) {
+            bonuses.media = (bonuses.media || 0) + 1;
+        } else if (card.freeAction === FreeActionType.DATA) {
+            bonuses.data = (bonuses.data || 0) + 1;
+        } else if (card.freeAction === FreeActionType.MOVEMENT) {
+            bonuses.movements = (bonuses.movements || 0) + 1;
+        }
+
+        // 2. Check for GAIN_ON_DISCARD buffs and mark mission as fulfillable
+        const processedSources = new Set<string>();
+        const missionsToTrigger: { missionId: string, requirementId: string }[] = [];
+        player.permanentBuffs.forEach(buff => {
+            let buffTypeMatches = false;
+            if (card.freeAction === FreeActionType.MEDIA && buff.type === 'GAIN_ON_DISCARD_MEDIA') buffTypeMatches = true;
+            if (card.freeAction === FreeActionType.DATA && buff.type === 'GAIN_ON_DISCARD_DATA') buffTypeMatches = true;
+            if (card.freeAction === FreeActionType.MOVEMENT && buff.type === 'GAIN_ON_DISCARD_MOVE') buffTypeMatches = true;
+
+            if (buffTypeMatches) {
+                if (buff.id && buff.source) {
+                    const mission = player.missions.find(m => m.name === buff.source);
+                    if (mission && (mission.completedRequirementIds.includes(buff.id) || mission.fulfillableRequirementIds?.includes(buff.id))) return;
+                    if (mission && buff.id) {
+                        missionsToTrigger.push({ missionId: mission.id, requirementId: buff.id });
+                    }
+                }
+                if (buff.source && processedSources.has(buff.source)) return;
+                if (buff.source) processedSources.add(buff.source);
+
+                CardSystem.markMissionRequirementFulfillable(player, buff);
+            }
+        });
+
+        // 3. Discard the card
+        updatedGame = this.discardCard(updatedGame, playerId, cardId);
+        
+        // 4. Process bonuses
+        const { updatedGame: gameAfterBonuses, newPendingInteractions, logs, historyEntries } = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, cardId, sequenceId);
+        
+        // 5. Create history entry
+        let message = `défausse carte "${card.name}"`;
+        if (logs.length > 0) {
+            message += ` et ${logs.join(', ')}`;
+        }
+        historyEntries.unshift({ message, playerId, sequenceId });
+
+        return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions };
+    }
+
     static discardFromRow(game: Game, cardId: string): { updatedGame: Game, discardedCard: Card | null } {
         const updatedGame = structuredClone(game);
         const row = updatedGame.decks.cardRow;
@@ -732,7 +817,8 @@ export class CardSystem {
             'GAIN_ON_TECH',
             'GAIN_ON_SIGNAL',
             'GAIN_ON_LIFETRACE',
-            'GAIN_ON_DISCARD'
+            'GAIN_ON_DISCARD',
+            'GAIN_ON_PLAY'
         ];
 
         let target: string | undefined;
@@ -759,6 +845,7 @@ export class CardSystem {
                     else if (bonusType === 'card') rewards.card = (rewards.card || 0) + bonusValue;
                     else if (bonusType === 'anycard') rewards.anycard = (rewards.anycard || 0) + bonusValue;
                     else if (bonusType === 'probe') rewards.probe = (rewards.probe || 0) + bonusValue;
+                    else if (bonusType === 'move' || bonusType === 'moves' || bonusType === 'movements') rewards.movements = (rewards.movements || 0) + bonusValue;
                     else if (bonusType === 'reservation') rewards.revenue = (rewards.revenue || 0) + bonusValue;
                     else if (bonusType === 'yellowlifetrace') {
                         if (!rewards.lifetraces) rewards.lifetraces = [];

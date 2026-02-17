@@ -634,19 +634,22 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   key={revenueCreditFlash ? `rev-credit-${revenueCreditFlash.id}` : 'rev-credit-static'}
                   className={`seti-res-badge ${revenueCreditFlash ? (revenueCreditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
-                  <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span> <strong>{currentPlayer.revenueCredits}</strong>
+                  <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span>
+                  <strong>{currentPlayer.revenueCredits} <span style={{fontSize: '0.8em', fontWeight: 'normal', color: '#aaa'}}>({currentPlayer.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS})</span></strong>
                 </div>
                 <div 
                   key={revenueEnergyFlash ? `rev-energy-${revenueEnergyFlash.id}` : 'rev-energy-static'}
                   className={`seti-res-badge ${revenueEnergyFlash ? (revenueEnergyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
-                  <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span> <strong>{currentPlayer.revenueEnergy}</strong>
+                  <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span>
+                  <strong>{currentPlayer.revenueEnergy} <span style={{fontSize: '0.8em', fontWeight: 'normal', color: '#aaa'}}>({currentPlayer.revenueEnergy - GAME_CONSTANTS.INITIAL_REVENUE_ENERGY})</span></strong>
                 </div>
                 <div 
                   key={revenueCardFlash ? `rev-card-${revenueCardFlash.id}` : 'rev-card-static'}
                   className={`seti-res-badge ${revenueCardFlash ? (revenueCardFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
-                  <span>Carte (<span style={{color: '#aaffaa'}}>🃏</span>):</span> <strong>{currentPlayer.revenueCards}</strong>
+                  <span>Carte (<span style={{color: '#aaffaa'}}>🃏</span>):</span>
+                  <strong>{currentPlayer.revenueCards} <span style={{fontSize: '0.8em', fontWeight: 'normal', color: '#aaa'}}>({currentPlayer.revenueCards - GAME_CONSTANTS.INITIAL_REVENUE_CARDS})</span></strong>
                 </div>
               </div>
             </div>
@@ -856,7 +859,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   <div key={mission.id} 
                     className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`} 
                     style={{ cursor: !mission.completed && isCurrentTurn && !isRobot && !isInteractiveMode ? 'pointer' : 'default' }}
-                    onClick={(e) => {
+                    onClick={(_e) => {
                         if (onMissionClick && !mission.completed && isCurrentTurn && !isRobot && !isInteractiveMode) {
                             onMissionClick(mission.id);
                         }

@@ -1,5 +1,5 @@
 import { getObjectPosition, performRotation } from '../core/SolarSystemPosition';
-import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, HistoryEntry } from '../core/types';
+import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, HistoryEntry, ProbeState } from '../core/types';
 import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';
@@ -232,7 +232,18 @@ export class ResourceSystem {
 
     // Effets interactifs (File d'attente)
     if (bonuses.movements) {
-      newPendingInteractions.push({ type: 'MOVING_PROBE', count: bonuses.movements, autoSelectProbeId: launchedProbeIds.length > 0 ? launchedProbeIds[launchedProbeIds.length - 1] : undefined, sequenceId });
+      let autoSelectProbeId: string | undefined;
+      if (player) {
+        const probesInSystem = player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+        if (probesInSystem.length === 1) {
+          autoSelectProbeId = probesInSystem[0].id;
+        }
+      }
+      // If a probe was just launched, it takes precedence for auto-selection
+      if (launchedProbeIds.length > 0) {
+        autoSelectProbeId = launchedProbeIds[launchedProbeIds.length - 1];
+      }
+      newPendingInteractions.push({ type: 'MOVING_PROBE', count: bonuses.movements, autoSelectProbeId, sequenceId });
       logs.push(`obtient ${bonuses.movements} déplacement${bonuses.movements > 1 ? 's' : ''} gratuit${bonuses.movements > 1 ? 's' : ''}`);
     }
 

@@ -2,7 +2,6 @@ import { Game, Technology, GAME_CONSTANTS, TechnologyCategory, HistoryEntry, Int
 import { ComputerSystem } from './ComputerSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { CardSystem } from './CardSystem';
-import { ResourceSystem } from './ResourceSystem';
 
 export class TechnologySystem {
 

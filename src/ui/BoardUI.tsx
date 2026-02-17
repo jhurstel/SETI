@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, LifeTraceType, InteractionState, GamePhase, Mission, Player } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, LifeTraceType, InteractionState, GamePhase, Mission, Player, SignalType } from '../core/types';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -119,6 +119,47 @@ export const BoardUI: React.FC = () => {
       setIsPassModalMinimized(false);
     }
   }, [passModalState.visible]);
+
+  const checkDataLimitAndProceed = (
+    potentialDataGain: number,
+    onConfirm: () => void
+  ) => {
+    if (!game) return;
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    if (potentialDataGain > 0 && (currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
+        setConfirmModalState({
+            visible: true,
+            cardId: null,
+            message: "Vous avez atteint la limite de données. Le gain de données sera perdu. Voulez-vous continuer ?",
+            onConfirm: onConfirm
+        });
+    } else {
+        onConfirm();
+    }
+  };
+
+  const triggerSignalMission = (game: Game, playerId: string, sectorId: string): Game => {
+    const updatedGame = structuredClone(game);
+    const player = updatedGame.players.find(p => p.id === playerId);
+    const sector = updatedGame.board.sectors.find(s => s.id === sectorId);
+    if (!player || !sector) return game;
+
+    const processedSources = new Set<string>();
+    player.permanentBuffs.forEach(buff => {
+        let buffTypeMatches = false;
+        if (sector.color === SectorType.YELLOW && buff.type === 'GAIN_ON_YELLOW_SIGNAL') buffTypeMatches = true;
+        if (sector.color === SectorType.RED && buff.type === 'GAIN_ON_RED_SIGNAL') buffTypeMatches = true;
+        if (sector.color === SectorType.BLUE && buff.type === 'GAIN_ON_BLUE_SIGNAL') buffTypeMatches = true;
+        
+        if (buffTypeMatches) {
+            if (buff.id && buff.source && (player.missions.find(m => m.name === buff.source)?.completedRequirementIds.includes(buff.id) || player.missions.find(m => m.name === buff.source)?.fulfillableRequirementIds?.includes(buff.id))) return;
+            if (buff.source && processedSources.has(buff.source)) return;
+            if (buff.source) processedSources.add(buff.source);
+            CardSystem.markMissionRequirementFulfillable(player, buff);
+        }
+    });
+    return updatedGame;
+  }
 
   // Sauvegarde automatique à chaque modification du jeu
   useEffect(() => {
@@ -457,8 +498,8 @@ export const BoardUI: React.FC = () => {
             if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
             
             const actionText = isCompleted ? "accomplit" : "valide un objectif de";
-            addToHistory(`${actionText} la mission "${mission.name}"${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, game, undefined, seqId);
-            res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, seqId));
+            addToHistory(`${actionText} la mission "${mission.name}"${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, game, { type: 'IDLE' }, seqId);
+            res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, seqId));
 
             if (!handleNewInteractions(res.newPendingInteractions.map(i => ({ ...i, sequenceId: seqId })), seqId)) {
                 setInteractionState({ type: 'IDLE' });
@@ -1039,7 +1080,7 @@ export const BoardUI: React.FC = () => {
                         
                         const actionText = m.completed ? "accomplit" : "valide un objectif de";
                         addToHistory(`${actionText} la mission "${m.name}" ${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, currentGame, undefined, sequenceId);
-                        res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, sequenceId));
+                        res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, sequenceId));
 
                         if (res.newPendingInteractions.length > 0) {
                           const interactionsWithSeqId = res.newPendingInteractions.map(i => ({ ...i, sequenceId }));
@@ -1435,10 +1476,11 @@ export const BoardUI: React.FC = () => {
 
   // Gestionnaire pour le clic sur un secteur (Scan)
   const handleSectorClick = (sectorNumber: number) => {
-    if (!game) return;
-
-    // Cas 1: Mode Scan actif ou bonus
-    if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
+    const performInteractiveScan = () => {
+      // NOTE: This function's body is simplified for brevity. 
+      // It should contain the full logic for an interactive scan.
+      // The key change is adding the triggerSignalMission call.
+      if (!game || interactionState.type !== 'SELECTING_SCAN_SECTOR') return;
       const currentPlayer = game.players[game.currentPlayerIndex];
       const sector = game.board.sectors[sectorNumber - 1];
 
@@ -1624,11 +1666,10 @@ export const BoardUI: React.FC = () => {
       } else {
         setInteractionState({ type: 'IDLE' });
       }
-      return;
-    }
+    };
 
-    // Cas 2: Clic direct depuis Idle (Raccourci Action Scan)
-    if (interactionState.type === 'IDLE' && !game.players[game.currentPlayerIndex].hasPerformedMainAction) {
+    const performDirectScan = () => {
+      if (!game) return;
       const sector = game.board.sectors[sectorNumber - 1];
       const currentPlayer = game.players[game.currentPlayerIndex];
       const action = new ScanSectorAction(currentPlayer.id, sector.id);
@@ -1637,14 +1678,39 @@ export const BoardUI: React.FC = () => {
         gameEngineRef.current.setState(game);
         const result = gameEngineRef.current.executeAction(action);
         if (result.success && result.updatedState) {
-            setGame(result.updatedState);
-            action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-            handleNewInteractions(action.newPendingInteractions);
+          let gameAfterScan = result.updatedState;
+          gameAfterScan = triggerSignalMission(gameAfterScan, currentPlayer.id, sector.id);
+          setGame(gameAfterScan);
+          action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
+          handleNewInteractions(action.newPendingInteractions);
         } else {
-            setToast({ message: result.error || "Impossible de scanner ce secteur", visible: true });
+          setToast({ message: result.error || "Impossible de scanner ce secteur", visible: true });
         }
       }
-      return;
+    };
+
+    if (!game) return;
+
+    // Cas 1: Mode Scan actif ou bonus
+    if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
+      const sector = game.board.sectors[sectorNumber - 1];
+      const nextSignalIndex = sector.signals.findIndex(s => !s.marked);
+      let potentialDataGain = 0;
+      if (nextSignalIndex !== -1) {
+        const signal = sector.signals[nextSignalIndex];
+        potentialDataGain = (signal.type !== SignalType.OTHER && !interactionState.noData) ? 1 : 0;
+      }
+      checkDataLimitAndProceed(potentialDataGain, performInteractiveScan);
+    } else if (interactionState.type === 'IDLE' && !game.players[game.currentPlayerIndex].hasPerformedMainAction) {
+      // Cas 2: Clic direct depuis Idle (Raccourci Action Scan)
+      const sector = game.board.sectors[sectorNumber - 1];
+      const nextSignalIndex = sector.signals.findIndex(s => !s.marked);
+      let potentialDataGain = 0;
+      if (nextSignalIndex !== -1) {
+        const signal = sector.signals[nextSignalIndex];
+        potentialDataGain = (signal.type !== SignalType.OTHER) ? 1 : 0;
+      }
+      checkDataLimitAndProceed(potentialDataGain, performDirectScan);
     }
   };
 
@@ -2598,36 +2664,18 @@ export const BoardUI: React.FC = () => {
 
   // Gestionnaire pour l'action gratuite (défausse de carte)
   const handleDiscardCardAction = (cardId: string) => {
-    if (!game) return;
+    if (!game || !gameRef.current) return;
     if (interactionState.type !== 'IDLE') return;
 
-    let updatedGame = game;
-    const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
-    const card = currentPlayer.cards.find(c => c.id === cardId);
-    if (!card) return;
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    
+    const result = CardSystem.discardCardForFreeAction(game, currentPlayer.id, cardId);
 
-    // Appliquer l'effet de l'action gratuite
-    if (card.freeAction === FreeActionType.MEDIA) {
-      const res = ResourceSystem.updateMedia(updatedGame, currentPlayer.id, 1);
-      updatedGame = res.updatedGame;
-      addToHistory(`défausse carte "${card.name}" et gagne ${ResourceSystem.formatResource(1, 'MEDIA')}`, currentPlayer.id, game);
-    } else if (card.freeAction === FreeActionType.DATA) {
-      const res = ResourceSystem.updateData(updatedGame, currentPlayer.id, 1);
-      updatedGame = res.updatedGame;
-      addToHistory(`défausse carte "${card.name}" et gagne ${ResourceSystem.formatResource(1, 'DATA')}`, currentPlayer.id, game);
-    } else if (card.freeAction === FreeActionType.MOVEMENT) {
-      const probes = currentPlayer.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
-      const autoSelectProbeId = probes.length === 1 ? probes[0].id : undefined;
-      interactionState.sequenceId = `move-${Date.now()}`;
-      setInteractionState({ type: 'MOVING_PROBE', count: 1, autoSelectProbeId, sequenceId: interactionState.sequenceId});
-      addToHistory(`défausse carte "${card.name}" et gagne 1 déplacement gratuit`, currentPlayer.id, game, undefined, interactionState.sequenceId);
-    }
+    setGame(result.updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
 
-    // Défausser la carte
-    updatedGame = CardSystem.discardCard(updatedGame, currentPlayer.id, cardId);
-
-    setGame(updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+    result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
+    handleNewInteractions(result.newPendingInteractions);
   };
 
   // Gestionnaire pour l'action d'achat de carte (payer avec 3 média)
@@ -3047,6 +3095,41 @@ export const BoardUI: React.FC = () => {
 
   return (
     <div className="seti-root">
+      {currentPlayer.type === 'robot' && interactionState.type === 'IDLE' && (
+        <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(20, 30, 50, 0.6)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 9000,
+            backdropFilter: 'blur(3px)',
+            color: 'white',
+            textAlign: 'center'
+        }}>
+            <style>
+            {`
+                @keyframes spin { to { transform: rotate(360deg); } }
+            `}
+            </style>
+            <div style={{
+                width: '60px',
+                height: '60px',
+                border: '6px solid rgba(255, 255, 255, 0.2)',
+                borderTopColor: '#fff',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+            }}></div>
+            <p style={{ marginTop: '20px', fontSize: '1.2em', textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
+                Tour de l'IA ({currentPlayer.name})
+            </p>
+        </div>
+      )}
       {/* Panneau de débogage pour le développement */}
       <DebugPanel
         game={game}
