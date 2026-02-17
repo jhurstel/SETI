@@ -119,6 +119,14 @@ export enum EventType {
   GAME_ENDED = "GAME_ENDED"
 }
 
+export enum AlienBoardType {
+  ANOMALIES = "Anomalies",
+  OUMUAMUA = "Oumuamua",
+  EXERTIENS = "Exertiens",
+  MASCAMITES = "Mascamites",
+  CENTAURIENS = "Centauriens"
+}
+
 export enum ObjectiveCategory {
   TECHNOLOGY = "TECHNOLOGY",
   MISSION = "MISSION",
@@ -296,7 +304,8 @@ export interface AlienBoard {
   firstBonus: Bonus;
   nextBonus: Bonus;
   isFirstBoard: boolean;
-  speciesId?: string; // ID de l'espèce découverte sur ce plateau
+  speciesId: AlienBoardType;
+  isDiscovered: boolean;
 }
 
 export interface LifeTrace {

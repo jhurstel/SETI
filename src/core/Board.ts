@@ -8,7 +8,7 @@
  * - Plateau de technologies
  */
 
-import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, RotationDisk, TechnologyCategory, Technology, TechnologyEffect, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorType, SignalType, Signal, LifeTraceType } from './types';
+import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, RotationDisk, TechnologyCategory, Technology, TechnologyEffect, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorType, SignalType, Signal, LifeTraceType, AlienBoardType } from './types';
 import { sectorToIndex } from './SolarSystemPosition';
 
 export class BoardManager {
@@ -490,17 +490,29 @@ export class BoardManager {
    * Crée le plateau Alien avec les pistes de traces de vie
    */
   private static createAlienBoards(): AlienBoard[] {
+    const alienTypes = Object.values(AlienBoardType);
+    
+    // Mélange de Fisher-Yates pour la sélection aléatoire
+    for (let i = alienTypes.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [alienTypes[i], alienTypes[j]] = [alienTypes[j], alienTypes[i]];
+    }
+
     return [{
       lifeTraces: [],
       firstBonus: { pv: 5, media: 1 },
       nextBonus: { pv: 3 },
-      isFirstBoard: true
+      isFirstBoard: true,
+      speciesId: alienTypes[0],
+      isDiscovered: false
     },
     {
       lifeTraces: [],
       firstBonus: { pv: 3, media: 1 },
       nextBonus: { pv: 3 },
-      isFirstBoard: false
+      isFirstBoard: false,
+      speciesId: alienTypes[1],
+      isDiscovered: false
     }];
   }
 

@@ -44,15 +44,13 @@ export class SpeciesSystem {
                     const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
                     const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
 
-                    if (hasRed && hasYellow && hasBlue && !board.speciesId) {
-                        const ALIEN_SPECIES = ['Centauriens', 'Exertiens', 'Oumuamua'];
-                        const randomSpecies = ALIEN_SPECIES[Math.floor(Math.random() * ALIEN_SPECIES.length)];
-                        board.speciesId = randomSpecies;
+                    if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
+                        board.isDiscovered = true;
                         
                         return { 
                             updatedGame, 
                             code: 'DISCOVERED', 
-                            data: { color, speciesId: randomSpecies, boardIndex: i } 
+                            data: { color, speciesId: board.speciesId, boardIndex: i } 
                         };
                     }
 
@@ -89,17 +87,13 @@ export class SpeciesSystem {
         });
 
         // Vérifier découverte espèce (si on a les 3 couleurs et pas encore d'espèce)
-        let isDiscovered = false;
         const traces = board.lifeTraces;
         const hasRed = traces.some(t => t.type === LifeTraceType.RED);
         const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
         const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
 
-        if (hasRed && hasYellow && hasBlue && !board.speciesId) {
-            const ALIEN_SPECIES = ['Centauriens', 'Exertiens', 'Oumuamua'];
-            const randomSpecies = ALIEN_SPECIES[Math.floor(Math.random() * ALIEN_SPECIES.length)];
-            board.speciesId = randomSpecies;
-            isDiscovered = true;
+        if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
+            board.isDiscovered = true;
         }
 
         // Calculer le bonus (1ère fois ou suivantes)
@@ -121,7 +115,7 @@ export class SpeciesSystem {
 
         return { 
             updatedGame, 
-            isDiscovered, 
+            isDiscovered: board.isDiscovered,
             speciesId: board.speciesId,
             historyEntries: res.historyEntries,
             newPendingInteractions: res.newPendingInteractions
