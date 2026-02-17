@@ -288,14 +288,7 @@ export class ResourceSystem {
           if (signalBonus.scope === SectorType.ROW) {
             newPendingInteractions.push({ type: 'SELECTING_SCAN_CARD', sequenceId });
           } else if (signalBonus.scope === SectorType.DECK) {
-            if (updatedGame.decks.cards.length > 0) {
-              const drawnCard = updatedGame.decks.cards.shift();
-              if (drawnCard) {
-                updatedGame.decks.discardPile.push(drawnCard);
-                newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: drawnCard.scanSector, cardId: drawnCard.id, message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")`, sequenceId });
-                logs.push(`révèle carte "${drawnCard.name}" (${drawnCard.scanSector}) de la pioche`);
-              }
-            }
+            newPendingInteractions.push({ type: 'DRAW_AND_SCAN', count: 1, sequenceId });
           } else if (signalBonus.scope === SectorType.PROBE) {
             newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorType.PROBE, noData: bonuses.noData, onlyProbes: true, keepCardIfOnly: bonuses.keepCardIfOnly, cardId: bonuses.keepCardIfOnly ? sourceId : undefined, sequenceId, markAdjacents: bonuses.gainSignalAdjacents, anyProbe: bonuses.anyProbe });
           } else if ([SectorType.RED, SectorType.BLUE, SectorType.YELLOW, SectorType.BLACK, SectorType.ANY].includes(signalBonus.scope)) {
@@ -335,7 +328,7 @@ export class ResourceSystem {
     }
 
     if (bonuses.landing) {
-      newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId, sequenceId });
+      newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId, sequenceId, ignoreSatelliteLimit: bonuses.ignoreSatelliteLimit });
     }
 
     if (bonuses.lifetraces) {
@@ -366,6 +359,17 @@ export class ResourceSystem {
     }
     if (bonuses.gainSignalFromHand) {
       newPendingInteractions.push({ type: 'DISCARDING_FOR_SIGNAL', count: bonuses.gainSignalFromHand, selectedCards: [], sequenceId });
+    }
+    if (bonuses.chooseTechType) {
+        newPendingInteractions.push({
+            type: 'CHOOSING_BONUS_ACTION',
+            bonusesSummary: "Choisissez une technologie :",
+            choices: [
+                { id: 'explo', label: 'Exploration', state: { type: 'ACQUIRING_TECH', isBonus: true, category: TechnologyCategory.EXPLORATION, sequenceId }, done: false },
+                { id: 'obs', label: 'Observation', state: { type: 'ACQUIRING_TECH', isBonus: true, category: TechnologyCategory.OBSERVATION, sequenceId }, done: false }
+            ],
+            sequenceId
+        });
     }
 
     return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };

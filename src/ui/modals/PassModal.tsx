@@ -7,9 +7,10 @@ interface PassModalProps {
   visible: boolean;
   cards: Card[];
   onConfirm: (selectedCardId: string) => void;
+  currentRound: number;
 }
 
-export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm }) => {
+export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm, currentRound }) => {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
 
@@ -19,7 +20,7 @@ export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm 
     <div className="seti-modal-overlay">
       <div className="seti-modal-content">
         <div className="seti-modal-title">
-          Fin de manche : Choisissez une carte
+          Fin de manche {currentRound} : Choisissez une carte
         </div>
         <div style={{
           display: 'flex',

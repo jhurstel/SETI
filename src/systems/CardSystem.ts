@@ -13,6 +13,21 @@ import {
 import { ResourceSystem } from './ResourceSystem';
 import { ProbeSystem } from './ProbeSystem';
 
+/**
+ * Système de gestion des cartes et des missions.
+ * 
+ * DISTINCTION DES MISSIONS :
+ * 
+ * 1. Missions Déclenchables (TRIGGERED / GAIN_ON_...):
+ *    - Réagissent à des événements (actions).
+ *    - Sont ajoutées à `player.permanentBuffs` lors de la mise en jeu.
+ *    - Sont traitées automatiquement par les systèmes (ProbeSystem, ScanSystem, etc.) via `updateMissionProgress`.
+ * 
+ * 2. Missions Conditionnelles (CONDITIONAL / GAIN_IF_...):
+ *    - Vérifient un état du jeu.
+ *    - Ne sont PAS ajoutées à `player.permanentBuffs`.
+ *    - Sont évaluées à la demande (UI, Clic) via `evaluateMission` et validées manuellement.
+ */
 export class CardSystem {
     /**
      * Pioche des cartes pour un joueur
@@ -488,7 +503,7 @@ export class CardSystem {
             });
         }
 
-        // Traitement des effets passifs temporaires (Buffs de tour)
+        // Traitement des effets permanents (Missions déclenchables)
         if (card.permanentEffects) {
             card.permanentEffects.forEach(effect => {
                 if (effect.type.startsWith('GAIN_ON_')) {
@@ -671,13 +686,34 @@ export class CardSystem {
     }
 
     /**
+     * Marque une condition de mission comme "remplie" (en attente de validation par le joueur)
+     * Utilisé pour les missions déclenchables (GAIN_ON_...)
+     */
+    static markMissionRequirementFulfillable(player: Player, buff: CardEffect): string | null {
+        if (buff.source && buff.id) {
+            const mission = player.missions.find(m => m.name === buff.source);
+            if (mission) {
+                // Si déjà complété ou déjà marqué comme fulfillable, on ignore
+                if (mission.completedRequirementIds.includes(buff.id)) return null;
+                if (!mission.fulfillableRequirementIds) mission.fulfillableRequirementIds = [];
+                if (mission.fulfillableRequirementIds.includes(buff.id)) return null;
+
+                mission.fulfillableRequirementIds.push(buff.id);
+                return mission.name;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Évalue une condition de mission déclenchable et retourne le bonus si la condition est remplie
      * Format attendu: CONDITION:TARGET:BONUS1:VALUE1:BONUS2:VALUE2...
      */
     static evaluateMission(
         game: Game,
         playerId: string,
-        missionString: string
+        missionString: string,
+        skipConditionCheck: boolean = false
     ): Bonus | null {
         if (!missionString) return null;
 
@@ -691,7 +727,12 @@ export class CardSystem {
             'GAIN_IF_ORBITER_OR_LANDER',
             'GAIN_IF_COVERED',
             'GAIN_IF_LIFETRACE_BOTH_SPECIES',
-            'GAIN_IF_3_LIFETRACES'
+            'GAIN_IF_3_LIFETRACES',
+            'GAIN_ON_VISIT',
+            'GAIN_ON_TECH',
+            'GAIN_ON_SIGNAL',
+            'GAIN_ON_LIFETRACE',
+            'GAIN_ON_DISCARD'
         ];
 
         let target: string | undefined;
@@ -735,6 +776,18 @@ export class CardSystem {
                         if (!rewards.lifetraces) rewards.lifetraces = [];
                         rewards.lifetraces.push({ amount: bonusValue, scope: LifeTraceType.ANY });
                     }
+                    else if (bonusType === 'yellowsignal') {
+                        if (!rewards.signals) rewards.signals = [];
+                        rewards.signals.push({ amount: bonusValue, scope: SectorType.YELLOW });
+                    }
+                    else if (bonusType === 'redsignal') {
+                        if (!rewards.signals) rewards.signals = [];
+                        rewards.signals.push({ amount: bonusValue, scope: SectorType.RED });
+                    }
+                    else if (bonusType === 'bluesignal') {
+                        if (!rewards.signals) rewards.signals = [];
+                        rewards.signals.push({ amount: bonusValue, scope: SectorType.BLUE });
+                    }
                 }
             }
         }
@@ -742,12 +795,20 @@ export class CardSystem {
         // Vérification des conditions
         if (conditionType === 'GAIN_IF_ORBITER_OR_LANDER') {
             const targets = (target || '').split('&');
+            
+            // Si on saute la vérification (car l'événement a déjà été validé par le système)
+            if (skipConditionCheck) return rewards;
+
             const hasPresence = targets.every(t => ProbeSystem.hasPresenceOnPlanet(game, playerId, t));
             if (hasPresence) return rewards;
         }
 
         const player = game.players.find(p => p.id === playerId);
         if (!player) return null;
+
+        // Si on saute la vérification, on retourne les récompenses directement
+        // Cela s'applique aux missions GAIN_ON_... qui ont été marquées comme fulfillable
+        if (skipConditionCheck) return rewards;
 
         if (conditionType === 'GAIN_IF_3_LANDERS') {
             const mainPlanets = ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'];

@@ -35,22 +35,36 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
         <animate attributeName="opacity" values="1;0.7;1" dur="1.5s" repeatCount="indefinite" />
       )}
     </svg>
-    <div style={{ zIndex: 1, display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '2px', width: '40px', height: '30px', overflow: 'hidden' }}>
-      {traces.map((trace, idx) => {
-        const player = game.players.find(p => p.id === trace.playerId);
-        const isNeutral = trace.playerId === 'neutral';
-        return (
-          <div key={idx} style={{
-            width: '10px',
-            height: '10px',
+    <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '2px', gap: '2px', width: '40px', height: '40px', overflow: 'hidden' }}>
+      {traces.length > 0 && (
+          <div style={{
+            width: '12px',
+            height: '12px',
             borderRadius: '50%',
-            backgroundColor: isNeutral ? '#888' : (player?.color || '#fff'),
-            border: '1px solid rgba(255,255,255,0.8)',
-            boxShadow: '0 0 2px rgba(0,0,0,0.8)',
-            zIndex: 2
+            backgroundColor: traces[0].playerId === 'neutral' ? '#888' : (game.players.find(p => p.id === traces[0].playerId)?.color || '#fff'),
+            border: '1px solid rgba(255,255,255,0.9)',
+            boxShadow: '0 0 4px rgba(0,0,0,0.8)',
+            zIndex: 3,
+            marginBottom: '1px'
           }} />
-        );
-      })}
+      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '2px' }}>
+        {traces.slice(1).map((trace, idx) => {
+            const player = game.players.find(p => p.id === trace.playerId);
+            const isNeutral = trace.playerId === 'neutral';
+            return (
+            <div key={idx} style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: isNeutral ? '#888' : (player?.color || '#fff'),
+                border: '1px solid rgba(255,255,255,0.6)',
+                boxShadow: '0 0 2px rgba(0,0,0,0.8)',
+                zIndex: 2
+            }} />
+            );
+        })}
+      </div>
     </div>
   </div>
 );
@@ -99,6 +113,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                             return (
                                 <div key={idx} style={{ color: player?.color || '#fff', fontWeight: 'bold', fontSize: '0.9em' }}>
                                     {player?.name || 'Inconnu'}
+                                    {idx === 0 && <span style={{ fontWeight: 'normal', fontSize: '0.8em', color: '#aaa', marginLeft: '4px' }}>(Bonus carte alien)</span>}
                                 </div>
                             );
                         })}
@@ -108,8 +123,14 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 )}
 
                 <div style={{ fontSize: '0.8em', marginTop: '4px', borderTop: '1px solid #555', paddingTop: '4px', textAlign: 'left' }}>
-                    <div style={{ color: '#ccc', marginBottom: '2px' }}>Bonus 1ère découverte : <span style={{ color: '#ffd700', float: 'right' }}>{ResourceSystem.formatBonus(board.firstBonus)?.join(', ')}</span></div>
-                    <div style={{ color: '#ccc' }}>Bonus suivants : <span style={{ color: '#ffd700', float: 'right' }}>{ResourceSystem.formatBonus(board.nextBonus)?.join(', ')}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ccc', marginBottom: '2px' }}>
+                        <span>Bonus découverte :</span>
+                        <span style={{ color: '#ffd700' }}>{ResourceSystem.formatBonus(board.firstBonus)?.join(', ')}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#ccc' }}>
+                        <span>Bonus suivants :</span>
+                        <span style={{ color: '#ffd700' }}>{ResourceSystem.formatBonus(board.nextBonus)?.join(', ')}</span>
+                    </div>
                 </div>
             </div>
         );

@@ -3,7 +3,7 @@ import { Game, ActionType, ValidationResult } from '../core/types';
 import { ScanSystem } from '../systems/ScanSystem';
 
 export class ScanSectorAction extends BaseAction {
-    constructor(playerId: string) {
+    constructor(playerId: string, public sectorId?: string) {
         super(playerId, ActionType.SCAN_SECTOR);
     }
 
@@ -16,7 +16,7 @@ export class ScanSectorAction extends BaseAction {
     }
 
     execute(game: Game): Game {
-        const result = ScanSystem.performScanAction(game);
+        const result = ScanSystem.performScanAction(game, false, undefined, this.sectorId);
         this.historyEntries = result.historyEntries;
         this.newPendingInteractions = result.newPendingInteractions;
         return result.updatedGame;

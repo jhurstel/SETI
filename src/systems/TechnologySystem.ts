@@ -144,28 +144,14 @@ export class TechnologySystem {
         if (tech.type === TechnologyCategory.COMPUTING && buff.type === 'GAIN_ON_BLUE_TECH') shouldTrigger = true;
 
         if (shouldTrigger) {
-             if (buff.source && processedSources.has(buff.source)) return;
-             const bonus: any = {};
-             if (buff.target === 'media') bonus.media = buff.value;
-             else if (buff.target === 'energy') bonus.energy = buff.value;
-             else if (buff.target === 'anycard') bonus.anycard = buff.value;
-             else if (buff.target === 'card') bonus.card = buff.value;
-             else if (buff.target === 'credit') bonus.credits = buff.value;
-             else if (buff.target === 'data') bonus.data = buff.value;
-             else if (buff.target === 'pv') bonus.pv = buff.value;
+             // Ignorer si le prérequis est déjà complété
+             if (buff.id && buff.source) {
+                 const mission = player.missions.find(m => m.name === buff.source);
+                 if (mission && mission.completedRequirementIds.includes(buff.id)) return;
+                 if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
+             }
 
-             const res = ResourceSystem.processBonuses(bonus, updatedGame, playerId, 'tech_mission', '');
-             updatedGame = res.updatedGame;
-             
-             if (res.logs.length > 0) {
-                 gains.push(...res.logs.map(l => `${l} (Mission "${buff.source}")`));
-             }
-             if (res.historyEntries) {
-                 historyEntries.push(...res.historyEntries);
-             }
-             if (res.newPendingInteractions) {
-                 newPendingInteractions.push(...res.newPendingInteractions);
-             }
+             if (buff.source && processedSources.has(buff.source)) return;
 
              if (buff.source) processedSources.add(buff.source);
 
@@ -173,10 +159,8 @@ export class TechnologySystem {
              // Re-récupérer le joueur car updatedGame a pu changer (ex: pioche de carte)
              const currentPlayer = updatedGame.players.find(p => p.id === playerId);
              if (currentPlayer) {
-                 const completed = CardSystem.updateMissionProgress(currentPlayer, buff);
-                 if (completed) {
-                     historyEntries.push({ message: `accomplit la mission "${completed}"`, playerId: playerId, sequenceId: '' });
-                 }
+                 // Marquer comme remplie (en attente de clic)
+                 CardSystem.markMissionRequirementFulfillable(currentPlayer, buff);
              }
         }
     });

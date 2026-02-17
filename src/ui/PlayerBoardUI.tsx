@@ -259,7 +259,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     setActiveTooltip(null);
   };
   
-  const isInteractiveMode = isDiscarding || isTrading || isReserving || isSelectingComputerSlot || isAnalyzing || isPlacingLifeTrace || isSelectingSector || isDiscardingForSignal;
+  const isInteractiveMode = isDiscarding || isTrading || isReserving || isSelectingComputerSlot || isAnalyzing || isPlacingLifeTrace || isSelectingSector || isDiscardingForSignal || interactionState.type === 'CHOOSING_BONUS_ACTION' || interactionState.type === 'CLAIMING_MISSION_REQUIREMENT';
 
   // Suivi des changements de ressources pour la notification sur les onglets
   const [tabFlashes, setTabFlashes] = useState<Record<string, boolean>>({});
@@ -853,7 +853,15 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   const displayItems = Array.from({ length: displayCount });
 
                   return (
-                  <div key={mission.id} className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`} onMouseEnter={e => {
+                  <div key={mission.id} 
+                    className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`} 
+                    style={{ cursor: !mission.completed && isCurrentTurn && !isRobot && !isInteractiveMode ? 'pointer' : 'default' }}
+                    onClick={(e) => {
+                        if (onMissionClick && !mission.completed && isCurrentTurn && !isRobot && !isInteractiveMode) {
+                            onMissionClick(mission.id);
+                        }
+                    }}
+                    onMouseEnter={e => {
                     const tooltipContent = (
                       <div className="seti-card-tooltip">
                         <div className="seti-card-tooltip-title">{mission.name}</div>
@@ -907,6 +915,12 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                             
                             let isFulfillable = false;
                             let isConditional = false;
+                            
+                            // Vérifier si la condition est marquée comme "fulfillable" (GAIN_ON_...)
+                            if (requirement?.id && mission.fulfillableRequirementIds?.includes(requirement.id)) {
+                                isFulfillable = true;
+                            }
+
                             if (requirement) {
                                 if (requirement.type.startsWith('GAIN_IF_')) {
                                     isConditional = true;
@@ -925,7 +939,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                                     style={{
                                         width: '12px',
                                         height: '12px',
-                                        borderRadius: isConditional ? '50%' : '2px',
+                                        borderRadius: isConditional ? '2px' : '50%',
                                         border: `1px solid ${currentPlayer.color}`,
                                         backgroundColor: isCompleted ? currentPlayer.color : 'transparent',
                                         cursor: canClick ? 'pointer' : 'default',

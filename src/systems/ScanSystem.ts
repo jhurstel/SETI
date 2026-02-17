@@ -111,6 +111,15 @@ export class ScanSystem {
                   }
               }
           });
+          
+          const uniqueBuffs = player.activeBuffs.filter(buff => buff.type === 'SCORE_IF_UNIQUE');
+          uniqueBuffs.forEach(buff => {
+              const otherPlayers = sector.signals.some(s => s.marked && s.markedBy && s.markedBy !== playerId);
+              if (!otherPlayers) {
+                  bonuses.pv = (bonuses.pv || 0) + buff.value;
+                  logs.push(`gagne ${ResourceSystem.formatResource(buff.value, 'PV')} (Bonus "${buff.source}")`);
+              }
+          });
       }
     } else {
       logs.push(`tente de scanner le secteur ${sector.id} mais il est plein`);
@@ -231,31 +240,25 @@ export class ScanSystem {
         // Le 2ème (ou les 2èmes ex-aequo) place un marqueur en 1ère position.
         // Les autres (3ème et plus) retirent leurs marqueurs.
         
-        let secondPlacePlayers: string[] = [];
+        let secondPlaceWinnerId: string | null = null;
 
         if (majorities.length > 1) {
-            // Find the score of the actual second place.
-            // This is the first player in the sorted list whose score is less than the winner's.
-            const winnerScore = majorities[0].count;
-            const secondPlaceEntry = majorities.find(p => p.count < winnerScore);
+            const secondPlaceCandidates = majorities.slice(1);
+            const secondPlaceCount = secondPlaceCandidates[0].count;
+            
+            const tiedSecondPlacePlayers = secondPlaceCandidates.filter(p => p.count === secondPlaceCount).map(p => p.playerId);
 
-            if (secondPlaceEntry) {
-                const secondPlaceCount = secondPlaceEntry.count;
-                // Find all players who are tied for second place
-                const tiedSecondPlacePlayers = majorities.filter(p => p.count === secondPlaceCount).map(p => p.playerId);
-
-                if (tiedSecondPlacePlayers.length > 1) {
-                    // Tie-breaker: last one to place a marker wins second place.
-                    for (let i = sector.signals.length - 1; i >= 0; i--) {
-                        const s = sector.signals[i];
-                        if (s.marked && s.markedBy && tiedSecondPlacePlayers.includes(s.markedBy)) {
-                            secondPlacePlayers = [s.markedBy];
-                            break;
-                        }
+            if (tiedSecondPlacePlayers.length > 1) {
+                // Tie-breaker for second place: last one to place a marker among the tied players wins.
+                for (let i = sector.signals.length - 1; i >= 0; i--) {
+                    const s = sector.signals[i];
+                    if (s.marked && s.markedBy && tiedSecondPlacePlayers.includes(s.markedBy)) {
+                        secondPlaceWinnerId = s.markedBy;
+                        break;
                     }
-                } else {
-                    secondPlacePlayers = tiedSecondPlacePlayers;
                 }
+            } else if (tiedSecondPlacePlayers.length === 1) {
+                secondPlaceWinnerId = tiedSecondPlacePlayers[0];
             }
         }
 
@@ -264,14 +267,14 @@ export class ScanSystem {
             s.markedBy = undefined;
         });
 
-        // Place markers for 2nd place players
-        secondPlacePlayers.forEach((playerId, index) => {
-            if (index < sector.signals.length) {
-                const signal = sector.signals[index];
-                signal.marked = true;
-                signal.markedBy = playerId;
+        // Place markers for the second place winner
+        if (secondPlaceWinnerId) {
+            const secondPlaceEntry = majorities.find(p => p.playerId === secondPlaceWinnerId);
+            if (secondPlaceEntry) {
+               sector.signals[0].marked = true;
+               sector.signals[0].markedBy = secondPlaceWinnerId;
             }
-        });
+        }
     }
     return { updatedGame, logs, bonuses, winnerId, newPendingInteractions };
   }
@@ -393,7 +396,7 @@ export class ScanSystem {
   }
 
   // Helper pour effectuer une séquence de scan complète
-  static performScanAction(game: Game, isBonus: boolean = false, sequenceId?: string) : { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[]}
+  static performScanAction(game: Game, isBonus: boolean = false, sequenceId?: string, scanSectorId?: string) : { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[]}
   {
       // Initier la séquence
       let updatedGame = structuredClone(game);
@@ -416,17 +419,24 @@ export class ScanSystem {
       }
 
       // 1. Signal depuis la Terre
-      const solarSystem = game.board.solarSystem;
-      const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
-      if (earthPos) {
-        const earthSector = game.board.sectors[earthPos.absoluteSector - 1];
-        if (hasObs1) {
-            newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: earthSector.color, sequenceId, adjacents: true })
-        } else {
-            const res = this.performSignalAndCover(updatedGame, currentPlayer.id, earthSector.id, [], false, sequenceId);
-            updatedGame = res.updatedGame;
-            historyEntries.push(...res.historyEntries);
-            newPendingInteractions.push(...res.newPendingInteractions);
+      if (scanSectorId) {
+        const res = this.performSignalAndCover(updatedGame, currentPlayer.id, scanSectorId, [], false, sequenceId);
+        updatedGame = res.updatedGame;
+        historyEntries.push(...res.historyEntries);
+        newPendingInteractions.push(...res.newPendingInteractions);
+      } else {
+        const solarSystem = game.board.solarSystem;
+        const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
+        if (earthPos) {
+          const earthSector = game.board.sectors[earthPos.absoluteSector - 1];
+          if (hasObs1) {
+              newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: earthSector.color, sequenceId, adjacents: true })
+          } else {
+              const res = this.performSignalAndCover(updatedGame, currentPlayer.id, earthSector.id, [], false, sequenceId);
+              updatedGame = res.updatedGame;
+              historyEntries.push(...res.historyEntries);
+              newPendingInteractions.push(...res.newPendingInteractions);
+          }
         }
       }
 
@@ -506,50 +516,22 @@ export class ScanSystem {
         const processedSources = new Set<string>();
         player.permanentBuffs.forEach(buff => {
             if (buff.type === 'GAIN_ON_SCAN') {
-                 if (buff.source && processedSources.has(buff.source)) return;
-                 const bonus: Bonus = {};
-                 if (buff.target === 'data') bonus.data = buff.value;
-                 else if (buff.target === 'anycard') bonus.anycard = buff.value;
-                 else if (buff.target === 'pv') bonus.pv = buff.value;
-                 else if (buff.target === 'media') bonus.media = buff.value;
-                 else if (buff.target === 'card') bonus.card = buff.value;
-                 else if (buff.target === 'credit') bonus.credits = buff.value;
-                 else if (buff.target === 'energy') bonus.energy = buff.value;
-                 else if (buff.target === 'yellowsignal') {
-                     if (!bonus.signals) bonus.signals = [];
-                     bonus.signals.push({ amount: buff.value, scope: SectorType.YELLOW });
-                 }
-                 else if (buff.target === 'redsignal') {
-                     if (!bonus.signals) bonus.signals = [];
-                     bonus.signals.push({ amount: buff.value, scope: SectorType.RED });
-                 }
-                 else if (buff.target === 'bluesignal') {
-                     if (!bonus.signals) bonus.signals = [];
-                     bonus.signals.push({ amount: buff.value, scope: SectorType.BLUE });
+                 // Ignorer si le prérequis est déjà complété
+                 if (buff.id && buff.source) {
+                     const mission = player.missions.find(m => m.name === buff.source);
+                     if (mission && mission.completedRequirementIds.includes(buff.id)) return;
+                     if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
                  }
 
-                 const res = ResourceSystem.processBonuses(bonus, updatedGame, playerId, 'scan_mission', sequenceId);
-                 updatedGame = res.updatedGame;
-                 
-                 if (res.logs.length > 0) {
-                     scanLogs.push(...res.logs.map(l => `${l} (Mission "${buff.source}")`));
-                 }
-                 if (res.historyEntries) {
-                     historyEntries.push(...res.historyEntries);
-                 }
-                 if (res.newPendingInteractions) {
-                     newPendingInteractions.push(...res.newPendingInteractions);
-                 }
+                 if (buff.source && processedSources.has(buff.source)) return;
 
                  if (buff.source) processedSources.add(buff.source);
 
                  // Re-récupérer le joueur car updatedGame a pu changer
                  const currentPlayer = updatedGame.players.find(p => p.id === playerId);
                  if (currentPlayer) {
-                     const completed = CardSystem.updateMissionProgress(currentPlayer, buff);
-                     if (completed) {
-                         historyEntries.push({ message: `accomplit la mission "${completed}"`, playerId: playerId, sequenceId });
-                     }
+                     // Marquer comme remplie (en attente de clic)
+                     CardSystem.markMissionRequirementFulfillable(currentPlayer, buff);
                  }
             }
         });

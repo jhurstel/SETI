@@ -832,7 +832,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         let satReason = landReason;
         let isSatClickable = (!isOccupied || allowOccupiedLanding) && canLand && !!onLand;
 
-        const allowSatelliteLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '12';
+        const allowSatelliteLanding = interactionState.type === 'LANDING_PROBE' && (interactionState.source === '12' || interactionState.ignoreSatelliteLimit);
         if (!hasExploration4 && !allowSatelliteLanding) {
           satReason = "Nécessite la technologie Exploration IV";
           isSatClickable = false;
@@ -1533,7 +1533,14 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               <div style={{ fontSize: '0.9em', marginBottom: '4px' }}>Gains à la couverture :</div>
               <div style={{ fontSize: '0.9em', color: '#ff6b6b' }}>• {mediaBonusText}</div>
               {bonusDisplay}
-              {coverDisplay}
+              {coveredByPlayers.length > 0 && (
+                <div style={{ marginTop: '6px', paddingTop: '4px', borderTop: '1px solid #555' }}>
+                  <div style={{ fontSize: '0.8em', color: '#aaa' }}>Couvert par :</div>
+                  {coveredByPlayers.map(p => (
+                    <div key={p.id} style={{ color: p.color, fontWeight: 'bold', fontSize: '0.9em' }}>{p.name}</div>
+                  ))}
+                </div>
+              )}
             </div>
           );
 
@@ -1656,6 +1663,9 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               >
                 <textPath href={`#${textPathId}`} startOffset="50%" textAnchor="middle">
                   {sector.name.toUpperCase()}
+                  {coveredByPlayers.map((p, playerIndex) => (
+                    <tspan key={playerIndex} fill={p.color} dx={playerIndex === 0 ? "2" : "0.1"} dy={playerIndex === 0 ? "0.9" : "0"} style={{textShadow: '0 0 1px black', fontSize: '2em'}}>●</tspan>
+                  ))}
                 </textPath>
               </text>
 

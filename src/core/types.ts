@@ -368,6 +368,7 @@ export interface Mission {
   ownerId: string;
   requirements: CardEffect[];
   completedRequirementIds: string[];
+  fulfillableRequirementIds: string[];
   completed: boolean;
   originalCard?: Card;
 }
@@ -527,7 +528,7 @@ export type InteractionState =
   /** Le joueur a des déplacements gratuits à effectuer. */
   | { type: 'MOVING_PROBE', count: number, autoSelectProbeId?: string, sequenceId?: string }
   /** Le joueur a un atterrissage gratuit (ex: Carte 13). */
-  | { type: 'LANDING_PROBE', count: number, source?: string, sequenceId?: string }
+  | { type: 'LANDING_PROBE', count: number, source?: string, sequenceId?: string, ignoreSatelliteLimit?: boolean }
   /** Le joueur acquiert une technologie (en payant ou en bonus) et doit la sélectionner. */
   | { type: 'ACQUIRING_TECH', isBonus: boolean, sequenceId?: string, category?: TechnologyCategory, sharedOnly?: boolean, noTileBonus?: boolean }
   /** Le joueur a choisi une technologie "Informatique" et doit sélectionner une colonne sur son ordinateur. */
@@ -561,7 +562,11 @@ export type InteractionState =
   /** Le joueur doit résoudre un secteur complété. */
   | { type: 'RESOLVING_SECTOR', sectorId: string, sequenceId?: string }
   /** Un effet de carte non-interactif est déclenché. */
-  | { type: 'TRIGGER_CARD_EFFECT', effectType: string, value: any, sequenceId?: string };
+  | { type: 'TRIGGER_CARD_EFFECT', effectType: string, value: any, sequenceId?: string }
+  /** Le joueur doit piocher une carte et scanner son secteur (Bonus Deck). */
+  | { type: 'DRAW_AND_SCAN', count: number, sequenceId?: string }
+  /** Le joueur valide une condition de mission. */
+  | { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: string, requirementId: string, sequenceId?: string };
 
 // ============================================================================
 // SCORING

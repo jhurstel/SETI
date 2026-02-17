@@ -125,20 +125,20 @@ export class ProbeSystem {
     const processedSources = new Set<string>();
     player.permanentBuffs.forEach(buff => {
       if (buff.type === 'GAIN_ON_LAUNCH') {
+           // Ignorer si le prérequis est déjà complété
+           if (buff.id && buff.source) {
+               const mission = player.missions.find(m => m.name === buff.source);
+               if (mission && mission.completedRequirementIds.includes(buff.id)) return;
+               if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
+           }
+
            if (buff.source && processedSources.has(buff.source)) return;
-           const bonus: Bonus = {};
-           if (buff.target === 'movement') bonus.movements = buff.value;
-           else if (buff.target === 'credit') bonus.credits = buff.value;
-           else if (buff.target === 'card') bonus.card = buff.value;
-           else if (buff.target === 'pv') bonus.pv = buff.value;
            
            // Les bonus seront traités par processBonuses appelé par l'action ou l'UI
            if (buff.source) processedSources.add(buff.source);
-
-           const completedMission = CardSystem.updateMissionProgress(player, buff);
-           if (completedMission) {
-               historyEntries.push({ message: `accomplit la mission "${completedMission}"`, playerId: player.id, sequenceId: ''});
-           }
+           
+           // Marquer comme remplie (en attente de clic)
+           CardSystem.markMissionRequirementFulfillable(player, buff);
       }
     });
 
@@ -397,44 +397,19 @@ export class ProbeSystem {
             }
 
             if (shouldTrigger) {
+                // Ignorer si le prérequis est déjà complété
+                if (buff.id && buff.source) {
+                    const mission = player.missions.find(m => m.name === buff.source);
+                    if (mission && mission.completedRequirementIds.includes(buff.id)) return;
+                    if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
+                }
+
                 if (buff.source && processedSources.has(buff.source)) return;
-
-                const gains: string[] = [];
-
-                if (buff.target === 'pv') {
-                    bonus.pv = (bonus.pv || 0) + buff.value;
-                    gains.push(ResourceSystem.formatResource(buff.value, 'PV'));
-                } else if (buff.target === 'media') {
-                    bonus.media = (bonus.media || 0) + buff.value;
-                    gains.push(ResourceSystem.formatResource(buff.value, 'MEDIA'));
-                } else if (buff.target === 'credit') {
-                    bonus.credits = (bonus.credits || 0) + buff.value;
-                    gains.push(ResourceSystem.formatResource(buff.value, 'CREDIT'));
-                } else if (buff.target === 'energy') {
-                    bonus.energy = (bonus.energy || 0) + buff.value;
-                    gains.push(ResourceSystem.formatResource(buff.value, 'ENERGY'));
-                } else if (buff.target === 'data') {
-                    bonus.data = (bonus.data || 0) + buff.value;
-                    gains.push(ResourceSystem.formatResource(buff.value, 'DATA'));
-                }
-                
-
-                if (buff.target === 'card') {
-                    updatedGame = CardSystem.drawCards(updatedGame, playerId, buff.value);
-                    player = updatedGame.players.find(p => p.id === playerId)!;
-                    gains.push(ResourceSystem.formatResource(buff.value, 'CARD'));
-                }
-
-                if (gains.length > 0 && buff.source) {
-                    message += ` et gagne ${gains.join(', ')} (Mission "${buff.source}")`;
-                }
 
                 if (buff.source) processedSources.add(buff.source);
 
-                const completedMission = CardSystem.updateMissionProgress(player, buff);
-                if (completedMission) {
-                    message += ` et accomplit la mission "${completedMission}"`;
-                }
+                // Marquer comme remplie (en attente de clic)
+                CardSystem.markMissionRequirementFulfillable(player, buff);
             }
         });
     }
@@ -618,18 +593,19 @@ export class ProbeSystem {
     const processedSources = new Set<string>();
     player.permanentBuffs.forEach(buff => {
       if (buff.type === 'GAIN_ON_ORBIT' || buff.type === 'GAIN_ON_ORBIT_OR_LAND') {
+            // Ignorer si le prérequis est déjà complété
+            if (buff.id && buff.source) {
+                const mission = player.missions.find(m => m.name === buff.source);
+                if (mission && mission.completedRequirementIds.includes(buff.id)) return;
+                if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
+            }
+
             if (buff.source && processedSources.has(buff.source)) return;
-            const bonus: Bonus = {};
-            if (buff.target === 'media') bonus.media = buff.value;
-            else if (buff.target === 'energy') bonus.energy = buff.value;
-            else if (buff.target === 'probe') bonus.probe = buff.value;
-            
-            ResourceSystem.accumulateBonus(bonus, accumulatedBonuses);
 
             if (buff.source) processedSources.add(buff.source);
 
-            const completed = CardSystem.updateMissionProgress(player, buff);
-            if (completed) completedMissions.push(completed);
+            // Marquer comme remplie (en attente de clic)
+            CardSystem.markMissionRequirementFulfillable(player, buff);
       }
     });
   
@@ -773,18 +749,19 @@ export class ProbeSystem {
     const processedSources = new Set<string>();
     player.permanentBuffs.forEach(buff => {
       if (buff.type === 'GAIN_ON_LAND' || buff.type === 'GAIN_ON_ORBIT_OR_LAND') {
+           // Ignorer si le prérequis est déjà complété
+           if (buff.id && buff.source) {
+               const mission = player.missions.find(m => m.name === buff.source);
+               if (mission && mission.completedRequirementIds.includes(buff.id)) return;
+               if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
+           }
+
            if (buff.source && processedSources.has(buff.source)) return;
-           const bonus: Bonus = {};
-           if (buff.target === 'media') bonus.media = buff.value;
-           else if (buff.target === 'energy') bonus.energy = buff.value;
-           else if (buff.target === 'probe') bonus.probe = buff.value;
-           
-           ResourceSystem.accumulateBonus(bonus, accumulatedBonuses);
 
            if (buff.source) processedSources.add(buff.source);
 
-           const completed = CardSystem.updateMissionProgress(player, buff);
-           if (completed) completedMissions.push(completed);
+           // Marquer comme remplie (en attente de clic)
+           CardSystem.markMissionRequirementFulfillable(player, buff);
       }
     });
 

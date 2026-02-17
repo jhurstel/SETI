@@ -49,7 +49,7 @@ const getInteractionLabel = (state: InteractionState): string => {
     case 'PLACING_LIFE_TRACE': return `Veuillez placer trace de vie (${state.color}).`;
     case 'PLACING_OBJECTIVE_MARKER': return `Veuillez placer un marqueur d'objectif pour avoir dépassé ${state.milestone} PV.`;
     case 'SELECTING_SCAN_CARD': return `Veuillez sélectionner une carte de la rangée pour marquer un signal.`;
-    case 'SELECTING_SCAN_SECTOR': return `Veuillez sélectionner un secteur ${state.color} pour marquer un signal.`;
+    case 'SELECTING_SCAN_SECTOR': return state.adjacents ? `Veuillez sélectionner un secteur adjacent à la Terre pour marquer un signal.` : `Veuillez sélectionner un secteur ${state.color} pour marquer un signal.`;
     case 'CHOOSING_MEDIA_OR_MOVE': return `Veuillez sélectionner le bonus de la carte 19.`;
     case 'CHOOSING_OBS2_ACTION': return `Veuillez sélectionner le bonus de technologie Observation II.`;
     case 'CHOOSING_OBS3_ACTION': return `Veuillez sélectionner le bonus de technologie Observation III.`;
@@ -58,6 +58,8 @@ const getInteractionLabel = (state: InteractionState): string => {
     case 'REMOVING_ORBITER': return "Veuillez retirer un orbiteur (bonus carte 15).";
     case 'CHOOSING_BONUS_ACTION': return `Veuillez choisir la prochaine action.`;
     case 'RESOLVING_SECTOR': return `Résolution du secteur complété...`;
+    case 'DRAW_AND_SCAN': return `Pioche d'une carte pour signal...`;
+    case 'CLAIMING_MISSION_REQUIREMENT': return `Validation d'une mission...`;
     default: return "Action inconnue";
   }
 };
@@ -285,7 +287,7 @@ export const BoardUI: React.FC = () => {
 
   // Effet pour traiter les interactions automatiques (effets de carte, résolution de secteur)
   useEffect(() => {
-    if (game && (interactionState.type === 'TRIGGER_CARD_EFFECT' || interactionState.type === 'RESOLVING_SECTOR')) {
+    if (game && (interactionState.type === 'TRIGGER_CARD_EFFECT' || interactionState.type === 'RESOLVING_SECTOR' || interactionState.type === 'DRAW_AND_SCAN' || interactionState.type === 'CLAIMING_MISSION_REQUIREMENT')) {
       const { sequenceId } = interactionState;
       const currentPlayer = game.players[game.currentPlayerIndex];
       let updatedGame = structuredClone(game);
@@ -389,6 +391,79 @@ export const BoardUI: React.FC = () => {
 
         const summary = coverageLogs.length > 0 ? `Secteur résolu. ${coverageLogs.join(', ')}` : "Secteur résolu.";
         if (!handleNewInteractions(newInteractions, sequenceId, summary)) {
+            setInteractionState({ type: 'IDLE' });
+        }
+      }
+      
+      // Pioche et Scan (Astronomes Amateurs)
+      else if (interactionState.type === 'DRAW_AND_SCAN') {
+        if (updatedGame.decks.cards.length > 0) {
+            const drawnCard = updatedGame.decks.cards.shift();
+            if (drawnCard) {
+                if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+                updatedGame.decks.discardPile.push(drawnCard);
+                
+                addToHistory(`révèle carte "${drawnCard.name}" (${drawnCard.scanSector}) de la pioche`, currentPlayer.id, game, undefined, sequenceId);
+                
+                const scanInteraction: InteractionState = { 
+                    type: 'SELECTING_SCAN_SECTOR', 
+                    color: drawnCard.scanSector, 
+                    cardId: drawnCard.id, 
+                    message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")`, 
+                    sequenceId 
+                };
+                
+                setGame(updatedGame);
+                if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+                
+                handleNewInteractions([scanInteraction], sequenceId, undefined, true);
+            } else { setInteractionState({ type: 'IDLE' }); }
+        } else { setInteractionState({ type: 'IDLE' }); }
+      }
+
+      // Validation de mission
+      else if (interactionState.type === 'CLAIMING_MISSION_REQUIREMENT') {
+        const { missionId, requirementId } = interactionState;
+        const mission = player.missions.find(m => m.id === missionId);
+        
+        if (mission && !mission.completedRequirementIds.includes(requirementId)) {
+            const requirement = mission.requirements.find(r => r.id === requirementId);
+            let bonuses: Bonus = {};
+            
+            // Vérifier si on doit sauter la vérification (cas GAIN_ON_... déjà validé par le système)
+            const skipCheck = mission.fulfillableRequirementIds?.includes(requirementId);
+
+            if (requirement && (requirement.type.startsWith('GAIN_IF_') || requirement.type.startsWith('GAIN_ON_'))) {
+                 const bonus = CardSystem.evaluateMission(updatedGame, player.id, requirement.value, skipCheck);
+                 if (bonus) {
+                     ResourceSystem.accumulateBonus(bonus, bonuses);
+                 } else {
+                     setToast({ message: "Conditions non remplies.", visible: true });
+                     setInteractionState({ type: 'IDLE' });
+                     return;
+                 }
+            }
+
+            mission.completedRequirementIds.push(requirementId);
+            const isCompleted = mission.completedRequirementIds.length >= mission.requirements.length;
+            if (isCompleted) {
+                mission.completed = true;
+            }
+            
+            const seqId = sequenceId || `mission-claim-${Date.now()}`;
+            const res = ResourceSystem.processBonuses(bonuses, updatedGame, player.id, 'mission-claim', seqId);
+            
+            setGame(res.updatedGame);
+            if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
+            
+            const actionText = isCompleted ? "accomplit" : "valide un objectif de";
+            addToHistory(`${actionText} la mission "${mission.name}"${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, game, undefined, seqId);
+            res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, seqId));
+
+            if (!handleNewInteractions(res.newPendingInteractions.map(i => ({ ...i, sequenceId: seqId })), seqId)) {
+                setInteractionState({ type: 'IDLE' });
+            }
+        } else {
             setInteractionState({ type: 'IDLE' });
         }
       }
@@ -526,6 +601,23 @@ export const BoardUI: React.FC = () => {
                             queue.unshift(...res.newPendingInteractions);
                         }
                     }
+                } else if (interaction.type === 'DRAW_AND_SCAN') {
+                    if (aiGame.decks.cards.length > 0) {
+                        const drawnCard = aiGame.decks.cards.shift();
+                        if (drawnCard) {
+                            if (!aiGame.decks.discardPile) aiGame.decks.discardPile = [];
+                            aiGame.decks.discardPile.push(drawnCard);
+                            addToHistory(`révèle carte "${drawnCard.name}" (${drawnCard.scanSector}) de la pioche`, currentPlayer.id, aiGame, undefined, sequenceId);
+                            
+                            queue.unshift({ 
+                                type: 'SELECTING_SCAN_SECTOR', 
+                                color: drawnCard.scanSector, 
+                                cardId: drawnCard.id, 
+                                message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")`, 
+                                sequenceId 
+                            });
+                        }
+                    }
                 } else if (interaction.type === 'SELECTING_SCAN_CARD') {
                     const row = aiGame.decks.cardRow;
                     if (row.length > 0) {
@@ -582,7 +674,7 @@ export const BoardUI: React.FC = () => {
                         
                         cardsToReserve.forEach(card => {
                             aiGame = CardSystem.reserveCard(aiGame, player.id, card.id);
-                            addToHistory(`réserve carte "${card.name}" (IA)`, player.id, aiGame, undefined, sequenceId);
+                            addToHistory(`réserve carte "${card.name}"`, player.id, aiGame, undefined, sequenceId);
                         });
                     }
                 } else if (interaction.type === 'ACQUIRING_CARD') {
@@ -597,7 +689,7 @@ export const BoardUI: React.FC = () => {
                         if (!res.error) {
                             aiGame = res.updatedGame;
                             const cardName = cardId ? row.find(c => c.id === cardId)?.name : "Pioche";
-                            addToHistory(`acquiert carte ${cardId ? `"${cardName}"` : "de la pioche"} (IA)`, currentPlayer.id, aiGame, undefined, sequenceId);
+                            addToHistory(`acquiert carte ${cardId ? `"${cardName}"` : "de la pioche"}`, currentPlayer.id, aiGame, undefined, sequenceId);
                             
                             if (interaction.triggerFreeAction) {
                                 const p = aiGame.players.find(p => p.id === currentPlayer.id);
@@ -647,7 +739,7 @@ export const BoardUI: React.FC = () => {
 
                                 const moveRes = ProbeSystem.moveProbe(aiGame, player.id, probe.id, energyCost, disk, sector);
                                 aiGame = moveRes.updatedGame;
-                                addToHistory(moveRes.message + " (IA)", player.id, aiGame, undefined, sequenceId);
+                                addToHistory(moveRes.message, player.id, aiGame, undefined, sequenceId);
                             }
                         }
                     }
@@ -679,7 +771,7 @@ export const BoardUI: React.FC = () => {
                         
                         const res = TechnologySystem.acquireTechnology(aiGame, currentPlayer.id, tech, targetCol, interaction.noTileBonus);
                         aiGame = res.updatedGame;
-                        addToHistory(`acquiert technologie "${tech.name}" (IA)`, currentPlayer.id, aiGame, undefined, sequenceId);
+                        addToHistory(`acquiert technologie "${tech.name}"`, currentPlayer.id, aiGame, undefined, sequenceId);
                         if (res.historyEntries) {
                              res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
                         }
@@ -693,7 +785,7 @@ export const BoardUI: React.FC = () => {
                     const player = aiGame.players.find(p => p.id === currentPlayer.id);
                     if (player) {
                         ComputerSystem.assignTechnology(player, tech, targetCol);
-                        addToHistory(`assigne technologie "${tech.name}" au slot ${targetCol} (IA)`, currentPlayer.id, aiGame, undefined, sequenceId);
+                        addToHistory(`assigne technologie "${tech.name}" au slot ${targetCol}`, currentPlayer.id, aiGame, undefined, sequenceId);
                     }
                 } else if (interaction.type === 'CHOOSING_OBS2_ACTION') {
                     const player = aiGame.players.find(p => p.id === currentPlayer.id);
@@ -703,7 +795,7 @@ export const BoardUI: React.FC = () => {
                         const mercuryPos = getObjectPosition('mercury', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
                         if (mercuryPos) {
                             const mercurySector = aiGame.board.sectors[mercuryPos.absoluteSector - 1];
-                            const res = ScanSystem.performSignalAndCover(aiGame, player.id, mercurySector.id, [`paye 1 Média pour utiliser Observation II (IA)`], false, sequenceId);
+                            const res = ScanSystem.performSignalAndCover(aiGame, player.id, mercurySector.id, [`paye 1 Média pour utiliser Observation II`], false, sequenceId);
                             aiGame = res.updatedGame;
                             res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
                             if (res.newPendingInteractions) queue.unshift(...res.newPendingInteractions);
@@ -715,7 +807,7 @@ export const BoardUI: React.FC = () => {
                         const card = player.cards[0];
                         aiGame = CardSystem.discardCard(aiGame, player.id, card.id);
                         queue.unshift({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId: sequenceId, cardId: card.id });
-                        addToHistory(`utilise carte "${card.name}" pour Observation III (IA)`, player.id, aiGame, undefined, sequenceId);
+                        addToHistory(`utilise carte "${card.name}" pour Observation III`, player.id, aiGame, undefined, sequenceId);
                     }
                 } else if (interaction.type === 'CHOOSING_OBS4_ACTION') {
                     const choice = Math.random() > 0.5 ? 'PROBE' : 'MOVE';
@@ -726,11 +818,11 @@ export const BoardUI: React.FC = () => {
                             const launchRes = ProbeSystem.launchProbe(aiGame, player.id, true, false);
                             if (launchRes.probeId) {
                                 aiGame = launchRes.updatedGame;
-                                addToHistory(`lance 1 sonde (Observation IV) (IA)`, player.id, aiGame, undefined, sequenceId);
+                                addToHistory(`lance 1 sonde (Observation IV)`, player.id, aiGame, undefined, sequenceId);
                             }
                         } else {
                             queue.unshift({ type: 'MOVING_PROBE', count: 1, sequenceId });
-                            addToHistory(`choisit 1 déplacement (Observation IV) (IA)`, player.id, aiGame, undefined, sequenceId);
+                            addToHistory(`choisit 1 déplacement (Observation IV)`, player.id, aiGame, undefined, sequenceId);
                         }
                     }
                 }
@@ -852,6 +944,9 @@ export const BoardUI: React.FC = () => {
               if (pIndex !== -1) aiGame.players[pIndex].hasPerformedMainAction = true;
 
               let message = `met une sonde en orbite`;
+              if (bonusRes.passiveGains && bonusRes.passiveGains.length > 0) {
+                  message += ` et gagne ${bonusRes.passiveGains.join(', ')}`;
+              }
               if (result.completedMissions && result.completedMissions.length > 0) {
                   message += ` et accomplit la mission "${result.completedMissions.join('", "')}"`;
               }
@@ -879,6 +974,9 @@ export const BoardUI: React.FC = () => {
               if (pIndex !== -1) aiGame.players[pIndex].hasPerformedMainAction = true;
 
               let message = `fait atterrir une sonde`;
+              if (bonusRes.passiveGains && bonusRes.passiveGains.length > 0) {
+                  message += ` et gagne ${bonusRes.passiveGains.join(', ')}`;
+              }
               if (result.completedMissions && result.completedMissions.length > 0) {
                   message += ` et accomplit la mission "${result.completedMissions.join('", "')}"`;
               }
@@ -940,7 +1038,7 @@ export const BoardUI: React.FC = () => {
                         if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
                         
                         const actionText = m.completed ? "accomplit" : "valide un objectif de";
-                        addToHistory(`${actionText} la mission "${m.name}" (IA)${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, currentGame, undefined, sequenceId);
+                        addToHistory(`${actionText} la mission "${m.name}" ${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, currentGame, undefined, sequenceId);
                         res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, sequenceId));
 
                         if (res.newPendingInteractions.length > 0) {
@@ -977,7 +1075,7 @@ export const BoardUI: React.FC = () => {
                 setGame(aiGame);
                 if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
                 let gainText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
-                addToHistory(`transfère 1 donnée vers l'ordinateur (IA)${gainText}`, player.id, currentGame, undefined, sequenceId);
+                addToHistory(`transfère 1 donnée vers l'ordinateur ${gainText}`, player.id, currentGame, undefined, sequenceId);
                 return true;
             }
         }
@@ -992,7 +1090,7 @@ export const BoardUI: React.FC = () => {
             if (!res.error) {
                 setGame(res.updatedGame);
                 if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
-                addToHistory(`achète la carte "${card.name}" (IA)`, player.id, currentGame);
+                addToHistory(`achète la carte "${card.name}"`, player.id, currentGame);
                 return true;
             }
         }
@@ -1052,7 +1150,7 @@ export const BoardUI: React.FC = () => {
              updatedGame = CardSystem.discardCard(updatedGame, player.id, card.id);
              setGame(updatedGame);
              if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-             addToHistory(`défausse "${card.name}" et ${logMsg} (IA)`, player.id, currentGame);
+             addToHistory(`défausse "${card.name}" et ${logMsg}`, player.id, currentGame);
              return true;
         }
     }
@@ -1531,7 +1629,21 @@ export const BoardUI: React.FC = () => {
 
     // Cas 2: Clic direct depuis Idle (Raccourci Action Scan)
     if (interactionState.type === 'IDLE' && !game.players[game.currentPlayerIndex].hasPerformedMainAction) {
-      handleAction(ActionType.SCAN_SECTOR);
+      const sector = game.board.sectors[sectorNumber - 1];
+      const currentPlayer = game.players[game.currentPlayerIndex];
+      const action = new ScanSectorAction(currentPlayer.id, sector.id);
+      
+      if (gameEngineRef.current) {
+        gameEngineRef.current.setState(game);
+        const result = gameEngineRef.current.executeAction(action);
+        if (result.success && result.updatedState) {
+            setGame(result.updatedState);
+            action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
+            handleNewInteractions(action.newPendingInteractions);
+        } else {
+            setToast({ message: result.error || "Impossible de scanner ce secteur", visible: true });
+        }
+      }
       return;
     }
   };
@@ -2859,53 +2971,52 @@ export const BoardUI: React.FC = () => {
 
   // Gestionnaire pour le clic sur une mission (validation manuelle)
   const handleMissionClick = (missionId: string, requirementId?: string) => {
-    if (!game || !requirementId) return;
-
-    // Capture state before action for Undo
-    const stateBeforeAction = structuredClone(game);
+    if (!game) return;
     
     const updatedGame = structuredClone(game);
     const player = updatedGame.players.find(p => p.id === game.players[game.currentPlayerIndex].id);
     if (!player) return;
 
     const mission = player.missions.find(m => m.id === missionId);
-    if (mission && !mission.completedRequirementIds.includes(requirementId)) {
-        // Vérifier et récupérer les bonus si c'est une mission déclenchable
-        const requirement = mission.requirements.find(r => r.id === requirementId);
-        let bonuses: Bonus = {};
-        
-        if (requirement && requirement.type.startsWith('GAIN_IF_')) {
-             const bonus = CardSystem.evaluateMission(updatedGame, player.id, requirement.value);
-             if (bonus) {
-                 ResourceSystem.accumulateBonus(bonus, bonuses);
-             } else {
-                 // Sécurité : si la condition n'est plus remplie au moment du clic
-                 setToast({ message: "Conditions non remplies.", visible: true });
-                 return;
-             }
-        }
+    if (!mission) return;
 
-        mission.completedRequirementIds.push(requirementId);
-        const isCompleted = mission.completedRequirementIds.length >= mission.requirements.length;
-        if (isCompleted) {
-            mission.completed = true;
-        }
-        
-        // Appliquer les bonus et sauvegarder
-        const sequenceId = `mission-claim-${Date.now()}`;
-        const res = ResourceSystem.processBonuses(bonuses, updatedGame, player.id, 'mission-claim', sequenceId);
-        
-        setGame(res.updatedGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
-        
-        // Logs
-        const actionText = isCompleted ? "accomplit" : "valide un objectif de";
-        addToHistory(`${actionText} la mission "${mission.name}"${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, stateBeforeAction, undefined, sequenceId);
-        res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, res.updatedGame, undefined, sequenceId));
+    if (requirementId) {
+        setInteractionState({ type: 'CLAIMING_MISSION_REQUIREMENT', missionId, requirementId });
+    } else {
+        // Auto-détection des conditions remplies
+        const fulfillableReqs = mission.requirements.map((req, index) => {
+            if ((mission.completedRequirementIds || []).includes(req.id!)) return null;
+            
+            // Vérifier si la condition est marquée comme "fulfillable" (GAIN_ON_...)
+            if (mission.fulfillableRequirementIds?.includes(req.id!)) {
+                return { req, index, skipCheck: true };
+            }
+            
+            // Vérifier si la condition est remplie par l'état du jeu (GAIN_IF_...)
+            if (req.type.startsWith('GAIN_IF_')) {
+                const bonus = CardSystem.evaluateMission(updatedGame, player.id, req.value);
+                if (bonus) return { req, index, skipCheck: false };
+            }
+            return null;
+        }).filter(r => r !== null) as { req: any, index: number, skipCheck: boolean }[];
 
-        if (res.newPendingInteractions.length > 0) {
-          const interactionsWithSeqId = res.newPendingInteractions.map(i => ({ ...i, sequenceId }));
-          handleNewInteractions(interactionsWithSeqId, sequenceId);
+        if (fulfillableReqs.length === 0) {
+             setToast({ message: "Aucune condition remplie pour cette mission.", visible: true });
+        } else if (fulfillableReqs.length === 1) {
+             setInteractionState({ type: 'CLAIMING_MISSION_REQUIREMENT', missionId, requirementId: fulfillableReqs[0].req.id });
+        } else {
+             // Choix multiple
+             const missionRequirementStrings = mission.description.split('Mission:').slice(1).filter(s => s.trim() !== '');
+             setInteractionState({
+                type: 'CHOOSING_BONUS_ACTION',
+                bonusesSummary: "Plusieurs conditions remplies. Choisissez laquelle valider :",
+                choices: fulfillableReqs.map(item => ({
+                    id: item.req.id,
+                    label: missionRequirementStrings[item.index]?.trim() || `Condition ${item.index + 1}`,
+                    state: { type: 'CLAIMING_MISSION_REQUIREMENT', missionId, requirementId: item.req.id },
+                    done: false
+                }))
+             });
         }
     }
   };
@@ -2992,6 +3103,7 @@ export const BoardUI: React.FC = () => {
           performPass(cardsToKeep, selectedCardId);
           setPassModalState({ visible: false, cards: [], selectedCardId: null });
         }}
+        currentRound={game.currentRound}
       />
 
       {/* Modale de choix Média ou Déplacement (Carte 19) */}
