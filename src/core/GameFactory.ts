@@ -1028,7 +1028,7 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
     // Crée un exemple d'espèce alien
     return [
       {
-        id: `species-${Date.now()}`,
+        id: `species-${AlienBoardType.ANOMALIES}-${Date.now()}`,
         name: AlienBoardType.ANOMALIES,
         fixedSlots: {
           redlifetrace: [{ pv: 4, speciesCard: 1 }, { pv: 2, speciesCard: 1 }, { pv: 2, media: 1 }, { pv: 3 }],
@@ -1045,7 +1045,7 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         discovered: false
       },
       {
-        id: `species-${Date.now()}`,
+        id: `species-${AlienBoardType.OUMUAMUA}-${Date.now()}`,
         name: AlienBoardType.OUMUAMUA,
         fixedSlots: {
           redlifetrace: [{ pv: 25, token: -4 }, { pv: 3, speciesCard: 1, token: 1 }, { pv: 3, speciesCard: 1 }, { pv: 2, token: 1 }],
@@ -1077,7 +1077,7 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
   
       },
       {
-        id: `species-${Date.now()}`,
+        id: `species-${AlienBoardType.CENTAURIENS}-${Date.now()}`,
         name: AlienBoardType.CENTAURIENS,
         fixedSlots: {
           redlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 15, data: -3 }],
@@ -1094,7 +1094,7 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         discovered: false
       },
       {
-        id: `species-${Date.now()}`,
+        id: `species-${AlienBoardType.EXERTIENS}-${Date.now()}`,
         name: AlienBoardType.EXERTIENS,
         fixedSlots: {
           redlifetrace: [{ pv: 9, credits: 1 }, { pv: 7, credits: 1 }, { pv: 5, credits: 1 }, { pv: 4, credits: 1 }, { pv: 3, media: 1 }],
@@ -1111,7 +1111,7 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         discovered: false
       },
       {
-        id: `species-${Date.now()}`,
+        id: `species-${AlienBoardType.MASCAMITES}-${Date.now()}`,
         name: AlienBoardType.MASCAMITES,
         fixedSlots: {
           redlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 4 }],

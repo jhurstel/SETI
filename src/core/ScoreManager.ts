@@ -162,11 +162,6 @@ export class ScoreManager {
           }
         });
       }
-
-      card.scoringModifiers?.forEach(modifier => {
-        // Appliquer les modificateurs selon leur type
-        bonus += modifier.value;
-      });
     });
 
     return bonus;
@@ -277,20 +272,13 @@ export class ScoreManager {
    */
   private static calculateSpeciesBonuses(
     player: Player,
-    discoveredSpecies: Species[]
+    _discoveredSpecies: Species[]
   ): number {
     // TODO: Implémenter les bonus selon les règles de chaque espèce
     // Chaque espèce peut avoir des modificateurs de scoring différents
     let bonus = 0;
     player;
     
-    discoveredSpecies.forEach(species => {
-      species.scoringModifiers.forEach(modifier => {
-        // Appliquer les modificateurs selon leur type
-        bonus += modifier.value;
-      });
-    });
-
     return bonus;
   }
 

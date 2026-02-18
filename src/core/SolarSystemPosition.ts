@@ -4,7 +4,7 @@
  */
 
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject, CelestialPosition, CelestialObjectType } from './types';
+import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject } from './types';
 
 /**
  * Position absolue d'un objet après toutes les rotations
@@ -271,7 +271,7 @@ export function getVisibleLevel(
   disk: DiskName,
   absoluteSector: SectorNumber,
   rotationState: RotationState,
-  extraObjects: CelestialObject[] = []
+  _extraObjects: CelestialObject[] = []
 ): number {
   // Niveau 3 (Jaune - Top) - Disques A uniquement
   if (disk === 'A') {
@@ -313,7 +313,7 @@ function checkVisibilityAboveLevel(
     disk: DiskName,
     absoluteSector: SectorNumber,
     rotationState: RotationState,
-    extraObjects: CelestialObject[] = []
+    _extraObjects: CelestialObject[] = []
 ): boolean {
     // Les disques D et E sont toujours visibles car ils sont sur le dessus ou en dehors des plateaux rotatifs.
     if (disk === 'D' || disk === 'E') {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Game, InteractionState, LifeTraceType, Species, Card } from '../core/types';
+import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { CardTooltip } from './CardTooltip';
 import './AlienBoardUI.css';
@@ -18,7 +18,7 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
     style={{ position: 'relative', width: '60px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: isClickable ? 'pointer' : 'help' }}
     onMouseEnter={onMouseEnter}
     onMouseLeave={onMouseLeave}
-    onClick={() => { if (isClickable && onClick) { onClick(); } }}
+    onClick={(e) => { e.stopPropagation(); if (isClickable && onClick) { onClick(); } }}
   >
     <svg width="60" height="50" viewBox="0 0 60 50" style={{ position: 'absolute', top: 0, left: 0, overflow: 'visible' }}>
       <path
@@ -235,7 +235,6 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
             infiniteSlot = species.infiniteSlots.bluelifetrace;
         }
 
-        const traces = board.lifeTraces.filter(t => t.type === type);
         const isPlacing = interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === type;
         const color = type === LifeTraceType.RED ? '#ff6b6b' : type === LifeTraceType.YELLOW ? '#ffd700' : '#4a9eff';
         const currentPlayer = game.players[game.currentPlayerIndex];
@@ -273,42 +272,42 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                 pointerEvents: 'none',
                             }}
                         />
-                        {[2, 1, 0].map((reverseIdx) => {
-                            // De 0 (haut) à 2 (bas)
-                            const idx = reverseIdx;
+                        {[0, 1, 2].map((idx) => {
+                            // De 0 (bas) à 2 (haut)
                             const infTraceIndex = fixedSlots.length + idx;
-                            const trace = traces[infTraceIndex];
-                            const isBottom = reverseIdx === 2;
-                            const canAfford = !infiniteSlot?.token || infiniteSlot.token >= 0 || (currentPlayer.tokens || 0) >= Math.abs(infiniteSlot.token);
-                            const isNext = idx === traces.length - fixedSlots.length;
+                            const trace = board.lifeTraces.find(t => t.location === 'species' && t.type === type && t.slotIndex === infTraceIndex);
+                            const isFilled = !!trace;
+                            const isBottom = idx === 0;
+                            const canAfford = !infiniteSlot.token || infiniteSlot.token >= 0 || (currentPlayer.tokens || 0) >= Math.abs(infiniteSlot.token);
+                            const isNext = infTraceIndex === 0 || !!board.lifeTraces.find(t => t.location === 'species' && t.type === type && t.slotIndex === infTraceIndex - 1);
+                            const isClickable = isPlacing && !isFilled && isNext && canAfford;
 
-                            // Opacité diminue vers le haut (plus petit idx = plus haut)
-                            const opacity = [0.35, 0.6, 1][reverseIdx];
+                            // Opacité diminue vers le haut (plus grand idx = plus haut)
+                            const opacity = [1, 0.6, 0.35][idx];
 
                             return (
                                 <div
                                     key={`inf-corridor-${idx}`}
-                                    className={`alien-slot infinite ${isPlacing && isNext && canAfford ? 'clickable' : ''}`}
+                                    className={`alien-slot infinite ${isClickable ? 'clickable' : ''}`}
                                     style={{
                                         borderColor: color,
                                         opacity: opacity,
                                         zIndex: 1,
                                         background: isBottom 
-                                            ? (trace ? getPlayerColor(trace.playerId) : (isPlacing && isNext && canAfford ? '#32373c' : '#14171a')) 
-                                            : (trace ? getPlayerColor(trace.playerId) : color),
+                                            ? (isFilled ? getPlayerColor(trace.playerId) : (isClickable ? '#32373c' : '#14171a')) 
+                                            : (isFilled ? getPlayerColor(trace.playerId) : color),
                                         width: isBottom ? '28px' : '8px',
                                         height: isBottom ? '28px' : '8px',
                                         borderRadius: '50%',
                                         border: isBottom ? `2px solid ${color}` : 'none',
-                                        cursor: isPlacing && isNext && canAfford ? 'pointer' : 'help',
-                                        boxShadow: isPlacing && isBottom && isNext && canAfford ? `0 0 8px ${color}` : undefined,
+                                        cursor: isClickable ? 'pointer' : 'help',
+                                        boxShadow: isBottom && isClickable ? `0 0 8px ${color}` : undefined,
                                         transition: 'box-shadow 0.15s'
                                     }}
-                                    onClick={() =>
-                                        isPlacing &&
-                                        isNext && canAfford &&
-                                        onPlaceLifeTrace(boardIndex, type, 'species', infTraceIndex)
-                                    }
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (isClickable) onPlaceLifeTrace(boardIndex, type, 'species', infTraceIndex);
+                                    }}
                                     onMouseEnter={(e) => {
                                         // Bonus pour cet emplacement
                                         if (infiniteSlot) {
@@ -321,7 +320,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                             let statusText = '';
                                             let statusColor = '';
                                             let actiontext = '';
-                                            if (trace) {
+                                            if (isFilled) {
                                                 const player = game.players.find((p) => p.id === trace.playerId);
                                                 statusText = `Occupé par ${player?.name || 'Inconnu'}`;
                                                 statusColor = player?.color || '#ccc';
@@ -369,24 +368,6 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                     }}
                                     onMouseLeave={() => setActiveTooltip(null)}
                                 >
-                                    {/* 
-                                        A quoi ca sert ?
-
-                                        - Afficher un marqueur de joueur ("alien-marker") si la case de la trace de vie est occupée par un joueur (trace existe)
-                                        - Sinon, si l'utilisateur est en train de placer un marqueur (isPlacing) ET qu'on est sur la première case "infinie" libre,
-                                          alors on affiche un cercle en pointillé comme zone de drop possible du prochain marqueur
-                                    */}
-                                    {isBottom && !trace && isPlacing && idx === traces.length - fixedSlots.length && (
-                                        <div
-                                            style={{
-                                                width: '60%',
-                                                height: '60%',
-                                                borderRadius: '50%',
-                                                border: `1.5px dashed ${color}`,
-                                                margin: 'auto',
-                                            }}
-                                        />
-                                    )}
                                 </div>
                             );
                         })}
@@ -397,14 +378,17 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                         const index = fixedSlots.length - 1 - reverseIndex;
                         const trace = board.lifeTraces.find(t => t.location === 'species' && t.type === type && t.slotIndex === index);
                         const isFilled = !!trace;
-                        const canAfford = !bonus?.token || bonus.token >= 0 || (currentPlayer.tokens || 0) >= Math.abs(bonus.token);
+                        const canAfford = !bonus.token || bonus.token >= 0 || (currentPlayer.tokens || 0) >= Math.abs(bonus.token);
                         const isClickable = isPlacing && !isFilled && canAfford;
 
                         return (
                             <div
                                 key={`fixed-${index}`}
                                 className={`alien-slot fixed ${isFilled ? 'filled' : ''} ${isClickable ? 'clickable' : ''}`}
-                                onClick={() => isClickable && onPlaceLifeTrace(boardIndex, type, 'species', index)}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isClickable) onPlaceLifeTrace(boardIndex, type, 'species', index);
+                                }}
                                 style={{ 
                                     borderColor: color, 
                                     boxShadow: isClickable ? `0 0 8px ${color}` : 'none',
@@ -486,8 +470,31 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 <div className="seti-foldable-content" style={{ display: 'flex', flexDirection: 'column' }}>
                     {board.isDiscovered && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '5px' }}>
-                            <div style={{ padding: '5px', textAlign: 'center', borderBottom: '1px solid #444' }}>
+                            <div style={{ padding: '5px', textAlign: 'center', borderBottom: '1px solid #444', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
                                 <div style={{ fontSize: '1.1em', color: '#aaa', fontWeight: 'bold' }}>{board.speciesId}</div>
+                                {board.speciesId === AlienBoardType.OUMUAMUA && (
+                                    <div 
+                                        style={{ cursor: 'help', fontSize: '1.2em', filter: 'hue-rotate(150deg)' }}
+                                        onMouseEnter={(e) => {
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            const content = (
+                                                <div style={{ textAlign: 'left', minWidth: '120px' }}>
+                                                    <div style={{ fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #555', paddingBottom: '2px', color: '#ffd700' }}>Tokens</div>
+                                                    {game.players.map(p => (
+                                                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+                                                            <span style={{ color: p.color, fontWeight: 'bold' }}>{p.name}</span>
+                                                            <span style={{ backgroundColor: '#333', padding: '0 6px', borderRadius: '4px' }}>{p.tokens || 0}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            );
+                                            setActiveTooltip({ content, rect });
+                                        }}
+                                        onMouseLeave={() => setActiveTooltip(null)}
+                                    >
+                                        🦠
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

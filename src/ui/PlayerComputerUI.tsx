@@ -109,8 +109,29 @@ export const PlayerComputerUI = ({
   const hasData = (player.data || 0) > 0;
 
   return (
-    <div className={`player-computer-container ${isAnalyzing ? 'analyzing-container' : ''}`}>
+    <div className={`player-computer-container ${isAnalyzing ? 'analyzing-container' : ''}`} style={{ position: 'relative', overflow: 'hidden' }}>
       {/* Animation de scan */}
+      {isAnalyzing && (
+        <style>
+          {`
+            @keyframes scanComputer {
+              from { left: 0%; }
+              to { left: 100%; }
+            }
+            .scan-line {
+              position: absolute;
+              top: 0;
+              bottom: 0;
+              width: 4px;
+              background: #00ffff;
+              box-shadow: 0 0 15px #00ffff;
+              animation: scanComputer 0.8s ease-in-out infinite alternate;
+              z-index: 20;
+              pointer-events: none;
+            }
+          `}
+        </style>
+      )}
       {isAnalyzing && <div className="scan-line" />}
 
       {columns.map((col, index) => {

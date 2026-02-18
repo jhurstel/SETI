@@ -237,6 +237,7 @@ export class ResourceSystem {
     if (bonuses.speciesCard) {
         if (speciesId) {
              newPendingInteractions.push({ type: 'ACQUIRING_ALIEN_CARD', count: bonuses.speciesCard, speciesId, sequenceId });
+             logs.push(`1 carte Alien`);
         }
     }
 

@@ -1,10 +1,9 @@
-import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory } from '../core/types';
+import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CelestialObject } from '../core/types';
 import {
     createRotationState,
     calculateAbsolutePosition,
     getCell,
     getAdjacentCells,
-    CelestialObject,
     getObjectPosition,
     getAllCelestialObjects,
     getAbsoluteSectorForProbe,
@@ -272,6 +271,9 @@ export class CardSystem {
                             break;
                         case 'PROBE':
                             bonuses.probe = (bonuses.probe || 0) + effect.value;
+                            break;
+                        case 'TOKEN':
+                            bonuses.token = (bonuses.token || 0) + effect.value;
                             break;
                     }
                 } else if (effect.type === 'ACTION') {
@@ -847,6 +849,7 @@ export class CardSystem {
                     else if (bonusType === 'probe') rewards.probe = (rewards.probe || 0) + bonusValue;
                     else if (bonusType === 'move' || bonusType === 'moves' || bonusType === 'movements') rewards.movements = (rewards.movements || 0) + bonusValue;
                     else if (bonusType === 'reservation') rewards.revenue = (rewards.revenue || 0) + bonusValue;
+                    else if (bonusType === 'token' || bonusType === 'tokens') rewards.token = (rewards.token || 0) + bonusValue;
                     else if (bonusType === 'yellowlifetrace') {
                         if (!rewards.lifetraces) rewards.lifetraces = [];
                         rewards.lifetraces.push({ amount: bonusValue, scope: LifeTraceType.YELLOW });

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, ProbeState, Bonus, GAME_CONSTANTS, SectorType, SignalType, InteractionState, AlienBoardType } from '../core/types';
-import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, CelestialObject, getObjectPosition, getAbsoluteSectorForProbe, polarToCartesian, describeArc, sectorToIndex, indexToSector, calculateObjectPosition, getSectorType, SolarSystemCell } from '../core/SolarSystemPosition';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, ProbeState, Bonus, GAME_CONSTANTS, SectorType, SignalType, InteractionState, AlienBoardType, CelestialObject } from '../core/types';
+import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getObjectPosition, getAbsoluteSectorForProbe, polarToCartesian, describeArc, sectorToIndex, indexToSector, calculateObjectPosition, getSectorType, SolarSystemCell } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { Tooltip } from './Tooltip';
@@ -710,7 +710,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       bonus.technologies ||
       bonus.lifetraces ||
       bonus.probe ||
-      bonus.landing;
+      bonus.landing ||
+      bonus.speciesCard;
 
     return (
       <>
@@ -741,6 +742,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           else if (bonus.lifetraces && bonus.lifetraces.length > 0) { label = 'Tr'; color = '#fff'; }
           else if (bonus.probe) { label = 'Pr'; color = '#fff'; }
           else if (bonus.landing) { label = 'La'; color = '#fff'; }
+          else if (bonus.speciesCard) { label = '👽'; color = '#aaffaa'; }
           return (
             <text
               y={hasPv ? "6" : "1"}
@@ -1265,7 +1267,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                       </div>
                     );
 
-                    const isFullSlot = i === 0 || (planetData.id === 'mars' && i === 1) || (planetData.Id === 'oumuamua' && i === 1) || (planetData.Id === 'oumuamua' && i === 2);
+                    const isFullSlot = i === 0 || (planetData.id === 'mars' && i === 1) || (planetData.id === 'oumuamua' && i === 1) || (planetData.id === 'oumuamua' && i === 2);
                     const showFullToken = isFullSlot || !!player;
                     
                     return (

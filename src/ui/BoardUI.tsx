@@ -1897,28 +1897,23 @@ export const BoardUI: React.FC = () => {
   // Gestionnaire pour le clic sur une carte Alien
   const handleSpeciesCardClick = (speciesId: string, cardId: string) => {
     if (!game) return;
-    console.log(cardId);
-    if (interactionState.type === 'ACQUIRING_ALIEN_CARD') {
-        if (interactionState.speciesId !== speciesId) {
-            setToast({ message: "Vous devez choisir une carte de l'espèce active.", visible: true });
-            return;
-        }
+    if (interactionState.type !== 'ACQUIRING_ALIEN_CARD') return;
+    if (interactionState.speciesId !== speciesId) return;
 
-        const currentPlayer = game.players[game.currentPlayerIndex];
-        const { updatedGame, drawnCard } = SpeciesSystem.acquireAlienCard(game, currentPlayer.id, speciesId, cardId);
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    const { updatedGame, drawnCard } = SpeciesSystem.acquireAlienCard(game, currentPlayer.id, speciesId, cardId);
+    
+    if (drawnCard) {
+        setGame(updatedGame);
+        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
         
-        if (drawnCard) {
-            setGame(updatedGame);
-            if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-            
-            const source = cardId === 'deck' ? "de la pioche" : "de la rangée";
-            addToHistory(`acquiert la carte Alien "${drawnCard.name}" ${source}`, currentPlayer.id, game, undefined, interactionState.sequenceId);
+        const source = cardId === 'deck' ? "de la pioche" : "de la rangée";
+        addToHistory(`acquiert la carte Alien "${drawnCard.name}" ${source}`, currentPlayer.id, game, undefined, interactionState.sequenceId);
 
-            if (interactionState.count > 1) {
-                setInteractionState({ ...interactionState, count: interactionState.count - 1 });
-            } else {
-                setInteractionState({ type: 'IDLE' });
-            }
+        if (interactionState.count > 1) {
+            setInteractionState({ ...interactionState, count: interactionState.count - 1 });
+        } else {
+            setInteractionState({ type: 'IDLE' });
         }
     }
   };

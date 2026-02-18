@@ -155,7 +155,7 @@ export class SpeciesSystem {
                 bonusToApply = infiniteSlot;
             }
         }
-        console.log(bonusToApply);
+
         // Handle costs
         if (typeof bonusToApply.token === 'number' && bonusToApply.token < 0) {
             const cost = Math.abs(bonusToApply.token);
