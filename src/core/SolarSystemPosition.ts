@@ -4,17 +4,7 @@
  */
 
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { DiskName, DISK_NAMES, SectorNumber, Game } from './types';
-
-/**
- * Position d'un objet céleste
- */
-export interface CelestialPosition {
-  disk: DiskName; // A, B, C, D, ou E
-  sector: SectorNumber; // 1 à 8
-  x: number; // Position X en pourcentage (0-100)
-  y: number; // Position Y en pourcentage (0-100)
-}
+import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject, CelestialPosition, CelestialObjectType } from './types';
 
 /**
  * Position absolue d'un objet après toutes les rotations
@@ -35,22 +25,6 @@ export interface RotationState {
   level1Angle: number; // Angle de rotation du plateau niveau 1 (en degrés)
   level2Angle: number; // Angle de rotation du plateau niveau 2 (en degrés)
   level3Angle: number; // Angle de rotation du plateau niveau 3 (en degrés)
-}
-
-/**
- * Type d'objet céleste
- */
-export type CelestialObjectType = 'planet' | 'comet' | 'asteroid' | 'hollow' | 'empty';
-
-/**
- * Objet céleste avec sa position relative
- */
-export interface CelestialObject {
-  id: string;
-  type: CelestialObjectType;
-  name: string;
-  position: CelestialPosition;
-  level?: 0 | 1 | 2 | 3; // Niveau du plateau (0 = fixe, 1-3 = rotatif)
 }
 
 /**
@@ -204,12 +178,13 @@ export function createRotationState(
 /**
  * Obtient tous les objets célestes (fixes et rotatifs)
  */
-export function getAllCelestialObjects(): CelestialObject[] {
+export function getAllCelestialObjects(extraObjects: CelestialObject[] = []): CelestialObject[] {
   return [
     ...FIXED_OBJECTS,
     ...INITIAL_ROTATING_LEVEL1_OBJECTS,
     ...INITIAL_ROTATING_LEVEL2_OBJECTS,
     ...INITIAL_ROTATING_LEVEL3_OBJECTS,
+    ...extraObjects
   ];
 }
 
@@ -255,7 +230,8 @@ export function calculateObjectPosition(disk: DiskName, sector: SectorNumber, ro
  */
 export function calculateAbsolutePosition(
   object: CelestialObject,
-  rotationState: RotationState
+  rotationState: RotationState,
+  extraObjects: CelestialObject[] = []
 ): AbsolutePosition {
   let absoluteSector = object.position.sector;
   
@@ -272,7 +248,7 @@ export function calculateAbsolutePosition(
   const y = 0; // TODO: Calculer en fonction du disque et du secteur
   
   // Vérifier la visibilité
-  const isVisible = checkVisibilityAboveLevel(object.level || 0, object.position.disk, absoluteSector, rotationState);
+  const isVisible = checkVisibilityAboveLevel(object.level || 0, object.position.disk, absoluteSector, rotationState, extraObjects);
   
   return {
     disk: object.position.disk,
@@ -294,12 +270,13 @@ export function calculateAbsolutePosition(
 export function getVisibleLevel(
   disk: DiskName,
   absoluteSector: SectorNumber,
-  rotationState: RotationState
+  rotationState: RotationState,
+  extraObjects: CelestialObject[] = []
 ): number {
   // Niveau 3 (Jaune - Top) - Disques A uniquement
   if (disk === 'A') {
     const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
-    const hollowZones = HOLLOW_ZONES.level3[disk];
+    const hollowZones = HOLLOW_ZONES.level3[disk] || [];
     if (hollowZones && !hollowZones.includes(level3Sector)) {
       return 3;
     }
@@ -308,7 +285,7 @@ export function getVisibleLevel(
   // Niveau 2 (Rouge - Mid) - Disques A et B
   if (disk === 'A' || disk === 'B') {
     const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
-    const hollowZones = HOLLOW_ZONES.level2[disk];
+    const hollowZones = HOLLOW_ZONES.level2[disk] || [];
     if (hollowZones && !hollowZones.includes(level2Sector)) {
       return 2;
     }
@@ -317,7 +294,7 @@ export function getVisibleLevel(
   // Niveau 1 (Bleu - Bot) - Disque A, B, C
   if (disk === 'A' || disk === 'B' || disk === 'C') {
     const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
-    const hollowZones = HOLLOW_ZONES.level1[disk];
+    const hollowZones = HOLLOW_ZONES.level1[disk] || [];
     if (hollowZones && !hollowZones.includes(level1Sector)) {
       return 1;
     }
@@ -335,7 +312,8 @@ function checkVisibilityAboveLevel(
     objectLevel: number,
     disk: DiskName,
     absoluteSector: SectorNumber,
-    rotationState: RotationState
+    rotationState: RotationState,
+    extraObjects: CelestialObject[] = []
 ): boolean {
     // Les disques D et E sont toujours visibles car ils sont sur le dessus ou en dehors des plateaux rotatifs.
     if (disk === 'D' || disk === 'E') {
@@ -346,7 +324,7 @@ function checkVisibilityAboveLevel(
     // Si l'objet est en dessous du niveau 3, on vérifie si le niveau 3 le cache
     if (objectLevel < 3 && disk === 'A') {
         const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
-        const hollowZones = HOLLOW_ZONES.level3[disk];
+        const hollowZones = HOLLOW_ZONES.level3[disk] || [];
         if (hollowZones && !hollowZones.includes(level3Sector)) {
             return false; // Recouvert par le niveau 3
         }
@@ -356,7 +334,7 @@ function checkVisibilityAboveLevel(
     // Si l'objet est en dessous du niveau 2, on vérifie si le niveau 2 le cache
     if (objectLevel < 2 && (disk === 'A' || disk === 'B')) {
         const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
-        const hollowZones = HOLLOW_ZONES.level2[disk];
+        const hollowZones = HOLLOW_ZONES.level2[disk] || [];
         if (hollowZones && !hollowZones.includes(level2Sector)) {
             return false; // Recouvert par le niveau 2
         }
@@ -366,7 +344,7 @@ function checkVisibilityAboveLevel(
     // Si l'objet est en dessous du niveau 1, on vérifie si le niveau 1 le cache
     if (objectLevel < 1 && (disk === 'A' || disk === 'B' || disk === 'C')) {
         const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
-        const hollowZones = HOLLOW_ZONES.level1[disk];
+        const hollowZones = HOLLOW_ZONES.level1[disk] || [];
         if (hollowZones && !hollowZones.includes(level1Sector)) {
             return false; // Recouvert par le niveau 1
         }
@@ -381,36 +359,42 @@ function checkVisibilityAboveLevel(
 function checkVisibility(
   disk: DiskName,
   absoluteSector: SectorNumber,
-  rotationState: RotationState
+  rotationState: RotationState,
+  extraObjects: CelestialObject[] = []
 ): boolean {
   // Vérifie la visibilité du niveau 0 (le fond du plateau)
-  return checkVisibilityAboveLevel(0, disk, absoluteSector, rotationState);
+  return checkVisibilityAboveLevel(0, disk, absoluteSector, rotationState, extraObjects);
 }
 
 /**
  * Obtient toutes les positions absolues de tous les objets célestes
  */
-export function getAllAbsolutePositions(rotationState: RotationState): Map<string, AbsolutePosition> {
+export function getAllAbsolutePositions(rotationState: RotationState, extraObjects: CelestialObject[] = []): Map<string, AbsolutePosition> {
   const positions = new Map<string, AbsolutePosition>();
   
   // Objets fixes
   FIXED_OBJECTS.forEach(obj => {
-    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
+    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState, extraObjects));
   });
   
   // Objets rotatifs niveau 1 (Bleu)
   INITIAL_ROTATING_LEVEL1_OBJECTS.forEach(obj => {
-    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
+    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState, extraObjects));
   });
 
   // Objets rotatifs niveau 2 (Rouge)
   INITIAL_ROTATING_LEVEL2_OBJECTS.forEach(obj => {
-    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
+    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState, extraObjects));
   });
     
   // Objets rotatifs niveau 3 (Jaune)
   INITIAL_ROTATING_LEVEL3_OBJECTS.forEach(obj => {
-    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
+    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState, extraObjects));
+  });
+
+  // Objets supplémentaires
+  extraObjects.forEach(obj => {
+    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState, extraObjects));
   });
   
   return positions;
@@ -419,9 +403,9 @@ export function getAllAbsolutePositions(rotationState: RotationState): Map<strin
 /**
  * Obtient toutes les cases du système solaire avec leur état
  */
-export function getAllCells(rotationState: RotationState): Map<string, SolarSystemCell> {
+export function getAllCells(rotationState: RotationState, extraObjects: CelestialObject[] = []): Map<string, SolarSystemCell> {
   const cells = new Map<string, SolarSystemCell>();
-  const positions = getAllAbsolutePositions(rotationState);
+  const positions = getAllAbsolutePositions(rotationState, extraObjects);
   
   // Parcourir tous les disques et secteurs
   const disks: DiskName[] = ['A', 'B', 'C', 'D', 'E'];
@@ -436,13 +420,13 @@ export function getAllCells(rotationState: RotationState): Map<string, SolarSyst
         hasAsteroid: false,
         hasComet: false,
         hasPlanet: false,
-        isVisible: checkVisibility(disk, sector, rotationState),
+        isVisible: checkVisibility(disk, sector, rotationState, extraObjects),
       };
       
       // Vérifier quels objets sont sur cette case
       positions.forEach((pos, objId) => {
         if (pos.disk === disk && pos.absoluteSector === sector && pos.isVisible) {
-          const obj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS]
+          const obj = getAllCelestialObjects(extraObjects)
             .find(o => o.id === objId);
           
           if (obj) {
@@ -489,10 +473,11 @@ export function calculateReachableCellsWithEnergy(
   energy: number,
   rotationState: RotationState,
   ignoreAsteroidPenalty: boolean = false,
-  getMediaBonus?: (cell: SolarSystemCell) => number
+  getMediaBonus?: (cell: SolarSystemCell) => number,
+  extraObjects: CelestialObject[] = []
 ): Map<string, { movements: number; path: string[]; media: number }> {
   const totalMovements = movements + energyToMovements(energy);
-  return calculateReachableCells(startDisk, startSector, totalMovements, rotationState, ignoreAsteroidPenalty, getMediaBonus);
+  return calculateReachableCells(startDisk, startSector, totalMovements, rotationState, ignoreAsteroidPenalty, getMediaBonus, extraObjects);
 }
 
 /**
@@ -509,10 +494,11 @@ export function calculateReachableCells(
   maxMovements: number,
   rotationState: RotationState,
   ignoreAsteroidPenalty: boolean = false,
-  getMediaBonus?: (cell: SolarSystemCell) => number
+  getMediaBonus?: (cell: SolarSystemCell) => number,
+  extraObjects: CelestialObject[] = []
 ): Map<string, { movements: number; path: string[]; media: number }> {
   const reachable = new Map<string, { movements: number; path: string[]; media: number }>();
-  const cells = getAllCells(rotationState);
+  const cells = getAllCells(rotationState, extraObjects);
   
   // File d'attente pour le parcours en largeur (BFS)
   const queue: Array<{ disk: DiskName; sector: SectorNumber; movements: number; path: string[]; media: number }> = [];
@@ -632,17 +618,18 @@ export function getObjectPosition(
   objectId: string,
   level1Angle: number,
   level2Angle: number,
-  level3Angle: number
+  level3Angle: number,
+  extraObjects: CelestialObject[] = []
 ): AbsolutePosition | null {
   const rotationState = createRotationState(level1Angle, level2Angle, level3Angle);
-  const allObjects = getAllCelestialObjects();
+  const allObjects = getAllCelestialObjects(extraObjects);
   const object = allObjects.find(obj => obj.id === objectId);
   
   if (!object) {
     return null;
   }
   
-  return calculateAbsolutePosition(object, rotationState);
+  return calculateAbsolutePosition(object, rotationState, extraObjects);
 }
 
 /**
@@ -651,10 +638,11 @@ export function getObjectPosition(
 export function getObjectsOnCell(
   disk: DiskName,
   sector: SectorNumber,
-  rotationState: RotationState
+  rotationState: RotationState,
+  extraObjects: CelestialObject[] = []
 ): CelestialObject[] {
-  const allObjects = getAllCelestialObjects();
-  const positions = getAllAbsolutePositions(rotationState);
+  const allObjects = getAllCelestialObjects(extraObjects);
+  const positions = getAllAbsolutePositions(rotationState, extraObjects);
   const objectsOnCell: CelestialObject[] = [];
   
   positions.forEach((pos, objId) => {
@@ -675,9 +663,10 @@ export function getObjectsOnCell(
 export function getCell(
   disk: DiskName,
   sector: SectorNumber,
-  rotationState: RotationState
+  rotationState: RotationState,
+  extraObjects: CelestialObject[] = []
 ): SolarSystemCell | null {
-  const cells = getAllCells(rotationState);
+  const cells = getAllCells(rotationState, extraObjects);
   return cells.get(`${disk}${sector}`) || null;
 }
 
@@ -788,7 +777,7 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
       updatedGame.board.solarSystem.rotationAngleLevel3 || 0
     );
 
-    const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
+    const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState, updatedGame.board.solarSystem.extraCelestialObjects || []);
     updatedGame = rotationResult.game;
 
     const diskLevel: Record<number, string> = { 1: 'Bleu', 2: 'Rouge', 3: 'Jaune' };

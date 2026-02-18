@@ -264,7 +264,7 @@ export class ResourceSystem {
 
           if (objectId) {
             const solarSystem = updatedGame.board.solarSystem;
-            const pos = getObjectPosition(objectId, solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
+            const pos = getObjectPosition(objectId, solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3, solarSystem.extraCelestialObjects);
             if (pos) {
               const sector = updatedGame.board.sectors[pos.absoluteSector - 1];
               if (sector) targetSectorId = sector.id;

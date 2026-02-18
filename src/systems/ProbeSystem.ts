@@ -78,7 +78,7 @@ export class ProbeSystem {
     // Calculer la position réelle absolue de la Terre
     let earthDisk: DiskName;
     let earthSector: SectorNumber;
-    const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
+    const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3, solarSystem.extraCelestialObjects);
     if (earthPos) {
       earthDisk = earthPos.disk;
       earthSector = earthPos.sector;
@@ -206,8 +206,8 @@ export class ProbeSystem {
       game.board.solarSystem.rotationAngleLevel3 || 0
     );
 
-    const absoluteSector = getAbsoluteSectorForProbe(probe.solarPosition, rotationState);
-    const currentCell = getCell(probe.solarPosition.disk, absoluteSector, rotationState);
+    const absoluteSector = getAbsoluteSectorForProbe(probe.solarPosition, rotationState); // getAbsoluteSectorForProbe doesn't use extraObjects
+    const currentCell = getCell(probe.solarPosition.disk, absoluteSector, rotationState, game.board.solarSystem.extraCelestialObjects);
     
     let stepCost = 1;
     
@@ -263,7 +263,7 @@ export class ProbeSystem {
     } else if (targetLevel === 1) {
       relativeSector = rotateSector(targetSector, -rotationState.level1Angle);
     }
-    const targetCell = getCell(targetDisk, targetSector, rotationState);
+    const targetCell = getCell(targetDisk, targetSector, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
 
     // Mettre à jour la position de la sonde
     probe.solarPosition = { disk: targetDisk, sector: relativeSector, level: targetLevel };
@@ -460,7 +460,8 @@ export class ProbeSystem {
           planetId,
           game.board.solarSystem.rotationAngleLevel1! || 0,
           game.board.solarSystem.rotationAngleLevel2! || 0,
-          game.board.solarSystem.rotationAngleLevel3! || 0
+          game.board.solarSystem.rotationAngleLevel3! || 0,
+          game.board.solarSystem.extraCelestialObjects
         );
         if (planetPos && 
             planetPos.disk === probe.solarPosition.disk && 
@@ -781,7 +782,8 @@ export class ProbeSystem {
   static updateProbesAfterRotation(
     game: Game,
     oldRotationState: RotationState,
-    newRotationState: RotationState
+    newRotationState: RotationState,
+    extraObjects: import('../core/types').CelestialObject[]
   ): { game: Game; logs: string[] } {
     const updatedGame = structuredClone(game);
     const logs: string[] = [];
@@ -818,7 +820,7 @@ export class ProbeSystem {
         if (pos.level === 1 && oldRotationState.level1Angle !== newRotationState.level1Angle) isRiding = true;
 
         if (isRiding) {
-          this.recalculateProbePosition(probe, oldRotationState, newRotationState);
+          this.recalculateProbePosition(probe, oldRotationState, newRotationState, extraObjects);
         } else {
           // La sonde ne tourne pas (ex: sur L0). Vérifier si elle est recouverte.
           let absoluteSector = pos.sector;
@@ -826,7 +828,7 @@ export class ProbeSystem {
           else if (pos.level === 2) absoluteSector = rotateSector(pos.sector, oldRotationState.level2Angle);
           else if (pos.level === 3) absoluteSector = rotateSector(pos.sector, oldRotationState.level3Angle);
           
-          const newVisibleLevel = getVisibleLevel(pos.disk, absoluteSector, newRotationState);
+          const newVisibleLevel = getVisibleLevel(pos.disk, absoluteSector, newRotationState, extraObjects);
           
           // Si recouverte par un niveau supérieur qui a bougé -> Poussée
           // Note: La hiérarchie visuelle est Level 3 (Haut) > Level 2 > Level 1 > Level 0 (Bas/Fixe)
@@ -839,7 +841,7 @@ export class ProbeSystem {
             const sectorIndex = (absoluteSector - 1 + pushDirection + 8) % 8;
             const newAbsoluteSector = (sectorIndex + 1) as SectorNumber;
             
-            const levelAtNewPos = getVisibleLevel(pos.disk, newAbsoluteSector, newRotationState);
+            const levelAtNewPos = getVisibleLevel(pos.disk, newAbsoluteSector, newRotationState, extraObjects);
             
             let newRelativeSector = newAbsoluteSector;
             if (levelAtNewPos === 3) newRelativeSector = rotateSector(newAbsoluteSector, -newRotationState.level3Angle);
@@ -847,7 +849,7 @@ export class ProbeSystem {
             else if (levelAtNewPos === 1) newRelativeSector = rotateSector(newAbsoluteSector, -newRotationState.level1Angle);
             
             // Vérifier gains média
-            const cell = getCell(pos.disk, newAbsoluteSector, newRotationState);
+            const cell = getCell(pos.disk, newAbsoluteSector, newRotationState, extraObjects);
             let mediaGain = 0;
             let objectName = "";
             if (cell) {
@@ -869,7 +871,7 @@ export class ProbeSystem {
                 level: levelAtNewPos
             };
           } else {
-            this.recalculateProbePosition(probe, oldRotationState, newRotationState);
+            this.recalculateProbePosition(probe, oldRotationState, newRotationState, extraObjects);
           }
         }
       }
@@ -888,7 +890,8 @@ export class ProbeSystem {
   private static recalculateProbePosition(
     probe: Probe,
     oldRotationState: RotationState,
-    newRotationState: RotationState
+    newRotationState: RotationState,
+    extraObjects: import('../core/types').CelestialObject[]
   ): void {
     const pos = probe.solarPosition!;
     let absoluteSector = pos.sector;
@@ -924,7 +927,7 @@ export class ProbeSystem {
     }
 
     // 2. Recalculer le niveau visible à cette position absolue (elle a peut-être été recouverte ou découverte)
-    const newLevel = getVisibleLevel(pos.disk, absoluteSector, newRotationState);
+    const newLevel = getVisibleLevel(pos.disk, absoluteSector, newRotationState, extraObjects);
 
     // 3. Recalculer le secteur relatif pour ce nouveau niveau
     let newRelativeSector = absoluteSector;

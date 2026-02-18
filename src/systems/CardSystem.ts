@@ -337,7 +337,7 @@ export class CardSystem {
                     const hasProbeOnAsteroid = player.probes.some(p => {
                         if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
                         const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
-                        const cell = getCell(p.solarPosition.disk, absSector, rotationState);
+                        const cell = getCell(p.solarPosition.disk, absSector, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
                         return cell?.hasAsteroid;
                     });
 
@@ -419,7 +419,7 @@ export class CardSystem {
                         updatedGame.board.solarSystem.rotationAngleLevel3 || 0
                     );
 
-                    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+                    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, updatedGame.board.solarSystem.extraCelestialObjects);
                     if (earthPos) {
                         let movementBonus = 0;
                         const allObjects = getAllCelestialObjects();
@@ -428,7 +428,7 @@ export class CardSystem {
                             if (obj.id === 'earth') return;
                             if (obj.type !== 'planet' && obj.type !== 'comet') return;
 
-                            const objPos = calculateAbsolutePosition(obj, rotationState);
+                            const objPos = calculateAbsolutePosition(obj, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
                             if (objPos.isVisible && objPos.disk === earthPos.disk && objPos.absoluteSector === earthPos.absoluteSector) {
                                 movementBonus++;
                             }
@@ -465,10 +465,10 @@ export class CardSystem {
                             },
                             level: (probe.solarPosition!.level || 0) as 0 | 1 | 2 | 3
                         };
-                        const absPos = calculateAbsolutePosition(tempObj, rotationState);
+                        const absPos = calculateAbsolutePosition(tempObj, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
 
                         // Check current cell: +2 data if on an asteroid field
-                        const currentCell = getCell(absPos.disk, absPos.absoluteSector, rotationState);
+                        const currentCell = getCell(absPos.disk, absPos.absoluteSector, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
                         if (currentCell && currentCell.hasAsteroid) {
                             currentProbeBonus += 2;
                         }
@@ -476,7 +476,7 @@ export class CardSystem {
                         // Check adjacent cells: +1 data for each adjacent asteroid field
                         const adjacentCellsInfo = getAdjacentCells(absPos.disk, absPos.absoluteSector);
                         adjacentCellsInfo.forEach(adj => {
-                            const adjCell = getCell(adj.disk, adj.sector, rotationState);
+                            const adjCell = getCell(adj.disk, adj.sector, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
                             if (adjCell && adjCell.hasAsteroid) {
                                 currentProbeBonus += 1;
                             }
@@ -981,7 +981,7 @@ export class CardSystem {
                 game.board.solarSystem.rotationAngleLevel2 || 0,
                 game.board.solarSystem.rotationAngleLevel3 || 0
             );
-            const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+            const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, game.board.solarSystem.extraCelestialObjects);
             if (earthPos) {
                 const reachable = calculateReachableCells(earthPos.disk, earthPos.absoluteSector, 100, rotationState, true);
                 const hasDeepProbe = player.probes.some(p => {
@@ -1004,7 +1004,7 @@ export class CardSystem {
             const hasProbeOnComet = player.probes.some(p => {
                 if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
                 const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
-                const cell = getCell(p.solarPosition.disk, absSector, rotationState);
+                const cell = getCell(p.solarPosition.disk, absSector, rotationState, game.board.solarSystem.extraCelestialObjects);
                 return cell?.hasComet;
             });
             if (hasProbeOnComet) return rewards;
@@ -1016,13 +1016,13 @@ export class CardSystem {
                 game.board.solarSystem.rotationAngleLevel2 || 0,
                 game.board.solarSystem.rotationAngleLevel3 || 0
             );
-            const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+            const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, game.board.solarSystem.extraCelestialObjects);
             if (earthPos) {
                 const adjacentCells = getAdjacentCells(earthPos.disk, earthPos.absoluteSector);
                 const hasProbe = player.probes.some(p => {
                     if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
                     const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
-                    const cell = getCell(p.solarPosition.disk, absSector, rotationState);
+                    const cell = getCell(p.solarPosition.disk, absSector, rotationState, game.board.solarSystem.extraCelestialObjects);
                     if (!cell?.hasAsteroid) return false;
                     
                     // Check adjacency to Earth

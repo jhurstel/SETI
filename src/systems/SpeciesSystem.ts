@@ -1,4 +1,4 @@
-import { Game, LifeTraceType, HistoryEntry, InteractionState } from '../core/types';
+import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType } from '../core/types';
 import { ResourceSystem } from './ResourceSystem';
 
 export type SpeciesDiscoveryCode = 'NO_MARKERS' | 'NO_SPACE' | 'PLACED' | 'DISCOVERED';
@@ -50,6 +50,17 @@ export class SpeciesSystem {
                         
                         const distResult = this.distributeDiscoveryCards(updatedGame, i);
                         updatedGame = distResult.updatedGame;
+
+                        // Ajout de l'astéroïde Oumuamua si l'espèce est découverte
+                        if (board.speciesId === AlienBoardType.OUMUAMUA) {
+                            if (!updatedGame.board.solarSystem.extraCelestialObjects) {
+                                updatedGame.board.solarSystem.extraCelestialObjects = [];
+                            }
+                            // Disque 1 (Level 1), 2 crans avant Jupiter (C5) -> C3
+                            // C3 est un creux, donc l'objet flottera au-dessus
+                            updatedGame.board.solarSystem.extraCelestialObjects.push({ id: 'oumuamua', type: 'planet', name: 'Oumuamua', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 });
+                            distResult.logs.push("L'astéroïde Oumuamua apparaît dans le système solaire !");
+                        }
 
                         return { 
                             updatedGame, 
@@ -103,6 +114,17 @@ export class SpeciesSystem {
             const distResult = this.distributeDiscoveryCards(updatedGame, boardIndex);
             updatedGame = distResult.updatedGame;
             discoveryLogs = distResult.logs;
+
+            // Ajout de la planète Oumuamua (astéroïde) si l'espèce est découverte
+            if (board.speciesId === AlienBoardType.OUMUAMUA) {
+                if (!updatedGame.board.solarSystem.extraCelestialObjects) {
+                    updatedGame.board.solarSystem.extraCelestialObjects = [];
+                }
+                // Disque 1 (Level 1), 2 crans avant Jupiter (C5) -> C3
+                // C3 est un creux, donc l'objet flottera au-dessus
+                updatedGame.board.solarSystem.extraCelestialObjects.push({ id: 'oumuamua', type: 'planet', name: 'Oumuamua', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 });
+                discoveryLogs.push("L'astéroïde Oumuamua apparaît dans le système solaire !");
+            }
         }
 
         // Calculer le bonus (1ère fois ou suivantes)

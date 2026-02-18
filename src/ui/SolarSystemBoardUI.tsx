@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, ProbeState, Bonus, GAME_CONSTANTS, SectorType, SignalType, InteractionState } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, ProbeState, Bonus, GAME_CONSTANTS, SectorType, SignalType, InteractionState, AlienBoardType } from '../core/types';
 import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, CelestialObject, getObjectPosition, getAbsoluteSectorForProbe, polarToCartesian, describeArc, sectorToIndex, indexToSector, calculateObjectPosition, getSectorType, SolarSystemCell } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -62,6 +62,13 @@ const PLANET_STYLES: { [key: string]: any } = {
     border: '2px solid #a08d6b',
     boxShadow: '0 0 3px rgba(140, 120, 83, 0.8)',
   },
+  'oumuamua': {
+    background: 'radial-gradient(circle at 40% 40%, #8d6e63, #5d4037, #3e2723)',
+    border: '1px solid #5d4037',
+    boxShadow: '0 0 2px rgba(0,0,0,0.8)',
+    borderRadius: '60% 40% 70% 30% / 50% 60% 40% 50%',
+    transform: 'translate(-20px, -50px) rotate(45deg) scale(2.8, 0.6)',
+  },
 };
 
 const PLANET_SIZES: { [key: string]: number } = {
@@ -73,6 +80,7 @@ const PLANET_SIZES: { [key: string]: number } = {
   'earth': 26,
   'venus': 24,
   'mercury': 20,
+  'oumuamua': 20,
 };
 
 const SATELLITE_STYLES: { [key: string]: string } = {
@@ -102,6 +110,16 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   // État pour gérer l'animation de retrait
   const [removingItem, setRemovingItem] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number } | null>(null);
   const processingRef = useRef(false);
+
+  // Helper pour récupérer les données d'une planète (y compris Oumuamua)
+  const getPlanetData = (planetId: string) => {
+    let planet = game.board.planets.find(p => p.id === planetId);
+    if (!planet && planetId === 'oumuamua') {
+      const species = game.species.find(s => s.name === AlienBoardType.OUMUAMUA);
+      if (species) planet = species.planet;
+    }
+    return planet;
+  };
 
   // Helper pour gérer le clic sur un slot (orbite ou atterrissage) avec animation de retrait si nécessaire
   const handleSlotClick = (
@@ -136,14 +154,14 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     if (!hoveredSlot || removingItem) return null;
     const { type, planetId, index } = hoveredSlot;
     
-    const planetData = game.board.planets.find(p => p.id === planetId);
+    const planetData = getPlanetData(planetId);
     if (!planetData) return null;
     
     const currentPlayer = game.players[game.currentPlayerIndex];
     const isRobot = currentPlayer.type === 'robot';
     
     // Trouver l'objet céleste pour vérifier la position de la sonde du joueur
-    const targetObj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS].find(o => o.id === planetId);
+    const targetObj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || [])].find(o => o.id === planetId);
     const playerProbe = targetObj && game.board.solarSystem.probes.find(p =>
       p.ownerId === currentPlayer.id &&
       p.state === ProbeState.IN_SOLAR_SYSTEM &&
@@ -277,7 +295,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           game.board.solarSystem.rotationAngleLevel2 || 0,
           game.board.solarSystem.rotationAngleLevel3 || 0
         );
-        const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
+        const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, game.board.solarSystem.extraCelestialObjects);
         if (earthPos) {
           return game.board.sectors.filter(s => Math.abs(parseInt(s.id.split('_')[1]) - earthPos.absoluteSector) <= 1 || Math.abs(parseInt(s.id.split('_')[1]) - earthPos.absoluteSector) === 7).map(s => s.id);
         }
@@ -289,7 +307,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     }
     if (interactionState.type === 'IDLE' && !currentPlayer.hasPerformedMainAction) {
       // Earth sector
-      const earthPos = getObjectPosition('earth', game.board.solarSystem.rotationAngleLevel1 || 0, game.board.solarSystem.rotationAngleLevel2 || 0, game.board.solarSystem.rotationAngleLevel3 || 0);
+      const earthPos = getObjectPosition('earth', game.board.solarSystem.rotationAngleLevel1 || 0, game.board.solarSystem.rotationAngleLevel2 || 0, game.board.solarSystem.rotationAngleLevel3 || 0, game.board.solarSystem.extraCelestialObjects);
       if (earthPos) {
         const sectors = [`sector_${earthPos.absoluteSector}`];
 
@@ -359,7 +377,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           },
           level: (probe.solarPosition.level || 0) as 0 | 1 | 2 | 3
         };
-        const absPos = calculateAbsolutePosition(tempObj, rotationState);
+        const absPos = calculateAbsolutePosition(tempObj, rotationState, game.board.solarSystem.extraCelestialObjects);
 
         const movementBonus = freeMovementCount;
 
@@ -382,7 +400,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           currentPlayer.energy,
           rotationState,
           ignoreAsteroidPenalty,
-          getMediaBonus
+          getMediaBonus,
+          game.board.solarSystem.extraCelestialObjects
         );
 
         // Retirer la case actuelle des cases accessibles
@@ -436,9 +455,13 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
     const currentPlayer = game.players[game.currentPlayerIndex];
 
-    switch (obj.type) {
+    // Special handling for Oumuamua which might be typed as asteroid but behaves like a planet with slots
+    const isOumuamua = obj.id === 'oumuamua';
+    const effectiveType = isOumuamua ? 'planet' : obj.type;
+
+    switch (effectiveType) {
       case 'planet': {
-        const planetData = game.board.planets.find(p => p.id === obj.id);
+        const planetData = getPlanetData(obj.id);
         if (planetData) {
           content = (
             <div style={{ minWidth: '350px' }}>
@@ -450,8 +473,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                   Visiter pour gagner 1 media
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px' }}>
-                {renderPlanetIcon(planetData.id, 220, planetData)}
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px', minHeight: '220px', alignItems: 'center' }}>
+                {renderPlanetIcon(planetData.id, planetData.id === 'oumuamua' ? 80 : 220, planetData)}
               </div>
             </div>
           );
@@ -505,9 +528,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         break;
     }
 
+    let rect = e.currentTarget.getBoundingClientRect();
     setActiveTooltip({
       content,
-      rect: e.currentTarget.getBoundingClientRect(),
+      rect,
       ...tooltipProps
     });
   };
@@ -569,8 +593,17 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   const renderRotationDisk = (obj: RotationDisk, zIndex: number = 30) => {
     // Le secteur est déjà relatif au plateau car on est dans un conteneur rotatif
     const relativeSector = indexToSector[obj.sectorIndex];
+
+    // Vérifier si un objet supplémentaire (comme Oumuamua) occupe cet emplacement
+    // Si oui, on considère le secteur comme normal (plein) même s'il était défini comme creux
+    const hasExtraObject = (game.board.solarSystem.extraCelestialObjects || []).some(extra => 
+        extra.level === obj.level && 
+        extra.position.disk === obj.diskName && 
+        extra.position.sector === relativeSector
+    );
+
     // Déterminer le type de secteur à partir de INITIAL_ROTATING_LEVEL1_OBJECTS
-    const sectorType = getSectorType(obj.level, obj.diskName, relativeSector);
+    const sectorType = hasExtraObject ? 'normal' : getSectorType(obj.level, obj.diskName, relativeSector);
     const sectorNumber = relativeSector; // Pour la clé et le debug
 
     // Utiliser l'index du secteur relatif pour calculer la position visuelle
@@ -735,12 +768,18 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
     const scale = size / 30;
 
+    // Custom transform for Oumuamua in tooltip
+    let customTransform = style.transform;
+    if (id === 'oumuamua') {
+        customTransform = 'translate(-40px, -40px) rotate(-30deg) scale(2.8, 0.6)';
+    }
+
     // Logique d'interaction (Orbite / Atterrissage)
     const currentPlayer = game.players[game.currentPlayerIndex];
     const isRobot = currentPlayer.type === 'robot';
 
     // Trouver l'objet céleste correspondant à l'ID de la planète pour vérifier la position
-    const targetObj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS].find(o => o.id === id);
+    const targetObj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || [])].find(o => o.id === id);
 
     // Vérifier si le joueur a une sonde sur cette planète
     const playerProbe = targetObj && game.board.solarSystem.probes.find(p =>
@@ -918,6 +957,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             background: style.background,
             border: style.border,
             boxShadow: style.boxShadow,
+            borderRadius: style.borderRadius || '50%',
+            transform: customTransform,
           }}
         >
           {style.hasBands && (
@@ -1224,7 +1265,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                       </div>
                     );
 
-                    const isFullSlot = i === 0 || (planetData.id === 'mars' && i === 1);
+                    const isFullSlot = i === 0 || (planetData.id === 'mars' && i === 1) || (planetData.Id === 'oumuamua' && i === 1) || (planetData.Id === 'oumuamua' && i === 2);
                     const showFullToken = isFullSlot || !!player;
                     
                     return (
@@ -1291,7 +1332,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const size = PLANET_SIZES[obj.id] || 24;
 
     // Check if planet has orbiters on it (dashed circle)
-    const planetData = game.board.planets.find(p => p.id === obj.id);
+    const planetData = getPlanetData(obj.id);
     const hasOrbiters = planetData && planetData.orbiters && planetData.orbiters.length > 0;
 
     // Check if user can interact with a planet where he has a probe (glow effect)
@@ -1307,7 +1348,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     let canInteract = false;
     
     if (interactionState.type === 'REMOVING_ORBITER') {
-        const planetData = game.board.planets.find(p => p.id === obj.id);
+        const planetData = getPlanetData(obj.id);
         if (planetData && planetData.orbiters.some(p => p.ownerId === currentPlayer.id)) {
             canInteract = true;
         }
@@ -1319,6 +1360,15 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         const canLand = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id).canLand;
         canInteract = canOrbit || canLand;
       }
+    }
+
+    // Handle transform separation for Oumuamua to avoid scaling slots
+    let containerTransform = style.transform;
+    let bodyTransform = undefined;
+    
+    if (obj.id === 'oumuamua') {
+        containerTransform = 'translate(-20px, -50px) rotate(45deg)';
+        bodyTransform = 'scale(2.8, 0.6)';
     }
 
     return (
@@ -1337,6 +1387,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           zIndex,
           pointerEvents: selectedProbeId ? 'none' : 'auto',
           filter: 'drop-shadow(0 0 1px rgba(255,255,255,0.4))',
+          transform: containerTransform,
         }}
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
@@ -1373,6 +1424,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             background: style.background,
             border: style.border,
             boxShadow: style.boxShadow,
+            borderRadius: style.borderRadius || '50%',
+            transform: bodyTransform,
           }}
         >
           {style.hasBands && (
@@ -2056,7 +2109,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                 .map((probe) => renderProbe(probe, 150))}
 
               {/* Objets célestes sur le plateau rotatif niveau 1 - basés sur INITIAL_ROTATING_LEVEL1_OBJECTS */}
-              {INITIAL_ROTATING_LEVEL1_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
+              {[...INITIAL_ROTATING_LEVEL1_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || []).filter(o => o.level === 1)].filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
                 if (obj.type === 'planet') {
                   return renderPlanet(obj, 3);
                 } else if (obj.type === 'comet') {
@@ -2113,7 +2166,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                 .map((probe) => renderProbe(probe, 150))}
 
               {/* Objets célestes sur le plateau rotatif niveau 2 - basés sur INITIAL_ROTATING_LEVEL2_OBJECTS */}
-              {INITIAL_ROTATING_LEVEL2_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
+              {[...INITIAL_ROTATING_LEVEL2_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || []).filter(o => o.level === 2)].filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
                 if (obj.type === 'planet') {
                   return renderPlanet(obj, 3);
                 } else if (obj.type === 'comet') {
@@ -2157,7 +2210,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               )}
 
               {/* Objets célestes sur le plateau rotatif niveau 3 - basés sur INITIAL_ROTATING_LEVEL3_OBJECTS */}
-              {INITIAL_ROTATING_LEVEL3_OBJECTS.filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
+              {[...INITIAL_ROTATING_LEVEL3_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || []).filter(o => o.level === 3)].filter(obj => obj.type !== 'hollow' && obj.type !== 'empty').map((obj) => {
                 if (obj.type === 'planet') {
                   return renderPlanet(obj, 3);
                 } else if (obj.type === 'comet') {
@@ -2220,7 +2273,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             const currentPlayer = game.players[game.currentPlayerIndex];
             // Trouver toutes les planètes où le joueur a une sonde
             const planetsWithProbes = new Set<string>();
-            const allObjects = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS];
+            const allObjects = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || [])];
 
             game.board.solarSystem.probes.forEach(p => {
               if (p.ownerId === currentPlayer.id && p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition) {
@@ -2238,7 +2291,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               const el = planetRefs.current.get(planetId);
               if (!el) return null;
               const rect = el.getBoundingClientRect();
-              const planetData = game.board.planets.find(p => p.id === planetId);
+              const planetData = getPlanetData(planetId);
               if (!planetData) return null;
 
               const content = (
@@ -2248,8 +2301,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                       {planetData.name}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px' }}>
-                    {renderPlanetIcon(planetData.id, 220, planetData)}
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px', minHeight: '220px', alignItems: 'center' }}>
+                    {renderPlanetIcon(planetData.id, planetData.id === 'oumuamua' ? 80 : 220, planetData)}
                   </div>
                 </div>
               );

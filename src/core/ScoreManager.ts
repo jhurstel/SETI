@@ -142,7 +142,7 @@ export class ScoreManager {
             const hasProbe = player.probes.some(p => {
               if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
               const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
-              const cell = getCell(p.solarPosition.disk, absSector, rotationState);
+              const cell = getCell(p.solarPosition.disk, absSector, rotationState, game.board.solarSystem.extraCelestialObjects);
               return cell?.hasAsteroid;
             });
             if (hasProbe) {

@@ -426,7 +426,7 @@ export class ScanSystem {
         newPendingInteractions.push(...res.newPendingInteractions);
       } else {
         const solarSystem = game.board.solarSystem;
-        const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
+        const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3, solarSystem.extraCelestialObjects);
         if (earthPos) {
           const earthSector = game.board.sectors[earthPos.absoluteSector - 1];
           if (hasObs1) {

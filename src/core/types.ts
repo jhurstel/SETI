@@ -143,6 +143,32 @@ export interface Position {
   y: number;
 }
 
+/**
+ * Position d'un objet céleste
+ */
+export interface CelestialPosition {
+  disk: DiskName; // A, B, C, D, ou E
+  sector: SectorNumber; // 1 à 8
+  x: number; // Position X en pourcentage (0-100)
+  y: number; // Position Y en pourcentage (0-100)
+}
+
+/**
+ * Type d'objet céleste
+ */
+export type CelestialObjectType = 'planet' | 'comet' | 'asteroid' | 'hollow' | 'empty';
+
+/**
+ * Objet céleste avec sa position relative
+ */
+export interface CelestialObject {
+  id: string;
+  type: CelestialObjectType;
+  name: string;
+  position: CelestialPosition;
+  level?: 0 | 1 | 2 | 3; // Niveau du plateau (0 = fixe, 1-3 = rotatif)
+}
+
 export interface GameLogEntry {
   id: string;
   message: string;
@@ -190,6 +216,7 @@ export interface Player {
   revenueCredits: number;
   energy: number;
   data: number;
+  tokens?: number;
   revenueEnergy: number;
   revenueCards: number;
   mediaCoverage: number;
@@ -239,6 +266,7 @@ export interface SolarSystem {
   rotationAngleLevel2: number; // Angle de rotation actuel du plateau niveau 2 (en degrés)
   rotationAngleLevel3: number; // Angle de rotation actuel du plateau niveau 3 (en degrés)
   nextRingLevel: number; // Prochain niveau à tourner (1, 2 ou 3)
+  extraCelestialObjects?: CelestialObject[];
 }
 
 export interface Probe {
@@ -395,6 +423,7 @@ export interface Species {
   };
   cards: Card[];
   discovered: boolean;
+  planet?: Planet;
 }
 
 export interface Planet {
@@ -406,6 +435,7 @@ export interface Planet {
   orbitNextBonus?: Bonus;
   landFirstBonus?: Bonus;
   landSecondBonus?: Bonus;
+  landThirdBonus?: Bonus;
   landNextBonus?: Bonus;
   orbitSlots: Bonus[];
   landSlots: Bonus[];

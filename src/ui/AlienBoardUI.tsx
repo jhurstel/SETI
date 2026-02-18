@@ -163,6 +163,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
         const traces = board.lifeTraces.filter(t => t.type === type);
         const isPlacing = interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === type;
         const color = type === LifeTraceType.RED ? '#ff6b6b' : type === LifeTraceType.YELLOW ? '#ffd700' : '#4a9eff';
+        const currentPlayer = game.players[game.currentPlayerIndex];
 
         return (
             <div className="alien-track-column">
@@ -203,6 +204,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                             const infTraceIndex = fixedSlots.length + idx;
                             const trace = traces[infTraceIndex];
                             const isBottom = reverseIdx === 2;
+                            const canAfford = !infiniteSlot?.token || infiniteSlot.token >= 0 || (currentPlayer.tokens || 0) >= Math.abs(infiniteSlot.token);
+                            const isNext = idx === traces.length - fixedSlots.length;
 
                             // Opacité diminue vers le haut (plus petit idx = plus haut)
                             const opacity = [0.35, 0.6, 1][reverseIdx];
@@ -210,23 +213,23 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                             return (
                                 <div
                                     key={`inf-corridor-${idx}`}
-                                    className={`alien-slot infinite ${isPlacing ? 'clickable' : ''}`}
+                                    className={`alien-slot infinite ${isPlacing && isNext && canAfford ? 'clickable' : ''}`}
                                     style={{
                                         borderColor: color,
                                         opacity: opacity,
                                         zIndex: 1,
-                                        backgroundColor: isBottom ? (isPlacing ? '#32373c' : '#14171a') : (trace ? getPlayerColor(trace.playerId) : color),
+                                        background: isBottom ? (isPlacing && isNext && canAfford ? '#32373c' : '#14171a') : (trace ? getPlayerColor(trace.playerId) : color),
                                         width: isBottom ? '28px' : '8px',
                                         height: isBottom ? '28px' : '8px',
                                         borderRadius: '50%',
                                         border: isBottom ? `2px solid ${color}` : 'none',
-                                        cursor: isPlacing ? 'pointer' : 'help',
-                                        boxShadow: isPlacing && isBottom ? `0 0 8px ${color}` : undefined,
-                                        transition: 'all 0.15s'
+                                        cursor: isPlacing && isNext && canAfford ? 'pointer' : 'help',
+                                        boxShadow: isPlacing && isBottom && isNext && canAfford ? `0 0 8px ${color}` : undefined,
+                                        transition: 'box-shadow 0.15s'
                                     }}
                                     onClick={() =>
                                         isPlacing &&
-                                        idx === traces.length - fixedSlots.length &&
+                                        isNext && canAfford &&
                                         onPlaceLifeTrace(boardIndex, type)
                                     }
                                     onMouseEnter={(e) => {
@@ -244,10 +247,15 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                             const rect = e.currentTarget.getBoundingClientRect();
                                             let statusText = '';
                                             let statusColor = '';
+                                            let actiontext = '';
                                             if (trace) {
                                                 const player = game.players.find((p) => p.id === trace.playerId);
                                                 statusText = `Occupé par ${player?.name || 'Inconnu'}`;
                                                 statusColor = player?.color || '#ccc';
+                                            } else if (!canAfford) {
+                                                statusText = 'Indisponible';
+                                                statusColor = '#ff6b6b';
+                                                actiontext = "Nécessite d'avoir suffisamment de tokens";
                                             } else {
                                                 statusText = 'Disponible';
                                                 statusColor = '#4a9eff';
@@ -275,6 +283,11 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                                                 {parts.length > 0 ? parts.join(', ') : 'Aucun'}
                                                             </span>
                                                         </div>
+                                                        {actiontext && (
+                                                            <div style={{ fontSize: '0.9em', color: '#ff6b6b' }}>
+                                                                {actiontext}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 ),
                                                 rect,
@@ -317,13 +330,15 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                         const index = fixedSlots.length - reverseIndex;
                         const trace = traces[index];
                         const isFilled = !!trace;
+                        const canAfford = !bonus?.token || bonus.token >= 0 || (currentPlayer.tokens || 0) >= Math.abs(bonus.token);
+                        const isClickable = isPlacing && canAfford;
 
                         return (
                             <div
                                 key={`fixed-${index}`}
-                                className={`alien-slot fixed ${isFilled ? 'filled' : ''} ${isPlacing ? 'clickable' : ''}`}
-                                onClick={() => isPlacing && onPlaceLifeTrace(boardIndex, type)}
-                                style={{ borderColor: color, boxShadow: isPlacing ? `0 0 8px ${color}` : 'none' }}
+                                className={`alien-slot fixed ${isFilled ? 'filled' : ''} ${isClickable ? 'clickable' : ''}`}
+                                onClick={() => isClickable && onPlaceLifeTrace(boardIndex, type)}
+                                style={{ borderColor: color, boxShadow: isClickable ? `0 0 8px ${color}` : 'none' }}
                                 onMouseEnter={(e) => {
                                     if (bonus) {
                                         const rect = e.currentTarget.getBoundingClientRect();
@@ -339,10 +354,15 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                         
                                         let statusText = "";
                                         let statusColor = "";
+                                        let actiontext = "";
                                         if (isFilled) {
                                             const player = game.players.find(p => p.id === trace.playerId);
                                             statusText = `Occupé par ${player?.name || 'Inconnu'}`;
                                             statusColor = player?.color || '#ccc';
+                                        } else if (!canAfford) {
+                                            statusText = "Indisponible";
+                                            statusColor = "#ff6b6b";
+                                            actiontext = "Nécessite d'avoir suffisamment de tokens";
                                         } else {
                                             statusText = "Disponible";
                                             statusColor = "#4a9eff";
@@ -356,6 +376,9 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                                 </div>
                                             )}
                                             <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus: <span style={{ color: '#ffd700' }}>{parts.length > 0 ? parts.join(', ') : 'Aucun'}</span></div>
+                                            {actiontext && (
+                                                <div style={{ fontSize: '0.9em', color: '#ff6b6b' }}>{actiontext}</div>
+                                            )}
                                         </div>, rect });
                                     }
                                 }}
@@ -365,7 +388,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                     <div className="alien-marker" style={{ backgroundColor: getPlayerColor(trace.playerId) }} />
                                 ) : (
                                     <div
-                                        className={`alien-bonus-circle${isPlacing ? ' clickable' : ''}`}
+                                        className={`alien-bonus-circle${isClickable ? ' clickable' : ''}`}
                                         style={{
                                             width: '28px',
                                             height: '28px',
@@ -374,9 +397,9 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            background: isPlacing ? '#32373c' : '#14171a',
-                                            cursor: isPlacing ? 'pointer' : 'help',
-                                            boxShadow: isPlacing ? `0 0 8px ${color}` : undefined,
+                                            background: isClickable ? '#32373c' : '#14171a',
+                                            cursor: isClickable ? 'pointer' : 'help',
+                                            boxShadow: isClickable ? `0 0 8px ${color}` : undefined,
                                             transition: 'box-shadow 0.15s'
                                         }}
                                     >
