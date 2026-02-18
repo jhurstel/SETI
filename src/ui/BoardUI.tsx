@@ -1860,21 +1860,19 @@ export const BoardUI: React.FC = () => {
   };
 
   // Gestionnaire pour le clic sur une trace de vie
-  const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType) => {
+  const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType, slotType: 'triangle' | 'species', slotIndex?: number) => {
     if (!game) return;
     if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
     if (interactionState.color !== color) return;
 
     // Utiliser le playerId de l'interaction s'il est défini (cas du bonus hors tour), sinon le joueur actif
     const targetPlayerId = interactionState.playerId || game.players[game.currentPlayerIndex].id;
-    const board = game.board.alienBoards[boardIndex];
-    if (!board) return;
 
     // Create sequence id
     const sequenceId = interactionState.sequenceId || `trace-${Date.now()}`;
 
     // Utilisation de SpeciesSystem pour placer la trace
-    const { updatedGame, isDiscovered, historyEntries, newPendingInteractions } = SpeciesSystem.placeLifeTrace(game, boardIndex, color, targetPlayerId, sequenceId);
+    const { updatedGame, isDiscovered, historyEntries, newPendingInteractions } = SpeciesSystem.placeLifeTrace(game, boardIndex, color, targetPlayerId, sequenceId, slotType, slotIndex);
 
     historyEntries.forEach((entry, index) => addToHistory(entry.message, entry.playerId, index === 0 ? game : undefined, undefined, sequenceId));
 

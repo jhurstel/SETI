@@ -338,7 +338,9 @@ export interface AlienBoard {
 export interface LifeTrace {
   id: string;
   type: LifeTraceType;
-  playerId: string
+  playerId: string;
+  location?: 'triangle' | 'species';
+  slotIndex?: number;
 }
 
 export interface ObjectiveTile {
@@ -459,6 +461,7 @@ export interface Bonus {
   signals?: { amount: number, scope: SectorType }[];
   scan?: number;
   card?: number;
+  speciesCard?: number;
   anycard?: number;
   lifetraces?: { amount: number, scope: LifeTraceType }[];
   revenue?: number;

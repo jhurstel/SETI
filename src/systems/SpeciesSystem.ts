@@ -1,4 +1,4 @@
-import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType } from '../core/types';
+import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus } from '../core/types';
 import { ResourceSystem } from './ResourceSystem';
 
 export type SpeciesDiscoveryCode = 'NO_MARKERS' | 'NO_SPACE' | 'PLACED' | 'DISCOVERED';
@@ -81,9 +81,9 @@ export class SpeciesSystem {
     /**
     * Place une trace de vie sur un plateau Alien et gère la découverte d'espèce
     */
-    static placeLifeTrace(game: Game, boardIndex: number, color: LifeTraceType, playerId: string, sequenceId: string = ''): { 
+    static placeLifeTrace(game: Game, boardIndex: number, color: LifeTraceType, playerId: string, sequenceId: string = '', slotType: 'triangle' | 'species', slotIndex?: number): { 
         updatedGame: Game; 
-        isDiscovered: boolean; 
+        isDiscovered: boolean;
         speciesId?: string;
         historyEntries: HistoryEntry[];
         newPendingInteractions: InteractionState[];
@@ -91,31 +91,105 @@ export class SpeciesSystem {
         let updatedGame = structuredClone(game);
         const board = updatedGame.board.alienBoards[boardIndex];
         
-        if (!board) {
-            throw new Error(`Alien board ${boardIndex} not found`);
+        const player = updatedGame.players.find(p => p.id === playerId);
+        
+        if (!board || !player) {
+            // Should not happen if called correctly
+            return { updatedGame: game, isDiscovered: false, historyEntries: [], newPendingInteractions: [] };
         }
 
-        // Ajouter la trace
+        const species = updatedGame.species.find(s => s.name === board.speciesId);
+
+        let bonusToApply: Bonus = {};
+        let costText = '';
+
+        if (slotType === 'triangle') {
+            // Le joueur a cliqué sur le triangle. On compte combien de ses traces y sont déjà.
+            // On inclut `location === undefined` pour la compatibilité avec les anciennes données de sauvegarde.
+            const tracesOnTriangle = board.lifeTraces.filter(t => t.playerId === playerId && t.type === color && (t.location === 'triangle' || t.location === undefined)).length;
+            if (tracesOnTriangle === 0) {
+                bonusToApply = board.firstBonus;
+            } else {
+                bonusToApply = board.nextBonus;
+            }
+        } else { // slotType === 'species'
+            if (!board.isDiscovered || !species) {
+                return { updatedGame: game, isDiscovered: false, historyEntries: [{ message: "Impossible de placer sur la piste d'espèce avant sa découverte.", playerId, sequenceId }], newPendingInteractions: [] };
+            }
+
+            let trackIndex = 0;
+            if (slotIndex !== undefined) {
+                trackIndex = slotIndex;
+            } else {
+                // Fallback (ne devrait pas arriver avec la nouvelle UI)
+                const tracesOnSpeciesTrack = board.lifeTraces.filter(t => t.playerId === playerId && t.type === color && t.location === 'species').length;
+                trackIndex = tracesOnSpeciesTrack;
+            }
+
+            const isOccupied = board.lifeTraces.some(t => t.type === color && t.location === 'species' && t.slotIndex === trackIndex);
+            if (isOccupied) {
+                return { updatedGame: game, isDiscovered: false, historyEntries: [{ message: "Emplacement déjà occupé.", playerId, sequenceId }], newPendingInteractions: [] };
+            }
+            
+            // Déterminer le bonus en fonction de l'index sur la piste
+            const { fixedSlots, infiniteSlots } = species;
+            const trackSlots = (color === LifeTraceType.RED) ? fixedSlots.redlifetrace : (color === LifeTraceType.YELLOW) ? fixedSlots.yellowlifetrace : fixedSlots.bluelifetrace;
+            const infiniteSlot = (color === LifeTraceType.RED) ? infiniteSlots.redlifetrace : (color === LifeTraceType.YELLOW) ? infiniteSlots.yellowlifetrace : infiniteSlots.bluelifetrace;
+            const fixedSlotCount = trackSlots.length;
+
+            if (trackIndex < fixedSlotCount) {
+                bonusToApply = trackSlots[trackIndex];
+            } else {
+                bonusToApply = infiniteSlot;
+            }
+        }
+        console.log(bonusToApply);
+        // Handle costs
+        if (typeof bonusToApply.token === 'number' && bonusToApply.token < 0) {
+            const cost = Math.abs(bonusToApply.token);
+            if ((player.tokens || 0) < cost) {
+                return { 
+                    updatedGame: game, 
+                    isDiscovered: false, 
+                    historyEntries: [{ message: `Pas assez de tokens pour placer la trace.`, playerId, sequenceId }],
+                    newPendingInteractions: [] 
+                };
+            }
+            player.tokens = (player.tokens || 0) - cost;
+            costText = ` et paye ${cost} token${cost > 1 ? 's' : ''}`;
+        }
+
+        // Add the trace to the board and the player
         board.lifeTraces.push({ 
             id: `trace-${Date.now()}`, 
             type: color, 
-            playerId: playerId 
+            playerId: playerId,
+            location: slotType,
+            slotIndex: slotType === 'species' ? (slotIndex !== undefined ? slotIndex : 0) : undefined
+        });
+        player.lifeTraces.push({
+            id: `player-trace-${Date.now()}`,
+            type: color,
+            playerId: playerId,
+            location: slotType,
+            slotIndex: slotType === 'species' ? (slotIndex !== undefined ? slotIndex : 0) : undefined
         });
 
-        // Vérifier découverte espèce (si on a les 3 couleurs et pas encore d'espèce)
+        // Check for species discovery
         const traces = board.lifeTraces;
         const hasRed = traces.some(t => t.type === LifeTraceType.RED);
         const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
         const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
 
         let discoveryLogs: string[] = [];
+        let wasDiscoveredThisTurn = false;
         if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
+            wasDiscoveredThisTurn = true;
             board.isDiscovered = true;
             const distResult = this.distributeDiscoveryCards(updatedGame, boardIndex);
             updatedGame = distResult.updatedGame;
             discoveryLogs = distResult.logs;
 
-            // Ajout de la planète Oumuamua (astéroïde) si l'espèce est découverte
             if (board.speciesId === AlienBoardType.OUMUAMUA) {
                 if (!updatedGame.board.solarSystem.extraCelestialObjects) {
                     updatedGame.board.solarSystem.extraCelestialObjects = [];
@@ -127,17 +201,12 @@ export class SpeciesSystem {
             }
         }
 
-        // Calculer le bonus (1ère fois ou suivantes)
-        const track = traces.filter(t => t.type === color);
-        const isFirst = track.length === 1;
-        const bonus = isFirst ? board.firstBonus : board.nextBonus;
-
         // Process bonuses
-        const res = ResourceSystem.processBonuses(bonus, updatedGame, playerId, 'lifetrace', sequenceId);
+        const res = ResourceSystem.processBonuses(bonusToApply, updatedGame, playerId, 'lifetrace', sequenceId, species?.id);
         updatedGame = res.updatedGame;
 
-        const orderText = (boardIndex === 0) ? "gauche" : " droit";
-        let mainLog = `place une trace de vie ${color} sur le plateau Alien ${orderText}`;
+        const boardSideText = (boardIndex === 0) ? "gauche" : "droit";
+        let mainLog = `place une trace de vie ${color} sur le plateau Alien ${boardSideText}${costText}`;
         if (res.logs.length > 0) {
             mainLog += ` et ${res.logs.join(' et ')}`;
         }
@@ -149,7 +218,7 @@ export class SpeciesSystem {
 
         return { 
             updatedGame, 
-            isDiscovered: board.isDiscovered,
+            isDiscovered: wasDiscoveredThisTurn,
             speciesId: board.speciesId,
             historyEntries: res.historyEntries,
             newPendingInteractions: res.newPendingInteractions

@@ -19,6 +19,7 @@ export class ResourceSystem {
     else if (key === 'CARD' || key === 'CARDS' || key === 'CARTES') label = `Carte${plural}`;
     else if (key === 'PROBE' || key === 'PROBES' || key === 'SONDE') label = `Sonde${plural}`;
     else if (key === 'LANDING' || key === 'LANDINGS') label = `Atterrissage${plural}`;
+    else if (key === 'TOKEN' || key === 'TOKENS') label = `Token${plural}`;
     else if (key === 'REVENUE' || key === 'REVENUES') label = `Réservation${plural}`;
     
     return `${amount} ${label}`;
@@ -33,6 +34,7 @@ export class ResourceSystem {
     if (bonus.credits) items.push(`${bonus.credits} Crédit`);
     if (bonus.energy) items.push(`${bonus.energy} Énergie`);
     if (bonus.card) items.push(`${bonus.card} Pioche`);
+    if (bonus.speciesCard) items.push(`${bonus.speciesCard} Carte Alien`);
     if (bonus.data) items.push(`${bonus.data} Donnée`);
 
     if (bonus.signals) {
@@ -61,6 +63,7 @@ export class ResourceSystem {
     if (bonus.probe) items.push(`${bonus.probe} Sonde`);
     if (bonus.landing) items.push(`${bonus.landing} Atterrisseur`);
     if (bonus.movements) items.push(`${bonus.movements} Déplacement`);
+    if (bonus.token && bonus.token > 0) items.push(`${bonus.token} Token`);
 
     return items;
   };
@@ -156,7 +159,7 @@ export class ResourceSystem {
   }
 
   // Helper pour traiter les bonus
-  static processBonuses(bonuses: Bonus, currentGame: Game, playerId: string, sourceId: string, sequenceId: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[], historyEntries: HistoryEntry[] }
+  static processBonuses(bonuses: Bonus, currentGame: Game, playerId: string, sourceId: string, sequenceId: string, speciesId?: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[], historyEntries: HistoryEntry[] }
   {
     let updatedGame = currentGame;
     const newPendingInteractions: InteractionState[] = [];
@@ -175,6 +178,7 @@ export class ResourceSystem {
         if (bonuses.energy) player.energy += bonuses.energy;
         if (bonuses.media) player.mediaCoverage = Math.min(player.mediaCoverage + bonuses.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
         if (bonuses.data) player.data = Math.min(player.data + bonuses.data, GAME_CONSTANTS.MAX_DATA);
+        if (bonuses.token && bonuses.token > 0) player.tokens = (player.tokens || 0) + bonuses.token;
     }
 
     // Gains passifs pour le résumé (déjà effectué dans CardSystem)
@@ -185,6 +189,7 @@ export class ResourceSystem {
     if (bonuses.pv) { const txt = ResourceSystem.formatResource(bonuses.pv, 'PV'); passiveGains.push(txt); }
     if (bonuses.probe) { const txt = ResourceSystem.formatResource(bonuses.probe, 'PROBE'); passiveGains.push(txt); }
     if (bonuses.landing) { const txt = ResourceSystem.formatResource(bonuses.landing, 'LANDING'); passiveGains.push(txt); }
+    if (bonuses.token && bonuses.token > 0) { const txt = ResourceSystem.formatResource(bonuses.token, 'TOKEN'); passiveGains.push(txt); }
     if (bonuses.revenue) { const txt = ResourceSystem.formatResource(bonuses.revenue, 'REVENUE'); passiveGains.push(txt); }
     const gainsText = passiveGains.length > 0 ? `${passiveGains.join(', ')}` : '';
     if (gainsText) logs.push(`gagne ${gainsText}`);
@@ -228,6 +233,21 @@ export class ResourceSystem {
           logs.push(`ne peut pas lancer de sonde (limite atteinte)`);
         }
       }
+    }
+    if (bonuses.speciesCard) {
+        const species = updatedGame.species.find(s => s.id === speciesId);
+        if (species) {
+            for (let i = 0; i < bonuses.speciesCard; i++) {
+                if (species.cards.length > 0) {
+                    const card = species.cards.shift();
+                    if (card) {
+                        const player = updatedGame.players.find(p => p.id === playerId);
+                        if (player) player.cards.push(card);
+                        logs.push(`pioche la carte Alien "${card.name}"`);
+                    }
+                }
+            }
+        }
     }
 
     // Effets interactifs (File d'attente)

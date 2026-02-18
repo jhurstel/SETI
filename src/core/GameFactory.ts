@@ -1031,9 +1031,9 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         id: `species-${Date.now()}`,
         name: AlienBoardType.ANOMALIES,
         fixedSlots: {
-          redlifetrace: [{ pv: 4, card: 1 }, { pv: 2, card: 1 }, { pv: 2, media: 1 }, { pv: 3 }],
-          yellowlifetrace: [{ pv: 4, card: 1 }, { pv: 2, card: 1 }, { pv: 2, media: 1 }, { pv: 3 }],
-          bluelifetrace: [{ pv: 4, card: 1 }, { pv: 2, card: 1 }, { pv: 2, media: 1 }, { pv: 3 }]
+          redlifetrace: [{ pv: 4, speciesCard: 1 }, { pv: 2, speciesCard: 1 }, { pv: 2, media: 1 }, { pv: 3 }],
+          yellowlifetrace: [{ pv: 4, speciesCard: 1 }, { pv: 2, speciesCard: 1 }, { pv: 2, media: 1 }, { pv: 3 }],
+          bluelifetrace: [{ pv: 4, speciesCard: 1 }, { pv: 2, speciesCard: 1 }, { pv: 2, media: 1 }, { pv: 3 }]
         },
         infiniteSlots: {
           redlifetrace: { pv: 2},
@@ -1047,9 +1047,9 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         id: `species-${Date.now()}`,
         name: AlienBoardType.OUMUAMUA,
         fixedSlots: {
-          redlifetrace: [{ pv: 25, token: -4 }, { pv: 3, card: 1, token: 1 }, { pv: 3, card: 1 }, { pv: 2, token: 1 }],
-          yellowlifetrace: [{ pv: 25, token: -4 }, { pv: 3, card: 1, token: 1 }, { pv: 3, card: 1 }, { pv: 2, token: 1 }],
-          bluelifetrace: [{ pv: 25, token: -4 }, { pv: 3, card: 1, token: 1 }, { pv: 3, card: 1 }, { pv: 2, token: 1 }]
+          redlifetrace: [{ pv: 25, token: -4 }, { pv: 3, speciesCard: 1, token: 1 }, { pv: 3, speciesCard: 1 }, { pv: 2, token: 1 }],
+          yellowlifetrace: [{ pv: 25, token: -4 }, { pv: 3, speciesCard: 1, token: 1 }, { pv: 3, speciesCard: 1 }, { pv: 2, token: 1 }],
+          bluelifetrace: [{ pv: 25, token: -4 }, { pv: 3, speciesCard: 1, token: 1 }, { pv: 3, speciesCard: 1 }, { pv: 2, token: 1 }]
         },
         infiniteSlots: {
           redlifetrace: { pv: 6, token: -1},
@@ -1078,9 +1078,9 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         id: `species-${Date.now()}`,
         name: AlienBoardType.CENTAURIENS,
         fixedSlots: {
-          redlifetrace: [{ pv: 5, card: 1 }, { pv: 3, card: 1 }, { pv: 5 }, { pv: 15, data: -3 }],
-          yellowlifetrace: [{ pv: 5, card: 1 }, { pv: 3, card: 1 }, { pv: 5 }, { pv: 15, data: -3 }],
-          bluelifetrace: [{ pv: 5, card: 1 }, { pv: 3, card: 1 }, { pv: 5 }, { pv: 15, data: -3 }]
+          redlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 15, data: -3 }],
+          yellowlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 15, data: -3 }],
+          bluelifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 15, data: -3 }]
         },
         infiniteSlots: {
           redlifetrace: { pv: 6, data: -1},
@@ -1110,9 +1110,9 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         id: `species-${Date.now()}`,
         name: AlienBoardType.MASCAMITES,
         fixedSlots: {
-          redlifetrace: [{ pv: 5, card: 1 }, { pv: 3, card: 1 }, { pv: 5 }, { pv: 4 }],
-          yellowlifetrace: [{ pv: 5, card: 1 }, { pv: 3, card: 1 }, { pv: 5 }, { pv: 4 }],
-          bluelifetrace: [{ pv: 5, card: 1 }, { pv: 3, card: 1 }, {}, {}, {}, {}]
+          redlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 4 }],
+          yellowlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 4 }],
+          bluelifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, {}, {}, {}, {}]
         },
         infiniteSlots: {
           redlifetrace: {},
