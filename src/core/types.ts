@@ -87,6 +87,7 @@ export enum SectorType {
   PROCYON = "Procyon",
   VEGA = "Vega",
   PICTORIS = "Beta Pictoris",
+  OUMUAMUA = "Oumuamua",
   ANY = "N'importe quelle couleur"
 }
 
@@ -424,6 +425,7 @@ export interface Species {
     bluelifetrace: Bonus,
   };
   cards: Card[];
+  cardRow: Card[];
   discovered: boolean;
   planet?: Planet;
 }
@@ -599,7 +601,9 @@ export type InteractionState =
   /** Le joueur doit piocher une carte et scanner son secteur (Bonus Deck). */
   | { type: 'DRAW_AND_SCAN', count: number, sequenceId?: string }
   /** Le joueur valide une condition de mission. */
-  | { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: string, requirementId: string, sequenceId?: string };
+  | { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: string, requirementId: string, sequenceId?: string }
+  /** Le joueur acquiert une carte Alien (bonus) et doit la sélectionner dans la pioche ou la rangée de l'espèce. */
+  | { type: 'ACQUIRING_ALIEN_CARD', count: number, speciesId: string, sequenceId?: string };
 
 // ============================================================================
 // SCORING

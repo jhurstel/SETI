@@ -235,18 +235,8 @@ export class ResourceSystem {
       }
     }
     if (bonuses.speciesCard) {
-        const species = updatedGame.species.find(s => s.id === speciesId);
-        if (species) {
-            for (let i = 0; i < bonuses.speciesCard; i++) {
-                if (species.cards.length > 0) {
-                    const card = species.cards.shift();
-                    if (card) {
-                        const player = updatedGame.players.find(p => p.id === playerId);
-                        if (player) player.cards.push(card);
-                        logs.push(`pioche la carte Alien "${card.name}"`);
-                    }
-                }
-            }
+        if (speciesId) {
+             newPendingInteractions.push({ type: 'ACQUIRING_ALIEN_CARD', count: bonuses.speciesCard, speciesId, sequenceId });
         }
     }
 

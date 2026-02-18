@@ -60,6 +60,7 @@ const getInteractionLabel = (state: InteractionState): string => {
     case 'RESOLVING_SECTOR': return `Résolution du secteur complété...`;
     case 'DRAW_AND_SCAN': return `Pioche d'une carte pour signal...`;
     case 'CLAIMING_MISSION_REQUIREMENT': return `Validation d'une mission...`;
+    case 'ACQUIRING_ALIEN_CARD': return `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''} Alien (Pioche ou Rangée).`;
     default: return "Action inconnue";
   }
 };
@@ -416,7 +417,8 @@ export const BoardUI: React.FC = () => {
             // Résoudre automatiquement les interactions IA simples (ex: placer trace de vie) pour ne pas bloquer
             aiInteractions.forEach(interaction => {
                 if (interaction.type === 'PLACING_LIFE_TRACE' && interaction.playerId) {
-                     const { updatedGame: ug, isDiscovered, historyEntries } = SpeciesSystem.placeLifeTrace(updatedGame, 0, interaction.color, interaction.playerId, sequenceId);
+                     const slotType = Math.random() < 0.5 ? 'triangle' : 'species';
+                     const { updatedGame: ug, isDiscovered, historyEntries } = SpeciesSystem.placeLifeTrace(updatedGame, 0, interaction.color, interaction.playerId, sequenceId, slotType);
                      updatedGame = ug;
                      historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, sequenceId));
                      if (isDiscovered) {
@@ -692,7 +694,8 @@ export const BoardUI: React.FC = () => {
                         addToHistory(coverageLogs.join(', '), coverageResult.winnerId || currentPlayer.id, aiGame, undefined, sequenceId);
                     }
                 } else if (interaction.type === 'PLACING_LIFE_TRACE') {
-                     const { updatedGame, isDiscovered, historyEntries, newPendingInteractions } = SpeciesSystem.placeLifeTrace(aiGame, 0, interaction.color, currentPlayer.id, sequenceId);
+                     const slotType = Math.random() < 0.5 ? 'triangle' : 'species';
+                     const { updatedGame, isDiscovered, historyEntries, newPendingInteractions } = SpeciesSystem.placeLifeTrace(aiGame, 0, interaction.color, currentPlayer.id, sequenceId, slotType);
                      
                      historyEntries.forEach((e, index) => addToHistory(e.message, e.playerId, index === 0 ? aiGame : undefined, undefined, sequenceId));
 
@@ -911,7 +914,8 @@ export const BoardUI: React.FC = () => {
                 const sequenceId = `ai-analyze-${Date.now()}`;
 
                 addToHistory(`paye ${ResourceSystem.formatResource(1, 'ENERGY')} pour <strong>Analyser les données</strong>`, currentPlayer.id, game, undefined, sequenceId);
-                const res = SpeciesSystem.placeLifeTrace(aiGame, 0, LifeTraceType.BLUE, currentPlayer.id, sequenceId);
+                const slotType = Math.random() < 0.5 ? 'triangle' : 'species';
+                const res = SpeciesSystem.placeLifeTrace(aiGame, 0, LifeTraceType.BLUE, currentPlayer.id, sequenceId, slotType);
                 res.historyEntries.forEach((e, index) => addToHistory(e.message, e.playerId, index === 0 ? aiGame : undefined, undefined, sequenceId));
 
                 if (res.isDiscovered) {
@@ -1887,6 +1891,35 @@ export const BoardUI: React.FC = () => {
 
     if (!handleNewInteractions(newPendingInteractions, sequenceId)) {
       setInteractionState({ type: 'IDLE' });
+    }
+  };
+
+  // Gestionnaire pour le clic sur une carte Alien
+  const handleSpeciesCardClick = (speciesId: string, cardId: string) => {
+    if (!game) return;
+    console.log(cardId);
+    if (interactionState.type === 'ACQUIRING_ALIEN_CARD') {
+        if (interactionState.speciesId !== speciesId) {
+            setToast({ message: "Vous devez choisir une carte de l'espèce active.", visible: true });
+            return;
+        }
+
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        const { updatedGame, drawnCard } = SpeciesSystem.acquireAlienCard(game, currentPlayer.id, speciesId, cardId);
+        
+        if (drawnCard) {
+            setGame(updatedGame);
+            if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+            
+            const source = cardId === 'deck' ? "de la pioche" : "de la rangée";
+            addToHistory(`acquiert la carte Alien "${drawnCard.name}" ${source}`, currentPlayer.id, game, undefined, interactionState.sequenceId);
+
+            if (interactionState.count > 1) {
+                setInteractionState({ ...interactionState, count: interactionState.count - 1 });
+            } else {
+                setInteractionState({ type: 'IDLE' });
+            }
+        }
     }
   };
 
@@ -3349,6 +3382,7 @@ export const BoardUI: React.FC = () => {
             boardIndex={0}
             interactionState={interactionState}
             onPlaceLifeTrace={handlePlaceLifeTrace}
+            onSpeciesCardClick={handleSpeciesCardClick}
             setActiveTooltip={setActiveTooltip}
           />
 
@@ -3358,6 +3392,7 @@ export const BoardUI: React.FC = () => {
             boardIndex={1}
             interactionState={interactionState}
             onPlaceLifeTrace={handlePlaceLifeTrace}
+            onSpeciesCardClick={handleSpeciesCardClick}
             setActiveTooltip={setActiveTooltip}
           />
         </div>

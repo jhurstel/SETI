@@ -1041,6 +1041,7 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
           bluelifetrace: { pv: 2}
         },
         cards: this.parseCSV(csvContent[AlienBoardType.ANOMALIES]),
+        cardRow: [],
         discovered: false
       },
       {
@@ -1057,6 +1058,7 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
           bluelifetrace: { pv: 6, token: -1}
         },
         cards: this.parseCSV(csvContent[AlienBoardType.OUMUAMUA]),
+        cardRow: [],
         discovered: false,
         planet: {
           id: 'oumuamua',
@@ -1088,6 +1090,7 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
           bluelifetrace: { pv: 6, data: -1}
         },
         cards: this.parseCSV(csvContent[AlienBoardType.CENTAURIENS]),
+        cardRow: [],
         discovered: false
       },
       {
@@ -1104,6 +1107,7 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
           bluelifetrace: {}
         },
         cards: this.parseCSV(csvContent[AlienBoardType.EXERTIENS]),
+        cardRow: [],
         discovered: false
       },
       {
@@ -1120,6 +1124,7 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
           bluelifetrace: {}
         },
         cards: this.parseCSV(csvContent[AlienBoardType.MASCAMITES]),
+        cardRow: [],
         discovered: false
       }
     ];

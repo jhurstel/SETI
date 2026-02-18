@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Game, InteractionState, LifeTraceType } from '../core/types';
+import { Game, InteractionState, LifeTraceType, Species, Card } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
+import { CardTooltip } from './CardTooltip';
 import './AlienBoardUI.css';
 
 interface AlienBoardUIProps {
@@ -8,6 +9,7 @@ interface AlienBoardUIProps {
     boardIndex: number;
     interactionState: InteractionState;
     onPlaceLifeTrace: (boardIndex: number, color: LifeTraceType, slotType: 'triangle' | 'species', slotIndex?: number) => void;
+    onSpeciesCardClick: (speciesId: string, cardId: string) => void;
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
 
@@ -70,7 +72,80 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
   </div>
 );
 
-export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, onPlaceLifeTrace, setActiveTooltip }) => {
+// Species Card Area component
+const SpeciesCardArea: React.FC<{
+    species: Species;
+    interactionState: InteractionState;
+    onCardClick: (speciesId: string, cardId: string) => void;
+    setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
+}> = ({ species, interactionState, onCardClick, setActiveTooltip }) => {
+    
+    const deck = species.cards;
+    const row = species.cardRow || [];
+    
+    const isAcquiring = interactionState.type === 'ACQUIRING_ALIEN_CARD' && interactionState.speciesId === species.id;
+
+    const handleCardHover = (e: React.MouseEvent, card: Card) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setActiveTooltip({
+            content: <CardTooltip card={card} />,
+            rect
+        });
+    };
+
+    const smallCardStyle: React.CSSProperties = {
+        width: '100px',
+        height: '133px',
+        minWidth: '100px',
+        minHeight: '133px',
+        fontSize: '0.6em',
+        padding: '3px',
+        cursor: isAcquiring ? 'pointer' : 'default'
+    };
+
+    return (
+        <div className="seti-card-row-content" style={{ justifyContent: 'center', marginBottom: '5px', pointerEvents: 'auto', gap: '8px' }}>
+            {/* Deck */}
+            <div 
+                className="seti-common-card seti-deck-card"
+                style={{ 
+                    ...smallCardStyle, 
+                    border: isAcquiring ? '2px solid #ffd700' : undefined,
+                    boxShadow: isAcquiring ? '0 0 10px rgba(255, 215, 0, 0.5)' : undefined
+                }}
+                onClick={(e) => { e.stopPropagation(); onCardClick(species.id, 'deck'); }}
+            >
+                <div className="seti-deck-label" style={{ fontSize: '1em' }}>Pioche</div>
+                <div className="seti-deck-count" style={{ fontSize: '0.9em' }}>{deck.length} cartes</div>
+            </div>
+            {/* Row */}
+            {row.map(card => (
+                <div key={card.id}
+                    onClick={(e) => { e.stopPropagation(); onCardClick(species.id, card.id); }}
+                    onMouseEnter={(e) => handleCardHover(e, card)}
+                    onMouseLeave={() => setActiveTooltip(null)}
+                    className="seti-common-card seti-row-card"
+                    style={{
+                        ...smallCardStyle,
+                        border: isAcquiring ? '2px solid #ffd700' : undefined,
+                        boxShadow: isAcquiring ? '0 0 10px rgba(255, 215, 0, 0.5)' : undefined
+                    }}
+                >
+                    <div className="seti-row-card-name" style={{ fontSize: '1em', marginBottom: '2px', lineHeight: '1.1' }}>{card.name}</div>
+                    <div className="seti-row-card-cost" style={{ fontSize: '0.9em' }}>Coût: <span>{card.cost}</span></div>
+                    {card.description && <div className="seti-row-card-desc" style={{ fontSize: '0.9em', lineHeight: '1.1', margin: '2px 0' }}>{card.description}</div>}
+                    <div className="seti-row-card-details" style={{ fontSize: '0.85em', gap: '2px' }}>
+                        {card.freeAction && <div>Act: {card.freeAction}</div>}
+                        {card.revenue && <div>Rev: {card.revenue}</div>}
+                        {card.scanSector && <div>Scan: {card.scanSector}</div>}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, onPlaceLifeTrace, onSpeciesCardClick, setActiveTooltip }) => {
     const board = game.board.alienBoards[boardIndex];
     const species = game.species.find(s => s.name === board.speciesId);
     const side = boardIndex === 0 ? 'left' : 'right';
@@ -394,6 +469,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
             zIndex: 1000,
             display: 'flex',
             flexDirection: 'column',
+            gap: '10px',
             pointerEvents: 'none',
             alignItems: side === 'left' ? 'flex-start' : 'flex-end'
         }}>
@@ -409,22 +485,29 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 </div>
                 <div className="seti-foldable-content" style={{ display: 'flex', flexDirection: 'column' }}>
                     {board.isDiscovered && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '5px' }}>
                             <div style={{ padding: '5px', textAlign: 'center', borderBottom: '1px solid #444' }}>
                                 <div style={{ fontSize: '1.1em', color: '#aaa', fontWeight: 'bold' }}>{board.speciesId}</div>
                             </div>
-                            <div style={{ height: '12px', marginBottom: '5px' }}></div>
                         </div>
+                    )}
+                    {board.isDiscovered && species && (
+                        <SpeciesCardArea 
+                            species={species}
+                            interactionState={interactionState}
+                            onCardClick={onSpeciesCardClick}
+                            setActiveTooltip={setActiveTooltip}
+                        />
                     )}
                     {board.isDiscovered && (
                         <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-around',
-                        width: '100%',
-                        borderBottom: '1px solid #444',
-                        marginBottom: '5px',
-                        flex: 1,
-                        alignItems: 'flex-end'
+                            display: 'flex',
+                            justifyContent: 'space-around',
+                            width: '100%',
+                            borderBottom: '1px solid #444',
+                            marginBottom: '5px',
+                            flex: 1,
+                            alignItems: 'flex-end'
                         }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
                                 {board.isDiscovered && species && renderSpeciesTrack(LifeTraceType.RED)}

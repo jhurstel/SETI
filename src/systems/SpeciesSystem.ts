@@ -1,4 +1,4 @@
-import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus } from '../core/types';
+import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card } from '../core/types';
 import { ResourceSystem } from './ResourceSystem';
 
 export type SpeciesDiscoveryCode = 'NO_MARKERS' | 'NO_SPACE' | 'PLACED' | 'DISCOVERED';
@@ -50,6 +50,18 @@ export class SpeciesSystem {
                         
                         const distResult = this.distributeDiscoveryCards(updatedGame, i);
                         updatedGame = distResult.updatedGame;
+
+                        // Remplir la rangée de carte de l'espèce
+                        const species = updatedGame.species.find(s => s.name === board.speciesId);
+                        if (species) {
+                            if (!species.cardRow) species.cardRow = [];
+                            if (species.cards.length > 0 && species.cardRow.length < 1) {
+                                const card = species.cards.shift();
+                                if (card) {
+                                    species.cardRow.push(card);
+                                }
+                            }
+                        }
 
                         // Ajout de l'astéroïde Oumuamua si l'espèce est découverte
                         if (board.speciesId === AlienBoardType.OUMUAMUA) {
@@ -190,6 +202,18 @@ export class SpeciesSystem {
             updatedGame = distResult.updatedGame;
             discoveryLogs = distResult.logs;
 
+            // Remplir la rangée de carte de l'espèce
+            const discoveredSpecies = updatedGame.species.find(s => s.name === board.speciesId);
+            if (discoveredSpecies) {
+                if (!discoveredSpecies.cardRow) discoveredSpecies.cardRow = [];
+                if (discoveredSpecies.cards.length > 0 && discoveredSpecies.cardRow.length < 1) {
+                    const card = discoveredSpecies.cards.shift();
+                    if (card) {
+                        discoveredSpecies.cardRow.push(card);
+                    }
+                }
+            }
+
             if (board.speciesId === AlienBoardType.OUMUAMUA) {
                 if (!updatedGame.board.solarSystem.extraCelestialObjects) {
                     updatedGame.board.solarSystem.extraCelestialObjects = [];
@@ -223,6 +247,43 @@ export class SpeciesSystem {
             historyEntries: res.historyEntries,
             newPendingInteractions: res.newPendingInteractions
         };
+    }
+
+    /**
+     * Acquiert une carte Alien (depuis la pioche ou la rangée) et remplit la rangée si nécessaire.
+     */
+    static acquireAlienCard(game: Game, playerId: string, speciesId: string, cardId: string): { updatedGame: Game, drawnCard?: Card } {
+        let updatedGame = structuredClone(game);
+        const species = updatedGame.species.find(s => s.id === speciesId);
+        const player = updatedGame.players.find(p => p.id === playerId);
+
+        if (!species || !player) return { updatedGame };
+
+        let drawnCard: Card | undefined;
+
+        if (cardId === 'deck') {
+            if (species.cards.length > 0) {
+                drawnCard = species.cards.shift();
+            }
+        } else {
+            if (species.cardRow) {
+                const index = species.cardRow.findIndex(c => c.id === cardId);
+                if (index !== -1) {
+                    drawnCard = species.cardRow.splice(index, 1)[0];
+                    // Remplir la rangée immédiatement
+                    if (species.cards.length > 0) {
+                        const newCard = species.cards.shift();
+                        if (newCard) species.cardRow.push(newCard);
+                    }
+                }
+            }
+        }
+
+        if (drawnCard) {
+            player.cards.push(drawnCard);
+        }
+
+        return { updatedGame, drawnCard };
     }
 
     private static distributeDiscoveryCards(game: Game, boardIndex: number): { updatedGame: Game, logs: string[] } {
