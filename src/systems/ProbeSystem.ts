@@ -9,7 +9,7 @@
  * - Limites (max 1 sonde dans le système solaire sans technologie)
  */
 
-import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry } from '../core/types';
+import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType } from '../core/types';
 import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { CardSystem } from './CardSystem';
@@ -252,7 +252,7 @@ export class ProbeSystem {
       game.board.solarSystem.rotationAngleLevel2 || 0,
       game.board.solarSystem.rotationAngleLevel3 || 0
     );
-    const targetLevel = getVisibleLevel(targetDisk, targetSector, rotationState);
+    const targetLevel = getVisibleLevel(targetDisk, targetSector, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
 
     // Convertir le secteur absolu en secteur relatif pour le stockage
     let relativeSector = targetSector;
@@ -449,7 +449,7 @@ export class ProbeSystem {
     );
 
     // Liste des planètes (sans la Terre)
-    const planets = ['venus', 'mercury', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'];
+    const planets = ['venus', 'mercury', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'oumuamua'];
     
     for (const probe of playerProbes) {
       if (!probe.solarPosition) continue;
@@ -468,7 +468,11 @@ export class ProbeSystem {
             planetPos.sector === probe.solarPosition.sector) {
 
           // Trouver la planète dans le jeu pour vérifier les orbiteurs et le cout (reduit ou non)
-          const planet = game.board.planets.find(p => p.id === planetId);
+          let planet = game.board.planets.find(p => p.id === planetId);
+          if (!planet && planetId === 'oumuamua') {
+              const species = game.species.find(s => s.name === AlienBoardType.OUMUAMUA);
+              if (species) planet = species.planet;
+          }
           const hasOrbiter = planet && planet.orbiters.length > 0 ? true : false;
           const hasExploration3 = game.players.find(p => p.id === playerId)?.technologies.some(t => t.id.startsWith('exploration-3')) || false;
           const landCost = hasExploration3
@@ -557,7 +561,11 @@ export class ProbeSystem {
     const probe = player.probes.find(p => p.id === probeId)!;
 
     // Vérifier si c'est le premier orbiteur
-    const planet = updatedGame.board.planets.find(p => p.id === planetId);
+    let planet = updatedGame.board.planets.find(p => p.id === planetId);
+    if (!planet && planetId === 'oumuamua') {
+        const species = updatedGame.species.find(s => s.name === AlienBoardType.OUMUAMUA);
+        if (species) planet = species.planet;
+    }
     const isFirstOrbiter = planet ? planet.orbiters.length === 0 : true;
 
     // Payer le coût
@@ -579,7 +587,7 @@ export class ProbeSystem {
     updatedGame.board.solarSystem.probes = updatedGame.board.solarSystem.probes.filter(p => p.id !== probeId);
 
     // Récupérer la planète mise à jour pour les bonus
-    const updatedPlanet = updatedGame.board.planets.find(p => p.id === planetId);
+    const updatedPlanet = planet;
 
     const accumulatedBonuses: Bonus = {};
     const completedMissions: string[] = [];
@@ -695,6 +703,10 @@ export class ProbeSystem {
 
     // Identifier la cible (Planète ou Satellite)
     let targetBody: any = updatedGame.board.planets.find(p => p.id === planetId);
+    if (!targetBody && planetId === 'oumuamua') {
+        const species = updatedGame.species.find(s => s.name === AlienBoardType.OUMUAMUA);
+        if (species) targetBody = species.planet;
+    }
     if (!targetBody) {
         for (const p of updatedGame.board.planets) {
             if (p.satellites) {
@@ -947,7 +959,11 @@ export class ProbeSystem {
    * Vérifie si un joueur a une présence (orbiteur ou atterrisseur) sur une planète ou ses lunes
    */
   static hasPresenceOnPlanet(game: Game, playerId: string, planetId: string): boolean {
-    const planet = game.board.planets.find(p => p.id === planetId);
+    let planet = game.board.planets.find(p => p.id === planetId);
+    if (!planet && planetId === 'oumuamua') {
+        const species = game.species.find(s => s.name === AlienBoardType.OUMUAMUA);
+        if (species) planet = species.planet;
+    }
     if (!planet) return false;
 
     // Vérifier orbiteurs sur la planète

@@ -21,7 +21,8 @@ import {
   TechnologyCategory,
   LifeTraceType,
   NEUTRAL_MILESTONES,
-  AlienBoardType
+  AlienBoardType,
+  Bonus
 } from './types';
 import { BoardManager } from './Board';
 import { CardSystem } from '../systems/CardSystem';
@@ -275,6 +276,31 @@ export class GameFactory {
       // Mettre à jour la liste globale des technologies disponibles
       game.board.technologyBoard.available = game.board.technologyBoard.categorySlots.flatMap(s => s.technologies);
     }
+  }
+
+  /**
+   * Helper pour fusionner les bonus
+   */
+  private static mergeBonuses(...bonuses: (Bonus | undefined)[]): Bonus {
+    const result: Bonus = {};
+    bonuses.forEach(b => {
+      if (!b) return;
+      (Object.keys(b) as Array<keyof Bonus>).forEach(key => {
+        const k = key as keyof Bonus;
+        const val = b[k];
+        if (typeof val === 'number') {
+          (result as any)[k] = ((result[k] as number) || 0) + val;
+        } else if (val !== undefined) {
+          if (Array.isArray(val)) {
+             const existing = (result[k] as any[]) || [];
+             (result as any)[k] = [...existing, ...val];
+          } else {
+            (result as any)[k] = val;
+          }
+        }
+      });
+    });
+    return result;
   }
 
   /**
@@ -1060,20 +1086,31 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         cards: this.parseCSV(csvContent[AlienBoardType.OUMUAMUA]),
         cardRow: [],
         discovered: false,
-        planet: {
-          id: 'oumuamua',
-          name: 'Oumuamua',
-          orbiters: [],
-          landers: [],
-          orbitFirstBonus: { token: 1 },
-          orbitNextBonus: { pv: 10, token: 1, signals: [{ amount: 1, scope: SectorType.OUMUAMUA }] },
-          landFirstBonus: { data: 3 },
-          landSecondBonus: { data: 2 },
-          landThirdBonus: { data: 1 },
-          landNextBonus: { pv: 9, token: 2 },
-          orbitSlots: [],
-          landSlots: []
-        },
+        planet: (() => {
+            const p: any = {
+                id: 'oumuamua',
+                name: 'Oumuamua',
+                orbiters: [],
+                landers: [],
+                orbitFirstBonus: { speciesCard: 1 },
+                orbitNextBonus: { pv: 10, token: 1, signals: [{ amount: 1, scope: SectorType.OUMUAMUA }] },
+                landFirstBonus: { data: 3 },
+                landSecondBonus: { data: 2 },
+                landThirdBonus: { data: 1 },
+                landNextBonus: { pv: 9, token: 2 },
+            };
+            p.orbitSlots = new Array(5).fill(null).map((_, i) => {
+                if (i === 0) return this.mergeBonuses(p.orbitFirstBonus, p.orbitNextBonus);
+                return p.orbitNextBonus || {};
+            });
+            p.landSlots = new Array(4).fill(null).map((_, i) => {
+                if (i === 0) return this.mergeBonuses(p.landFirstBonus, p.landNextBonus);
+                if (i === 1) return this.mergeBonuses(p.landSecondBonus, p.landNextBonus);
+                if (i === 2) return this.mergeBonuses(p.landThirdBonus, p.landNextBonus);
+                return p.landNextBonus || {};
+            });
+            return p;
+        })(),
   
       },
       {

@@ -2086,7 +2086,8 @@ export const BoardUI: React.FC = () => {
       ...FIXED_OBJECTS,
       ...INITIAL_ROTATING_LEVEL1_OBJECTS,
       ...INITIAL_ROTATING_LEVEL2_OBJECTS,
-      ...INITIAL_ROTATING_LEVEL3_OBJECTS
+      ...INITIAL_ROTATING_LEVEL3_OBJECTS,
+      ...(game.board.solarSystem.extraCelestialObjects || [])
     ];
     const planetDef = allObjects.find(o => o.id === targetPlanetId);
 
@@ -2218,7 +2219,7 @@ export const BoardUI: React.FC = () => {
     // Trouver la sonde sur la planète pour la validation
     const probe = currentPlayer.probes.find(p => {
       if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-      const planetDef = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS].find(o => o.id === probeOnPlanet.planetId);
+      const planetDef = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || [])].find(o => o.id === probeOnPlanet.planetId);
       if (!planetDef) return false;
       return p.solarPosition.disk === planetDef.position.disk && p.solarPosition.sector === planetDef.position.sector && (p.solarPosition.level || 0) === (planetDef.level || 0);
     });
@@ -2306,10 +2307,11 @@ export const BoardUI: React.FC = () => {
 
     const probe = currentPlayer.probes.find(p => {
       if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-      const planetDef = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS].find(o => o.id === probeOnPlanet.planetId);
+      const planetDef = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || [])].find(o => o.id === probeOnPlanet.planetId);
       if (!planetDef) return false;
       return p.solarPosition.disk === planetDef.position.disk && p.solarPosition.sector === planetDef.position.sector && (p.solarPosition.level || 0) === (planetDef.level || 0);
     });
+    console.log(probe);
     if (!probe) return;
 
     const executeLand = () => {

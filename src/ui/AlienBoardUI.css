@@ -62,3 +62,303 @@
     align-items: center;
     min-height: 20px;
 }
+
+/* AlienTriangleSlot */
+.alien-triangle-slot {
+    position: relative;
+    width: 60px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.alien-triangle-slot.clickable {
+    cursor: pointer;
+}
+.alien-triangle-slot.help {
+    cursor: help;
+}
+.alien-triangle-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    overflow: visible;
+}
+.alien-triangle-content {
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 2px;
+    gap: 2px;
+    width: 40px;
+    height: 40px;
+    overflow: hidden;
+}
+.alien-triangle-marker-main {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.9);
+    box-shadow: 0 0 4px rgba(0,0,0,0.8);
+    z-index: 3;
+    margin-bottom: 1px;
+}
+.alien-triangle-markers-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px;
+}
+.alien-triangle-marker-small {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.6);
+    box-shadow: 0 0 2px rgba(0,0,0,0.8);
+    z-index: 2;
+}
+
+/* SpeciesCardArea */
+.alien-species-card-area {
+    justify-content: center;
+    margin-bottom: 5px;
+    pointer-events: auto;
+    gap: 8px;
+}
+.alien-small-card {
+    width: 100px !important;
+    height: 133px !important;
+    min-width: 100px !important;
+    min-height: 133px !important;
+    font-size: 0.6em;
+    padding: 3px;
+}
+.alien-small-card.acquiring {
+    cursor: pointer;
+    border: 2px solid #ffd700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+.alien-small-card.default {
+    cursor: default;
+}
+.alien-card-name {
+    font-size: 1em;
+    margin-bottom: 2px;
+    line-height: 1.1;
+}
+.alien-card-cost {
+    font-size: 0.9em;
+}
+.alien-card-desc {
+    font-size: 0.9em;
+    line-height: 1.1;
+    margin: 2px 0;
+}
+.alien-card-details {
+    font-size: 0.85em;
+    gap: 2px;
+}
+.alien-deck-label {
+    font-size: 1em;
+}
+.alien-deck-count {
+    font-size: 0.9em;
+}
+
+/* AlienBoardUI Main Container */
+.alien-board-container {
+    position: absolute;
+    bottom: 15px;
+    width: 240px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+.alien-board-container.left {
+    left: 15px;
+    align-items: flex-start;
+}
+.alien-board-container.right {
+    right: 15px;
+    align-items: flex-end;
+}
+
+.alien-foldable-container {
+    display: flex;
+    pointer-events: auto;
+    flex-direction: column;
+    justify-content: flex-end;
+    border-top-left-radius: 50px !important;
+    border-top-right-radius: 50px !important;
+}
+
+.alien-foldable-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.alien-species-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
+.alien-species-title-row {
+    padding: 5px;
+    text-align: center;
+    border-bottom: 1px solid #444;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.alien-species-id {
+    font-size: 1.1em;
+    color: #aaa;
+    font-weight: bold;
+}
+
+.alien-oumuamua-token {
+    cursor: help;
+    font-size: 1.2em;
+    filter: hue-rotate(150deg);
+}
+
+.alien-tracks-container {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    border-bottom: 1px solid #444;
+    margin-bottom: 5px;
+    flex: 1;
+    align-items: flex-end;
+}
+
+.alien-track-column-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.alien-triangles-container {
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    padding: 10px 5px;
+    flex: 1;
+    align-items: flex-end;
+}
+
+/* Tooltip */
+.alien-tooltip-container {
+    text-align: center;
+    min-width: 180px;
+}
+.alien-tooltip-header {
+    font-weight: bold;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #555;
+    padding-bottom: 4px;
+}
+.alien-tooltip-players {
+    margin-bottom: 8px;
+}
+.alien-tooltip-player-row {
+    font-weight: bold;
+    font-size: 0.9em;
+}
+.alien-tooltip-bonus-label {
+    font-weight: normal;
+    font-size: 0.8em;
+    color: #aaa;
+    margin-left: 4px;
+}
+.alien-tooltip-empty {
+    font-style: italic;
+    color: #888;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+}
+.alien-tooltip-bonuses {
+    font-size: 0.8em;
+    margin-top: 4px;
+    border-top: 1px solid #555;
+    padding-top: 4px;
+    text-align: left;
+}
+.alien-tooltip-bonus-row {
+    display: flex;
+    justify-content: space-between;
+    color: #ccc;
+}
+.alien-tooltip-bonus-row.mb {
+    margin-bottom: 2px;
+}
+.alien-tooltip-bonus-value {
+    color: #ffd700;
+}
+
+/* RenderSpeciesTrack */
+.alien-infinite-corridor-container {
+    position: relative;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    margin-bottom: 18px;
+    gap: 12px;
+}
+.alien-infinite-corridor-bg {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 28px;
+    border-left: 2px solid rgba(255,255,255,0.4);
+    border-right: 2px solid rgba(255,255,255,0.4);
+    border-bottom: 2px solid rgba(255,255,255,0.4);
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+    mask-image: linear-gradient(to top, black 20%, rgba(0,0,0,0.25) 80%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to top, black 20%, rgba(0,0,0,0.25) 80%, transparent 100%);
+    z-index: 0;
+    pointer-events: none;
+}
+.alien-fixed-slots-container {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+    gap: 15px;
+    align-items: center;
+}
+
+/* Slot styles */
+.alien-slot-tooltip-container {
+    text-align: center;
+    padding: 4px;
+}
+.alien-slot-tooltip-status {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+.alien-slot-tooltip-details {
+    font-size: 0.9em;
+    color: #ccc;
+}
+.alien-slot-tooltip-cost {
+    color: #ff6b6b;
+}
+.alien-slot-tooltip-bonus {
+    color: #ffd700;
+}
+.alien-slot-tooltip-action {
+    font-size: 0.9em;
+    color: #aaa;
+    font-style: italic;
+}

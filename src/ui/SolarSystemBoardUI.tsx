@@ -773,7 +773,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     // Custom transform for Oumuamua in tooltip
     let customTransform = style.transform;
     if (id === 'oumuamua') {
-        customTransform = 'translate(-40px, -40px) rotate(-30deg) scale(2.8, 0.6)';
+        customTransform = 'translate(-40px, -40px) rotate(-30deg) scale(3.5, 0.8)';
     }
 
     // Logique d'interaction (Orbite / Atterrissage)
@@ -948,6 +948,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       });
     };
 
+    const svgMultiplier = id === 'oumuamua' ? 4 : 3;
     return (
       <div style={{ width: `${size}px`, height: `${size}px`, position: 'relative' }}>
         {style.hasRings && renderRings(false)}
@@ -996,23 +997,24 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: `${size * 3}px`,
-              height: `${size * 3}px`,
+              width: `${size * svgMultiplier}px`,
+              height: `${size * svgMultiplier}px`,
               pointerEvents: 'none',
               overflow: 'visible',
               zIndex: 3,
             }}
-            viewBox={`-${size * 1.5} -${size * 1.5} ${size * 3} ${size * 3}`}
+            viewBox={`-${size * (svgMultiplier / 2)} -${size * (svgMultiplier / 2)} ${size * svgMultiplier} ${size * svgMultiplier}`}
           >
             {/* Définition des slots */}
             {(() => {
               const orbitSlots = planetData.orbitSlots || [];
               const landSlots = planetData.landSlots || [];
 
+              const isOumuamua = planetData.id === 'oumuamua';
               const orbiterCircleRadius = 15;
-              const orbitRadius = size / 2 + 25;
+              const orbitRadius = size / 2 + (isOumuamua ? 80 : 25);
               const landerCircleRadius = 15;
-              const landRadius = size * 0.3;
+              const landRadius = isOumuamua ? size * 0.7 : size * 0.3;
 
               // Calcul des positions des orbiteurs (Arc supérieur)
               const orbitPositions = orbitSlots.map((_, i) => {
@@ -1369,7 +1371,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     let bodyTransform = undefined;
     
     if (obj.id === 'oumuamua') {
-        containerTransform = 'translate(-20px, -50px) rotate(45deg)';
+        containerTransform = 'translate(-25px, -55px) rotate(60deg)';
         bodyTransform = 'scale(2.8, 0.6)';
     }
 

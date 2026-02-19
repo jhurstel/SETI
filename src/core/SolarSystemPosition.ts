@@ -271,13 +271,18 @@ export function getVisibleLevel(
   disk: DiskName,
   absoluteSector: SectorNumber,
   rotationState: RotationState,
-  _extraObjects: CelestialObject[] = []
+  extraObjects: CelestialObject[] = []
 ): number {
+  // Helper pour vérifier si un objet supplémentaire comble le trou
+  const hasExtraObject = (level: number, relSector: SectorNumber) => {
+      return extraObjects.some(o => o.level === level && o.position.disk === disk && o.position.sector === relSector);
+  };
+
   // Niveau 3 (Jaune - Top) - Disques A uniquement
   if (disk === 'A') {
     const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
     const hollowZones = HOLLOW_ZONES.level3[disk] || [];
-    if (hollowZones && !hollowZones.includes(level3Sector)) {
+    if (!hollowZones.includes(level3Sector) || hasExtraObject(3, level3Sector)) {
       return 3;
     }
   }
@@ -286,7 +291,7 @@ export function getVisibleLevel(
   if (disk === 'A' || disk === 'B') {
     const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
     const hollowZones = HOLLOW_ZONES.level2[disk] || [];
-    if (hollowZones && !hollowZones.includes(level2Sector)) {
+    if (!hollowZones.includes(level2Sector) || hasExtraObject(2, level2Sector)) {
       return 2;
     }
   }
@@ -295,7 +300,7 @@ export function getVisibleLevel(
   if (disk === 'A' || disk === 'B' || disk === 'C') {
     const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
     const hollowZones = HOLLOW_ZONES.level1[disk] || [];
-    if (hollowZones && !hollowZones.includes(level1Sector)) {
+    if (!hollowZones.includes(level1Sector) || hasExtraObject(1, level1Sector)) {
       return 1;
     }
   }
@@ -313,8 +318,13 @@ function checkVisibilityAboveLevel(
     disk: DiskName,
     absoluteSector: SectorNumber,
     rotationState: RotationState,
-    _extraObjects: CelestialObject[] = []
+    extraObjects: CelestialObject[] = []
 ): boolean {
+    // Helper pour vérifier si un objet supplémentaire comble le trou
+    const hasExtraObject = (level: number, relSector: SectorNumber) => {
+        return extraObjects.some(o => o.level === level && o.position.disk === disk && o.position.sector === relSector);
+    };
+
     // Les disques D et E sont toujours visibles car ils sont sur le dessus ou en dehors des plateaux rotatifs.
     if (disk === 'D' || disk === 'E') {
         return true;
@@ -325,7 +335,7 @@ function checkVisibilityAboveLevel(
     if (objectLevel < 3 && disk === 'A') {
         const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
         const hollowZones = HOLLOW_ZONES.level3[disk] || [];
-        if (hollowZones && !hollowZones.includes(level3Sector)) {
+        if (!hollowZones.includes(level3Sector) || hasExtraObject(3, level3Sector)) {
             return false; // Recouvert par le niveau 3
         }
     }
@@ -335,7 +345,7 @@ function checkVisibilityAboveLevel(
     if (objectLevel < 2 && (disk === 'A' || disk === 'B')) {
         const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
         const hollowZones = HOLLOW_ZONES.level2[disk] || [];
-        if (hollowZones && !hollowZones.includes(level2Sector)) {
+        if (!hollowZones.includes(level2Sector) || hasExtraObject(2, level2Sector)) {
             return false; // Recouvert par le niveau 2
         }
     }
@@ -345,7 +355,7 @@ function checkVisibilityAboveLevel(
     if (objectLevel < 1 && (disk === 'A' || disk === 'B' || disk === 'C')) {
         const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
         const hollowZones = HOLLOW_ZONES.level1[disk] || [];
-        if (hollowZones && !hollowZones.includes(level1Sector)) {
+        if (!hollowZones.includes(level1Sector) || hasExtraObject(1, level1Sector)) {
             return false; // Recouvert par le niveau 1
         }
     }
