@@ -15,7 +15,7 @@ import { ResearchTechAction } from '../actions/ResearchTechAction';
 import { ScanSectorAction } from '../actions/ScanSectorAction';
 import { GameEngine } from '../core/Game';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, performRotation, calculateReachableCellsWithEnergy } from '../core/SolarSystemPosition';
+import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, performRotation, calculateReachableCellsWithEnergy, calculateAbsolutePosition } from '../core/SolarSystemPosition';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
@@ -1482,23 +1482,66 @@ export const BoardUI: React.FC = () => {
   };
 
   // Gestionnaire pour le clic sur un secteur (Scan)
-  const handleSectorClick = (sectorNumber: number) => {
+  const handleSectorClick = (sectorId: string) => {
     const performInteractiveScan = () => {
       // NOTE: This function's body is simplified for brevity. 
       // It should contain the full logic for an interactive scan.
       // The key change is adding the triggerSignalMission call.
       if (!game || interactionState.type !== 'SELECTING_SCAN_SECTOR') return;
       const currentPlayer = game.players[game.currentPlayerIndex];
-      const sector = game.board.sectors[sectorNumber - 1];
+      const sector = ScanSystem.getSectorById(game, sectorId);
+      if (!sector) return;
 
       // Validate color
-      if (interactionState.color !== SectorType.ANY && interactionState.color !== SectorType.PROBE && sector.color !== interactionState.color) {
+      // Special case for Oumuamua: allowed if Oumuamua is in a sector matching the color
+      let isOumuamuaValid = false;
+      if (sector.id === 'oumuamua') {
+          const oumuamua = (game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === 'oumuamua');
+          if (oumuamua) {
+              const rotationState = createRotationState(
+                  game.board.solarSystem.rotationAngleLevel1 || 0,
+                  game.board.solarSystem.rotationAngleLevel2 || 0,
+                  game.board.solarSystem.rotationAngleLevel3 || 0
+              );
+              const absPos = calculateAbsolutePosition(oumuamua, rotationState, game.board.solarSystem.extraCelestialObjects);
+              const hostSector = game.board.sectors[absPos.absoluteSector - 1];
+              
+              if (interactionState.color === SectorType.ANY || interactionState.color === SectorType.PROBE || interactionState.color === SectorType.OUMUAMUA) {
+                  isOumuamuaValid = true;
+              } else if (hostSector.color === interactionState.color) {
+                  isOumuamuaValid = true;
+              } else if (interactionState.adjacents) {
+                  const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, game.board.solarSystem.extraCelestialObjects);
+                  if (earthPos) {
+                      const diff = Math.abs(earthPos.absoluteSector - absPos.absoluteSector);
+                      if (diff === 1 || diff === 7 || diff === 0) isOumuamuaValid = true;
+                  }
+              }
+          }
+      } else if (interactionState.color === SectorType.OUMUAMUA && sector.id.startsWith('sector_')) {
+          const oumuamua = (game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === 'oumuamua');
+          if (oumuamua) {
+              const rotationState = createRotationState(
+                  game.board.solarSystem.rotationAngleLevel1 || 0,
+                  game.board.solarSystem.rotationAngleLevel2 || 0,
+                  game.board.solarSystem.rotationAngleLevel3 || 0
+              );
+              const absPos = calculateAbsolutePosition(oumuamua, rotationState, game.board.solarSystem.extraCelestialObjects);
+              if (`sector_${absPos.absoluteSector}` === sector.id) {
+                  isOumuamuaValid = true;
+              }
+          }
+      }
+
+      if (!isOumuamuaValid && interactionState.color !== SectorType.ANY && interactionState.color !== SectorType.PROBE && sector.color !== interactionState.color) {
         let isAdjacentAllowed = false;
         if (interactionState.adjacents) {
           const solarSystem = game.board.solarSystem;
           const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
           if (earthPos) {
-            const diff = Math.abs(earthPos.absoluteSector - sectorNumber);
+            // Extract sector number from ID "sector_N"
+            const sectorNum = parseInt(sectorId.replace('sector_', ''));
+            const diff = Math.abs(earthPos.absoluteSector - sectorNum);
             if (diff === 1 || diff === 7 || diff === 0) isAdjacentAllowed = true;
           }
         }
@@ -1524,8 +1567,22 @@ export const BoardUI: React.FC = () => {
 
         const validProbes = candidateProbes.filter(p => {
             if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-            return getAbsoluteSectorForProbe(p.solarPosition, rotationState) === sectorNumber;
-        });
+            // If scanning Oumuamua, check if probe is on Oumuamua? No, Oumuamua is a sector.
+            // If scanning a normal sector, check if probe is in that sector.
+            if (sector.id === 'oumuamua') {
+              // Check if probe is on Oumuamua planet
+              // Oumuamua planet ID is 'oumuamua'
+              // Probe position must match Oumuamua position
+              const oumuamua = (game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === 'oumuamua');
+              if (!oumuamua) return false;
+              return p.solarPosition.disk === oumuamua.position.disk && 
+                     p.solarPosition.sector === oumuamua.position.sector && 
+                     (p.solarPosition.level || 0) === (oumuamua.level || 0);
+          } else {
+              const sectorNum = parseInt(sectorId.replace('sector_', ''));
+              return getAbsoluteSectorForProbe(p.solarPosition, rotationState) === sectorNum;
+          }
+      });
 
         // Filtrer les sondes déjà utilisées dans cette séquence
         const availableProbes = validProbes.filter(p => !(interactionState.usedProbeIds || []).includes(p.id));
@@ -1598,6 +1655,7 @@ export const BoardUI: React.FC = () => {
       let allNewInteractions = [...res.newPendingInteractions];
 
       if (interactionState.markAdjacents) {
+          const sectorNumber = parseInt(sectorId.replace('sector_', ''));
           const prevSectorNum = sectorNumber === 1 ? 8 : sectorNumber - 1;
           const nextSectorNum = sectorNumber === 8 ? 1 : sectorNumber + 1;
           
@@ -1618,7 +1676,7 @@ export const BoardUI: React.FC = () => {
 
       // Handle keepCardIfOnly (Card 120)
       if (interactionState.keepCardIfOnly && interactionState.cardId) {
-        const updatedSector = updatedGame.board.sectors[sectorNumber - 1];
+        const updatedSector = ScanSystem.getSectorById(updatedGame, sectorId)!;
         const playerSignals = updatedSector.signals.filter(s => s.markedBy === currentPlayer.id) || [];
 
         if (playerSignals.length === 1) {
@@ -1677,7 +1735,8 @@ export const BoardUI: React.FC = () => {
 
     const performDirectScan = () => {
       if (!game) return;
-      const sector = game.board.sectors[sectorNumber - 1];
+      const sector = ScanSystem.getSectorById(game, sectorId);
+      if (!sector) return;
       const currentPlayer = game.players[game.currentPlayerIndex];
       const action = new ScanSectorAction(currentPlayer.id, sector.id);
       
@@ -1700,7 +1759,8 @@ export const BoardUI: React.FC = () => {
 
     // Cas 1: Mode Scan actif ou bonus
     if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
-      const sector = game.board.sectors[sectorNumber - 1];
+      const sector = ScanSystem.getSectorById(game, sectorId);
+      if (!sector) return;
       const nextSignalIndex = sector.signals.findIndex(s => !s.marked);
       let potentialDataGain = 0;
       if (nextSignalIndex !== -1) {
@@ -1710,7 +1770,8 @@ export const BoardUI: React.FC = () => {
       checkDataLimitAndProceed(potentialDataGain, performInteractiveScan);
     } else if (interactionState.type === 'IDLE' && !game.players[game.currentPlayerIndex].hasPerformedMainAction) {
       // Cas 2: Clic direct depuis Idle (Raccourci Action Scan)
-      const sector = game.board.sectors[sectorNumber - 1];
+      const sector = ScanSystem.getSectorById(game, sectorId);
+      if (!sector) return;
       const nextSignalIndex = sector.signals.findIndex(s => !s.marked);
       let potentialDataGain = 0;
       if (nextSignalIndex !== -1) {
@@ -1730,7 +1791,6 @@ export const BoardUI: React.FC = () => {
 
     // Synchroniser l'état de GameEngine avec le jeu actuel (pour préserver les angles de rotation)
     gameEngineRef.current.setState(gameRef.current);
-    console.log(gameRef.current);
 
     const currentGame = gameRef.current;
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
@@ -2119,7 +2179,11 @@ export const BoardUI: React.FC = () => {
     try {
       const result = actionFn(game, currentPlayer.id, probe.id, planetId);
 
-      const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs, historyEntries } = ResourceSystem.processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, 'land/orbit', sequenceId);
+      // Identifier l'espèce associée à la planète (ex: Oumuamua) pour les bonus de carte Alien
+      const species = game.species.find(s => s.planet?.id === planetId);
+      const speciesId = species?.id;
+
+      const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs, historyEntries } = ResourceSystem.processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, 'land/orbit', sequenceId, speciesId);
 
       // Marquer l'action principale comme effectuée manuellement
       const playerIndex = updatedGame.players.findIndex(p => p.id === currentPlayer.id);
@@ -2215,7 +2279,7 @@ export const BoardUI: React.FC = () => {
     }
 
     const probeOnPlanet = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
-    
+
     // Trouver la sonde sur la planète pour la validation
     const probe = currentPlayer.probes.find(p => {
       if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
@@ -2311,7 +2375,6 @@ export const BoardUI: React.FC = () => {
       if (!planetDef) return false;
       return p.solarPosition.disk === planetDef.position.disk && p.solarPosition.sector === planetDef.position.sector && (p.solarPosition.level || 0) === (planetDef.level || 0);
     });
-    console.log(probe);
     if (!probe) return;
 
     const executeLand = () => {
@@ -2677,7 +2740,6 @@ export const BoardUI: React.FC = () => {
 
     const action = new PlayCardAction(currentPlayer.id, cardId);
     const result = gameEngineRef.current.executeAction(action);
-    console.log(result);
     if (result.success && result.updatedState) {
       setGame(result.updatedState);
       if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedState);
@@ -3381,6 +3443,7 @@ export const BoardUI: React.FC = () => {
             onPlaceLifeTrace={handlePlaceLifeTrace}
             onSpeciesCardClick={handleSpeciesCardClick}
             setActiveTooltip={setActiveTooltip}
+            forceOpen={interactionState.type === 'ACQUIRING_ALIEN_CARD' && game.species.find(s => s.id === interactionState.speciesId)?.name === game.board.alienBoards[0].speciesId}
           />
 
           {/* Plateau Alien en bas à droite */}
@@ -3391,6 +3454,7 @@ export const BoardUI: React.FC = () => {
             onPlaceLifeTrace={handlePlaceLifeTrace}
             onSpeciesCardClick={handleSpeciesCardClick}
             setActiveTooltip={setActiveTooltip}
+            forceOpen={interactionState.type === 'ACQUIRING_ALIEN_CARD' && game.species.find(s => s.id === interactionState.speciesId)?.name === game.board.alienBoards[1].speciesId}
           />
         </div>
       </div>

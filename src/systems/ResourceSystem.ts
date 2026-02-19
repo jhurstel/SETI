@@ -313,7 +313,7 @@ export class ResourceSystem {
             newPendingInteractions.push({ type: 'DRAW_AND_SCAN', count: 1, sequenceId });
           } else if (signalBonus.scope === SectorType.PROBE) {
             newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorType.PROBE, noData: bonuses.noData, onlyProbes: true, keepCardIfOnly: bonuses.keepCardIfOnly, cardId: bonuses.keepCardIfOnly ? sourceId : undefined, sequenceId, markAdjacents: bonuses.gainSignalAdjacents, anyProbe: bonuses.anyProbe });
-          } else if ([SectorType.RED, SectorType.BLUE, SectorType.YELLOW, SectorType.BLACK, SectorType.ANY].includes(signalBonus.scope)) {
+          } else if ([SectorType.RED, SectorType.BLUE, SectorType.YELLOW, SectorType.BLACK, SectorType.OUMUAMUA, SectorType.ANY].includes(signalBonus.scope)) {
             newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: signalBonus.scope, noData: bonuses.noData, sequenceId, markAdjacents: bonuses.gainSignalAdjacents });
           }
         }

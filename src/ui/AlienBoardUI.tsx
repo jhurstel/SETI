@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType } from '../core/types';
+import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { CardTooltip } from './CardTooltip';
 import './AlienBoardUI.css';
@@ -11,11 +11,13 @@ interface AlienBoardUIProps {
     onPlaceLifeTrace: (boardIndex: number, color: LifeTraceType, slotType: 'triangle' | 'species', slotIndex?: number) => void;
     onSpeciesCardClick: (speciesId: string, cardId: string) => void;
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
+    forceOpen?: boolean;
 }
 
 const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseEnter, onMouseLeave }: { color: string, traces: any[], game: Game, onClick?: () => void, isClickable?: boolean, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
   <div
     className={`alien-triangle-slot ${isClickable ? 'clickable' : 'help'}`}
+    style={{ pointerEvents: 'auto' }}
     onMouseEnter={onMouseEnter}
     onMouseLeave={onMouseLeave}
     onClick={(e) => { e.stopPropagation(); if (isClickable && onClick) { onClick(); } }}
@@ -112,18 +114,18 @@ const SpeciesCardArea: React.FC<{
     );
 };
 
-export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, onPlaceLifeTrace, onSpeciesCardClick, setActiveTooltip }) => {
+export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, onPlaceLifeTrace, onSpeciesCardClick, setActiveTooltip, forceOpen }) => {
     const board = game.board.alienBoards[boardIndex];
     const species = game.species.find(s => s.name === board.speciesId);
     const side = boardIndex === 0 ? 'left' : 'right';
     const isPlacingTrace = interactionState.type === 'PLACING_LIFE_TRACE';
-    const [isOpen, setIsOpen] = useState(isPlacingTrace);
+    const [isOpen, setIsOpen] = useState(isPlacingTrace || forceOpen);
 
     useEffect(() => {
-        if (isPlacingTrace) {
+        if (isPlacingTrace || forceOpen) {
             setIsOpen(true);
         }
-    }, [isPlacingTrace]);
+    }, [isPlacingTrace, forceOpen]);
 
     if (!board) return null;
 
@@ -206,16 +208,15 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
         const color = type === LifeTraceType.RED ? '#ff6b6b' : type === LifeTraceType.YELLOW ? '#ffd700' : '#4a9eff';
         const currentPlayer = game.players[game.currentPlayerIndex];
 
-        const renderSlot = (index: number, bonus: any, isInfinite: boolean, opacity: number = 1, isInfiniteBottom: boolean = false) => {
+        const renderSlot = (index: number, bonus: Bonus, isInfinite: boolean, opacity: number = 1, isInfiniteBottom: boolean = false) => {
             const trace = board.lifeTraces.find(t => t.location === 'species' && t.type === type && t.slotIndex === index);
             const isFilled = !!trace;
             const canAfford = !bonus.token || bonus.token >= 0 || (currentPlayer.tokens || 0) >= Math.abs(bonus.token);
-            const isNext = index === 0 || !!board.lifeTraces.find(t => t.location === 'species' && t.type === type && t.slotIndex === index - 1);
-            const isClickable = isPlacing && !isFilled && isNext && canAfford;
+            const isNext = index === 0 || (isInfinite && index === fixedSlots.length) || !!board.lifeTraces.find(t => t.location === 'species' && t.type === type && t.slotIndex === index - 1);
+            const isClickable = isInfinite ? isPlacing && !isFilled && isNext && canAfford : isPlacing && !isFilled && canAfford;
 
             const handleMouseEnter = (e: React.MouseEvent) => {
                 const parts = ResourceSystem.formatBonus(bonus) || [];
-                if (bonus.speciesCard) parts.push(`${bonus.speciesCard} Carte Alien`);
                 
                 let costText = null;
                 if (bonus.token && bonus.token < 0) {
@@ -259,7 +260,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 borderColor: color,
                 opacity: opacity,
                 cursor: isClickable ? 'pointer' : 'help',
-                transition: 'box-shadow 0.15s'
+                transition: 'box-shadow 0.15s',
+                pointerEvents: 'auto'
             };
 
             if (isInfinite) {

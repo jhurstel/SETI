@@ -344,7 +344,6 @@ export class CardSystem {
                     });
 
                     if (hasProbeOnAsteroid) {
-                        console.log(game);
                         let scope: LifeTraceType = LifeTraceType.ANY;
                         if (effect.target === 'yellow') scope = LifeTraceType.YELLOW;
                         else if (effect.target === 'red') scope = LifeTraceType.RED;

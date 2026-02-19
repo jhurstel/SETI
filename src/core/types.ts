@@ -43,6 +43,7 @@ export enum ProbeState {
 export enum SignalType {
   DATA = "Donnée",
   MEDIA = "Média",
+  TOKEN = "Token",
   OTHER = "OTHER"
 }
 
@@ -427,7 +428,13 @@ export interface Species {
   cards: Card[];
   cardRow: Card[];
   discovered: boolean;
+  sector?: Sector;
   planet?: Planet;
+  token?: {
+    red: AnomalieToken,
+    yellow: AnomalieToken,
+    blue: AnomalieToken,
+  };
 }
 
 export interface Planet {
@@ -487,6 +494,11 @@ export interface Bonus {
   ignoreSatelliteLimit?: boolean;
   revealAndTriggerFreeAction?: boolean;
   chooseTechType?: boolean;
+}
+
+export interface AnomalieToken {
+  head: Bonus;
+  tail: Bonus;
 }
 
 export interface RotationDisk {

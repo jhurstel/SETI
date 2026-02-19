@@ -50,6 +50,22 @@ export class ScanSystem {
   }
 
   /**
+   * Récupère un secteur par son ID (plateau ou espèce)
+   */
+  static getSectorById(game: Game, sectorId: string): Sector | undefined {
+    let sector = game.board.sectors.find(s => s.id === sectorId);
+    if (!sector) {
+        for (const s of game.species) {
+            if (s.sector && s.sector.id === sectorId) {
+                sector = s.sector;
+                break;
+            }
+        }
+    }
+    return sector;
+  }
+
+  /**
    * Scanne un secteur
    */
   static scanSector(game: Game, playerId: string, sectorId: string, checkCost: boolean = true, noData: boolean = false) : {
@@ -59,12 +75,11 @@ export class ScanSystem {
   } {
     const validation = this.canScanSector(game, playerId, checkCost);
     if (!validation.canScan) {
-      console.log(game);
       throw new Error(validation.reason || 'Scan impossible');
     }
 
     const updatedGame = structuredClone(game);
-    const sector = updatedGame.board.sectors.find(s => s.id === sectorId)!;
+    const sector = this.getSectorById(updatedGame, sectorId);
     if (!sector) {
       return { updatedGame, logs: [], bonuses: {} };
     }
@@ -92,7 +107,7 @@ export class ScanSystem {
       
       // Signal bonus: 2PV
       if (signal.bonus) {
-          bonuses.pv = signal.bonus.pv;
+          if (signal.bonus.pv) bonuses.pv = (bonuses.pv || 0) + signal.bonus.pv;
       }
 
       // Traitement des buffs actifs (SCORE_PER_SECTOR)
@@ -132,7 +147,9 @@ export class ScanSystem {
    * Vérifie si un secteur est couvert
    */
   static isSectorCovered(game: Game, sectorId: string): boolean {
-    return game.board.sectors.find(s => s.id === sectorId)!.signals.filter(s => s.type === SignalType.DATA).every(s => s.marked);
+    const sector = this.getSectorById(game, sectorId);
+    if (!sector) return false;
+    return sector.signals.filter(s => s.type === SignalType.DATA).every(s => s.marked);
   }
 
   /**
@@ -150,7 +167,7 @@ export class ScanSystem {
     if (!player) {
       return { updatedGame, logs: [], bonuses: {}, newPendingInteractions: [] };
     }
-    const sector = updatedGame.board.sectors.find(s => s.id === sectorId)!;
+    const sector = this.getSectorById(updatedGame, sectorId);
     if (!sector) {
       return { updatedGame, logs: [], bonuses: {}, newPendingInteractions: [] };
     }
@@ -188,15 +205,20 @@ export class ScanSystem {
             }
         }
 
-        // Bonus de Média (Chaque joueur présent gagne 1 Média)
+        // Bonus de Média (Chaque joueur présent gagne 1 Média) ou Token pour Oumuamua
         const uniquePlayersIds = new Set(sector.signals.map(s => s.markedBy).filter(id => id) as string[]);
         const mediaWinners: string[] = [];
         
         uniquePlayersIds.forEach(pId => {
             const p = updatedGame.players.find(pl => pl.id === pId);
             if (p) {
-                p.mediaCoverage = Math.min(p.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-                mediaWinners.push(p.name);
+                if (sector.id === 'oumuamua') {
+                    p.tokens = (p.tokens || 0) + 1;
+                    mediaWinners.push(p.name);
+                } else {
+                    p.mediaCoverage = Math.min(p.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                    mediaWinners.push(p.name);
+                }
             }
         });
 
@@ -207,7 +229,8 @@ export class ScanSystem {
             const others = mediaWinners.slice(0, -1);
             winnersText = `${others.join(', ')} et ${last}`;
           }
-          logs.push(`${winnersText} gagn${mediaWinners.length > 1 ? 'ent' : 'e'} 1 Média`);
+          const resourceName = sector.id === 'oumuamua' ? 'Token' : 'Média';
+          logs.push(`${winnersText} gagn${mediaWinners.length > 1 ? 'ent' : 'e'} 1 ${resourceName}`);
         }
 
         // Bonus BONUS_IF_COVERED (Cartes 45, 46, 47)
@@ -242,7 +265,7 @@ export class ScanSystem {
         
         let secondPlaceWinnerId: string | null = null;
 
-        if (majorities.length > 1) {
+        if (sector.id !== 'oumuamua' && majorities.length > 1) {
             const secondPlaceCandidates = majorities.slice(1);
             const secondPlaceCount = secondPlaceCandidates[0].count;
             

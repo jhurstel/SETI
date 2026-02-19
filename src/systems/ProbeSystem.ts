@@ -9,7 +9,7 @@
  * - Limites (max 1 sonde dans le système solaire sans technologie)
  */
 
-import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType } from '../core/types';
+import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, SectorType } from '../core/types';
 import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { CardSystem } from './CardSystem';
@@ -451,21 +451,33 @@ export class ProbeSystem {
     // Liste des planètes (sans la Terre)
     const planets = ['venus', 'mercury', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'oumuamua'];
     
+    // Créer l'état de rotation pour calculer les positions absolues
+    const rotationState = createRotationState(
+        game.board.solarSystem.rotationAngleLevel1 || 0,
+        game.board.solarSystem.rotationAngleLevel2 || 0,
+        game.board.solarSystem.rotationAngleLevel3 || 0
+    );
+
     for (const probe of playerProbes) {
       if (!probe.solarPosition) continue;
       
+      // Calculer le secteur absolu de la sonde
+      const probeAbsoluteSector = getAbsoluteSectorForProbe(probe.solarPosition, rotationState);
+
       // Vérifier si la sonde est sur une planète
       for (const planetId of planets) {
         const planetPos = getObjectPosition(
           planetId,
-          game.board.solarSystem.rotationAngleLevel1! || 0,
-          game.board.solarSystem.rotationAngleLevel2! || 0,
-          game.board.solarSystem.rotationAngleLevel3! || 0,
+          rotationState.level1Angle,
+          rotationState.level2Angle,
+          rotationState.level3Angle,
           game.board.solarSystem.extraCelestialObjects
         );
+        
+        // Comparer les positions absolues
         if (planetPos && 
             planetPos.disk === probe.solarPosition.disk && 
-            planetPos.sector === probe.solarPosition.sector) {
+            planetPos.absoluteSector === probeAbsoluteSector) {
 
           // Trouver la planète dans le jeu pour vérifier les orbiteurs et le cout (reduit ou non)
           let planet = game.board.planets.find(p => p.id === planetId);
@@ -483,7 +495,6 @@ export class ProbeSystem {
         }
       }
     }
-    
     return { hasProbe: false };
   }
   
@@ -617,7 +628,7 @@ export class ProbeSystem {
             CardSystem.markMissionRequirementFulfillable(player, buff);
       }
     });
-  
+
     return {
       updatedGame,
       isFirstOrbiter,
@@ -749,8 +760,8 @@ export class ProbeSystem {
     const completedMissions: string[] = [];
     // Bonus planète (atterrissage)
     if (targetBody) {
-        if ((targetBody as Planet).landSlots) {
-            const index = forcedSlotIndex !== undefined ? forcedSlotIndex : targetBody.landers.length - 1;
+       if ((targetBody as Planet).landSlots) {
+       const index = forcedSlotIndex !== undefined ? forcedSlotIndex : targetBody.landers.length - 1;
             const slotBonus = (targetBody as Planet).landSlots[index];
             if (slotBonus) ResourceSystem.accumulateBonus(slotBonus, accumulatedBonuses);
         } else if ((targetBody as Satellite).landBonus) {

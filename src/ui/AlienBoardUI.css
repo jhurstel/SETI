@@ -131,8 +131,8 @@
     height: 133px !important;
     min-width: 100px !important;
     min-height: 133px !important;
-    font-size: 0.6em;
-    padding: 3px;
+    font-size: 0.6em !important;
+    padding: 3px !important;
 }
 .alien-small-card.acquiring {
     cursor: pointer;

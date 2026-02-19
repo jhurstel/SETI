@@ -2,28 +2,7 @@
  * Factory pour créer et initialiser une nouvelle partie de SETI
  */
 
-import {
-  Game,
-  GamePhase,
-  Player,
-  Decks,
-  Species,
-  DataComputer,
-  GAME_CONSTANTS,
-  Technology,
-  Card,
-  CardType,
-  FreeActionType,
-  SectorType,
-  RevenueType,
-  CardEffect,
-  GameLogEntry,
-  TechnologyCategory,
-  LifeTraceType,
-  NEUTRAL_MILESTONES,
-  AlienBoardType,
-  Bonus
-} from './types';
+import { Game, GamePhase, Player, Decks, Species, DataComputer, GAME_CONSTANTS, Technology, Card, CardType, FreeActionType, SectorType, RevenueType, CardEffect, GameLogEntry, TechnologyCategory, LifeTraceType, NEUTRAL_MILESTONES, AlienBoardType, Bonus, SignalType, Planet } from './types';
 import { BoardManager } from './Board';
 import { CardSystem } from '../systems/CardSystem';
 import { Logger } from './Logger';
@@ -1046,7 +1025,7 @@ ET.26;Course contre la Montre;Action;Gagnez 1 Sonde et 1 Token;2 Médias;Rouge;E
 ET.27;Synchronisation Parfaite;Mission Conditionnelle;Gagnez 4 Déplacements. Si vous visitez Oumuamua ce tour-ci, gagnez 1 Token. Mission: Gagnez 1 Token si vous avez marqué au moins 1 Signal sur Oumuamua.;1 PV + 1 Donnée;Jaune;Crédit;2 Crédits;4 Déplacements;GAIN_ON_VISIT:oumuamua:token:1 + GAIN_IF_SIGNAL:oumuamua:token:1
 ET.28;Echantillons d'Exofossiles;Action;Gagnez 1 Rotation et 1 Technologie Informatique. Puis vous pouvez défausser 1 Token pour gagner 1 Donnée.;1 PV + 1 Déplacement;Bleu;Pioche;2 Crédits;1 Rotation + 1 Tech Informatique;GAIN_ON_TOKEN:data:1
 ET.29;Analyse Comparative;Misison Déclenchable;Gagnez 1 Token. Mission: Gagnez 1 Donnée après avoir marqué une Trace de Vie. Mission: Gagnez 1 Média après avoir marqué une Trace de Vie. Mission: Gagnez 3 PV après avoir marqué une Trace de Vie.;1 PV + 1 Déplacement;Rouge;Energie;1 Crédit;1 Token;GAIN_ON_LIFETRACE:any:data:1 + GAIN_ON_LIFETRACE:any:media:1 + GAIN_ON_LIFETRACE:any:pv:3
-ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous posez une sonde sur Oumuamua grâce à cette action, gagnez 3 PV. Mission: Gagnez 1 Token si vous avez marqué une Trace de Vie Rouge, Bleu et Jaune pour cette espèce.;1 PV + 1 Donnée;Noir;Pioche;1 Crédit;1 Atterrissage;GAIN_ON_LAND:oumuamua:pv:3`,
+ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous posez une sonde sur Oumuamua grâce à cette action, gagnez 3 PV. Mission: Gagnez 1 Token si vous avez marqué une Trace de Vie Rouge, Bleu et Jaune pour cette espèce.;1 PV + 1 Donnée;Noir;Pioche;1 Crédit;1 Atterrissage;GAIN_ON_LAND:oumuamua:pv:3 + GAIN_IF_LIFETRACE:any:token:1`,
       [AlienBoardType.CENTAURIENS]: ``,
       [AlienBoardType.EXERTIENS]: ``,
       [AlienBoardType.MASCAMITES]: ``,
@@ -1068,7 +1047,12 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         },
         cards: this.parseCSV(csvContent[AlienBoardType.ANOMALIES]),
         cardRow: [],
-        discovered: false
+        discovered: false,
+        token: {
+          red: { head: { credits: 1 }, tail: { pv: 4 } },
+          yellow: { head: { media: 2 }, tail: { anycard: 1 } },
+          blue: { head: { data: 1 }, tail: { energy: 1 } },
+        }
       },
       {
         id: `species-${AlienBoardType.OUMUAMUA}-${Date.now()}`,
@@ -1086,8 +1070,23 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         cards: this.parseCSV(csvContent[AlienBoardType.OUMUAMUA]),
         cardRow: [],
         discovered: false,
+        sector: {
+          id: 'oumuamua',
+          name: 'Oumuamua',
+          color: SectorType.OUMUAMUA,
+          signals: [
+            { id: `sig_${Math.random().toString(36).substr(2, 9)}`, type: SignalType.DATA, marked: false, bonus: { pv: 1 } },
+            { id: `sig_${Math.random().toString(36).substr(2, 9)}`, type: SignalType.DATA, marked: false, bonus: {} },
+            { id: `sig_${Math.random().toString(36).substr(2, 9)}`, type: SignalType.DATA, marked: false, bonus: { pv: 2 } },
+          ],
+          playerMarkers: [],
+          isCovered: false,
+          coveredBy: [],
+          firstBonus: {},
+          nextBonus: {}
+        },
         planet: (() => {
-            const p: any = {
+            const p: Planet = {
                 id: 'oumuamua',
                 name: 'Oumuamua',
                 orbiters: [],
@@ -1098,6 +1097,8 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
                 landSecondBonus: { data: 2 },
                 landThirdBonus: { data: 1 },
                 landNextBonus: { pv: 9, token: 2 },
+                orbitSlots: [],
+                landSlots: []
             };
             p.orbitSlots = new Array(5).fill(null).map((_, i) => {
                 if (i === 0) return this.mergeBonuses(p.orbitFirstBonus, p.orbitNextBonus);

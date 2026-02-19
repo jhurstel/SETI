@@ -132,7 +132,6 @@ export class TechnologySystem {
         }
       }
     }
-    console.log(updatedGame);
 
     // Traitement des missions conditionnelles (GAIN_ON_TECH)
     const processedSources = new Set<string>();
@@ -154,7 +153,6 @@ export class TechnologySystem {
 
              if (buff.source) processedSources.add(buff.source);
 
-             console.log(updatedGame);
              // Re-récupérer le joueur car updatedGame a pu changer (ex: pioche de carte)
              const currentPlayer = updatedGame.players.find(p => p.id === playerId);
              if (currentPlayer) {
