@@ -43,8 +43,14 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.PLAY_CARD]: 'Jouer une carte',
   [ActionType.RESEARCH_TECH]: 'Rechercher une tech',
   [ActionType.PASS]: 'Passer définitivement',
+  [ActionType.MOVE_PROBE]: "MOVE_PROBE",
+  [ActionType.TRANSFERE_DATA]: "TRANSFERE_DATA",
+  [ActionType.DRAW_CARDS]: "DRAW_CARDS",
+  [ActionType.DISCARD_CARDS]: "DISCARD_CARDS",
+  [ActionType.RESERVE_CARD]: "RESERVE_CARD",
+  [ActionType.BUY_CARD]: "BUY_CARD",
+  [ActionType.TRADE_RESOURCES]: "TRADE_RESOURCES",
 };
-
 // Composant extrait pour les cartes en main
 const HandCard: React.FC<{
   card: Card;
@@ -395,6 +401,13 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     [ActionType.PLAY_CARD]: isCurrentTurn && !isRobot && !hasPerformedMainAction && CardSystem.canPlayCards(game, currentPlayer.id).canPlay,
     [ActionType.RESEARCH_TECH]: isCurrentTurn && !isRobot && !hasPerformedMainAction && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA,
     [ActionType.PASS]: isCurrentTurn && !isRobot && !hasPerformedMainAction,
+    [ActionType.MOVE_PROBE]: false,
+    [ActionType.TRANSFERE_DATA]: false,
+    [ActionType.DRAW_CARDS]: false,
+    [ActionType.DISCARD_CARDS]: false,
+    [ActionType.RESERVE_CARD]: false,
+    [ActionType.BUY_CARD]: false,
+    [ActionType.TRADE_RESOURCES]: false,
   };
 
   // Fonction helper pour générer le tooltip basé sur l'état du jeu (Interaction Engine -> UI)

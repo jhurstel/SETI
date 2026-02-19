@@ -65,9 +65,13 @@ const getInteractionLabel = (state: InteractionState): string => {
   }
 };
 
-export const BoardUI: React.FC = () => {
+interface BoardUIProps {
+  game?: Game;
+}
+
+export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // États pour le jeu
-  const [game, setGame] = useState<Game | null>(null);
+  const [game, setGame] = useState<Game | null>(initialGame || null);
   const gameEngineRef = useRef<GameEngine | null>(null);
 
   // Ref pour accéder à l'état du jeu le plus récent dans les callbacks

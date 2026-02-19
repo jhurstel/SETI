@@ -544,19 +544,6 @@ export class CardSystem {
         // Construction du message d'historique unifié
         let message = `paye ${card.cost} crédit${card.cost > 1 ? 's' : ''} pour jouer carte "${card.name}"`;
 
-        if (bonuses && bonuses.subventionDetails) {
-        const { cardName, bonusText } = bonuses.subventionDetails;
-        message += ` et pioche carte "${cardName}" pour gagner ${bonusText}`;
-
-        if (bonusText === "1 Donnée") {
-            const idx = passiveGains.indexOf(ResourceSystem.formatResource(1, 'DATA'));
-            if (idx > -1) passiveGains.splice(idx, 1);
-        } else if (bonusText === "1 Média") {
-            const idx = passiveGains.indexOf(ResourceSystem.formatResource(1, 'MEDIA'));
-            if (idx > -1) passiveGains.splice(idx, 1);
-        }
-        }
-
         // Filtrer les logs pour séparer ce qu'on fusionne de ce qu'on garde séparé
         const isPassiveLog = (log: string) => log.startsWith('gagne ') || log.startsWith('pioche ');
         const isMovementLog = (log: string) => log.includes('déplacement') && log.includes('gratuit');

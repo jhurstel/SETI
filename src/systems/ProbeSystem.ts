@@ -9,7 +9,7 @@
  * - Limites (max 1 sonde dans le système solaire sans technologie)
  */
 
-import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, SectorType } from '../core/types';
+import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType } from '../core/types';
 import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { CardSystem } from './CardSystem';

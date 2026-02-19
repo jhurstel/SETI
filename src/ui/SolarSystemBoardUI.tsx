@@ -820,18 +820,14 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     );
 
     let canOrbit = false;
-    let orbitReason = "Nécessite une sonde sur la planète";
     if (playerProbe) {
       if (currentPlayer.hasPerformedMainAction || isRobot) {
-        orbitReason = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
       } else {
         const check = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id);
         canOrbit = check.canOrbit;
-        orbitReason = check.canOrbit ? "Cliquez pour mettre en orbite (Coût: 1 Crédit, 1 Énergie)" : (check.reason || "Impossible");
       }
     }
 
-    let landEnergyCost: number | undefined;
     let canLand = false;
     let landReason = "Nécessite une sonde sur la planète";
     if (playerProbe) {
@@ -840,7 +836,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       } else {
         const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !(interactionState.type === 'LANDING_PROBE'));
         canLand = check.canLand;
-        landEnergyCost = check.energyCost;
         landReason = check.canLand ? `Cliquez pour atterrir (Coût: ${check.energyCost} Énergie)` : (check.reason || "Impossible");
       }
     }
@@ -1146,7 +1141,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                     const pos = orbitPositions[i];
                     const probe = planetData.orbiters[i];
                     const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-                    const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
 
                     const isRemoving = removingItem?.type === 'orbiter' && removingItem?.planetId === planetData.id && removingItem?.index === i;
                     const isOccupied = !!player;
@@ -1158,43 +1152,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                     } else {
                       isClickable = !removingItem && isNextAvailable && canOrbit && !!onOrbit;
                     }
-
-                    let statusText = "";
-                    let statusColor = "";
-                    let actionText = null;
-
-                    if (isOccupied) {
-                      statusText = `Occupé par ${player?.name}`;
-                      statusColor = player?.color || "#ccc";
-                      if (isClickable) {
-                        statusText = "Cliquez pour retirer";
-                        statusColor = "#ff6b6b";
-                      }
-                    } else if (isClickable) {
-                      statusText = "Disponible";
-                      statusColor = "#4a9eff";
-                      actionText = "Cliquez pour mettre en orbite (Coût: 1 Crédit, 1 Énergie)";
-                    } else {
-                      statusText = "Indisponible";
-                      statusColor = "#ff6b6b";
-                      actionText = orbitReason;
-                    }
-
-                    const tooltipContent = (
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>
-                          {statusText}
-                        </div>
-                        <div style={{ fontSize: '0.9em', color: '#ccc' }}>
-                          {interactionState.type === 'REMOVING_ORBITER' && isClickable ? (
-                            <>Gain retrait : <span style={{ color: '#ffd700' }}>3 PV, 1 Donnée, 1 Carte</span></>
-                          ) : (
-                            <>Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span></>
-                          )}
-                        </div>
-                        {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
-                      </div>
-                    );
 
                     const isFirst = i === 0;
                     const showFullToken = isFirst || !!player;
@@ -1229,7 +1186,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                         ) : (
                           <circle
                             r={4}
-                            fill={player?.color || `url(#corridor-grad-${planetData.id})`} 
+                            fill={`url(#corridor-grad-${planetData.id})`} 
                             style={{
                                 transition: 'all 0.5s ease',
                                 opacity: isRemoving ? 0 : 1,
@@ -1250,7 +1207,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                     const probesOnSlot = planetData.landers.filter(p => p.planetSlotIndex === i);
                     const probe = probesOnSlot.length > 0 ? probesOnSlot[probesOnSlot.length - 1] : undefined;
                     const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-                    const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
                     const isRemoving = removingItem?.type === 'lander' && removingItem?.planetId === planetData.id && removingItem?.index === i;
 
                     const isOccupied = !!player;
@@ -1258,43 +1214,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                     const isNextAvailable = !isOccupied && isPrevSlotOccupied;
                     const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
                     const isClickable = !removingItem && (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
-
-                    let statusText = "";
-                    let statusColor = "";
-                    let actionText = null;
-
-                    if (isOccupied) {
-                      statusText = `Occupé par ${player?.name}`;
-                      statusColor = player?.color || "#ccc";
-                      if (isClickable) {
-                        statusText = "Cliquez pour retirer";
-                        statusColor = "#ff6b6b";
-                      }
-                    } else if (isClickable) {
-                      statusText = "Disponible";
-                      statusColor = "#4a9eff";
-                      actionText = `Cliquez pour atterrir (Coût: ${landEnergyCost} Énergie)`;
-                    } else {
-                      statusText = "Indisponible";
-                      statusColor = "#ff6b6b";
-                      actionText = landReason;
-                    }
-
-                    const tooltipContent = (
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>
-                          {statusText}
-                        </div>
-                        <div style={{ fontSize: '0.9em', color: '#ccc' }}>
-                          {interactionState.type === 'REMOVING_LANDER' && isClickable ? (
-                            <>Gain retrait : <span style={{ color: '#ffd700' }}>3 PV, 1 Donnée, 1 Carte</span></>
-                          ) : (
-                            <>Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span></>
-                          )}
-                        </div>
-                        {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
-                      </div>
-                    );
 
                     const isFullSlot = i === 0 || (planetData.id === 'mars' && i === 1) || (planetData.id === 'oumuamua' && i === 1) || (planetData.id === 'oumuamua' && i === 2);
                     const showFullToken = isFullSlot || !!player;
@@ -1327,7 +1246,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                             {!player && renderBonusContent(bonus)}
                           </>
                         ) : (
-                          <circle r={4} fill={player?.color || `url(#land-corridor-grad-${planetData.id})`} 
+                          <circle r={4} fill={`url(#land-corridor-grad-${planetData.id})`} 
                             style={{
                                 transition: 'all 0.5s ease',
                                 opacity: isRemoving ? 0 : 1,
@@ -1771,20 +1690,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             );
           }
 
-          let coverDisplay;
-          if (coveredByPlayers.length > 0) {
-            coverDisplay = (
-              <div style={{ marginTop: '6px', paddingTop: '4px', borderTop: '1px solid #555' }}>
-                <div style={{ fontSize: '0.8em', color: '#aaa' }}>Couvert par :</div>
-                {coveredByPlayers.map(p => (
-                  <div key={p.id} style={{ color: p.color, fontWeight: 'bold', fontSize: '0.9em' }}>{p.name}</div>
-                ))}
-              </div>
-            );
-          } else {
-            coverDisplay = <div style={{ fontSize: '0.8em', color: '#aaa' }}>Aucune couverture</div>;
-          }
-
           const sectorTooltipContent = (
             <div style={{ textAlign: 'left' }}>
               <div style={{ fontWeight: 'bold', borderBottom: '1px solid #ccc', marginBottom: '4px', color: color }}>{sector.name.toUpperCase()}</div>
@@ -2175,12 +2080,12 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                 const sectorAngle = -(360 / 8) * sectorIndex - 90; // 0° = midi (12h), sens horaire, -90° pour CSS
 
                 // Calculs pour le label
-                const sectorNumber = sectorIndex + 1;
-                const sectorStartAngle = -(360 / 8) * sectorIndex;
-                const sectorEndAngle = -(360 / 8) * (sectorIndex + 1);
-                const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-                const labelRadius = 47;
-                const { x, y } = polarToCartesian(0, 0, labelRadius, sectorCenterAngle - 90);
+                //const sectorNumber = sectorIndex + 1;
+                //const sectorStartAngle = -(360 / 8) * sectorIndex;
+                //const sectorEndAngle = -(360 / 8) * (sectorIndex + 1);
+                //const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
+                //const labelRadius = 47;
+                //const { x, y } = polarToCartesian(0, 0, labelRadius, sectorCenterAngle - 90);
 
                 return (
                   <React.Fragment key={`sector-group-${sectorIndex}`}>

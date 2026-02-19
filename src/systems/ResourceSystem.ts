@@ -373,9 +373,6 @@ export class ResourceSystem {
     if (bonuses.revealAndTriggerFreeAction) {
       newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: 1, isFree: true, triggerFreeAction: true, sequenceId });
     }
-    if (bonuses.choiceMediaOrMove) {
-      newPendingInteractions.push({ type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId });
-    }
     if (bonuses.atmosphericEntry) {
       newPendingInteractions.push({ type: 'REMOVING_ORBITER', sequenceId });
     }
