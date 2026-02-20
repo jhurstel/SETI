@@ -1,5 +1,5 @@
 import React from 'react';
-import { Player, ComputerSlot } from '../core/types';
+import { Player, ComputerSlot, GAME_CONSTANTS } from '../core/types';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import './PlayerComputerUI.css';
 
@@ -207,6 +207,8 @@ export const PlayerComputerUI = ({
           
           const slot6a = col6Slots.find(s => s.type === 'top');
           const is6aFilled = slot6a ? slot6a.filled : false;
+          const hasEnergy = player.energy >= GAME_CONSTANTS.ANALYZE_COST_ENERGY;
+          const isAvailable = is6aFilled && hasEnergy;
 
           return (
             <>
@@ -223,23 +225,41 @@ export const PlayerComputerUI = ({
               </div>
               <div className="computer-column">
                 <div
-                  className={`computer-slot ${is6aFilled ? 'can-fill' : ''}`}
+                  className={`computer-slot ${isAvailable ? 'can-fill' : ''}`}
                   style={{ 
-                      cursor: is6aFilled && !disabled ? 'pointer' : 'help',
-                      borderColor: is6aFilled ? '#00ffff' : '#444',
-                      color: is6aFilled ? '#00ffff' : '#444',
+                      cursor: isAvailable && !disabled ? 'pointer' : 'help',
+                      borderColor: isAvailable ? '#00ffff' : '#444',
+                      color: isAvailable ? '#00ffff' : '#444',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '1.2em'
                   }}
-                  onClick={() => { if (is6aFilled && !disabled && onAnalyzeClick) onAnalyzeClick(); }}
+                  onClick={() => { if (isAvailable && !disabled && onAnalyzeClick) onAnalyzeClick(); }}
                   onMouseEnter={(e) => {
+                      let statusText = "Indisponible";
+                      let statusColor = "#ff6b6b";
+                      let actionText = "Nécessite de remplir la ligne précédente";
+
+                      if (is6aFilled) {
+                          if (hasEnergy) {
+                              statusText = "Analyse disponible";
+                              statusColor = "#4a9eff";
+                              actionText = `Cliquez pour lancer l'analyse des données (Coût: ${GAME_CONSTANTS.ANALYZE_COST_ENERGY} Énergie)`;
+                          } else {
+                              statusText = "Énergie insuffisante";
+                              actionText = `Nécessite ${GAME_CONSTANTS.ANALYZE_COST_ENERGY} Énergie`;
+                          }
+                      }
+
                       const content = (
                           <div className="computer-tooltip-container">
-                              <div className={`computer-tooltip-title ${is6aFilled ? 'available' : 'unavailable'}`}>
-                                  {is6aFilled ? 'Analyse disponible' : 'Indisponible'}
+                              <div className={`computer-tooltip-title`} style={{ color: statusColor }}>
+                                  {statusText}
+                              </div>
+                              <div className="computer-tooltip-bonus">
+                                  <>Bonus : <span style={{ color: '#8affc0', fontWeight: 'normal' }}>1 Trace de Vie Bleu</span></>
                               </div>
                               <div className="computer-tooltip-action normal">
-                                  {is6aFilled ? 'Cliquez pour lancer l\'analyse des données' : 'Nécessite le slot précédent'}
+                                  {actionText}
                               </div>
                           </div>
                       );

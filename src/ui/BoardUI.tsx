@@ -1946,13 +1946,16 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     // Utilisation de SpeciesSystem pour placer la trace
     const { updatedGame, isDiscovered, historyEntries, newPendingInteractions } = SpeciesSystem.placeLifeTrace(game, boardIndex, color, targetPlayerId, sequenceId, slotType, slotIndex);
 
-    historyEntries.forEach((entry, index) => addToHistory(entry.message, entry.playerId, index === 0 ? game : undefined, undefined, sequenceId));
-
+    const entriesToAdd = [...historyEntries];
     if (isDiscovered) {
+      entriesToAdd.push({ message: "découvre une nouvelle espèce Alien !", playerId: targetPlayerId, sequenceId });
       setAlienDiscoveryNotification({ visible: true, message: "Découverte d'une nouvelle espèce Alien !" });
       setTimeout(() => setAlienDiscoveryNotification(null), 4000);
-      addToHistory("découvre une nouvelle espèce Alien !", targetPlayerId, undefined, undefined, sequenceId);
     }
+
+    entriesToAdd.forEach((entry, index) => {
+        addToHistory(entry.message, entry.playerId, index === 0 ? game : undefined, undefined, sequenceId);
+    });
 
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);

@@ -1431,7 +1431,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                         )}
                         <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" />
                         {!player && signal.bonus && (
-                            <g transform="scale(0.2)">
+                            <g transform={`scale(0.2) rotate(${-rotationAngle1})`}>
                                 {renderBonusContent(signal.bonus)}
                             </g>
                         )}

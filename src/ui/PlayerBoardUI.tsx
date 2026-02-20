@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, Mission, InteractionState, RevenueType, FreeActionType } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, Mission, InteractionState, RevenueType, FreeActionType, TechnologyCategory } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
@@ -717,7 +717,28 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             <div className="seti-player-list">
               {currentPlayer.technologies.length > 0 ? (
                 currentPlayer.technologies.map((tech) => (
-                  <div key={tech.id} className="seti-player-list-item seti-tech-list-item">
+                  <div 
+                    key={tech.id} 
+                    className="seti-player-list-item seti-tech-list-item"
+                    onMouseEnter={(e) => {
+                      let categoryColor = '#fff';
+                      if (tech.type === TechnologyCategory.EXPLORATION) categoryColor = '#ffeb3b';
+                      if (tech.type === TechnologyCategory.OBSERVATION) categoryColor = '#ff6b6b';
+                      if (tech.type === TechnologyCategory.COMPUTING) categoryColor = '#4a9eff';
+
+                      const tooltipContent = (
+                        <div className="seti-tech-tooltip-content">
+                          <div className="seti-tech-tooltip-header">
+                            <span className="seti-tech-tooltip-name">{tech.name}</span>
+                            <span className="seti-tech-tooltip-category" style={{ color: categoryColor, borderColor: categoryColor }}>{tech.type}</span>
+                          </div>
+                          <div className="seti-tech-tooltip-desc">{tech.description}</div>
+                        </div>
+                      );
+                      handleTooltipHover(e, tooltipContent);
+                    }}
+                    onMouseLeave={handleTooltipLeave}
+                  >
                     <div className="seti-tech-icon">{getTechIcon(tech.id)}</div>
                     <div className="seti-tech-name">{tech.name}</div>
                     {tech.description && (
@@ -881,12 +902,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   return (
                   <div key={mission.id} 
                     className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`} 
-                    style={{ cursor: !mission.completed && isCurrentTurn && !isRobot && !isInteractiveMode ? 'pointer' : 'default' }}
-                    onClick={(_e) => {
-                        if (onMissionClick && !mission.completed && isCurrentTurn && !isRobot && !isInteractiveMode) {
-                            onMissionClick(mission.id);
-                        }
-                    }}
+                    style={{ cursor: 'default' }}
                     onMouseEnter={e => {
                     const tooltipContent = (
                       <div className="seti-card-tooltip">
@@ -996,20 +1012,30 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   </div>
                 )})}
                 {(currentPlayer.playedCards || []).map((card: Card) => {
-                  const descriptionParts = card.description ? card.description.split('Fin de jeu:') : [];
-                  const missionText = descriptionParts.length > 1 ? descriptionParts[1].trim() : card.description;
+                  let missionRequirementStrings: string[] = [];
+                  if (card.description) {
+                      if (card.description.includes('Mission:')) {
+                          missionRequirementStrings = card.description.split('Mission:').slice(1).filter(s => s.trim() !== '');
+                      } else if (card.description.includes('Fin de jeu:')) {
+                          missionRequirementStrings = [card.description.split('Fin de jeu:')[1].trim()];
+                      } else {
+                          missionRequirementStrings = [card.description];
+                      }
+                  }
                   return (
                   <div key={card.id} className="seti-common-card seti-played-card"
-                  onMouseEnter={(e) => handleTooltipHover(e, <CardTooltip card={card} />)}
+                  onMouseEnter={(e) => handleTooltipHover(e, <CardTooltip card={card} hideIntro={true} hideStats={true} />)}
                   onMouseLeave={handleTooltipLeave}
                   >
                     <div className="seti-mission-header">
                       <div className="seti-mission-title">{card.name}</div>
                       <span className="seti-played-card-tag">FIN</span>
                     </div>
-                    {missionText && (
+                    {missionRequirementStrings.length > 0 && (
                       <div className="seti-mission-desc">
-                        {missionText}
+                        {missionRequirementStrings.map((text, idx) => (
+                            <div key={idx}>{text}</div>
+                        ))}
                       </div>
                     )}
                   </div>
