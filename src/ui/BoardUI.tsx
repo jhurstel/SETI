@@ -31,8 +31,8 @@ import { HistoryBoardUI, HistoryEntry } from './HistoryBoardUI';
 import { CardRowUI } from './CardRowUI';
 import { AlienBoardUI } from './AlienBoardUI';
 import { SettingsModal } from './modals/SettingsModal';
-import './BoardUI.css';
 import { ComputerSystem } from '../systems/ComputerSystem';
+import './BoardUI.css';
 
 // Helper pour les libellés des interactions
 const getInteractionLabel = (state: InteractionState): string => {

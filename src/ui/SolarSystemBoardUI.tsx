@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, ProbeState, Bonus, GAME_CONSTANTS, SectorType, SignalType, InteractionState, AlienBoardType, CelestialObject } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, ProbeState, Bonus, GAME_CONSTANTS, SectorType, SignalType, InteractionState, AlienBoardType, CelestialObject, GamePhase } from '../core/types';
 import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getObjectPosition, getAbsoluteSectorForProbe, polarToCartesian, describeArc, sectorToIndex, indexToSector, calculateObjectPosition, getSectorType, SolarSystemCell } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -316,7 +316,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       } else {
         sectors = game.board.sectors.filter(s => s.color === interactionState.color).map(s => s.id);
       }
-    } else if (interactionState.type === 'IDLE' && !currentPlayer.hasPerformedMainAction) {
+    } else if (interactionState.type === 'IDLE' && !currentPlayer.hasPerformedMainAction && game.phase !== GamePhase.SETUP) {
       // Earth sector
       const earthPos = getObjectPosition('earth', game.board.solarSystem.rotationAngleLevel1 || 0, game.board.solarSystem.rotationAngleLevel2 || 0, game.board.solarSystem.rotationAngleLevel3 || 0, game.board.solarSystem.extraCelestialObjects);
       if (earthPos) {
@@ -1474,7 +1474,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         if (planetData && planetData.orbiters.some(p => p.ownerId === currentPlayer.id)) {
             canInteract = true;
         }
-    } else if (!currentPlayer.hasPerformedMainAction && !isRobot) {
+    } else if (!currentPlayer.hasPerformedMainAction && !isRobot && game.phase !== GamePhase.SETUP) {
       if (obj.id === 'earth') {
         canInteract = ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch;
       } else if (playerProbe) {
@@ -1596,8 +1596,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const { x, y, sectorCenterAngle } = calculateObjectPosition(obj.position.disk, obj.position.sector);
     // Direction tangentielle dans le sens horaire (croissant 1→8) : angle - 90°
     const tailAngle = sectorCenterAngle - 90;
-    const tailLength = obj.position.disk === 'A' ? 30 : 50;
-    const nucleusOffset = obj.position.disk === 'A' ? 15 : 25;
+    const tailLength = obj.position.disk === 'A' ? 30 : obj.position.disk === 'B' ? 50 : 70;
+    const nucleusOffset = obj.position.disk === 'A' ? 15 : obj.position.disk === 'B' ? 25 : 35;
 
     return (
       <div

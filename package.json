@@ -4,7 +4,7 @@
   "description": "Adaptation numérique du jeu SETI (Iello)",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && vite build",
     "start": "node dist/examples/basic-game.js",
     "dev": "ts-node src/examples/basic-game.ts",
     "dev:ui": "vite",

@@ -51,7 +51,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           const shuffledRobots = [...robotNamesPool].sort(() => 0.5 - Math.random());
           difficulty;
 
-          const playerNames = ['Jérôme'];
+          const playerNames = ['Thierry'];
           for (let i = 1; i < playerCount; i++) {
               playerNames.push(shuffledRobots[i-1]);
           }

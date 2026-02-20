@@ -43,14 +43,24 @@ const ACTION_NAMES: Record<ActionType, string> = {
   [ActionType.PLAY_CARD]: 'Jouer une carte',
   [ActionType.RESEARCH_TECH]: 'Rechercher une tech',
   [ActionType.PASS]: 'Passer définitivement',
-  [ActionType.MOVE_PROBE]: "MOVE_PROBE",
-  [ActionType.TRANSFERE_DATA]: "TRANSFERE_DATA",
-  [ActionType.DRAW_CARDS]: "DRAW_CARDS",
-  [ActionType.DISCARD_CARDS]: "DISCARD_CARDS",
-  [ActionType.RESERVE_CARD]: "RESERVE_CARD",
-  [ActionType.BUY_CARD]: "BUY_CARD",
-  [ActionType.TRADE_RESOURCES]: "TRADE_RESOURCES",
+  [ActionType.MOVE_PROBE]: "Déplacer une sonde",
+  [ActionType.TRANSFERE_DATA]: "Transférer une donnée",
+  [ActionType.BUY_CARD]: "Acheter une carte",
+  [ActionType.TRADE_RESOURCES]: "Echanger des ressources",
+  [ActionType.DISCARD_CARD]: "Défausser une carte",
+  [ActionType.ACCOMPLISH_MISSION]: "Accomplir une mission"
 };
+
+const MAIN_ACTIONS = [
+  ActionType.LAUNCH_PROBE,
+  ActionType.ORBIT,
+  ActionType.LAND,
+  ActionType.SCAN_SECTOR,
+  ActionType.ANALYZE_DATA,
+  ActionType.PLAY_CARD,
+  ActionType.RESEARCH_TECH,
+  ActionType.PASS,
+];
 // Composant extrait pour les cartes en main
 const HandCard: React.FC<{
   card: Card;
@@ -403,9 +413,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     [ActionType.PASS]: isCurrentTurn && !isRobot && !hasPerformedMainAction,
     [ActionType.MOVE_PROBE]: false,
     [ActionType.TRANSFERE_DATA]: false,
-    [ActionType.DRAW_CARDS]: false,
-    [ActionType.DISCARD_CARDS]: false,
-    [ActionType.RESERVE_CARD]: false,
+    [ActionType.DISCARD_CARD]: false,
+    [ActionType.ACCOMPLISH_MISSION]: false,
     [ActionType.BUY_CARD]: false,
     [ActionType.TRADE_RESOURCES]: false,
   };
@@ -674,7 +683,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             <div className="seti-player-section-title">Actions principales</div>
             <div className="seti-player-actions seti-actions-grid">
               {Object.entries(ACTION_NAMES)
-                .filter(([action]) => action)
+                .filter(([action]) => MAIN_ACTIONS.includes(action as ActionType))
                 .map(([action, name]) => {
                   const available = actionAvailability[action as ActionType] && !isInteractiveMode;
                   const actionType = action as ActionType;

@@ -27,45 +27,61 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                 <span className="panel-title">Objectifs</span>
             </div>
             <div className="seti-foldable-content">
-                <div className="seti-score-track" style={{ padding: '20px 10px 30px 10px', position: 'relative', borderBottom: '1px solid #444', marginBottom: '10px' }}>
-                    <div style={{ height: '4px', background: '#555', borderRadius: '2px', position: 'relative' }}>
+                <div className="seti-score-track" style={{ padding: '30px 15px 40px 15px', position: 'relative', borderBottom: '1px solid #444', marginBottom: '10px' }}>
+                    <div style={{ height: '4px', background: 'linear-gradient(90deg, #444, #666)', borderRadius: '2px', position: 'relative' }}>
+                        {/* Ticks */}
+                        {Array.from({ length: trackMax / 5 + 1 }).map((_, i) => {
+                            const score = i * 5;
+                            const isMajor = score % 25 === 0 || score === trackMax;
+                            if (score > trackMax) return null;
+                            return (
+                                <div key={`tick-${score}`} style={{ position: 'absolute', left: `${getPosition(score)}%`, top: '4px', width: '1px', height: isMajor ? '8px' : '4px', background: isMajor ? '#999' : '#666' }}>
+                                    {isMajor && <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.8em', color: '#999' }}>{score}</div>}
+                                </div>
+                            );
+                        })}
+
                         {/* Paliers Neutres */}
                         {game.players.length < 4 && NEUTRAL_MILESTONES.map(m => (
-                            <div key={`neutral-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '-6px', width: '2px', height: '16px', background: '#aaa', zIndex: 1 }}
+                            <div key={`neutral-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
                                 onMouseEnter={(e) => setActiveTooltip({ content: <div>Palier Neutre: {m} PV</div>, rect: e.currentTarget.getBoundingClientRect() })}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
-                                <div style={{ position: 'absolute', top: '-15px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: '#aaa' }}>{m}</div>
+                                <svg width="14" height="14" viewBox="0 0 24 24" style={{ fill: '#aaa', filter: 'drop-shadow(0 0 2px #555)' }}><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg>
+                                <div style={{ position: 'absolute', top: '-16px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: '#aaa', background: 'rgba(30,30,30,0.8)', padding: '0 3px', borderRadius: '2px' }}>{m}</div>
                             </div>
                         ))}
                         {/* Paliers Objectifs */}
                         {GOLDEN_MILESTONES.map(m => (
-                            <div key={`golden-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '-8px', width: '2px', height: '20px', background: '#ffd700', zIndex: 1 }}
+                            <div key={`golden-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
                                 onMouseEnter={(e) => setActiveTooltip({ content: <div>Palier Objectif: {m} PV</div>, rect: e.currentTarget.getBoundingClientRect() })}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
-                                <div style={{ position: 'absolute', top: '-15px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: '#ffd700' }}>{m}</div>
+                                <svg width="16" height="16" viewBox="0 0 24 24" style={{ fill: '#ffd700', filter: 'drop-shadow(0 0 3px #ffd700)' }}><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                                <div style={{ position: 'absolute', top: '-18px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: '#ffd700', background: 'rgba(30,30,30,0.8)', padding: '0 3px', borderRadius: '2px' }}>{m}</div>
                             </div>
                         ))}
                         {/* Joueurs */}
                         {game.players.map(p => {
-                            const playersAtScore = game.players.filter(other => other.score === p.score);
+                            const playersAtScore = game.players.filter(other => other.score === p.score).sort((a,b) => a.id.localeCompare(b.id));
                             const indexAtScore = playersAtScore.findIndex(other => other.id === p.id);
-                            const offset = indexAtScore * 14 + 8;
+                            const offset = indexAtScore * 16 + 12;
                             
                             return (
                                 <div key={p.id} style={{
                                     position: 'absolute',
                                     left: `${getPosition(p.score)}%`,
                                     top: `${offset}px`,
-                                    width: '12px',
-                                    height: '12px',
+                                    width: '14px',
+                                    height: '14px',
                                     borderRadius: '50%',
                                     backgroundColor: p.color,
-                                    border: '1px solid #fff',
+                                    border: '2px solid rgba(255, 255, 255, 0.8)',
+                                    boxShadow: `0 0 4px ${p.color}, 0 0 6px #fff`,
                                     transform: 'translateX(-50%)',
                                     zIndex: 2,
-                                    cursor: 'help'
+                                    cursor: 'help',
+                                    transition: 'left 0.4s ease-in-out'
                                 }}
                                 onMouseEnter={(e) => setActiveTooltip({ content: <div>{p.name}: {p.score} PV</div>, rect: e.currentTarget.getBoundingClientRect() })}
                                 onMouseLeave={() => setActiveTooltip(null)}
@@ -73,7 +89,6 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                             );
                         })}
                     </div>
-                    <div style={{ position: 'absolute', right: '0', top: '10px', fontSize: '0.7em', color: '#666' }}>{trackMax}</div>
                 </div>
                 <div className="seti-objective-grid">
                     {game.board.objectiveTiles && game.board.objectiveTiles.map(tile => (

@@ -12,6 +12,7 @@ export * from './core/ActionValidator';
 export * from './core/Board';
 export * from './core/Game';
 export * from './core/GameFactory';
+export * from './core/Logger';
 export * from './core/ScoreManager';
 export * from './core/SolarSystemPosition';
 export * from './core/TurnManager';
