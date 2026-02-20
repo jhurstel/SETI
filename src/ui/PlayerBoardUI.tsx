@@ -754,6 +754,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 disabled={isInteractiveMode || isRobot}
                 onHover={handleTooltipHover}
                 onLeave={handleTooltipLeave}
+                onAnalyzeClick={() => onAction(ActionType.ANALYZE_DATA)}
               />
             </div>
           </div>

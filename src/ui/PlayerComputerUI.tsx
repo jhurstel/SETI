@@ -98,18 +98,19 @@ const ComputerSlotUI = ({
 };
 
 export const PlayerComputerUI = ({ 
-  player, onSlotClick, isSelecting, onColumnSelect, isAnalyzing, disabled, onHover, onLeave 
+  player, onSlotClick, isSelecting, onColumnSelect, isAnalyzing, disabled, onHover, onLeave, onAnalyzeClick
 }: { 
   player: Player, onSlotClick: (slotId: string) => void, isSelecting?: boolean, onColumnSelect?: (col: number) => void, isAnalyzing?: boolean, disabled?: boolean,
   onHover: (e: React.MouseEvent, content: React.ReactNode) => void,
-  onLeave: () => void
+  onLeave: () => void,
+  onAnalyzeClick?: () => void
 }) => {
   const slots = player.dataComputer.slots;
   const columns = [1, 2, 3, 4, 5, 6];
   const hasData = (player.data || 0) > 0;
 
   return (
-    <div className={`player-computer-container ${isAnalyzing ? 'analyzing-container' : ''}`} style={{ position: 'relative', overflow: 'hidden' }}>
+    <div className={`player-computer-container ${isAnalyzing ? 'analyzing-container' : ''}`} style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'flex-start', width: '100%' }}>
       {/* Animation de scan */}
       {isAnalyzing && (
         <style>
@@ -181,17 +182,77 @@ export const PlayerComputerUI = ({
               ))}
             </div>
             {index < columns.length - 1 && (
-              <div 
-                className="computer-separator"
-                style={{
-                  marginLeft: separatorLeftMargin,
-                  marginRight: separatorRightMargin,
-                }} 
-              />
+              <div style={{ flex: 1, position: 'relative', alignSelf: 'flex-start' }}>
+                <div 
+                  className="computer-separator"
+                  style={{
+                    position: 'absolute',
+                    left: separatorLeftMargin,
+                    right: separatorRightMargin,
+                    top: 0
+                  }} 
+                />
+              </div>
             )}
           </React.Fragment>
         );
       })}
+
+      {/* 7th Slot (Analysis) */}
+      {(() => {
+          const col6Slots = Object.values(slots).filter((s) => s.col === 6);
+          const col6HasBottom = col6Slots.length > 1;
+          const leftMargin = -(col6HasBottom ? 12 : 4);
+          const rightMargin = -4;
+          
+          const slot6a = col6Slots.find(s => s.type === 'top');
+          const is6aFilled = slot6a ? slot6a.filled : false;
+
+          return (
+            <>
+              <div style={{ flex: 1, position: 'relative', alignSelf: 'flex-start' }}>
+                <div 
+                  className="computer-separator"
+                  style={{
+                    position: 'absolute',
+                    left: leftMargin,
+                    right: rightMargin,
+                    top: 0
+                  }} 
+                />
+              </div>
+              <div className="computer-column">
+                <div
+                  className={`computer-slot ${is6aFilled ? 'can-fill' : ''}`}
+                  style={{ 
+                      cursor: is6aFilled && !disabled ? 'pointer' : 'help',
+                      borderColor: is6aFilled ? '#00ffff' : '#444',
+                      color: is6aFilled ? '#00ffff' : '#444',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '1.2em'
+                  }}
+                  onClick={() => { if (is6aFilled && !disabled && onAnalyzeClick) onAnalyzeClick(); }}
+                  onMouseEnter={(e) => {
+                      const content = (
+                          <div className="computer-tooltip-container">
+                              <div className={`computer-tooltip-title ${is6aFilled ? 'available' : 'unavailable'}`}>
+                                  {is6aFilled ? 'Analyse disponible' : 'Indisponible'}
+                              </div>
+                              <div className="computer-tooltip-action normal">
+                                  {is6aFilled ? 'Cliquez pour lancer l\'analyse des données' : 'Nécessite le slot précédent'}
+                              </div>
+                          </div>
+                      );
+                      onHover(e, content);
+                  }}
+                  onMouseLeave={onLeave}
+                >
+                  👁️
+                </div>
+              </div>
+            </>
+          );
+      })()}
     </div>
   );
 };

@@ -101,11 +101,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
   // Effet pour afficher un message toast si l'interaction en contient un
   useEffect(() => {
     if (interactionState.type === 'IDLE') {
-      setToast({ message: 'Veuillez sélectionner une action ou passer au prochain joueur.', visible: true });
+      if (game && game.players[game.currentPlayerIndex].hasPerformedMainAction) {
+        setToast({ message: 'Action principale effectuée. Veuillez effectuer une action gratuite ou passer au prochain joueur.', visible: true });
+      } else {
+        setToast({ message: "Veuillez sélectionner une action gratuite ou votre action principale.", visible: true });
+      }
     } else {
       setToast({ message: getInteractionLabel(interactionState), visible: true });
     }
-  }, [interactionState]);
+  }, [interactionState, game]);
 
   // Effet pour la réservation initiale (Setup) pour le joueur humain
   useEffect(() => {
@@ -3399,7 +3403,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
 
           {/* Toast Notification */}
           {toast && toast.visible && (
-            <div className="seti-toast">
+            <div className="seti-toast" style={{ zIndex: 8000 }}>
               {toast.message}
             </div>
           )}
