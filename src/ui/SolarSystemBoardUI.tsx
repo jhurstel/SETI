@@ -550,6 +550,16 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{subContent}</>;
         break;
       }
+      case 'anomaly': {
+          const bonusText = obj.anomalyData ? (ResourceSystem.formatBonus(obj.anomalyData.bonus) || []).join(', ') : 'Inconnu';
+          content = (
+              <div>
+                  <div style={{ fontWeight: 'bold', color: obj.anomalyData?.color === 'yellow' ? '#ffd700' : obj.anomalyData?.color === 'red' ? '#ff6b6b' : '#4a9eff' }}>{obj.name}</div>
+                  <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus: {bonusText}</div>
+              </div>
+          );
+          break;
+      }
       default:
         content = <div style={{ fontWeight: 'bold' }}>{obj.name}</div>;
         break;
@@ -1442,6 +1452,55 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     );
   };
 
+  // Fonction helper pour rendre une anomalie
+  const renderAnomaly = (obj: CelestialObject, zIndex: number = 30) => {
+    let { x, y, sectorCenterAngle } = calculateObjectPosition(obj.position.disk, obj.position.sector);
+    // Décaler l'anomalie selon l'angle du secteur
+    const anomalyOffset = 7; // décalage de 9% vers l'extérieur (à adapter selon le design)
+    x += anomalyOffset * Math.cos((sectorCenterAngle - 90) * Math.PI / 180);
+    y += anomalyOffset * Math.sin((sectorCenterAngle - 90) * Math.PI / 180);
+    
+    const colorMap = {
+        red: '#ff6b6b',
+        blue: '#4a9eff',
+        yellow: '#ffd700'
+    };
+    const color = obj.anomalyData ? colorMap[obj.anomalyData.color] : '#fff';
+    
+    return (
+      <div
+        key={obj.id}
+        className="seti-anomaly"
+        style={{
+          top: `calc(50% + ${y}%)`,
+          left: `calc(50% + ${x}%)`,
+          width: '24px',
+          height: '16px',
+          backgroundColor: color,
+          borderRadius: '50%',
+          zIndex,
+          position: 'absolute',
+          transform: 'translate(-50%, -50%) scale(1.5)',
+          boxShadow: `0 0 5px ${color}`,
+          border: '1px solid white',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          cursor: 'help',
+          pointerEvents: selectedProbeId ? 'none' : 'auto',
+        }}
+        onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
+        onMouseLeave={handleMouseLeaveObject}
+      >
+         {obj.anomalyData && (
+             <div style={{ transform: 'scale(0.5)' }}>
+                {renderBonusContent(obj.anomalyData.bonus)}
+             </div>
+         )}
+      </div>
+    );
+  };
+
   // Fonction helper pour rendre une planète
   const renderPlanet = (obj: CelestialObject, zIndex: number = 30) => {
     let { x, y, sectorCenterAngle } = calculateObjectPosition(obj.position.disk, obj.position.sector);
@@ -2147,13 +2206,15 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               })}
 
               {/* Objets fixes */}
-              {FIXED_OBJECTS.map((obj) => {
+              {[...FIXED_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || []).filter(o => o.level === 0)].map((obj) => {
                 if (obj.type === 'planet') {
                   return renderPlanet(obj, 10);
                 } else if (obj.type === 'comet') {
                   return renderComet(obj, 10);
                 } else if (obj.type === 'asteroid') {
                   return renderAsteroid(obj, 10);
+                } else if (obj.type === 'anomaly') {
+                  return renderAnomaly(obj, 10);
                 }
                 return null;
               })}

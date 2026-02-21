@@ -157,7 +157,7 @@ export interface CelestialPosition {
 /**
  * Type d'objet céleste
  */
-export type CelestialObjectType = 'planet' | 'comet' | 'asteroid' | 'hollow' | 'empty';
+export type CelestialObjectType = 'planet' | 'comet' | 'asteroid' | 'hollow' | 'empty' | 'anomaly';
 
 /**
  * Objet céleste avec sa position relative
@@ -168,6 +168,11 @@ export interface CelestialObject {
   name: string;
   position: CelestialPosition;
   level?: 0 | 1 | 2 | 3; // Niveau du plateau (0 = fixe, 1-3 = rotatif)
+  anomalyData?: {
+    color: 'red' | 'blue' | 'yellow';
+    side: 'head' | 'tail';
+    bonus: Bonus;
+  };
 }
 
 export interface GameLogEntry {

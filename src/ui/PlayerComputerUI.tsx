@@ -209,6 +209,7 @@ export const PlayerComputerUI = ({
           const is6aFilled = slot6a ? slot6a.filled : false;
           const hasEnergy = player.energy >= GAME_CONSTANTS.ANALYZE_COST_ENERGY;
           const isAvailable = is6aFilled && hasEnergy;
+          const isClickable = isAvailable && !disabled;
 
           return (
             <>
@@ -225,15 +226,15 @@ export const PlayerComputerUI = ({
               </div>
               <div className="computer-column">
                 <div
-                  className={`computer-slot ${isAvailable ? 'can-fill' : ''}`}
+                  className={`computer-slot ${isAvailable ? 'can-fill' : ''} ${isClickable ? 'flash-green' : ''}`}
                   style={{ 
-                      cursor: isAvailable && !disabled ? 'pointer' : 'help',
-                      borderColor: isAvailable ? '#00ffff' : '#444',
-                      color: isAvailable ? '#00ffff' : '#444',
+                      cursor: isClickable ? 'pointer' : 'help',
+                      borderColor: isClickable ? undefined : (isAvailable ? '#00ffff' : '#444'),
+                      color: isClickable ? undefined : (isAvailable ? '#00ffff' : '#444'),
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '1.2em'
                   }}
-                  onClick={() => { if (isAvailable && !disabled && onAnalyzeClick) onAnalyzeClick(); }}
+                  onClick={() => { if (isClickable && onAnalyzeClick) onAnalyzeClick(); }}
                   onMouseEnter={(e) => {
                       let statusText = "Indisponible";
                       let statusColor = "#ff6b6b";

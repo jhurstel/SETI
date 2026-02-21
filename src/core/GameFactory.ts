@@ -1014,7 +1014,18 @@ export class GameFactory {
    */
   private static createSpecies(): Species[] {
     const csvContent = {
-      [AlienBoardType.ANOMALIES]: ``,
+      [AlienBoardType.ANOMALIES]: `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
+ET.11;Signes de Vie;Action;Gagnez 1 Sonde. S'il s'agissait d'un secteur avec une Anomalie, gagnez 1 Déplacement.;2 Médias;Bleu;Pioche;1 Crédit;1 Sonde;
+ET.12;Vue Rapprochée;Action;Gagnez 5 Déplacements. Ne gagnez aucun Média quand vous déplacez des sondes ce tour-ci.;2 Médias;Rouge;Crédit;1 Crédit;5 Déplacements;
+ET.13;Populations Inquiètes;Mission Déclenchables;Gagnez 1 Média. Mission: Gagnez 1 Energie après avoir acquis une technologie. Mission: Gagnez 1 Carte après avoir acquis une technologie. Mission: Gagnez 3 PV après avoir acquis une technologie.;1 PV + 1 Data;Jaune;Crédit;1 Crédit;1 Média;
+ET.14;Ecoute Attentive;Action;Gagnez 1 Scan. De plus, marquez 1 Signal dans le secteur de la prochaine Anomalie qui sera déclenchée.;1 PV + 1 Déplacement;Rouge;Pioche;2 Crédits;1 Scan;
+ET.15;Vie Quotidienne;Action;Gagnez 3 Pioches. Défaussez l'une d'elles pour l'effet Action gratuite, puis défaussez-en une autre pour gagner une ressource correspondant à son revenu.;1 PV + 1 Déplacement;Bleu;Energie;1 Crédit;3 Pioche;
+ET.16;Saturation de l'Espace Médiatique;Action;Piochez les 3 Cartes de la rangée de cartes.;1 PV + 1 Donnée;Rouge;Crédit;1 Crédit;;
+ET.17;Sommes-Nous Observés ?;Misison Conditionnelle;Gagnez la récompense de la prochaine Anomalie qui sera déclenchée. Mission: Gagnez 3 PV et 2 Médias si vous avez acquis 1 Trace de Vie Rouge, Jaune et Bleu pour cette espèce.;1 PV + 1 Donnée;Jaune;Pioche;1 Crédit;;
+ET.18;Capsule Messagère;Action;Gagnez 1 Rotation et 1 Technologie d en'importe quelle catégorie.;1 PV + 1 Donnée;Bleu;Crédit;2 Crédits;1 Rotation + 1 Tech;
+ET.19;Physique au-delà du Modèle Standard;Action;Gagnez 1 Trace de Vie de n'importe quelle couleur.;2 Médias;Noir;Energie;1 Crédit;1 Trace de Vie;
+ET.20;Incertitudes et Stupéfaction;Action;Gagnez 1 Signal dans  n'importe quel secteur. Puis gagnez 1 PV pour chaque signal que vous avez marqué dans des secteurs avec des Anomalies.;2 Médias;Jaune;Energie;1 Crédit;1 Signal;
+`,
       [AlienBoardType.OUMUAMUA]: `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
 ET.21;Visiteur Céleste;Mission Conditionnelle;Gagnez 1 Scan et gagnez 2 PV pour chaque signal que vous marquez sur Oumuamua. Mission: Gagnez 1 Donnée si vous avez marqué une Trace de Vie pour cette espèce qui nécessite un paiement en token.;2 Médias;Bleu;Pioche;2 Crédits;1 Scan;GAIN_ON_SIGNAL:oumuamua:pv:2 + GAIN_IF_PAY_FOR_LIFETRACE:data:1
 ET.22;Modification de Trajectoire;Mission Conditionnelle;Gagnez 1 Scan et gagnez 1 Token si vous marquez au moins un signal sur Oumuamua. Mission: Gagnez 4 PVs si vous avez posé une sonde sur Oumuamua.;1 PV + 1 Déplacement;Rouge;Energie;2 Crédits;1 Scan;GAIN_ON_SIGNAL:oumuamua:token:1 + GAIN_IF_LANDER:oumuamua:pv:4

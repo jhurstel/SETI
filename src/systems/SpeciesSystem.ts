@@ -1,5 +1,6 @@
-import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card } from '../core/types';
+import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber } from '../core/types';
 import { ResourceSystem } from './ResourceSystem';
+import { getObjectPosition } from '../core/SolarSystemPosition';
 
 export type SpeciesDiscoveryCode = 'NO_MARKERS' | 'NO_SPACE' | 'PLACED' | 'DISCOVERED';
 
@@ -72,6 +73,11 @@ export class SpeciesSystem {
                             // C3 est un creux, donc l'objet flottera au-dessus
                             updatedGame.board.solarSystem.extraCelestialObjects.push({ id: 'oumuamua', type: 'planet', name: 'Oumuamua', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 });
                             distResult.logs.push("L'astéroïde Oumuamua apparaît dans le système solaire !");
+                        }
+                        
+                        if (board.speciesId === AlienBoardType.ANOMALIES) {
+                            const anomalyLogs = this.spawnAnomalies(updatedGame);
+                            distResult.logs.push(...anomalyLogs);
                         }
 
                         return { 
@@ -223,6 +229,11 @@ export class SpeciesSystem {
                 updatedGame.board.solarSystem.extraCelestialObjects.push({ id: 'oumuamua', type: 'planet', name: 'Oumuamua', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 });
                 discoveryLogs.push("L'astéroïde Oumuamua apparaît dans le système solaire !");
             }
+
+            if (board.speciesId === AlienBoardType.ANOMALIES) {
+                const anomalyLogs = this.spawnAnomalies(updatedGame);
+                discoveryLogs.push(...anomalyLogs);
+            }
         }
 
         // Process bonuses
@@ -325,5 +336,56 @@ export class SpeciesSystem {
         }
         
         return { updatedGame, logs };
+    }
+
+    private static spawnAnomalies(game: Game): string[] {
+        const logs: string[] = [];
+        if (!game.board.solarSystem.extraCelestialObjects) {
+            game.board.solarSystem.extraCelestialObjects = [];
+        }
+
+        const species = game.species.find(s => s.name === AlienBoardType.ANOMALIES);
+        if (species && species.token) {
+            const tokens = [
+                { color: 'red', data: species.token.red },
+                { color: 'yellow', data: species.token.yellow },
+                { color: 'blue', data: species.token.blue }
+            ];
+            
+            // Shuffle tokens
+            for (let i = tokens.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [tokens[i], tokens[j]] = [tokens[j], tokens[i]];
+            }
+
+            const solarSystem = game.board.solarSystem;
+            const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0, solarSystem.extraCelestialObjects);
+            
+            if (earthPos) {
+                const earthSector = earthPos.absoluteSector;
+                const sectors = [
+                    earthSector,
+                    ((earthSector - 1 - 3 + 8) % 8) + 1,
+                    ((earthSector - 1 + 3) % 8) + 1
+                ];
+
+                tokens.forEach((token, index) => {
+                    const side = Math.random() < 0.5 ? 'head' : 'tail';
+                    const bonus = side === 'head' ? token.data.head : token.data.tail;
+                    const sector = sectors[index] as SectorNumber;
+                    
+                    game.board.solarSystem.extraCelestialObjects!.push({
+                        id: `anomaly-${token.color}-${Date.now()}-${index}`,
+                        type: 'anomaly',
+                        name: `Anomalie ${token.color === 'red' ? 'Rouge' : token.color === 'blue' ? 'Bleue' : 'Jaune'}`,
+                        position: { disk: 'D', sector: sector, x: 0, y: 0 },
+                        level: 0,
+                        anomalyData: { color: token.color as any, side: side as any, bonus: bonus }
+                    });
+                });
+                logs.push("Des anomalies apparaissent en périphérie du système solaire !");
+            }
+        }
+        return logs;
     }
 }

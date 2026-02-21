@@ -130,3 +130,14 @@
   
   .computer-tooltip-action.normal { color: #aaa; }
   .computer-tooltip-action.error { color: #ff6b6b; }
+
+@keyframes flash-green {
+  0% { border-color: #4caf50; color: #4caf50; box-shadow: 0 0 5px #4caf50; }
+  50% { border-color: #81c784; color: #81c784; box-shadow: 0 0 15px #4caf50; }
+  100% { border-color: #4caf50; color: #4caf50; box-shadow: 0 0 5px #4caf50; }
+}
+
+.computer-slot.flash-green {
+  animation: flash-green 1.5s infinite ease-in-out;
+  opacity: 1;
+}
