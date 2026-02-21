@@ -80,6 +80,13 @@ export class SpeciesSystem {
                             distResult.logs.push(...anomalyLogs);
                         }
 
+                        if (board.speciesId === AlienBoardType.CENTAURIENS) {
+                            updatedGame.players.forEach(p => {
+                                p.centaurienMilestone = p.score + 15;
+                            });
+                            distResult.logs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
+                        }
+
                         return { 
                             updatedGame, 
                             code: 'DISCOVERED', 
@@ -234,6 +241,13 @@ export class SpeciesSystem {
                 const anomalyLogs = this.spawnAnomalies(updatedGame);
                 discoveryLogs.push(...anomalyLogs);
             }
+
+            if (board.speciesId === AlienBoardType.CENTAURIENS) {
+                updatedGame.players.forEach(p => {
+                    p.centaurienMilestone = p.score + 15;
+                });
+                discoveryLogs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
+            }
         }
 
         // Process bonuses
@@ -345,13 +359,9 @@ export class SpeciesSystem {
         }
 
         const species = game.species.find(s => s.name === AlienBoardType.ANOMALIES);
-        if (species && species.token) {
-            const tokens = [
-                { color: 'red', data: species.token.red },
-                { color: 'yellow', data: species.token.yellow },
-                { color: 'blue', data: species.token.blue }
-            ];
-            
+        const tokens = species?.anomalie;
+
+        if (tokens) {
             // Shuffle tokens
             for (let i = tokens.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -371,21 +381,37 @@ export class SpeciesSystem {
 
                 tokens.forEach((token, index) => {
                     const side = Math.random() < 0.5 ? 'head' : 'tail';
-                    const bonus = side === 'head' ? token.data.head : token.data.tail;
+                    const bonus = side === 'head' ? token.head : token.tail;
                     const sector = sectors[index] as SectorNumber;
                     
                     game.board.solarSystem.extraCelestialObjects!.push({
                         id: `anomaly-${token.color}-${Date.now()}-${index}`,
                         type: 'anomaly',
-                        name: `Anomalie ${token.color === 'red' ? 'Rouge' : token.color === 'blue' ? 'Bleue' : 'Jaune'}`,
+                        name: `Anomalie ${token.color}`,
                         position: { disk: 'D', sector: sector, x: 0, y: 0 },
                         level: 0,
-                        anomalyData: { color: token.color as any, side: side as any, bonus: bonus }
+                        anomalyData: { color: token.color, side: side as any, bonus: bonus }
                     });
                 });
                 logs.push("Des anomalies apparaissent en périphérie du système solaire !");
             }
         }
         return logs;
+    }
+
+    static claimCentaurienReward(game: Game, playerId: string, tokenIndex: number): { updatedGame: Game, logs: string[] } {
+        let updatedGame = structuredClone(game);
+        const player = updatedGame.players.find(p => p.id === playerId);
+        const species = updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS);
+        
+        if (!player || !species || !species.message || !species.message[tokenIndex] || !species.message[tokenIndex].isAvailable) {
+            return { updatedGame, logs: [] };
+        }
+
+        species.message[tokenIndex].isAvailable = false;
+        player.centaurienMilestone = undefined;
+
+        const res = ResourceSystem.processBonuses(species.message[tokenIndex].bonus, updatedGame, playerId, 'centaurien_message', `centaurien-${Date.now()}`);
+        return { updatedGame: res.updatedGame, logs: [`déchiffre un message Centaurien`, ...res.logs] };
     }
 }

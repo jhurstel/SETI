@@ -650,7 +650,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
             {/* Revenues */}
             <div className="seti-player-section seti-section-relative">
-              <div className="seti-player-section-title">Revenues</div>
+              <div className="seti-player-section-title">Revenus</div>
               <div className="seti-player-revenues seti-revenues-list">
                 <div 
                   key={revenueCreditFlash ? `rev-credit-${revenueCreditFlash.id}` : 'rev-credit-static'}

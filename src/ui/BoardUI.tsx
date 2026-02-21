@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, LifeTraceType, InteractionState, GamePhase, Mission, Player, SignalType } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, LifeTraceType, InteractionState, GamePhase, Mission, Player, SignalType, AlienBoardType } from '../core/types';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -61,6 +61,7 @@ const getInteractionLabel = (state: InteractionState): string => {
     case 'DRAW_AND_SCAN': return `Pioche d'une carte pour signal...`;
     case 'CLAIMING_MISSION_REQUIREMENT': return `Validation d'une mission...`;
     case 'ACQUIRING_ALIEN_CARD': return `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''} Alien (Pioche ou Rangée).`;
+    case 'CHOOSING_CENTAURIEN_REWARD': return `Veuillez choisir une récompense Centaurienne.`;
     default: return "Action inconnue";
   }
 };
@@ -1287,6 +1288,21 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
       }
     }
 
+    // Vérifier le palier Centaurien
+    if (currentPlayer.centaurienMilestone !== undefined && currentPlayer.score >= currentPlayer.centaurienMilestone) {
+        const centaurienSpecies = currentState.species.find(s => s.name === AlienBoardType.CENTAURIENS);
+        if (centaurienSpecies && centaurienSpecies.message && centaurienSpecies.message.some(m => m.isAvailable)) {
+             setInteractionState({ type: 'CHOOSING_CENTAURIEN_REWARD' });
+             setToast({ message: `Message Centaurien décodé ! Choisissez une récompense.`, visible: true });
+             return;
+        } else {
+            // Plus de récompenses ou espèce non trouvée, on supprime le milestone pour ne pas re-déclencher
+            currentPlayer.centaurienMilestone = undefined;
+            // Mettre à jour l'état du moteur
+            gameEngineRef.current.setState(currentState);
+        }
+    }
+
     // Applique la logique de passe au joueur suivant
     gameEngineRef.current.nextPlayer();
 
@@ -1963,6 +1979,22 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     if (!handleNewInteractions(newPendingInteractions, sequenceId)) {
       setInteractionState({ type: 'IDLE' });
     }
+  };
+
+  // Gestionnaire pour le choix de récompense Centaurienne
+  const handleCentaurienRewardClick = (tokenIndex: number) => {
+      if (!game) return;
+      if (interactionState.type !== 'CHOOSING_CENTAURIEN_REWARD') return;
+
+      const currentPlayer = game.players[game.currentPlayerIndex];
+      const { updatedGame, logs } = SpeciesSystem.claimCentaurienReward(game, currentPlayer.id, tokenIndex);
+      
+      setGame(updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+      
+      logs.forEach(log => addToHistory(log, currentPlayer.id, game));
+      setInteractionState({ type: 'IDLE' });
+      handleNextPlayer(); // Continuer la fin de tour
   };
 
   // Gestionnaire pour le clic sur une carte Alien
@@ -3329,6 +3361,44 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         visible={alienDiscoveryNotification?.visible || false}
         message={alienDiscoveryNotification?.message || ''}
       />
+
+      {/* Modal pour récompense Centaurienne */}
+      {interactionState.type === 'CHOOSING_CENTAURIEN_REWARD' && (
+          <div className="seti-modal-overlay">
+              <div className="seti-modal-content">
+                  <h3>Message Centaurien Décodé !</h3>
+                  <p>Choisissez une récompense parmi les messages disponibles :</p>
+                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '20px' }}>
+                      {(() => {
+                          const species = game.species.find(s => s.name === AlienBoardType.CENTAURIENS);
+                          if (!species || !species.message) return <div>Erreur: Espèce non trouvée</div>;
+                          
+                          return species.message.map((token, index) => (
+                              <button
+                                  key={index}
+                                  disabled={!token.isAvailable}
+                                  onClick={() => handleCentaurienRewardClick(index)}
+                                  className="seti-action-btn"
+                                  style={{ 
+                                      opacity: token.isAvailable ? 1 : 0.5,
+                                      backgroundColor: '#2a2a2a',
+                                      border: '1px solid #555',
+                                      padding: '15px',
+                                      minWidth: '120px',
+                                      cursor: token.isAvailable ? 'pointer' : 'not-allowed'
+                                  }}
+                              >
+                                  <div style={{ fontSize: '2em', marginBottom: '10px' }}>📩</div>
+                                  <div style={{ color: '#ffd700' }}>
+                                      {(ResourceSystem.formatBonus(token.bonus) || []).join(', ')}
+                                  </div>
+                              </button>
+                          ));
+                      })()}
+                  </div>
+              </div>
+          </div>
+      )}
 
       {/* Modale de confirmation */}
       <ConfirmModal

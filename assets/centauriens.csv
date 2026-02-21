@@ -1,0 +1,11 @@
+﻿Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
+ET.31;Conception d'Engins Spatiaux;Centauriens;Gagnez 1 Sonde. Réception: Augmentez vos revenus grâce à cette carte.;1 PV + 1 Donnée;Bleu;Média;1 Energie;1 Sonde;
+ET.32;Exo-ordinateurs;Centauriens;Gagnez 2 Données. Réception: Augmentez vos revenus grâce à cette carte.;1 PV + 1 Déplacement;Rouge;Donnée;1 Energie;2 Données;
+ET.33;Graphémie;Centauriens;Gagnez 1 Média et 1 Crédit. Réception: Augmentez vos revenus grâce à cette carte.;2 Médias;Jaune;Média;1 Energie;1 Média + 1 Crédit;
+ET.34;Un Message Venu d'Ailleurs;Centauriens;Piochez 1 Carte. Réception: Gagnez 1 Trace de Vie Rouge.;1 PV + 1 Déplacement;Rouge;Energie;1 Energie;1 Pioche;
+ET.35;Apprentissage de la Syntaxe;Centauriens;Gagnez 1 Donnée. Réception: Gagnez 1 Trace de Vie Jaune.;2 Médias;Jaune;Pioche;1 Energie;1 Donnée;
+ET.36;Schémas Extraterrestres;Centauriens;Gagnez 2 Médias. Réception: Gagnez 1 Trace de Vie Bleu.;1 PV + 1 Donnée;Bleu;Crédit;1 Energie;2 Médias;
+ET.37;Musique des Sphères;Centauriens;Gagnez 1 Carte. Réception: Gagnez 1 Crédit et 1 Trace de Vie de n'importe quelle couleur.;1 PV + 1 Donnée;Noir;Energie;2 Energies;1 Carte;
+ET.38;Concept de l'Esprit Ruche;Centauriens;Gagnez 1 Rotation et 1 Technologie Informatique. Réception: Augmentez vos revenus grâce à cette carte.;2 Médias;Bleu;Donnée;2 Energies;1 Rotation + 1 Tech Informatique;
+ET.39;Plans de Télescope;Centauriens;Gagnez 1 Rotation et 1 Technologie Observation. Réception: Augmentez vos revenus grâce à cette carte.;1 PV + 1 Déplacement;Rouge;Média;2 Energies;1 Rotation + 1 Tech Observation;
+ET.40;Signal à Amplification Exponentielle;Centauriens;Gagnez 2 Signaux dans le secteur de votre choix. Réception: Augmentez vos revenus grâce à cette carte.;2 Médias;Jaune;Donnée;2 Energies;2 Signaux;

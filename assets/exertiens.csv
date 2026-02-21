@@ -1,0 +1,16 @@
+﻿Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
+ET.41;Navette des Confins;Exertiens;Gagnez 14 PV si vous avez acquis 3 Technologies Exploration.;;;;;;DANGER:6
+ET.42;Déflecteur;Exertiens;Gagnez 15 PV si vous avez acquis 3 Technologies Observation.;;;;;;DANGER:7
+ET.43;Explorateur de Noyau;Exertiens;Gagnez 9 PV si vous avez acquis 3 Technologies Informatique.;;;;;;DANGER:3
+ET.44;Exoplanète Perforée;Exertiens;Gagnez 12 PV si vous avez couvert 2 secteurs Rouge.;;;;;;DANGER:4
+ET.45;Exoplanète au Noyau Brisé;Exertiens;Gagnez 12 PV si vous avez couvert 2 secteurs Bleu.;;;;;;DANGER:4
+ET.46;Exoplanète à Vortex;Exertiens;Gagnez 12 PV si vous avez couvert 2 secteurs Jaune.;;;;;;DANGER:4
+ET.47;Exoplanète à Fission Solaire;Exertiens;Gagnez 14 PV si vous avez couvert 2 secteurs Noir.;;;;;;DANGER:5
+ET.48;Sondes Oscillantes;Exertiens;Gagnez 11 PV si vous avez mis 3 sondes en orbite.;;;;;;DANGER:3
+ET.49;Infrastructure Générative;Exertiens;Gagnez 16 PV si vous avez fait atterrir 4 sondes (lunes comprises).;;;;;;DANGER:7
+ET.50;Déploiement d'Engins;Exertiens;Gagnez 10 PV si vous avez 3 orbiteurs ou atterrisseurs sur une même planète (lunes comprises).;;;;;;DANGER:2
+ET.51;Extracteur;Exertiens;Gagnez 18 PV si vous avez glissé 8 cartes sous vos revenus.;;;;;;DANGER:8
+ET.52;Laboratoire Automatisé;Exertiens;Gagnez 7 PV si vous avez acquis 6 Traces de Vie pour cette espèce.;;;;;;DANGER:0
+ET.53;Neurolab;Exertiens;Gagnez 20 PV si vous avez acquis 6 Traces de Vie pour les autres espèces.;;;;;;DANGER:9
+ET.54;Nœud Nanostructurel;Exertiens;Gagnez 8 PV so vous avez acquis 5 Traces de Vie de la même couleur.;;;;;;DANGER:1
+ET.55;Stratoélévateur;Exertiens;Gagnez 12 PV si vous avez accomplit 5 missions.;;;;;;DANGER:4

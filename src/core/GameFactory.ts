@@ -1014,6 +1014,17 @@ export class GameFactory {
    */
   private static createSpecies(): Species[] {
     const csvContent = {
+      [AlienBoardType.MASCAMITES]: `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
+ET.1;Exploration en Rover;Mission Conditionnelle;Gagnez 1 Atterrissage sur une planète ou une lune, même sans la technologie requise. Puis vous pouvez prélevez un specimen Mascamites. Mission: Gagnez 3 PV, 3 Données et la récompense indiquée sous le jeton Mascamite si vous amenez ce spécimen sur Terre.;2 Médias;Noir;Energie;2 Crédits;;
+ET.2;Premier Contact;Mission Conditionnelle;Gagnez 1 Déplacement et 1 Atterrissage. Puis vous pouvez prélevez un specimen Mascamites. Mission: Gagnez 2 Données et la récompense indiquée sous le jeton Mascamite si vous amenez ce spécimen sur Terre.;2 Médias;Bleu;Pioche;1 Crédit;1 Déplacement;
+ET.3;Prélèvement de Spécimens à Grande Echelle;Mission Conditionnelle;Gagnez 1 Mise en Orbite ou 1 Atterrissage. Puis vous pouvez prélevez un specimen Mascamites. Mission: Gagnez 3 PV, 1 Crédit et la récompense indiquée sous le jeton Mascamite si vous amenez ce spécimen sur Terre.;1 PV + 1 Donnée;Jaune;Energie;1 Crédit;;
+ET.4;Laboratoire Martien de Quarantaine;Mission Conditionnelle;Gagnez 1 Atterrissage. Puis vous pouvez prélevez un specimen Mascamites. Mission: Gagnez 2 PV, 1 Carte et la récompense indiquée sous le jeton Mascamite si vous amenez ce spécimen sur Mars.;1 PV + 1 Donnée;Rouge;Crédit;1 Crédit;;
+ET.5;Etude de l'Ecosystème;Fin de Jeu;Consultez tous les jetons Mascamites d'une planète où se trouve l'une de vos sondes. Choisissez-en un, gagner sa récompense, puis remmettez-le en place. Fin de Jeu: Gagnez 1 PV pour chaque Trace de Vie que vous avez marquée pour cette espèce.;1 PV + 1 Déplacement;Bleu;Pioche;1 Crédit;;
+ET.6;La Reine;Mission Conditionnelle;Gagnez 1 Atterrissage sur une planète ou une lune, même sans la technologie requise. Puis vous pouvez prélevez un specimen Mascamites. Mission: Gagnez 6 PV, 2 Médias et la récompense indiquée sous le jeton Mascamite si vous amenez ce spécimen sur Terre.;1 PV + 1 Déplacement;Rouge;Crédit;2 Crédits;;
+ET.7;Prélèvement de Reproducteurs;Mission Conditionnelle;Gagnez 1 Atterrissage. Puis vous pouvez prélevez un specimen Mascamites. Mission: Gagnez 2 fois la récompense indiquée sous le jeton Mascamite si vous amenez ce spécimen sur Terre.;2 Médias;Rouge;Energie;1 Crédit;;
+ET.8;Prélèvement de la Ruche;Mission Conditionnelle;Gagnez 1 Média, 1 Rotation et 1 Technologie Exploration. Mission: Choisissez Jupiter ou saturne. Gagnez la récompense d'un jeton Mascamite de la planète si vous avez marqué 2 Traces de Vie Jaune pour cette espèce.;1 PV + 1 Déplacement;Bleu;Energie;3 Crédits;1 Média + 1 Rotation + 1 Tech Exploration;
+ET.9;Surveillance Orbitale;Mission Conditionnelle;Gagnez 1 Média, 1 Rotation et 1 Technologie Observation. Mission: Choisissez Jupiter ou saturne. Gagnez la récompense d'un jeton Mascamite de la planète si vous avez marqué 2 Traces de Vie Rouge pour cette espèce.;1 PV + 1 Déplacement;Jaune;Crédit;3 Crédits;1 Média + 1 Rotation + 1 Tech Observation;
+ET.10;Simulations Informatiques;Mission Conditionnelle;Gagnez 1 Média, 1 Rotation et 1 Technologie Informatique. Mission: Choisissez Jupiter ou saturne. Gagnez la récompense d'un jeton Mascamite de la planète si vous avez marqué 2 Traces de Vie Bleu pour cette espèce.;1 PV + 1 Donnée;Jaune;Pioche;3 Crédits;1 Média + 1 Rotation + 1 Tech Informatique;`,
       [AlienBoardType.ANOMALIES]: `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
 ET.11;Signes de Vie;Action;Gagnez 1 Sonde. S'il s'agissait d'un secteur avec une Anomalie, gagnez 1 Déplacement.;2 Médias;Bleu;Pioche;1 Crédit;1 Sonde;
 ET.12;Vue Rapprochée;Action;Gagnez 5 Déplacements. Ne gagnez aucun Média quand vous déplacez des sondes ce tour-ci.;2 Médias;Rouge;Crédit;1 Crédit;5 Déplacements;
@@ -1024,8 +1035,7 @@ ET.16;Saturation de l'Espace Médiatique;Action;Piochez les 3 Cartes de la rang�
 ET.17;Sommes-Nous Observés ?;Misison Conditionnelle;Gagnez la récompense de la prochaine Anomalie qui sera déclenchée. Mission: Gagnez 3 PV et 2 Médias si vous avez acquis 1 Trace de Vie Rouge, Jaune et Bleu pour cette espèce.;1 PV + 1 Donnée;Jaune;Pioche;1 Crédit;;
 ET.18;Capsule Messagère;Action;Gagnez 1 Rotation et 1 Technologie d en'importe quelle catégorie.;1 PV + 1 Donnée;Bleu;Crédit;2 Crédits;1 Rotation + 1 Tech;
 ET.19;Physique au-delà du Modèle Standard;Action;Gagnez 1 Trace de Vie de n'importe quelle couleur.;2 Médias;Noir;Energie;1 Crédit;1 Trace de Vie;
-ET.20;Incertitudes et Stupéfaction;Action;Gagnez 1 Signal dans  n'importe quel secteur. Puis gagnez 1 PV pour chaque signal que vous avez marqué dans des secteurs avec des Anomalies.;2 Médias;Jaune;Energie;1 Crédit;1 Signal;
-`,
+ET.20;Incertitudes et Stupéfaction;Action;Gagnez 1 Signal dans  n'importe quel secteur. Puis gagnez 1 PV pour chaque signal que vous avez marqué dans des secteurs avec des Anomalies.;2 Médias;Jaune;Energie;1 Crédit;1 Signal;`,
       [AlienBoardType.OUMUAMUA]: `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
 ET.21;Visiteur Céleste;Mission Conditionnelle;Gagnez 1 Scan et gagnez 2 PV pour chaque signal que vous marquez sur Oumuamua. Mission: Gagnez 1 Donnée si vous avez marqué une Trace de Vie pour cette espèce qui nécessite un paiement en token.;2 Médias;Bleu;Pioche;2 Crédits;1 Scan;GAIN_ON_SIGNAL:oumuamua:pv:2 + GAIN_IF_PAY_FOR_LIFETRACE:data:1
 ET.22;Modification de Trajectoire;Mission Conditionnelle;Gagnez 1 Scan et gagnez 1 Token si vous marquez au moins un signal sur Oumuamua. Mission: Gagnez 4 PVs si vous avez posé une sonde sur Oumuamua.;1 PV + 1 Déplacement;Rouge;Energie;2 Crédits;1 Scan;GAIN_ON_SIGNAL:oumuamua:token:1 + GAIN_IF_LANDER:oumuamua:pv:4
@@ -1037,15 +1047,71 @@ ET.27;Synchronisation Parfaite;Mission Conditionnelle;Gagnez 4 Déplacements. Si
 ET.28;Echantillons d'Exofossiles;Action;Gagnez 1 Rotation et 1 Technologie Informatique. Puis vous pouvez défausser 1 Token pour gagner 1 Donnée.;1 PV + 1 Déplacement;Bleu;Pioche;2 Crédits;1 Rotation + 1 Tech Informatique;GAIN_ON_TOKEN:data:1
 ET.29;Analyse Comparative;Misison Déclenchable;Gagnez 1 Token. Mission: Gagnez 1 Donnée après avoir marqué une Trace de Vie. Mission: Gagnez 1 Média après avoir marqué une Trace de Vie. Mission: Gagnez 3 PV après avoir marqué une Trace de Vie.;1 PV + 1 Déplacement;Rouge;Energie;1 Crédit;1 Token;GAIN_ON_LIFETRACE:any:data:1 + GAIN_ON_LIFETRACE:any:media:1 + GAIN_ON_LIFETRACE:any:pv:3
 ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous posez une sonde sur Oumuamua grâce à cette action, gagnez 3 PV. Mission: Gagnez 1 Token si vous avez marqué une Trace de Vie Rouge, Bleu et Jaune pour cette espèce.;1 PV + 1 Donnée;Noir;Pioche;1 Crédit;1 Atterrissage;GAIN_ON_LAND:oumuamua:pv:3 + GAIN_IF_LIFETRACE:any:token:1`,
-      [AlienBoardType.CENTAURIENS]: ``,
-      [AlienBoardType.EXERTIENS]: ``,
-      [AlienBoardType.MASCAMITES]: ``,
+      [AlienBoardType.CENTAURIENS]: `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
+ET.31;Conception d'Engins Spatiaux;Centauriens;Gagnez 1 Sonde. Réception: Augmentez vos revenus grâce à cette carte.;1 PV + 1 Donnée;Bleu;Média;1 Energie;1 Sonde;
+ET.32;Exo-ordinateurs;Centauriens;Gagnez 2 Données. Réception: Augmentez vos revenus grâce à cette carte.;1 PV + 1 Déplacement;Rouge;Donnée;1 Energie;2 Données;
+ET.33;Graphémie;Centauriens;Gagnez 1 Média et 1 Crédit. Réception: Augmentez vos revenus grâce à cette carte.;2 Médias;Jaune;Média;1 Energie;1 Média + 1 Crédit;
+ET.34;Un Message Venu d'Ailleurs;Centauriens;Piochez 1 Carte. Réception: Gagnez 1 Trace de Vie Rouge.;1 PV + 1 Déplacement;Rouge;Energie;1 Energie;1 Pioche;
+ET.35;Apprentissage de la Syntaxe;Centauriens;Gagnez 1 Donnée. Réception: Gagnez 1 Trace de Vie Jaune.;2 Médias;Jaune;Pioche;1 Energie;1 Donnée;
+ET.36;Schémas Extraterrestres;Centauriens;Gagnez 2 Médias. Réception: Gagnez 1 Trace de Vie Bleu.;1 PV + 1 Donnée;Bleu;Crédit;1 Energie;2 Médias;
+ET.37;Musique des Sphères;Centauriens;Gagnez 1 Carte. Réception: Gagnez 1 Crédit et 1 Trace de Vie de n'importe quelle couleur.;1 PV + 1 Donnée;Noir;Energie;2 Energies;1 Carte;
+ET.38;Concept de l'Esprit Ruche;Centauriens;Gagnez 1 Rotation et 1 Technologie Informatique. Réception: Augmentez vos revenus grâce à cette carte.;2 Médias;Bleu;Donnée;2 Energies;1 Rotation + 1 Tech Informatique;
+ET.39;Plans de Télescope;Centauriens;Gagnez 1 Rotation et 1 Technologie Observation. Réception: Augmentez vos revenus grâce à cette carte.;1 PV + 1 Déplacement;Rouge;Média;2 Energies;1 Rotation + 1 Tech Observation;
+ET.40;Signal à Amplification Exponentielle;Centauriens;Gagnez 2 Signaux dans le secteur de votre choix. Réception: Augmentez vos revenus grâce à cette carte.;2 Médias;Jaune;Donnée;2 Energies;2 Signaux;`,
+      [AlienBoardType.EXERTIENS]: `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
+ET.41;Navette des Confins;Exertiens;Gagnez 14 PV si vous avez acquis 3 Technologies Exploration.;;;;;;DANGER:6
+ET.42;Déflecteur;Exertiens;Gagnez 15 PV si vous avez acquis 3 Technologies Observation.;;;;;;DANGER:7
+ET.43;Explorateur de Noyau;Exertiens;Gagnez 9 PV si vous avez acquis 3 Technologies Informatique.;;;;;;DANGER:3
+ET.44;Exoplanète Perforée;Exertiens;Gagnez 12 PV si vous avez couvert 2 secteurs Rouge.;;;;;;DANGER:4
+ET.45;Exoplanète au Noyau Brisé;Exertiens;Gagnez 12 PV si vous avez couvert 2 secteurs Bleu.;;;;;;DANGER:4
+ET.46;Exoplanète à Vortex;Exertiens;Gagnez 12 PV si vous avez couvert 2 secteurs Jaune.;;;;;;DANGER:4
+ET.47;Exoplanète à Fission Solaire;Exertiens;Gagnez 14 PV si vous avez couvert 2 secteurs Noir.;;;;;;DANGER:5
+ET.48;Sondes Oscillantes;Exertiens;Gagnez 11 PV si vous avez mis 3 sondes en orbite.;;;;;;DANGER:3
+ET.49;Infrastructure Générative;Exertiens;Gagnez 16 PV si vous avez fait atterrir 4 sondes (lunes comprises).;;;;;;DANGER:7
+ET.50;Déploiement d'Engins;Exertiens;Gagnez 10 PV si vous avez 3 orbiteurs ou atterrisseurs sur une même planète (lunes comprises).;;;;;;DANGER:2
+ET.51;Extracteur;Exertiens;Gagnez 18 PV si vous avez glissé 8 cartes sous vos revenus.;;;;;;DANGER:8
+ET.52;Laboratoire Automatisé;Exertiens;Gagnez 7 PV si vous avez acquis 6 Traces de Vie pour cette espèce.;;;;;;DANGER:0
+ET.53;Neurolab;Exertiens;Gagnez 20 PV si vous avez acquis 6 Traces de Vie pour les autres espèces.;;;;;;DANGER:9
+ET.54;Nœud Nanostructurel;Exertiens;Gagnez 8 PV so vous avez acquis 5 Traces de Vie de la même couleur.;;;;;;DANGER:1
+ET.55;Stratoélévateur;Exertiens;Gagnez 12 PV si vous avez accomplit 5 missions.;;;;;;DANGER:4`,
     }
     // Crée un exemple d'espèce alien
     return [
       {
+        id: `species-${AlienBoardType.MASCAMITES}-${Date.now()}`,
+        name: AlienBoardType.MASCAMITES,
+        description: `Nous avons découvert une forme de vie sur les lunes de Jupiter et de Saturne. Le nom donné à cette espèce s'inspire de son régime alimentaire, car ces créatures \
+        se nourissent d'un minérallunaire rare, la mascagnite. Elles présenten des similarités comportementales avec les insectes terriens. Toutefois, seule une étude approfondie de \
+        quelques spécimens permettra de révéler leur vraie nature.`,
+        fixedSlots: {
+          redlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 4 }],
+          yellowlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 4 }],
+          bluelifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, {}, {}, {}, {}]
+        },
+        infiniteSlots: {
+          redlifetrace: {},
+          yellowlifetrace: {},
+          bluelifetrace: {}
+        },
+        cards: this.parseCSV(csvContent[AlienBoardType.MASCAMITES]),
+        cardRow: [],
+        discovered: false,
+        specimen: [
+          { bonus: { credits: 2 } },
+          { bonus: { energy: 2 } },
+          { bonus: { media: 3 } },
+          { bonus: { data: 2 } },
+          { bonus: { card: 2 } },
+          { bonus: { pv: 3, anycard: 1 } },
+          { bonus: { pv: 7 } },
+        ] 
+      },
+      {
         id: `species-${AlienBoardType.ANOMALIES}-${Date.now()}`,
         name: AlienBoardType.ANOMALIES,
+        description: `Trois gigantesques objets hautement réfléchissants ont été repérés dans le système solaire. Ces "anomalies" provoquent des distorsions de l'espace-temps \
+        autour d'elles, permettant ainsi une connexion avec des observateurs lointains. Depuis leur découverte, certaines personnes les vénèrent, d'autres les dénigrent... Ce \
+        qui est sûr, c'est que cette avancée a redéfini le sens de l'unité à l'échelle mondiale. Nous les observons. Nous observent-elles également ?`,
         fixedSlots: {
           redlifetrace: [{ pv: 4, speciesCard: 1 }, { pv: 2, speciesCard: 1 }, { pv: 2, media: 1 }, { pv: 3 }],
           yellowlifetrace: [{ pv: 4, speciesCard: 1 }, { pv: 2, speciesCard: 1 }, { pv: 2, media: 1 }, { pv: 3 }],
@@ -1059,15 +1125,17 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         cards: this.parseCSV(csvContent[AlienBoardType.ANOMALIES]),
         cardRow: [],
         discovered: false,
-        token: {
-          red: { head: { credits: 1 }, tail: { pv: 4 } },
-          yellow: { head: { media: 2 }, tail: { anycard: 1 } },
-          blue: { head: { data: 1 }, tail: { energy: 1 } },
-        }
+        anomalie: [
+          { color: LifeTraceType.RED, head: { credits: 1 }, tail: { pv: 4 } },
+          { color: LifeTraceType.YELLOW, head: { media: 2 }, tail: { anycard: 1 } },
+          { color: LifeTraceType.BLUE, head: { data: 1 }, tail: { energy: 1 } },
+        ]
       },
       {
         id: `species-${AlienBoardType.OUMUAMUA}-${Date.now()}`,
         name: AlienBoardType.OUMUAMUA,
+        description: `Cet astéroïde de 400 mètres de long est le premier objet extrasolaire observé dans le système solaire. A sa surface, nous avons fait une découverte fascinante: \
+        les restes fossilisés d'une forme de vie extraterrestre. Une étude approfondie de ces exofossiles pourrait changer à jamais notre compréhension de la vie dans l'univers.`,
         fixedSlots: {
           redlifetrace: [{ pv: 25, token: -4 }, { pv: 3, speciesCard: 1, token: 1 }, { pv: 3, speciesCard: 1 }, { pv: 2, token: 1 }],
           yellowlifetrace: [{ pv: 25, token: -4 }, { pv: 3, speciesCard: 1, token: 1 }, { pv: 3, speciesCard: 1 }, { pv: 2, token: 1 }],
@@ -1128,6 +1196,9 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
       {
         id: `species-${AlienBoardType.CENTAURIENS}-${Date.now()}`,
         name: AlienBoardType.CENTAURIENS,
+        description: `Nous avons établi le contact avec une civilisation intelligente, situé à 4.5 années lumière de la Terre. Elle utilise une technologie comparable à la nôtre, \
+        ce qui signifie que nous devons attendre 9 ans avant de recevoir leur réponse. Pendant ce temps, astronomes et scientifiques travaillent sans relâche sur Terre pour décoder \
+        leurs messages.`,
         fixedSlots: {
           redlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 15, data: -3 }],
           yellowlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 15, data: -3 }],
@@ -1140,11 +1211,32 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         },
         cards: this.parseCSV(csvContent[AlienBoardType.CENTAURIENS]),
         cardRow: [],
-        discovered: false
+        discovered: false,
+        message: [
+          {
+            bonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.ANY }] },
+            isAvailable: true,
+          },
+          {
+            bonus: { speciesCard: 1, energy: 1 },
+            isAvailable: true,
+          },
+          {
+            bonus: { media: 3 },
+            isAvailable: true,
+          },
+          {
+            bonus: { pv: 8 },
+            isAvailable: true,
+          }
+        ]   
       },
       {
         id: `species-${AlienBoardType.EXERTIENS}-${Date.now()}`,
         name: AlienBoardType.EXERTIENS,
+        description: `Découverts grâce aux balises qu'ils essaiment derrière eux, les Exertiens utilisaient une technologie avancée de forage afin d'extraire l'énergie du noyau \
+        des planètes. L'exploitation intense de cette technologie a finalement conduit à leur extinction. L'utilisation de cett etechnologie doit être envisagée avec précaution: \
+        sa surexploitation pourrait engendrer une désapprobation massive de la population.`,
         fixedSlots: {
           redlifetrace: [{ pv: 9, credits: 1 }, { pv: 7, credits: 1 }, { pv: 5, credits: 1 }, { pv: 4, credits: 1 }, { pv: 3, media: 1 }],
           yellowlifetrace: [{ pv: 6, energy: 1, anycard: 1 }, { pv: 4, energy: 1, anycard: 1 }, { pv: 2, energy: 1, anycard: 1 }, { pv: 1, energy: 1, anycard: 1 }, { pv: 3, media: 1 }],
@@ -1159,23 +1251,6 @@ ET.30;Rover d'Excavation;Mission Conditionnelle;Gagnez 1 Atterrissage. Si vous p
         cardRow: [],
         discovered: false
       },
-      {
-        id: `species-${AlienBoardType.MASCAMITES}-${Date.now()}`,
-        name: AlienBoardType.MASCAMITES,
-        fixedSlots: {
-          redlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 4 }],
-          yellowlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 4 }],
-          bluelifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, {}, {}, {}, {}]
-        },
-        infiniteSlots: {
-          redlifetrace: {},
-          yellowlifetrace: {},
-          bluelifetrace: {}
-        },
-        cards: this.parseCSV(csvContent[AlienBoardType.MASCAMITES]),
-        cardRow: [],
-        discovered: false
-      }
     ];
   }
 }

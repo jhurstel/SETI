@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, ProbeState, Bonus, GAME_CONSTANTS, SectorType, SignalType, InteractionState, AlienBoardType, CelestialObject, GamePhase } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, Planet, ProbeState, Bonus, GAME_CONSTANTS, SectorType, SignalType, InteractionState, AlienBoardType, CelestialObject, GamePhase, LifeTraceType } from '../core/types';
 import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getObjectPosition, getAbsoluteSectorForProbe, polarToCartesian, describeArc, sectorToIndex, indexToSector, calculateObjectPosition, getSectorType, SolarSystemCell } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -554,7 +554,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           const bonusText = obj.anomalyData ? (ResourceSystem.formatBonus(obj.anomalyData.bonus) || []).join(', ') : 'Inconnu';
           content = (
               <div>
-                  <div style={{ fontWeight: 'bold', color: obj.anomalyData?.color === 'yellow' ? '#ffd700' : obj.anomalyData?.color === 'red' ? '#ff6b6b' : '#4a9eff' }}>{obj.name}</div>
+                  <div style={{ fontWeight: 'bold', color: obj.anomalyData?.color === LifeTraceType.YELLOW ? '#ffd700' : obj.anomalyData?.color === LifeTraceType.RED ? '#ff6b6b' : '#4a9eff' }}>{obj.name}</div>
                   <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus: {bonusText}</div>
               </div>
           );
@@ -1460,13 +1460,15 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     x += anomalyOffset * Math.cos((sectorCenterAngle - 90) * Math.PI / 180);
     y += anomalyOffset * Math.sin((sectorCenterAngle - 90) * Math.PI / 180);
     
-    const colorMap = {
-        red: '#ff6b6b',
-        blue: '#4a9eff',
-        yellow: '#ffd700'
+    const colorMap: Record<LifeTraceType, string> = {
+        [LifeTraceType.RED]: '#ff6b6b',
+        [LifeTraceType.BLUE]: '#4a9eff',
+        [LifeTraceType.YELLOW]: '#ffd700',
+        [LifeTraceType.ANY]: '#fff' 
     };
-    const color = obj.anomalyData ? colorMap[obj.anomalyData.color] : '#fff';
     
+    if (!obj.anomalyData) return null;
+    console.log(obj.anomalyData);
     return (
       <div
         key={obj.id}
@@ -1476,12 +1478,12 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           left: `calc(50% + ${x}%)`,
           width: '24px',
           height: '16px',
-          backgroundColor: color,
+          backgroundColor: colorMap[obj.anomalyData.color],
           borderRadius: '50%',
           zIndex,
           position: 'absolute',
           transform: 'translate(-50%, -50%) scale(1.5)',
-          boxShadow: `0 0 5px ${color}`,
+          boxShadow: `0 0 5px ${colorMap[obj.anomalyData.color]}`,
           border: '1px solid white',
           display: 'flex',
           justifyContent: 'center',
@@ -1492,11 +1494,9 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
-         {obj.anomalyData && (
-             <div style={{ transform: 'scale(0.5)' }}>
-                {renderBonusContent(obj.anomalyData.bonus)}
-             </div>
-         )}
+        <div style={{ transform: 'scale(0.5)' }}>
+          {renderBonusContent(obj.anomalyData.bonus)}
+        </div>
       </div>
     );
   };

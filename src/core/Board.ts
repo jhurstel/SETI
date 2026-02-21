@@ -503,7 +503,7 @@ export class BoardManager {
       firstBonus: { pv: 5, media: 1 },
       nextBonus: { pv: 3 },
       isFirstBoard: true,
-      speciesId: AlienBoardType.OUMUAMUA, //alienTypes[0],
+      speciesId: alienTypes[0],
       isDiscovered: false
     },
     {
@@ -511,7 +511,7 @@ export class BoardManager {
       firstBonus: { pv: 3, media: 1 },
       nextBonus: { pv: 3 },
       isFirstBoard: false,
-      speciesId: AlienBoardType.ANOMALIES, //alienTypes[1],
+      speciesId: alienTypes[1],
       isDiscovered: false
     }];
   }

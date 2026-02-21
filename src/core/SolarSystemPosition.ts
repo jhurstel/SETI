@@ -4,7 +4,8 @@
  */
 
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject } from './types';
+import { ResourceSystem } from '../systems/ResourceSystem';
+import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject, AlienBoardType } from './types';
 
 /**
  * Position absolue d'un objet après toutes les rotations
@@ -792,5 +793,41 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
 
     const diskLevel: Record<number, string> = { 1: 'Bleu', 2: 'Rouge', 3: 'Jaune' };
     const log = formatRotationLogs(`fait tourner le Système Solaire (${diskLevel[currentLevel]})`, rotationResult.logs);
-    return { updatedGame, logs: [log] };
+
+    // Vérification des anomalies après rotation
+    const earthPos = getObjectPosition('earth', newRotationState.level1Angle, newRotationState.level2Angle, newRotationState.level3Angle, updatedGame.board.solarSystem.extraCelestialObjects);
+    const anomalies = (updatedGame.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly');
+    const anomalyBoard = updatedGame.board.alienBoards.find(b => b.speciesId === AlienBoardType.ANOMALIES);
+    const anomalyLogs: string[] = [];
+
+    if (earthPos && anomalyBoard && anomalyBoard.isDiscovered) {
+        for (const anomaly of anomalies) {
+            const anomalyPos = calculateAbsolutePosition(anomaly, newRotationState, updatedGame.board.solarSystem.extraCelestialObjects);
+            if (anomalyPos.absoluteSector === earthPos.absoluteSector) {
+                const color = anomaly.anomalyData?.color;
+                const bonus = anomaly.anomalyData?.bonus;
+                if (color && bonus) {
+                    const traceType = color;
+                    // Ne prendre en compte que les slots 'species' (pas 'triangle')
+                    const trackTraces = anomalyBoard.lifeTraces.filter(t => t.type === traceType && t.location === 'species');
+                    // Trier par index décroissant pour trouver le plus haut
+                    trackTraces.sort((a, b) => (b.slotIndex || 0) - (a.slotIndex || 0));
+                    
+                    if (trackTraces.length > 0) {
+                        const highestPlayerId = trackTraces[0].playerId;
+                        if (highestPlayerId && highestPlayerId !== 'neutral') {
+                            const player = updatedGame.players.find(p => p.id === highestPlayerId);
+                            if (player) {
+                                const res = ResourceSystem.processBonuses(bonus, updatedGame, highestPlayerId, 'anomaly', `anomaly-${Date.now()}`);
+                                updatedGame = res.updatedGame;
+                                anomalyLogs.push(`Anomalie ${color} activée : ${player.name} gagne ${res.logs.join(', ')}`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return { updatedGame, logs: [log, ...anomalyLogs] };
   }

@@ -169,7 +169,7 @@ export interface CelestialObject {
   position: CelestialPosition;
   level?: 0 | 1 | 2 | 3; // Niveau du plateau (0 = fixe, 1-3 = rotatif)
   anomalyData?: {
-    color: 'red' | 'blue' | 'yellow';
+    color: LifeTraceType;
     side: 'head' | 'tail';
     bonus: Bonus;
   };
@@ -244,6 +244,7 @@ export interface Player {
   visitedPlanetsThisTurn: string[]; // Planètes visitées ce tour-ci
   activeBuffs: CardEffect[]; // Effets passifs temporaires (ex: bonus de visite)
   permanentBuffs: CardEffect[]; // Effets passifs permanents (ex: carte mission)
+  centaurienMilestone?: number; // Palier de score pour le message Centaurien
 }
 
 export interface Board {
@@ -419,6 +420,7 @@ export interface Mission {
 export interface Species {
   id: string;
   name: string;
+  description: string;
   fixedSlots: {
     redlifetrace: Bonus[],
     yellowlifetrace: Bonus[],
@@ -434,11 +436,9 @@ export interface Species {
   discovered: boolean;
   sector?: Sector;
   planet?: Planet;
-  token?: {
-    red: AnomalieToken,
-    yellow: AnomalieToken,
-    blue: AnomalieToken,
-  };
+  anomalie?: AnomalieToken[];
+  message?: CentaurienToken[];
+  specimen?: MascamitesToken[];
 }
 
 export interface Planet {
@@ -501,8 +501,18 @@ export interface Bonus {
 }
 
 export interface AnomalieToken {
+  color: LifeTraceType;
   head: Bonus;
   tail: Bonus;
+}
+
+export interface CentaurienToken {
+  bonus: Bonus;
+  isAvailable: boolean;
+}
+
+export interface MascamitesToken {
+  bonus: Bonus;
 }
 
 export interface RotationDisk {
@@ -619,7 +629,9 @@ export type InteractionState =
   /** Le joueur valide une condition de mission. */
   | { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: string, requirementId: string, sequenceId?: string }
   /** Le joueur acquiert une carte Alien (bonus) et doit la sélectionner dans la pioche ou la rangée de l'espèce. */
-  | { type: 'ACQUIRING_ALIEN_CARD', count: number, speciesId: string, sequenceId?: string };
+  | { type: 'ACQUIRING_ALIEN_CARD', count: number, speciesId: string, sequenceId?: string }
+  /** Le joueur doit choisir une récompense Centaurienne. */
+  | { type: 'CHOOSING_CENTAURIEN_REWARD', sequenceId?: string };
 
 // ============================================================================
 // SCORING
