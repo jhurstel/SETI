@@ -64,6 +64,11 @@ export class SpeciesSystem {
                             }
                         }
 
+                        if (board.speciesId === AlienBoardType.MASCAMITES) {
+                            const mascamiteLogs = this.spawnMascamites(updatedGame);
+                            distResults.logs.push(...mascamiteLogs);
+                        }
+
                         // Ajout de l'astéroïde Oumuamua si l'espèce est découverte
                         if (board.speciesId === AlienBoardType.OUMUAMUA) {
                             if (!updatedGame.board.solarSystem.extraCelestialObjects) {
@@ -227,6 +232,11 @@ export class SpeciesSystem {
                 }
             }
 
+            if (board.speciesId === AlienBoardType.MASCAMITES) {
+                const mascamiteLogs = this.spawnMascamites(updatedGame);
+                discoveryLogs.push(...mascamiteLogs);
+            }
+
             if (board.speciesId === AlienBoardType.OUMUAMUA) {
                 if (!updatedGame.board.solarSystem.extraCelestialObjects) {
                     updatedGame.board.solarSystem.extraCelestialObjects = [];
@@ -350,6 +360,33 @@ export class SpeciesSystem {
         }
         
         return { updatedGame, logs };
+    }
+
+    private static spawnMascamites(game: Game): string[] {
+        const logs: string[] = [];
+        const species = game.species.find(s => s.name === AlienBoardType.MASCAMITES);
+        if (species && species.specimen) {
+            const tokens = [...species.specimen];
+            // Shuffle tokens
+            for (let i = tokens.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [tokens[i], tokens[j]] = [tokens[j], tokens[i]];
+            }
+            
+            const saturnTokens = tokens.splice(0, 3);
+            const jupiterTokens = tokens.splice(0, 3);
+            const boardToken = tokens[0];
+
+            const saturn = game.board.planets.find(p => p.id === 'saturn');
+            if (saturn) saturn.mascamiteTokens = saturnTokens;
+
+            const jupiter = game.board.planets.find(p => p.id === 'jupiter');
+            if (jupiter) jupiter.mascamiteTokens = jupiterTokens;
+
+            if (boardToken) species.fixedSlots.bluelifetrace[2] = boardToken.bonus;
+            logs.push("Les Mascamites sont découverts ! Des spécimens apparaissent sur Jupiter et Saturne.");
+        }
+        return logs;
     }
 
     private static spawnAnomalies(game: Game): string[] {

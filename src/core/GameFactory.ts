@@ -1086,7 +1086,7 @@ ET.55;Stratoélévateur;Exertiens;Gagnez 12 PV si vous avez accomplit 5 missions
         fixedSlots: {
           redlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 4 }],
           yellowlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 4 }],
-          bluelifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, {}, {}, {}, {}]
+          bluelifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, {}, {}, {}, {}, {}, {}, {} ]
         },
         infiniteSlots: {
           redlifetrace: {},

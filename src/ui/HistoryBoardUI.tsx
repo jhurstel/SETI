@@ -268,15 +268,19 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         });
     };
 
+    const lastEntry = historyLog.length > 0 ? historyLog[historyLog.length - 1] : null;
+    const canUndo = lastEntry && !lastEntry.message.startsWith('---') && (
+        !!lastEntry.previousState || 
+        (!!lastEntry.sequenceId && !!historyLog.find(e => e.sequenceId === lastEntry.sequenceId)?.previousState)
+    );
+
     return (
         <div className="seti-history-wrapper">
             <div className={`seti-foldable-container seti-history-container seti-icon-panel ${isHistoryOpen ? 'open' : 'collapsed'}`}>
                 <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
                     <span className="panel-icon">📜</span>
                     <span className="panel-title seti-history-title">Historique</span>
-                    {historyLog.length > 0 &&
-                        historyLog[historyLog.length - 1].previousState &&
-                        !historyLog[historyLog.length - 1].message.startsWith('---') && (
+                    {canUndo && (
                         <button
                             className="panel-title seti-history-undo-btn"
                             onClick={(e) => { e.stopPropagation(); onUndo(); }}

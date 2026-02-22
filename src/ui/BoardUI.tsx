@@ -179,6 +179,9 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { history, ...cleanGame } = game;
 
+        const lastEntry = historyLog.length > 0 ? historyLog[historyLog.length - 1] : null;
+        const lastSequenceId = lastEntry?.sequenceId;
+
         const gameToSave = { 
             ...cleanGame,
             gameLog: historyLog.map((entry, index) => {
@@ -186,7 +189,15 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
                 // pour permettre l'undo immédiat après rechargement
                 const isLast = index === historyLog.length - 1;
                 let cleanPreviousState = undefined;
+                
+                let shouldSaveState = false;
                 if (isLast && entry.previousState) {
+                    shouldSaveState = true;
+                } else if (lastSequenceId && entry.sequenceId === lastSequenceId && entry.previousState) {
+                    shouldSaveState = true;
+                }
+
+                if (shouldSaveState) {
                     // Exclure gameLog et history du previousState pour éviter la récursion/taille
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     const { gameLog, history, ...rest } = entry.previousState as any;

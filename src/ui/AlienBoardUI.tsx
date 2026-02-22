@@ -335,7 +335,27 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                     {board.isDiscovered && (
                         <div className="alien-species-header">
                             <div className="alien-species-title-row">
-                                <div className="alien-species-id">{board.speciesId}</div>
+                                <div 
+                                    className="alien-species-id"
+                                    style={{ cursor: 'help' }}
+                                    onMouseEnter={(e) => {
+                                        if (species && species.description) {
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            setActiveTooltip({
+                                                content: (
+                                                    <div style={{ maxWidth: '300px', textAlign: 'left' }}>
+                                                        <div style={{ fontWeight: 'bold', marginBottom: '5px', color: '#ffd700' }}>{species.name}</div>
+                                                        <div style={{ fontSize: '0.9em', lineHeight: '1.4', color: '#ddd' }}>{species.description}</div>
+                                                    </div>
+                                                ),
+                                                rect
+                                            });
+                                        }
+                                    }}
+                                    onMouseLeave={() => setActiveTooltip(null)}
+                                >
+                                    {board.speciesId}
+                                </div>
                                 {board.speciesId === AlienBoardType.OUMUAMUA && (
                                     <div 
                                         className="alien-oumuamua-token"

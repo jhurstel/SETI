@@ -455,6 +455,7 @@ export interface Planet {
   orbitSlots: Bonus[];
   landSlots: Bonus[];
   satellites?: Satellite[];
+  mascamiteTokens?: MascamitesToken[];
 }
 
 export interface Satellite {

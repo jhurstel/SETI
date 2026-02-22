@@ -1269,6 +1269,36 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                       </g>
                     );
                   })}
+
+                  {/* Mascamite Tokens */}
+                  {planetData.mascamiteTokens && planetData.mascamiteTokens.map((token, i) => {
+                    const count = planetData.mascamiteTokens!.length;
+                    // Positionner en triangle ou cercle autour du centre
+                    // Si 1 seul, au centre. Si plusieurs, autour.
+                    const dist = count === 1 ? 0 : Math.max(size * 0.15, 6);
+                    const angle = (360 / count) * i - 90;
+                    const { x, y } = polarToCartesian(0, 0, dist, angle);
+                    
+                    return (
+                      <g key={`mascamite-${i}`} transform={`translate(${x}, ${y})`}
+                        onMouseEnter={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const content = (
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontWeight: 'bold', color: '#ea80fc', marginBottom: '4px' }}>Spécimen Mascamite</div>
+                              <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: '#ffd700' }}>{(ResourceSystem.formatBonus(token.bonus) || []).join(', ')}</span></div>
+                            </div>
+                          );
+                          setActiveTooltip({ content, rect });
+                        }}
+                        onMouseLeave={() => setActiveTooltip(null)}
+                        style={{ pointerEvents: 'auto', cursor: 'help' }}
+                      >
+                        <circle r="3.5" fill="#4a148c" stroke="#ea80fc" strokeWidth="1" />
+                        <text y="1" textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize="4" fontWeight="bold">M</text>
+                      </g>
+                    );
+                  })}
                 </>
               );
             })()}
@@ -1466,6 +1496,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         [LifeTraceType.YELLOW]: '#ffd700',
         [LifeTraceType.ANY]: '#fff' 
     };
+    console.log(obj);
     
     if (!obj.anomalyData) return null;
     console.log(obj.anomalyData);
@@ -1478,12 +1509,12 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           left: `calc(50% + ${x}%)`,
           width: '24px',
           height: '16px',
-          backgroundColor: colorMap[obj.anomalyData.color],
+          backgroundColor: colorMap[obj.anomalyData.color] || '#fff',
           borderRadius: '50%',
           zIndex,
           position: 'absolute',
           transform: 'translate(-50%, -50%) scale(1.5)',
-          boxShadow: `0 0 5px ${colorMap[obj.anomalyData.color]}`,
+          boxShadow: `0 0 5px ${colorMap[obj.anomalyData.color] || '#fff'}`,
           border: '1px solid white',
           display: 'flex',
           justifyContent: 'center',
