@@ -10,6 +10,7 @@ export * from './ai/AIBehavior';
 // Core
 export * from './core/ActionValidator';
 export * from './core/Board';
+export * from './core/DataLoader';
 export * from './core/Game';
 export * from './core/GameFactory';
 export * from './core/Logger';

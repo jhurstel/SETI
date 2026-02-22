@@ -50,19 +50,22 @@ export enum CardType {
   ACTION = "Action",
   CONDITIONAL_MISSION = "Mission Conditionnelle",
   TRIGGERED_MISSION = "Mission Déclenchable",
-  END_GAME = "Fin de partie"
+  END_GAME = "Fin de partie",
+  UNDEFINED = "Non défini"
 }
 
 export enum FreeActionType {
   MOVEMENT = "Déplacement",
   DATA = "Donnée",
-  MEDIA = "Média"
+  MEDIA = "Média",
+  UNDEFINED = "Non défini"
 }
 
 export enum RevenueType {
   CREDIT = "Crédit",
   ENERGY = "Energie",
-  CARD = "Carte"
+  CARD = "Carte",
+  UNDEFINED = "Non défini"
 }
 
 export enum SectorType {
@@ -88,7 +91,8 @@ export enum SectorType {
   VEGA = "Vega",
   PICTORIS = "Beta Pictoris",
   OUMUAMUA = "Oumuamua",
-  ANY = "N'importe quelle couleur"
+  ANY = "N'importe quelle couleur",
+  UNDEFINED = "Non défini"
 }
 
 export enum TechnologyCategory {

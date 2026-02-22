@@ -55,14 +55,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           for (let i = 1; i < playerCount; i++) {
               playerNames.push(shuffledRobots[i-1]);
           }
-          
-          let newGame = GameFactory.createGame(playerNames, isFirstPlayer);
-          
-          // Configure players based on selection
-          newGame.players[0].type = 'human';
-          for(let i=1; i<newGame.players.length; i++) {
+
+          GameFactory.createGame(playerNames, isFirstPlayer).then(newGame => {
+              // Configure players based on selection
+              newGame.players[0].type = 'human';
+              for(let i=1; i<newGame.players.length; i++) {
               newGame.players[i].type = 'robot';
-          }
+            }
 
           newGame = GameFactory.initializeGame(newGame);
           
@@ -93,6 +92,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           
           setNewGameModalVisible(false);
           setToast({ message: "Nouvelle partie commencée !", visible: true });
+        });
       } catch (e) {
           console.error(e);
           setToast({ message: "Erreur lors de la création de la partie", visible: true });
