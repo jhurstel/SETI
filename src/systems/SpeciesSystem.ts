@@ -66,7 +66,7 @@ export class SpeciesSystem {
 
                         if (board.speciesId === AlienBoardType.MASCAMITES) {
                             const mascamiteLogs = this.spawnMascamites(updatedGame);
-                            distResults.logs.push(...mascamiteLogs);
+                            distResult.logs.push(...mascamiteLogs);
                         }
 
                         // Ajout de l'astéroïde Oumuamua si l'espèce est découverte
