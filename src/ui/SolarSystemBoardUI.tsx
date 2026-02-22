@@ -1486,28 +1486,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               {game.board.solarSystem.nextRingLevel === 3 && renderRotationIndicator('mercury', 3)}
             </div>
 
-            {/* Labels des disques (A à D) - Positionnés au-dessus des plateaux rotatifs */}
-            {/*Object.keys(DISK_NAMES).map((disk, index) => {
-              if (disk === 'E') return null;
-              const diskWidth = 8;
-              const sunRadius = 4;
-              const innerRadius = sunRadius + (index * diskWidth);
-              const outerRadius = sunRadius + ((index + 1) * diskWidth);
-
-              return (
-                <div
-                  key={`label-${disk}`}
-                  className="seti-disk-label"
-                  style={{
-                    top: `calc(50% - ${(innerRadius + outerRadius) / 2}%)`,
-                    zIndex: 60,
-                  }}
-                >
-                  {disk}
-                </div>
-              );
-            })*/}
-
             {/* Backdrop pour désélectionner si on clique à côté (quand une sonde est sélectionnée) */}
             {selectedProbeId && (
               <div

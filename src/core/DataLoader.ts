@@ -1,4 +1,4 @@
-import { Card, CardType, FreeActionType, SectorType, RevenueType, CardEffect, TechnologyCategory, LifeTraceType } from './types';
+import { Card, CardType, FreeActionType, SectorType, RevenueType, CardEffect, TechnologyCategory, LifeTraceType, CostType } from './types';
 
 export class DataLoader {
   /**
@@ -36,12 +36,24 @@ export class DataLoader {
       const columns = line.split(';');
 
       const [id, nom, type, texte, actionGratuite, couleurScan, revenue, cout, gain, contrainte] = columns;
+      
+      let cost = 0;
+      let costType = CostType.CREDIT;
+      const costStr = cout.trim().toLowerCase();
+      if (costStr.includes('energie') || costStr.includes('energy')) {
+          costType = CostType.ENERGY;
+          cost = parseInt(costStr.replace(/[^0-9]/g, ''), 10) || 0;
+      } else {
+          cost = parseInt(costStr, 10) || 0;
+      }
+
       cards.push({
         id: id.trim(),
         name: nom.trim(),
         description: texte.trim(),
         type: this.mapCardType(type.trim()),
-        cost: parseInt(cout.trim(), 10) || 0,
+        cost: cost,
+        costType: costType,
         freeAction: this.mapFreeActionType(actionGratuite.trim()),
         scanSector: this.mapSectorType(couleurScan.trim()),
         revenue: this.mapRevenueType(revenue.trim()),
@@ -58,12 +70,17 @@ export class DataLoader {
     if (v.includes('action')) return CardType.ACTION;
     if (v.includes('conditionnelle')) return CardType.CONDITIONAL_MISSION;
     if (v.includes('déclenchable')) return CardType.TRIGGERED_MISSION;
-    if (v.includes('fin')) return CardType.END_GAME
-    return CardType.ACTION; // Valeur par défaut
+    if (v.includes('fin')) return CardType.END_GAME;
+    if (v.includes('exertien')) return CardType.EXERTIEN;
+    if (v.includes('centaurien')) return CardType.CENTAURIEN;
+    return CardType.UNDEFINED; // Valeur par défaut
   }
 
   private static mapFreeActionType(value: string): FreeActionType {
       const v = value.toLowerCase();
+      if (v.includes('1 pv + 1 déplacement') || v.includes('1pv + 1 déplacement') || v.includes('1 pv + 1 deplacement')) return FreeActionType.PV_MOVEMENT;
+      if (v.includes('1 pv + 1 donnée') || v.includes('1pv + 1 donnée') || v.includes('1 pv + 1 data')) return FreeActionType.PV_DATA;
+      if (v.includes('2 médias') || v.includes('2 medias') || v.includes('2 média')) return FreeActionType.TWO_MEDIA;
       if (v.includes('déplacement') || v.includes('movement')) return FreeActionType.MOVEMENT;
       if (v.includes('donnée') || v.includes('data')) return FreeActionType.DATA;
       if (v.includes('média') || v.includes('media')) return FreeActionType.MEDIA;
@@ -84,6 +101,8 @@ export class DataLoader {
       if (v.includes('energie') || v.includes('energy')) return RevenueType.ENERGY;
       if (v.includes('pioche') || v.includes('card')) return RevenueType.CARD;
       if (v.includes('crédit') || v.includes('credit')) return RevenueType.CREDIT;
+      if (v.includes('donnée') || v.includes('data')) return RevenueType.DATA;
+      if (v.includes('média') || v.includes('media')) return RevenueType.MEDIA;
       return RevenueType.UNDEFINED; // Valeur par défaut
   }
 

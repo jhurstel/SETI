@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, Mission, InteractionState, RevenueType, FreeActionType, TechnologyCategory } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, CardType, Mission, InteractionState, RevenueType, FreeActionType, TechnologyCategory, CostType } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
@@ -119,9 +119,13 @@ const HandCard: React.FC<{
     const canPlayAction = canPlay && !hasPerformedMainAction;
     const effectivePlayTooltip = hasPerformedMainAction ? "Action principale déjà effectuée" : playTooltip;
 
+    const isInteractiveMode = isReserving || isDiscarding || isTrading || isDiscardingForSignal;
+    const shouldGrayOut = !isInteractiveMode && !canPlayAction;
+
     return (
       <div 
         className={`seti-common-card seti-card-wrapper ${phaseClass}`}
+        style={shouldGrayOut ? { opacity: 0.7, filter: 'grayscale(0.8)' } : {}}
         onMouseEnter={e => handleTooltipHover(e, <CardTooltip card={card} />)}
         onMouseLeave={handleTooltipLeave}
         onClick={e => {
@@ -140,7 +144,7 @@ const HandCard: React.FC<{
         {isReserving ? (
           <>
             <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
-            <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
+            <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: card.costType === CostType.ENERGY ? '#4caf50' : '#ffd700' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ''}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
             {card.description && <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
             <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px', justifyContent: 'space-between' }}>
                 {card.freeAction && <div>Act: {card.freeAction}</div>}
@@ -177,7 +181,7 @@ const HandCard: React.FC<{
         ) : isDiscardingForSignal ? (
           <>
             <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
-            <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
+            <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: card.costType === CostType.ENERGY ? '#4caf50' : '#ffd700' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ''}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
             {card.description && <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
             <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px', justifyContent: 'space-between' }}>
                 {card.freeAction && <div>Act: {card.freeAction}</div>}
@@ -200,7 +204,7 @@ const HandCard: React.FC<{
         ) : (
           <>
             <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
-            <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
+            <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: card.costType === CostType.ENERGY ? '#4caf50' : '#ffd700' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ''}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
             {card.description && <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
             <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px', justifyContent: 'space-between' }}>
                 {card.revenue && <div>Rev: {card.revenue}</div>}
@@ -224,6 +228,18 @@ const HandCard: React.FC<{
                     color = '#fff';
                     borderColor = '#ddd';
                     bgColor = 'rgba(40,40,40,0.95)';
+                } else if (card.freeAction === FreeActionType.PV_MOVEMENT) {
+                    color = '#fff';
+                    borderColor = '#ddd';
+                    bgColor = 'rgba(40,40,40,0.95)';
+                } else if (card.freeAction === FreeActionType.PV_DATA) {
+                    color = '#2196f3';
+                    borderColor = '#2196f3';
+                    bgColor = 'rgba(33, 150, 243, 0.15)';
+                } else if (card.freeAction === FreeActionType.TWO_MEDIA) {
+                    color = '#e53935';
+                    borderColor = '#e53935';
+                    bgColor = 'rgba(229, 57, 53, 0.15)';
                 }
 
                 return (

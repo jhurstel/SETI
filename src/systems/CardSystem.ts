@@ -1,4 +1,4 @@
-import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CelestialObject } from '../core/types';
+import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CelestialObject, CostType } from '../core/types';
 import {
     createRotationState,
     calculateAbsolutePosition,
@@ -116,6 +116,24 @@ export class CardSystem {
             } else {
                 return { canDiscard: true, reason: "Défausser pour gagner 1 Média" };
             }
+        } else if (freeAction === FreeActionType.PV_MOVEMENT) {
+            if (!(player.probes || []).some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
+                return { canDiscard: false, reason: "Nécessite une sonde dans le système solaire" };
+            } else {
+                return { canDiscard: true, reason: "Défausser pour gagner 1 PV et 1 Déplacement" };
+            }
+        } else if (freeAction === FreeActionType.PV_DATA) {
+            if ((player.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
+                return { canDiscard: false, reason: "Nécessite de transférer des données" };
+            } else {
+                return { canDiscard: true, reason: "Défausser pour gagner 1 PV et 1 Donnée" };
+            }
+        } else if (freeAction === FreeActionType.TWO_MEDIA) {
+            if (player.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
+                return { canDiscard: false, reason: "Média au maximum" };
+            } else {
+                return { canDiscard: true, reason: "Défausser pour gagner 2 Médias" };
+            }
         }
 
         return { canDiscard: true, reason: "Action inconnue" };
@@ -159,8 +177,14 @@ export class CardSystem {
             return { canPlay: false, reason: "Ce n'est pas votre tour" };
         }
 
-        if (player.credits < card.cost) {
-            return { canPlay: false, reason: `Crédits insuffisants (coût: ${card.cost} crédit${card.cost > 1 ? 's' : ''})` };
+        if (card.costType === CostType.ENERGY) {
+            if (player.energy < card.cost) {
+                return { canPlay: false, reason: `Énergie insuffisante (coût: ${card.cost} énergie${card.cost > 1 ? 's' : ''})` };
+            }
+        } else {
+            if (player.credits < card.cost) {
+                return { canPlay: false, reason: `Crédits insuffisants (coût: ${card.cost} crédit${card.cost > 1 ? 's' : ''})` };
+            }
         }
 
         // TODO: Ajouter d'autres conditions de carte ici
@@ -182,12 +206,19 @@ export class CardSystem {
         const card = player.cards[cardIndex];
 
         // Vérification du coût
-        if (player.credits < card.cost) {
-            return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+        if (card.costType === CostType.ENERGY) {
+            if (player.energy < card.cost) {
+                return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+            }
+            // Payer le coût en énergie
+            player.energy -= card.cost;
+        } else {
+            if (player.credits < card.cost) {
+                return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+            }
+            // Payer le coût en crédits
+            player.credits -= card.cost;
         }
-
-        // Payer le coût
-        player.credits -= card.cost;
 
         // Check for GAIN_ON_PLAY buffs
         const processedSources = new Set<string>();
@@ -542,7 +573,7 @@ export class CardSystem {
         const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs, historyEntries } = ResourceSystem.processBonuses(bonuses || {}, updatedGame, player.id, cardId, sequenceId);
 
         // Construction du message d'historique unifié
-        let message = `paye ${card.cost} crédit${card.cost > 1 ? 's' : ''} pour jouer carte "${card.name}"`;
+        let message = `paye ${card.cost} ${card.costType}${card.cost > 1 ? 's' : ''} pour jouer carte "${card.name}"`;
 
         // Filtrer les logs pour séparer ce qu'on fusionne de ce qu'on garde séparé
         const isPassiveLog = (log: string) => log.startsWith('gagne ') || log.startsWith('pioche ');
@@ -619,6 +650,14 @@ export class CardSystem {
             bonuses.data = (bonuses.data || 0) + 1;
         } else if (card.freeAction === FreeActionType.MOVEMENT) {
             bonuses.movements = (bonuses.movements || 0) + 1;
+        } else if (card.freeAction === FreeActionType.PV_MOVEMENT) {
+            bonuses.pv = (bonuses.pv || 0) + 1;
+            bonuses.movements = (bonuses.movements || 0) + 1;
+        } else if (card.freeAction === FreeActionType.PV_DATA) {
+            bonuses.pv = (bonuses.pv || 0) + 1;
+            bonuses.data = (bonuses.data || 0) + 1;
+        } else if (card.freeAction === FreeActionType.TWO_MEDIA) {
+            bonuses.media = (bonuses.media || 0) + 2;
         }
 
         // 2. Check for GAIN_ON_DISCARD buffs and mark mission as fulfillable

@@ -284,25 +284,6 @@ export class GameFactory {
   }
 
   /**
-   * Mock
-   */
-  //private static createRandomCard(id: number): Card {
-  //  const colors = [SectorType.BLUE, SectorType.RED, SectorType.YELLOW, SectorType.BLACK];
-  //  const freeActions = [FreeActionType.DATA, FreeActionType.MEDIA, FreeActionType.MOVEMENT];
-  //  const revenues = [RevenueType.CREDIT, RevenueType.ENERGY, RevenueType.CARD];
-  //  return {
-  //      id: `random_card_${id}`,
-  //      name: `Projet ${id+1}`,
-  //      type: CardType.ACTION,
-  //      cost: Math.floor(Math.random() * 5) + 1,
-  //      freeAction: freeActions[Math.floor(Math.random() * freeActions.length)],
-  //      scanSector: colors[Math.floor(Math.random() * colors.length)],
-  //      revenue: revenues[Math.floor(Math.random() * revenues.length)],
-  //      description: "Carte random"
-  //  };
-  //}
-    
-  /**
    * Crée les espèces alien
    */
   private static async createSpecies(): Promise<Species[]> {
@@ -311,7 +292,7 @@ export class GameFactory {
         id: `species-${AlienBoardType.MASCAMITES}-${Date.now()}`,
         name: AlienBoardType.MASCAMITES,
         description: `Nous avons découvert une forme de vie sur les lunes de Jupiter et de Saturne. Le nom donné à cette espèce s'inspire de son régime alimentaire, car ces créatures \
-        se nourissent d'un minérallunaire rare, la mascagnite. Elles présenten des similarités comportementales avec les insectes terriens. Toutefois, seule une étude approfondie de \
+        se nourissent d'un minérallunaire rare, la mascagnite. Elles présentent des similarités comportementales avec les insectes terriens. Toutefois, seule une étude approfondie de \
         quelques spécimens permettra de révéler leur vraie nature.`,
         fixedSlots: {
           redlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 4 }],
@@ -465,7 +446,7 @@ export class GameFactory {
         id: `species-${AlienBoardType.EXERTIENS}-${Date.now()}`,
         name: AlienBoardType.EXERTIENS,
         description: `Découverts grâce aux balises qu'ils essaiment derrière eux, les Exertiens utilisaient une technologie avancée de forage afin d'extraire l'énergie du noyau \
-        des planètes. L'exploitation intense de cette technologie a finalement conduit à leur extinction. L'utilisation de cett etechnologie doit être envisagée avec précaution: \
+        des planètes. L'exploitation intense de cette technologie a finalement conduit à leur extinction. L'utilisation de cette technologie doit être envisagée avec précaution: \
         sa surexploitation pourrait engendrer une désapprobation massive de la population.`,
         fixedSlots: {
           redlifetrace: [{ pv: 9, credits: 1 }, { pv: 7, credits: 1 }, { pv: 5, credits: 1 }, { pv: 4, credits: 1 }, { pv: 3, media: 1 }],

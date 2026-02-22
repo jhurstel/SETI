@@ -2910,6 +2910,17 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
             } else if (card.freeAction === FreeActionType.MOVEMENT) {
               setPendingInteractions(prev => [{ type: 'MOVING_PROBE', count: 1, autoSelectProbeId: undefined, sequenceId: interactionState.sequenceId}, ...prev]);
               freeActionLog = " et gagne 1 Déplacement";
+            } else if (card.freeAction === FreeActionType.PV_MOVEMENT) {
+              player.score += 1;
+              setPendingInteractions(prev => [{ type: 'MOVING_PROBE', count: 1, autoSelectProbeId: undefined, sequenceId: interactionState.sequenceId}, ...prev]);
+              freeActionLog = " et gagne 1 PV et 1 Déplacement";
+            } else if (card.freeAction === FreeActionType.PV_DATA) {
+              player.score += 1;
+              player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
+              freeActionLog = " et gagne 1 PV et 1 Donnée";
+            } else if (card.freeAction === FreeActionType.TWO_MEDIA) {
+              player.mediaCoverage = Math.min(player.mediaCoverage + 2, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+              freeActionLog = " et gagne 2 Médias";
             }
           }
         }
@@ -3285,7 +3296,8 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
           if (gameEngineRef.current) gameEngineRef.current.setState(newGame);
         }}
         onHistory={addToHistory}
-        interactionState={interactionState} />
+        interactionState={interactionState}
+      />
 
       {activeTooltip && (
         <Tooltip 

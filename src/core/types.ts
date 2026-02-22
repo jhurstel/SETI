@@ -51,6 +51,14 @@ export enum CardType {
   CONDITIONAL_MISSION = "Mission Conditionnelle",
   TRIGGERED_MISSION = "Mission Déclenchable",
   END_GAME = "Fin de partie",
+  CENTAURIEN = "Centaurien",
+  EXERTIEN = "Exertien",
+  UNDEFINED = "Non défini"
+}
+
+export enum CostType {
+  CREDIT = "Crédit",
+  ENERGY = "Energie",
   UNDEFINED = "Non défini"
 }
 
@@ -58,6 +66,9 @@ export enum FreeActionType {
   MOVEMENT = "Déplacement",
   DATA = "Donnée",
   MEDIA = "Média",
+  PV_MOVEMENT = "1 PV + 1 Déplacement",
+  PV_DATA = "1 PV + 1 Donnée",
+  TWO_MEDIA = "2 Médias",
   UNDEFINED = "Non défini"
 }
 
@@ -65,6 +76,8 @@ export enum RevenueType {
   CREDIT = "Crédit",
   ENERGY = "Energie",
   CARD = "Carte",
+  DATA = "Data",
+  MEDIA = "Média",
   UNDEFINED = "Non défini"
 }
 
@@ -390,6 +403,7 @@ export interface Card {
   description: string;
   type: CardType;
   cost: number;
+  costType: CostType;
   freeAction: FreeActionType;
   scanSector: SectorType;
   revenue: RevenueType;
