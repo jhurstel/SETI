@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, Game, Technology, TechnologyCategory, CardType, Bonus, HistoryEntry } from '../core/types';
-import { CardTooltip } from './components/CardTooltip';
+import { CardTooltip } from '../ui/components/CardTooltip';
 import './HistoryBoardUI.css';
 import { ResourceSystem } from '../systems/ResourceSystem';
 

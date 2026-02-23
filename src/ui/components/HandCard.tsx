@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, Game, InteractionState, CostType, CardType, RevenueType, FreeActionType } from '../../core/types';
 import { CardSystem } from '../../systems/CardSystem';
-import { CardTooltip, getSectorTypeCode } from '../components/CardTooltip';
+import { CardTooltip, getSectorTypeCode } from './CardTooltip';
 
 export const HandCard: React.FC<{
   card: Card;

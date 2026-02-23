@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { CardTooltip } from './CardTooltip';
+import { CardTooltip } from './components/CardTooltip';
 import './AlienBoardUI.css';
 
 interface AlienBoardUIProps {

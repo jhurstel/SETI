@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Game, InteractionState } from '../core/types';
-import { CardTooltip, getSectorTypeCode } from './components/CardTooltip';
+import { CardTooltip, getSectorTypeCode } from '../ui/components/CardTooltip';
 import './CardRowUI.css';
 
 interface CardRowUIProps {
