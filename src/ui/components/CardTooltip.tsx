@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardType, SectorType } from '../core/types';
+import { Card, CardType, SectorType } from '../../core/types';
 
 export const getSectorTypeCode = (color: SectorType) => {
   switch (color) {

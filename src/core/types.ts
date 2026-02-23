@@ -14,20 +14,20 @@ export enum GamePhase {
 }
 
 export enum ActionType {
-  LAUNCH_PROBE = "LAUNCH_PROBE",
-  ORBIT = "ORBIT",
-  LAND = "LAND",
-  SCAN_SECTOR = "SCAN_SECTOR",
-  ANALYZE_DATA = "ANALYZE_DATA",
-  PLAY_CARD = "PLAY_CARD",
-  RESEARCH_TECH = "RESEARCH_TECH",
-  PASS = "PASS",
-  MOVE_PROBE = "MOVE_PROBE",
-  TRANSFERE_DATA = "TRANSFERE_DATA",
-  DISCARD_CARD = "DISCARD_CARD",
-  BUY_CARD = "BUY_CARD",
-  TRADE_RESOURCES = "TRADE_RESOURCES",
-  ACCOMPLISH_MISSION = "ACCOMPLISH_MISSION"
+  LAUNCH_PROBE = "Lancer une sonde",
+  ORBIT = "Mettre en orbite",
+  LAND = "Poser une sonde",
+  SCAN_SECTOR = "Scanner un secteur",
+  ANALYZE_DATA = "Analyser les données",
+  PLAY_CARD = "Jouer une carte",
+  RESEARCH_TECH = "Rechercher une tech",
+  PASS = "Passer définitivement",
+  MOVE_PROBE = "Déplacer une sonde",
+  TRANSFERE_DATA = "Transférer une donnée",
+  DISCARD_CARD = "Défausser une carte",
+  BUY_CARD = "Acheter une carte",
+  TRADE_RESOURCES = "Echanger des ressources",
+  ACCOMPLISH_MISSION = "Accomplir une mission"
 }
 
 export const MAIN_ACTION_TYPES: ActionType[] = [
@@ -37,7 +37,8 @@ export const MAIN_ACTION_TYPES: ActionType[] = [
   ActionType.SCAN_SECTOR,
   ActionType.ANALYZE_DATA,
   ActionType.PLAY_CARD,
-  ActionType.RESEARCH_TECH
+  ActionType.RESEARCH_TECH,
+  ActionType.PASS
 ];
 
 export type DiskName = 'A' | 'B' | 'C' | 'D' | 'E';
@@ -575,11 +576,15 @@ export interface TechnologyCategorySlots {
 export type Action = import('../actions/Action').IAction;
 
 export interface HistoryEntry {
+  id?: string;
   message: string;
   playerId: string;
-  sequenceId: string;
+  previousState?: Game;
+  previousInteractionState?: InteractionState;
+  previousPendingInteractions?: InteractionState[];
+  timestamp?: number;
+  sequenceId?: string;
 }
-
 // ============================================================================
 // VALIDATION
 // ============================================================================
@@ -663,6 +668,38 @@ export type InteractionState =
   | { type: 'ACQUIRING_ALIEN_CARD', count: number, speciesId: string, sequenceId?: string }
   /** Le joueur doit choisir une récompense Centaurienne. */
   | { type: 'CHOOSING_CENTAURIEN_REWARD', sequenceId?: string };
+
+  // Helper pour les libellés des interactions
+export const getInteractionLabel = (state: InteractionState): string => {
+  switch (state.type) {
+    case 'RESERVING_CARD': return `Veuillez réservez ${state.count} carte${state.count > 1 ? 's' : ''}.`;
+    case 'DISCARDING_CARD': return `Veuillez défausser ${state.count} carte${state.count > 1 ? 's' : ''}.`;
+    case 'TRADING_CARD': return `Veuillez échanger ${state.count} carte${state.count > 1 ? 's' : ''} pour gagner ${state.targetGain}.`;
+    case 'ACQUIRING_CARD': return state.isFree ? `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''}.` : `Veuillez acheter ${state.count} carte${state.count > 1 ? 's' : ''}.`;
+    case 'MOVING_PROBE': return `Veuillez déplacer une sonde gratuitement (${state.count} déplacement${state.count > 1 ? 's' : ''}).`;
+    case 'LANDING_PROBE': return `Veuillez poser une sonde gratuitement.`;
+    case 'ACQUIRING_TECH': return state.isBonus ? `Veuillez sélectionner une technologie ${state.category}.` : `Veuillez acheter une technologie ${state.category}.`;
+    case 'SELECTING_COMPUTER_SLOT': return `Veuillez sélectionner un emplacement d'ordinateur pour technologie ${state.tech.shorttext}.`;
+    case 'ANALYZING': return `Analyse en cours...`;
+    case 'PLACING_LIFE_TRACE': return `Veuillez placer trace de vie (${state.color}).`;
+    case 'PLACING_OBJECTIVE_MARKER': return `Veuillez placer un marqueur d'objectif pour avoir dépassé ${state.milestone} PV.`;
+    case 'SELECTING_SCAN_CARD': return `Veuillez sélectionner une carte de la rangée pour marquer un signal.`;
+    case 'SELECTING_SCAN_SECTOR': return state.adjacents ? `Veuillez sélectionner un secteur adjacent à la Terre pour marquer un signal.` : `Veuillez sélectionner un secteur ${state.color} pour marquer un signal.`;
+    case 'CHOOSING_MEDIA_OR_MOVE': return `Veuillez sélectionner le bonus de la carte 19.`;
+    case 'CHOOSING_OBS2_ACTION': return `Veuillez sélectionner le bonus de technologie Observation II.`;
+    case 'CHOOSING_OBS3_ACTION': return `Veuillez sélectionner le bonus de technologie Observation III.`;
+    case 'CHOOSING_OBS4_ACTION': return `Veuillez sélectionner le bonus de technologie Observation IV.`;
+    case 'DISCARDING_FOR_SIGNAL': return `Veuillez défausser ${state.count} carte${state.count > 1 ? 's' : ''} pour marquer un signal.`;
+    case 'REMOVING_ORBITER': return "Veuillez retirer un orbiteur (bonus carte 15).";
+    case 'CHOOSING_BONUS_ACTION': return `Veuillez choisir la prochaine action.`;
+    case 'RESOLVING_SECTOR': return `Résolution du secteur complété...`;
+    case 'DRAW_AND_SCAN': return `Pioche d'une carte pour signal...`;
+    case 'CLAIMING_MISSION_REQUIREMENT': return `Validation d'une mission...`;
+    case 'ACQUIRING_ALIEN_CARD': return `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''} Alien (Pioche ou Rangée).`;
+    case 'CHOOSING_CENTAURIEN_REWARD': return `Veuillez choisir une récompense Centaurienne.`;
+    default: return "Action inconnue";
+  }
+};
 
 // ============================================================================
 // SCORING

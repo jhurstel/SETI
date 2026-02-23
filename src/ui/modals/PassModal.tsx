@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardType } from '../../core/types';
-import { CardTooltip } from '../CardTooltip';
+import { CardTooltip } from '../components/CardTooltip';
 import { Tooltip } from '../Tooltip';
 
 interface PassModalProps {

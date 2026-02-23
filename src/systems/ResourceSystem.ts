@@ -5,6 +5,46 @@ import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';
 
 export class ResourceSystem {
+
+  static RESOURCE_CONFIG: Record<string, { label: string, plural: string, icon: string, color: string, regex: RegExp }> = {
+    CREDIT: {
+        label: 'Crédit', plural: 'Crédits', icon: '₢', color: '#ffd700',
+        regex: /Crédit(?:s?)|Credit(?:s?)|crédit(?:s?)|credit(?:s?)/
+    },
+    ENERGY: {
+        label: 'Énergie', plural: 'Énergies', icon: '⚡', color: '#4caf50',
+        regex: /Énergie(?:s?)|énergie(?:s?)|Energie(?:s?)|energie(?:s?)/
+    },
+    MEDIA: {
+        label: 'Média', plural: 'Médias', icon: '🎤', color: '#ff6b6b',
+        regex: /Média(?:s?)|Media(?:s?)|média(?:s?)|media(?:s?)/
+    },
+    DATA: {
+        label: 'Donnée', plural: 'Données', icon: '💾', color: '#03a9f4',
+        regex: /Donnée(?:s?)|donnée(?:s?)|Data|data/
+    },
+    CARD: {
+        label: 'Carte', plural: 'Cartes', icon: '🃏', color: '#aaffaa',
+        regex: /Carte(?:s?)|carte(?:s?)/
+    },
+    PV: {
+        label: 'PV', plural: 'PVs', icon: '🏆', color: '#fff',
+        regex: /\bPV\b/
+    },
+    SONDE: {
+        label: 'Sonde', plural: 'Sondes', icon: '🚀', color: '#fff',
+        regex: /Sonde(?:s?)|sonde(?:s?)/
+    },
+    TECH: {
+        label: 'Technologie', plural: 'Technologies', icon: '🔬', color: '#fff',
+        regex: /Technologie(?:s?)|technologie(?:s?)/
+    },
+    RESERVATION: {
+        label: 'Réservation', plural: 'Réservations', icon: '📥', color: '#fff',
+        regex: /Réservation(?:s?)|réservation(?:s?)|Reservation(?:s?)|reservation(?:s?)/
+    }
+  };
+
   static formatResource(amount: number, type: string): string {
     const absAmount = Math.abs(amount);
     const plural = absAmount > 1 ? 's' : '';

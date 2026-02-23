@@ -1,5 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, LifeTraceType, InteractionState, GamePhase, Mission, Player, SignalType, AlienBoardType } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, LifeTraceType, InteractionState, GamePhase, Mission, Player, SignalType, AlienBoardType, HistoryEntry, getInteractionLabel } from '../core/types';
+import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, performRotation, calculateReachableCellsWithEnergy, calculateAbsolutePosition } from '../core/SolarSystemPosition';
+import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -15,7 +17,6 @@ import { ResearchTechAction } from '../actions/ResearchTechAction';
 import { ScanSectorAction } from '../actions/ScanSectorAction';
 import { GameEngine } from '../core/Game';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, performRotation, calculateReachableCellsWithEnergy, calculateAbsolutePosition } from '../core/SolarSystemPosition';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
@@ -24,55 +25,18 @@ import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { AIBehavior } from '../ai/AIBehavior';
 import { DebugPanel } from './DebugPanel';
 import { PassModal } from './modals/PassModal';
-import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal } from './modals/GameModals';
 import { Tooltip } from './Tooltip';
 import { ObjectiveBoardUI } from './ObjectiveBoardUI';
-import { HistoryBoardUI, HistoryEntry } from './HistoryBoardUI';
+import { HistoryBoardUI } from './HistoryBoardUI';
 import { CardRowUI } from './CardRowUI';
 import { AlienBoardUI } from './AlienBoardUI';
 import { SettingsModal } from './modals/SettingsModal';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import './BoardUI.css';
 
-// Helper pour les libellés des interactions
-const getInteractionLabel = (state: InteractionState): string => {
-  switch (state.type) {
-    case 'RESERVING_CARD': return `Veuillez réservez ${state.count} carte${state.count > 1 ? 's' : ''}.`;
-    case 'DISCARDING_CARD': return `Veuillez défausser ${state.count} carte${state.count > 1 ? 's' : ''}.`;
-    case 'TRADING_CARD': return `Veuillez échanger ${state.count} carte${state.count > 1 ? 's' : ''} pour gagner ${state.targetGain}.`;
-    case 'ACQUIRING_CARD': return state.isFree ? `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''}.` : `Veuillez acheter ${state.count} carte${state.count > 1 ? 's' : ''}.`;
-    case 'MOVING_PROBE': return `Veuillez déplacer une sonde gratuitement (${state.count} déplacement${state.count > 1 ? 's' : ''}).`;
-    case 'LANDING_PROBE': return `Veuillez poser une sonde gratuitement.`;
-    case 'ACQUIRING_TECH': return state.isBonus ? `Veuillez sélectionner une technologie ${state.category}.` : `Veuillez acheter une technologie ${state.category}.`;
-    case 'SELECTING_COMPUTER_SLOT': return `Veuillez sélectionner un emplacement d'ordinateur pour technologie ${state.tech.shorttext}.`;
-    case 'ANALYZING': return `Analyse en cours...`;
-    case 'PLACING_LIFE_TRACE': return `Veuillez placer trace de vie (${state.color}).`;
-    case 'PLACING_OBJECTIVE_MARKER': return `Veuillez placer un marqueur d'objectif pour avoir dépassé ${state.milestone} PV.`;
-    case 'SELECTING_SCAN_CARD': return `Veuillez sélectionner une carte de la rangée pour marquer un signal.`;
-    case 'SELECTING_SCAN_SECTOR': return state.adjacents ? `Veuillez sélectionner un secteur adjacent à la Terre pour marquer un signal.` : `Veuillez sélectionner un secteur ${state.color} pour marquer un signal.`;
-    case 'CHOOSING_MEDIA_OR_MOVE': return `Veuillez sélectionner le bonus de la carte 19.`;
-    case 'CHOOSING_OBS2_ACTION': return `Veuillez sélectionner le bonus de technologie Observation II.`;
-    case 'CHOOSING_OBS3_ACTION': return `Veuillez sélectionner le bonus de technologie Observation III.`;
-    case 'CHOOSING_OBS4_ACTION': return `Veuillez sélectionner le bonus de technologie Observation IV.`;
-    case 'DISCARDING_FOR_SIGNAL': return `Veuillez défausser ${state.count} carte${state.count > 1 ? 's' : ''} pour marquer un signal.`;
-    case 'REMOVING_ORBITER': return "Veuillez retirer un orbiteur (bonus carte 15).";
-    case 'CHOOSING_BONUS_ACTION': return `Veuillez choisir la prochaine action.`;
-    case 'RESOLVING_SECTOR': return `Résolution du secteur complété...`;
-    case 'DRAW_AND_SCAN': return `Pioche d'une carte pour signal...`;
-    case 'CLAIMING_MISSION_REQUIREMENT': return `Validation d'une mission...`;
-    case 'ACQUIRING_ALIEN_CARD': return `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''} Alien (Pioche ou Rangée).`;
-    case 'CHOOSING_CENTAURIEN_REWARD': return `Veuillez choisir une récompense Centaurienne.`;
-    default: return "Action inconnue";
-  }
-};
-
-interface BoardUIProps {
-  game?: Game;
-}
-
-export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
+export const BoardUI: React.FC = () => {
   // États pour le jeu
-  const [game, setGame] = useState<Game | null>(initialGame || null);
+  const [game, setGame] = useState<Game | null>(null);
   const gameEngineRef = useRef<GameEngine | null>(null);
 
   // Ref pour accéder à l'état du jeu le plus récent dans les callbacks
@@ -233,7 +197,7 @@ export const BoardUI: React.FC<BoardUIProps> = ({ game: initialGame }) => {
     const entry: HistoryEntry = {
       id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       message,
-      playerId,
+      playerId: playerId ?? "",
       previousState,
       previousInteractionState: customInteractionState || interactionStateRef.current,
       previousPendingInteractions: pendingInteractionsRef.current,

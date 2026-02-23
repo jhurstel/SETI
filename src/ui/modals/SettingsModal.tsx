@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Game, InteractionState } from '../../core/types';
-import { HistoryEntry } from '../HistoryBoardUI';
+import { Game, HistoryEntry, InteractionState } from '../../core/types';
 import { GameFactory } from '../../core/GameFactory';
 import { GameEngine } from '../../core/Game';
 import { NewGameModal } from './NewGameModal';
@@ -77,7 +76,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             setHistoryLog(newGame.gameLog.map(log => ({
               id: log.id,
               message: log.message,
-              playerId: log.playerId,
+              playerId: log.playerId ?? "",
               timestamp: log.timestamp,
               previousInteractionState: { type: 'IDLE' },
               previousPendingInteractions: [],

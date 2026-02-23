@@ -1,57 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Card, Game, InteractionState, Technology, TechnologyCategory, CardType, Bonus } from '../core/types';
-import { CardTooltip } from './CardTooltip';
+import { Card, Game, Technology, TechnologyCategory, CardType, Bonus, HistoryEntry } from '../core/types';
+import { CardTooltip } from './components/CardTooltip';
 import './HistoryBoardUI.css';
-
-export interface HistoryEntry {
-    id: string;
-    message: string;
-    playerId?: string;
-    previousState?: Game;
-    previousInteractionState: InteractionState;
-    previousPendingInteractions: InteractionState[];
-    timestamp: number;
-    sequenceId?: string;
-}
-
-export const RESOURCE_CONFIG: Record<string, { label: string, plural: string, icon: string, color: string, regex: RegExp }> = {
-    CREDIT: {
-        label: 'Crédit', plural: 'Crédits', icon: '₢', color: '#ffd700',
-        regex: /Crédit(?:s?)|Credit(?:s?)|crédit(?:s?)|credit(?:s?)/
-    },
-    ENERGY: {
-        label: 'Énergie', plural: 'Énergies', icon: '⚡', color: '#4caf50',
-        regex: /Énergie(?:s?)|énergie(?:s?)|Energie(?:s?)|energie(?:s?)/
-    },
-    MEDIA: {
-        label: 'Média', plural: 'Médias', icon: '🎤', color: '#ff6b6b',
-        regex: /Média(?:s?)|Media(?:s?)|média(?:s?)|media(?:s?)/
-    },
-    DATA: {
-        label: 'Donnée', plural: 'Données', icon: '💾', color: '#03a9f4',
-        regex: /Donnée(?:s?)|donnée(?:s?)|Data|data/
-    },
-    CARD: {
-        label: 'Carte', plural: 'Cartes', icon: '🃏', color: '#aaffaa',
-        regex: /Carte(?:s?)|carte(?:s?)/
-    },
-    PV: {
-        label: 'PV', plural: 'PVs', icon: '🏆', color: '#fff',
-        regex: /\bPV\b/
-    },
-    SONDE: {
-        label: 'Sonde', plural: 'Sondes', icon: '🚀', color: '#fff',
-        regex: /Sonde(?:s?)|sonde(?:s?)/
-    },
-    TECH: {
-        label: 'Technologie', plural: 'Technologies', icon: '🔬', color: '#fff',
-        regex: /Technologie(?:s?)|technologie(?:s?)/
-    },
-    RESERVATION: {
-        label: 'Réservation', plural: 'Réservations', icon: '📥', color: '#fff',
-        regex: /Réservation(?:s?)|réservation(?:s?)|Reservation(?:s?)|reservation(?:s?)/
-    }
-};
+import { ResourceSystem } from '../systems/ResourceSystem';
 
 interface HistoryBoardUIProps {
     historyLog: HistoryEntry[];
@@ -201,7 +152,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
     };
 
     const formatHistoryMessage = (message: string) => {
-        const resourcePattern = Object.values(RESOURCE_CONFIG).map(c => c.regex.source).join('|');
+        const resourcePattern = Object.values(ResourceSystem.RESOURCE_CONFIG).map(c => c.regex.source).join('|');
         const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${resourcePattern}|"[^"]+")`, 'g');
 
         return message.split(splitRegex).map((part, index) => {
@@ -258,7 +209,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                 );
             }
 
-            for (const config of Object.values(RESOURCE_CONFIG)) {
+            for (const config of Object.values(ResourceSystem.RESOURCE_CONFIG)) {
                 if (new RegExp(`^${config.regex.source}$`).test(part)) {
                     return <span key={index} title={config.label} className="seti-history-resource-icon" style={{ color: config.color }}>{config.icon}</span>;
                 }
