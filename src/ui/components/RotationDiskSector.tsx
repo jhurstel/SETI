@@ -1,4 +1,3 @@
-// src/ui/components/RotationDiskSector.tsx
 import React from 'react';
 import { Game, RotationDisk, DISK_NAMES } from '../../core/types';
 import { indexToSector, getSectorType, polarToCartesian } from '../../core/SolarSystemPosition';

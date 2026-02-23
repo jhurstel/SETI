@@ -7,7 +7,7 @@ import { Tooltip } from './Tooltip';
 import { PLANET_STYLES, PLANET_SIZES } from './styles/celestialStyles';
 import { PlanetIcon } from './components/PlanetIcon';
 import { RotationDiskSector } from './components/RotationDiskSector';
-import { SectorDetailsUI } from './components/SectorDetailsUI';
+import { SectorDetails } from './components/SectorDetails';
 import { SvgBonus } from './components/SvgBonus';
 import './SolarSystemBoardUI.css'
 
@@ -1508,7 +1508,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           </div>
 
           {/* Détails des secteurs sur le disque E (Noms + Slots) */}
-          <SectorDetailsUI game={game} interactionState={interactionState} highlightedSectorSlots={getHighlightedSectors()} onSectorClick={onSectorClick} setActiveTooltip={setActiveTooltip} />
+          <SectorDetails game={game} interactionState={interactionState} highlightedSectorSlots={getHighlightedSectors()} onSectorClick={onSectorClick} setActiveTooltip={setActiveTooltip} />
 
           {/* Tooltips persistants pour l'atterrissage (Dragonfly / Landing Interaction) */}
           {interactionState.type === 'LANDING_PROBE' && (() => {

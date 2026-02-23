@@ -1,4 +1,3 @@
-// src/ui/components/PlanetIcon.tsx
 import React from 'react';
 import { Game, Planet, ProbeState, InteractionState } from '../../core/types';
 import { ProbeSystem } from '../../systems/ProbeSystem';

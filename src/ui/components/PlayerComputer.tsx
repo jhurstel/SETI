@@ -1,10 +1,10 @@
 import React from 'react';
-import { Player, GAME_CONSTANTS } from '../core/types';
-import { ComputerSystem } from '../systems/ComputerSystem';
-import { ComputerSlotUI } from './components/ComputerSlotUI';
-import './PlayerComputerUI.css';
+import { Player, GAME_CONSTANTS } from '../../core/types';
+import { ComputerSystem } from '../../systems/ComputerSystem';
+import { PlayerComputerSlot } from './PlayerComputerSlot';
+import './PlayerComputer.css';
 
-export const PlayerComputerUI = ({ 
+export const PlayerComputer = ({ 
   player, onSlotClick, isSelecting, onColumnSelect, isAnalyzing, disabled, onHover, onLeave, onAnalyzeClick
 }: { 
   player: Player, onSlotClick: (slotId: string) => void, isSelecting?: boolean, onColumnSelect?: (col: number) => void, isAnalyzing?: boolean, disabled?: boolean,
@@ -76,7 +76,7 @@ export const PlayerComputerUI = ({
                 <div className="computer-column-connector" />
               )}
               {colSlots.map((slot: any, slotIndex: number) => (
-                <ComputerSlotUI
+                <PlayerComputerSlot
                   key={slot.id} 
                   slot={slot} 
                   onClick={() => onSlotClick(slot.id)} 

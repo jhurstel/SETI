@@ -4,7 +4,7 @@ import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
 import { ScanSystem } from '../systems/ScanSystem';
-import { PlayerComputerUI } from './PlayerComputerUI';
+import { PlayerComputer } from './components/PlayerComputer';
 import { CardTooltip } from './components/CardTooltip';
 import { HandCard } from './components/HandCard';
 import './PlayerBoardUI.css';
@@ -559,7 +559,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
               </span>
             </div>
             <div className="seti-player-list seti-computer-list">
-              <PlayerComputerUI 
+              <PlayerComputer 
                 player={currentPlayer} 
                 onSlotClick={handleComputerSlotClick}
                 isSelecting={isSelectingComputerSlot && !isRobot}

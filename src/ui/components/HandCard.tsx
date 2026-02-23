@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Game, InteractionState, CostType, CardType, RevenueType, FreeActionType } from '../../core/types';
+import { Card, Game, InteractionState, CostType, CardType, RevenueType } from '../../core/types';
 import { CardSystem } from '../../systems/CardSystem';
 import { CardTooltip } from './CardTooltip';
 import { FREE_ACTION_STYLES, SECTOR_STYLES, REVENUE_STYLES } from '../styles/celestialStyles';

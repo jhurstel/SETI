@@ -56,11 +56,11 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
                                 {card.revenue && <div>Rev: {card.revenue}</div>}
                             </div>
                             <div className="seti-row-card-scan-box" style={{
-                                border: `1px solid ${SECTOR_STYLES[card.scanSector] || '#fff'}`
+                                border: `1px solid ${SECTOR_STYLES[card.scanSector]?.borderColor || '#fff'}`
                             }}>
                                 <div className="seti-row-card-scan-label">Scan</div>
                                 <div className="seti-row-card-scan-value" style={{
-                                    color: `${SECTOR_STYLES[card.scanSector] || '#fff'}`
+                                    color: `${SECTOR_STYLES[card.scanSector]?.color || '#fff'}`
                                 }}>
                                     {card.scanSector}
                                 </div>

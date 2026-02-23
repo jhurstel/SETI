@@ -1,4 +1,3 @@
-// src/ui/components/SvgBonus.tsx
 import React from 'react';
 import { Bonus } from '../../core/types';
 

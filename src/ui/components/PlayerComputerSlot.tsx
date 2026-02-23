@@ -1,7 +1,7 @@
 import React from 'react';
 import { ComputerSlot } from '../../core/types';
 
-export const ComputerSlotUI = ({ 
+export const PlayerComputerSlot = ({ 
     slot, 
     onClick, 
     canFill,

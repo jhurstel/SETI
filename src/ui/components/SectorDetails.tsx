@@ -1,12 +1,11 @@
-// src/ui/components/SectorDetailsUI.tsx
 import React from 'react';
-import { Game, InteractionState, SectorType, SignalType, GAME_CONSTANTS } from '../../core/types';
+import { Game, InteractionState, SignalType, GAME_CONSTANTS } from '../../core/types';
 import { describeArc, polarToCartesian } from '../../core/SolarSystemPosition';
 import { ResourceSystem } from '../../systems/ResourceSystem';
 import { SvgBonus } from './SvgBonus';
 import { SECTOR_STYLES } from '../styles/celestialStyles';
 
-interface SectorDetailsUIProps {
+interface SectorDetailsProps {
   game: Game;
   interactionState: InteractionState;
   highlightedSectorSlots: string[];
@@ -14,7 +13,7 @@ interface SectorDetailsUIProps {
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
 
-export const SectorDetailsUI: React.FC<SectorDetailsUIProps> = ({ game, interactionState, highlightedSectorSlots, onSectorClick, setActiveTooltip }) => {
+export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionState, highlightedSectorSlots, onSectorClick, setActiveTooltip }) => {
   if (!game.board.sectors) return null;
   const currentPlayer = game.players[game.currentPlayerIndex];
 
