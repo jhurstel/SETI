@@ -1504,7 +1504,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           </div>
 
           {/* Détails des secteurs sur le disque E (Noms + Slots) */}
-          <SectorDetailsUI game={game} interactionState={interactionState} highlightedSectorSlots={getHighlightedSectors()} onSectorClick={onSectorClick} setActiveTooltip={setActiveTooltip} rotationAngle1={rotationAngle1} />
+          <SectorDetailsUI game={game} interactionState={interactionState} highlightedSectorSlots={getHighlightedSectors()} onSectorClick={onSectorClick} setActiveTooltip={setActiveTooltip} />
 
           {/* Tooltips persistants pour l'atterrissage (Dragonfly / Landing Interaction) */}
           {interactionState.type === 'LANDING_PROBE' && (() => {
