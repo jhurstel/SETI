@@ -4,6 +4,7 @@ import { Game, InteractionState, SectorType, SignalType, GAME_CONSTANTS } from '
 import { describeArc, polarToCartesian } from '../../core/SolarSystemPosition';
 import { ResourceSystem } from '../../systems/ResourceSystem';
 import { SvgBonus } from './SvgBonus';
+import { SECTOR_STYLES } from '../styles/celestialStyles';
 
 interface SectorDetailsUIProps {
   game: Game;
@@ -43,13 +44,7 @@ export const SectorDetailsUI: React.FC<SectorDetailsUIProps> = ({ game, interact
         // Inverser la direction du chemin pour le bas pour que le texte soit lisible
         const textArc = describeArc(100, 100, textRadius, startAngle, endAngle, isBottom);
 
-        const colorMap: Record<string, string> = {
-          [SectorType.BLUE]: '#4a9eff',
-          [SectorType.RED]: '#ff6b6b',
-          [SectorType.YELLOW]: '#ffd700',
-          [SectorType.BLACK]: '#aaaaaa'
-        };
-        const color = colorMap[sector.color] || '#fff';
+        const color = SECTOR_STYLES[sector.color]?.color || '#fff';
 
         const coveredByPlayers = (sector.coveredBy || []).map((pid: string) => game.players.find(p => p.id === pid)).filter(p => !!p);
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Game, InteractionState } from '../core/types';
-import { CardTooltip, getSectorTypeCode } from '../ui/components/CardTooltip';
+import { CardTooltip } from '../ui/components/CardTooltip';
+import { SECTOR_STYLES } from './styles/celestialStyles';
 import './CardRowUI.css';
 
 interface CardRowUIProps {
@@ -55,11 +56,11 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
                                 {card.revenue && <div>Rev: {card.revenue}</div>}
                             </div>
                             <div className="seti-row-card-scan-box" style={{
-                                border: `1px solid ${getSectorTypeCode(card.scanSector)}`
+                                border: `1px solid ${SECTOR_STYLES[card.scanSector] || '#fff'}`
                             }}>
                                 <div className="seti-row-card-scan-label">Scan</div>
                                 <div className="seti-row-card-scan-value" style={{
-                                    color: getSectorTypeCode(card.scanSector)
+                                    color: `${SECTOR_STYLES[card.scanSector] || '#fff'}`
                                 }}>
                                     {card.scanSector}
                                 </div>

@@ -1,15 +1,6 @@
 import React from 'react';
-import { Card, CardType, SectorType } from '../../core/types';
-
-export const getSectorTypeCode = (color: SectorType) => {
-  switch (color) {
-    case SectorType.BLUE: return '#4a9eff';
-    case SectorType.RED: return '#ff6b6b';
-    case SectorType.YELLOW: return '#ffd700';
-    case SectorType.BLACK: return '#aaaaaa';
-    default: return '#fff';
-  }
-};
+import { Card, CardType } from '../../core/types';
+import { SECTOR_STYLES } from '../styles/celestialStyles';
 
 export const CardDescription: React.FC<{ description: string, type?: CardType, hideIntro?: boolean }> = ({ description, type, hideIntro }) => {
     if (!description) return null;
@@ -66,7 +57,7 @@ export const CardTooltip: React.FC<{ card: Card, hideIntro?: boolean, hideStats?
          <div>Type: {card.type === CardType.ACTION ? 'Action' : card.type === CardType.END_GAME ? 'Fin de jeu' : card.type === CardType.CONDITIONAL_MISSION ? 'Mission conditionnelle' : card.type === CardType.TRIGGERED_MISSION ? 'Mission déclenchable' : 'Autre'} ({card.id})</div>
          <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
          <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
-         <div className="seti-card-tooltip-scan">Scan: <span style={{ color: getSectorTypeCode(card.scanSector), fontWeight: 'bold' }}>{card.scanSector}</span></div>
+         <div className="seti-card-tooltip-scan">Scan: <span style={{ color: `${SECTOR_STYLES[card.scanSector]?.color || '#fff'}`, backgroundColor: `${SECTOR_STYLES[card.scanSector]?.bgColor || 'transparent'}`, fontWeight: 'bold' }}>{card.scanSector}</span></div>
       </div>
       )}
     </div>

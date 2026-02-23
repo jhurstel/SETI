@@ -1,4 +1,88 @@
-// src/ui/styles/celestialStyles.ts
+import { FreeActionType, SectorType, RevenueType } from '../../core/types';
+
+export const FREE_ACTION_STYLES: Record<string, { color: string, borderColor: string, bgColor: string }> = {
+  [FreeActionType.DATA]: {
+    color: '#2196f3',
+    borderColor: '#2196f3',
+    bgColor: 'rgba(33, 150, 243, 0.15)'
+  },
+  [FreeActionType.MEDIA]: {
+    color: '#e53935',
+    borderColor: '#e53935',
+    bgColor: 'rgba(229, 57, 53, 0.15)'
+  },
+  [FreeActionType.MOVEMENT]: {
+    color: '#fff',
+    borderColor: '#ddd',
+    bgColor: 'rgba(40,40,40,0.95)'
+  },
+  [FreeActionType.PV_MOVEMENT]: {
+    color: '#fff',
+    borderColor: '#ddd',
+    bgColor: 'rgba(40,40,40,0.95)'
+  },
+  [FreeActionType.PV_DATA]: {
+    color: '#2196f3',
+    borderColor: '#2196f3',
+    bgColor: 'rgba(33, 150, 243, 0.15)'
+  },
+  [FreeActionType.TWO_MEDIA]: {
+    color: '#e53935',
+    borderColor: '#e53935',
+    bgColor: 'rgba(229, 57, 53, 0.15)'
+  }
+};
+
+export const SECTOR_STYLES: Record<string, { color: string, borderColor: string, bgColor: string }> = {
+  [SectorType.BLUE]: {
+    color: '#4a9eff',
+    borderColor: '#4a9eff',
+    bgColor: '#4a9eff26'
+  },
+  [SectorType.RED]: {
+    color: '#ff6b6b',
+    borderColor: '#ff6b6b',
+    bgColor: '#ff6b6b26'
+  },
+  [SectorType.YELLOW]: {
+    color: '#ffd700',
+    borderColor: '#ffd700',
+    bgColor: '#ffd70026'
+  },
+  [SectorType.BLACK]: {
+    color: '#aaaaaa',
+    borderColor: '#aaaaaa',
+    bgColor: '#aaaaaa26'
+  },
+};
+
+export const REVENUE_STYLES: Record<string, { color: string, borderColor: string, bgColor: string }> = {
+  [RevenueType.ENERGY]: {
+    color: '#4caf50', // Vert
+    borderColor: '#4caf50',
+    bgColor: 'rgba(76, 175, 80, 0.15)'
+  },
+  [RevenueType.CREDIT]: {
+    color: '#ffd700', // Or
+    borderColor: '#ffd700',
+    bgColor: 'rgba(255, 215, 0, 0.15)'
+  },
+  [RevenueType.CARD]: {
+    color: '#000', // Noir
+    borderColor: '#000',
+    bgColor: '#e0e0e0' // Fond clair
+  },
+  [RevenueType.MEDIA]: {
+    color: '#e53935', // Rouge
+    borderColor: '#e53935',
+    bgColor: 'rgba(229, 57, 53, 0.15)'
+  },
+  [RevenueType.DATA]: {
+    color: '#2196f3', // Bleu
+    borderColor: '#2196f3',
+    bgColor: 'rgba(33, 150, 243, 0.15)'
+  }
+};
 
 export const PLANET_STYLES: { [key: string]: any } = {
     'neptune': {

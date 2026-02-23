@@ -1,7 +1,8 @@
 import React from 'react';
 import { Card, Game, InteractionState, CostType, CardType, RevenueType, FreeActionType } from '../../core/types';
 import { CardSystem } from '../../systems/CardSystem';
-import { CardTooltip, getSectorTypeCode } from './CardTooltip';
+import { CardTooltip } from './CardTooltip';
+import { FREE_ACTION_STYLES, SECTOR_STYLES, REVENUE_STYLES } from '../styles/celestialStyles';
 
 export const HandCard: React.FC<{
   card: Card;
@@ -93,23 +94,12 @@ export const HandCard: React.FC<{
             </div>
 
             {(() => {
-                let color = '#fff';
-                let borderColor = '#fff';
-                let bgColor = 'rgba(255, 255, 255, 0.1)';
-                
-                if (card.revenue === RevenueType.ENERGY) {
-                    color = '#4caf50'; // Vert
-                    borderColor = '#4caf50';
-                    bgColor = 'rgba(76, 175, 80, 0.15)';
-                } else if (card.revenue === RevenueType.CREDIT) {
-                    color = '#ffd700'; // Or
-                    borderColor = '#ffd700';
-                    bgColor = 'rgba(255, 215, 0, 0.15)';
-                } else if (card.revenue === RevenueType.CARD) {
-                    color = '#000'; // Noir
-                    borderColor = '#000';
-                    bgColor = '#e0e0e0'; // Fond clair
-                }
+                const style = (card.revenue && REVENUE_STYLES[card.revenue]) || {
+                    color: '#fff',
+                    borderColor: '#fff',
+                    bgColor: 'rgba(255, 255, 255, 0.1)'
+                };
+                const { color, borderColor, bgColor } = style;
 
                 return (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `2px solid ${borderColor}`, borderRadius: '8px', backgroundColor: bgColor, margin: '4px 0', padding: '4px' }}>
@@ -130,9 +120,12 @@ export const HandCard: React.FC<{
             </div>
 
             {(() => {
-                const color = getSectorTypeCode(card.scanSector);
-                const borderColor = color;
-                const bgColor = `${color}26`;
+                const style = (card.scanSector && SECTOR_STYLES[card.scanSector]) || {
+                    color: '#fff',
+                    borderColor: '#fff',
+                    bgColor: 'rgba(255, 255, 255, 0.1)'
+                };
+                const { color, borderColor, bgColor } = style;
 
                 return (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `2px solid ${borderColor}`, borderRadius: '8px', backgroundColor: bgColor, margin: '4px 0', padding: '4px' }}>
@@ -153,35 +146,12 @@ export const HandCard: React.FC<{
             </div>
 
             {(() => {
-                let color = '#fff';
-                let borderColor = '#fff';
-                let bgColor = 'rgba(255, 255, 255, 0.1)';
-                
-                if (card.freeAction === FreeActionType.DATA) {
-                    color = '#2196f3';
-                    borderColor = '#2196f3';
-                    bgColor = 'rgba(33, 150, 243, 0.15)';
-                } else if (card.freeAction === FreeActionType.MEDIA) {
-                    color = '#e53935';
-                    borderColor = '#e53935';
-                    bgColor = 'rgba(229, 57, 53, 0.15)';
-                } else if (card.freeAction === FreeActionType.MOVEMENT) {
-                    color = '#fff';
-                    borderColor = '#ddd';
-                    bgColor = 'rgba(40,40,40,0.95)';
-                } else if (card.freeAction === FreeActionType.PV_MOVEMENT) {
-                    color = '#fff';
-                    borderColor = '#ddd';
-                    bgColor = 'rgba(40,40,40,0.95)';
-                } else if (card.freeAction === FreeActionType.PV_DATA) {
-                    color = '#2196f3';
-                    borderColor = '#2196f3';
-                    bgColor = 'rgba(33, 150, 243, 0.15)';
-                } else if (card.freeAction === FreeActionType.TWO_MEDIA) {
-                    color = '#e53935';
-                    borderColor = '#e53935';
-                    bgColor = 'rgba(229, 57, 53, 0.15)';
-                }
+                const style = (card.freeAction && FREE_ACTION_STYLES[card.freeAction]) || {
+                    color: '#fff',
+                    borderColor: '#fff',
+                    bgColor: 'rgba(255, 255, 255, 0.1)'
+                };
+                const { color, borderColor, bgColor } = style;
 
                 return (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `2px solid ${borderColor}`, borderRadius: '8px', backgroundColor: bgColor, margin: '4px 0', padding: '4px' }}>
@@ -190,7 +160,6 @@ export const HandCard: React.FC<{
                     </div>
                 );
             })()}
-            {/*<div className="seti-card-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px' }}><div className="seti-card-detail" style={{ display: 'flex', justifyContent: 'space-between' }}>{card.freeAction && <span>Act: {card.freeAction}</span>}{card.scanSector && <span>Scan: {card.scanSector}</span>}</div><div className="seti-card-detail">{card.revenue && <span>Rev: {card.revenue}</span>}</div></div>*/}
           </>
         )}
       </div>
