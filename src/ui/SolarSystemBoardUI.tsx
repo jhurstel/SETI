@@ -59,7 +59,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     removalType?: 'orbiter' | 'lander'
   ) => {
     if (processingRef.current) return;
-    
+
     if (isClickable && actionFn) {
       e.stopPropagation();
       if (removalType) {
@@ -81,13 +81,13 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   const getSlotTooltipContent = () => {
     if (!hoveredSlot || removingItem) return null;
     const { type, planetId, index } = hoveredSlot;
-    
+
     const planetData = getPlanetData(planetId);
     if (!planetData) return null;
-    
+
     const currentPlayer = game.players[game.currentPlayerIndex];
     const isRobot = currentPlayer.type === 'robot';
-    
+
     // Trouver l'objet céleste pour vérifier la position de la sonde du joueur
     const targetObj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || [])].find(o => o.id === planetId);
     const playerProbe = targetObj && game.board.solarSystem.probes.find(p =>
@@ -99,101 +99,101 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     );
 
     if (type === 'orbiter') {
-        const orbitSlots = planetData.orbitSlots || [];
-        if (index >= orbitSlots.length) return null;
-        const bonus = orbitSlots[index];
-        const probe = planetData.orbiters[index];
-        const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-        const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
-        
-        const isOccupied = !!player;
-        const isNextAvailable = index === planetData.orbiters.length;
-        
-        let canOrbit = false;
-        let orbitReason = "";
-        if (playerProbe) {
-             if (currentPlayer.hasPerformedMainAction || isRobot) {
-                orbitReason = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
-             } else {
-                const check = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id);
-                canOrbit = check.canOrbit;
-                orbitReason = check.reason || "Impossible";
-             }
-        } else {
-            orbitReason = "Nécessite une sonde sur la planète";
-        }
+      const orbitSlots = planetData.orbitSlots || [];
+      if (index >= orbitSlots.length) return null;
+      const bonus = orbitSlots[index];
+      const probe = planetData.orbiters[index];
+      const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
+      const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
 
-        let isClickable = false;
-        if (interactionState.type === 'REMOVING_ORBITER') {
-            isClickable = isOccupied && player?.id === currentPlayer.id && !!onOrbit;
+      const isOccupied = !!player;
+      const isNextAvailable = index === planetData.orbiters.length;
+
+      let canOrbit = false;
+      let orbitReason = "";
+      if (playerProbe) {
+        if (currentPlayer.hasPerformedMainAction || isRobot) {
+          orbitReason = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
         } else {
-            isClickable = isNextAvailable && canOrbit && !!onOrbit;
+          const check = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id);
+          canOrbit = check.canOrbit;
+          orbitReason = check.reason || "Impossible";
         }
-        
-        return renderTooltipContent(isOccupied, isClickable, player, bonusText, orbitReason, "Cliquez pour mettre en orbite (Coût: 1 Crédit, 1 Énergie)", interactionState.type === 'REMOVING_ORBITER');
+      } else {
+        orbitReason = "Nécessite une sonde sur la planète";
+      }
+
+      let isClickable = false;
+      if (interactionState.type === 'REMOVING_ORBITER') {
+        isClickable = isOccupied && player?.id === currentPlayer.id && !!onOrbit;
+      } else {
+        isClickable = isNextAvailable && canOrbit && !!onOrbit;
+      }
+
+      return renderTooltipContent(isOccupied, isClickable, player, bonusText, orbitReason, "Cliquez pour mettre en orbite (Coût: 1 Crédit, 1 Énergie)", interactionState.type === 'REMOVING_ORBITER');
     }
-    
+
     if (type === 'lander') {
-        const landSlots = planetData.landSlots || [];
-        if (index >= landSlots.length) return null;
-        const bonus = landSlots[index];
-        
-        const probesOnSlot = planetData.landers.filter(p => p.planetSlotIndex === index);
-        const probe = probesOnSlot.length > 0 ? probesOnSlot[probesOnSlot.length - 1] : undefined;
-        const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-        const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
-        
-        const isOccupied = !!player;
-        const isPrevSlotOccupied = index === 0 || planetData.landers.some(p => p.planetSlotIndex === index - 1);
-        const isNextAvailable = !isOccupied && isPrevSlotOccupied;
-        const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
-        
-        let canLand = false;
-        let landReason = "";
-        let landEnergyCost = 0;
-        
-        if (playerProbe) {
-             if ((currentPlayer.hasPerformedMainAction && !(interactionState.type === 'LANDING_PROBE')) || isRobot) {
-                landReason = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
-             } else {
-                const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !(interactionState.type === 'LANDING_PROBE'));
-                canLand = check.canLand;
-                landEnergyCost = check.energyCost || 0;
-                landReason = check.reason || "Impossible";
-             }
+      const landSlots = planetData.landSlots || [];
+      if (index >= landSlots.length) return null;
+      const bonus = landSlots[index];
+
+      const probesOnSlot = planetData.landers.filter(p => p.planetSlotIndex === index);
+      const probe = probesOnSlot.length > 0 ? probesOnSlot[probesOnSlot.length - 1] : undefined;
+      const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
+      const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
+
+      const isOccupied = !!player;
+      const isPrevSlotOccupied = index === 0 || planetData.landers.some(p => p.planetSlotIndex === index - 1);
+      const isNextAvailable = !isOccupied && isPrevSlotOccupied;
+      const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
+
+      let canLand = false;
+      let landReason = "";
+      let landEnergyCost = 0;
+
+      if (playerProbe) {
+        if ((currentPlayer.hasPerformedMainAction && !(interactionState.type === 'LANDING_PROBE')) || isRobot) {
+          landReason = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
         } else {
-            landReason = "Nécessite une sonde sur la planète";
+          const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !(interactionState.type === 'LANDING_PROBE'));
+          canLand = check.canLand;
+          landEnergyCost = check.energyCost || 0;
+          landReason = check.reason || "Impossible";
         }
+      } else {
+        landReason = "Nécessite une sonde sur la planète";
+      }
 
-        const isClickable = (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
-        
-        const actionTextSuccess = interactionState.type === 'LANDING_PROBE' 
-            ? "Cliquez pour atterrir (Bonus)" 
-            : `Cliquez pour atterrir (Coût: ${landEnergyCost} Énergie)`;
+      const isClickable = (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
 
-        return renderTooltipContent(isOccupied, isClickable, player, bonusText, landReason, actionTextSuccess, interactionState.type === 'REMOVING_LANDER');
+      const actionTextSuccess = interactionState.type === 'LANDING_PROBE'
+        ? "Cliquez pour atterrir (Bonus)"
+        : `Cliquez pour atterrir (Coût: ${landEnergyCost} Énergie)`;
+
+      return renderTooltipContent(isOccupied, isClickable, player, bonusText, landReason, actionTextSuccess, interactionState.type === 'REMOVING_LANDER');
     }
     return null;
   };
 
   const renderTooltipContent = (isOccupied: boolean, isClickable: boolean, player: any, bonusText: string, reason: string, actionTextSuccess: string, isRemovingMode: boolean) => {
-      let statusText = isOccupied ? `Occupé par ${player?.name}` : (isClickable ? "Disponible" : "Indisponible");
-      let statusColor = isOccupied ? (player?.color || "#ccc") : (isClickable ? "#4a9eff" : "#ff6b6b");
-      let actionText: string | null = isClickable ? actionTextSuccess : reason;
+    let statusText = isOccupied ? `Occupé par ${player?.name}` : (isClickable ? "Disponible" : "Indisponible");
+    let statusColor = isOccupied ? (player?.color || "#ccc") : (isClickable ? "#4a9eff" : "#ff6b6b");
+    let actionText: string | null = isClickable ? actionTextSuccess : reason;
 
-      if (isOccupied && isClickable && isRemovingMode) {
-          statusText = "Cliquez pour retirer";
-          statusColor = "#ff6b6b";
-          actionText = null;
-      }
+    if (isOccupied && isClickable && isRemovingMode) {
+      statusText = "Cliquez pour retirer";
+      statusColor = "#ff6b6b";
+      actionText = null;
+    }
 
-      return (
-        <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>{statusText}</div>
-            <div style={{ fontSize: '0.9em', color: '#ccc' }}>{isRemovingMode && isClickable ? <>Gain retrait : <span style={{ color: '#ffd700' }}>3 PV, 1 Donnée, 1 Carte</span></> : <>Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span></>}</div>
-            {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
-        </div>
-      );
+    return (
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>{statusText}</div>
+        <div style={{ fontSize: '0.9em', color: '#ccc' }}>{isRemovingMode && isClickable ? <>Gain retrait : <span style={{ color: '#ffd700' }}>3 PV, 1 Donnée, 1 Carte</span></> : <>Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span></>}</div>
+        {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
+      </div>
+    );
   };
 
   // Calcul des secteurs à mettre en surbrillance (flash vert)
@@ -233,13 +233,13 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         sectors.push('oumuamua');
         const oumuamua = (game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === 'oumuamua');
         if (oumuamua) {
-            const rotationState = createRotationState(
-                game.board.solarSystem.rotationAngleLevel1 || 0,
-                game.board.solarSystem.rotationAngleLevel2 || 0,
-                game.board.solarSystem.rotationAngleLevel3 || 0
-            );
-            const absPos = calculateAbsolutePosition(oumuamua, rotationState, game.board.solarSystem.extraCelestialObjects);
-            sectors.push(`sector_${absPos.absoluteSector}`);
+          const rotationState = createRotationState(
+            game.board.solarSystem.rotationAngleLevel1 || 0,
+            game.board.solarSystem.rotationAngleLevel2 || 0,
+            game.board.solarSystem.rotationAngleLevel3 || 0
+          );
+          const absPos = calculateAbsolutePosition(oumuamua, rotationState, game.board.solarSystem.extraCelestialObjects);
+          sectors.push(`sector_${absPos.absoluteSector}`);
         }
       } else {
         sectors = game.board.sectors.filter(s => s.color === interactionState.color).map(s => s.id);
@@ -264,18 +264,18 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
     // Check Oumuamua
     if (sectors.length > 0) {
-        const oumuamua = (game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === 'oumuamua');
-        if (oumuamua) {
-            const rotationState = createRotationState(
-                game.board.solarSystem.rotationAngleLevel1 || 0,
-                game.board.solarSystem.rotationAngleLevel2 || 0,
-                game.board.solarSystem.rotationAngleLevel3 || 0
-            );
-            const absPos = calculateAbsolutePosition(oumuamua, rotationState, game.board.solarSystem.extraCelestialObjects);
-            if (sectors.includes(`sector_${absPos.absoluteSector}`)) {
-                sectors.push('oumuamua');
-            }
+      const oumuamua = (game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === 'oumuamua');
+      if (oumuamua) {
+        const rotationState = createRotationState(
+          game.board.solarSystem.rotationAngleLevel1 || 0,
+          game.board.solarSystem.rotationAngleLevel2 || 0,
+          game.board.solarSystem.rotationAngleLevel3 || 0
+        );
+        const absPos = calculateAbsolutePosition(oumuamua, rotationState, game.board.solarSystem.extraCelestialObjects);
+        if (sectors.includes(`sector_${absPos.absoluteSector}`)) {
+          sectors.push('oumuamua');
         }
+      }
     }
 
     return sectors;
@@ -284,7 +284,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   const highlightPlayerProbes = interactionState.type === 'MOVING_PROBE';
   const freeMovementCount = interactionState.type === 'MOVING_PROBE' ? interactionState.count : 0;
   const autoSelectProbeId = interactionState.type === 'MOVING_PROBE' ? interactionState.autoSelectProbeId : undefined;
-  
+
   // Utiliser les angles de rotation depuis le jeu, ou les angles initiaux si non définis
   const initialAngle1 = (sectorToIndex[game.board.solarSystem.initialSectorLevel1] || 0) * 45;
   const initialAngle2 = (sectorToIndex[game.board.solarSystem.initialSectorLevel2] || 0) * 45;
@@ -341,11 +341,11 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         const ignoreAsteroidPenalty = hasAsteroidTech || hasAsteroidBuff;
 
         const getMediaBonus = (cell: SolarSystemCell) => {
-            let bonus = 0;
-            if (cell.hasComet) bonus++;
-            if (cell.hasPlanet && cell.planetId !== 'earth') bonus++;
-            if (cell.hasAsteroid && hasAsteroidTech) bonus++;
-            return bonus;
+          let bonus = 0;
+          if (cell.hasComet) bonus++;
+          if (cell.hasPlanet && cell.planetId !== 'earth') bonus++;
+          if (cell.hasAsteroid && hasAsteroidTech) bonus++;
+          return bonus;
         };
 
         const reachable = calculateReachableCellsWithEnergy(
@@ -479,14 +479,14 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         break;
       }
       case 'anomaly': {
-          const bonusText = obj.anomalyData ? (ResourceSystem.formatBonus(obj.anomalyData.bonus) || []).join(', ') : 'Inconnu';
-          content = (
-              <div>
-                  <div style={{ fontWeight: 'bold', color: obj.anomalyData?.color === LifeTraceType.YELLOW ? '#ffd700' : obj.anomalyData?.color === LifeTraceType.RED ? '#ff6b6b' : '#4a9eff' }}>{obj.name}</div>
-                  <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus: {bonusText}</div>
-              </div>
-          );
-          break;
+        const bonusText = obj.anomalyData ? (ResourceSystem.formatBonus(obj.anomalyData.bonus) || []).join(', ') : 'Inconnu';
+        content = (
+          <div>
+            <div style={{ fontWeight: 'bold', color: obj.anomalyData?.color === LifeTraceType.YELLOW ? '#ffd700' : obj.anomalyData?.color === LifeTraceType.RED ? '#ff6b6b' : '#4a9eff' }}>{obj.name}</div>
+            <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus: {bonusText}</div>
+          </div>
+        );
+        break;
       }
       default:
         content = <div style={{ fontWeight: 'bold' }}>{obj.name}</div>;
@@ -556,17 +556,22 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   // Fonction helper pour rendre l'indicateur de rotation (signe >) adossé à la tuile
   const renderRotationIndicator = (planetId: string, level: number, sectorOffset: number = 0, keySuffix: string = '') => {
     let obj: CelestialObject | undefined;
-    if (planetId === 'saturn') { obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(o => o.id === 'saturn');
-    } else if (planetId === 'jupiter') { obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(o => o.id === 'jupiter');
-    } else if (planetId === 'mars') { obj = INITIAL_ROTATING_LEVEL2_OBJECTS.find(o => o.id === 'mars');
-    } else if (planetId === 'earth') { obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'earth');
-    } else if (planetId === 'mercury') { obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'mercury');
+    if (planetId === 'saturn') {
+      obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(o => o.id === 'saturn');
+    } else if (planetId === 'jupiter') {
+      obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(o => o.id === 'jupiter');
+    } else if (planetId === 'mars') {
+      obj = INITIAL_ROTATING_LEVEL2_OBJECTS.find(o => o.id === 'mars');
+    } else if (planetId === 'earth') {
+      obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'earth');
+    } else if (planetId === 'mercury') {
+      obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(o => o.id === 'mercury');
     }
 
     if (!obj) return null;
 
     const originalSector = obj.position.sector;
-    const newSector = ( ( (originalSector - 1) + sectorOffset) % 8 ) + 1 as SectorNumber;
+    const newSector = (((originalSector - 1) + sectorOffset) % 8) + 1 as SectorNumber;
 
     const { sectorCenterAngle, diskIndex } = calculateObjectPosition(obj.position.disk, newSector);
 
@@ -621,7 +626,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     // On veut 3 signaux.
     const signalSpacing = 7; // degrés
     const totalWidth = (sector.signals.length - 1) * signalSpacing;
-    
+
     // Calculer l'angle de départ basé sur la position d'Oumuamua
     // Oumuamua est sur le plateau rotatif niveau 1.
     // Sa position est définie par son secteur relatif.
@@ -647,124 +652,124 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
     let bonusDisplay;
     if (firstBonusStr === nextBonusStr) {
-        bonusDisplay = <div style={{ fontSize: '0.9em', color: '#ffd700' }}>Bonus de couverture : {firstBonusStr}</div>;
+      bonusDisplay = <div style={{ fontSize: '0.9em', color: '#ffd700' }}>Bonus de couverture : {firstBonusStr}</div>;
     } else {
-        bonusDisplay = (
-            <div style={{ fontSize: '0.9em', color: '#ffd700' }}>
-            <div>1ère couverture : {firstBonusStr}</div>
-            <div>Suivantes : {nextBonusStr}</div>
-            </div>
-        );
+      bonusDisplay = (
+        <div style={{ fontSize: '0.9em', color: '#ffd700' }}>
+          <div>1ère couverture : {firstBonusStr}</div>
+          <div>Suivantes : {nextBonusStr}</div>
+        </div>
+      );
     }
 
     const sectorTooltipContent = (
-        <div style={{ textAlign: 'left' }}>
-            <div style={{ fontWeight: 'bold', borderBottom: '1px solid #ccc', marginBottom: '4px', color: '#fff' }}>{sector.name.toUpperCase()}</div>
-            <div style={{ fontSize: '0.9em', marginBottom: '4px' }}>Gains à la couverture :</div>
-            <div style={{ fontSize: '0.9em', color: '#ff6b6b' }}>• {mediaBonusText}</div>
-            {bonusDisplay}
-            {coveredByPlayers.length > 0 && (
-            <div style={{ marginTop: '6px', paddingTop: '4px', borderTop: '1px solid #555' }}>
-                <div style={{ fontSize: '0.8em', color: '#aaa' }}>Couvert par :</div>
-                {coveredByPlayers.map(p => (
-                <div key={p.id} style={{ color: p.color, fontWeight: 'bold', fontSize: '0.9em' }}>{p.name}</div>
-                ))}
-            </div>
-            )}
-        </div>
+      <div style={{ textAlign: 'left' }}>
+        <div style={{ fontWeight: 'bold', borderBottom: '1px solid #ccc', marginBottom: '4px', color: '#fff' }}>{sector.name.toUpperCase()}</div>
+        <div style={{ fontSize: '0.9em', marginBottom: '4px' }}>Gains à la couverture :</div>
+        <div style={{ fontSize: '0.9em', color: '#ff6b6b' }}>• {mediaBonusText}</div>
+        {bonusDisplay}
+        {coveredByPlayers.length > 0 && (
+          <div style={{ marginTop: '6px', paddingTop: '4px', borderTop: '1px solid #555' }}>
+            <div style={{ fontSize: '0.8em', color: '#aaa' }}>Couvert par :</div>
+            {coveredByPlayers.map(p => (
+              <div key={p.id} style={{ color: p.color, fontWeight: 'bold', fontSize: '0.9em' }}>{p.name}</div>
+            ))}
+          </div>
+        )}
+      </div>
     );
 
     return (
-        <g key="oumuamua-signals" style={{ pointerEvents: 'auto' }}>
-            <path className="oumuamua-corridor" d={corridorPath} fill="none" stroke="#ffffff" opacity="0.15" strokeLinecap="round" style={{ pointerEvents: 'auto', cursor: 'default', strokeWidth: 7 }} />
-            <defs><path id={textPathId} d={textArcPath} /></defs>
-            <text fill="#ffffff" fontSize="2" fontWeight="bold" letterSpacing="0.5" opacity="0.9" style={{ pointerEvents: 'auto', cursor: 'help' }}
-                onMouseEnter={(e) => { setActiveTooltip({ content: sectorTooltipContent, rect: e.currentTarget.getBoundingClientRect() }); }}
-                onMouseLeave={() => setActiveTooltip(null)}
+      <g key="oumuamua-signals" style={{ pointerEvents: 'auto' }}>
+        <path className="oumuamua-corridor" d={corridorPath} fill="none" stroke="#ffffff" opacity="0.15" strokeLinecap="round" style={{ pointerEvents: 'auto', cursor: 'default', strokeWidth: 7 }} />
+        <defs><path id={textPathId} d={textArcPath} /></defs>
+        <text fill="#ffffff" fontSize="2" fontWeight="bold" letterSpacing="0.5" opacity="0.9" style={{ pointerEvents: 'auto', cursor: 'help' }}
+          onMouseEnter={(e) => { setActiveTooltip({ content: sectorTooltipContent, rect: e.currentTarget.getBoundingClientRect() }); }}
+          onMouseLeave={() => setActiveTooltip(null)}
+        >
+          <textPath href={`#${textPathId}`} startOffset="50%" textAnchor="middle">{sector.name.toUpperCase()}</textPath>
+        </text>
+        {sector.signals.map((signal, idx) => {
+          // Centrer le groupe de 3 signaux autour de la position d'Oumuamua
+          const angle = centerAngle - totalWidth / 2 + (idx * signalSpacing);
+          const pos = polarToCartesian(100, 100, radiusPx, angle);
+
+          const player = signal.markedBy ? game.players.find(p => p.id === signal.markedBy) : null;
+          const strokeColor = '#ffffff'; // Oumuamua signals are white/special
+          const fillColor = player ? player.color : 'rgba(0,0,0,0.5)';
+
+          const isNextAvailable = !signal.marked && (idx === 0 || sector.signals[idx - 1].marked);
+          const isDisabled = !signal.marked && !isNextAvailable;
+          const opacity = isDisabled ? 0.2 : 1;
+          const isClickable = !isDisabled && shouldFlashSlot;
+
+          const isFlashing = shouldFlashSlot && isNextAvailable && !signal.marked;
+
+          const currentPlayer = game.players[game.currentPlayerIndex];
+          const canAffordScan = currentPlayer.credits >= GAME_CONSTANTS.SCAN_COST_CREDITS && currentPlayer.energy >= GAME_CONSTANTS.SCAN_COST_ENERGY;
+
+          const baseGain = ["1 Donnée"];
+          const bonusGain = signal.bonus ? ResourceSystem.formatBonus(signal.bonus) : null;
+          const gains = [...baseGain, ...(bonusGain || [])];
+
+          let stateText = "Disponible";
+          let stateColor = "#4a9eff";
+          let actionText = null;
+
+          if (signal.marked) {
+            const markerPlayer = game.players.find(p => p.id === signal.markedBy);
+            stateText = `Marqué par ${markerPlayer?.name || 'Inconnu'}`;
+            stateColor = markerPlayer?.color || "#ccc";
+          } else if (isDisabled) {
+            stateText = "Indisponible";
+            stateColor = "#ff6b6b";
+            actionText = "Nécessite le signal précédent";
+          } else if (isClickable && !canAffordScan && interactionState.type === 'IDLE') {
+            stateText = "Ressources insuffisantes";
+            stateColor = "#ff6b6b";
+            actionText = `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit et ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergies`;
+          } else {
+            actionText = "Cliquez pour marquer le signal";
+          }
+
+          const slotTooltipContent = (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontWeight: 'bold', color: stateColor, marginBottom: '4px' }}>{stateText}</div>
+              {gains.length > 0 ? (
+                <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: '#ffd700' }}>{gains.join(', ')}</span></div>
+              ) : (
+                <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>
+              )}
+              {actionText && <div style={{ fontSize: '0.8em', color: stateColor, marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
+            </div>
+          );
+
+          return (
+            <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`} style={{ opacity, cursor: isClickable ? 'pointer' : 'help' }}
+              onClick={(e) => { if (isClickable) { e.stopPropagation(); onSectorClick(sector.id); } }}
+              onMouseEnter={(e) => setActiveTooltip({ content: slotTooltipContent, rect: e.currentTarget.getBoundingClientRect() })}
+              onMouseLeave={() => setActiveTooltip(null)}
             >
-                <textPath href={`#${textPathId}`} startOffset="50%" textAnchor="middle">{sector.name.toUpperCase()}</textPath>
-            </text>
-            {sector.signals.map((signal, idx) => {
-                // Centrer le groupe de 3 signaux autour de la position d'Oumuamua
-                const angle = centerAngle - totalWidth/2 + (idx * signalSpacing);
-                const pos = polarToCartesian(100, 100, radiusPx, angle);
-                
-                const player = signal.markedBy ? game.players.find(p => p.id === signal.markedBy) : null;
-                const strokeColor = '#ffffff'; // Oumuamua signals are white/special
-                const fillColor = player ? player.color : 'rgba(0,0,0,0.5)';
-                
-                const isNextAvailable = !signal.marked && (idx === 0 || sector.signals[idx - 1].marked);
-                const isDisabled = !signal.marked && !isNextAvailable;
-                const opacity = isDisabled ? 0.2 : 1;
-                const isClickable = !isDisabled && shouldFlashSlot;
-
-                const isFlashing = shouldFlashSlot && isNextAvailable && !signal.marked;
-
-                const currentPlayer = game.players[game.currentPlayerIndex];
-                const canAffordScan = currentPlayer.credits >= GAME_CONSTANTS.SCAN_COST_CREDITS && currentPlayer.energy >= GAME_CONSTANTS.SCAN_COST_ENERGY;
-
-                const baseGain = ["1 Donnée"];
-                const bonusGain = signal.bonus ? ResourceSystem.formatBonus(signal.bonus) : null;
-                const gains = [...baseGain, ...(bonusGain || [])];
-
-                let stateText = "Disponible";
-                let stateColor = "#4a9eff";
-                let actionText = null;
-
-                if (signal.marked) {
-                  const markerPlayer = game.players.find(p => p.id === signal.markedBy);
-                  stateText = `Marqué par ${markerPlayer?.name || 'Inconnu'}`;
-                  stateColor = markerPlayer?.color || "#ccc";
-                } else if (isDisabled) {
-                  stateText = "Indisponible";
-                  stateColor = "#ff6b6b";
-                  actionText = "Nécessite le signal précédent";
-                } else if (isClickable && !canAffordScan && interactionState.type === 'IDLE') {
-                  stateText = "Ressources insuffisantes";
-                  stateColor = "#ff6b6b";
-                  actionText = `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit et ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergies`;
-                } else {
-                  actionText = "Cliquez pour marquer le signal";
-                }
-
-                const slotTooltipContent = (
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontWeight: 'bold', color: stateColor, marginBottom: '4px' }}>{stateText}</div>
-                    {gains.length > 0 ? (
-                      <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: '#ffd700' }}>{gains.join(', ')}</span></div>
-                    ) : (
-                      <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>
-                    )}
-                    {actionText && <div style={{ fontSize: '0.8em', color: stateColor, marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
-                  </div>
-                );
-
-                return (
-                    <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`} style={{ opacity, cursor: isClickable ? 'pointer' : 'help' }}
-                        onClick={(e) => { if (isClickable) { e.stopPropagation(); onSectorClick(sector.id); } }}
-                        onMouseEnter={(e) => setActiveTooltip({ content: slotTooltipContent, rect: e.currentTarget.getBoundingClientRect() })}
-                        onMouseLeave={() => setActiveTooltip(null)}
-                    >
-                        {isFlashing && (
-                            canAffordScan && interactionState.type === 'IDLE' ? (
-                                <>
-                                <circle r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" opacity="1" />
-                                <circle className="seti-pulse-green-svg" r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" />
-                                </>
-                            ) : interactionState.type === 'SELECTING_SCAN_SECTOR' && (
-                                <circle r="4" fill="none" stroke="#4caf50" strokeWidth="0.5" opacity="1" />
-                            )
-                        )}
-                        <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" />
-                        {!player && signal.bonus && (
-                            <g transform={`scale(0.2) rotate(${-rotationAngle1})`}>
-                                <SvgBonus bonus={signal.bonus} />
-                            </g>
-                        )}
-                    </g>
-                );
-            })}
-        </g>
+              {isFlashing && (
+                canAffordScan && interactionState.type === 'IDLE' ? (
+                  <>
+                    <circle r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" opacity="1" />
+                    <circle className="seti-pulse-green-svg" r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" />
+                  </>
+                ) : interactionState.type === 'SELECTING_SCAN_SECTOR' && (
+                  <circle r="4" fill="none" stroke="#4caf50" strokeWidth="0.5" opacity="1" />
+                )
+              )}
+              <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" />
+              {!player && signal.bonus && (
+                <g transform={`scale(0.2) rotate(${-rotationAngle1})`}>
+                  <SvgBonus bonus={signal.bonus} />
+                </g>
+              )}
+            </g>
+          );
+        })}
+      </g>
     );
   };
 
@@ -775,14 +780,14 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const anomalyOffset = 7; // décalage de 9% vers l'extérieur (à adapter selon le design)
     x += anomalyOffset * Math.cos((sectorCenterAngle - 90) * Math.PI / 180);
     y += anomalyOffset * Math.sin((sectorCenterAngle - 90) * Math.PI / 180);
-    
+
     const colorMap: Record<LifeTraceType, string> = {
-        [LifeTraceType.RED]: '#ff6b6b',
-        [LifeTraceType.BLUE]: '#4a9eff',
-        [LifeTraceType.YELLOW]: '#ffd700',
-        [LifeTraceType.ANY]: '#fff' 
+      [LifeTraceType.RED]: '#ff6b6b',
+      [LifeTraceType.BLUE]: '#4a9eff',
+      [LifeTraceType.YELLOW]: '#ffd700',
+      [LifeTraceType.ANY]: '#fff'
     };
-    
+
     if (!obj.anomalyData) return null;
 
     return (
@@ -843,12 +848,12 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       p.solarPosition.level === obj.level
     );
     let canInteract = false;
-    
+
     if (interactionState.type === 'REMOVING_ORBITER') {
-        const planetData = getPlanetData(obj.id);
-        if (planetData && planetData.orbiters.some(p => p.ownerId === currentPlayer.id)) {
-            canInteract = true;
-        }
+      const planetData = getPlanetData(obj.id);
+      if (planetData && planetData.orbiters.some(p => p.ownerId === currentPlayer.id)) {
+        canInteract = true;
+      }
     } else if (!currentPlayer.hasPerformedMainAction && !isRobot && game.phase !== GamePhase.SETUP) {
       if (obj.id === 'earth') {
         canInteract = ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch;
@@ -861,7 +866,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
     // Handle transform separation for Oumuamua to avoid scaling slots
     let containerTransform = style.transform;
-    let bodyTransform = undefined;    
+    let bodyTransform = undefined;
     if (obj.id === 'oumuamua') {
       const pos = polarToCartesian(0, 0, 24, sectorCenterAngle + 14);
       x = pos.x;
@@ -943,7 +948,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             </>
           )}
           {style.hasContinents && (
-            <div className="seti-planet-continents"/>
+            <div className="seti-planet-continents" />
           )}
         </div>
         {style.hasRings && (
@@ -1558,14 +1563,14 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         onMouseLeave={handleMouseLeaveObject}
         disableCollision={true}
       />}
-      
+
       {/* Tooltip pour les slots (recalculé dynamiquement) */}
       {hoveredSlot && !removingItem && (
         <Tooltip
-            content={getSlotTooltipContent()}
-            targetRect={hoveredSlot.rect}
-            pointerEvents="auto"
-            disableCollision={true}
+          content={getSlotTooltipContent()}
+          targetRect={hoveredSlot.rect}
+          pointerEvents="auto"
+          disableCollision={true}
         />
       )}
     </>
