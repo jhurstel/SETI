@@ -782,10 +782,9 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         [LifeTraceType.YELLOW]: '#ffd700',
         [LifeTraceType.ANY]: '#fff' 
     };
-    console.log(obj);
     
     if (!obj.anomalyData) return null;
-    console.log(obj.anomalyData);
+
     return (
       <div
         key={obj.id}

@@ -26,7 +26,7 @@ export class GameFactory {
 
     // Créer les decks
     const decks: Decks = {
-      cards: await DataLoader.loadCards('assets/Cartes.csv'),
+      cards: await DataLoader.loadCards('cards/main.csv'),
       cardRow: [],
       discardPile: [],
       roundDecks: {}
@@ -304,7 +304,7 @@ export class GameFactory {
           yellowlifetrace: {},
           bluelifetrace: {}
         },
-        cards: await DataLoader.loadCards('assets/mascamites.csv'),
+        cards: await DataLoader.loadCards('cards/mascamites.csv'),
         cardRow: [],
         discovered: false,
         specimen: [
@@ -333,7 +333,7 @@ export class GameFactory {
           yellowlifetrace: { pv: 2},
           bluelifetrace: { pv: 2}
         },
-        cards: await DataLoader.loadCards('assets/anomalies.csv'),
+        cards: await DataLoader.loadCards('cards/anomalies.csv'),
         cardRow: [],
         discovered: false,
         anomalie: [
@@ -357,7 +357,7 @@ export class GameFactory {
           yellowlifetrace: { pv: 6, token: -1},
           bluelifetrace: { pv: 6, token: -1}
         },
-        cards: await DataLoader.loadCards('assets/oumuamua.csv'),
+        cards: await DataLoader.loadCards('cards/oumuamua.csv'),
         cardRow: [],
         discovered: false,
         sector: {
@@ -420,7 +420,7 @@ export class GameFactory {
           yellowlifetrace: { pv: 6, data: -1},
           bluelifetrace: { pv: 6, data: -1}
         },
-        cards: await DataLoader.loadCards('assets/centauriens.csv'),
+        cards: await DataLoader.loadCards('cards/centauriens.csv'),
         cardRow: [],
         discovered: false,
         message: [
@@ -458,7 +458,7 @@ export class GameFactory {
           yellowlifetrace: {},
           bluelifetrace: {}
         },
-        cards: await DataLoader.loadCards('assets/exertiens.csv'),
+        cards: await DataLoader.loadCards('cards/exertiens.csv'),
         cardRow: [],
         discovered: false
       },
