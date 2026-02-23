@@ -1,14 +1,5 @@
 import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CelestialObject, CostType } from '../core/types';
-import {
-    createRotationState,
-    calculateAbsolutePosition,
-    getCell,
-    getAdjacentCells,
-    getObjectPosition,
-    getAllCelestialObjects,
-    getAbsoluteSectorForProbe,
-    calculateReachableCells
-} from '../core/SolarSystemPosition';
+import { createRotationState, calculateAbsolutePosition, getCell, getAdjacentCells, getObjectPosition, getAllCelestialObjects, getAbsoluteSectorForProbe, calculateReachableCells } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { ProbeSystem } from './ProbeSystem';
 
@@ -63,11 +54,11 @@ export class CardSystem {
 
         // Retirer la carte
         player.cards.splice(cardIndex, 1);
-        
+
         // Ajouter aux cartes réservées
         if (!player.reservedCards) player.reservedCards = [];
         player.reservedCards.push(card);
-        
+
         updatedGame.players[playerIndex] = player;
 
         // Appliquer le revenu et le bonus immédiat
@@ -194,7 +185,7 @@ export class CardSystem {
     /**
      * Joue une carte de la main du joueur
      */
-    static playCard(game: Game, playerId: string, cardId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[]} {
+    static playCard(game: Game, playerId: string, cardId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
         let updatedGame = structuredClone(game);
         const player = updatedGame.players.find(p => p.id === playerId);
 
@@ -246,39 +237,39 @@ export class CardSystem {
 
         // Retirer la carte de la main
         player.cards.splice(cardIndex, 1);
-        
+
         // Initialiser les bonus
         const bonuses: Bonus = {};
 
         // Ajouter la carte jouée à la pile de défausse ou aux cartes jouées (Missions Fin de partie)
-        if (card) {    
-          if (card.type === CardType.END_GAME) {
-            if (player) {
-              if (!player.playedCards) player.playedCards = [];
-              player.playedCards.push(card);
+        if (card) {
+            if (card.type === CardType.END_GAME) {
+                if (player) {
+                    if (!player.playedCards) player.playedCards = [];
+                    player.playedCards.push(card);
+                }
+            } else if (card.type === CardType.CONDITIONAL_MISSION || card.type === CardType.TRIGGERED_MISSION) {
+                if (player) {
+                    if (!player.missions) player.missions = [];
+                    const newMission: Mission = {
+                        id: `mission-${card.id}-${Date.now()}`,
+                        cardId: card.id,
+                        name: card.name,
+                        description: card.description,
+                        ownerId: player.id,
+                        requirements: card.permanentEffects || [], // IDs will be added by the factory
+                        completedRequirementIds: [],
+                        fulfillableRequirementIds: [],
+                        completed: false,
+                        originalCard: card
+                    };
+                    player.missions.push(newMission);
+                }
+            } else {
+                if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+                updatedGame.decks.discardPile.push(card);
             }
-          } else if (card.type === CardType.CONDITIONAL_MISSION || card.type === CardType.TRIGGERED_MISSION) {
-            if (player) {
-              if (!player.missions) player.missions = [];
-              const newMission: Mission = {
-                id: `mission-${card.id}-${Date.now()}`,
-                cardId: card.id,
-                name: card.name,
-                description: card.description,
-                ownerId: player.id,
-                requirements: card.permanentEffects || [], // IDs will be added by the factory
-                completedRequirementIds: [],
-                fulfillableRequirementIds: [],
-                completed: false,
-                originalCard: card
-              };
-              player.missions.push(newMission);
-            }
-          } else {
-            if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
-            updatedGame.decks.discardPile.push(card);
-          }
-        }    
+        }
 
         // Traitement des effets immédiats
         if (card.immediateEffects) {
@@ -593,7 +584,7 @@ export class CardSystem {
             message += ` et ${extras.join(' et ')}`;
         }
 
-        historyEntries.unshift({message, playerId, sequenceId });
+        historyEntries.unshift({ message, playerId, sequenceId });
         if (otherLogs.length > 0) {
             otherLogs.forEach(log => historyEntries.push({ message: log, playerId, sequenceId }));
         }
@@ -642,7 +633,7 @@ export class CardSystem {
 
         const sequenceId = `free-action-discard-${Date.now()}`;
         const bonuses: Bonus = {};
-        
+
         // 1. Get bonus from the card's free action
         if (card.freeAction === FreeActionType.MEDIA) {
             bonuses.media = (bonuses.media || 0) + 1;
@@ -686,10 +677,10 @@ export class CardSystem {
 
         // 3. Discard the card
         updatedGame = this.discardCard(updatedGame, playerId, cardId);
-        
+
         // 4. Process bonuses
         const { updatedGame: gameAfterBonuses, newPendingInteractions, logs, historyEntries } = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, cardId, sequenceId);
-        
+
         // 5. Create history entry
         let message = `défausse carte "${card.name}"`;
         if (logs.length > 0) {
@@ -704,14 +695,14 @@ export class CardSystem {
         const updatedGame = structuredClone(game);
         const row = updatedGame.decks.cardRow;
         const index = row.findIndex(c => c.id === cardId);
-        
+
         if (index !== -1) {
             const [card] = row.splice(index, 1);
             if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
             updatedGame.decks.discardPile.push(card);
             return { updatedGame, discardedCard: card };
         }
-        
+
         return { updatedGame, discardedCard: null };
     }
 
@@ -740,7 +731,7 @@ export class CardSystem {
      */
     static buyCard(game: Game, playerId: string, cardIdFromRow?: string, isFree: boolean = false): { updatedGame: Game, error?: string } {
         let updatedGame = { ...game };
-        
+
         // Copie profonde du joueur et de ses cartes
         updatedGame.players = updatedGame.players.map(p => p.id === playerId ? { ...p, cards: [...p.cards] } : p);
         const player = updatedGame.players.find(p => p.id === playerId);
@@ -786,7 +777,7 @@ export class CardSystem {
                 if (!mission.completedRequirementIds.includes(buff.id)) {
                     mission.completedRequirementIds.push(buff.id);
                 }
-                
+
                 // Vérifier la complétion (même si le prérequis était déjà là, au cas où il aurait été bloqué précédemment)
                 if (!mission.completed && mission.completedRequirementIds.length >= mission.requirements.length) {
                     mission.completed = true;
@@ -833,7 +824,7 @@ export class CardSystem {
         if (parts.length < 2) return null;
 
         const conditionType = parts[0];
-        
+
         // Liste des conditions qui attendent un paramètre cible (target) en 2ème position
         const conditionsWithTarget = [
             'GAIN_IF_ORBITER_OR_LANDER',
@@ -855,14 +846,14 @@ export class CardSystem {
             target = parts[1];
             bonusStartIndex = 2;
         }
-        
+
         // Extraction des bonus (paires clé:valeur à partir de l'index 2)
         const rewards: Bonus = {};
         for (let i = bonusStartIndex; i < parts.length; i += 2) {
             if (i + 1 < parts.length) {
                 const bonusType = parts[i];
-                const bonusValue = parseInt(parts[i+1], 10);
-                
+                const bonusValue = parseInt(parts[i + 1], 10);
+
                 if (!isNaN(bonusValue)) {
                     if (bonusType === 'pv') rewards.pv = (rewards.pv || 0) + bonusValue;
                     else if (bonusType === 'media') rewards.media = (rewards.media || 0) + bonusValue;
@@ -910,7 +901,7 @@ export class CardSystem {
         // Vérification des conditions
         if (conditionType === 'GAIN_IF_ORBITER_OR_LANDER') {
             const targets = (target || '').split('&');
-            
+
             // Si on saute la vérification (car l'événement a déjà été validé par le système)
             if (skipConditionCheck) return rewards;
 
@@ -947,7 +938,7 @@ export class CardSystem {
                 else if (target === 'blue') { color = SectorType.BLUE; required = 2; }
                 else if (target === 'yellow') { color = SectorType.YELLOW; required = 2; }
                 else if (target === 'black') { color = SectorType.BLACK; required = 1; }
-                
+
                 if (color) {
                     let count = 0;
                     game.board.sectors.forEach(s => {
@@ -995,7 +986,7 @@ export class CardSystem {
                 if (target === 'red') type = LifeTraceType.RED;
                 else if (target === 'blue') type = LifeTraceType.BLUE;
                 else if (target === 'yellow') type = LifeTraceType.YELLOW;
-                
+
                 if (type) {
                     const count = player.lifeTraces.filter(t => t.type === type).length;
                     if (count >= 3) return rewards;
@@ -1052,7 +1043,7 @@ export class CardSystem {
                     const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
                     const cell = getCell(p.solarPosition.disk, absSector, rotationState, game.board.solarSystem.extraCelestialObjects);
                     if (!cell?.hasAsteroid) return false;
-                    
+
                     // Check adjacency to Earth
                     return adjacentCells.some(adj => adj.disk === p.solarPosition!.disk && adj.sector === absSector);
                 });
@@ -1078,7 +1069,7 @@ export class CardSystem {
             const obsTechCount = player.technologies.filter(t => t.type === TechnologyCategory.OBSERVATION).length;
             if (obsTechCount >= 3) return rewards;
         }
-        
+
         return null;
     }
 }

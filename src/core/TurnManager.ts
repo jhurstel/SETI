@@ -1,19 +1,4 @@
-/**
- * Gestionnaire de tours et manches pour SETI
- * 
- * Gère :
- * - L'ordre de jeu (horaire)
- * - Les tours de chaque joueur
- * - La fin de manche (quand tous ont passé)
- * - Le passage à la manche suivante
- * - Le changement de premier joueur
- */
-
-import {
-  Game,
-  GamePhase,
-  Player,
-} from './types';
+import { Game, GamePhase, Player } from './types';
 import { CardSystem } from '../systems/CardSystem';
 import { ScoreManager } from './ScoreManager';
 
@@ -32,7 +17,7 @@ export class TurnManager {
   static nextPlayer(game: Game): Game {
     const updatedGame = { ...game, isRoundEnd: false };
     const activePlayers = updatedGame.players.filter(p => !p.hasPassed);
-    
+
     if (activePlayers.length === 0) {
       // Tous les joueurs ont passé, fin de manche
       return this.endRound(updatedGame);
@@ -40,13 +25,13 @@ export class TurnManager {
 
     // Trouver l'index du prochain joueur actif
     let nextIndex = (updatedGame.currentPlayerIndex + 1) % updatedGame.players.length;
-    
+
     while (updatedGame.players[nextIndex].hasPassed) {
       nextIndex = (nextIndex + 1) % updatedGame.players.length;
     }
 
     updatedGame.currentPlayerIndex = nextIndex;
-    
+
     // Réinitialiser les données temporaires du nouveau joueur actif
     updatedGame.players[nextIndex].visitedPlanetsThisTurn = [];
     updatedGame.players[nextIndex].activeBuffs = [];
@@ -60,9 +45,9 @@ export class TurnManager {
    */
   static endRound(game: Game): Game {
     let updatedGame = { ...game, isRoundEnd: true };
-    
+
     // Calculer les revenus de fin de manche
-    updatedGame.players = updatedGame.players.map(player => 
+    updatedGame.players = updatedGame.players.map(player =>
       this.calculateRevenues(player)
     );
 
@@ -83,7 +68,7 @@ export class TurnManager {
     }));
 
     // Changer le premier joueur (rotation horaire)
-    updatedGame.firstPlayerIndex = 
+    updatedGame.firstPlayerIndex =
       (updatedGame.firstPlayerIndex + 1) % updatedGame.players.length;
     updatedGame.currentPlayerIndex = updatedGame.firstPlayerIndex;
 
@@ -94,7 +79,7 @@ export class TurnManager {
     } else {
       // Fin de partie
       updatedGame.phase = GamePhase.FINAL_SCORING;
-      
+
       // Calculer et appliquer les scores finaux
       console.log(updatedGame);
       const finalScores = ScoreManager.calculateAllScores(updatedGame);
@@ -113,7 +98,7 @@ export class TurnManager {
    */
   private static calculateRevenues(player: Player): Player {
     const updatedPlayer = { ...player };
-    
+
     updatedPlayer.credits += player.revenueCredits || 0;
     updatedPlayer.energy += player.revenueEnergy || 0;
 

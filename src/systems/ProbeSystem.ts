@@ -29,9 +29,9 @@ export class ProbeSystem {
 
     // Vérifier les crédits
     if (checkCost && player.credits < GAME_CONSTANTS.PROBE_LAUNCH_COST) {
-      return { 
-        canLaunch: false, 
-        reason: `Crédits insuffisants (nécessite ${GAME_CONSTANTS.PROBE_LAUNCH_COST})` 
+      return {
+        canLaunch: false,
+        reason: `Crédits insuffisants (nécessite ${GAME_CONSTANTS.PROBE_LAUNCH_COST})`
       };
     }
 
@@ -43,13 +43,13 @@ export class ProbeSystem {
     // Vérifier les technologies qui permettent plusieurs sondes
     const hasExploration1 = player.technologies.some(t => t.id.includes('exploration-1'));
     const maxProbes = hasExploration1
-     ? (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY || 2)
-     : (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM || 1);
-    
+      ? (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY || 2)
+      : (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM || 1);
+
     if (!ignoreLimit && probesInSystem.length >= maxProbes) {
-      return { 
-        canLaunch: false, 
-        reason: `Limite de sondes atteinte (max ${maxProbes} dans le système solaire)` 
+      return {
+        canLaunch: false,
+        reason: `Limite de sondes atteinte (max ${maxProbes} dans le système solaire)`
       };
     }
 
@@ -60,7 +60,7 @@ export class ProbeSystem {
    * Lance une sonde (place sur Terre) pour un joueur donné. Tient compte si action bonus (gratuit) et si limit ignorée.
    */
   static launchProbe(
-    game: Game, 
+    game: Game,
     playerId: string,
     free: boolean = false,
     ignoreLimit: boolean = false
@@ -83,21 +83,21 @@ export class ProbeSystem {
       earthDisk = earthPos.disk;
       earthSector = earthPos.sector;
     } else {
-      historyEntries.push({ message: `Terre non trouvée dans le système solaire`, playerId: player.id, sequenceId: ''});
+      historyEntries.push({ message: `Terre non trouvée dans le système solaire`, playerId: player.id, sequenceId: '' });
       return { updatedGame: game, probeId: null, historyEntries };
     }
 
     // Vérifier la limite de sondes (même pour un lancement gratuit)
     if (!ignoreLimit) {
-        const probesInSystem = player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
-        const hasExploration1 = player.technologies.some(t => t.id.includes('exploration-1'));
-        const maxProbes = hasExploration1 ? (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY || 2) : (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM || 1);
+      const probesInSystem = player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+      const hasExploration1 = player.technologies.some(t => t.id.includes('exploration-1'));
+      const maxProbes = hasExploration1 ? (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY || 2) : (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM || 1);
 
-        if (probesInSystem.length >= maxProbes) {
-            const message = `Limite de sondes atteinte (max ${maxProbes}) dans le système solaire)`;
-            historyEntries.push({ message, playerId: player.id, sequenceId: ''});
-            return { updatedGame: game, probeId: null, historyEntries };
-        }
+      if (probesInSystem.length >= maxProbes) {
+        const message = `Limite de sondes atteinte (max ${maxProbes}) dans le système solaire)`;
+        historyEntries.push({ message, playerId: player.id, sequenceId: '' });
+        return { updatedGame: game, probeId: null, historyEntries };
+      }
     }
 
     // Instancier la nouvelle sonde
@@ -119,26 +119,26 @@ export class ProbeSystem {
     } else {
       message = `lance 1 sonde depuis la Terre`;
     }
-    historyEntries.push({ message, playerId: player.id, sequenceId: ''});
+    historyEntries.push({ message, playerId: player.id, sequenceId: '' });
 
     // Traitement des buffs permanents
     const processedSources = new Set<string>();
     player.permanentBuffs.forEach(buff => {
       if (buff.type === 'GAIN_ON_LAUNCH') {
-           // Ignorer si le prérequis est déjà complété
-           if (buff.id && buff.source) {
-               const mission = player.missions.find(m => m.name === buff.source);
-               if (mission && mission.completedRequirementIds.includes(buff.id)) return;
-               if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
-           }
+        // Ignorer si le prérequis est déjà complété
+        if (buff.id && buff.source) {
+          const mission = player.missions.find(m => m.name === buff.source);
+          if (mission && mission.completedRequirementIds.includes(buff.id)) return;
+          if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
+        }
 
-           if (buff.source && processedSources.has(buff.source)) return;
-           
-           // Les bonus seront traités par processBonuses appelé par l'action ou l'UI
-           if (buff.source) processedSources.add(buff.source);
-           
-           // Marquer comme remplie (en attente de clic)
-           CardSystem.markMissionRequirementFulfillable(player, buff);
+        if (buff.source && processedSources.has(buff.source)) return;
+
+        // Les bonus seront traités par processBonuses appelé par l'action ou l'UI
+        if (buff.source) processedSources.add(buff.source);
+
+        // Marquer comme remplie (en attente de clic)
+        CardSystem.markMissionRequirementFulfillable(player, buff);
       }
     });
 
@@ -181,10 +181,10 @@ export class ProbeSystem {
 
     // Vérifier l'énergie disponible
     if (player.energy < energyCost) {
-      return { 
-        canMove: false, 
+      return {
+        canMove: false,
         reason: `Énergie insuffisante (nécessite ${energyCost})`,
-        energyCost 
+        energyCost
       };
     }
 
@@ -197,7 +197,7 @@ export class ProbeSystem {
   static getMovementCost(game: Game, playerId: string, probeId: string): number {
     const player = game.players.find(p => p.id === playerId);
     const probe = player?.probes.find(p => p.id === probeId);
-    
+
     if (!player || !probe || !probe.solarPosition) return 1;
 
     const rotationState = createRotationState(
@@ -208,9 +208,9 @@ export class ProbeSystem {
 
     const absoluteSector = getAbsoluteSectorForProbe(probe.solarPosition, rotationState); // getAbsoluteSectorForProbe doesn't use extraObjects
     const currentCell = getCell(probe.solarPosition.disk, absoluteSector, rotationState, game.board.solarSystem.extraCelestialObjects);
-    
+
     let stepCost = 1;
-    
+
     if (currentCell?.hasAsteroid) {
       const hasExploration2 = player.technologies.some(t => t.id.startsWith('exploration-2'));
       const hasAsteroidBuff = player.activeBuffs.some(b => b.type === 'ASTEROID_EXIT_COST');
@@ -218,7 +218,7 @@ export class ProbeSystem {
         stepCost += 1;
       }
     }
-    
+
     return stepCost;
   }
 
@@ -280,148 +280,148 @@ export class ProbeSystem {
     // Gestion Card 19 (Assistance Gravitationnelle)
     const hasChoiceBuff = player.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
     if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
-        // On retire le bonus de média lié à la planète pour laisser le choix au joueur via l'UI
-        if (bonus.media && bonus.media > 0) {
-          bonus.media = (bonus.media || 0) - 1;
-        }
+      // On retire le bonus de média lié à la planète pour laisser le choix au joueur via l'UI
+      if (bonus.media && bonus.media > 0) {
+        bonus.media = (bonus.media || 0) - 1;
+      }
     }
 
     // Construction du message
     let message = "";
     const objectName = targetCell?.hasComet ? "Visite de Comète" : targetCell?.hasAsteroid ? "Visite d'Astéroïdes" : targetCell?.hasPlanet ? `Visite de ${targetCell?.planetName}` : "une case vide";
-    
+
     if (energySpent > 0) {
-        message = `paye ${energySpent} énergie pour déplacer une sonde`;
+      message = `paye ${energySpent} énergie pour déplacer une sonde`;
     } else {
-        message = `déplace une sonde gratuitement`;
+      message = `déplace une sonde gratuitement`;
     }
 
     // Gestion des visites de planètes et bonus associés
     if (targetCell && targetCell.hasPlanet && targetCell.planetId) {
-        const planetId = targetCell.planetId;
-        
-        const isNewVisit = !player.visitedPlanetsThisTurn.includes(planetId);
-        // Enregistrer la visite si pas déjà fait (pour les stats ou bonus "planètes uniques")
-        if (isNewVisit) {
-          player.visitedPlanetsThisTurn.push(planetId);
-        }
+      const planetId = targetCell.planetId;
 
-        // Vérifier et appliquer les buffs actifs (ex: Survol de Mars)
-        // On filtre pour ne garder que ceux qui n'ont pas encore été consommés pour cette planète
-        const buffsToTrigger = player.activeBuffs.filter(buff => buff.type === 'VISIT_BONUS' && buff.target === planetId);
-        
-        buffsToTrigger.forEach(buff => {
-            bonus.pv += buff.value;
-            message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
+      const isNewVisit = !player.visitedPlanetsThisTurn.includes(planetId);
+      // Enregistrer la visite si pas déjà fait (pour les stats ou bonus "planètes uniques")
+      if (isNewVisit) {
+        player.visitedPlanetsThisTurn.push(planetId);
+      }
+
+      // Vérifier et appliquer les buffs actifs (ex: Survol de Mars)
+      // On filtre pour ne garder que ceux qui n'ont pas encore été consommés pour cette planète
+      const buffsToTrigger = player.activeBuffs.filter(buff => buff.type === 'VISIT_BONUS' && buff.target === planetId);
+
+      buffsToTrigger.forEach(buff => {
+        bonus.pv += buff.value;
+        message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
+      });
+
+      // Retirer les buffs consommés (pour ne pas gagner 2x les points si on revient sur la planète)
+      if (buffsToTrigger.length > 0) {
+        player.activeBuffs = player.activeBuffs.filter(buff => !(buff.type === 'VISIT_BONUS' && buff.target === planetId));
+      }
+
+      // Appliquer les bonus de visite unique (ex: Voile Solaire)
+      if (isNewVisit) {
+        const uniqueBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_UNIQUE');
+        uniqueBuffs.forEach(buff => {
+          bonus.pv += buff.value;
+          message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
         });
-
-        // Retirer les buffs consommés (pour ne pas gagner 2x les points si on revient sur la planète)
-        if (buffsToTrigger.length > 0) {
-            player.activeBuffs = player.activeBuffs.filter(buff => !(buff.type === 'VISIT_BONUS' && buff.target === planetId));
-        }
-
-        // Appliquer les bonus de visite unique (ex: Voile Solaire)
-        if (isNewVisit) {
-            const uniqueBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_UNIQUE');
-            uniqueBuffs.forEach(buff => {
-                bonus.pv += buff.value;
-                message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
-            });
-        }
+      }
     }
 
     // Gestion des visites d'astéroïdes (ex: Survol d'Astéroïdes)
     if (targetCell && targetCell.hasAsteroid) {
-        const asteroidBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_ASTEROID');
-        asteroidBuffs.forEach(buff => {
-            bonus.data += buff.value;
-            message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'DATA')} ("${buff.source}")`;
-        });
-        if (asteroidBuffs.length > 0) {
-            player.activeBuffs = player.activeBuffs.filter(buff => buff.type !== 'VISIT_ASTEROID');
-        }
+      const asteroidBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_ASTEROID');
+      asteroidBuffs.forEach(buff => {
+        bonus.data += buff.value;
+        message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'DATA')} ("${buff.source}")`;
+      });
+      if (asteroidBuffs.length > 0) {
+        player.activeBuffs = player.activeBuffs.filter(buff => buff.type !== 'VISIT_ASTEROID');
+      }
     }
 
     // Gestion des visites de comètes (ex: Rencontre avec une Comète)
     if (targetCell && targetCell.hasComet) {
-        const cometBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_COMET');
-        cometBuffs.forEach(buff => {
-            bonus.pv += buff.value;
-            message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
-        });
-        if (cometBuffs.length > 0) {
-            player.activeBuffs = player.activeBuffs.filter(buff => buff.type !== 'VISIT_COMET');
-        }
+      const cometBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_COMET');
+      cometBuffs.forEach(buff => {
+        bonus.pv += buff.value;
+        message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
+      });
+      if (cometBuffs.length > 0) {
+        player.activeBuffs = player.activeBuffs.filter(buff => buff.type !== 'VISIT_COMET');
+      }
     }
 
     // Gestion du déplacement sur le même disque (ex: Correction de Trajectoire)
     if (targetDisk === probe.solarPosition.disk) {
-        const sameDiskBuffs = player.activeBuffs.filter(buff => buff.type === 'SAME_DISK_MOVE');
-        sameDiskBuffs.forEach(buff => {
-            if (buff.value.pv) bonus.pv += buff.value.pv;
-            if (buff.value.media) bonus.media += buff.value.media; // Note: mediaBonus is applied to player.mediaCoverage later
-            
-            const gains: string[] = [];
-            if (buff.value.pv) gains.push(ResourceSystem.formatResource(buff.value.pv, 'PV'));
-            if (buff.value.media) gains.push(ResourceSystem.formatResource(buff.value.media, 'MEDIA'));
-            message += ` et gagne ${gains.join(', ')} ("${buff.source}")`;
-        });
-        if (sameDiskBuffs.length > 0) {
-            player.activeBuffs = player.activeBuffs.filter(buff => buff.type !== 'SAME_DISK_MOVE');
-        }
+      const sameDiskBuffs = player.activeBuffs.filter(buff => buff.type === 'SAME_DISK_MOVE');
+      sameDiskBuffs.forEach(buff => {
+        if (buff.value.pv) bonus.pv += buff.value.pv;
+        if (buff.value.media) bonus.media += buff.value.media; // Note: mediaBonus is applied to player.mediaCoverage later
+
+        const gains: string[] = [];
+        if (buff.value.pv) gains.push(ResourceSystem.formatResource(buff.value.pv, 'PV'));
+        if (buff.value.media) gains.push(ResourceSystem.formatResource(buff.value.media, 'MEDIA'));
+        message += ` et gagne ${gains.join(', ')} ("${buff.source}")`;
+      });
+      if (sameDiskBuffs.length > 0) {
+        player.activeBuffs = player.activeBuffs.filter(buff => buff.type !== 'SAME_DISK_MOVE');
+      }
     }
 
     if (bonus.media && bonus.media > 0) {
       message += ` et gagne ${bonus.media} média (${objectName})`;
     }
-        
+
     // Traitement des missions conditionnelles (GAIN_ON_VISIT_xxx)
     if (targetCell) {
-        const processedSources = new Set<string>();
-        player.permanentBuffs.forEach(buff => {
-            let shouldTrigger = false;
-            
-            // Planètes
-            if (targetCell.hasPlanet && targetCell.planetId) {
-                if (buff.type === `GAIN_ON_VISIT_${targetCell.planetId.toUpperCase()}`) {
-                    shouldTrigger = true;
-                }
-                if (buff.type === 'GAIN_ON_VISIT_PLANET' && targetCell.planetId !== 'earth') {
-                    shouldTrigger = true;
-                }
-            }
-            
-            // Astéroïdes
-            if (targetCell.hasAsteroid && buff.type === 'GAIN_ON_VISIT_ASTEROID') {
-                shouldTrigger = true;
-            }
+      const processedSources = new Set<string>();
+      player.permanentBuffs.forEach(buff => {
+        let shouldTrigger = false;
 
-            if (shouldTrigger) {
-                // Ignorer si le prérequis est déjà complété
-                if (buff.id && buff.source) {
-                    const mission = player.missions.find(m => m.name === buff.source);
-                    if (mission && mission.completedRequirementIds.includes(buff.id)) return;
-                    if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
-                }
+        // Planètes
+        if (targetCell.hasPlanet && targetCell.planetId) {
+          if (buff.type === `GAIN_ON_VISIT_${targetCell.planetId.toUpperCase()}`) {
+            shouldTrigger = true;
+          }
+          if (buff.type === 'GAIN_ON_VISIT_PLANET' && targetCell.planetId !== 'earth') {
+            shouldTrigger = true;
+          }
+        }
 
-                if (buff.source && processedSources.has(buff.source)) return;
+        // Astéroïdes
+        if (targetCell.hasAsteroid && buff.type === 'GAIN_ON_VISIT_ASTEROID') {
+          shouldTrigger = true;
+        }
 
-                if (buff.source) processedSources.add(buff.source);
+        if (shouldTrigger) {
+          // Ignorer si le prérequis est déjà complété
+          if (buff.id && buff.source) {
+            const mission = player.missions.find(m => m.name === buff.source);
+            if (mission && mission.completedRequirementIds.includes(buff.id)) return;
+            if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
+          }
 
-                // Marquer comme remplie (en attente de clic)
-                CardSystem.markMissionRequirementFulfillable(player, buff);
-            }
-        });
+          if (buff.source && processedSources.has(buff.source)) return;
+
+          if (buff.source) processedSources.add(buff.source);
+
+          // Marquer comme remplie (en attente de clic)
+          CardSystem.markMissionRequirementFulfillable(player, buff);
+        }
+      });
     }
 
     // Mettre à jour la position dans le système solaire (Immutabilité)
     const systemProbe = updatedGame.board.solarSystem.probes.find(p => p.id === probeId);
     if (systemProbe) {
-        systemProbe.solarPosition = {
-            disk: targetDisk,
-            sector: relativeSector,
-            level: targetLevel
-        };
+      systemProbe.solarPosition = {
+        disk: targetDisk,
+        sector: relativeSector,
+        level: targetLevel
+      };
     }
 
     // Appliquer les bonus via ResourceSystem
@@ -450,17 +450,17 @@ export class ProbeSystem {
 
     // Liste des planètes (sans la Terre)
     const planets = ['venus', 'mercury', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune', 'oumuamua'];
-    
+
     // Créer l'état de rotation pour calculer les positions absolues
     const rotationState = createRotationState(
-        game.board.solarSystem.rotationAngleLevel1 || 0,
-        game.board.solarSystem.rotationAngleLevel2 || 0,
-        game.board.solarSystem.rotationAngleLevel3 || 0
+      game.board.solarSystem.rotationAngleLevel1 || 0,
+      game.board.solarSystem.rotationAngleLevel2 || 0,
+      game.board.solarSystem.rotationAngleLevel3 || 0
     );
 
     for (const probe of playerProbes) {
       if (!probe.solarPosition) continue;
-      
+
       // Calculer le secteur absolu de la sonde
       const probeAbsoluteSector = getAbsoluteSectorForProbe(probe.solarPosition, rotationState);
 
@@ -473,17 +473,17 @@ export class ProbeSystem {
           rotationState.level3Angle,
           game.board.solarSystem.extraCelestialObjects
         );
-        
+
         // Comparer les positions absolues
-        if (planetPos && 
-            planetPos.disk === probe.solarPosition.disk && 
-            planetPos.absoluteSector === probeAbsoluteSector) {
+        if (planetPos &&
+          planetPos.disk === probe.solarPosition.disk &&
+          planetPos.absoluteSector === probeAbsoluteSector) {
 
           // Trouver la planète dans le jeu pour vérifier les orbiteurs et le cout (reduit ou non)
           let planet = game.board.planets.find(p => p.id === planetId);
           if (!planet && planetId === 'oumuamua') {
-              const species = game.species.find(s => s.name === AlienBoardType.OUMUAMUA);
-              if (species) planet = species.planet;
+            const species = game.species.find(s => s.name === AlienBoardType.OUMUAMUA);
+            if (species) planet = species.planet;
           }
           const hasOrbiter = planet && planet.orbiters.length > 0 ? true : false;
           const hasExploration3 = game.players.find(p => p.id === playerId)?.technologies.some(t => t.id.startsWith('exploration-3')) || false;
@@ -497,7 +497,7 @@ export class ProbeSystem {
     }
     return { hasProbe: false };
   }
-  
+
   /**
    * Vérifie si une sonde peut être mise en orbite
    */
@@ -531,16 +531,16 @@ export class ProbeSystem {
 
     // Vérifier les ressources
     if (player.credits < GAME_CONSTANTS.ORBIT_COST_CREDITS) {
-      return { 
-        canOrbit: false, 
-        reason: `Crédits insuffisants (nécessite ${GAME_CONSTANTS.ORBIT_COST_CREDITS})` 
+      return {
+        canOrbit: false,
+        reason: `Crédits insuffisants (nécessite ${GAME_CONSTANTS.ORBIT_COST_CREDITS})`
       };
     }
 
     if (player.energy < GAME_CONSTANTS.ORBIT_COST_ENERGY) {
-      return { 
-        canOrbit: false, 
-        reason: `Énergie insuffisante (nécessite ${GAME_CONSTANTS.ORBIT_COST_ENERGY})` 
+      return {
+        canOrbit: false,
+        reason: `Énergie insuffisante (nécessite ${GAME_CONSTANTS.ORBIT_COST_ENERGY})`
       };
     }
 
@@ -574,8 +574,8 @@ export class ProbeSystem {
     // Vérifier si c'est le premier orbiteur
     let planet = updatedGame.board.planets.find(p => p.id === planetId);
     if (!planet && planetId === 'oumuamua') {
-        const species = updatedGame.species.find(s => s.name === AlienBoardType.OUMUAMUA);
-        if (species) planet = species.planet;
+      const species = updatedGame.species.find(s => s.name === AlienBoardType.OUMUAMUA);
+      if (species) planet = species.planet;
     }
     const isFirstOrbiter = planet ? planet.orbiters.length === 0 : true;
 
@@ -613,19 +613,19 @@ export class ProbeSystem {
     const processedSources = new Set<string>();
     player.permanentBuffs.forEach(buff => {
       if (buff.type === 'GAIN_ON_ORBIT' || buff.type === 'GAIN_ON_ORBIT_OR_LAND') {
-            // Ignorer si le prérequis est déjà complété
-            if (buff.id && buff.source) {
-                const mission = player.missions.find(m => m.name === buff.source);
-                if (mission && mission.completedRequirementIds.includes(buff.id)) return;
-                if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
-            }
+        // Ignorer si le prérequis est déjà complété
+        if (buff.id && buff.source) {
+          const mission = player.missions.find(m => m.name === buff.source);
+          if (mission && mission.completedRequirementIds.includes(buff.id)) return;
+          if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
+        }
 
-            if (buff.source && processedSources.has(buff.source)) return;
+        if (buff.source && processedSources.has(buff.source)) return;
 
-            if (buff.source) processedSources.add(buff.source);
+        if (buff.source) processedSources.add(buff.source);
 
-            // Marquer comme remplie (en attente de clic)
-            CardSystem.markMissionRequirementFulfillable(player, buff);
+        // Marquer comme remplie (en attente de clic)
+        CardSystem.markMissionRequirementFulfillable(player, buff);
       }
     });
 
@@ -673,8 +673,8 @@ export class ProbeSystem {
 
     // Vérifier l'énergie disponible
     if (checkCost && player.energy < hasProbeOnPlanetInfo.landCost!) {
-      return { 
-        canLand: false, 
+      return {
+        canLand: false,
         reason: `Énergie insuffisante (nécessite ${hasProbeOnPlanetInfo.landCost})`,
       };
     }
@@ -715,19 +715,19 @@ export class ProbeSystem {
     // Identifier la cible (Planète ou Satellite)
     let targetBody: any = updatedGame.board.planets.find(p => p.id === planetId);
     if (!targetBody && planetId === 'oumuamua') {
-        const species = updatedGame.species.find(s => s.name === AlienBoardType.OUMUAMUA);
-        if (species) targetBody = species.planet;
+      const species = updatedGame.species.find(s => s.name === AlienBoardType.OUMUAMUA);
+      if (species) targetBody = species.planet;
     }
     if (!targetBody) {
-        for (const p of updatedGame.board.planets) {
-            if (p.satellites) {
-                const sat = p.satellites.find(s => s.id === planetId);
-                if (sat) {
-                    targetBody = sat;
-                    break;
-                }
-            }
+      for (const p of updatedGame.board.planets) {
+        if (p.satellites) {
+          const sat = p.satellites.find(s => s.id === planetId);
+          if (sat) {
+            targetBody = sat;
+            break;
+          }
         }
+      }
     }
 
     const isFirstLander = targetBody ? (targetBody.landers || []).length === 0 : true;
@@ -737,20 +737,20 @@ export class ProbeSystem {
     probe.state = ProbeState.LANDED;
     probe.planetId = planetId;
     probe.isLander = true;
-    
+
     let slotIndex = forcedSlotIndex;
     if (slotIndex === undefined) {
-        const occupiedIndices = new Set((targetBody.landers || []).map((p: Probe) => p.planetSlotIndex));
-        let k = 0;
-        while (occupiedIndices.has(k)) k++;
-        slotIndex = k;
+      const occupiedIndices = new Set((targetBody.landers || []).map((p: Probe) => p.planetSlotIndex));
+      let k = 0;
+      while (occupiedIndices.has(k)) k++;
+      slotIndex = k;
     }
     probe.planetSlotIndex = slotIndex;
 
     // Ajouter la sonde aux atterrisseurs de la cible
     if (targetBody) {
-        if (!targetBody.landers) targetBody.landers = [];
-        targetBody.landers.push(probe);
+      if (!targetBody.landers) targetBody.landers = [];
+      targetBody.landers.push(probe);
     }
 
     // Retirer la sonde de la liste globale du système solaire
@@ -760,32 +760,32 @@ export class ProbeSystem {
     const completedMissions: string[] = [];
     // Bonus planète (atterrissage)
     if (targetBody) {
-       if ((targetBody as Planet).landSlots) {
-       const index = forcedSlotIndex !== undefined ? forcedSlotIndex : targetBody.landers.length - 1;
-            const slotBonus = (targetBody as Planet).landSlots[index];
-            if (slotBonus) ResourceSystem.accumulateBonus(slotBonus, accumulatedBonuses);
-        } else if ((targetBody as Satellite).landBonus) {
-            ResourceSystem.accumulateBonus((targetBody as Satellite).landBonus, accumulatedBonuses);
-        }
+      if ((targetBody as Planet).landSlots) {
+        const index = forcedSlotIndex !== undefined ? forcedSlotIndex : targetBody.landers.length - 1;
+        const slotBonus = (targetBody as Planet).landSlots[index];
+        if (slotBonus) ResourceSystem.accumulateBonus(slotBonus, accumulatedBonuses);
+      } else if ((targetBody as Satellite).landBonus) {
+        ResourceSystem.accumulateBonus((targetBody as Satellite).landBonus, accumulatedBonuses);
+      }
     }
 
     // Traitement des buffs permanents
     const processedSources = new Set<string>();
     player.permanentBuffs.forEach(buff => {
       if (buff.type === 'GAIN_ON_LAND' || buff.type === 'GAIN_ON_ORBIT_OR_LAND') {
-           // Ignorer si le prérequis est déjà complété
-           if (buff.id && buff.source) {
-               const mission = player.missions.find(m => m.name === buff.source);
-               if (mission && mission.completedRequirementIds.includes(buff.id)) return;
-               if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
-           }
+        // Ignorer si le prérequis est déjà complété
+        if (buff.id && buff.source) {
+          const mission = player.missions.find(m => m.name === buff.source);
+          if (mission && mission.completedRequirementIds.includes(buff.id)) return;
+          if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
+        }
 
-           if (buff.source && processedSources.has(buff.source)) return;
+        if (buff.source && processedSources.has(buff.source)) return;
 
-           if (buff.source) processedSources.add(buff.source);
+        if (buff.source) processedSources.add(buff.source);
 
-           // Marquer comme remplie (en attente de clic)
-           CardSystem.markMissionRequirementFulfillable(player, buff);
+        // Marquer comme remplie (en attente de clic)
+        CardSystem.markMissionRequirementFulfillable(player, buff);
       }
     });
 
@@ -815,15 +815,15 @@ export class ProbeSystem {
     // Si l'angle diminue (rotation anti-horaire), les secteurs avancent (1->2->3)
     let pushDirection = 0;
     if (newRotationState.level1Angle < oldRotationState.level1Angle ||
-        newRotationState.level2Angle < oldRotationState.level2Angle ||
-        newRotationState.level3Angle < oldRotationState.level3Angle) {
+      newRotationState.level2Angle < oldRotationState.level2Angle ||
+      newRotationState.level3Angle < oldRotationState.level3Angle) {
       pushDirection = 1;
     } else if (newRotationState.level1Angle > oldRotationState.level1Angle ||
-               newRotationState.level2Angle > oldRotationState.level2Angle ||
-               newRotationState.level3Angle > oldRotationState.level3Angle) {
+      newRotationState.level2Angle > oldRotationState.level2Angle ||
+      newRotationState.level3Angle > oldRotationState.level3Angle) {
       pushDirection = -1;
     }
-    
+
     // Mettre à jour les sondes des joueurs
     for (const player of updatedGame.players) {
       let playerMediaGain = 0;
@@ -833,9 +833,9 @@ export class ProbeSystem {
         if (probe.state !== ProbeState.IN_SOLAR_SYSTEM || !probe.solarPosition) {
           continue;
         }
-        
+
         const pos = probe.solarPosition;
-        
+
         // Vérifier si la sonde tourne avec son plateau (riding)
         let isRiding = false;
         if (pos.level === 3 && oldRotationState.level3Angle !== newRotationState.level3Angle) isRiding = true;
@@ -850,9 +850,9 @@ export class ProbeSystem {
           if (pos.level === 1) absoluteSector = rotateSector(pos.sector, oldRotationState.level1Angle);
           else if (pos.level === 2) absoluteSector = rotateSector(pos.sector, oldRotationState.level2Angle);
           else if (pos.level === 3) absoluteSector = rotateSector(pos.sector, oldRotationState.level3Angle);
-          
+
           const newVisibleLevel = getVisibleLevel(pos.disk, absoluteSector, newRotationState, extraObjects);
-          
+
           // Si recouverte par un niveau supérieur qui a bougé -> Poussée
           // Note: La hiérarchie visuelle est Level 3 (Haut) > Level 2 > Level 1 > Level 0 (Bas/Fixe)
           // On est recouvert si le nouveau niveau visible est > au nôtre (ex: 2 couvre 1)
@@ -863,14 +863,14 @@ export class ProbeSystem {
           if (isCovered && pushDirection !== 0) {
             const sectorIndex = (absoluteSector - 1 + pushDirection + 8) % 8;
             const newAbsoluteSector = (sectorIndex + 1) as SectorNumber;
-            
+
             const levelAtNewPos = getVisibleLevel(pos.disk, newAbsoluteSector, newRotationState, extraObjects);
-            
+
             let newRelativeSector = newAbsoluteSector;
             if (levelAtNewPos === 3) newRelativeSector = rotateSector(newAbsoluteSector, -newRotationState.level3Angle);
             else if (levelAtNewPos === 2) newRelativeSector = rotateSector(newAbsoluteSector, -newRotationState.level2Angle);
             else if (levelAtNewPos === 1) newRelativeSector = rotateSector(newAbsoluteSector, -newRotationState.level1Angle);
-            
+
             // Vérifier gains média
             const cell = getCell(pos.disk, newAbsoluteSector, newRotationState, extraObjects);
             let mediaGain = 0;
@@ -889,9 +889,9 @@ export class ProbeSystem {
             }
 
             probe.solarPosition = {
-                disk: pos.disk,
-                sector: newRelativeSector,
-                level: levelAtNewPos
+              disk: pos.disk,
+              sector: newRelativeSector,
+              level: levelAtNewPos
             };
           } else {
             this.recalculateProbePosition(probe, oldRotationState, newRotationState, extraObjects);
@@ -922,7 +922,7 @@ export class ProbeSystem {
     // 1. Calculer la position absolue "attendue" après rotation
     // Si la sonde est sur un plateau qui tourne, elle bouge avec lui (isRiding = true)
     // Si elle est sur un plateau fixe (par rapport à la rotation), elle reste sur place (isRiding = false)
-    
+
     let isRiding = false;
     if (pos.level === 3 && oldRotationState.level3Angle !== newRotationState.level3Angle) isRiding = true;
     if (pos.level === 2 && oldRotationState.level2Angle !== newRotationState.level2Angle) isRiding = true;
@@ -941,7 +941,7 @@ export class ProbeSystem {
       if (pos.level === 1) angle = oldRotationState.level1Angle;
       if (pos.level === 2) angle = oldRotationState.level2Angle;
       if (pos.level === 3) angle = oldRotationState.level3Angle;
-      
+
       if (pos.level !== 0) {
         absoluteSector = rotateSector(pos.sector, angle);
       } else {
@@ -972,14 +972,14 @@ export class ProbeSystem {
   static hasPresenceOnPlanet(game: Game, playerId: string, planetId: string): boolean {
     let planet = game.board.planets.find(p => p.id === planetId);
     if (!planet && planetId === 'oumuamua') {
-        const species = game.species.find(s => s.name === AlienBoardType.OUMUAMUA);
-        if (species) planet = species.planet;
+      const species = game.species.find(s => s.name === AlienBoardType.OUMUAMUA);
+      if (species) planet = species.planet;
     }
     if (!planet) return false;
 
     // Vérifier orbiteurs sur la planète
     if (planet.orbiters.some(p => p.ownerId === playerId)) return true;
-    
+
     // Vérifier atterrisseurs sur la planète
     if (planet.landers.some(p => p.ownerId === playerId)) return true;
 

@@ -36,12 +36,12 @@ export class PassAction extends BaseAction {
     // Vérifier si une carte de manche doit être choisie
     const currentRound = game.currentRound;
     const roundDeck = game.decks.roundDecks[currentRound];
-    
+
     // Si le paquet existe et n'est pas vide, une carte doit être sélectionnée (sauf si géré automatiquement pour robot, mais l'action doit valider la cohérence)
     if (roundDeck && roundDeck.length > 0 && this.selectedCardId) {
-       if (!roundDeck.some(c => c.id === this.selectedCardId)) {
+      if (!roundDeck.some(c => c.id === this.selectedCardId)) {
         return { valid: false, errors: [{ code: 'INVALID_CARDS', message: 'Carte sélectionnée invalides' }], warnings: [] };
-       }
+      }
     }
 
     return { valid: true, errors: [], warnings: [] };
@@ -83,7 +83,7 @@ export class PassAction extends BaseAction {
         // Si aucune carte n'est sélectionnée (ex: Robot), on prend la première
         cardIndex = 0;
       }
-      
+
       if (cardIndex !== -1) {
         const [card] = deck.splice(cardIndex, 1);
         updatedPlayer.cards.push(card);
@@ -101,10 +101,10 @@ export class PassAction extends BaseAction {
 
     // Vérifier si c'est le premier Pass de la manche
     // (déclenche la rotation du système solaire)
-    if (TurnManager.isFirstPassOfRound(updatedGame)) {      
+    if (TurnManager.isFirstPassOfRound(updatedGame)) {
       this.historyEntries.unshift({ message: `<strong>passe son tour</strong> (premier de la manche)`, playerId: this.playerId, sequenceId: sequenceId });
       const result = performRotation(updatedGame);
-      result.logs.forEach(log => this.historyEntries.push({ message: log, playerId: this.playerId, sequenceId: sequenceId}));
+      result.logs.forEach(log => this.historyEntries.push({ message: log, playerId: this.playerId, sequenceId: sequenceId }));
       updatedGame = result.updatedGame;
       updatedGame.isFirstToPass = true;
     } else {
@@ -127,7 +127,7 @@ export class PassAction extends BaseAction {
 
       // Log du changement de premier joueur
       this.historyEntries.push({ message: `devient le Premier Joueur`, playerId: updatedGame.players[updatedGame.firstPlayerIndex].id, sequenceId: '' });
-      
+
       const firstPlayer = updatedGame.players[updatedGame.firstPlayerIndex];
       this.historyEntries.push({ message: `--- Tour de ${firstPlayer.name} ---`, playerId: firstPlayer.id, sequenceId: '' });
     } else {

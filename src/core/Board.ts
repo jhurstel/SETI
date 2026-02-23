@@ -1,15 +1,6 @@
-/**
- * Plateau de jeu SETI
- * 
- * Gère l'initialisation et la structure du plateau :
- * - Système solaire
- * - Secteurs
- * - Planètes
- * - Plateau de technologies
- */
-
 import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, RotationDisk, TechnologyCategory, Technology, TechnologyEffect, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorType, SignalType, Signal, LifeTraceType, AlienBoardType } from './types';
 import { sectorToIndex } from './SolarSystemPosition';
+import { ResourceSystem } from '../systems/ResourceSystem';
 
 export class BoardManager {
   /**
@@ -77,26 +68,26 @@ export class BoardManager {
   private static createSectors(): Sector[] {
     // Définition des 4 plateaux doubles (Gauche/Droite)
     const plates = [
-      { 
+      {
         right: { name: 'Kepler 22', color: SectorType.YELLOW, slots: 5, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { pv: 3 } },
-        left: { name: 'Proxima Centauri', color: SectorType.RED, slots: 6, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] } } 
+        left: { name: 'Proxima Centauri', color: SectorType.RED, slots: 6, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] } }
       },
-      { 
-        right: { name: 'Sirius A', color: SectorType.BLUE, slots: 6, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] } }, 
-        left: { name: "Barnard's Star", color: SectorType.RED, slots: 5, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { pv: 3 } } 
+      {
+        right: { name: 'Sirius A', color: SectorType.BLUE, slots: 6, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] } },
+        left: { name: "Barnard's Star", color: SectorType.RED, slots: 5, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { pv: 3 } }
       },
-      { 
-        right: { name: '61 Virginis', color: SectorType.YELLOW, slots: 6, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] } }, 
-        left: { name: 'Beta Pictoris', color: SectorType.BLACK, slots: 5, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }], pv: 3 }, nextBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] } } 
+      {
+        right: { name: '61 Virginis', color: SectorType.YELLOW, slots: 6, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] } },
+        left: { name: 'Beta Pictoris', color: SectorType.BLACK, slots: 5, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }], pv: 3 }, nextBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] } }
       },
-      { 
-        right: { name: 'Procyon', color: SectorType.BLUE, slots: 5, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { pv: 3 } }, 
-        left: { name: 'Véga', color: SectorType.BLACK, slots: 4, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }], pv: 2}, nextBonus: { pv: 5 } } 
+      {
+        right: { name: 'Procyon', color: SectorType.BLUE, slots: 5, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, nextBonus: { pv: 3 } },
+        left: { name: 'Véga', color: SectorType.BLACK, slots: 4, firstBonus: { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }], pv: 2 }, nextBonus: { pv: 5 } }
       },
     ];
 
     // Mélanger l'ordre des plateaux
-    const shuffledPlates = this.shuffle(plates);
+    const shuffledPlates = ResourceSystem.shuffle(plates);
 
     // Aplatir pour obtenir la séquence des 8 secteurs
     const sectorSequence: { name: string, color: SectorType, slots: number, firstBonus: Bonus, nextBonus: Bonus }[] = [];
@@ -153,43 +144,6 @@ export class BoardManager {
   }
 
   /**
-   * Utilitaire de mélange
-   */
-  private static shuffle<T>(array: T[]): T[] {
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
-  }
-
-  /**
-   * Helper pour fusionner les bonus
-   */
-  private static mergeBonuses(...bonuses: (Bonus | undefined)[]): Bonus {
-    const result: Bonus = {};
-    bonuses.forEach(b => {
-      if (!b) return;
-      (Object.keys(b) as Array<keyof Bonus>).forEach(key => {
-        const k = key as keyof Bonus;
-        const val = b[k];
-        if (typeof val === 'number') {
-          (result as any)[k] = ((result[k] as number) || 0) + val;
-        } else if (val !== undefined) {
-          if (k === 'gainSignal' && Array.isArray(val)) {
-            const existing = (result[k] as any[]) || [];
-            (result as any)[k] = [...existing, ...val];
-          } else {
-            (result as any)[k] = val;
-          }
-        }
-      });
-    });
-    return result;
-  }
-
-  /**
    * Crée les planètes
    */
   private static createPlanets(): Planet[] {
@@ -214,7 +168,7 @@ export class BoardManager {
         orbitFirstBonus: { pv: 3 },
         orbitNextBonus: { pv: 6, revenue: 1 },
         landFirstBonus: { data: 2 },
-        landNextBonus: { pv: 5, lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }]},
+        landNextBonus: { pv: 5, lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] },
         orbitSlots: [],
         landSlots: []
       },
@@ -229,7 +183,7 @@ export class BoardManager {
         landSecondBonus: { data: 1 },
         landNextBonus: { pv: 6, lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] },
         satellites: [
-          { id: 'phobosdeimos', name: 'Phobos, Deimos', planetId: 'mars', landers: [], landBonus: { pv: 8, revenue: 2} },
+          { id: 'phobosdeimos', name: 'Phobos, Deimos', planetId: 'mars', landers: [], landBonus: { pv: 8, revenue: 2 } },
         ],
         orbitSlots: [],
         landSlots: []
@@ -302,13 +256,13 @@ export class BoardManager {
 
     return planets.map(p => {
       const orbitSlots = new Array(5).fill(null).map((_, i) => {
-        if (i === 0) return this.mergeBonuses(p.orbitFirstBonus, p.orbitNextBonus);
+        if (i === 0) return ResourceSystem.mergeBonuses(p.orbitFirstBonus, p.orbitNextBonus);
         return p.orbitNextBonus || {};
       });
 
       const landSlots = new Array(4).fill(null).map((_, i) => {
-        if (i === 0) return this.mergeBonuses(p.landFirstBonus, p.landNextBonus);
-        if (i === 1) return this.mergeBonuses(p.landSecondBonus, p.landNextBonus);
+        if (i === 0) return ResourceSystem.mergeBonuses(p.landFirstBonus, p.landNextBonus);
+        if (i === 1) return ResourceSystem.mergeBonuses(p.landSecondBonus, p.landNextBonus);
         return p.landNextBonus || {};
       });
 
@@ -335,7 +289,7 @@ export class BoardManager {
         { card: 1 },
         { energy: 1 }
       ];
-      
+
       const cards = baseBonuses.map((bonus, idx) => ({
         id: `${id}-${idx + 1}`,
         name,
@@ -491,7 +445,7 @@ export class BoardManager {
    */
   private static createAlienBoards(): AlienBoard[] {
     const alienTypes = Object.values(AlienBoardType);
-    
+
     // Mélange de Fisher-Yates pour la sélection aléatoire
     for (let i = alienTypes.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -521,7 +475,7 @@ export class BoardManager {
    */
   private static createObjectiveTiles(): ObjectiveTile[] {
     const tiles: ObjectiveTile[] = [];
-    
+
     // 1. Technology
     const techSide = Math.random() > 0.5 ? 'A' : 'B';
     tiles.push({

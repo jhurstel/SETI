@@ -25,7 +25,7 @@ export class MoveProbeAction extends BaseAction {
       this.probeId,
       finalCost
     );
-    
+
     if (!check.canMove) {
       return { valid: false, errors: [{ code: 'CANNOT_MOVE', message: check.reason || 'Déplacement impossible' }], warnings: [] };
     }

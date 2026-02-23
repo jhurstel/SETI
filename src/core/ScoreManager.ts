@@ -54,7 +54,7 @@ export class ScoreManager {
     scores.objectiveTiles = this.calculateObjectiveTiles(player, game.board);
 
     // Total
-    scores.total = Object.values(scores).reduce((sum, val) => 
+    scores.total = Object.values(scores).reduce((sum, val) =>
       typeof val === 'number' ? sum + val : sum, 0
     );
 
@@ -66,7 +66,7 @@ export class ScoreManager {
    */
   private static calculateMissionEndGame(player: Player, game: Game): number {
     let bonus = 0;
-    const endGameCards : Card[] = (player.playedCards || []).filter(c => c.type === CardType.END_GAME);
+    const endGameCards: Card[] = (player.playedCards || []).filter(c => c.type === CardType.END_GAME);
 
     endGameCards.forEach(card => {
       // Traitement des règles de scoring définies dans passiveEffects
@@ -98,7 +98,7 @@ export class ScoreManager {
             else if (colorStr === 'blue') color = SectorType.BLUE;
             else if (colorStr === 'yellow') color = SectorType.YELLOW;
             else if (colorStr === 'black') color = SectorType.BLACK;
-            
+
             if (color) {
               let count = 0;
               game.board.sectors.forEach(s => {
@@ -114,7 +114,7 @@ export class ScoreManager {
             if (colorStr === 'red') type = LifeTraceType.RED;
             else if (colorStr === 'blue') type = LifeTraceType.BLUE;
             else if (colorStr === 'yellow') type = LifeTraceType.YELLOW;
-            
+
             if (type) {
               const count = player.lifeTraces.filter(t => t.type === type).length;
               bonus += count * effect.value;
@@ -128,7 +128,7 @@ export class ScoreManager {
             if (catStr === 'computing') category = TechnologyCategory.COMPUTING;
             else if (catStr === 'exploration') category = TechnologyCategory.EXPLORATION;
             else if (catStr === 'observation') category = TechnologyCategory.OBSERVATION;
-            
+
             if (category) {
               const count = player.technologies.filter(t => t.type === category).length;
               bonus += count * effect.value;
@@ -192,7 +192,7 @@ export class ScoreManager {
               player.technologies.forEach(t => {
                 typeCounts.set(t.type, (typeCounts.get(t.type) || 0) + 1);
               });
-              
+
               const counts = Array.from(typeCounts.values()).sort((a, b) => b - a);
               while (counts.length < 3) counts.push(0);
               // Greedy algorithm for sets of 3 distinct types (assuming max 4 types)
@@ -200,11 +200,11 @@ export class ScoreManager {
 
               let sets = 0;
               while (counts[2] > 0) {
-                 sets++;
-                 counts[0]--;
-                 counts[1]--;
-                 counts[2]--;
-                 counts.sort((a, b) => b - a);
+                sets++;
+                counts[0]--;
+                counts[1]--;
+                counts[2]--;
+                counts.sort((a, b) => b - a);
               }
               count = sets;
             } else {
@@ -278,7 +278,7 @@ export class ScoreManager {
     // Chaque espèce peut avoir des modificateurs de scoring différents
     let bonus = 0;
     player;
-    
+
     return bonus;
   }
 
@@ -302,7 +302,7 @@ export class ScoreManager {
     scores: Array<{ playerId: string; scores: ScoreCategories }>
   ): string[] {
     // Trier par score total décroissant
-    const sorted = [...scores].sort((a, b) => 
+    const sorted = [...scores].sort((a, b) =>
       b.scores.total - a.scores.total
     );
 

@@ -10,7 +10,7 @@ export class LaunchProbeAction extends BaseAction {
   validate(game: Game): ValidationResult {
     const check = ProbeSystem.canLaunchProbe(game, this.playerId);
     if (!check.canLaunch) return { valid: false, errors: [{ code: 'CANNOT_LAUNCH', message: check.reason || 'Lancement impossible' }], warnings: [] };
-      return { valid: true, errors: [], warnings: [] };
+    return { valid: true, errors: [], warnings: [] };
   }
 
   execute(game: Game): Game {

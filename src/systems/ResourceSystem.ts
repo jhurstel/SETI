@@ -4,7 +4,7 @@ import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';
 
-export class ResourceSystem {  
+export class ResourceSystem {
   static formatResource(amount: number, type: string): string {
     const absAmount = Math.abs(amount);
     const plural = absAmount > 1 ? 's' : '';
@@ -21,7 +21,7 @@ export class ResourceSystem {
     else if (key === 'LANDING' || key === 'LANDINGS') label = `Atterrissage${plural}`;
     else if (key === 'TOKEN' || key === 'TOKENS') label = `Token${plural}`;
     else if (key === 'REVENUE' || key === 'REVENUES') label = `Réservation${plural}`;
-    
+
     return `${amount} ${label}`;
   }
 
@@ -68,21 +68,58 @@ export class ResourceSystem {
     return items;
   };
 
-  static accumulateBonus(bonus: Bonus, accumulatedBonuses: Bonus) {
-      for (const key in bonus) {
-          const k = key as keyof Bonus;
-          const val = bonus[k];
-          if (typeof val === 'number') {
-              (accumulatedBonuses as any)[k] = ((accumulatedBonuses[k] as number) || 0) + val;
-          } else if (val !== undefined) {
-              if (k === 'gainSignal' && Array.isArray(val)) {
-                  const existing = (accumulatedBonuses[k] as any[]) || [];
-                  (accumulatedBonuses as any)[k] = [...existing, ...val];
-              } else {
-                  (accumulatedBonuses as any)[k] = val;
-              }
+  /**
+   * Mélange un tableau de manière aléatoire (Fisher-Yates shuffle)
+   */
+  static shuffle<T>(array: T[]): T[] {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+  }
+
+  /**
+   * Helper pour fusionner les bonus
+   */
+  static mergeBonuses(...bonuses: (Bonus | undefined)[]): Bonus {
+    const result: Bonus = {};
+    bonuses.forEach(b => {
+      if (!b) return;
+      (Object.keys(b) as Array<keyof Bonus>).forEach(key => {
+        const k = key as keyof Bonus;
+        const val = b[k];
+        if (typeof val === 'number') {
+          (result as any)[k] = ((result[k] as number) || 0) + val;
+        } else if (val !== undefined) {
+          if (Array.isArray(val)) {
+            const existing = (result[k] as any[]) || [];
+            (result as any)[k] = [...existing, ...val];
+          } else {
+            (result as any)[k] = val;
           }
+        }
+      });
+    });
+    return result;
+  }
+
+  static accumulateBonus(bonus: Bonus, accumulatedBonuses: Bonus) {
+    for (const key in bonus) {
+      const k = key as keyof Bonus;
+      const val = bonus[k];
+      if (typeof val === 'number') {
+        (accumulatedBonuses as any)[k] = ((accumulatedBonuses[k] as number) || 0) + val;
+      } else if (val !== undefined) {
+        if (k === 'gainSignal' && Array.isArray(val)) {
+          const existing = (accumulatedBonuses[k] as any[]) || [];
+          (accumulatedBonuses as any)[k] = [...existing, ...val];
+        } else {
+          (accumulatedBonuses as any)[k] = val;
+        }
       }
+    }
   }
 
   static tradeResources(game: Game, playerId: string, spendType: string, gainType: string, cardIdsToSpend?: string[]): { updatedGame: Game, error?: string } {
@@ -95,24 +132,24 @@ export class ResourceSystem {
     const normalizedGain = gainType.toLowerCase().trim().replace('é', 'e');
 
     if (normalizedSpend === 'credit') {
-        if (player.credits < 2) return { updatedGame: game, error: "Pas assez de crédits" };
-        player.credits -= 2;
+      if (player.credits < 2) return { updatedGame: game, error: "Pas assez de crédits" };
+      player.credits -= 2;
     } else if (normalizedSpend === 'energy') {
-        if (player.energy < 2) return { updatedGame: game, error: "Pas assez d'énergie" };
-        player.energy -= 2;
+      if (player.energy < 2) return { updatedGame: game, error: "Pas assez d'énergie" };
+      player.energy -= 2;
     } else if (normalizedSpend === 'card') {
-        if (!cardIdsToSpend || cardIdsToSpend.length !== 2) return { updatedGame: game, error: "2 cartes doivent être sélectionnées" };
-        player.cards = player.cards.filter(c => !cardIdsToSpend.includes(c.id));
+      if (!cardIdsToSpend || cardIdsToSpend.length !== 2) return { updatedGame: game, error: "2 cartes doivent être sélectionnées" };
+      player.cards = player.cards.filter(c => !cardIdsToSpend.includes(c.id));
     }
 
     if (normalizedGain === 'credit') {
-        player.credits += 1;
+      player.credits += 1;
     } else if (normalizedGain === 'energy') {
-        player.energy += 1;
+      player.energy += 1;
     } else if (normalizedGain === 'carte' || normalizedGain === 'card') {
-        updatedGame = CardSystem.drawCards(updatedGame, playerId, 1);
+      updatedGame = CardSystem.drawCards(updatedGame, playerId, 1);
     } else {
-         return { updatedGame: game, error: "Type de ressource à recevoir invalide" };
+      return { updatedGame: game, error: "Type de ressource à recevoir invalide" };
     }
 
     return { updatedGame };
@@ -159,8 +196,7 @@ export class ResourceSystem {
   }
 
   // Helper pour traiter les bonus
-  static processBonuses(bonuses: Bonus, currentGame: Game, playerId: string, sourceId: string, sequenceId: string, speciesId?: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[], historyEntries: HistoryEntry[] }
-  {
+  static processBonuses(bonuses: Bonus, currentGame: Game, playerId: string, sourceId: string, sequenceId: string, speciesId?: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[], historyEntries: HistoryEntry[] } {
     let updatedGame = currentGame;
     const newPendingInteractions: InteractionState[] = [];
     const logs: string[] = [];
@@ -173,12 +209,12 @@ export class ResourceSystem {
     // Appliquer les ressources simples au joueur
     const player = updatedGame.players.find(p => p.id === playerId);
     if (player) {
-        if (bonuses.pv) player.score += bonuses.pv;
-        if (bonuses.credits) player.credits += bonuses.credits;
-        if (bonuses.energy) player.energy += bonuses.energy;
-        if (bonuses.media) player.mediaCoverage = Math.min(player.mediaCoverage + bonuses.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-        if (bonuses.data) player.data = Math.min(player.data + bonuses.data, GAME_CONSTANTS.MAX_DATA);
-        if (bonuses.token && bonuses.token > 0) player.tokens = (player.tokens || 0) + bonuses.token;
+      if (bonuses.pv) player.score += bonuses.pv;
+      if (bonuses.credits) player.credits += bonuses.credits;
+      if (bonuses.energy) player.energy += bonuses.energy;
+      if (bonuses.media) player.mediaCoverage = Math.min(player.mediaCoverage + bonuses.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+      if (bonuses.data) player.data = Math.min(player.data + bonuses.data, GAME_CONSTANTS.MAX_DATA);
+      if (bonuses.token && bonuses.token > 0) player.tokens = (player.tokens || 0) + bonuses.token;
     }
 
     // Gains passifs pour le résumé (déjà effectué dans CardSystem)
@@ -207,15 +243,15 @@ export class ResourceSystem {
       const countBefore = playerBefore ? playerBefore.cards.length : 0;
 
       updatedGame = CardSystem.drawCards(updatedGame, playerId, bonuses.card);
-      
+
       const updatedPlayer = updatedGame.players.find(p => p.id === playerId);
       let cardDetails = "";
       if (updatedPlayer) {
-          const actualDrawn = updatedPlayer.cards.length - countBefore;
-          if (actualDrawn > 0) {
-              const drawnCards = updatedPlayer.cards.slice(-actualDrawn);
-              cardDetails = ` "${drawnCards.map(c => c.name).join('", "')}"`;
-          }
+        const actualDrawn = updatedPlayer.cards.length - countBefore;
+        if (actualDrawn > 0) {
+          const drawnCards = updatedPlayer.cards.slice(-actualDrawn);
+          cardDetails = ` "${drawnCards.map(c => c.name).join('", "')}"`;
+        }
       }
 
       passiveGains.push(ResourceSystem.formatResource(bonuses.card, 'CARD'));
@@ -235,10 +271,10 @@ export class ResourceSystem {
       }
     }
     if (bonuses.speciesCard) {
-        if (speciesId) {
-             newPendingInteractions.push({ type: 'ACQUIRING_ALIEN_CARD', count: bonuses.speciesCard, speciesId, sequenceId });
-             logs.push(`1 carte Alien`);
-        }
+      if (speciesId) {
+        newPendingInteractions.push({ type: 'ACQUIRING_ALIEN_CARD', count: bonuses.speciesCard, speciesId, sequenceId });
+        logs.push(`1 carte Alien`);
+      }
     }
 
     // Effets interactifs (File d'attente)
@@ -380,15 +416,15 @@ export class ResourceSystem {
       newPendingInteractions.push({ type: 'DISCARDING_FOR_SIGNAL', count: bonuses.gainSignalFromHand, selectedCards: [], sequenceId });
     }
     if (bonuses.chooseTechType) {
-        newPendingInteractions.push({
-            type: 'CHOOSING_BONUS_ACTION',
-            bonusesSummary: "Choisissez une technologie :",
-            choices: [
-                { id: 'explo', label: 'Exploration', state: { type: 'ACQUIRING_TECH', isBonus: true, category: TechnologyCategory.EXPLORATION, sequenceId }, done: false },
-                { id: 'obs', label: 'Observation', state: { type: 'ACQUIRING_TECH', isBonus: true, category: TechnologyCategory.OBSERVATION, sequenceId }, done: false }
-            ],
-            sequenceId
-        });
+      newPendingInteractions.push({
+        type: 'CHOOSING_BONUS_ACTION',
+        bonusesSummary: "Choisissez une technologie :",
+        choices: [
+          { id: 'explo', label: 'Exploration', state: { type: 'ACQUIRING_TECH', isBonus: true, category: TechnologyCategory.EXPLORATION, sequenceId }, done: false },
+          { id: 'obs', label: 'Observation', state: { type: 'ACQUIRING_TECH', isBonus: true, category: TechnologyCategory.OBSERVATION, sequenceId }, done: false }
+        ],
+        sequenceId
+      });
     }
 
     return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };

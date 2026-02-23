@@ -26,11 +26,11 @@ export class ResearchTechAction extends BaseAction {
         player.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
         const message = `paye ${ResourceSystem.formatResource(GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA, 'MEDIA')} pour <strong>Rechercher une technologie</strong>`
         this.historyEntries.push({ message, playerId: this.playerId, sequenceId });
-  
+
         // Faire tourner le systeme solaire
         const result = performRotation(game);
         result.logs.forEach(log => this.historyEntries.push({ message: log, playerId: this.playerId, sequenceId }));
-  
+
         this.newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: false, sequenceId })
         return result.updatedGame;
     }

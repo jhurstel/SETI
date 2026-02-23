@@ -30,6 +30,16 @@ export enum ActionType {
   ACCOMPLISH_MISSION = "ACCOMPLISH_MISSION"
 }
 
+export const MAIN_ACTION_TYPES: ActionType[] = [
+  ActionType.LAUNCH_PROBE,
+  ActionType.ORBIT,
+  ActionType.LAND,
+  ActionType.SCAN_SECTOR,
+  ActionType.ANALYZE_DATA,
+  ActionType.PLAY_CARD,
+  ActionType.RESEARCH_TECH
+];
+
 export type DiskName = 'A' | 'B' | 'C' | 'D' | 'E';
 export type SectorNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
@@ -151,6 +161,8 @@ export enum ObjectiveCategory {
   REVENUE = "REVENUE",
   OTHER = "OTHER"
 }
+
+export type SpeciesDiscoveryCode = 'NO_MARKERS' | 'NO_SPACE' | 'PLACED' | 'DISCOVERED';
 
 // ============================================================================
 // INTERFACES DE BASE
@@ -719,3 +731,14 @@ export const DISK_NAMES: Record<DiskName, number> = {
   D: 3,
   E: 4,
 } as const;
+
+// ============================================================================
+// AI Behaviour
+// ============================================================================
+
+export interface AIDecision {
+  action: ActionType;
+  data?: any;
+}
+
+export type AIDifficulty = 'PASS' | 'EASY' | 'MEDIUM' | 'EXPERT';

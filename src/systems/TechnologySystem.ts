@@ -22,12 +22,12 @@ export class TechnologySystem {
     if (!player) return { canResearch: false, reason: "Joueur non trouvé" };
 
     if (player.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) {
-        return { canResearch: false, reason: `Couverture médiatique insuffisante (Requis: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA})` };
+      return { canResearch: false, reason: `Couverture médiatique insuffisante (Requis: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA})` };
     }
-    
+
     return { canResearch: true };
   }
-  
+
   public static canAcquireTech(game: Game, playerId: string, category?: TechnologyCategory): boolean {
     const player = game.players.find(p => p.id === playerId);
     if (!player) return false;
@@ -97,24 +97,24 @@ export class TechnologySystem {
     if (!noTileBonus) {
       //const { updatedGame: gameAfterBonus, newPendingInteractions, passiveGains, logs, historyEntries } = ResourceSystem.processBonuses(tech.bonus, updatedGame, currentPlayer.id);
       if (tech.bonus.pv) {
-          player.score += tech.bonus.pv;
-          gains.push(`${tech.bonus.pv} PV`);
+        player.score += tech.bonus.pv;
+        gains.push(`${tech.bonus.pv} PV`);
       }
       if (tech.bonus.media) {
-          player.mediaCoverage = Math.min(player.mediaCoverage + tech.bonus.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-          gains.push(`${tech.bonus.media} Média`);
+        player.mediaCoverage = Math.min(player.mediaCoverage + tech.bonus.media, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+        gains.push(`${tech.bonus.media} Média`);
       }
       if (tech.bonus.credits) {
-          player.credits += tech.bonus.credits;
-          gains.push(`${tech.bonus.credits} Crédit`);
+        player.credits += tech.bonus.credits;
+        gains.push(`${tech.bonus.credits} Crédit`);
       }
       if (tech.bonus.energy) {
-          player.energy += tech.bonus.energy;
-          gains.push(`${tech.bonus.energy} Énergie`);
+        player.energy += tech.bonus.energy;
+        gains.push(`${tech.bonus.energy} Énergie`);
       }
       if (tech.bonus.data) {
-          player.data = Math.min((player.data || 0) + tech.bonus.data, GAME_CONSTANTS.MAX_DATA);
-          gains.push(`${tech.bonus.data} Data`);
+        player.data = Math.min((player.data || 0) + tech.bonus.data, GAME_CONSTANTS.MAX_DATA);
+        gains.push(`${tech.bonus.data} Data`);
       }
       if (tech.bonus.card) {
         updatedGame = CardSystem.drawCards(updatedGame, player.id, tech.bonus.card);
@@ -123,12 +123,12 @@ export class TechnologySystem {
       if (tech.bonus.probe) {
         const result = ProbeSystem.launchProbe(updatedGame, player.id, true, false);
         if (result.probeId) {
-            updatedGame.board = result.updatedGame.board;
-            updatedGame.players = result.updatedGame.players;
-            historyEntries = result.historyEntries;
-            gains.push(`1 Sonde`);
+          updatedGame.board = result.updatedGame.board;
+          updatedGame.players = result.updatedGame.players;
+          historyEntries = result.historyEntries;
+          gains.push(`1 Sonde`);
         } else {
-            gains.push(`1 Sonde (Perdue: Limite atteinte)`);
+          gains.push(`1 Sonde (Perdue: Limite atteinte)`);
         }
       }
     }
@@ -136,79 +136,79 @@ export class TechnologySystem {
     // Traitement des missions conditionnelles (GAIN_ON_TECH)
     const processedSources = new Set<string>();
     player.permanentBuffs.forEach(buff => {
-        let shouldTrigger = false;
-        if (tech.type === TechnologyCategory.EXPLORATION && buff.type === 'GAIN_ON_YELLOW_TECH') shouldTrigger = true;
-        if (tech.type === TechnologyCategory.OBSERVATION && buff.type === 'GAIN_ON_RED_TECH') shouldTrigger = true;
-        if (tech.type === TechnologyCategory.COMPUTING && buff.type === 'GAIN_ON_BLUE_TECH') shouldTrigger = true;
+      let shouldTrigger = false;
+      if (tech.type === TechnologyCategory.EXPLORATION && buff.type === 'GAIN_ON_YELLOW_TECH') shouldTrigger = true;
+      if (tech.type === TechnologyCategory.OBSERVATION && buff.type === 'GAIN_ON_RED_TECH') shouldTrigger = true;
+      if (tech.type === TechnologyCategory.COMPUTING && buff.type === 'GAIN_ON_BLUE_TECH') shouldTrigger = true;
 
-        if (shouldTrigger) {
-             // Ignorer si le prérequis est déjà complété
-             if (buff.id && buff.source) {
-                 const mission = player.missions.find(m => m.name === buff.source);
-                 if (mission && mission.completedRequirementIds.includes(buff.id)) return;
-                 if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
-             }
-
-             if (buff.source && processedSources.has(buff.source)) return;
-
-             if (buff.source) processedSources.add(buff.source);
-
-             // Re-récupérer le joueur car updatedGame a pu changer (ex: pioche de carte)
-             const currentPlayer = updatedGame.players.find(p => p.id === playerId);
-             if (currentPlayer) {
-                 // Marquer comme remplie (en attente de clic)
-                 CardSystem.markMissionRequirementFulfillable(currentPlayer, buff);
-             }
+      if (shouldTrigger) {
+        // Ignorer si le prérequis est déjà complété
+        if (buff.id && buff.source) {
+          const mission = player.missions.find(m => m.name === buff.source);
+          if (mission && mission.completedRequirementIds.includes(buff.id)) return;
+          if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
         }
+
+        if (buff.source && processedSources.has(buff.source)) return;
+
+        if (buff.source) processedSources.add(buff.source);
+
+        // Re-récupérer le joueur car updatedGame a pu changer (ex: pioche de carte)
+        const currentPlayer = updatedGame.players.find(p => p.id === playerId);
+        if (currentPlayer) {
+          // Marquer comme remplie (en attente de clic)
+          CardSystem.markMissionRequirementFulfillable(currentPlayer, buff);
+        }
+      }
     });
 
     // Traitement des buffs actifs (ex: Recherche Ciblée, Coopération Scientifique)
     const buffsToRemove: number[] = [];
     player.activeBuffs.forEach((buff, index) => {
-        if (buff.type === 'SCORE_PER_TECH_TYPE') {
-            // Identifier la catégorie de la tech acquise
-            let categoryPrefix = '';
-            if (tech.id.startsWith('exploration')) categoryPrefix = 'exploration';
-            else if (tech.id.startsWith('observation')) categoryPrefix = 'observation';
-            else if (tech.id.startsWith('computing')) categoryPrefix = 'computing';
+      if (buff.type === 'SCORE_PER_TECH_TYPE') {
+        // Identifier la catégorie de la tech acquise
+        let categoryPrefix = '';
+        if (tech.id.startsWith('exploration')) categoryPrefix = 'exploration';
+        else if (tech.id.startsWith('observation')) categoryPrefix = 'observation';
+        else if (tech.id.startsWith('computing')) categoryPrefix = 'computing';
 
-            if (categoryPrefix) {
-                // Compter les technologies de ce type possédées par le joueur (incluant la nouvelle)
-                const count = player.technologies.filter(t => t.id.startsWith(categoryPrefix)).length;
-                const points = count * buff.value;
-                if (points > 0) {
-                    player.score += points;
-                    gains.push(`${points} PV (${buff.source})`);
-                }
-                buffsToRemove.push(index);
-            }
-        } else if (buff.type === 'MEDIA_IF_SHARED_TECH') {
-            // Vérifier si un autre joueur possède une technologie de la même famille (même ID de base)
-            // Les IDs sont du format 'category-X-Y', on veut 'category-X'
-            const baseId = tech.id.substring(0, tech.id.lastIndexOf('-'));
-            
-            let isShared = false;
-            for (const otherPlayer of game.players) {
-                if (otherPlayer.id === playerId) continue;
-                
-                const hasSameTech = otherPlayer.technologies.some(t => t.id.startsWith(baseId));
-                if (hasSameTech) {
-                    isShared = true;
-                    break;
-                }
-            }
-
-            if (isShared) {
-                player.mediaCoverage = Math.min(player.mediaCoverage + buff.value, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-                gains.push(`${buff.value} Média (${buff.source})`);
-            }
-            buffsToRemove.push(index);
+        if (categoryPrefix) {
+          // Compter les technologies de ce type possédées par le joueur (incluant la nouvelle)
+          const count = player.technologies.filter(t => t.id.startsWith(categoryPrefix)).length;
+          const points = count * buff.value;
+          if (points > 0) {
+            player.score += points;
+            gains.push(`${points} PV (${buff.source})`);
+          }
+          buffsToRemove.push(index);
         }
+      } else if (buff.type === 'MEDIA_IF_SHARED_TECH') {
+        // Vérifier si un autre joueur possède une technologie de la même famille (même ID de base)
+        // Les IDs sont du format 'category-X-Y', on veut 'category-X'
+        const baseId = tech.id.substring(0, tech.id.lastIndexOf('-'));
+
+        let isShared = false;
+        for (const otherPlayer of game.players) {
+          if (otherPlayer.id === playerId) continue;
+
+          const hasSameTech = otherPlayer.technologies.some(t => t.id.startsWith(baseId));
+          if (hasSameTech) {
+            isShared = true;
+            break;
+          }
+        }
+
+        if (isShared) {
+          player.mediaCoverage = Math.min(player.mediaCoverage + buff.value, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+          gains.push(`${buff.value} Média (${buff.source})`);
+        }
+        buffsToRemove.push(index);
+      }
     });
 
     // Nettoyer les buffs consommés
     if (buffsToRemove.length > 0) {
-        player.activeBuffs = player.activeBuffs.filter((_, index) => !buffsToRemove.includes(index));
+      player.activeBuffs = player.activeBuffs.filter((_, index) => !buffsToRemove.includes(index));
     }
 
     return { updatedGame, gains, historyEntries, newPendingInteractions };

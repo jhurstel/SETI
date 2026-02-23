@@ -24,7 +24,7 @@ export class DataLoader {
   private static parseCSV(csvContent: string): Card[] {
     const cards: Card[] = [];
     const lines = csvContent.split('\n');
-    
+
     // Ignorer l'en-tête si présent
     const startIndex = lines.length > 0 && lines[0].toLowerCase().startsWith('id') ? 1 : 0;
 
@@ -36,15 +36,15 @@ export class DataLoader {
       const columns = line.split(';');
 
       const [id, nom, type, texte, actionGratuite, couleurScan, revenue, cout, gain, contrainte] = columns;
-      
+
       let cost = 0;
       let costType = CostType.CREDIT;
       const costStr = cout.trim().toLowerCase();
       if (costStr.includes('energie') || costStr.includes('energy')) {
-          costType = CostType.ENERGY;
-          cost = parseInt(costStr.replace(/[^0-9]/g, ''), 10) || 0;
+        costType = CostType.ENERGY;
+        cost = parseInt(costStr.replace(/[^0-9]/g, ''), 10) || 0;
       } else {
-          cost = parseInt(costStr, 10) || 0;
+        cost = parseInt(costStr, 10) || 0;
       }
 
       cards.push({
@@ -77,108 +77,108 @@ export class DataLoader {
   }
 
   private static mapFreeActionType(value: string): FreeActionType {
-      const v = value.toLowerCase();
-      if (v.includes('1 pv + 1 déplacement') || v.includes('1pv + 1 déplacement') || v.includes('1 pv + 1 deplacement')) return FreeActionType.PV_MOVEMENT;
-      if (v.includes('1 pv + 1 donnée') || v.includes('1pv + 1 donnée') || v.includes('1 pv + 1 data')) return FreeActionType.PV_DATA;
-      if (v.includes('2 médias') || v.includes('2 medias') || v.includes('2 média')) return FreeActionType.TWO_MEDIA;
-      if (v.includes('déplacement') || v.includes('movement')) return FreeActionType.MOVEMENT;
-      if (v.includes('donnée') || v.includes('data')) return FreeActionType.DATA;
-      if (v.includes('média') || v.includes('media')) return FreeActionType.MEDIA;
-      return FreeActionType.UNDEFINED; // Valeur par défaut
+    const v = value.toLowerCase();
+    if (v.includes('1 pv + 1 déplacement') || v.includes('1pv + 1 déplacement') || v.includes('1 pv + 1 deplacement')) return FreeActionType.PV_MOVEMENT;
+    if (v.includes('1 pv + 1 donnée') || v.includes('1pv + 1 donnée') || v.includes('1 pv + 1 data')) return FreeActionType.PV_DATA;
+    if (v.includes('2 médias') || v.includes('2 medias') || v.includes('2 média')) return FreeActionType.TWO_MEDIA;
+    if (v.includes('déplacement') || v.includes('movement')) return FreeActionType.MOVEMENT;
+    if (v.includes('donnée') || v.includes('data')) return FreeActionType.DATA;
+    if (v.includes('média') || v.includes('media')) return FreeActionType.MEDIA;
+    return FreeActionType.UNDEFINED; // Valeur par défaut
   }
 
   private static mapSectorType(value: string): SectorType {
-      const v = value.toLowerCase();
-      if (v.includes('bleu') || v.includes('blue')) return SectorType.BLUE;
-      if (v.includes('rouge') || v.includes('red')) return SectorType.RED;
-      if (v.includes('jaune') || v.includes('yellow')) return SectorType.YELLOW;
-      if (v.includes('noir') || v.includes('black')) return SectorType.BLACK;
-      return SectorType.UNDEFINED; // Valeur par défaut
+    const v = value.toLowerCase();
+    if (v.includes('bleu') || v.includes('blue')) return SectorType.BLUE;
+    if (v.includes('rouge') || v.includes('red')) return SectorType.RED;
+    if (v.includes('jaune') || v.includes('yellow')) return SectorType.YELLOW;
+    if (v.includes('noir') || v.includes('black')) return SectorType.BLACK;
+    return SectorType.UNDEFINED; // Valeur par défaut
   }
 
   private static mapRevenueType(value: string): RevenueType {
-      const v = value.toLowerCase();
-      if (v.includes('energie') || v.includes('energy')) return RevenueType.ENERGY;
-      if (v.includes('pioche') || v.includes('card')) return RevenueType.CARD;
-      if (v.includes('crédit') || v.includes('credit')) return RevenueType.CREDIT;
-      if (v.includes('donnée') || v.includes('data')) return RevenueType.DATA;
-      if (v.includes('média') || v.includes('media')) return RevenueType.MEDIA;
-      return RevenueType.UNDEFINED; // Valeur par défaut
+    const v = value.toLowerCase();
+    if (v.includes('energie') || v.includes('energy')) return RevenueType.ENERGY;
+    if (v.includes('pioche') || v.includes('card')) return RevenueType.CARD;
+    if (v.includes('crédit') || v.includes('credit')) return RevenueType.CREDIT;
+    if (v.includes('donnée') || v.includes('data')) return RevenueType.DATA;
+    if (v.includes('média') || v.includes('media')) return RevenueType.MEDIA;
+    return RevenueType.UNDEFINED; // Valeur par défaut
   }
 
   private static parseImmediateEffects(gain: string): CardEffect[] {
     if (!gain) return [];
     const effects: CardEffect[] = [];
-    
+
     // Séparer les effets multiples (ex: "2 Sondes + 1 Média")
     const parts = gain.split('+').map(p => p.trim());
 
     for (const part of parts) {
-        const lower = part.toLowerCase();
-        
-        // Regex simple pour extraire la quantité
-        const match = lower.match(/^(\d+)\s+(.+)$/);
-        const amount = match ? parseInt(match[1], 10) : 1;
+      const lower = part.toLowerCase();
 
-        if (lower.includes('média') || lower.includes('media')) {
-          effects.push({ type: 'GAIN', target: 'MEDIA', value: amount });
-        } else if (lower.includes('crédit') || lower.includes('credit')) {
-          effects.push({ type: 'GAIN', target: 'CREDIT', value: amount });
-        } else if (lower.includes('energie') || lower.includes('énergie')) {
-          effects.push({ type: 'GAIN', target: 'ENERGY', value: amount });
-        } else if (lower.includes('donnée') || lower.includes('data')) {
-          effects.push({ type: 'GAIN', target: 'DATA', value: amount });
-        } else if (lower.includes('signal') || lower.includes('signaux')) {
-          let scope = SectorType.ANY;
-          if (lower.includes('rangée') || lower.includes('rangee')) scope = SectorType.ROW;
-          else if (lower.includes('terre')) scope = SectorType.EARTH;
-          else if (lower.includes('mercure')) scope = SectorType.MERCURY;
-          else if (lower.includes('vénus')) scope = SectorType.VENUS;
-          else if (lower.includes('jupiter')) scope = SectorType.JUPITER;
-          else if (lower.includes('saturne')) scope = SectorType.SATURN;
-          else if (lower.includes('mars')) scope = SectorType.MARS;
-          else if (lower.includes('sonde')) scope = SectorType.PROBE;
-          else if (lower.includes('jaune')) scope = SectorType.YELLOW;
-          else if (lower.includes('bleu')) scope = SectorType.BLUE;
-          else if (lower.includes('rouge')) scope = SectorType.RED;
-          else if (lower.includes('noir')) scope = SectorType.BLACK;
-          else if (lower.includes('deck')) scope = SectorType.DECK;
-          else if (lower.includes('kepler')) scope = SectorType.KEPLER;
-          else if (lower.includes('virginis')) scope = SectorType.VIRGINIS;
-          else if (lower.includes('barnard')) scope = SectorType.BARNARD;
-          else if (lower.includes('proxima')) scope = SectorType.PROXIMA;
-          else if (lower.includes('procyon')) scope = SectorType.PROCYON;
-          else if (lower.includes('sirius')) scope = SectorType.SIRIUS;
-          else if (lower.includes('véga')) scope = SectorType.VEGA;
-          else if (lower.includes('pictoris')) scope = SectorType.PICTORIS;
-          effects.push({ type: 'ACTION', target: 'SIGNAL', value: { amount, scope } });
-        } else if (lower.includes('sonde')) {
-          effects.push({ type: 'GAIN', target: 'PROBE', value: amount });
-        } else if (lower.includes('pioche')) {
-          effects.push({ type: 'GAIN', target: 'CARD', value: amount });
-        } else if (lower.includes('carte')) {
-          effects.push({ type: 'ACTION', target: 'ANYCARD', value: amount });
-        } else if (lower.includes('déplacement') || lower.includes('deplacement')) {
-          effects.push({ type: 'ACTION', target: 'MOVEMENT', value: amount });
-        } else if (lower.includes('rotation')) {
-          effects.push({ type: 'ACTION', target: 'ROTATION', value: amount });
-        } else if (lower.includes('atterrissage')) {
-          effects.push({ type: 'ACTION', target: 'LAND', value: amount });
-        } else if (lower.includes('scan')) {
-          effects.push({ type: 'ACTION', target: 'SCAN', value: amount });
-        } else if (lower.includes('tech')) {
-          let scope = TechnologyCategory.ANY;
-          if (lower.includes('informatique') || lower.includes('bleu')) scope = TechnologyCategory.COMPUTING;
-          else if (lower.includes('exploration') || lower.includes('jaune')) scope = TechnologyCategory.EXPLORATION;
-          else if (lower.includes('observation') || lower.includes('rouge')) scope = TechnologyCategory.OBSERVATION;
-          effects.push({ type: 'ACTION', target: 'TECH', value: { amount, scope } });
-        } else if (lower.includes('trace')) {
-          let scope: any = 'ANY';
-          if (lower.includes('rouge') || lower.includes('red')) scope = LifeTraceType.RED;
-          else if (lower.includes('bleu') || lower.includes('blue')) scope = LifeTraceType.BLUE;
-          else if (lower.includes('jaune') || lower.includes('yellow')) scope = LifeTraceType.YELLOW;
-          effects.push({ type: 'ACTION', target: 'LIFETRACE', value: { amount, scope } });
-        }
+      // Regex simple pour extraire la quantité
+      const match = lower.match(/^(\d+)\s+(.+)$/);
+      const amount = match ? parseInt(match[1], 10) : 1;
+
+      if (lower.includes('média') || lower.includes('media')) {
+        effects.push({ type: 'GAIN', target: 'MEDIA', value: amount });
+      } else if (lower.includes('crédit') || lower.includes('credit')) {
+        effects.push({ type: 'GAIN', target: 'CREDIT', value: amount });
+      } else if (lower.includes('energie') || lower.includes('énergie')) {
+        effects.push({ type: 'GAIN', target: 'ENERGY', value: amount });
+      } else if (lower.includes('donnée') || lower.includes('data')) {
+        effects.push({ type: 'GAIN', target: 'DATA', value: amount });
+      } else if (lower.includes('signal') || lower.includes('signaux')) {
+        let scope = SectorType.ANY;
+        if (lower.includes('rangée') || lower.includes('rangee')) scope = SectorType.ROW;
+        else if (lower.includes('terre')) scope = SectorType.EARTH;
+        else if (lower.includes('mercure')) scope = SectorType.MERCURY;
+        else if (lower.includes('vénus')) scope = SectorType.VENUS;
+        else if (lower.includes('jupiter')) scope = SectorType.JUPITER;
+        else if (lower.includes('saturne')) scope = SectorType.SATURN;
+        else if (lower.includes('mars')) scope = SectorType.MARS;
+        else if (lower.includes('sonde')) scope = SectorType.PROBE;
+        else if (lower.includes('jaune')) scope = SectorType.YELLOW;
+        else if (lower.includes('bleu')) scope = SectorType.BLUE;
+        else if (lower.includes('rouge')) scope = SectorType.RED;
+        else if (lower.includes('noir')) scope = SectorType.BLACK;
+        else if (lower.includes('deck')) scope = SectorType.DECK;
+        else if (lower.includes('kepler')) scope = SectorType.KEPLER;
+        else if (lower.includes('virginis')) scope = SectorType.VIRGINIS;
+        else if (lower.includes('barnard')) scope = SectorType.BARNARD;
+        else if (lower.includes('proxima')) scope = SectorType.PROXIMA;
+        else if (lower.includes('procyon')) scope = SectorType.PROCYON;
+        else if (lower.includes('sirius')) scope = SectorType.SIRIUS;
+        else if (lower.includes('véga')) scope = SectorType.VEGA;
+        else if (lower.includes('pictoris')) scope = SectorType.PICTORIS;
+        effects.push({ type: 'ACTION', target: 'SIGNAL', value: { amount, scope } });
+      } else if (lower.includes('sonde')) {
+        effects.push({ type: 'GAIN', target: 'PROBE', value: amount });
+      } else if (lower.includes('pioche')) {
+        effects.push({ type: 'GAIN', target: 'CARD', value: amount });
+      } else if (lower.includes('carte')) {
+        effects.push({ type: 'ACTION', target: 'ANYCARD', value: amount });
+      } else if (lower.includes('déplacement') || lower.includes('deplacement')) {
+        effects.push({ type: 'ACTION', target: 'MOVEMENT', value: amount });
+      } else if (lower.includes('rotation')) {
+        effects.push({ type: 'ACTION', target: 'ROTATION', value: amount });
+      } else if (lower.includes('atterrissage')) {
+        effects.push({ type: 'ACTION', target: 'LAND', value: amount });
+      } else if (lower.includes('scan')) {
+        effects.push({ type: 'ACTION', target: 'SCAN', value: amount });
+      } else if (lower.includes('tech')) {
+        let scope = TechnologyCategory.ANY;
+        if (lower.includes('informatique') || lower.includes('bleu')) scope = TechnologyCategory.COMPUTING;
+        else if (lower.includes('exploration') || lower.includes('jaune')) scope = TechnologyCategory.EXPLORATION;
+        else if (lower.includes('observation') || lower.includes('rouge')) scope = TechnologyCategory.OBSERVATION;
+        effects.push({ type: 'ACTION', target: 'TECH', value: { amount, scope } });
+      } else if (lower.includes('trace')) {
+        let scope: any = 'ANY';
+        if (lower.includes('rouge') || lower.includes('red')) scope = LifeTraceType.RED;
+        else if (lower.includes('bleu') || lower.includes('blue')) scope = LifeTraceType.BLUE;
+        else if (lower.includes('jaune') || lower.includes('yellow')) scope = LifeTraceType.YELLOW;
+        effects.push({ type: 'ACTION', target: 'LIFETRACE', value: { amount, scope } });
+      }
     }
     return effects;
   }
@@ -191,61 +191,61 @@ export class DataLoader {
     const passives = constraint.split('+').map(p => p.trim());
 
     for (const passive of passives) {
-    
+
       // Gestion du format VISIT_PLANET:mars:4 (4 PV)
       if (passive.startsWith('VISIT_PLANET:')) {
-          const parts = passive.split(':');
-          if (parts.length === 3) {
-            effects.push({ type: 'VISIT_BONUS', target: parts[1], value: parseInt(parts[2], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'VISIT_BONUS', target: parts[1], value: parseInt(parts[2], 10) });
+        }
       }
 
       // Gestion du format VISIT_UNIQUE:1 (1 PV)
       else if (passive.startsWith('VISIT_UNIQUE:')) {
-          const parts = passive.split(':');
-          if (parts.length === 2) {
-            effects.push({ type: 'VISIT_UNIQUE', value: parseInt(parts[1], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 2) {
+          effects.push({ type: 'VISIT_UNIQUE', value: parseInt(parts[1], 10) });
+        }
       }
 
       // Gestion du format ASTEROID_EXIT_COST:1 (1 Déplacement)
       else if (passive.startsWith('ASTEROID_EXIT_COST:')) {
-          const parts = passive.split(':');
-          if (parts.length === 2) {
-            effects.push({ type: 'ASTEROID_EXIT_COST', value: parseInt(parts[1], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 2) {
+          effects.push({ type: 'ASTEROID_EXIT_COST', value: parseInt(parts[1], 10) });
+        }
       }
 
       // Gestion du format VISIT_ASTEROID:1 (1 PV)
       else if (passive.startsWith('VISIT_ASTEROID:')) {
-          const parts = passive.split(':');
-          if (parts.length === 2) {
-            effects.push({ type: 'VISIT_ASTEROID', value: parseInt(parts[1], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 2) {
+          effects.push({ type: 'VISIT_ASTEROID', value: parseInt(parts[1], 10) });
+        }
       }
 
       // Gestion du format VISIT_COMET:4 (4 PV)
       else if (passive.startsWith('VISIT_COMET:')) {
-          const parts = passive.split(':');
-          if (parts.length === 2) {
-            effects.push({ type: 'VISIT_COMET', value: parseInt(parts[1], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 2) {
+          effects.push({ type: 'VISIT_COMET', value: parseInt(parts[1], 10) });
+        }
       }
 
       // Gestion du format SAME_DISK_MOVE:3:1 (3 PV, 1 Media)
       else if (passive.startsWith('SAME_DISK_MOVE:')) {
-          const parts = passive.split(':');
-          if (parts.length === 3) {
-            effects.push({ type: 'SAME_DISK_MOVE', value: { pv: parseInt(parts[1], 10), media: parseInt(parts[2], 10) } });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'SAME_DISK_MOVE', value: { pv: parseInt(parts[1], 10), media: parseInt(parts[2], 10) } });
+        }
       }
 
       // Gestion du format GAIN_LIFETRACE_IF_ASTEROID:color:value
       else if (passive.startsWith('GAIN_LIFETRACE_IF_ASTEROID:')) {
-          const parts = passive.split(':');
-          if (parts.length === 3) {
-            effects.push({ type: 'GAIN_LIFETRACE_IF_ASTEROID', target: parts[1], value: parseInt(parts[2], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'GAIN_LIFETRACE_IF_ASTEROID', target: parts[1], value: parseInt(parts[2], 10) });
+        }
       }
 
       // Gestion du format REVEAL_AND_TRIGGER_FREE_ACTION
@@ -255,26 +255,26 @@ export class DataLoader {
 
       // Gestion du format SCORE_PER_MEDIA:1
       else if (passive.startsWith('SCORE_PER_MEDIA:')) {
-          const parts = passive.split(':');
-          if (parts.length === 2) {
-            effects.push({ type: 'SCORE_PER_MEDIA', value: parseInt(parts[1], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 2) {
+          effects.push({ type: 'SCORE_PER_MEDIA', value: parseInt(parts[1], 10) });
+        }
       }
 
       // Gestion du format SCORE_PER_TECH_TYPE:2
       else if (passive.startsWith('SCORE_PER_TECH_TYPE:')) {
-          const parts = passive.split(':');
-          if (parts.length === 2) {
-            effects.push({ type: 'SCORE_PER_TECH_TYPE', value: parseInt(parts[1], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 2) {
+          effects.push({ type: 'SCORE_PER_TECH_TYPE', value: parseInt(parts[1], 10) });
+        }
       }
 
       // Gestion du format MEDIA_IF_SHARED_TECH:2
       else if (passive.startsWith('MEDIA_IF_SHARED_TECH:')) {
-          const parts = passive.split(':');
-          if (parts.length === 2) {
-            effects.push({ type: 'MEDIA_IF_SHARED_TECH', value: parseInt(parts[1], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 2) {
+          effects.push({ type: 'MEDIA_IF_SHARED_TECH', value: parseInt(parts[1], 10) });
+        }
       }
 
       // Gestion du format REVEAL_MOVEMENT_CARDS_FOR_BONUS
@@ -339,20 +339,20 @@ export class DataLoader {
 
       // Gestion du format GAIN_SIGNAL_FROM_HAND:x
       else if (passive.startsWith('GAIN_SIGNAL_FROM_HAND:')) {
-          const parts = passive.split(':');
-          effects.push({ type: 'GAIN_SIGNAL_FROM_HAND', value: parseInt(parts[1], 10) });
+        const parts = passive.split(':');
+        effects.push({ type: 'GAIN_SIGNAL_FROM_HAND', value: parseInt(parts[1], 10) });
       }
 
       // Gestion du format BONUS_IF_COVERED:type
       else if (passive.startsWith('BONUS_IF_COVERED:')) {
-          const parts = passive.split(':');
-          effects.push({ type: 'BONUS_IF_COVERED', target: parts[1], value: 1 });
+        const parts = passive.split(':');
+        effects.push({ type: 'BONUS_IF_COVERED', target: parts[1], value: 1 });
       }
 
       // Gestion du format SCORE_IF_UNIQUE:x
       else if (passive.startsWith('SCORE_IF_UNIQUE:')) {
-          const parts = passive.split(':');
-          effects.push({ type: 'SCORE_IF_UNIQUE', value: parseInt(parts[1], 10) });
+        const parts = passive.split(':');
+        effects.push({ type: 'SCORE_IF_UNIQUE', value: parseInt(parts[1], 10) });
       }
 
       // Gestion du format KEEP_CARD_IF_ONLY
@@ -366,7 +366,7 @@ export class DataLoader {
       }
 
       // Gestion du format ANY_PROBE
-      else if (passive === 'ANY_PROBE'){
+      else if (passive === 'ANY_PROBE') {
         effects.push({ type: 'ANY_PROBE', value: true });
       }
 
@@ -377,10 +377,10 @@ export class DataLoader {
 
       // Gestion du format SCORE_PER_SECTOR:color:value
       else if (passive.startsWith('SCORE_PER_SECTOR:')) {
-          const parts = passive.split(':');
-          if (parts.length === 3) {
-            effects.push({ type: 'SCORE_PER_SECTOR', target: parts[1], value: parseInt(parts[2], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'SCORE_PER_SECTOR', target: parts[1], value: parseInt(parts[2], 10) });
+        }
       }
 
       // Gestion du format CHOICE_EXPLO_OR_OBSERV
@@ -395,34 +395,34 @@ export class DataLoader {
 
       // Gestion du format SCORE_PER_ORBITER_LANDER:planet:value
       else if (passive.startsWith('SCORE_PER_ORBITER_LANDER:')) {
-          const parts = passive.split(':');
-          if (parts.length === 3) {
-            effects.push({ type: 'SCORE_PER_ORBITER_LANDER', target: parts[1], value: parseInt(parts[2], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'SCORE_PER_ORBITER_LANDER', target: parts[1], value: parseInt(parts[2], 10) });
+        }
       }
 
       // Gestion du format SCORE_PER_COVERED_SECTOR:color:value
       else if (passive.startsWith('SCORE_PER_COVERED_SECTOR:')) {
-          const parts = passive.split(':');
-          if (parts.length === 3) {
-            effects.push({ type: 'SCORE_PER_COVERED_SECTOR', target: parts[1], value: parseInt(parts[2], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'SCORE_PER_COVERED_SECTOR', target: parts[1], value: parseInt(parts[2], 10) });
+        }
       }
 
       // Gestion du format SCORE_PER_LIFETRACE:color:value
       else if (passive.startsWith('SCORE_PER_LIFETRACE:')) {
-          const parts = passive.split(':');
-          if (parts.length === 3) {
-            effects.push({ type: 'SCORE_PER_LIFETRACE', target: parts[1], value: parseInt(parts[2], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'SCORE_PER_LIFETRACE', target: parts[1], value: parseInt(parts[2], 10) });
+        }
       }
 
       // Gestion du format SCORE_PER_SIGNAL:any:value
       else if (passive.startsWith('SCORE_PER_SIGNAL:')) {
-          const parts = passive.split(':');
-          if (parts.length === 3) {
-            effects.push({ type: 'SCORE_PER_SIGNAL', target: parts[1], value: parseInt(parts[2], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'SCORE_PER_SIGNAL', target: parts[1], value: parseInt(parts[2], 10) });
+        }
       }
 
       // Gestion du format SCORE_SOLVAY
@@ -432,22 +432,22 @@ export class DataLoader {
 
       // Gestion du format SCORE_PER_TECH_CATEGORY:category:value
       else if (passive.startsWith('SCORE_PER_TECH_CATEGORY:')) {
-          const parts = passive.split(':');
-          if (parts.length === 3) {
-            effects.push({ type: 'SCORE_PER_TECH_CATEGORY', target: parts[1], value: parseInt(parts[2], 10) });
-          }
+        const parts = passive.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: 'SCORE_PER_TECH_CATEGORY', target: parts[1], value: parseInt(parts[2], 10) });
+        }
       }
 
       // Gestion du format SCORE_IF_PROBE_ON_ASTEROID:value
       else if (passive.startsWith('SCORE_IF_PROBE_ON_ASTEROID:')) {
-          const parts = passive.split(':');
-          effects.push({ type: 'SCORE_IF_PROBE_ON_ASTEROID', value: parseInt(parts[1], 10) });
+        const parts = passive.split(':');
+        effects.push({ type: 'SCORE_IF_PROBE_ON_ASTEROID', value: parseInt(parts[1], 10) });
       }
 
       // Gestion du format SCORE_PER_TRACE:any:value (pour carte 75)
       else if (passive.startsWith('SCORE_PER_TRACE:')) {
-          const parts = passive.split(':');
-          effects.push({ type: 'SCORE_PER_TRACE', target: parts[1], value: parseInt(parts[2], 10) });
+        const parts = passive.split(':');
+        effects.push({ type: 'SCORE_PER_TRACE', target: parts[1], value: parseInt(parts[2], 10) });
       }
     }
     return effects;
@@ -584,7 +584,7 @@ export class DataLoader {
           effects.push({ id: permanent, type: 'GAIN_ON_TOKEN_AND_LAND', target: parts[1], value: permanent });
         }
       }
-      
+
       // Gestion du format GAIN_IF_... (Missions conditionnelles)
       else if (permanent.startsWith('GAIN_IF_')) {
         const parts = permanent.split(':').map(p => p.trim());

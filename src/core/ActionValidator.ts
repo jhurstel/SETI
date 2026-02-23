@@ -1,19 +1,5 @@
-/**
- * Validateur principal pour les actions
- */
-
-import { ActionType, Game, ValidationResult } from './types';
+import { ActionType, Game, MAIN_ACTION_TYPES, ValidationResult } from './types';
 import { BaseAction } from '../actions/Action';
-
-const MAIN_ACTION_TYPES: ActionType[] = [
-  ActionType.LAUNCH_PROBE,
-  ActionType.ORBIT,
-  ActionType.LAND,
-  ActionType.SCAN_SECTOR,
-  ActionType.ANALYZE_DATA,
-  ActionType.PLAY_CARD,
-  ActionType.RESEARCH_TECH
-];
 
 export class ActionValidator {
   /**
@@ -21,8 +7,7 @@ export class ActionValidator {
    */
   static validateAction(game: Game, action: BaseAction): ValidationResult {
     // Vérifier que c'est le tour du joueur
-    if (game.currentPlayerIndex < 0 || 
-        game.currentPlayerIndex >= game.players.length) {
+    if (game.currentPlayerIndex < 0 || game.currentPlayerIndex >= game.players.length) {
       return {
         valid: false,
         errors: [{

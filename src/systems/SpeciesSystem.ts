@@ -1,8 +1,6 @@
-import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber } from '../core/types';
+import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode } from '../core/types';
 import { ResourceSystem } from './ResourceSystem';
 import { getObjectPosition } from '../core/SolarSystemPosition';
-
-export type SpeciesDiscoveryCode = 'NO_MARKERS' | 'NO_SPACE' | 'PLACED' | 'DISCOVERED';
 
 export class SpeciesSystem {
     /**
@@ -27,7 +25,7 @@ export class SpeciesSystem {
 
         const boards = updatedGame.board.alienBoards;
         const colors = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE];
-        
+
         for (let i = 0; i < boards.length; i++) {
             const board = boards[i];
             for (const color of colors) {
@@ -48,7 +46,7 @@ export class SpeciesSystem {
 
                     if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
                         board.isDiscovered = true;
-                        
+
                         const distResult = this.distributeDiscoveryCards(updatedGame, i);
                         updatedGame = distResult.updatedGame;
 
@@ -79,7 +77,7 @@ export class SpeciesSystem {
                             updatedGame.board.solarSystem.extraCelestialObjects.push({ id: 'oumuamua', type: 'planet', name: 'Oumuamua', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 });
                             distResult.logs.push("L'astéroïde Oumuamua apparaît dans le système solaire !");
                         }
-                        
+
                         if (board.speciesId === AlienBoardType.ANOMALIES) {
                             const anomalyLogs = this.spawnAnomalies(updatedGame);
                             distResult.logs.push(...anomalyLogs);
@@ -92,9 +90,9 @@ export class SpeciesSystem {
                             distResult.logs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
                         }
 
-                        return { 
-                            updatedGame, 
-                            code: 'DISCOVERED', 
+                        return {
+                            updatedGame,
+                            code: 'DISCOVERED',
                             data: { color, speciesId: board.speciesId, boardIndex: i },
                             logs: distResult.logs
                         };
@@ -111,8 +109,8 @@ export class SpeciesSystem {
     /**
     * Place une trace de vie sur un plateau Alien et gère la découverte d'espèce
     */
-    static placeLifeTrace(game: Game, boardIndex: number, color: LifeTraceType, playerId: string, sequenceId: string = '', slotType: 'triangle' | 'species', slotIndex?: number): { 
-        updatedGame: Game; 
+    static placeLifeTrace(game: Game, boardIndex: number, color: LifeTraceType, playerId: string, sequenceId: string = '', slotType: 'triangle' | 'species', slotIndex?: number): {
+        updatedGame: Game;
         isDiscovered: boolean;
         speciesId?: string;
         historyEntries: HistoryEntry[];
@@ -120,9 +118,9 @@ export class SpeciesSystem {
     } {
         let updatedGame = structuredClone(game);
         const board = updatedGame.board.alienBoards[boardIndex];
-        
+
         const player = updatedGame.players.find(p => p.id === playerId);
-        
+
         if (!board || !player) {
             // Should not happen if called correctly
             return { updatedGame: game, isDiscovered: false, historyEntries: [], newPendingInteractions: [] };
@@ -160,7 +158,7 @@ export class SpeciesSystem {
             if (isOccupied) {
                 return { updatedGame: game, isDiscovered: false, historyEntries: [{ message: "Emplacement déjà occupé.", playerId, sequenceId }], newPendingInteractions: [] };
             }
-            
+
             // Déterminer le bonus en fonction de l'index sur la piste
             const { fixedSlots, infiniteSlots } = species;
             const trackSlots = (color === LifeTraceType.RED) ? fixedSlots.redlifetrace : (color === LifeTraceType.YELLOW) ? fixedSlots.yellowlifetrace : fixedSlots.bluelifetrace;
@@ -178,11 +176,11 @@ export class SpeciesSystem {
         if (typeof bonusToApply.token === 'number' && bonusToApply.token < 0) {
             const cost = Math.abs(bonusToApply.token);
             if ((player.tokens || 0) < cost) {
-                return { 
-                    updatedGame: game, 
-                    isDiscovered: false, 
+                return {
+                    updatedGame: game,
+                    isDiscovered: false,
                     historyEntries: [{ message: `Pas assez de tokens pour placer la trace.`, playerId, sequenceId }],
-                    newPendingInteractions: [] 
+                    newPendingInteractions: []
                 };
             }
             player.tokens = (player.tokens || 0) - cost;
@@ -190,9 +188,9 @@ export class SpeciesSystem {
         }
 
         // Add the trace to the board and the player
-        board.lifeTraces.push({ 
-            id: `trace-${Date.now()}`, 
-            type: color, 
+        board.lifeTraces.push({
+            id: `trace-${Date.now()}`,
+            type: color,
             playerId: playerId,
             location: slotType,
             slotIndex: slotType === 'species' ? (slotIndex !== undefined ? slotIndex : 0) : undefined
@@ -275,8 +273,8 @@ export class SpeciesSystem {
 
         res.historyEntries.unshift({ message: mainLog, playerId, sequenceId });
 
-        return { 
-            updatedGame, 
+        return {
+            updatedGame,
             isDiscovered: wasDiscoveredThisTurn,
             speciesId: board.speciesId,
             historyEntries: res.historyEntries,
@@ -358,7 +356,7 @@ export class SpeciesSystem {
                 }
             }
         }
-        
+
         return { updatedGame, logs };
     }
 
@@ -367,15 +365,10 @@ export class SpeciesSystem {
         const species = game.species.find(s => s.name === AlienBoardType.MASCAMITES);
         if (species && species.specimen) {
             const tokens = [...species.specimen];
-            // Shuffle tokens
-            for (let i = tokens.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [tokens[i], tokens[j]] = [tokens[j], tokens[i]];
-            }
-            
-            const saturnTokens = tokens.splice(0, 3);
-            const jupiterTokens = tokens.splice(0, 3);
-            const boardToken = tokens[0];
+            const shuffledTokens = ResourceSystem.shuffle(tokens);
+            const saturnTokens = shuffledTokens.splice(0, 3);
+            const jupiterTokens = shuffledTokens.splice(0, 3);
+            const boardToken = shuffledTokens[0];
 
             const saturn = game.board.planets.find(p => p.id === 'saturn');
             if (saturn) saturn.mascamiteTokens = saturnTokens;
@@ -399,15 +392,10 @@ export class SpeciesSystem {
         const tokens = species?.anomalie;
 
         if (tokens) {
-            // Shuffle tokens
-            for (let i = tokens.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [tokens[i], tokens[j]] = [tokens[j], tokens[i]];
-            }
-
+            const shuffledTokens = ResourceSystem.shuffle(tokens);
             const solarSystem = game.board.solarSystem;
             const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0, solarSystem.extraCelestialObjects);
-            
+
             if (earthPos) {
                 const earthSector = earthPos.absoluteSector;
                 const sectors = [
@@ -416,11 +404,11 @@ export class SpeciesSystem {
                     ((earthSector - 1 + 3) % 8) + 1
                 ];
 
-                tokens.forEach((token, index) => {
+                shuffledTokens.forEach((token, index) => {
                     const side = Math.random() < 0.5 ? 'head' : 'tail';
                     const bonus = side === 'head' ? token.head : token.tail;
                     const sector = sectors[index] as SectorNumber;
-                    
+
                     game.board.solarSystem.extraCelestialObjects!.push({
                         id: `anomaly-${token.color}-${Date.now()}-${index}`,
                         type: 'anomaly',
@@ -440,7 +428,7 @@ export class SpeciesSystem {
         let updatedGame = structuredClone(game);
         const player = updatedGame.players.find(p => p.id === playerId);
         const species = updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS);
-        
+
         if (!player || !species || !species.message || !species.message[tokenIndex] || !species.message[tokenIndex].isAvailable) {
             return { updatedGame, logs: [] };
         }

@@ -1,20 +1,4 @@
-/**
- * Classe principale représentant l'état du jeu SETI
- * 
- * Gère :
- * - L'état du jeu
- * - L'exécution des actions
- * - La validation des actions
- * - Les transitions de phase
- */
-
-import {
-  ActionType,
-  Game,
-  GamePhase,
-  Player,
-  GameState,
-} from './types';
+import { ActionType, Game, GamePhase, Player, GameState, MAIN_ACTION_TYPES } from './types';
 import { BaseAction } from '../actions/Action';
 import { ActionValidator } from './ActionValidator';
 import { TurnManager } from './TurnManager';
@@ -52,8 +36,8 @@ export class GameEngine {
    * Vérifie si la partie est terminée
    */
   isGameOver(): boolean {
-    return this.state.currentRound > this.state.maxRounds || 
-           this.state.phase === GamePhase.FINAL_SCORING;
+    return this.state.currentRound > this.state.maxRounds ||
+      this.state.phase === GamePhase.FINAL_SCORING;
   }
 
   /**
@@ -87,18 +71,7 @@ export class GameEngine {
       // Exécuter l'action
       this.state = action.execute(this.state);
 
-      // Marquer l'action principale comme effectuée
-      const MAIN_ACTION_TYPES: ActionType[] = [
-        ActionType.LAUNCH_PROBE,
-        ActionType.ORBIT,
-        ActionType.LAND,
-        ActionType.SCAN_SECTOR,
-        ActionType.ANALYZE_DATA,
-        ActionType.PLAY_CARD,
-        ActionType.RESEARCH_TECH,
-      ];
       const isMainAction = MAIN_ACTION_TYPES.includes(action.type as ActionType);
-
       if (isMainAction) {
         // Il est sûr d'utiliser currentPlayerIndex car il est validé auparavant
         this.state.players[this.state.currentPlayerIndex].hasPerformedMainAction = true;
@@ -199,7 +172,7 @@ export class GameEngine {
     this.state.firstPlayerIndex = 0;
     this.state.phase = GamePhase.SETUP;
     this.state.history = [];
-    
+
     // Réinitialiser les joueurs
     this.state.players.forEach(player => {
       player.hasPassed = false;

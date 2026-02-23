@@ -1,12 +1,9 @@
-/**
- * Factory pour créer et initialiser une nouvelle partie de SETI
- */
-
-import { Game, GamePhase, Player, Decks, Species, DataComputer, GAME_CONSTANTS, Technology, SectorType, GameLogEntry, LifeTraceType, NEUTRAL_MILESTONES, AlienBoardType, Bonus, SignalType, Planet } from './types';
+import { Game, GamePhase, Player, Decks, Species, DataComputer, GAME_CONSTANTS, Technology, SectorType, GameLogEntry, LifeTraceType, NEUTRAL_MILESTONES, AlienBoardType, SignalType, Planet } from './types';
 import { BoardManager } from './Board';
 import { CardSystem } from '../systems/CardSystem';
 import { Logger } from './Logger';
 import { DataLoader } from './DataLoader';
+import { ResourceSystem } from '../systems/ResourceSystem';
 
 export class GameFactory {
   /**
@@ -20,7 +17,7 @@ export class GameFactory {
     }
 
     // Créer les joueurs
-    const players: Player[] = playerNames.map((name, index) => 
+    const players: Player[] = playerNames.map((name, index) =>
       this.createPlayer(`player_${index}`, name, index + 1, index)
     );
 
@@ -41,29 +38,29 @@ export class GameFactory {
     // Initialiser les logs
     const gameLog: GameLogEntry[] = [];
     const addLog = (message: string, playerId?: string) => {
-        gameLog.push({
-            id: `log_init_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-            message,
-            timestamp: Date.now(),
-            playerId
-        });
+      gameLog.push({
+        id: `log_init_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        message,
+        timestamp: Date.now(),
+        playerId
+      });
     };
 
     players.map((p, index) => {
       const suffix = index === 0 ? 'er' : 'ème';
       addLog(`${p.name} a rejoint la partie (${index + 1}${suffix} joueur) avec ${p.score} PV`, p.id);
     })
-    
+
     const neutralCount = playerNames.length === 2 ? 2 : (playerNames.length === 3 ? 1 : 0);
     const neutralMilestonesAvailable: Record<number, number> = {};
     NEUTRAL_MILESTONES.forEach(m => {
-        neutralMilestonesAvailable[m] = neutralCount;
+      neutralMilestonesAvailable[m] = neutralCount;
     });
 
     let firstPlayerIndex = 0;
     if (!humanIsFirstPlayer && players.length > 1) {
-        // Si l'humain (index 0) ne commence pas, on choisit un robot au hasard (index 1 à N-1)
-        firstPlayerIndex = Math.floor(Math.random() * (players.length - 1)) + 1;
+      // Si l'humain (index 0) ne commence pas, on choisit un robot au hasard (index 1 à N-1)
+      firstPlayerIndex = Math.floor(Math.random() * (players.length - 1)) + 1;
     }
 
     const game: Game = {
@@ -133,10 +130,10 @@ export class GameFactory {
       slots: {
         '1a': { id: '1a', filled: false, type: 'top', col: 1, isOccupied: false },
         '1b': { id: '1b', filled: false, type: 'bottom', parentId: '1a', col: 1, isOccupied: false },
-        '2':  { id: '2', filled: false, type: 'top', bonus: 'media', col: 2, isOccupied: false },
+        '2': { id: '2', filled: false, type: 'top', bonus: 'media', col: 2, isOccupied: false },
         '3a': { id: '3a', filled: false, type: 'top', col: 3, isOccupied: false },
         '3b': { id: '3b', filled: false, type: 'bottom', parentId: '3a', col: 3, isOccupied: false },
-        '4':  { id: '4', filled: false, type: 'top', bonus: 'reservation', col: 4, isOccupied: false },
+        '4': { id: '4', filled: false, type: 'top', bonus: 'reservation', col: 4, isOccupied: false },
         '5a': { id: '5a', filled: false, type: 'top', col: 5, isOccupied: false },
         '5b': { id: '5b', filled: false, type: 'bottom', parentId: '5a', col: 5, isOccupied: false },
         '6a': { id: '6a', filled: false, type: 'top', col: 6, isOccupied: false },
@@ -156,7 +153,7 @@ export class GameFactory {
     let updatedGame = { ...game };
 
     // Mélanger le deck de cartes
-    updatedGame.decks.cards = this.shuffleCards(updatedGame.decks.cards);
+    updatedGame.decks.cards = ResourceSystem.shuffle(updatedGame.decks.cards);
 
     // Créer les paquets de fin de manche (Manches 1 à 4) avec des vraies cartes
     const cardsPerDeck = updatedGame.players.length + 1;
@@ -173,15 +170,15 @@ export class GameFactory {
 
     // Distribuer les cartes initiales
     for (let i = 0; i < updatedGame.players.length; i++) {
-        const playerId = updatedGame.players[i].id;
-        updatedGame = CardSystem.drawCards(updatedGame, playerId, GAME_CONSTANTS.INITIAL_HAND_SIZE);
+      const playerId = updatedGame.players[i].id;
+      updatedGame = CardSystem.drawCards(updatedGame, playerId, GAME_CONSTANTS.INITIAL_HAND_SIZE);
     }
 
     // Mélanger les cartes des espèces
     updatedGame.board.alienBoards.forEach(alienBoard => {
       const species = updatedGame.species.find(s => s.name === alienBoard.speciesId);
       if (species) {
-        species.cards = this.shuffleCards(species.cards);
+        species.cards = ResourceSystem.shuffle(species.cards);
       }
     });
 
@@ -194,51 +191,30 @@ export class GameFactory {
   }
 
   /**
-   * Mélange un tableau de manière aléatoire (Fisher-Yates shuffle)
-   */
-  private static shuffleCards<T>(array: T[]): T[] {
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
-  }
-
-  /**
    * Mélange les piles de technologies et applique le bonus à la première carte
    */
   private static shuffleTechnologies(game: Game): void {
-    const shuffle = <T>(array: T[]): T[] => {
-      const newArray = [...array];
-      for (let i = newArray.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-      }
-      return newArray;
-    };
-
     if (game.board.technologyBoard.categorySlots) {
       game.board.technologyBoard.categorySlots.forEach(slot => {
         const stacks = new Map<string, Technology[]>();
-        
+
         // Regrouper les technologies par pile (basé sur l'ID racine, ex: 'exploration-1')
         slot.technologies.forEach(tech => {
           const lastDashIndex = tech.id.lastIndexOf('-');
           const baseId = tech.id.substring(0, lastDashIndex);
-          
+
           if (!stacks.has(baseId)) {
             stacks.set(baseId, []);
           }
           stacks.get(baseId)!.push(tech);
         });
-        
+
         const shuffledTechnologies: Technology[] = [];
-        
+
         // Mélanger chaque pile et appliquer le bonus
         stacks.forEach((stack) => {
-          const shuffledStack = shuffle(stack);
-          
+          const shuffledStack = ResourceSystem.shuffle(stack);
+
           // La première carte (visible) gagne +2 PV
           if (shuffledStack.length > 0) {
             shuffledStack[0].bonus = {
@@ -246,41 +222,16 @@ export class GameFactory {
               pv: (shuffledStack[0].bonus.pv || 0) + 2
             };
           }
-          
+
           shuffledTechnologies.push(...shuffledStack);
         });
-        
+
         slot.technologies = shuffledTechnologies;
       });
-      
+
       // Mettre à jour la liste globale des technologies disponibles
       game.board.technologyBoard.available = game.board.technologyBoard.categorySlots.flatMap(s => s.technologies);
     }
-  }
-
-  /**
-   * Helper pour fusionner les bonus
-   */
-  private static mergeBonuses(...bonuses: (Bonus | undefined)[]): Bonus {
-    const result: Bonus = {};
-    bonuses.forEach(b => {
-      if (!b) return;
-      (Object.keys(b) as Array<keyof Bonus>).forEach(key => {
-        const k = key as keyof Bonus;
-        const val = b[k];
-        if (typeof val === 'number') {
-          (result as any)[k] = ((result[k] as number) || 0) + val;
-        } else if (val !== undefined) {
-          if (Array.isArray(val)) {
-             const existing = (result[k] as any[]) || [];
-             (result as any)[k] = [...existing, ...val];
-          } else {
-            (result as any)[k] = val;
-          }
-        }
-      });
-    });
-    return result;
   }
 
   /**
@@ -297,7 +248,7 @@ export class GameFactory {
         fixedSlots: {
           redlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 4 }],
           yellowlifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 4 }],
-          bluelifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, {}, {}, {}, {}, {}, {}, {} ]
+          bluelifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, {}, {}, {}, {}, {}, {}, {}]
         },
         infiniteSlots: {
           redlifetrace: {},
@@ -315,7 +266,7 @@ export class GameFactory {
           { bonus: { card: 2 } },
           { bonus: { pv: 3, anycard: 1 } },
           { bonus: { pv: 7 } },
-        ] 
+        ]
       },
       {
         id: `species-${AlienBoardType.ANOMALIES}-${Date.now()}`,
@@ -329,9 +280,9 @@ export class GameFactory {
           bluelifetrace: [{ pv: 4, speciesCard: 1 }, { pv: 2, speciesCard: 1 }, { pv: 2, media: 1 }, { pv: 3 }]
         },
         infiniteSlots: {
-          redlifetrace: { pv: 2},
-          yellowlifetrace: { pv: 2},
-          bluelifetrace: { pv: 2}
+          redlifetrace: { pv: 2 },
+          yellowlifetrace: { pv: 2 },
+          bluelifetrace: { pv: 2 }
         },
         cards: await DataLoader.loadCards('cards/anomalies.csv'),
         cardRow: [],
@@ -353,9 +304,9 @@ export class GameFactory {
           bluelifetrace: [{ pv: 25, token: -4 }, { pv: 3, speciesCard: 1, token: 1 }, { pv: 3, speciesCard: 1 }, { pv: 2, token: 1 }]
         },
         infiniteSlots: {
-          redlifetrace: { pv: 6, token: -1},
-          yellowlifetrace: { pv: 6, token: -1},
-          bluelifetrace: { pv: 6, token: -1}
+          redlifetrace: { pv: 6, token: -1 },
+          yellowlifetrace: { pv: 6, token: -1 },
+          bluelifetrace: { pv: 6, token: -1 }
         },
         cards: await DataLoader.loadCards('cards/oumuamua.csv'),
         cardRow: [],
@@ -376,33 +327,33 @@ export class GameFactory {
           nextBonus: {}
         },
         planet: (() => {
-            const p: Planet = {
-                id: 'oumuamua',
-                name: 'Oumuamua',
-                orbiters: [],
-                landers: [],
-                orbitFirstBonus: { speciesCard: 1 },
-                orbitNextBonus: { pv: 10, token: 1, signals: [{ amount: 1, scope: SectorType.OUMUAMUA }] },
-                landFirstBonus: { data: 3 },
-                landSecondBonus: { data: 2 },
-                landThirdBonus: { data: 1 },
-                landNextBonus: { pv: 9, token: 2 },
-                orbitSlots: [],
-                landSlots: []
-            };
-            p.orbitSlots = new Array(5).fill(null).map((_, i) => {
-                if (i === 0) return this.mergeBonuses(p.orbitFirstBonus, p.orbitNextBonus);
-                return p.orbitNextBonus || {};
-            });
-            p.landSlots = new Array(4).fill(null).map((_, i) => {
-                if (i === 0) return this.mergeBonuses(p.landFirstBonus, p.landNextBonus);
-                if (i === 1) return this.mergeBonuses(p.landSecondBonus, p.landNextBonus);
-                if (i === 2) return this.mergeBonuses(p.landThirdBonus, p.landNextBonus);
-                return p.landNextBonus || {};
-            });
-            return p;
+          const p: Planet = {
+            id: 'oumuamua',
+            name: 'Oumuamua',
+            orbiters: [],
+            landers: [],
+            orbitFirstBonus: { speciesCard: 1 },
+            orbitNextBonus: { pv: 10, token: 1, signals: [{ amount: 1, scope: SectorType.OUMUAMUA }] },
+            landFirstBonus: { data: 3 },
+            landSecondBonus: { data: 2 },
+            landThirdBonus: { data: 1 },
+            landNextBonus: { pv: 9, token: 2 },
+            orbitSlots: [],
+            landSlots: []
+          };
+          p.orbitSlots = new Array(5).fill(null).map((_, i) => {
+            if (i === 0) return ResourceSystem.mergeBonuses(p.orbitFirstBonus, p.orbitNextBonus);
+            return p.orbitNextBonus || {};
+          });
+          p.landSlots = new Array(4).fill(null).map((_, i) => {
+            if (i === 0) return ResourceSystem.mergeBonuses(p.landFirstBonus, p.landNextBonus);
+            if (i === 1) return ResourceSystem.mergeBonuses(p.landSecondBonus, p.landNextBonus);
+            if (i === 2) return ResourceSystem.mergeBonuses(p.landThirdBonus, p.landNextBonus);
+            return p.landNextBonus || {};
+          });
+          return p;
         })(),
-  
+
       },
       {
         id: `species-${AlienBoardType.CENTAURIENS}-${Date.now()}`,
@@ -416,9 +367,9 @@ export class GameFactory {
           bluelifetrace: [{ pv: 5, speciesCard: 1 }, { pv: 3, speciesCard: 1 }, { pv: 5 }, { pv: 15, data: -3 }]
         },
         infiniteSlots: {
-          redlifetrace: { pv: 6, data: -1},
-          yellowlifetrace: { pv: 6, data: -1},
-          bluelifetrace: { pv: 6, data: -1}
+          redlifetrace: { pv: 6, data: -1 },
+          yellowlifetrace: { pv: 6, data: -1 },
+          bluelifetrace: { pv: 6, data: -1 }
         },
         cards: await DataLoader.loadCards('cards/centauriens.csv'),
         cardRow: [],
@@ -440,7 +391,7 @@ export class GameFactory {
             bonus: { pv: 8 },
             isAvailable: true,
           }
-        ]   
+        ]
       },
       {
         id: `species-${AlienBoardType.EXERTIENS}-${Date.now()}`,

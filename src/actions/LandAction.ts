@@ -19,7 +19,7 @@ export class LandAction extends BaseAction {
     execute(game: Game): Game {
         // L'exécution réelle est gérée dans l'UI pour les bonus.
         const result = ProbeSystem.landProbe(game, this.playerId, this.probeId, this.planetId);
-        
+
         const species = game.species.find(s => s.planet?.id === this.planetId);
         const speciesId = species?.id;
 

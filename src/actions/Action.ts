@@ -13,7 +13,7 @@ export abstract class BaseAction implements IAction {
     public historyEntries: HistoryEntry[] = [];
     public newPendingInteractions: InteractionState[] = [];
 
-    constructor(public readonly playerId: string, public readonly type: ActionType) {}
+    constructor(public readonly playerId: string, public readonly type: ActionType) { }
 
     abstract validate(game: Game): ValidationResult;
     abstract execute(game: Game): Game;
