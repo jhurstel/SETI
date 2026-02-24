@@ -28,7 +28,7 @@ export class TechnologySystem {
     return { canResearch: true };
   }
 
-  public static canAcquireTech(game: Game, playerId: string, category?: TechnologyCategory): boolean {
+  public static canAcquireTech(game: Game, playerId: string, categories?: TechnologyCategory[]): boolean {
     const player = game.players.find(p => p.id === playerId);
     if (!player) return false;
 
@@ -36,7 +36,7 @@ export class TechnologySystem {
     if (!techBoard || !techBoard.categorySlots) return false;
 
     for (const slot of techBoard.categorySlots) {
-      if (category && slot.category !== category) continue;
+      if (categories && !categories.includes(slot.category)) continue;
 
       // Group by baseId
       const stacks = new Map<string, Technology[]>();
@@ -64,8 +64,7 @@ export class TechnologySystem {
 
   static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[], historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
     let updatedGame = structuredClone(game);
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
-    const player = updatedGame.players.find(p => p.id === playerId);
+    let player = updatedGame.players.find(p => p.id === playerId);
     let historyEntries: HistoryEntry[] = [];
     let newPendingInteractions: InteractionState[] = [];
     if (!player) return { updatedGame: game, gains: [], historyEntries: [], newPendingInteractions: [] };
@@ -118,14 +117,15 @@ export class TechnologySystem {
       }
       if (tech.bonus.card) {
         updatedGame = CardSystem.drawCards(updatedGame, player.id, tech.bonus.card);
+        player = updatedGame.players.find(p => p.id === playerId)!;
         gains.push(`${tech.bonus.card} Carte`);
       }
       if (tech.bonus.probe) {
         const result = ProbeSystem.launchProbe(updatedGame, player.id, true, false);
         if (result.probeId) {
-          updatedGame.board = result.updatedGame.board;
-          updatedGame.players = result.updatedGame.players;
-          historyEntries = result.historyEntries;
+          updatedGame = result.updatedGame;
+          player = updatedGame.players.find(p => p.id === playerId)!;
+          historyEntries.push(...result.historyEntries);
           gains.push(`1 Sonde`);
         } else {
           gains.push(`1 Sonde (Perdue: Limite atteinte)`);
@@ -153,12 +153,8 @@ export class TechnologySystem {
 
         if (buff.source) processedSources.add(buff.source);
 
-        // Re-récupérer le joueur car updatedGame a pu changer (ex: pioche de carte)
-        const currentPlayer = updatedGame.players.find(p => p.id === playerId);
-        if (currentPlayer) {
-          // Marquer comme remplie (en attente de clic)
-          CardSystem.markMissionRequirementFulfillable(currentPlayer, buff);
-        }
+        // Marquer comme remplie (en attente de clic)
+        CardSystem.markMissionRequirementFulfillable(player, buff);
       }
     });
 
@@ -171,13 +167,12 @@ export class TechnologySystem {
         if (tech.id.startsWith('exploration')) categoryPrefix = 'exploration';
         else if (tech.id.startsWith('observation')) categoryPrefix = 'observation';
         else if (tech.id.startsWith('computing')) categoryPrefix = 'computing';
-
         if (categoryPrefix) {
           // Compter les technologies de ce type possédées par le joueur (incluant la nouvelle)
           const count = player.technologies.filter(t => t.id.startsWith(categoryPrefix)).length;
           const points = count * buff.value;
           if (points > 0) {
-            player.score += points;
+            player.score += Number(points);
             gains.push(`${points} PV (${buff.source})`);
           }
           buffsToRemove.push(index);
@@ -199,10 +194,10 @@ export class TechnologySystem {
         }
 
         if (isShared) {
-          player.mediaCoverage = Math.min(player.mediaCoverage + buff.value, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+          player.mediaCoverage = Math.min(player.mediaCoverage + (buff.value || 0), GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
           gains.push(`${buff.value} Média (${buff.source})`);
+          buffsToRemove.push(index);
         }
-        buffsToRemove.push(index);
       }
     });
 

@@ -786,8 +786,8 @@ export const BoardUI: React.FC = () => {
                         });
                     }
 
-                    if (interaction.category) {
-                        validTechs = validTechs.filter(t => t.type === interaction.category);
+                    if (interaction.categories) {
+                        validTechs = validTechs.filter(t => interaction.categories!.includes(t.type));
                     }
                     
                     if (validTechs.length > 0) {
@@ -1469,7 +1469,7 @@ export const BoardUI: React.FC = () => {
     // Mettre à jour l'état d'interaction
     const newCount = interactionState.count - interactionState.selectedCards.length;
     if (newCount > 0) {
-      setInteractionState({ type: 'RESERVING_CARD', count: newCount, sequenceId: interactionState.sequenceId, selectedCards: [] });
+      setInteractionState({ type: 'RESERVING_CARD', count: newCount, selectedCards: [], sequenceId: interactionState.sequenceId });
     } else {
       setInteractionState({ type: 'IDLE' });
       
@@ -2361,8 +2361,8 @@ export const BoardUI: React.FC = () => {
 
         if (bonus.technologies) {
           const isTechLost = bonus.technologies.some(t => {
-            const cat = t.scope === TechnologyCategory.ANY ? undefined : t.scope;
-            return !TechnologySystem.canAcquireTech(game, currentPlayer.id, cat);
+            const cats = Array.isArray(t.scope) ? t.scope : (t.scope === TechnologyCategory.ANY ? undefined : [t.scope]);
+            return !TechnologySystem.canAcquireTech(game, currentPlayer.id, cats);
           });
           if (isTechLost) {
             setConfirmModalState({
@@ -2521,8 +2521,8 @@ export const BoardUI: React.FC = () => {
 
         if (bonus.technologies) {
           const isTechLost = bonus.technologies.some(t => {
-            const cat = t.scope === TechnologyCategory.ANY ? undefined : t.scope;
-            return !TechnologySystem.canAcquireTech(game, currentPlayer.id, cat);
+            const cats = Array.isArray(t.scope) ? t.scope : (t.scope === TechnologyCategory.ANY ? undefined : [t.scope]);
+            return !TechnologySystem.canAcquireTech(game, currentPlayer.id, cats);
           });
           if (isTechLost) {
             setConfirmModalState({
@@ -2585,7 +2585,7 @@ export const BoardUI: React.FC = () => {
             // Calculer les mouvements restants après ce pas (si gratuit)
             const remaining = freeMovements - usedFree;
             if (!currentSequenceId) currentSequenceId = `move-${Date.now()}`;
-            setInteractionState({ type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId: currentSequenceId, remainingMoves: remaining });
+            setInteractionState({ type: 'CHOOSING_MEDIA_OR_MOVE', remainingMoves: remaining, sequenceId: currentSequenceId });
             interruptedForChoice = true;
             if (i < path.length - 1) {
               setToast({ message: "Déplacement interrompu. Choisissez un bonus.", visible: true });
@@ -2726,13 +2726,14 @@ export const BoardUI: React.FC = () => {
     if (card && card.immediateEffects) {
       const techEffect = card.immediateEffects.find(e => e.type === 'GAIN' && (e.target === 'TECHNOLOGY' || e.target === 'ANY_TECHNOLOGY'));
       if (techEffect) {
-        let catToCheck: TechnologyCategory | undefined = undefined;
+        let catsToCheck: TechnologyCategory[] | undefined = undefined;
         if (typeof techEffect.value === 'string') {
-          catToCheck = techEffect.value as TechnologyCategory;
+          catsToCheck = [techEffect.value as TechnologyCategory];
         } else if (techEffect.value) {
-          catToCheck = techEffect.value.color || techEffect.value.category;
+          const cat = techEffect.value.color || techEffect.value.category;
+          if (cat) catsToCheck = [cat];
         }
-        if (!TechnologySystem.canAcquireTech(currentGame, currentPlayer.id, catToCheck)) {
+        if (!TechnologySystem.canAcquireTech(currentGame, currentPlayer.id, catsToCheck)) {
           setConfirmModalState({
             visible: true,
             cardId: cardId,
@@ -3089,7 +3090,7 @@ export const BoardUI: React.FC = () => {
       const count = Math.min(amount, currentPlayer.cards.length);
       if (count > 0) {
         const seqId = sequenceId || interactionState.sequenceId;
-        setInteractionState({ type: 'RESERVING_CARD', count: count, sequenceId: seqId, selectedCards: [] });
+        setInteractionState({ type: 'RESERVING_CARD', count: count, selectedCards: [], sequenceId: seqId });
       }
     } else if (type === 'anycard') {
         const seqId = sequenceId || interactionState.sequenceId;

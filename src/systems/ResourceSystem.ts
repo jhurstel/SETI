@@ -96,7 +96,8 @@ export class ResourceSystem {
 
     if (bonus.technologies) {
       bonus.technologies.forEach(t => {
-        items.push(`${t.amount} Tech ${t.scope}`);
+        const scopeText = Array.isArray(t.scope) ? t.scope.join(' ou ') : t.scope;
+        items.push(`${t.amount} Tech ${scopeText}`);
       });
     }
 
@@ -126,21 +127,9 @@ export class ResourceSystem {
   static mergeBonuses(...bonuses: (Bonus | undefined)[]): Bonus {
     const result: Bonus = {};
     bonuses.forEach(b => {
-      if (!b) return;
-      (Object.keys(b) as Array<keyof Bonus>).forEach(key => {
-        const k = key as keyof Bonus;
-        const val = b[k];
-        if (typeof val === 'number') {
-          (result as any)[k] = ((result[k] as number) || 0) + val;
-        } else if (val !== undefined) {
-          if (Array.isArray(val)) {
-            const existing = (result[k] as any[]) || [];
-            (result as any)[k] = [...existing, ...val];
-          } else {
-            (result as any)[k] = val;
-          }
-        }
-      });
+      if (b) {
+        ResourceSystem.accumulateBonus(b, result);
+      }
     });
     return result;
   }
@@ -149,15 +138,16 @@ export class ResourceSystem {
     for (const key in bonus) {
       const k = key as keyof Bonus;
       const val = bonus[k];
+
+      if (val === undefined) continue;
+
       if (typeof val === 'number') {
         (accumulatedBonuses as any)[k] = ((accumulatedBonuses[k] as number) || 0) + val;
-      } else if (val !== undefined) {
-        if (k === 'gainSignal' && Array.isArray(val)) {
-          const existing = (accumulatedBonuses[k] as any[]) || [];
-          (accumulatedBonuses as any)[k] = [...existing, ...val];
-        } else {
-          (accumulatedBonuses as any)[k] = val;
-        }
+      } else if (Array.isArray(val)) {
+        const existing = (accumulatedBonuses[k] as any[]) || [];
+        (accumulatedBonuses as any)[k] = [...existing, ...val];
+      } else {
+        (accumulatedBonuses as any)[k] = val;
       }
     }
   }
@@ -420,13 +410,21 @@ export class ResourceSystem {
     if (bonuses.technologies) {
       for (const techBonus of bonuses.technologies) {
         for (let i = 0; i < techBonus.amount; i++) {
-          newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true, category: techBonus.scope === TechnologyCategory.ANY ? undefined : techBonus.scope, sharedOnly: bonuses.sharedOnly, noTileBonus: bonuses.noTileBonus, sequenceId });
+          let categories: TechnologyCategory[];
+          if (techBonus.scope === TechnologyCategory.ANY) {
+            categories = [TechnologyCategory.EXPLORATION, TechnologyCategory.OBSERVATION, TechnologyCategory.COMPUTING];
+          } else if (techBonus.scope === TechnologyCategory.EXPLORATION_OR_OBSERVATION) {
+            categories = [TechnologyCategory.EXPLORATION, TechnologyCategory.OBSERVATION];
+          } else {
+            categories = [techBonus.scope];
+          }
+          newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true, categories, sharedOnly: bonuses.sharedOnly, noTileBonus: bonuses.noTileBonus, sequenceId });
         }
       }
     }
 
     if (bonuses.landing) {
-      newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId, sequenceId, ignoreSatelliteLimit: bonuses.ignoreSatelliteLimit });
+      newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId, ignoreSatelliteLimit: bonuses.ignoreSatelliteLimit, sequenceId });
     }
 
     if (bonuses.lifetraces) {
@@ -455,18 +453,7 @@ export class ResourceSystem {
     if (bonuses.gainSignalFromHand) {
       newPendingInteractions.push({ type: 'DISCARDING_FOR_SIGNAL', count: bonuses.gainSignalFromHand, selectedCards: [], sequenceId });
     }
-    if (bonuses.chooseTechType) {
-      newPendingInteractions.push({
-        type: 'CHOOSING_BONUS_ACTION',
-        bonusesSummary: "Choisissez une technologie :",
-        choices: [
-          { id: 'explo', label: 'Exploration', state: { type: 'ACQUIRING_TECH', isBonus: true, category: TechnologyCategory.EXPLORATION, sequenceId }, done: false },
-          { id: 'obs', label: 'Observation', state: { type: 'ACQUIRING_TECH', isBonus: true, category: TechnologyCategory.OBSERVATION, sequenceId }, done: false }
-        ],
-        sequenceId
-      });
-    }
-
+    
     return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };
   };
 

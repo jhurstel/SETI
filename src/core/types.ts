@@ -123,6 +123,7 @@ export enum TechnologyCategory {
   EXPLORATION = "Exploration",
   OBSERVATION = "Observation",
   COMPUTING = "Informatique",
+  EXPLORATION_OR_OBSERVATION = "Exploration ou Observation",
   ANY = "N'importe quelle type"
 }
 
@@ -529,7 +530,6 @@ export interface Bonus {
   scorePerMedia?: number;
   ignoreSatelliteLimit?: boolean;
   revealAndTriggerFreeAction?: boolean;
-  chooseTechType?: boolean;
 }
 
 export interface AnomalieToken {
@@ -615,25 +615,25 @@ export type InteractionState =
   /** Le joueur est en attente, aucune interaction en cours. */
   | { type: 'IDLE', sequenceId?: string }
   /** Le joueur a un bonus de réservation et doit choisir une carte à glisser sous son plateau. */
-  | { type: 'RESERVING_CARD', count: number, sequenceId?: string, selectedCards: string[] }
+  | { type: 'RESERVING_CARD', count: number, selectedCards: string[], sequenceId?: string }
   /** Le joueur doit défausser des cartes (ex: fin de manche). */
   | { type: 'DISCARDING_CARD', count: number, selectedCards: string[], sequenceId?: string }
   /** Le joueur a initié un échange et doit choisir la ressource à dépenser. */
   | { type: 'TRADING_CARD', count: number, targetGain: string, selectedCards: string[], sequenceId?: string }
   /** Le joueur acquiert une carte (gratuitement ou en payant) et doit la sélectionner dans la pioche ou la rangée. */
-  | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, sequenceId?: string, triggerFreeAction?: boolean }
+  | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, triggerFreeAction?: boolean, sequenceId?: string }
   /** Le joueur a des déplacements gratuits à effectuer. */
   | { type: 'MOVING_PROBE', count: number, autoSelectProbeId?: string, sequenceId?: string }
   /** Le joueur a un atterrissage gratuit (ex: Carte 13). */
-  | { type: 'LANDING_PROBE', count: number, source?: string, sequenceId?: string, ignoreSatelliteLimit?: boolean }
+  | { type: 'LANDING_PROBE', count: number, source?: string, ignoreSatelliteLimit?: boolean, categories?: TechnologyCategory[], sequenceId?: string }
   /** Le joueur acquiert une technologie (en payant ou en bonus) et doit la sélectionner. */
-  | { type: 'ACQUIRING_TECH', isBonus: boolean, sequenceId?: string, category?: TechnologyCategory, sharedOnly?: boolean, noTileBonus?: boolean }
+  | { type: 'ACQUIRING_TECH', isBonus?: boolean, categories?: TechnologyCategory[], sharedOnly?: boolean, noTileBonus?: boolean, sequenceId?: string }
   /** Le joueur a choisi une technologie "Informatique" et doit sélectionner une colonne sur son ordinateur. */
   | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, sequenceId?: string }
   /** Le joueur a lancé l'action "Analyser", principalement pour l'animation. */
   | { type: 'ANALYZING', sequenceId?: string }
   /** Le joueur doit placer une trace de vie sur le plateau Alien. */
-  | { type: 'PLACING_LIFE_TRACE', color: LifeTraceType, sequenceId?: string, playerId?: string }
+  | { type: 'PLACING_LIFE_TRACE', color: LifeTraceType, playerId?: string, sequenceId?: string }
   /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number, sequenceId?: string }
   /** Le joueur scanne un secteur (2ème étape : choix de la carte). */
@@ -641,7 +641,7 @@ export type InteractionState =
   /** Le joueur scanne un secteur (3ème étape : choix du secteur couleur). */
   | { type: 'SELECTING_SCAN_SECTOR', color: SectorType, noData?: boolean, onlyProbes?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string, message?: string, markAdjacents?: boolean, usedProbeIds?: string[] }
   /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
-  | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string, remainingMoves?: number }
+  | { type: 'CHOOSING_MEDIA_OR_MOVE', remainingMoves?: number, sequenceId?: string }
   /** Le joueur doit choisir s'il utilise la technologie Observation 2 (Payer 1 Média pour scanner Mercure). */
   | { type: 'CHOOSING_OBS2_ACTION', sequenceId?: string }
   /** Le joueur doit choisir s'il utilise la technologie Observation 3 (Défausser une carte pour un signal). */
@@ -678,7 +678,7 @@ export const getInteractionLabel = (state: InteractionState): string => {
     case 'ACQUIRING_CARD': return state.isFree ? `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''}.` : `Veuillez acheter ${state.count} carte${state.count > 1 ? 's' : ''}.`;
     case 'MOVING_PROBE': return `Veuillez déplacer une sonde gratuitement (${state.count} déplacement${state.count > 1 ? 's' : ''}).`;
     case 'LANDING_PROBE': return `Veuillez poser une sonde gratuitement.`;
-    case 'ACQUIRING_TECH': return state.isBonus ? `Veuillez sélectionner une technologie ${state.category}.` : `Veuillez acheter une technologie ${state.category}.`;
+    case 'ACQUIRING_TECH': return state.isBonus ? `Veuillez sélectionner une technologie ${state.categories ? state.categories.join(' ou ') : ''}.` : `Veuillez acheter une technologie.`;
     case 'SELECTING_COMPUTER_SLOT': return `Veuillez sélectionner un emplacement d'ordinateur pour technologie ${state.tech.shorttext}.`;
     case 'ANALYZING': return `Analyse en cours...`;
     case 'PLACING_LIFE_TRACE': return `Veuillez placer trace de vie (${state.color}).`;

@@ -457,13 +457,6 @@ export function getAllCells(rotationState: RotationState, extraObjects: Celestia
 }
 
 /**
- * Convertit l'énergie en déplacements (1 énergie = 1 déplacement)
- */
-export function energyToMovements(energy: number): number {
-  return energy;
-}
-
-/**
  * Calcule toutes les cases accessibles avec les déplacements et l'énergie disponibles
  * @param startDisk Disque de départ
  * @param startSector Secteur de départ
@@ -482,7 +475,7 @@ export function calculateReachableCellsWithEnergy(
   getMediaBonus?: (cell: SolarSystemCell) => number,
   extraObjects: CelestialObject[] = []
 ): Map<string, { movements: number; path: string[]; media: number }> {
-  const totalMovements = movements + energyToMovements(energy);
+  const totalMovements = movements + energy;
   return calculateReachableCells(startDisk, startSector, totalMovements, rotationState, ignoreAsteroidPenalty, getMediaBonus, extraObjects);
 }
 

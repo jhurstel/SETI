@@ -19,7 +19,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
   const categories = techBoard.categorySlots || [];
 
   const isResearching = interactionState.type === 'ACQUIRING_TECH';
-  const researchCategory = isResearching ? interactionState.category : undefined;
+  const researchCategories = isResearching ? interactionState.categories : undefined;
   const sharedTechOnly = isResearching ? interactionState.sharedOnly : false;
 
   useEffect(() => {
@@ -130,7 +130,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                   });
 
                   const isClickable = (isResearching || canResearch) 
-                    && (!researchCategory || slot.category === researchCategory)
+                    && (!researchCategories || researchCategories.includes(slot.category))
                     && (!sharedTechOnly || sharedBaseIds.has(baseId))
                     && !hasTech;
 

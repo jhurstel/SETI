@@ -31,7 +31,7 @@ export class ResearchTechAction extends BaseAction {
         const result = performRotation(game);
         result.logs.forEach(log => this.historyEntries.push({ message: log, playerId: this.playerId, sequenceId }));
 
-        this.newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: false, sequenceId })
+        this.newPendingInteractions.push({ type: 'ACQUIRING_TECH', sequenceId })
         return result.updatedGame;
     }
 }

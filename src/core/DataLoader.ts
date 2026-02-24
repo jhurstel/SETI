@@ -171,6 +171,7 @@ export class DataLoader {
         if (lower.includes('informatique') || lower.includes('bleu')) scope = TechnologyCategory.COMPUTING;
         else if (lower.includes('exploration') || lower.includes('jaune')) scope = TechnologyCategory.EXPLORATION;
         else if (lower.includes('observation') || lower.includes('rouge')) scope = TechnologyCategory.OBSERVATION;
+        else if (lower.includes('exploorobs')) scope = TechnologyCategory.EXPLORATION_OR_OBSERVATION;
         effects.push({ type: 'ACTION', target: 'TECH', value: { amount, scope } });
       } else if (lower.includes('trace')) {
         let scope: any = 'ANY';
@@ -381,11 +382,6 @@ export class DataLoader {
         if (parts.length === 3) {
           effects.push({ type: 'SCORE_PER_SECTOR', target: parts[1], value: parseInt(parts[2], 10) });
         }
-      }
-
-      // Gestion du format CHOICE_EXPLO_OR_OBSERV
-      else if (passive === 'CHOICE_EXPLO_OR_OBSERV') {
-        effects.push({ type: 'CHOICE_EXPLO_OR_OBSERV', value: true });
       }
 
       // Gestion du format IGNORE_SATELLITE_LIMIT

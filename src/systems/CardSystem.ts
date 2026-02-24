@@ -543,8 +543,6 @@ export class CardSystem {
                     bonuses.anyProbe = true;
                 } else if (effect.type === 'GAIN_SIGNAL_ADJACENTS') {
                     bonuses.gainSignalAdjacents = true;
-                } else if (effect.type === 'CHOICE_EXPLO_OR_OBS') {
-                    bonuses.chooseTechType = true;
                 } else if (effect.type === 'IGNORE_SATELLITE_LIMIT') {
                     bonuses.ignoreSatelliteLimit = true;
                 }
