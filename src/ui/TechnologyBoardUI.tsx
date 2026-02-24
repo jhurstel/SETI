@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
+import { TECHNOLOGY_STYLES } from './styles/celestialStyles';
 import './TechnologyBoardUI.css';
 
 interface TechnologyBoardUIProps {
@@ -11,16 +12,14 @@ interface TechnologyBoardUIProps {
 
 export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, interactionState, onTechClick, setActiveTooltip }) => {
   const currentPlayer = game.players[game.currentPlayerIndex];
-  const isAcquiringTech = interactionState.type === 'ACQUIRING_TECH';
-  const canResearch = !currentPlayer.hasPerformedMainAction && interactionState.type === 'IDLE' && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
-
-  const [isOpen, setIsOpen] = useState(isAcquiringTech);
   const techBoard = game.board.technologyBoard;
-  const categories = techBoard.categorySlots || [];
 
-  const isResearching = interactionState.type === 'ACQUIRING_TECH';
-  const researchCategories = isResearching ? interactionState.categories : undefined;
-  const sharedTechOnly = isResearching ? interactionState.sharedOnly : false;
+  const isAcquiringTech = interactionState.type === 'ACQUIRING_TECH';
+  const [isOpen, setIsOpen] = useState(isAcquiringTech);
+
+  const canResearch = !currentPlayer.hasPerformedMainAction && interactionState.type === 'IDLE' && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
+  const researchCategories = isAcquiringTech ? interactionState.categories : undefined;
+  const sharedTechOnly = isAcquiringTech ? interactionState.sharedOnly : false;
 
   useEffect(() => {
     setIsOpen(isAcquiringTech);
@@ -79,19 +78,11 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
     return <div className="seti-tech-bonus-container">{elements}</div>;
   };
 
-  // Fonction pour obtenir le chemin de l'image SVG d'une technologie
-  // À utiliser une fois les fichiers extraits et placés dans le dossier public/assets/technologies/
-  const getTechImage = (baseId: string): string | undefined => {
-    // Exemple : return `/assets/technologies/${baseId}.svg`;
-    baseId;
-    return undefined;
-  };
-
   return (
     <div className={`seti-foldable-container seti-icon-panel ${isOpen ? 'open' : 'collapsed'} ${canResearch && !isOpen ? 'container-flash' : ''}`}
       style={{
         pointerEvents: 'auto',
-        ...(isResearching ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
+        ...(isAcquiringTech ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
       }}
     >
       <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
@@ -100,17 +91,13 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
       </div>
       <div className="seti-foldable-content">
       <div className="seti-tech-categories">
-        {categories.map((slot) => {
+        {techBoard.categorySlots && techBoard.categorySlots.map((slot) => {
           const stacks = getStacks(slot.technologies);
-          
-          let categoryColor = '#fff';
-          if (slot.category === TechnologyCategory.EXPLORATION) categoryColor = '#ffeb3b';
-          if (slot.category === TechnologyCategory.OBSERVATION) categoryColor = '#ff6b6b';
-          if (slot.category === TechnologyCategory.COMPUTING) categoryColor = '#4a9eff';
+          const techStyle = TECHNOLOGY_STYLES[slot.category] || TECHNOLOGY_STYLES.DEFAULT;
 
           return (
             <div key={slot.category} className="seti-tech-category">
-              <div className="seti-tech-category-title" style={{ color: categoryColor, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="seti-tech-category-title" style={{ color: techStyle.color, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '1.2em' }}>{getCategoryIcon(slot.category)}</span>
                 {slot.category}
               </div>
@@ -122,14 +109,13 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                   
                   const lastDashIndex = topCard.id.lastIndexOf('-');
                   const baseId = topCard.id.substring(0, lastDashIndex);
-                  const techImage = getTechImage(baseId);
                   
                   const hasTech = currentPlayer.technologies.some(t => {
                     const tLastDash = t.id.lastIndexOf('-');
                     return t.id.substring(0, tLastDash) === baseId;
                   });
 
-                  const isClickable = (isResearching || canResearch) 
+                  const isClickable = (isAcquiringTech || canResearch) 
                     && (!researchCategories || researchCategories.includes(slot.category))
                     && (!sharedTechOnly || sharedBaseIds.has(baseId))
                     && !hasTech;
@@ -150,18 +136,6 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                     cardClass += ' stacked';
                   }
 
-                  // Style dynamique pour la bordure (dépend de la catégorie et de l'état)
-                  const cardStyle: React.CSSProperties = {};
-                  if (!hasTech && !isClickable) {
-                     // Bordure par défaut (couleur catégorie) si pas acquis et pas en cours de recherche active
-                     // Si isResearching est true mais pas clickable (ex: pas assez de ressources ou mauvaise catégorie), on met une bordure grise
-                     if (isResearching) {
-                        cardStyle.border = '1px solid #555';
-                     } else {
-                        cardStyle.border = `1px solid ${categoryColor}`;
-                     }
-                  }
-
                   return (
                     <div 
                       key={topCard.id} 
@@ -173,7 +147,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                         <div className="seti-tech-tooltip-content">
                           <div className="seti-tech-tooltip-header">
                             <span className="seti-tech-tooltip-name">{topCard.name}</span>
-                            <span className="seti-tech-tooltip-category" style={{ color: categoryColor, borderColor: categoryColor }}>{slot.category}</span>
+                            <span className="seti-tech-tooltip-category" style={{ color: techStyle.color, borderColor: techStyle.borderColor }}>{slot.category}</span>
                           </div>
                           {hasTech && <div className="seti-tech-tooltip-acquired">Déjà acquis</div>}
                           <div className="seti-tech-tooltip-desc">{topCard.description || topCard.shorttext}</div>
@@ -188,7 +162,11 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                         ), rect });
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
-                      style={cardStyle}
+                      style={{
+                        border: (!hasTech && !isClickable)
+                          ? (isAcquiringTech ? '1px solid #555' : techStyle.border)
+                          : undefined
+                      }}
                     >
                       {hasExtraPv && (
                         <div className="seti-tech-card-extra-pv">
@@ -196,40 +174,30 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                         </div>
                       )}
                       
-                      {techImage ? (
-                        <div className="seti-tech-card-image" style={{ 
-                          backgroundImage: `url(${techImage})`, 
-                        }}>
-                           <div className="seti-tech-card-count-badge">
-                             x{count}
-                           </div>
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.9em' }}>
+                            {topCard.name}
+                          </span>
+                          <span style={{ 
+                            fontSize: '0.6em', 
+                            backgroundColor: '#444', 
+                            padding: '1px 5px', 
+                            borderRadius: '10px',
+                            color: '#aaa'
+                          }}>
+                            x{count}
+                          </span>
                         </div>
-                      ) : (
-                        <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.9em' }}>
-                              {topCard.name}
-                            </span>
-                            <span style={{ 
-                              fontSize: '0.6em', 
-                              backgroundColor: '#444', 
-                              padding: '1px 5px', 
-                              borderRadius: '10px',
-                              color: '#aaa'
-                            }}>
-                              x{count}
-                            </span>
-                          </div>
-                          
-                          <div style={{ fontSize: '0.7em', color: '#ccc', lineHeight: '1.2', flex: 1 }}>
-                            {topCard.shorttext}
-                          </div>
-    
-                          <div style={{ marginTop: 'auto', borderTop: '1px solid #555', paddingTop: '4px' }}>
-                            {renderBonus(topCard.bonus, hasExtraPv)}
-                          </div>
-                        </>
-                      )}
+                        
+                        <div style={{ fontSize: '0.7em', color: '#ccc', lineHeight: '1.2', flex: 1 }}>
+                          {topCard.shorttext}
+                        </div>
+  
+                        <div style={{ marginTop: 'auto', borderTop: '1px solid #555', paddingTop: '4px' }}>
+                          {renderBonus(topCard.bonus, hasExtraPv)}
+                        </div>
+                      </>
                     </div>
                   );
                 })}

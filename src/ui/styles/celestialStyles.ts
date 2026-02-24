@@ -1,4 +1,4 @@
-import { FreeActionType, SectorType, RevenueType } from '../../core/types';
+import { FreeActionType, SectorType, RevenueType, TechnologyCategory } from '../../core/types';
 
 export const FREE_ACTION_STYLES: Record<string, { color: string, borderColor: string, bgColor: string }> = {
   [FreeActionType.DATA]: {
@@ -81,6 +81,29 @@ export const REVENUE_STYLES: Record<string, { color: string, borderColor: string
     color: '#2196f3', // Bleu
     borderColor: '#2196f3',
     bgColor: 'rgba(33, 150, 243, 0.15)'
+  }
+};
+
+export const TECHNOLOGY_STYLES: Record<string, { color: string, borderColor: string, border: string }> = {
+  [TechnologyCategory.EXPLORATION]: {
+    color: '#ffeb3b',
+    borderColor: '#ffeb3b',
+    border: '1px solid #ffeb3b'
+  },
+  [TechnologyCategory.OBSERVATION]: {
+    color: '#ff6b6b',
+    borderColor: '#ff6b6b',
+    border: '1px solid #ff6b6b'
+  },
+  [TechnologyCategory.COMPUTING]: {
+    color: '#4a9eff',
+    borderColor: '#4a9eff',
+    border: '1px solid #4a9eff'
+  },
+  DEFAULT: {
+    color: '#fff',
+    borderColor: '#fff',
+    border: '1px solid #fff'
   }
 };
 
