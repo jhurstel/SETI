@@ -461,7 +461,7 @@ export class DataLoader {
       if (permanent.startsWith('GAIN_ON_ORBIT:')) {
         const parts = permanent.split(':');
         if (parts.length === 3) {
-          effects.push({ id: permanent, type: 'GAIN_ON_ORBIT', target: parts[1], value: permanent });
+          effects.push({ type: 'GAIN_ON_ORBIT', target: parts[1], value: permanent });
         }
       }
 
@@ -469,7 +469,7 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_ON_LAND:')) {
         const parts = permanent.split(':');
         if (parts.length === 3) {
-          effects.push({ id: permanent, type: 'GAIN_ON_LAND', target: parts[1], value: permanent });
+          effects.push({ type: 'GAIN_ON_LAND', target: parts[1], value: permanent });
         }
       }
 
@@ -477,7 +477,7 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_ON_ORBIT_OR_LAND:')) {
         const parts = permanent.split(':');
         if (parts.length === 3) {
-          effects.push({ id: permanent, type: 'GAIN_ON_ORBIT_OR_LAND', target: parts[1], value: permanent });
+          effects.push({ type: 'GAIN_ON_ORBIT_OR_LAND', target: parts[1], value: permanent });
         }
       }
 
@@ -485,7 +485,7 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_ON_LAUNCH:')) {
         const parts = permanent.split(':');
         if (parts.length === 3) {
-          effects.push({ id: permanent, type: 'GAIN_ON_LAUNCH', target: parts[1], value: permanent });
+          effects.push({ type: 'GAIN_ON_LAUNCH', target: parts[1], value: permanent });
         }
       }
 
@@ -493,7 +493,7 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_ON_SCAN:')) {
         const parts = permanent.split(':');
         if (parts.length === 3) {
-          effects.push({ id: permanent, type: 'GAIN_ON_SCAN', target: parts[1], value: permanent });
+          effects.push({ type: 'GAIN_ON_SCAN', target: parts[1], value: permanent });
         }
       }
 
@@ -501,10 +501,10 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_ON_SIGNAL:')) {
         const parts = permanent.split(':');
         if (parts.length === 4) {
-          if (parts[1] === 'yellow') effects.push({ id: permanent, type: 'GAIN_ON_YELLOW_SIGNAL', target: parts[2], value: permanent });
-          else if (parts[1] === 'red') effects.push({ id: permanent, type: 'GAIN_ON_RED_SIGNAL', target: parts[2], value: permanent });
-          else if (parts[1] === 'blue') effects.push({ id: permanent, type: 'GAIN_ON_BLUE_SIGNAL', target: parts[2], value: permanent });
-          else if (parts[1] === 'oumuamua') effects.push({ id: permanent, type: 'GAIN_ON_OUMUAMUA_SIGNAL', target: parts[2], value: permanent });
+          if (parts[1] === 'yellow') effects.push({ type: 'GAIN_ON_YELLOW_SIGNAL', target: parts[2], value: permanent });
+          else if (parts[1] === 'red') effects.push({ type: 'GAIN_ON_RED_SIGNAL', target: parts[2], value: permanent });
+          else if (parts[1] === 'blue') effects.push({ type: 'GAIN_ON_BLUE_SIGNAL', target: parts[2], value: permanent });
+          else if (parts[1] === 'oumuamua') effects.push({ type: 'GAIN_ON_OUMUAMUA_SIGNAL', target: parts[2], value: permanent });
         }
       }
 
@@ -512,9 +512,9 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_ON_TECH:')) {
         const parts = permanent.split(':');
         if (parts.length === 4) {
-          if (parts[1] === 'yellow') effects.push({ id: permanent, type: 'GAIN_ON_YELLOW_TECH', target: parts[2], value: permanent });
-          else if (parts[1] === 'red') effects.push({ id: permanent, type: 'GAIN_ON_RED_TECH', target: parts[2], value: permanent });
-          else if (parts[1] === 'blue') effects.push({ id: permanent, type: 'GAIN_ON_BLUE_TECH', target: parts[2], value: permanent });
+          if (parts[1] === 'yellow') effects.push({ type: 'GAIN_ON_YELLOW_TECH', target: parts[2], value: permanent });
+          else if (parts[1] === 'red') effects.push({ type: 'GAIN_ON_RED_TECH', target: parts[2], value: permanent });
+          else if (parts[1] === 'blue') effects.push({ type: 'GAIN_ON_BLUE_TECH', target: parts[2], value: permanent });
         }
       }
 
@@ -522,10 +522,10 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_ON_LIFETRACE:')) {
         const parts = permanent.split(':');
         if (parts.length === 4) {
-          if (parts[1] === 'yellow') effects.push({ id: permanent, type: 'GAIN_ON_YELLOW_LIFETRACE', target: parts[2], value: permanent });
-          else if (parts[1] === 'red') effects.push({ id: permanent, type: 'GAIN_ON_RED_LIFETRACE', target: parts[2], value: permanent });
-          else if (parts[1] === 'blue') effects.push({ id: permanent, type: 'GAIN_ON_BLUE_LIFETRACE', target: parts[2], value: permanent });
-          else if (parts[1] === 'any') effects.push({ id: permanent, type: 'GAIN_ON_ANY_LIFETRACE', target: parts[2], value: permanent });
+          if (parts[1] === 'yellow') effects.push({ type: 'GAIN_ON_YELLOW_LIFETRACE', target: parts[2], value: permanent });
+          else if (parts[1] === 'red') effects.push({ type: 'GAIN_ON_RED_LIFETRACE', target: parts[2], value: permanent });
+          else if (parts[1] === 'blue') effects.push({ type: 'GAIN_ON_BLUE_LIFETRACE', target: parts[2], value: permanent });
+          else if (parts[1] === 'any') effects.push({ type: 'GAIN_ON_ANY_LIFETRACE', target: parts[2], value: permanent });
         }
       }
 
@@ -533,15 +533,15 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_ON_VISIT:')) {
         const parts = permanent.split(':');
         if (parts.length === 4) {
-          if (parts[1] === 'jupiter') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_JUPITER', target: parts[2], value: permanent });
-          else if (parts[1] === 'saturn') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_SATURN', target: parts[2], value: permanent });
-          else if (parts[1] === 'mercury') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_MERCURY', target: parts[2], value: permanent });
-          else if (parts[1] === 'venus') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_VENUS', target: parts[2], value: permanent });
-          else if (parts[1] === 'uranus') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_URANUS', target: parts[2], value: permanent });
-          else if (parts[1] === 'neptune') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_NEPTUNE', target: parts[2], value: permanent });
-          else if (parts[1] === 'planet') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_PLANET', target: parts[2], value: permanent }); // excluding earth
-          else if (parts[1] === 'asteroid') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_ASTEROID', target: parts[2], value: permanent });
-          else if (parts[1] === 'oumuamua') effects.push({ id: permanent, type: 'GAIN_ON_VISIT_OUMUAMUA', target: parts[2], value: permanent });
+          if (parts[1] === 'jupiter') effects.push({ type: 'GAIN_ON_VISIT_JUPITER', target: parts[2], value: permanent });
+          else if (parts[1] === 'saturn') effects.push({ type: 'GAIN_ON_VISIT_SATURN', target: parts[2], value: permanent });
+          else if (parts[1] === 'mercury') effects.push({ type: 'GAIN_ON_VISIT_MERCURY', target: parts[2], value: permanent });
+          else if (parts[1] === 'venus') effects.push({ type: 'GAIN_ON_VISIT_VENUS', target: parts[2], value: permanent });
+          else if (parts[1] === 'uranus') effects.push({ type: 'GAIN_ON_VISIT_URANUS', target: parts[2], value: permanent });
+          else if (parts[1] === 'neptune') effects.push({ type: 'GAIN_ON_VISIT_NEPTUNE', target: parts[2], value: permanent });
+          else if (parts[1] === 'planet') effects.push({ type: 'GAIN_ON_VISIT_PLANET', target: parts[2], value: permanent }); // excluding earth
+          else if (parts[1] === 'asteroid') effects.push({ type: 'GAIN_ON_VISIT_ASTEROID', target: parts[2], value: permanent });
+          else if (parts[1] === 'oumuamua') effects.push({ type: 'GAIN_ON_VISIT_OUMUAMUA', target: parts[2], value: permanent });
         }
       }
 
@@ -549,9 +549,9 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_ON_PLAY:')) {
         const parts = permanent.split(':');
         if (parts.length === 4) {
-          if (parts[1] === '1') effects.push({ id: permanent, type: 'GAIN_ON_PLAY_1_CREDIT', target: parts[2], value: permanent });
-          else if (parts[1] === '2') effects.push({ id: permanent, type: 'GAIN_ON_PLAY_2_CREDITS', target: parts[2], value: permanent });
-          else if (parts[1] === '3') effects.push({ id: permanent, type: 'GAIN_ON_PLAY_3_CREDITS', target: parts[2], value: permanent });
+          if (parts[1] === '1') effects.push({ type: 'GAIN_ON_PLAY_1_CREDIT', target: parts[2], value: permanent });
+          else if (parts[1] === '2') effects.push({ type: 'GAIN_ON_PLAY_2_CREDITS', target: parts[2], value: permanent });
+          else if (parts[1] === '3') effects.push({ type: 'GAIN_ON_PLAY_3_CREDITS', target: parts[2], value: permanent });
         }
       }
 
@@ -559,9 +559,9 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_ON_DISCARD:')) {
         const parts = permanent.split(':');
         if (parts.length === 4) {
-          if (parts[1] === 'media') effects.push({ id: permanent, type: 'GAIN_ON_DISCARD_MEDIA', target: parts[2], value: permanent });
-          else if (parts[1] === 'data') effects.push({ id: permanent, type: 'GAIN_ON_DISCARD_DATA', target: parts[2], value: permanent });
-          else if (parts[1] === 'move') effects.push({ id: permanent, type: 'GAIN_ON_DISCARD_MOVE', target: parts[2], value: permanent });
+          if (parts[1] === 'media') effects.push({ type: 'GAIN_ON_DISCARD_MEDIA', target: parts[2], value: permanent });
+          else if (parts[1] === 'data') effects.push({ type: 'GAIN_ON_DISCARD_DATA', target: parts[2], value: permanent });
+          else if (parts[1] === 'move') effects.push({ type: 'GAIN_ON_DISCARD_MOVE', target: parts[2], value: permanent });
         }
       }
 
@@ -569,7 +569,7 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_ON_TOKEN:')) {
         const parts = permanent.split(':');
         if (parts.length === 3) {
-          effects.push({ id: permanent, type: 'GAIN_ON_TOKEN', target: parts[1], value: permanent });
+          effects.push({ type: 'GAIN_ON_TOKEN', target: parts[1], value: permanent });
         }
       }
 
@@ -577,7 +577,7 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_ON_TOKEN_AND_LAND:')) {
         const parts = permanent.split(':');
         if (parts.length === 3) {
-          effects.push({ id: permanent, type: 'GAIN_ON_TOKEN_AND_LAND', target: parts[1], value: permanent });
+          effects.push({ type: 'GAIN_ON_TOKEN_AND_LAND', target: parts[1], value: permanent });
         }
       }
 
@@ -585,7 +585,7 @@ export class DataLoader {
       else if (permanent.startsWith('GAIN_IF_')) {
         const parts = permanent.split(':').map(p => p.trim());
         // On stocke la contrainte brute comme effet pour qu'elle apparaisse dans les requirements
-        effects.push({ id: permanent, type: parts[0], target: parts[1], value: permanent });
+        effects.push({ type: parts[0], target: parts[1], value: permanent });
       }
     }
     return effects;

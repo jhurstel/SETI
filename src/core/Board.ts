@@ -263,6 +263,7 @@ export class BoardManager {
       const landSlots = new Array(4).fill(null).map((_, i) => {
         if (i === 0) return ResourceSystem.mergeBonuses(p.landFirstBonus, p.landNextBonus);
         if (i === 1) return ResourceSystem.mergeBonuses(p.landSecondBonus, p.landNextBonus);
+        if (i === 2) return ResourceSystem.mergeBonuses(p.landThirdBonus, p.landNextBonus);
         return p.landNextBonus || {};
       });
 

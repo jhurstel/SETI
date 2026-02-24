@@ -117,7 +117,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
                 borderRadius: isConditional ? '2px' : '50%',
                 border: `1px solid ${currentPlayerColor}`,
                 backgroundColor: isCompleted ? currentPlayerColor : 'transparent',
-                cursor: canClick ? 'pointer' : 'default',
+                cursor: canClick ? 'pointer' : 'help',
                 zIndex: canClick ? 20 : 10,
                 opacity: isHighlighted ? 1 : 0.3,
                 boxShadow: canClick ? `0 0 8px ${currentPlayerColor}, 0 0 12px #fff` : (isCompleted ? `0 0 5px ${currentPlayerColor}` : 'none'),

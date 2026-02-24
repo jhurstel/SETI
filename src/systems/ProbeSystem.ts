@@ -9,7 +9,7 @@
  * - Limites (max 1 sonde dans le système solaire sans technologie)
  */
 
-import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType } from '../core/types';
+import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, Player, CardEffect } from '../core/types';
 import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { CardSystem } from './CardSystem';
@@ -122,25 +122,7 @@ export class ProbeSystem {
     historyEntries.push({ message, playerId: player.id, sequenceId: '' });
 
     // Traitement des buffs permanents
-    const processedSources = new Set<string>();
-    player.permanentBuffs.forEach(buff => {
-      if (buff.type === 'GAIN_ON_LAUNCH') {
-        // Ignorer si le prérequis est déjà complété
-        if (buff.id && buff.source) {
-          const mission = player.missions.find(m => m.name === buff.source);
-          if (mission && mission.completedRequirementIds.includes(buff.id)) return;
-          if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
-        }
-
-        if (buff.source && processedSources.has(buff.source)) return;
-
-        // Les bonus seront traités par processBonuses appelé par l'action ou l'UI
-        if (buff.source) processedSources.add(buff.source);
-
-        // Marquer comme remplie (en attente de clic)
-        CardSystem.markMissionRequirementFulfillable(player, buff);
-      }
-    });
+    this.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_LAUNCH');
 
     // Ajouter la sonde au système solaire en préservant tous les champs (y compris les angles de rotation)
     updatedGame.board.solarSystem.probes.push(probe);
@@ -377,40 +359,17 @@ export class ProbeSystem {
 
     // Traitement des missions conditionnelles (GAIN_ON_VISIT_xxx)
     if (targetCell) {
-      const processedSources = new Set<string>();
-      player.permanentBuffs.forEach(buff => {
-        let shouldTrigger = false;
-
+      this.processMissionBuffs(player, buff => {
         // Planètes
         if (targetCell.hasPlanet && targetCell.planetId) {
-          if (buff.type === `GAIN_ON_VISIT_${targetCell.planetId.toUpperCase()}`) {
-            shouldTrigger = true;
-          }
-          if (buff.type === 'GAIN_ON_VISIT_PLANET' && targetCell.planetId !== 'earth') {
-            shouldTrigger = true;
-          }
+          if (buff.type === `GAIN_ON_VISIT_${targetCell.planetId.toUpperCase()}`) return true;
+          if (buff.type === 'GAIN_ON_VISIT_PLANET' && targetCell.planetId !== 'earth') return true;
         }
-
         // Astéroïdes
         if (targetCell.hasAsteroid && buff.type === 'GAIN_ON_VISIT_ASTEROID') {
-          shouldTrigger = true;
+          return true;
         }
-
-        if (shouldTrigger) {
-          // Ignorer si le prérequis est déjà complété
-          if (buff.id && buff.source) {
-            const mission = player.missions.find(m => m.name === buff.source);
-            if (mission && mission.completedRequirementIds.includes(buff.id)) return;
-            if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
-          }
-
-          if (buff.source && processedSources.has(buff.source)) return;
-
-          if (buff.source) processedSources.add(buff.source);
-
-          // Marquer comme remplie (en attente de clic)
-          CardSystem.markMissionRequirementFulfillable(player, buff);
-        }
+        return false;
       });
     }
 
@@ -610,24 +569,7 @@ export class ProbeSystem {
     }
 
     // Traitement des buffs permanents
-    const processedSources = new Set<string>();
-    player.permanentBuffs.forEach(buff => {
-      if (buff.type === 'GAIN_ON_ORBIT' || buff.type === 'GAIN_ON_ORBIT_OR_LAND') {
-        // Ignorer si le prérequis est déjà complété
-        if (buff.id && buff.source) {
-          const mission = player.missions.find(m => m.name === buff.source);
-          if (mission && mission.completedRequirementIds.includes(buff.id)) return;
-          if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
-        }
-
-        if (buff.source && processedSources.has(buff.source)) return;
-
-        if (buff.source) processedSources.add(buff.source);
-
-        // Marquer comme remplie (en attente de clic)
-        CardSystem.markMissionRequirementFulfillable(player, buff);
-      }
-    });
+    this.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_ORBIT' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
 
     return {
       updatedGame,
@@ -696,6 +638,7 @@ export class ProbeSystem {
     updatedGame: Game;
     isFirstLander: boolean;
     isSecondLander: boolean;
+    isThirdLander: boolean;
     planetId: string;
     bonuses: Bonus;
     completedMissions: string[];
@@ -732,6 +675,7 @@ export class ProbeSystem {
 
     const isFirstLander = targetBody ? (targetBody.landers || []).length === 0 : true;
     const isSecondLander = targetBody ? (targetBody.landers || []).length === 1 : false;
+    const isThirdLander = targetBody ? (targetBody.landers || []).length === 2 : false;
 
     // Mettre à jour la sonde
     probe.state = ProbeState.LANDED;
@@ -770,33 +714,49 @@ export class ProbeSystem {
     }
 
     // Traitement des buffs permanents
-    const processedSources = new Set<string>();
-    player.permanentBuffs.forEach(buff => {
-      if (buff.type === 'GAIN_ON_LAND' || buff.type === 'GAIN_ON_ORBIT_OR_LAND') {
-        // Ignorer si le prérequis est déjà complété
-        if (buff.id && buff.source) {
-          const mission = player.missions.find(m => m.name === buff.source);
-          if (mission && mission.completedRequirementIds.includes(buff.id)) return;
-          if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
-        }
-
-        if (buff.source && processedSources.has(buff.source)) return;
-
-        if (buff.source) processedSources.add(buff.source);
-
-        // Marquer comme remplie (en attente de clic)
-        CardSystem.markMissionRequirementFulfillable(player, buff);
-      }
-    });
+    this.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_LAND' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
 
     return {
       updatedGame,
       isFirstLander,
       isSecondLander,
+      isThirdLander,
       planetId,
       bonuses: accumulatedBonuses,
       completedMissions
     };
+  }
+
+  private static processMissionBuffs(
+    player: Player,
+    shouldTrigger: (buff: CardEffect) => boolean
+  ): void {
+    const processedMissionNames = new Set<string>();
+    player.permanentBuffs.forEach(buff => {
+      if (shouldTrigger(buff)) {
+        // Un buff de mission doit avoir un `id` et une `source` pour être traité.
+        if (buff.id && buff.source) {
+          // Identifier la mission de manière robuste
+          const mission = player.missions.find(m => m.name === buff.source);
+          const deduplicationKey = mission ? mission.id : buff.source;
+
+          // Ignorer si cette mission a déjà été traitée par un autre buff durant cet événement
+          if (processedMissionNames.has(deduplicationKey)) return;
+
+          // Vérifications d'état sur la mission
+          if (mission) {
+            if (mission.completedRequirementIds.includes(buff.id)) return;
+            if (mission.fulfillableRequirementIds?.includes(buff.id)) return;
+          }
+
+          // Marquer cette mission comme traitée pour cet événement
+          processedMissionNames.add(deduplicationKey);
+
+          // Marquer comme remplie (en attente de clic)
+          CardSystem.markMissionRequirementFulfillable(player, buff);
+        }
+      }
+    });
   }
 
   /**

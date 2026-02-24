@@ -30,7 +30,6 @@ export class AIBehavior {
      * Stratégie Facile : Choix purement aléatoire parmi les actions valides
      */
     private static decideRandomAction(game: Game, player: Player): AIDecision {
-        console.log(`[AI] ${player.name} is deciding a random action...`);
         const possibleActions: AIDecision[] = [];
 
         // 1. LAUNCH_PROBE
@@ -108,12 +107,12 @@ export class AIBehavior {
             });
         });
 
-        console.log(`[AI] ${player.name} found ${possibleActions.length} possible actions:`, possibleActions.map(a => a.action));
-
         // Si aucune action n'est possible, on passe
         if (possibleActions.length === 0) {
             console.log(`[AI] ${player.name} has no possible actions, passing.`);
             return this.createPassDecision(game, player);
+        } else {
+            console.log(`[AI] ${player.name} found ${possibleActions.length} possible actions:`, possibleActions.map(a => a.action));
         }
 
         // Choix aléatoire parmi les actions possibles

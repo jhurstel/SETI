@@ -376,8 +376,8 @@
   font-size: 0.7em;
   color: #ccc;
   font-style: italic;
-  overflow-y: auto;
   flex: 1;
+  overflow: hidden;
 }
 
 .seti-played-card {

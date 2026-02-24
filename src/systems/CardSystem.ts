@@ -257,7 +257,10 @@ export class CardSystem {
                         name: card.name,
                         description: card.description,
                         ownerId: player.id,
-                        requirements: card.permanentEffects || [], // IDs will be added by the factory
+                        requirements: (card.permanentEffects || []).map((effect, idx) => ({
+                            id: `mission-${card.id}-req-${idx}`,
+                            ...effect
+                        })),
                         completedRequirementIds: [],
                         fulfillableRequirementIds: [],
                         completed: false,
@@ -551,9 +554,10 @@ export class CardSystem {
 
         // Traitement des effets permanents (Missions déclenchables)
         if (card.permanentEffects) {
-            card.permanentEffects.forEach(effect => {
+            card.permanentEffects.forEach((effect, idx) => {
                 if (effect.type.startsWith('GAIN_ON_')) {
-                    player.permanentBuffs.push({ ...effect, source: card.name });
+                    const buffId = `mission-${card.id}-req-${idx}`;
+                    player.permanentBuffs.push({ ...effect, id: buffId, source: card.name });
                 }
             });
         }

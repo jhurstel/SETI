@@ -452,7 +452,6 @@ export const BoardUI: React.FC = () => {
       else if (interactionState.type === 'CLAIMING_MISSION_REQUIREMENT') {
         const { missionId, requirementId } = interactionState;
         const mission = player.missions.find(m => m.id === missionId);
-        
         if (mission && !mission.completedRequirementIds.includes(requirementId)) {
             const requirement = mission.requirements.find(r => r.id === requirementId);
             let bonuses: Bonus = {};
@@ -470,7 +469,7 @@ export const BoardUI: React.FC = () => {
                      return;
                  }
             }
-
+            
             mission.completedRequirementIds.push(requirementId);
             const isCompleted = mission.completedRequirementIds.length >= mission.requirements.length;
             if (isCompleted) {
@@ -535,7 +534,6 @@ export const BoardUI: React.FC = () => {
 
     const currentPlayer = game.players[game.currentPlayerIndex];
     if (currentPlayer && currentPlayer.type === 'robot') {
-      console.log(`[BoardUI] Robot ${currentPlayer.name} turn detected. Main action performed: ${currentPlayer.hasPerformedMainAction}`);
       // Synchroniser le moteur avec l'état actuel pour l'IA
       if (gameEngineRef.current) gameEngineRef.current.setState(game);
 
@@ -567,15 +565,12 @@ export const BoardUI: React.FC = () => {
 
         // Si le robot a déjà joué son action principale et n'a plus d'actions gratuites à faire
         if (currentPlayer.hasPerformedMainAction) {
-            console.log(`[BoardUI] Robot ${currentPlayer.name} has already performed main action. Passing turn.`);
             handleNextPlayer();
             return;
         }
 
         // Décision de l'IA (Niveau FACILE)
-        console.log(`[BoardUI] Requesting AI decision for ${currentPlayer.name}...`);
         const decision = AIBehavior.decideAction(game, currentPlayer, 'EASY');
-        console.log(`[BoardUI] AI decision:`, decision);
 
         // Helper pour traiter la file d'attente des interactions pour l'IA
         const processAIInteractions = (initialGame: Game, initialQueue: InteractionState[], sequenceId: string) => {
@@ -2016,7 +2011,9 @@ export const BoardUI: React.FC = () => {
     setInteractionState(choice.state);
 
     // Ajouter le menu mis à jour en tête de la file d'attente pour y revenir après l'action
-    if (updatedChoices.some(c => !c.done)) {
+    // Exception : Pour les missions, on ne force pas la résolution de toutes les conditions d'un coup
+    const isMissionClaim = choice.state.type === 'CLAIMING_MISSION_REQUIREMENT';
+    if (!isMissionClaim && updatedChoices.some(c => !c.done)) {
       setPendingInteractions(prev => [nextMenuState, ...prev]);
     }
   };
