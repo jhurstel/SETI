@@ -55,12 +55,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   const isPlacingLifeTrace = interactionState.type === 'PLACING_LIFE_TRACE';
   const isSelectingSector = interactionState.type === 'SELECTING_SCAN_SECTOR' || interactionState.type === 'SELECTING_SCAN_CARD';
 
-  const selectedCardIds = (isDiscarding || isTrading || isReserving || isDiscardingForSignal)
-    ? (interactionState as any).selectedCards
-    : [];
+  const selectedCardIds = (isDiscarding || isTrading || isReserving || isDiscardingForSignal) ? interactionState.selectedCards : [];
 
-  const reservationCount = isReserving ? (interactionState as any).count : 0;
-  const discardForSignalCount = isDiscardingForSignal ? (interactionState as any).count : 0;
+  const reservationCount = isReserving ? interactionState.count : 0;
+  const discardForSignalCount = isDiscardingForSignal ? interactionState.count : 0;
 
   const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -667,7 +665,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                         onDiscardCardAction={onDiscardCardAction}
                         handleTooltipHover={handleTooltipHover}
                         handleTooltipLeave={handleTooltipLeave}
-                        renderActionButton={renderActionButton as any}
+                        renderActionButton={renderActionButton}
+                        cardOrigin="hand"
                     />
                   ))
                 ) : (

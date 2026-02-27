@@ -48,12 +48,13 @@
 47;Very Large Array;Action;Gagnez 2 Signaux dans un secteur d'une carte de la rangée. Si vous remplissez au moins un secteur ce tour-ci, gagnez 1 Donnée.;1 Média;Jaune;1 Energie;2 Crédits;2 Signaux Rangée;BONUS_IF_COVERED:data:1
 48;Program Breakthrough Starshot;Action;Gagnez 1 Déplacement et 1 Signal dans un secteur Rouge.;1 Média;Bleu;1 Crédit;1 Crédit;1 Déplacement + 1 Signal Rouge;
 49;Program Breakthrough Watch;Action;Gagnez 1 Déplacement et 1 Signal dans un secteur Jaune.;1 Média;Rouge;1 Crédit;1 Crédit;1 Déplacement + 1 Signal Jaune;
-50;Program Breakthrough Listen;Action;Gagnez 1 Déplacement et 1 Signal dans un secteur Bleu.;1 Média;Jaune;1 Crédit;1 Crédit;1 Déplacement + 1 Signal Bleu;
+50;Square Kilometre Array;Action;Gagnez 3 Signaux dans un secteur d'une carte de la rangée. Gagnez 2 PVs pour chaque secteur unique dans lequel vous marquez un signal.;1 Média;Bleu;1 Crédit;3 Crédits;3 Signaux Rangée;SCORE_IF_UNIQUE:2
 51;Télescope Lovell;Mission conditionnelle;Gagnez 1 Donnée et 1 Scan. Mission: Gagnez 3 PV et 1 Carte si vous avez au moins 8 Média.;1 Déplacement;Rouge;1 Energie;3 Crédits;1 Donnée + 1 Scan;GAIN_IF_8_MEDIA:pv:3:anycard:1
 52;Observatoire de Parkes;Action;Gagnez 1 Scan. Gagnez 2 PVs chaque fois que vous marquez un Signal dans un secteur Rouge grâce à cette action.;1 Déplacement;Jaune;1 Pioche;2 Crédits;1 Scan;SCORE_PER_SECTOR:red:2
 53;Deep Synoptic Array;Action;Gagnez 1 Scan. Gagnez 2 PVs chaque fois que vous marquez un Signal dans un secteur Jaune grâce à cette action.;1 Déplacement;Bleu;1 Energie;2 Crédits;1 Scan;SCORE_PER_SECTOR:yellow:2
 54;Télescope VERITAS;Action;Gagnez 1 Scan. Gagnez 2 PVs chaque fois que vous marquez un Signal dans un secteur Bleu grâce à cette action.;1 Déplacement;Rouge;1 Crédit;2 Crédits;1 Scan;SCORE_PER_SECTOR:blue:2
 55;Radiotélescope d'Arecibo;Action;Gagnez 1 Scan. Marquez également 1 Signal dans n'importe quel secteur.;1 Média;Jaune;1 Pioche;3 Crédits;1 Scan + 1 Signal;
+56;Program Breakthrough Listen;Action;Gagnez 1 Déplacement et 1 Signal dans un secteur Bleu.;1 Média;Jaune;1 Crédit;1 Crédit;1 Déplacement + 1 Signal Bleu;
 57;Radiotélescope D'Effelsberg;Action;Gagnez 1 Carte, 1 Rotation et 1 Technologie Observation.;1 Média;Bleu;1 Energie;3 Crédits;1 Carte + 1 Rotation + 1 Tech Observation;
 58;Orbiteur et Sonde d'Uranus;Mission conditionnelle;Gagnez 1 Sonde. Mission: Gagnez 3 PV et 1 Pioche si vous avez un orbiteur/atterrisseur (lunes comprises) sur Uranus.;1 Média;Rouge;1 Crédit;2 Crédits;1 Sonde;GAIN_IF_ORBITER_OR_LANDER:uranus:pv:3:card:1
 59;Système de Propulsion Ionique;Action;Gagez 1 Energie, 1 Rotation et 1 Technologie Exploration.;1 Média;Rouge;1 Pioche;3 Crédits;1 Energie + 1 Rotation + 1 Tech Exploration;
@@ -88,7 +89,6 @@
 88;Observatoire Spatial Chandra;Mission conditionnelle;Gagnez 2 Signaux dans un secteur où se trouve l'une de vos sondes. Mission: Gagnez 2 Médias si vous avez marqué un signal dans 4 secteurs différents.;1 Déplacement;Bleu;1 Energie;2 Crédits;2 Signaux Sonde;GAIN_IF_4_SIGNALS:media:2
 89;Programme NIAC;Mission conditionnelle;Gagnez 3 Pioche. Mission: Gagnez 1 Carte si vous n'avez aucune carte en main.;1 Média;Bleu;1 Crédit;2 Crédits;3 Pioche;GAIN_IF_EMPTY_HAND:anycard:1
 90;Réservoirs d'Ergols;Action;Gagnez 1 Energie pour chaque carte avec un revenu Energie que vous révélez de votre main.;1 Donnée;Bleu;1 Pioche;1 Crédit;;GAIN_ENERGY_PER_ENERGY_REVENUE
-90;Square Kilometre Array;Action;Gagnez 3 Signaux dans un secteur d'une carte de la rangée. Gagnez 2 PVs pour chaque secteur unique dans lequel vous marquez un signal.;1 Média;Bleu;1 Crédit;3 Crédits;3 Signaux Rangée;SCORE_IF_UNIQUE:2
 91;Réacteur à Fusion;Action;Gagnez 1 Energie pour chaque carte Energie glissée sous vos revenus. Puis réservez cette carte.;1 Média;Rouge;1 Energie;3 Crédits;;GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE
 92;Photo du Jour de la NASA;Action;Gagnez 2 Médias. Gagnez 1 Média pour chaque carte Pioche glissée sous vos revenus. Puis réservez cette carte.;1 Donnée;Bleu;1 Pioche;3 Crédits;2 Médias;GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE
 93;Financement Public;Action;Gagnez 3 PV pour chaque carte Crédit glissée sous vos revenus. Puis réservez cette carte.;1 Média;Jaune;1 Crédit;3 Crédits;;GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE

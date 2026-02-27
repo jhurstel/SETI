@@ -1,5 +1,5 @@
 import React from 'react';
-import { Player, GAME_CONSTANTS } from '../../core/types';
+import { Player, GAME_CONSTANTS, ComputerSlot } from '../../core/types';
 import { ComputerSystem } from '../../systems/ComputerSystem';
 import { PlayerComputerSlot } from './PlayerComputerSlot';
 import './PlayerComputer.css';
@@ -75,10 +75,11 @@ export const PlayerComputer = ({
               {hasBottom && (
                 <div className="computer-column-connector" />
               )}
-              {colSlots.map((slot: any, slotIndex: number) => (
+              {colSlots.map((slot: ComputerSlot, slotIndex: number) => (
                 <PlayerComputerSlot
                   key={slot.id} 
                   slot={slot} 
+                  currentPlayerColor={player.color} 
                   onClick={() => onSlotClick(slot.id)} 
                   canFill={!disabled && ComputerSystem.canFillSlot(player, slot.id)} 
                   hasData={hasData}

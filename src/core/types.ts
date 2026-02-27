@@ -61,7 +61,7 @@ export enum CardType {
   ACTION = "Action",
   CONDITIONAL_MISSION = "Mission Conditionnelle",
   TRIGGERED_MISSION = "Mission Déclenchable",
-  END_GAME = "Fin de partie",
+  END_GAME = "Fin de jeu",
   CENTAURIEN = "Centaurien",
   EXERTIEN = "Exertien",
   UNDEFINED = "Non défini"

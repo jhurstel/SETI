@@ -54,10 +54,10 @@ export const CardTooltip: React.FC<{ card: Card, hideIntro?: boolean, hideStats?
       {!hideStats && (
       <div className="seti-card-tooltip-stats">
          <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
-         <div>Type: {card.type === CardType.ACTION ? 'Action' : card.type === CardType.END_GAME ? 'Fin de jeu' : card.type === CardType.CONDITIONAL_MISSION ? 'Mission conditionnelle' : card.type === CardType.TRIGGERED_MISSION ? 'Mission déclenchable' : 'Autre'} ({card.id})</div>
+         <div>Type: {card.type} ({card.id})</div>
          <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
          <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
-         <div className="seti-card-tooltip-scan">Scan: <span style={{ color: `${SECTOR_STYLES[card.scanSector]?.color || '#fff'}`, backgroundColor: `${SECTOR_STYLES[card.scanSector]?.bgColor || 'transparent'}`, fontWeight: 'bold' }}>{card.scanSector}</span></div>
+         <div>Scan: <span style={{ color: `${SECTOR_STYLES[card.scanSector]?.color || '#fff'}` }}>{card.scanSector}</span></div>
       </div>
       )}
     </div>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Game, InteractionState } from '../core/types';
-import { CardTooltip } from '../ui/components/CardTooltip';
-import { SECTOR_STYLES } from './styles/celestialStyles';
+import { HandCard } from './components/HandCard';
 import './CardRowUI.css';
 
 interface CardRowUIProps {
@@ -19,6 +18,17 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
     useEffect(() => {
         setIsOpen(isInitiallyOpen);
     }, [isInitiallyOpen]);
+
+    const currentPlayer = game.players[game.currentPlayerIndex];
+
+    const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        setActiveTooltip({ content, rect });
+    };
+
+    const handleTooltipLeave = () => {
+        setActiveTooltip(null);
+    };
 
     return (
         <div className={`seti-foldable-container seti-icon-panel seti-card-row-container ${isOpen ? 'open' : 'collapsed'} ${isActive ? 'active' : ''}`}
@@ -38,33 +48,27 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
                         <div className="seti-deck-count">{game.decks.cards.length || 0} cartes</div>
                     </div>
 
+                    {/* Ligne de cartes */}
                     {game.decks.cardRow && game.decks.cardRow.map(card => (
-                        <div key={card.id}
-                            onClick={() => onCardClick(card.id)}
-                            onMouseEnter={(e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setActiveTooltip({ content: <CardTooltip card={card} />, rect });
-                            }}
-                            onMouseLeave={() => setActiveTooltip(null)}
-                            className={`seti-common-card seti-row-card ${isActive ? 'active' : ''}`}
-                        >
-                            <div className="seti-row-card-name">{card.name}</div>
-                            <div className="seti-row-card-cost">Jouer la carte (coût: <span>{card.cost}</span>)</div>
-                            {card.description && <div className="seti-row-card-desc">{card.description}</div>}
-                            <div className="seti-row-card-details">
-                                {card.freeAction && <div>Act: {card.freeAction}</div>}
-                                {card.revenue && <div>Rev: {card.revenue}</div>}
-                            </div>
-                            <div className="seti-row-card-scan-box" style={{
-                                border: `1px solid ${SECTOR_STYLES[card.scanSector]?.borderColor || '#fff'}`
-                            }}>
-                                <div className="seti-row-card-scan-label">Scan</div>
-                                <div className="seti-row-card-scan-value" style={{
-                                    color: `${SECTOR_STYLES[card.scanSector]?.color || '#fff'}`
-                                }}>
-                                    {card.scanSector}
-                                </div>
-                            </div>
+                        <div key={card.id} className="seti-row-card-wrapper">
+                            <HandCard
+                                card={card}
+                                game={game}
+                                currentPlayerId={currentPlayer.id}
+                                interactionState={interactionState}
+                                highlightedCardId={null}
+                                setHighlightedCardId={() => {}}
+                                onCardClick={(id) => onCardClick(id)}
+                                onPlayCard={() => {}}
+                                onDiscardCardAction={() => {}}
+                                handleTooltipHover={handleTooltipHover}
+                                handleTooltipLeave={handleTooltipLeave}
+                                renderActionButton={() => null}
+                                disableGrayOut={true}
+                                defaultAttribute="scan"
+                                defaultClickable={false}
+                                cardOrigin="row"
+                            />
                         </div>
                     ))}
                     {(!game.decks.cardRow || game.decks.cardRow.length === 0) && (

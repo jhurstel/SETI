@@ -3,6 +3,7 @@ import { ComputerSlot } from '../../core/types';
 
 export const PlayerComputerSlot = ({ 
     slot, 
+    currentPlayerColor, 
     onClick, 
     canFill,
     hasData,
@@ -11,6 +12,7 @@ export const PlayerComputerSlot = ({
     isPreviousFilled
   }: { 
     slot: ComputerSlot, 
+    currentPlayerColor: string, 
     onClick: () => void, 
     canFill: boolean,
     hasData: boolean,
@@ -82,7 +84,10 @@ export const PlayerComputerSlot = ({
         className={`computer-slot ${isFilled ? 'filled' : ''} ${canFill && !isFilled ? 'can-fill' : ''}`}
         onMouseEnter={(e) => onHover(e, tooltipContent)}
         onMouseLeave={onLeave}
-        style={{ cursor: canFill && !isFilled ? 'pointer' : 'help' }}
+        style={{
+          cursor: canFill && !isFilled ? 'pointer' : 'help',
+          boxShadow: canFill && !isFilled ? `0 0 8px ${currentPlayerColor}, 0 0 12px #fff` : 'none'
+        }}
       >
         {isFilled && <div className="computer-slot-dot" />}
         {!isFilled && slot.bonus === 'media' && <span className="computer-slot-bonus media">{mediaAmount > 1 ? '2' : ''}🎤</span>}
