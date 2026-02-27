@@ -115,8 +115,8 @@ export enum SectorType {
   VEGA = "Vega",
   PICTORIS = "Beta Pictoris",
   OUMUAMUA = "Oumuamua",
-  ANY = "N'importe quelle couleur",
-  UNDEFINED = "Non défini"
+  ANY = "quelconque",
+  UNDEFINED = "non défini"
 }
 
 export enum TechnologyCategory {
@@ -124,14 +124,14 @@ export enum TechnologyCategory {
   OBSERVATION = "Observation",
   COMPUTING = "Informatique",
   EXPLORATION_OR_OBSERVATION = "Exploration ou Observation",
-  ANY = "N'importe quelle type"
+  ANY = "quelconque"
 }
 
 export enum LifeTraceType {
   RED = "Rouge",
   YELLOW = "Jaune",
   BLUE = "Bleu",
-  ANY = "N'importe quelle couleur"
+  ANY = "quelconque"
 }
 
 export enum EventType {

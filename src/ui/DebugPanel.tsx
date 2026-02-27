@@ -53,7 +53,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
     const player = updatedGame.players[updatedGame.currentPlayerIndex];
     player[resourceType] = (player[resourceType] || 0) + amount;
     setGame(updatedGame);
-    onHistory(`DEBUG: Added ${amount} ${resourceType} to ${player.name}`, player.id, updatedGame);
+    onHistory(`DEBUG: Added ${amount} ${resourceType} to ${player.name}`, player.id, game);
   };
 
   const handleAddCard = () => {
@@ -79,9 +79,9 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
     if (card) {
       player.cards.push(structuredClone(card));
       setGame(updatedGame);
-      onHistory(`DEBUG: Added card "${card.name}" to ${player.name}`, player.id, updatedGame);
+      onHistory(`DEBUG: Added card "${card.name}" to ${player.name}`, player.id, game);
     } else {
-      onHistory(`DEBUG: Card with ID/name part "${cardId}" not found.`, player.id, updatedGame);
+      onHistory(`DEBUG: Card with ID/name part "${cardId}" not found.`, player.id, game);
     }
   };
 
@@ -111,9 +111,9 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
 
       player.technologies.push(structuredClone(foundTech));
       setGame(updatedGame);
-      onHistory(`DEBUG: Added tech "${foundTech.name}" to ${player.name}`, player.id, updatedGame);
+      onHistory(`DEBUG: Added tech "${foundTech.name}" to ${player.name}`, player.id, game);
     } else {
-      onHistory(`DEBUG: Tech with ID/name part "${techId}" not found.`, player.id, updatedGame);
+      onHistory(`DEBUG: Tech with ID/name part "${techId}" not found.`, player.id, game);
     }
   };
 
