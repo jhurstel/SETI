@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardType } from '../../core/types';
+import { Card, CardType, CostType } from '../../core/types';
 import { SECTOR_STYLES } from '../styles/celestialStyles';
 
 export const CardDescription: React.FC<{ description: string, type?: CardType, hideIntro?: boolean }> = ({ description, type, hideIntro }) => {
@@ -8,7 +8,7 @@ export const CardDescription: React.FC<{ description: string, type?: CardType, h
     const missionStyle: React.CSSProperties = type === CardType.END_GAME ? { color: '#ffd700' } : {};
 
     // Cas des missions conditionnelle (Mission:) ou Fin de jeu (Fin de jeu:)
-    const missionRegex = /(Mission:|Fin de jeu:)/g;
+    const missionRegex = /(Mission:|Fin de jeu:|Réception:)/g;
     if (missionRegex.test(description)) {
       const parts = description.split(missionRegex);
       const elements = [];
@@ -53,7 +53,7 @@ export const CardTooltip: React.FC<{ card: Card, hideIntro?: boolean, hideStats?
       </div>
       {!hideStats && (
       <div className="seti-card-tooltip-stats">
-         <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}</span></div>
+         <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ' ₢'}</span></div>
          <div>Type: {card.type} ({card.id})</div>
          <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
          <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>

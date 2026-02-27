@@ -14,14 +14,13 @@ interface PlanetIconProps {
   interactionState: InteractionState;
   onOrbit: (planetId: string, slotIndex?: number) => void;
   onLand: (planetId: string, slotIndex?: number) => void;
-  setSlotTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
   handleSlotClick: (e: React.MouseEvent, isClickable: boolean, actionFn: ((planetId: string, index: number) => void) | undefined, planetId: string, index: number, removalType?: 'orbiter' | 'lander') => void;
   removingItem: { type: 'orbiter' | 'lander', planetId: string, index: number } | null;
   hoverTimeoutRef: React.MutableRefObject<any>;
   setHoveredSlot: (slot: { type: 'orbiter' | 'lander', planetId: string, index: number, rect: DOMRect } | null) => void;
 }
 
-export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, game, interactionState, onOrbit, onLand, setSlotTooltip, handleSlotClick, removingItem, hoverTimeoutRef, setHoveredSlot }) => {
+export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, game, interactionState, onOrbit, onLand, handleSlotClick, removingItem, hoverTimeoutRef, setHoveredSlot }) => {
   const style = PLANET_STYLES[id] || {
     background: 'radial-gradient(circle, #888, #555)',
     border: '2px solid #aaa',
@@ -121,8 +120,6 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
       const probe = satellite.landers && satellite.landers.length > 0 ? satellite.landers[satellite.landers.length - 1] : undefined;
       const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
 
-      const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
-
       const isOccupied = !!player;
       const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
       let satReason = landReason;
@@ -133,19 +130,6 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
         satReason = "Nécessite la technologie Exploration IV";
         isSatClickable = false;
       }
-
-      const tooltipContent = isOccupied ? (
-        <div>Atterrisseur de <span style={{ fontWeight: 'bold', color: player?.color }}>{player?.name}</span> sur {satellite.name}</div>
-      ) : (
-        <>
-          <div style={{ marginBottom: '4px', color: isSatClickable ? '#4a9eff' : '#ff6b6b', fontWeight: isSatClickable ? 'bold' : 'normal' }}>
-            {satReason}
-          </div>
-          <div style={{ fontSize: '0.9em', color: '#ccc' }}>
-            Récompenses: <span style={{ color: '#ffd700' }}>{bonusText}</span>
-          </div>
-        </>
-      );
 
       return (
         <div
@@ -185,9 +169,9 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
               if (isSatClickable && onLand) { e.stopPropagation(); onLand(satellite.id, 0); }
             }}
               onMouseEnter={(e) => {
-                setSlotTooltip({ content: tooltipContent, rect: e.currentTarget.getBoundingClientRect() });
+                setHoveredSlot({ type: 'lander', planetId: satellite.id, index: 0, rect: e.currentTarget.getBoundingClientRect() });
               }}
-              onMouseLeave={() => setSlotTooltip(null)}
+              onMouseLeave={() => setHoveredSlot(null)}
             >
               {isSatClickable && <circle r="13" fill="none" stroke="#00ff00" strokeWidth="3" opacity="0.8" />}
               <circle r="10" fill={player?.color || 'rgba(0,0,0,0.5)'} stroke="rgba(255,255,255,0.9)" strokeWidth="1.5" />

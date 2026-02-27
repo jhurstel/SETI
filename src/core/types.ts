@@ -77,8 +77,8 @@ export enum FreeActionType {
   MOVEMENT = "Déplacement",
   DATA = "Donnée",
   MEDIA = "Média",
-  PV_MOVEMENT = "1 PV + 1 Déplacement",
-  PV_DATA = "1 PV + 1 Donnée",
+  PV_MOVEMENT = "PV + Déplacement",
+  PV_DATA = "PV + Donnée",
   TWO_MEDIA = "2 Médias",
   UNDEFINED = "Non défini"
 }

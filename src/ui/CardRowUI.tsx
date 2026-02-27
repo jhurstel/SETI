@@ -43,6 +43,11 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
                     <div
                         onClick={() => onCardClick(undefined)}
                         className={`seti-common-card seti-deck-card ${interactionState.type === 'ACQUIRING_CARD' ? 'active' : ''}`}
+                        onMouseEnter={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setActiveTooltip({ content: <div>{game.decks.cards?.length || 0} cartes restantes</div>, rect });
+                        }}
+                        onMouseLeave={handleTooltipLeave}
                     >
                         <div className="seti-deck-label">Pioche</div>
                         <div className="seti-deck-count">{game.decks.cards.length || 0} cartes</div>

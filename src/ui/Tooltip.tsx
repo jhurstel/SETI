@@ -102,7 +102,7 @@ export const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEn
       ref={tooltipRef}
       style={{
         position: 'fixed',
-        zIndex: 9999,
+        zIndex: 20000,
         backgroundColor: 'rgba(0, 0, 0, 0.9)',
         padding: '6px 10px',
         borderRadius: '4px',

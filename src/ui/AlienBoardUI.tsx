@@ -88,6 +88,11 @@ const SpeciesCardArea: React.FC<{
             <div 
                 className={`seti-common-card seti-deck-card alien-small-card ${isAcquiring ? 'acquiring' : 'default'}`}
                 onClick={(e) => { e.stopPropagation(); onCardClick(species.id, 'deck'); }}
+                onMouseEnter={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setActiveTooltip({ content: <div>{deck.length} cartes restantes</div>, rect });
+                }}
+                onMouseLeave={() => setActiveTooltip(null)}
             >
                 <div className="seti-deck-label alien-deck-label">Pioche</div>
                 <div className="seti-deck-count alien-deck-count">{deck.length} cartes</div>

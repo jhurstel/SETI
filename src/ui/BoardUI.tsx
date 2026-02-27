@@ -2201,6 +2201,7 @@ export const BoardUI: React.FC = () => {
       const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs, historyEntries } = ResourceSystem.processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, 'land/orbit', sequenceId, speciesId);
 
       // Marquer l'action principale comme effectuée manuellement
+      // ATTENTION TODO devrait etre fait dans GameEngine ou au moins dans la logique métier
       const playerIndex = updatedGame.players.findIndex(p => p.id === currentPlayer.id);
       if (playerIndex !== -1) updatedGame.players[playerIndex].hasPerformedMainAction = true;
 
@@ -3029,6 +3030,8 @@ export const BoardUI: React.FC = () => {
         updatedGame = rotationResult.updatedGame;
         addToHistory(rotationResult.logs.join(', '), player.id, game, undefined, interactionState.sequenceId);
 
+        // Marquer l'action principale comme effectuée manuellement
+        // ATTENTION TODO devrait etre fait dans GameEngine ou au moins dans la logique métier
         const playerIndex = updatedGame.players.findIndex(p => p.id === player.id);
         if (playerIndex !== -1) updatedGame.players[playerIndex].hasPerformedMainAction = true;
 

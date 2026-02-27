@@ -47,7 +47,10 @@ const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue' | 'sca
   return (
     <>
       <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
-      <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: card.costType === CostType.ENERGY ? '#4caf50' : '#ffd700' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ''}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
+      <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}>
+        <span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: card.costType === CostType.ENERGY ? '#4caf50' : '#ffd700' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ' ₢'}</span></span>
+        <span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span>
+      </div>
       {card.description && <div className="seti-card-description" style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', lineHeight: '1.2', flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
       <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px', justifyContent: 'space-between' }}>
         {details}

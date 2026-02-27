@@ -31,8 +31,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   const [highlightedPath, setHighlightedPath] = useState<string[]>([]);
   const planetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  // État pour le tooltip des slots (orbite/atterrissage) pour qu'il s'affiche par-dessus celui de la planète
-  const [slotTooltip, setSlotTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
   const [hoveredSlot, setHoveredSlot] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number, rect: DOMRect } | null>(null);
 
   // État pour gérer l'animation de retrait
@@ -82,14 +80,30 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     if (!hoveredSlot || removingItem) return null;
     const { type, planetId, index } = hoveredSlot;
 
-    const planetData = getPlanetData(planetId);
-    if (!planetData) return null;
+    let planetData = getPlanetData(planetId);
+    let satelliteData: any = null;
+
+    if (!planetData) {
+      for (const p of game.board.planets) {
+        if (p.satellites) {
+          const sat = p.satellites.find(s => s.id === planetId);
+          if (sat) {
+            satelliteData = sat;
+            planetData = p;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!planetData && !satelliteData) return null;
 
     const currentPlayer = game.players[game.currentPlayerIndex];
     const isRobot = currentPlayer.type === 'robot';
 
     // Trouver l'objet céleste pour vérifier la position de la sonde du joueur
-    const targetObj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || [])].find(o => o.id === planetId);
+    const targetObjId = satelliteData ? planetData!.id : planetId;
+    const targetObj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || [])].find(o => o.id === targetObjId);
     const playerProbe = targetObj && game.board.solarSystem.probes.find(p =>
       p.ownerId === currentPlayer.id &&
       p.state === ProbeState.IN_SOLAR_SYSTEM &&
@@ -99,15 +113,16 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     );
 
     if (type === 'orbiter') {
-      const orbitSlots = planetData.orbitSlots || [];
+      if (satelliteData) return null;
+      const orbitSlots = planetData!.orbitSlots || [];
       if (index >= orbitSlots.length) return null;
       const bonus = orbitSlots[index];
-      const probe = planetData.orbiters[index];
+      const probe = planetData!.orbiters[index];
       const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
       const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
 
       const isOccupied = !!player;
-      const isNextAvailable = index === planetData.orbiters.length;
+      const isNextAvailable = index === planetData!.orbiters.length;
 
       let canOrbit = false;
       let orbitReason = "";
@@ -134,17 +149,27 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     }
 
     if (type === 'lander') {
-      const landSlots = planetData.landSlots || [];
+      let landSlots: any[] = [];
+      let landers: any[] = [];
+
+      if (satelliteData) {
+        landSlots = [satelliteData.landBonus];
+        landers = satelliteData.landers || [];
+      } else {
+        landSlots = planetData!.landSlots || [];
+        landers = planetData!.landers || [];
+      }
+
       if (index >= landSlots.length) return null;
       const bonus = landSlots[index];
 
-      const probesOnSlot = planetData.landers.filter(p => p.planetSlotIndex === index);
+      const probesOnSlot = landers.filter((p: any) => p.planetSlotIndex === index);
       const probe = probesOnSlot.length > 0 ? probesOnSlot[probesOnSlot.length - 1] : undefined;
       const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
       const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
 
       const isOccupied = !!player;
-      const isPrevSlotOccupied = index === 0 || planetData.landers.some(p => p.planetSlotIndex === index - 1);
+      const isPrevSlotOccupied = index === 0 || landers.some((p: any) => p.planetSlotIndex === index - 1);
       const isNextAvailable = !isOccupied && isPrevSlotOccupied;
       const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
 
@@ -163,6 +188,15 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         }
       } else {
         landReason = "Nécessite une sonde sur la planète";
+      }
+
+      if (satelliteData) {
+        const hasExploration4 = currentPlayer.technologies.some(t => t.id.startsWith('exploration-4'));
+        const allowSatelliteLanding = interactionState.type === 'LANDING_PROBE' && (interactionState.source === '12' || interactionState.ignoreSatelliteLimit);
+        if (!hasExploration4 && !allowSatelliteLanding) {
+          canLand = false;
+          landReason = "Nécessite la technologie Exploration IV";
+        }
       }
 
       const isClickable = (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
@@ -429,7 +463,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                 </div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px', minHeight: '220px', alignItems: 'center' }}>
-                <PlanetIcon id={planetData.id} size={planetData.id === 'oumuamua' ? 80 : 220} planetData={planetData} game={game} interactionState={interactionState} onOrbit={onOrbit} onLand={onLand} setSlotTooltip={setSlotTooltip} handleSlotClick={handleSlotClick} removingItem={removingItem} hoverTimeoutRef={hoverTimeoutRef} setHoveredSlot={setHoveredSlot} />
+                <PlanetIcon id={planetData.id} size={planetData.id === 'oumuamua' ? 80 : 220} planetData={planetData} game={game} interactionState={interactionState} onOrbit={onOrbit} onLand={onLand} handleSlotClick={handleSlotClick} removingItem={removingItem} hoverTimeoutRef={hoverTimeoutRef} setHoveredSlot={setHoveredSlot} />
               </div>
             </div>
           );
@@ -1544,7 +1578,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                     </div>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px', minHeight: '220px', alignItems: 'center' }}>
-                    <PlanetIcon id={planetData.id} size={planetData.id === 'oumuamua' ? 80 : 220} planetData={planetData} game={game} interactionState={interactionState} onOrbit={onOrbit} onLand={onLand} setSlotTooltip={setSlotTooltip} handleSlotClick={handleSlotClick} removingItem={removingItem} hoverTimeoutRef={hoverTimeoutRef} setHoveredSlot={setHoveredSlot} />
+                    <PlanetIcon id={planetData.id} size={planetData.id === 'oumuamua' ? 80 : 220} planetData={planetData} game={game} interactionState={interactionState} onOrbit={onOrbit} onLand={onLand} handleSlotClick={handleSlotClick} removingItem={removingItem} hoverTimeoutRef={hoverTimeoutRef} setHoveredSlot={setHoveredSlot} />
                   </div>
                 </div>
               );
@@ -1553,16 +1587,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           })()}
         </div>
       </div>
-
-      {/* Tooltip pour les slots, rendu par-dessus le tooltip principal */}
-      {slotTooltip && <Tooltip
-        content={slotTooltip.content}
-        targetRect={slotTooltip.rect}
-        pointerEvents="auto"
-        onMouseEnter={() => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); }}
-        onMouseLeave={handleMouseLeaveObject}
-        disableCollision={true}
-      />}
 
       {/* Tooltip pour les slots (recalculé dynamiquement) */}
       {hoveredSlot && !removingItem && (
