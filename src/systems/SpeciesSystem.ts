@@ -85,7 +85,7 @@ export class SpeciesSystem {
 
                         if (board.speciesId === AlienBoardType.CENTAURIENS) {
                             updatedGame.players.forEach(p => {
-                                p.centaurienMilestone = p.score + 15;
+                                p.centaurienMilestone.push(p.score + 15);
                             });
                             distResult.logs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
                         }
@@ -252,7 +252,7 @@ export class SpeciesSystem {
 
             if (board.speciesId === AlienBoardType.CENTAURIENS) {
                 updatedGame.players.forEach(p => {
-                    p.centaurienMilestone = p.score + 15;
+                    p.centaurienMilestone.push(p.score + 15);
                 });
                 discoveryLogs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
             }
@@ -434,7 +434,13 @@ export class SpeciesSystem {
         }
 
         species.message[tokenIndex].isAvailable = false;
-        player.centaurienMilestone = undefined;
+        
+        // Retirer le palier atteint (le plus petit qui est <= au score actuel)
+        player.centaurienMilestone.sort((a, b) => a - b);
+        const reachedIndex = player.centaurienMilestone.findIndex(m => player.score >= m);
+        if (reachedIndex !== -1) {
+            player.centaurienMilestone.splice(reachedIndex, 1);
+        }
 
         const res = ResourceSystem.processBonuses(species.message[tokenIndex].bonus, updatedGame, playerId, 'centaurien_message', `centaurien-${Date.now()}`);
         return { updatedGame: res.updatedGame, logs: [`déchiffre un message Centaurien`, ...res.logs] };

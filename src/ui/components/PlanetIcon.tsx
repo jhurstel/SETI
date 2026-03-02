@@ -2,7 +2,6 @@ import React from 'react';
 import { Game, Planet, ProbeState, InteractionState } from '../../core/types';
 import { ProbeSystem } from '../../systems/ProbeSystem';
 import { polarToCartesian, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../../core/SolarSystemPosition';
-import { ResourceSystem } from '../../systems/ResourceSystem';
 import { PLANET_STYLES, SATELLITE_STYLES } from '../styles/celestialStyles';
 import { SvgBonus } from './SvgBonus';
 
@@ -61,14 +60,11 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
   }
 
   let canLand = false;
-  let landReason = "Nécessite une sonde sur la planète";
   if (playerProbe) {
     if ((currentPlayer.hasPerformedMainAction && !(interactionState.type === 'LANDING_PROBE')) || isRobot) {
-      landReason = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
     } else {
       const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !(interactionState.type === 'LANDING_PROBE'));
       canLand = check.canLand;
-      landReason = check.canLand ? `Cliquez pour atterrir (Coût: ${check.energyCost} Énergie)` : (check.reason || "Impossible");
     }
   }
 
@@ -122,14 +118,12 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
 
       const isOccupied = !!player;
       const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
-      let satReason = landReason;
-      let isSatClickable = (!isOccupied || allowOccupiedLanding) && canLand && !!onLand;
-
       const allowSatelliteLanding = interactionState.type === 'LANDING_PROBE' && (interactionState.source === '12' || interactionState.ignoreSatelliteLimit);
-      if (!hasExploration4 && !allowSatelliteLanding) {
-        satReason = "Nécessite la technologie Exploration IV";
-        isSatClickable = false;
-      }
+      let isSatClickable =
+        (!isOccupied || allowOccupiedLanding) &&
+        canLand &&
+        !!onLand &&
+        (hasExploration4 || allowSatelliteLanding);
 
       return (
         <div
@@ -473,36 +467,6 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                           }}
                         />
                       )}
-                    </g>
-                  );
-                })}
-
-                {/* Mascamite Tokens */}
-                {planetData.mascamiteTokens && planetData.mascamiteTokens.map((token, i) => {
-                  const count = planetData.mascamiteTokens!.length;
-                  // Positionner en triangle ou cercle autour du centre
-                  // Si 1 seul, au centre. Si plusieurs, autour.
-                  const dist = count === 1 ? 0 : Math.max(size * 0.15, 6);
-                  const angle = (360 / count) * i - 90;
-                  const { x, y } = polarToCartesian(0, 0, dist, angle);
-
-                  return (
-                    <g key={`mascamite-${i}`} transform={`translate(${x}, ${y})`}
-                      onMouseEnter={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const content = (
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontWeight: 'bold', color: '#ea80fc', marginBottom: '4px' }}>Spécimen Mascamite</div>
-                            <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: '#ffd700' }}>{(ResourceSystem.formatBonus(token.bonus) || []).join(', ')}</span></div>
-                          </div>
-                        );
-                        setSlotTooltip({ content, rect });
-                      }}
-                      onMouseLeave={() => setSlotTooltip(null)}
-                      style={{ pointerEvents: 'auto', cursor: 'help' }}
-                    >
-                      <circle r="3.5" fill="#4a148c" stroke="#ea80fc" strokeWidth="1" />
-                      <text y="1" textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize="4" fontWeight="bold">M</text>
                     </g>
                   );
                 })}

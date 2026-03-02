@@ -703,6 +703,11 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   <PlayedMissionCard
                     key={card.id}
                     card={card}
+                    game={game}
+                    playerId={currentPlayer.id}
+                    isCurrentTurn={isCurrentTurn}
+                    isRobot={isRobot}
+                    onMissionClick={onMissionClick}
                     handleTooltipHover={handleTooltipHover}
                     handleTooltipLeave={handleTooltipLeave}
                   />

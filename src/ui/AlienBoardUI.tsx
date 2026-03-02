@@ -123,6 +123,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
     const board = game.board.alienBoards[boardIndex];
     const species = game.species.find(s => s.name === board.speciesId);
     const side = boardIndex === 0 ? 'left' : 'right';
+    const isMascamites = species?.name === AlienBoardType.MASCAMITES;
     const isPlacingTrace = interactionState.type === 'PLACING_LIFE_TRACE';
     const [isOpen, setIsOpen] = useState(isPlacingTrace || forceOpen);
 
@@ -192,6 +193,111 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
         return game.players.find(p => p.id === playerId)?.color || '#fff';
     };
 
+    const renderBoardSlot = (type: LifeTraceType, index: number, bonus: Bonus, isInfinite: boolean, fixedSlotsLength: number, opacity: number = 1, isInfiniteBottom: boolean = false) => {
+        const color = type === LifeTraceType.RED ? '#ff6b6b' : type === LifeTraceType.YELLOW ? '#ffd700' : '#4a9eff';
+        const currentPlayer = game.players[game.currentPlayerIndex];
+        const isPlacing = interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === type;
+
+        const trace = board.lifeTraces.find(t => t.location === 'species' && t.type === type && t.slotIndex === index);
+        const isFilled = !!trace;
+        const canAfford = !bonus.token || bonus.token >= 0 || (currentPlayer.tokens || 0) >= Math.abs(bonus.token);
+        const isNext = index === 0 || (isInfinite && index === fixedSlotsLength) || !!board.lifeTraces.find(t => t.location === 'species' && t.type === type && t.slotIndex === index - 1);
+        const isClickable = isInfinite ? isPlacing && !isFilled && isNext && canAfford : isPlacing && !isFilled && canAfford; // Note: Fixed slots logic simplified for Mascamites specific placement if needed, but standard logic applies
+
+        const handleMouseEnter = (e: React.MouseEvent) => {
+            const parts = ResourceSystem.formatBonus(bonus) || [];
+            const bonusText = parts.length > 0 ? parts.join(', ') : 'Aucun';
+
+            let costText = null;
+            if (bonus.token && bonus.token < 0) {
+                costText = `${Math.abs(bonus.token)} Token`;
+            }
+            
+            let statusText = "";
+            let statusColor = "";
+            let actiontext = "";
+            let actionColor = "";
+            if (isFilled) {
+                const player = game.players.find(p => p.id === trace?.playerId);
+                statusText = `Occupé par ${player?.name || 'Inconnu'}`;
+                statusColor = player?.color || '#ccc';
+            } else if (!canAfford) {
+                statusText = "Indisponible";
+                statusColor = "#ff6b6b";
+                actiontext = "Nécessite d'avoir suffisamment de tokens";
+            } else if (parts.length <= 0) {
+                statusText = "Indisponible";
+                statusColor = "#ff6b6b";
+                actiontext = "Nécessite un jeton";
+                actionColor = "#ff6b6b";
+            } else {
+                statusText = "Disponible";
+                statusColor = "#4a9eff";
+                actiontext = "Placer une trace de vie pour récupérer le bonus";
+                actionColor = "#4a9eff";
+            }
+
+            const rect = e.currentTarget.getBoundingClientRect();
+            setActiveTooltip({ content: (
+                <div className="alien-slot-tooltip-container">
+                    <div className="alien-slot-tooltip-status" style={{ color: statusColor }}>{statusText}</div>
+                    <div className="alien-slot-tooltip-details">
+                        {costText && (
+                            <>Coût: <span className="alien-slot-tooltip-cost">{costText}</span>, </>
+                        )}
+                        Bonus: <span className="alien-slot-tooltip-bonus">{bonusText}</span>
+                    </div>
+                    {actiontext && (
+                        <div className="alien-slot-tooltip-action" style={{ color: actionColor }}>{actiontext}</div>
+                    )}
+                </div>
+            ), rect });
+        };
+
+        const style: React.CSSProperties = {
+            borderColor: color,
+            opacity: opacity,
+            cursor: isClickable ? 'pointer' : 'help',
+            transition: 'box-shadow 0.15s',
+            pointerEvents: 'auto'
+        };
+
+        if (isInfinite) {
+            style.zIndex = 1;
+            if (isInfiniteBottom) {
+                style.width = '28px';
+                style.height = '28px';
+                style.borderRadius = '50%';
+                style.border = `2px solid ${color}`;
+                style.background = isFilled ? getPlayerColor(trace!.playerId) : (isClickable ? '#32373c' : '#14171a');
+                if (isClickable) style.boxShadow = `0 0 8px ${color}`;
+            } else {
+                style.width = '8px';
+                style.height = '8px';
+                style.borderRadius = '50%';
+                style.background = isFilled ? getPlayerColor(trace!.playerId) : color;
+                style.border = 'none';
+            }
+        } else {
+            style.boxShadow = isClickable ? `0 0 8px ${color}` : 'none';
+            style.backgroundColor = isFilled ? getPlayerColor(trace!.playerId) : (isClickable ? '#32373c' : '#14171a');
+        }
+
+        return (
+            <div
+                key={`${isInfinite ? 'inf' : 'fixed'}-${index}`}
+                className={`alien-slot ${isInfinite ? 'infinite' : 'fixed'} ${isFilled ? 'filled' : ''} ${isClickable ? 'clickable' : ''}`}
+                style={style}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    if (isClickable) onPlaceLifeTrace(boardIndex, type, 'species', index);
+                }}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={() => setActiveTooltip(null)}
+            />
+        );
+    };
+
     const renderSpeciesTrack = (type: LifeTraceType) => {
         if (!species) return null;
         
@@ -209,104 +315,9 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
             infiniteSlot = species.infiniteSlots.bluelifetrace;
         }
 
-        const isPlacing = interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === type;
-        const color = type === LifeTraceType.RED ? '#ff6b6b' : type === LifeTraceType.YELLOW ? '#ffd700' : '#4a9eff';
-        const currentPlayer = game.players[game.currentPlayerIndex];
-
-        const renderSlot = (index: number, bonus: Bonus, isInfinite: boolean, opacity: number = 1, isInfiniteBottom: boolean = false) => {
-            const trace = board.lifeTraces.find(t => t.location === 'species' && t.type === type && t.slotIndex === index);
-            const isFilled = !!trace;
-            const canAfford = !bonus.token || bonus.token >= 0 || (currentPlayer.tokens || 0) >= Math.abs(bonus.token);
-            const isNext = index === 0 || (isInfinite && index === fixedSlots.length) || !!board.lifeTraces.find(t => t.location === 'species' && t.type === type && t.slotIndex === index - 1);
-            const isClickable = isInfinite ? isPlacing && !isFilled && isNext && canAfford : isPlacing && !isFilled && canAfford;
-
-            const handleMouseEnter = (e: React.MouseEvent) => {
-                const parts = ResourceSystem.formatBonus(bonus) || [];
-                
-                let costText = null;
-                if (bonus.token && bonus.token < 0) {
-                    costText = `${Math.abs(bonus.token)} Token`;
-                }
-                
-                let statusText = "";
-                let statusColor = "";
-                let actiontext = "";
-                if (isFilled) {
-                    const player = game.players.find(p => p.id === trace?.playerId);
-                    statusText = `Occupé par ${player?.name || 'Inconnu'}`;
-                    statusColor = player?.color || '#ccc';
-                } else if (!canAfford) {
-                    statusText = "Indisponible";
-                    statusColor = "#ff6b6b";
-                    actiontext = "Nécessite d'avoir suffisamment de tokens";
-                } else {
-                    statusText = "Disponible";
-                    statusColor = "#4a9eff";
-                }
-
-                const rect = e.currentTarget.getBoundingClientRect();
-                setActiveTooltip({ content: (
-                    <div className="alien-slot-tooltip-container">
-                        <div className="alien-slot-tooltip-status" style={{ color: statusColor }}>{statusText}</div>
-                        <div className="alien-slot-tooltip-details">
-                            {costText && (
-                                <>Coût: <span className="alien-slot-tooltip-cost">{costText}</span>, </>
-                            )}
-                            Bonus: <span className="alien-slot-tooltip-bonus">{parts.length > 0 ? parts.join(', ') : 'Aucun'}</span>
-                        </div>
-                        {actiontext && (
-                            <div className="alien-slot-tooltip-action">{actiontext}</div>
-                        )}
-                    </div>
-                ), rect });
-            };
-
-            const style: React.CSSProperties = {
-                borderColor: color,
-                opacity: opacity,
-                cursor: isClickable ? 'pointer' : 'help',
-                transition: 'box-shadow 0.15s',
-                pointerEvents: 'auto'
-            };
-
-            if (isInfinite) {
-                style.zIndex = 1;
-                if (isInfiniteBottom) {
-                    style.width = '28px';
-                    style.height = '28px';
-                    style.borderRadius = '50%';
-                    style.border = `2px solid ${color}`;
-                    style.background = isFilled ? getPlayerColor(trace!.playerId) : (isClickable ? '#32373c' : '#14171a');
-                    if (isClickable) style.boxShadow = `0 0 8px ${color}`;
-                } else {
-                    style.width = '8px';
-                    style.height = '8px';
-                    style.borderRadius = '50%';
-                    style.background = isFilled ? getPlayerColor(trace!.playerId) : color;
-                    style.border = 'none';
-                }
-            } else {
-                style.boxShadow = isClickable ? `0 0 8px ${color}` : 'none';
-                style.backgroundColor = isFilled ? getPlayerColor(trace!.playerId) : (isClickable ? '#32373c' : '#14171a');
-            }
-
-            return (
-                <div
-                    key={`${isInfinite ? 'inf' : 'fixed'}-${index}`}
-                    className={`alien-slot ${isInfinite ? 'infinite' : 'fixed'} ${isFilled ? 'filled' : ''} ${isClickable ? 'clickable' : ''}`}
-                    style={style}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (isClickable) onPlaceLifeTrace(boardIndex, type, 'species', index);
-                    }}
-                    onMouseEnter={handleMouseEnter}
-                    onMouseLeave={() => setActiveTooltip(null)}
-                />
-            );
-        };
-
         return (
             <div className="alien-track-column">
+                {!isMascamites && (
                 <div className="alien-infinite-slot">
                     <div
                         className="alien-infinite-corridor-container"
@@ -319,14 +330,15 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                             const infTraceIndex = fixedSlots.length + idx;
                             // Opacité diminue vers le haut (plus grand idx = plus haut)
                             const opacity = [1, 0.6, 0.35][idx];
-                            return renderSlot(infTraceIndex, infiniteSlot, true, opacity, idx === 0);
+                            return renderBoardSlot(type, infTraceIndex, infiniteSlot, true, fixedSlots.length, opacity, idx === 0);
                         })}
                     </div>
                 </div>
+                )}
                 <div className="alien-fixed-slots-container">
                     {[...fixedSlots].reverse().map((bonus, reverseIndex) => {
                         const index = fixedSlots.length - 1 - reverseIndex;
-                        return renderSlot(index, bonus, false);
+                        return renderBoardSlot(type, index, bonus, false, fixedSlots.length);
                     })}
                 </div>
             </div>

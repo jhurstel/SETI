@@ -1,11 +1,11 @@
 ﻿Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
 ET.11;Signes de Vie;Action;Gagnez 1 Sonde. S'il s'agissait d'un secteur avec une Anomalie, gagnez 1 Déplacement.;2 Médias;Bleu;Pioche;1 Crédit;1 Sonde;
 ET.12;Vue Rapprochée;Action;Gagnez 5 Déplacements. Ne gagnez aucun Média quand vous déplacez des sondes ce tour-ci.;2 Médias;Rouge;Crédit;1 Crédit;5 Déplacements;
-ET.13;Populations Inquiètes;Mission Déclenchables;Gagnez 1 Média. Mission: Gagnez 1 Energie après avoir acquis une technologie. Mission: Gagnez 1 Carte après avoir acquis une technologie. Mission: Gagnez 3 PV après avoir acquis une technologie.;1 PV + 1 Data;Jaune;Crédit;1 Crédit;1 Média;
+ET.13;Populations Inquiètes;Mission déclenchables;Gagnez 1 Média. Mission: Gagnez 1 Energie après avoir acquis une technologie. Mission: Gagnez 1 Carte après avoir acquis une technologie. Mission: Gagnez 3 PV après avoir acquis une technologie.;1 PV + 1 Data;Jaune;Crédit;1 Crédit;1 Média;
 ET.14;Ecoute Attentive;Action;Gagnez 1 Scan. De plus, marquez 1 Signal dans le secteur de la prochaine Anomalie qui sera déclenchée.;1 PV + 1 Déplacement;Rouge;Pioche;2 Crédits;1 Scan;
 ET.15;Vie Quotidienne;Action;Gagnez 3 Pioches. Défaussez l'une d'elles pour l'effet Action gratuite, puis défaussez-en une autre pour gagner une ressource correspondant à son revenu.;1 PV + 1 Déplacement;Bleu;Energie;1 Crédit;3 Pioche;
 ET.16;Saturation de l'Espace Médiatique;Action;Piochez les 3 Cartes de la rangée de cartes.;1 PV + 1 Donnée;Rouge;Crédit;1 Crédit;;
-ET.17;Sommes-Nous Observés ?;Mission Conditionnelle;Gagnez la récompense de la prochaine Anomalie qui sera déclenchée. Mission: Gagnez 3 PV et 2 Médias si vous avez acquis 1 Trace de Vie Rouge, Jaune et Bleu pour cette espèce.;1 PV + 1 Donnée;Jaune;Pioche;1 Crédit;;
+ET.17;Sommes-Nous Observés ?;Mission conditionnelle;Gagnez la récompense de la prochaine Anomalie qui sera déclenchée. Mission: Gagnez 3 PV et 2 Médias si vous avez acquis 1 Trace de Vie Rouge, Jaune et Bleu pour cette espèce.;1 PV + 1 Donnée;Jaune;Pioche;1 Crédit;;
 ET.18;Capsule Messagère;Action;Gagnez 1 Rotation et 1 Technologie de n'importe quelle catégorie.;1 PV + 1 Donnée;Bleu;Crédit;2 Crédits;1 Rotation + 1 Tech;
 ET.19;Physique au-delà du Modèle Standard;Action;Gagnez 1 Trace de Vie de n'importe quelle couleur.;2 Médias;Noir;Energie;1 Crédit;1 Trace de Vie;
 ET.20;Incertitudes et Stupéfaction;Action;Gagnez 1 Signal dans  n'importe quel secteur. Puis gagnez 1 PV pour chaque signal que vous avez marqué dans des secteurs avec des Anomalies.;2 Médias;Jaune;Energie;1 Crédit;1 Signal;

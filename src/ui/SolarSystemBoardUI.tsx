@@ -21,9 +21,10 @@ interface SolarSystemBoardUIProps {
   onBackgroundClick: () => void;
   onSectorClick: (sectorId: string) => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null) => void;
+  onMascamiteClick: (planetId: string, tokenIndex: number) => void;
 }
 
-export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, onBackgroundClick, onSectorClick, setActiveTooltip }) => {
+export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, onBackgroundClick, onSectorClick, setActiveTooltip, onMascamiteClick }) => {
 
   // État pour gérer la sonde sélectionnée et les cases accessibles
   const [selectedProbeId, setSelectedProbeId] = useState<string | null>(null);
@@ -1001,6 +1002,58 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             />
           </>
         )}
+
+        {/* Mascamite Tokens */}
+        {planetData && planetData.mascamiteTokens && planetData.mascamiteTokens.map((_token, i) => {
+          const count = planetData.mascamiteTokens!.length;
+          const dist = count === 1 ? 0 : size * 0.35;
+          const angle = (360 / count) * i - 90;
+          const { x: tx, y: ty } = polarToCartesian(0, 0, dist, angle);
+          const isClickable = interactionState.type === 'COLLECTING_SPECIMEN' && interactionState.planetId === planetData.id;
+
+          return (
+            <div
+              key={`masc-${i}`}
+              style={{
+                position: 'absolute',
+                top: `calc(50% + ${ty}px)`,
+                left: `calc(50% + ${tx}px)`,
+                width: '12px',
+                height: '12px',
+                backgroundColor: '#4a148c',
+                border: '1px solid #ea80fc',
+                borderRadius: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 40,
+                cursor: isClickable ? 'pointer' : 'help',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                pointerEvents: 'auto',
+                boxShadow: isClickable ? '0 0 5px #00ff00' : 'none'
+              }}
+              onClick={(e) => {
+                if (isClickable) { e.stopPropagation(); onMascamiteClick(planetData.id, i); }
+              }}
+              onMouseEnter={(e) => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                setActiveTooltip({
+                  content: (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontWeight: 'bold', color: '#ea80fc', marginBottom: '4px' }}>Spécimen Mascamite</div>
+                      <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : Inconnu</div>
+                    </div>
+                  ),
+                  rect
+                });
+              }}
+              onMouseLeave={() => setActiveTooltip(null)}
+            >
+              <span style={{ fontSize: '5px', color: '#fff', fontWeight: 'bold' }}>M</span>
+            </div>
+          );
+        })}
       </div>
     );
   };

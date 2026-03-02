@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, LifeTraceType, InteractionState, GamePhase, Mission, Player, SignalType, AlienBoardType, HistoryEntry, getInteractionLabel } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, GOLDEN_MILESTONES, NEUTRAL_MILESTONES, LifeTraceType, InteractionState, GamePhase, Mission, Player, SignalType, AlienBoardType, HistoryEntry, getInteractionLabel, CardType } from '../core/types';
 import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, performRotation, calculateReachableCellsWithEnergy, calculateAbsolutePosition } from '../core/SolarSystemPosition';
 import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
@@ -1259,15 +1259,18 @@ export const BoardUI: React.FC = () => {
     }
 
     // Vérifier le palier Centaurien
-    if (currentPlayer.centaurienMilestone !== undefined && currentPlayer.score >= currentPlayer.centaurienMilestone) {
+    const reachedMilestone = currentPlayer.centaurienMilestone.find(m => currentPlayer.score >= m);
+    if (reachedMilestone !== undefined) {
         const centaurienSpecies = currentState.species.find(s => s.name === AlienBoardType.CENTAURIENS);
         if (centaurienSpecies && centaurienSpecies.message && centaurienSpecies.message.some(m => m.isAvailable)) {
              setInteractionState({ type: 'CHOOSING_CENTAURIEN_REWARD' });
              setToast({ message: `Message Centaurien décodé ! Choisissez une récompense.`, visible: true });
              return;
         } else {
-            // Plus de récompenses ou espèce non trouvée, on supprime le milestone pour ne pas re-déclencher
-            currentPlayer.centaurienMilestone = undefined;
+            // Plus de récompenses ou espèce non trouvée, on supprime le milestone atteint pour ne pas re-déclencher
+            const idx = currentPlayer.centaurienMilestone.indexOf(reachedMilestone);
+            if (idx !== -1) currentPlayer.centaurienMilestone.splice(idx, 1);
+
             // Mettre à jour l'état du moteur
             gameEngineRef.current.setState(currentState);
         }
@@ -1958,7 +1961,7 @@ export const BoardUI: React.FC = () => {
 
       const currentPlayer = game.players[game.currentPlayerIndex];
       const { updatedGame, logs } = SpeciesSystem.claimCentaurienReward(game, currentPlayer.id, tokenIndex);
-      
+
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
       
@@ -2378,6 +2381,39 @@ export const BoardUI: React.FC = () => {
     executeOrbit();
   };
 
+  // Gestionnaire pour le clic sur un token Mascamite
+  const handleMascamiteClick = (planetId: string, tokenIndex: number) => {
+    if (!game) return;
+    if (interactionState.type !== 'COLLECTING_SPECIMEN') return;
+    if (interactionState.planetId !== planetId) return;
+
+    let updatedGame = structuredClone(game);
+    const planet = updatedGame.board.planets.find(p => p.id === planetId);
+    const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
+
+    if (planet && planet.mascamiteTokens && planet.mascamiteTokens[tokenIndex]) {
+        const token = planet.mascamiteTokens.splice(tokenIndex, 1)[0];
+        
+        // Appliquer le bonus du token
+        // TODO: créer une capsule
+        const sequenceId = interactionState.sequenceId || `mascamite-${Date.now()}`;
+        const res = ResourceSystem.processBonuses(token.bonus, updatedGame, currentPlayer.id, 'mascamite_specimen', sequenceId);
+        updatedGame = res.updatedGame;
+
+        setGame(updatedGame);
+        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+
+        addToHistory(`prélève un spécimen Mascamite sur ${planet.name}`, currentPlayer.id, game, undefined, sequenceId);
+        res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, sequenceId));
+        
+        if (!handleNewInteractions(res.newPendingInteractions, sequenceId)) {
+            setInteractionState({ type: 'IDLE' });
+        }
+    } else {
+        setInteractionState({ type: 'IDLE' });
+    }
+  };
+  
   // Gestionnaire pour l'atterrissage via la hover card
   const handleLand = (planetId: string, slotIndex?: number) => {
     if (!game) return;
@@ -2401,10 +2437,11 @@ export const BoardUI: React.FC = () => {
           planetId, // planetId pour la logique interne
           (g, pid, prid, targetId) => {
             const result = ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex); // Toujours gratuit en mode LANDING_PROBE
+            const sourceId = interactionState.source;
 
             // Logique spécifique Carte 13 (Rover Perseverance)
             // "Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs."
-            if ((interactionState as any).source === '13') {
+            if (sourceId === '13') {
               const isMars = targetId === 'mars';
               const isMercury = targetId === 'mercury';
               // Vérifier si c'est une lune (satellite)
@@ -2424,6 +2461,28 @@ export const BoardUI: React.FC = () => {
                 }
               }
             }
+
+            // Logique pour GAIN_LANDING_AND_SPECIMEN
+            // Vérifier si la carte source a cet effet
+            if (sourceId) {
+              // Chercher la carte dans les cartes jouées ou la défausse (car elle vient d'être jouée)
+              const allCards = [...g.decks.cards, ...(g.decks.discardPile || []), ...g.players.flatMap(p => p.cards), ...g.players.flatMap(p => p.playedCards || [])];
+              const sourceCard = allCards.find(c => c.id === sourceId);
+              
+              if (sourceCard && sourceCard.passiveEffects?.some(e => e.type === 'GAIN_LANDING_AND_SPECIMEN')) {
+                  const isJupiterOrSaturn = targetId === 'jupiter' || targetId === 'saturn';
+                  const planet = g.board.planets.find(p => p.id === targetId);
+                  const hasTokens = planet && planet.mascamiteTokens && planet.mascamiteTokens.length > 0;
+
+                  if (isJupiterOrSaturn && hasTokens) {
+                      // On signale qu'on veut enchaîner sur la collecte
+                      // On utilise une propriété temporaire sur result pour passer l'info
+                      (result as any).triggerSpecimenCollection = true;
+                  } else {
+                      // Sinon l'effet est perdu (droppé) comme demandé
+                  }
+              }
+            }
             return result;
           },
           "fait atterrir une sonde (Bonus) sur",
@@ -2439,6 +2498,29 @@ export const BoardUI: React.FC = () => {
           return;
         }
 
+        // Vérification post-action pour GAIN_LANDING_AND_SPECIMEN
+        // On doit le faire ici car handlePlanetInteraction a fini son travail
+        const sourceId = (interactionState as any).source;
+        if (sourceId) {
+             // On utilise gameRef.current car handlePlanetInteraction a mis à jour le jeu
+             const currentGame = gameRef.current!; 
+             const allCards = [...currentGame.decks.cards, ...(currentGame.decks.discardPile || []), ...currentGame.players.flatMap(p => p.cards), ...currentGame.players.flatMap(p => p.playedCards || [])];
+             const sourceCard = allCards.find(c => c.id === sourceId);
+             
+             if (sourceCard && sourceCard.passiveEffects?.some(e => e.type === 'GAIN_LANDING_AND_SPECIMEN')) {
+                 // targetId n'est pas dispo ici directement, mais on sait que c'est planetId (ou son parent)
+                 let targetId = planetId;
+                 const parent = currentGame.board.planets.find(p => p.satellites?.some(s => s.id === planetId));
+                 if (parent) targetId = parent.id;
+
+                 const planet = currentGame.board.planets.find(p => p.id === targetId);
+                 if ((targetId === 'jupiter' || targetId === 'saturn') && planet?.mascamiteTokens?.length) {
+                     setInteractionState({ type: 'COLLECTING_SPECIMEN', planetId: targetId, sequenceId: interactionState.sequenceId });
+                     return;
+                 }
+             }
+        }
+        
         // Décrémenter ou terminer l'interaction
         if (interactionState.count > 1) {
           setInteractionState({ ...interactionState, count: interactionState.count - 1 });
@@ -3148,7 +3230,27 @@ export const BoardUI: React.FC = () => {
     const player = updatedGame.players.find(p => p.id === game.players[game.currentPlayerIndex].id);
     if (!player) return;
 
-    const mission = player.missions.find(m => m.id === missionId);
+    let mission = player.missions.find(m => m.id === missionId);
+
+    // Si pas trouvé dans les missions, chercher dans les cartes jouées (Centauriens)
+    if (!mission) {
+        const playedCard = player.playedCards.find(c => c.id === missionId);
+        if (playedCard && playedCard.type === CardType.CENTAURIEN) {
+            // Traitement spécial pour les cartes Centauriennes
+            if (!playedCard.completed) {
+                playedCard.completed = true;
+                
+                // On marque comme complété et on log
+                setGame(updatedGame);
+                if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+                
+                addToHistory(`valide la réception du message Centaurien "${playedCard.name}"`, player.id, game);
+                setInteractionState({ type: 'IDLE' });
+            }
+            return;
+        }
+    }
+
     if (!mission) return;
 
     if (requirementId) {
@@ -3460,6 +3562,7 @@ export const BoardUI: React.FC = () => {
             onSectorClick={handleSectorClick}
             onBackgroundClick={handleBackgroundClick}
             setActiveTooltip={setActiveTooltip}
+            onMascamiteClick={handleMascamiteClick}
           />
 
           {/* Toast Notification */}

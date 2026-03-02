@@ -63,17 +63,15 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                         ))}
                         {/* Paliers Centauriens */}
                         {game.players.map(p => {
-                            if (p.centaurienMilestone === undefined) return null;
-                            const m = p.centaurienMilestone;
-                            return (
-                                <div key={`centaurien-${p.id}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
+                            return p.centaurienMilestone.map((m, idx) => (
+                                <div key={`centaurien-${p.id}-${idx}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
                                     onMouseEnter={(e) => setActiveTooltip({ content: <div>Message Centaurien ({p.name}): {m} PV</div>, rect: e.currentTarget.getBoundingClientRect() })}
                                     onMouseLeave={() => setActiveTooltip(null)}
                                 >
                                     <span style={{ fontSize: '12px', filter: 'drop-shadow(0 0 2px #fff)' }}>📩</span>
                                     <div style={{ position: 'absolute', top: '-20px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: '#aaa', background: 'rgba(30,30,30,0.8)', padding: '0 3px', borderRadius: '2px' }}>{m}</div>
                                 </div>
-                            );
+                            ));
                         })}
                         {/* Joueurs */}
                         {game.players.map(p => {

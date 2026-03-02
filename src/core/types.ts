@@ -275,7 +275,7 @@ export interface Player {
   visitedPlanetsThisTurn: string[]; // Planètes visitées ce tour-ci
   activeBuffs: CardEffect[]; // Effets passifs temporaires (ex: bonus de visite)
   permanentBuffs: CardEffect[]; // Effets passifs permanents (ex: carte mission)
-  centaurienMilestone?: number; // Palier de score pour le message Centaurien
+  centaurienMilestone: number[]; // Paliers de score pour les messages Centauriens
 }
 
 export interface Board {
@@ -426,6 +426,7 @@ export interface Card {
   passiveEffects?: CardEffect[];
   permanentEffects?: CardEffect[];
   isRevealed?: boolean;
+  completed?: boolean;
 }
 
 export interface CardEffect {
@@ -667,7 +668,9 @@ export type InteractionState =
   /** Le joueur acquiert une carte Alien (bonus) et doit la sélectionner dans la pioche ou la rangée de l'espèce. */
   | { type: 'ACQUIRING_ALIEN_CARD', count: number, speciesId: string, sequenceId?: string }
   /** Le joueur doit choisir une récompense Centaurienne. */
-  | { type: 'CHOOSING_CENTAURIEN_REWARD', sequenceId?: string };
+  | { type: 'CHOOSING_CENTAURIEN_REWARD', sequenceId?: string }
+  /** Le joueur doit cliquer sur un token Mascamite pour le collecter. */
+  | { type: 'COLLECTING_SPECIMEN', planetId: string, sequenceId?: string };
 
   // Helper pour les libellés des interactions
 export const getInteractionLabel = (state: InteractionState): string => {
@@ -697,6 +700,7 @@ export const getInteractionLabel = (state: InteractionState): string => {
     case 'CLAIMING_MISSION_REQUIREMENT': return `Validation d'une mission...`;
     case 'ACQUIRING_ALIEN_CARD': return `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''} Alien (Pioche ou Rangée).`;
     case 'CHOOSING_CENTAURIEN_REWARD': return `Veuillez choisir une récompense Centaurienne.`;
+    case 'COLLECTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour le prélever.`;
     default: return "Action inconnue";
   }
 };

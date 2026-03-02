@@ -243,10 +243,14 @@ export class CardSystem {
 
         // Ajouter la carte jouée à la pile de défausse ou aux cartes jouées (Missions Fin de partie)
         if (card) {
-            if (card.type === CardType.END_GAME) {
+            if (card.type === CardType.END_GAME || card.type === CardType.CENTAURIEN) {
                 if (player) {
                     if (!player.playedCards) player.playedCards = [];
                     player.playedCards.push(card);
+
+                    if (card.type === CardType.CENTAURIEN) {
+                        player.centaurienMilestone.push(player.score + 15);
+                    }
                 }
             } else if (card.type === CardType.CONDITIONAL_MISSION || card.type === CardType.TRIGGERED_MISSION) {
                 if (player) {
@@ -548,8 +552,10 @@ export class CardSystem {
                     bonuses.gainSignalAdjacents = true;
                 } else if (effect.type === 'IGNORE_SATELLITE_LIMIT') {
                     bonuses.ignoreSatelliteLimit = true;
+                } else if (effect.type === 'GAIN_LANDING_AND_SPECIMEN') {
+                    bonuses.landing = (bonuses.landing || 0) + 1;
                 }
-            });
+        });
         }
 
         // Traitement des effets permanents (Missions déclenchables)

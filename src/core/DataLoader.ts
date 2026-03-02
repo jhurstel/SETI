@@ -389,6 +389,11 @@ export class DataLoader {
         effects.push({ type: 'IGNORE_SATELLITE_LIMIT', value: true });
       }
 
+      // Gestion du format GAIN_LANDING_AND_SPECIMEN
+      else if (passive === 'GAIN_LANDING_AND_SPECIMEN') {
+        effects.push({ type: 'GAIN_LANDING_AND_SPECIMEN', value: true });
+      }
+
       // Gestion du format SCORE_PER_ORBITER_LANDER:planet:value
       else if (passive.startsWith('SCORE_PER_ORBITER_LANDER:')) {
         const parts = passive.split(':');
