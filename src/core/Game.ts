@@ -1,4 +1,4 @@
-import { ActionType, Game, GamePhase, Player, GameState, MAIN_ACTION_TYPES } from './types';
+import { Game, GamePhase, Player, GameState, MAIN_ACTION_TYPES } from './types';
 import { BaseAction } from '../actions/Action';
 import { ActionValidator } from './ActionValidator';
 import { TurnManager } from './TurnManager';
@@ -66,15 +66,16 @@ export class GameEngine {
 
     // Sauvegarder l'état
     this.saveState();
+    const previousPlayerIndex = this.state.currentPlayerIndex;
+    console.log(`[Game] Executing action ${action.type} for player index ${previousPlayerIndex}`);
 
     try {
       // Exécuter l'action
       this.state = action.execute(this.state);
 
-      const isMainAction = MAIN_ACTION_TYPES.includes(action.type as ActionType);
-      if (isMainAction) {
-        // Il est sûr d'utiliser currentPlayerIndex car il est validé auparavant
-        this.state.players[this.state.currentPlayerIndex].hasPerformedMainAction = true;
+      const isMainAction = MAIN_ACTION_TYPES.includes(action.type);
+      if (isMainAction && this.state.currentPlayerIndex === previousPlayerIndex) {
+        this.state.players[previousPlayerIndex].hasPerformedMainAction = true;
       }
 
       return {

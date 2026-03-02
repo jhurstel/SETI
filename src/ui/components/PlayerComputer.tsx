@@ -7,7 +7,12 @@ import './PlayerComputer.css';
 export const PlayerComputer = ({ 
   player, onSlotClick, isSelecting, onColumnSelect, isAnalyzing, disabled, onHover, onLeave, onAnalyzeClick
 }: { 
-  player: Player, onSlotClick: (slotId: string) => void, isSelecting?: boolean, onColumnSelect?: (col: number) => void, isAnalyzing?: boolean, disabled?: boolean,
+  player: Player,
+  onSlotClick: (slotId: string) => void,
+  isSelecting?: boolean,
+  onColumnSelect?: (col: number) => void,
+  isAnalyzing?: boolean,
+  disabled?: boolean,
   onHover: (e: React.MouseEvent, content: React.ReactNode) => void,
   onLeave: () => void,
   onAnalyzeClick?: () => void

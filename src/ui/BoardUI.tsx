@@ -1601,14 +1601,20 @@ export const BoardUI: React.FC = () => {
       const initialLogs: string[] = [];
 
       if (interactionState.cardId) {
-        let cardFoundAndProcessed = false;
+        let cardFoundAndProcessed = interactionState.cardProcessed || false;
+
+        if (cardFoundAndProcessed && interactionState.message) {
+            initialLogs.push(interactionState.message);
+        }
 
         // Chercher et traiter dans la rangée de cartes
-        const { updatedGame: gameAfterRowDiscard, discardedCard: rowCard } = CardSystem.discardFromRow(updatedGame, interactionState.cardId);
-        if (rowCard) {
-            updatedGame = gameAfterRowDiscard;
-            initialLogs.push(`utilise carte "${rowCard.name}" (${rowCard.scanSector}) de la rangée`);
-            cardFoundAndProcessed = true;
+        if (!cardFoundAndProcessed) {
+            const { updatedGame: gameAfterRowDiscard, discardedCard: rowCard } = CardSystem.discardFromRow(updatedGame, interactionState.cardId);
+            if (rowCard) {
+                updatedGame = gameAfterRowDiscard;
+                initialLogs.push(`utilise carte "${rowCard.name}" (${rowCard.scanSector}) de la rangée`);
+                cardFoundAndProcessed = true;
+            }
         }
 
         // Si non trouvée, chercher et traiter dans la pioche
@@ -2918,10 +2924,23 @@ export const BoardUI: React.FC = () => {
     // Cas 1: Sélection pour 2eme action scan
     if (interactionState.type === 'SELECTING_SCAN_CARD') {
       if (!cardId) return; // Cannot select deck for scan color
-      const card = game.decks.cardRow.find(c => c.id === cardId);
-      if (!card) return;
+      
+      const { updatedGame, discardedCard } = CardSystem.discardFromRow(game, cardId);
+      if (!discardedCard) return;
 
-      setInteractionState({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId: interactionState.sequenceId, cardId: card.id });
+      setGame(updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+
+      setTimeout(() => {
+        setInteractionState({ 
+            type: 'SELECTING_SCAN_SECTOR', 
+            color: discardedCard.scanSector, 
+            sequenceId: interactionState.sequenceId, 
+            cardId: discardedCard.id,
+            cardProcessed: true,
+            message: `utilise carte "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`
+        });
+      }, 200);
     
     
     
@@ -3548,6 +3567,7 @@ export const BoardUI: React.FC = () => {
               setActiveTooltip={setActiveTooltip}
               onSettingsClick={() => setSettingsVisible(true)}
               onMissionClick={handleMissionClick}
+              onConfirmAction={(message, onConfirm) => setConfirmModalState({ visible: true, cardId: null, message, onConfirm })}
             />
           </div>
         </div>

@@ -34,9 +34,10 @@ interface PlayerBoardUIProps {
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
   onSettingsClick?: () => void;
   onMissionClick?: (missionId: string, requirementId?: string) => void;
+  onConfirmAction?: (message: string, onConfirm: () => void) => void;
 }
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick, onMissionClick }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -124,30 +125,45 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     if (isRobot) return;
     if (isInteractiveMode && !isSelectingComputerSlot) return;
 
-    // Créer une copie profonde pour éviter la mutation de l'état actuel
-    // Cela garantit que 'game' reste valide comme 'previousState' pour l'historique
-    const gameCopy = structuredClone(game);
+    const executeFillSlot = () => {
+      // Créer une copie profonde pour éviter la mutation de l'état actuel
+      // Cela garantit que 'game' reste valide comme 'previousState' pour l'historique
+      const gameCopy = structuredClone(game);
 
-    const { updatedGame, gains, bonusEffects } = ComputerSystem.fillSlot(gameCopy, currentPlayer.id, slotId);
-    
-    const sequenceId = `computer-${Date.now()}`;
+      const { updatedGame, gains, bonusEffects } = ComputerSystem.fillSlot(gameCopy, currentPlayer.id, slotId);
+      
+      const sequenceId = `computer-${Date.now()}`;
 
-    bonusEffects.forEach(effect => {
-      handleComputerBonus(effect.type, effect.amount, sequenceId);
-    });
-    
-    if (onHistory) {
-        let gainText = '';
-        if (gains.length > 0) {
-          gainText = ` et gagne ${gains.join(', ')}`;
-        }
-        if (currentPlayer.dataComputer.canAnalyze) {
-          gainText += " et complète l'ordinateur";
-        }
-        onHistory(`transfère 1 donnée vers l'ordinateur ${gainText}`, sequenceId);
+      bonusEffects.forEach(effect => {
+        handleComputerBonus(effect.type, effect.amount, sequenceId);
+      });
+      
+      if (onHistory) {
+          let gainText = '';
+          if (gains.length > 0) {
+            gainText = ` et gagne ${gains.join(', ')}`;
+          }
+          if (currentPlayer.dataComputer.canAnalyze) {
+            gainText += " et complète l'ordinateur";
+          }
+          onHistory(`transfère 1 donnée vers l'ordinateur ${gainText}`, sequenceId);
+      }
+      
+      if (onGameUpdate) onGameUpdate(updatedGame);
+    };
+
+    const slot = currentPlayer.dataComputer.slots[slotId];
+    if (slot && slot.bonus === 'media') {
+      let mediaAmount = 1;
+      if (slot.technologyId && slot.technologyId.startsWith('computing-4')) mediaAmount = 2;
+      console.log(currentPlayer);
+      if (currentPlayer.mediaCoverage + mediaAmount > GAME_CONSTANTS.MAX_MEDIA_COVERAGE && onConfirmAction) {
+        onConfirmAction("Vous avez atteint la limite de couverture médiatique. Le gain de médias sera perdu. Voulez-vous continuer ?", executeFillSlot);
+        return;
+      }
     }
-    
-    if (onGameUpdate) onGameUpdate(updatedGame);
+
+    executeFillSlot();
   };
 
   const getTechIcon = (techId: string) => {

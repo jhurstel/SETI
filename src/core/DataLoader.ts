@@ -151,6 +151,7 @@ export class DataLoader {
         else if (lower.includes('sirius')) scope = SectorType.SIRIUS;
         else if (lower.includes('véga')) scope = SectorType.VEGA;
         else if (lower.includes('pictoris')) scope = SectorType.PICTORIS;
+        else if (lower.includes('anomalie')) scope = SectorType.ANOMALY;
         effects.push({ type: 'ACTION', target: 'SIGNAL', value: { amount, scope } });
       } else if (lower.includes('sonde')) {
         effects.push({ type: 'GAIN', target: 'PROBE', value: amount });
@@ -449,6 +450,27 @@ export class DataLoader {
       else if (passive.startsWith('SCORE_PER_TRACE:')) {
         const parts = passive.split(':');
         effects.push({ type: 'SCORE_PER_TRACE', target: parts[1], value: parseInt(parts[2], 10) });
+      }
+
+      // Gestion du format NO_MEDIA
+      else if (passive === 'NO_MEDIA') {
+        effects.push({ type: 'NO_MEDIA', value: true });
+      }
+
+      // Gestion du format GAIN_MOVE_IF_ANOMALY
+      else if (passive === 'GAIN_MOVE_IF_ANOMALY') {
+        effects.push({ type: 'GAIN_MOVE_IF_ANOMALY', value: true });
+      }
+
+      // Gestion du format GAIN_REWARD_NEXT_ANOMALY
+      else if (passive === 'GAIN_REWARD_NEXT_ANOMALY') {
+        effects.push({ type: 'GAIN_REWARD_NEXT_ANOMALY', value: true });
+      }
+
+      // Gestion du format SCORE_PER_ANOMALY:value
+      else if (passive.startsWith('SCORE_PER_ANOMALY')) {
+        const parts = passive.split(':');
+        effects.push({ type: 'SCORE_PER_ANOMALY', value: parseInt(parts[1], 10) });
       }
     }
     return effects;

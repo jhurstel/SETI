@@ -24,7 +24,6 @@ export const CardDescription: React.FC<{ description: string, type?: CardType, h
       for (let i = 1; i < parts.length; i += 2) {
         const header = parts[i];
         const content = parts[i + 1];
-        const displayHeader = header === 'Fin de jeu:' ? 'Mission:' : header;
         elements.push(
           <div
             key={`mission-${i}`}
@@ -34,7 +33,7 @@ export const CardDescription: React.FC<{ description: string, type?: CardType, h
               ...missionStyle
             }}
           >
-            <strong>{displayHeader}</strong>{content}
+            <strong>{header}</strong>{content}
           </div>
         );
       }
@@ -52,13 +51,13 @@ export const CardTooltip: React.FC<{ card: Card, hideIntro?: boolean, hideStats?
         <CardDescription description={card.description} type={card.type} hideIntro={hideIntro} />
       </div>
       {!hideStats && (
-      <div className="seti-card-tooltip-stats">
-         <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ' ₢'}</span></div>
-         <div>Type: {card.type} ({card.id})</div>
-         <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
-         <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
-         <div>Scan: <span style={{ color: `${SECTOR_STYLES[card.scanSector]?.color || '#fff'}` }}>{card.scanSector}</span></div>
-      </div>
+        <div className="seti-card-tooltip-stats">
+          <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ' ₢'}</span></div>
+          <div>Type: {card.type} ({card.id})</div>
+          <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
+          <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
+          <div>Scan: <span style={{ color: `${SECTOR_STYLES[card.scanSector]?.color || '#fff'}` }}>{card.scanSector}</span></div>
+        </div>
       )}
     </div>
   );

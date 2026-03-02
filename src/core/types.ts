@@ -115,6 +115,7 @@ export enum SectorType {
   VEGA = "Vega",
   PICTORIS = "Beta Pictoris",
   OUMUAMUA = "Oumuamua",
+  ANOMALY = "Anomalie",
   ANY = "quelconque",
   UNDEFINED = "non défini"
 }
@@ -640,7 +641,7 @@ export type InteractionState =
   /** Le joueur scanne un secteur (2ème étape : choix de la carte). */
   | { type: 'SELECTING_SCAN_CARD', sequenceId?: string }
   /** Le joueur scanne un secteur (3ème étape : choix du secteur couleur). */
-  | { type: 'SELECTING_SCAN_SECTOR', color: SectorType, noData?: boolean, onlyProbes?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string, message?: string, markAdjacents?: boolean, usedProbeIds?: string[] }
+  | { type: 'SELECTING_SCAN_SECTOR', color: SectorType, noData?: boolean, onlyProbes?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string, message?: string, markAdjacents?: boolean, usedProbeIds?: string[], cardProcessed?: boolean }
   /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
   | { type: 'CHOOSING_MEDIA_OR_MOVE', remainingMoves?: number, sequenceId?: string }
   /** Le joueur doit choisir s'il utilise la technologie Observation 2 (Payer 1 Média pour scanner Mercure). */

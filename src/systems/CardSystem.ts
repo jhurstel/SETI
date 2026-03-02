@@ -554,6 +554,86 @@ export class CardSystem {
                     bonuses.ignoreSatelliteLimit = true;
                 } else if (effect.type === 'GAIN_LANDING_AND_SPECIMEN') {
                     bonuses.landing = (bonuses.landing || 0) + 1;
+                } else if (effect.type === 'NO_MEDIA') {
+                    player.activeBuffs.push({ ...effect, source: card.name });
+                } else if (effect.type === 'GAIN_MOVE_IF_ANOMALY') {
+                    // Vérifier si la Terre est dans un secteur avec une anomalie
+                    const rotationState = createRotationState(
+                        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+                        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+                        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+                    );
+                    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, updatedGame.board.solarSystem.extraCelestialObjects);
+                    
+                    if (earthPos) {
+                        const anomalies = (updatedGame.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly');
+                        // Les anomalies sont fixes (Level 0) ou sur un disque. On compare le secteur absolu.
+                        // Note: Les anomalies sont stockées avec leur position disque/secteur.
+                        // Si elles sont fixes (Level 0), leur secteur absolu est leur secteur.
+                        const hasAnomaly = anomalies.some(a => {
+                            const aPos = calculateAbsolutePosition(a, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
+                            return aPos.absoluteSector === earthPos.absoluteSector;
+                        });
+
+                        if (hasAnomaly) {
+                            bonuses.movements = (bonuses.movements || 0) + 1;
+                        }
+                    }
+                } else if (effect.type.startsWith('SCORE_PER_ANOMALY')) {
+                    if (!isNaN(effect.value)) {
+                        const rotationState = createRotationState(
+                            updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+                            updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+                            updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+                        );
+                        const anomalies = (updatedGame.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly');
+                        const anomalySectors = new Set<number>();
+                        anomalies.forEach(a => {
+                            const aPos = calculateAbsolutePosition(a, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
+                            anomalySectors.add(aPos.absoluteSector);
+                        });
+
+                        let signalCount = 0;
+                        updatedGame.board.sectors.forEach(sector => {
+                            const sectorNum = parseInt(sector.id.replace('sector_', ''));
+                            if (anomalySectors.has(sectorNum)) {
+                                signalCount += sector.signals.filter(s => s.markedBy === playerId).length;
+                            }
+                        });
+
+                        if (signalCount > 0) {
+                            bonuses.pv = (bonuses.pv || 0) + (signalCount * effect.value);
+                        }
+                    }
+                } else if (effect.type === 'GAIN_REWARD_NEXT_ANOMALY') {
+                    const rotationState = createRotationState(
+                        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+                        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+                        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+                    );
+                    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, updatedGame.board.solarSystem.extraCelestialObjects);
+                    const anomalies = (updatedGame.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly');
+
+                    if (earthPos && anomalies.length > 0) {
+                        // Trouver l'anomalie la plus proche dans le sens anti-horaire (sens des secteurs 1->8)
+                        // On calcule la distance (AnomalySector - EarthSector + 8) % 8
+                        // Celle avec la plus petite distance > 0 est la prochaine.
+                        const sortedAnomalies = anomalies.map(a => {
+                            const aPos = calculateAbsolutePosition(a, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
+                            let dist = (aPos.absoluteSector - earthPos.absoluteSector + 8) % 8;
+                            if (dist === 0) dist = 8; // Si sur le même secteur, on considère que c'est le plus loin (tour complet) ou le plus proche (0)? 
+                            // Interprétation: "Prochaine" implique futur. Si on est dessus, c'est "Actuelle". 
+                            // Prenons la plus petite distance non nulle.
+                            return { anomaly: a, dist };
+                        }).sort((a, b) => a.dist - b.dist);
+
+                        if (sortedAnomalies.length > 0) {
+                            const nextAnomaly = sortedAnomalies[0].anomaly;
+                            if (nextAnomaly.anomalyData?.bonus) {
+                                ResourceSystem.accumulateBonus(nextAnomaly.anomalyData.bonus, bonuses);
+                            }
+                        }
+                    }
                 }
         });
         }

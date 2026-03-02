@@ -275,7 +275,20 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           );
           const absPos = calculateAbsolutePosition(oumuamua, rotationState, game.board.solarSystem.extraCelestialObjects);
           sectors.push(`sector_${absPos.absoluteSector}`);
-        }
+        } 
+      } else if (interactionState.color === SectorType.ANOMALY) {
+        const anomalies = (game.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly');
+        const anomalySectors = new Set<number>();
+        anomalies.forEach(a => {
+            const rotationState = createRotationState(
+              game.board.solarSystem.rotationAngleLevel1 || 0,
+              game.board.solarSystem.rotationAngleLevel2 || 0,
+              game.board.solarSystem.rotationAngleLevel3 || 0
+            );
+            const aPos = calculateAbsolutePosition(a, rotationState, game.board.solarSystem.extraCelestialObjects);
+            anomalySectors.add(aPos.absoluteSector);
+        });
+        sectors = game.board.sectors.filter(s => anomalySectors.has(parseInt(s.id.split('_')[1]))).map(s => s.id);
       } else {
         sectors = game.board.sectors.filter(s => s.color === interactionState.color).map(s => s.id);
       }

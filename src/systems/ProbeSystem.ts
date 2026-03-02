@@ -268,6 +268,12 @@ export class ProbeSystem {
       }
     }
 
+    // Gestion NO_MEDIA (Card ET.12)
+    const hasNoMediaBuff = player.activeBuffs.some(b => b.type === 'NO_MEDIA');
+    if (hasNoMediaBuff) {
+      bonus.media = 0;
+    }
+
     // Construction du message
     let message = "";
     const objectName = targetCell?.hasComet ? "Visite de Comète" : targetCell?.hasAsteroid ? "Visite d'Astéroïdes" : targetCell?.hasPlanet ? `Visite de ${targetCell?.planetName}` : "une case vide";
