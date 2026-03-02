@@ -79,7 +79,7 @@ export class PassAction extends BaseAction {
 
       if (this.selectedCardId) {
         cardIndex = deck.findIndex(c => c.id === this.selectedCardId);
-      } else if (deck.length > 0) {
+      } else {
         // Si aucune carte n'est sélectionnée (ex: Robot), on prend la première
         cardIndex = 0;
       }

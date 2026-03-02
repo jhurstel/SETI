@@ -156,7 +156,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     if (slot && slot.bonus === 'media') {
       let mediaAmount = 1;
       if (slot.technologyId && slot.technologyId.startsWith('computing-4')) mediaAmount = 2;
-      console.log(currentPlayer);
       if (currentPlayer.mediaCoverage + mediaAmount > GAME_CONSTANTS.MAX_MEDIA_COVERAGE && onConfirmAction) {
         onConfirmAction("Vous avez atteint la limite de couverture médiatique. Le gain de médias sera perdu. Voulez-vous continuer ?", executeFillSlot);
         return;
@@ -700,6 +699,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             <div className="seti-player-list seti-cards-list">
               {((currentPlayer.missions && currentPlayer.missions.length > 0) || (currentPlayer.playedCards && currentPlayer.playedCards.length > 0)) ? (
                 <>
+                {/* Mission conditionnelle et Mission déclenchable */}
                 {(currentPlayer.missions || []).map((mission: Mission) => (
                   <MissionCard
                     key={mission.id}
@@ -715,6 +715,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                     handleTooltipLeave={handleTooltipLeave}
                   />
                 ))}
+                {/* Fin de jeu et Centaurien */}
                 {(currentPlayer.playedCards || []).map((card: Card) => (
                   <PlayedMissionCard
                     key={card.id}

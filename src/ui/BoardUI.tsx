@@ -2718,7 +2718,7 @@ export const BoardUI: React.FC = () => {
   };
 
   // Gestionnaire pour jouer une carte (payer son coût en crédits)
-  const handlePlayCardRequest = (cardId: string) => {
+  const handlePlayCardRequest = (cardId: string, force: boolean = false) => {
     if (!game || !gameRef.current || !gameEngineRef.current) return;
 
     const currentGame = structuredClone(game);
@@ -2726,6 +2726,7 @@ export const BoardUI: React.FC = () => {
     const card = currentPlayer.cards.find(c => c.id === cardId);
     if (!card) return;
 
+    if (!force) {
     // Vérifier si la carte donne une sonde et si le joueur peut la lancer
     if (card && card.immediateEffects) {
       const probeEffect = card.immediateEffects.find(e => e.type === 'GAIN' && e.target === 'PROBE');
@@ -2737,7 +2738,8 @@ export const BoardUI: React.FC = () => {
           setConfirmModalState({
             visible: true,
             cardId: cardId,
-            message: "Vous avez atteint la limite de sondes dans le système solaire. L'action de lancer une sonde sera perdue. Voulez-vous continuer ?"
+            message: "Vous avez atteint la limite de sondes dans le système solaire. L'action de lancer une sonde sera perdue. Voulez-vous continuer ?",
+            onConfirm: () => handlePlayCardRequest(cardId, true)
           });
           return;
         }
@@ -2752,7 +2754,8 @@ export const BoardUI: React.FC = () => {
           setConfirmModalState({
             visible: true,
             cardId: cardId,
-            message: "Vous avez atteint la limite de données. Le gain de données sera perdu. Voulez-vous continuer ?"
+            message: "Vous avez atteint la limite de données. Le gain de données sera perdu. Voulez-vous continuer ?",
+            onConfirm: () => handlePlayCardRequest(cardId, true)
           });
           return;
         }
@@ -2767,7 +2770,8 @@ export const BoardUI: React.FC = () => {
           setConfirmModalState({
             visible: true,
             cardId: cardId,
-            message: "Vous avez atteint la limite de couverture médiatique. Le gain de médias sera perdu. Voulez-vous continuer ?"
+            message: "Vous avez atteint la limite de couverture médiatique. Le gain de médias sera perdu. Voulez-vous continuer ?",
+            onConfirm: () => handlePlayCardRequest(cardId, true)
           });
           return;
         }
@@ -2785,7 +2789,8 @@ export const BoardUI: React.FC = () => {
           setConfirmModalState({
             visible: true,
             cardId: cardId,
-            message: "Vous n'avez aucune sonde dans le système solaire pour effectuer le déplacement. L'action sera perdue. Voulez-vous continuer ?"
+            message: "Vous n'avez aucune sonde dans le système solaire pour effectuer le déplacement. L'action sera perdue. Voulez-vous continuer ?",
+            onConfirm: () => handlePlayCardRequest(cardId, true)
           });
           return;
         }
@@ -2801,7 +2806,8 @@ export const BoardUI: React.FC = () => {
           setConfirmModalState({
             visible: true,
             cardId: cardId,
-            message: "Vous n'avez aucune sonde sur une planète pour effectuer l'atterrissage. L'action sera perdue. Voulez-vous continuer ?"
+            message: "Vous n'avez aucune sonde sur une planète pour effectuer l'atterrissage. L'action sera perdue. Voulez-vous continuer ?",
+            onConfirm: () => handlePlayCardRequest(cardId, true)
           });
           return;
         }
@@ -2823,7 +2829,8 @@ export const BoardUI: React.FC = () => {
           setConfirmModalState({
             visible: true,
             cardId: cardId,
-            message: "Vous avez déjà toutes les technologies disponibles. Le gain de technologie sera perdu. Voulez-vous continuer ?"
+            message: "Vous avez déjà toutes les technologies disponibles. Le gain de technologie sera perdu. Voulez-vous continuer ?",
+            onConfirm: () => handlePlayCardRequest(cardId, true)
           });
           return;
         }
@@ -2837,10 +2844,12 @@ export const BoardUI: React.FC = () => {
              setConfirmModalState({
                 visible: true,
                 cardId: cardId,
-                message: "Vous n'avez aucun orbiteur à retirer. L'effet de la carte sera perdu. Voulez-vous continuer ?"
+                message: "Vous n'avez aucun orbiteur à retirer. L'effet de la carte sera perdu. Voulez-vous continuer ?",
+                onConfirm: () => handlePlayCardRequest(cardId, true)
              });
              return;
         }
+    }
     }
 
     const action = new PlayCardAction(currentPlayer.id, cardId);

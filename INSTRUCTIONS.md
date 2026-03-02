@@ -44,6 +44,7 @@ npm start
 - `npm start` : Lance l'exemple compilé
 - `npm run dev` : Lance directement avec ts-node (sans compilation)
 - `npm run watch` : Compile en mode watch (recompile automatiquement)
+- `npx jest` : Lance les tests unitaires et affiche les résultats dans le terminal
 
 ## Résolution de problèmes
 
@@ -69,4 +70,3 @@ Une fois le projet lancé, vous verrez un exemple de partie avec :
 - Passage de tour
 
 Vous pouvez modifier `src/examples/basic-game.ts` pour tester d'autres actions.
-
