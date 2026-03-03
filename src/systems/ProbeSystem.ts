@@ -9,7 +9,7 @@
  * - Limites (max 1 sonde dans le système solaire sans technologie)
  */
 
-import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, Player, CardEffect } from '../core/types';
+import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, InteractionState } from '../core/types';
 import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { CardSystem } from './CardSystem';
@@ -68,11 +68,13 @@ export class ProbeSystem {
     updatedGame: Game;
     probeId: string | null;
     historyEntries: HistoryEntry[];
+    newPendingInteractions: InteractionState[];
   } {
     const updatedGame = structuredClone(game);
     const solarSystem = updatedGame.board.solarSystem;
     const player = updatedGame.players.find(p => p.id === playerId)!;
     let historyEntries = []
+    let newPendingInteractions: InteractionState[] = [];
     let message = '';
 
     // Calculer la position réelle absolue de la Terre
@@ -84,7 +86,7 @@ export class ProbeSystem {
       earthSector = earthPos.sector;
     } else {
       historyEntries.push({ message: `Terre non trouvée dans le système solaire`, playerId: player.id, sequenceId: '' });
-      return { updatedGame: game, probeId: null, historyEntries };
+      return { updatedGame: game, probeId: null, historyEntries, newPendingInteractions };
     }
 
     // Vérifier la limite de sondes (même pour un lancement gratuit)
@@ -96,7 +98,7 @@ export class ProbeSystem {
       if (probesInSystem.length >= maxProbes) {
         const message = `Limite de sondes atteinte (max ${maxProbes}) dans le système solaire)`;
         historyEntries.push({ message, playerId: player.id, sequenceId: '' });
-        return { updatedGame: game, probeId: null, historyEntries };
+        return { updatedGame: game, probeId: null, historyEntries, newPendingInteractions };
       }
     }
 
@@ -112,6 +114,8 @@ export class ProbeSystem {
     };
     player.probes.push(probe);
 
+    const sequenceId = `launch-${Date.now()}`;
+
     // Payer les crédits
     if (!free) {
       player.credits -= GAME_CONSTANTS.PROBE_LAUNCH_COST;
@@ -119,10 +123,13 @@ export class ProbeSystem {
     } else {
       message = `lance 1 sonde depuis la Terre`;
     }
-    historyEntries.push({ message, playerId: player.id, sequenceId: '' });
+    historyEntries.push({ message, playerId: player.id, sequenceId });
 
     // Traitement des buffs permanents
-    this.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_LAUNCH');
+    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_LAUNCH');
+    if (hasFulfillable) {
+      historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId });
+    }
 
     // Ajouter la sonde au système solaire en préservant tous les champs (y compris les angles de rotation)
     updatedGame.board.solarSystem.probes.push(probe);
@@ -130,7 +137,8 @@ export class ProbeSystem {
     return {
       updatedGame,
       probeId: probe.id,
-      historyEntries
+      historyEntries,
+      newPendingInteractions
     };
   }
 
@@ -141,7 +149,7 @@ export class ProbeSystem {
     game: Game,
     playerId: string,
     probeId: string,
-    energyCost: number
+    availableFreeMovements: number = 0
   ): {
     canMove: boolean;
     reason?: string;
@@ -161,16 +169,20 @@ export class ProbeSystem {
       return { canMove: false, reason: 'La sonde doit être dans le système solaire' };
     }
 
+    const cost = this.getMovementCost(game, playerId, probeId);
+    const usedFree = Math.min(cost, availableFreeMovements);
+    const finalCost = cost - usedFree;
+
     // Vérifier l'énergie disponible
-    if (player.energy < energyCost) {
+    if (player.energy < finalCost) {
       return {
         canMove: false,
-        reason: `Énergie insuffisante (nécessite ${energyCost})`,
-        energyCost
+        reason: `Énergie insuffisante (nécessite ${finalCost})`,
+        energyCost: finalCost
       };
     }
 
-    return { canMove: true, energyCost };
+    return { canMove: true, energyCost: finalCost };
   }
 
   /**
@@ -211,11 +223,12 @@ export class ProbeSystem {
     game: Game,
     playerId: string,
     probeId: string,
-    energyCost: number,
     targetDisk: DiskName,
-    targetSector: SectorNumber
-  ): { updatedGame: Game, message: string } {
-    const validation = this.canMoveProbe(game, playerId, probeId, energyCost);
+    targetSector: SectorNumber,
+    availableFreeMovements: number = 0,
+    sequenceId?: string
+  ): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[]  } {
+    const validation = this.canMoveProbe(game, playerId, probeId, availableFreeMovements);
     if (!validation.canMove) {
       throw new Error(validation.reason || 'Déplacement impossible');
     }
@@ -223,7 +236,7 @@ export class ProbeSystem {
     let updatedGame = structuredClone(game);
     let player = updatedGame.players.find(p => p.id === playerId)!;
     const probe = player.probes.find(p => p.id === probeId)!;
-    const energySpent = validation.energyCost || 0;
+    const energySpent = validation.energyCost!;
 
     // Débiter l'énergie
     player.energy = Math.max(0, player.energy - energySpent);
@@ -363,21 +376,19 @@ export class ProbeSystem {
       message += ` et gagne ${bonus.media} média (${objectName})`;
     }
 
-    // Traitement des missions conditionnelles (GAIN_ON_VISIT_xxx)
-    if (targetCell) {
-      this.processMissionBuffs(player, buff => {
-        // Planètes
-        if (targetCell.hasPlanet && targetCell.planetId) {
-          if (buff.type === `GAIN_ON_VISIT_${targetCell.planetId.toUpperCase()}`) return true;
-          if (buff.type === 'GAIN_ON_VISIT_PLANET' && targetCell.planetId !== 'earth') return true;
-        }
-        // Astéroïdes
-        if (targetCell.hasAsteroid && buff.type === 'GAIN_ON_VISIT_ASTEROID') {
-          return true;
-        }
-        return false;
-      });
-    }
+    // Traitement des missions conditionnelles (GAIN_ON_VISIT)
+    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
+      // Planètes
+      if (targetCell && targetCell.hasPlanet && targetCell.planetId) {
+        if (buff.type === `GAIN_ON_VISIT_${targetCell.planetId.toUpperCase()}`) return true;
+        if (buff.type === 'GAIN_ON_VISIT_PLANET' && targetCell.planetId !== 'earth') return true;
+      }
+      // Astéroïdes
+      if (targetCell && targetCell.hasAsteroid && buff.type === 'GAIN_ON_VISIT_ASTEROID') {
+        return true;
+      }
+      return false;
+    });  
 
     // Mettre à jour la position dans le système solaire (Immutabilité)
     const systemProbe = updatedGame.board.solarSystem.probes.find(p => p.id === probeId);
@@ -390,10 +401,23 @@ export class ProbeSystem {
     }
 
     // Appliquer les bonus via ResourceSystem
-    const res = ResourceSystem.processBonuses(bonus, updatedGame, playerId, 'move', '');
+    const currentSequenceId = sequenceId || `move-${Date.now()}`;
+    const res = ResourceSystem.processBonuses(bonus, updatedGame, playerId, 'move', currentSequenceId);
     updatedGame = res.updatedGame;
 
-    return { updatedGame, message: message }; //+ (res.logs.length > 0 ? ` et ${res.logs.join(', ')}` : '') };
+    const cost = this.getMovementCost(game, playerId, probeId);
+    const usedFree = Math.min(cost, availableFreeMovements);
+    const remaining = availableFreeMovements - usedFree;
+    if (remaining > 0) {
+      message += ` (${remaining} mouvement${remaining > 1 ? 's' : ''} gratuit${remaining > 1 ? 's' : ''} restant${remaining > 1 ? 's' : ''})`;
+    }
+    res.historyEntries.unshift({ message, playerId, sequenceId: currentSequenceId });
+
+    if (hasFulfillable) {
+      res.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId});
+    }
+
+    return { updatedGame, historyEntries: res.historyEntries, newPendingInteractions: res.newPendingInteractions };
   }
 
   /**
@@ -524,8 +548,8 @@ export class ProbeSystem {
     updatedGame: Game;
     isFirstOrbiter: boolean;
     planetId: string;
-    bonuses: Bonus;
-    completedMissions: string[];
+    historyEntries: HistoryEntry[];
+    newPendingInteractions: InteractionState[];
   } {
     const validation = this.canOrbit(game, playerId, probeId);
     if (!validation.canOrbit) {
@@ -565,24 +589,31 @@ export class ProbeSystem {
     // Récupérer la planète mise à jour pour les bonus
     const updatedPlanet = planet;
 
-    const accumulatedBonuses: Bonus = {};
-    const completedMissions: string[] = [];
+    const bonuses: Bonus = {};
     // Bonus planète
     if (updatedPlanet && updatedPlanet.orbitSlots) {
       const index = updatedPlanet.orbiters.length - 1;
       const slotBonus = updatedPlanet.orbitSlots[index];
-      if (slotBonus) ResourceSystem.accumulateBonus(slotBonus, accumulatedBonuses);
+      if (slotBonus) ResourceSystem.accumulateBonus(slotBonus, bonuses);
     }
 
+    const sequenceId = `orbit-${Date.now()}`;
+    const species = game.species.find(s => s.planet?.id === planetId);
+    const speciesId = species?.id;
+    const result = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'orbit', sequenceId, speciesId);
+
     // Traitement des buffs permanents
-    this.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_ORBIT' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
+    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_ORBIT' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
+    if (hasFulfillable) {
+      result.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId});
+    }
 
     return {
       updatedGame,
       isFirstOrbiter,
       planetId,
-      bonuses: accumulatedBonuses,
-      completedMissions
+      historyEntries: result.historyEntries,
+      newPendingInteractions: result.newPendingInteractions
     };
   }
 
@@ -639,15 +670,17 @@ export class ProbeSystem {
     probeId: string,
     planetId: string,
     free: boolean = false,
-    forcedSlotIndex?: number
+    forcedSlotIndex?: number,
+    sourceId?: string,
+    sequenceId?: string
   ): {
     updatedGame: Game;
     isFirstLander: boolean;
     isSecondLander: boolean;
     isThirdLander: boolean;
     planetId: string;
-    bonuses: Bonus;
-    completedMissions: string[];
+    historyEntries: HistoryEntry[];
+    newPendingInteractions: InteractionState[];
   } {
     const validation = this.canLand(game, playerId, probeId, !free);
     if (!validation.canLand) {
@@ -706,63 +739,65 @@ export class ProbeSystem {
     // Retirer la sonde de la liste globale du système solaire
     updatedGame.board.solarSystem.probes = updatedGame.board.solarSystem.probes.filter(p => p.id !== probeId);
 
-    const accumulatedBonuses: Bonus = {};
-    const completedMissions: string[] = [];
+    const bonuses: Bonus = {};
     // Bonus planète (atterrissage)
     if (targetBody) {
       if ((targetBody as Planet).landSlots) {
         const index = forcedSlotIndex !== undefined ? forcedSlotIndex : targetBody.landers.length - 1;
         const slotBonus = (targetBody as Planet).landSlots[index];
-        if (slotBonus) ResourceSystem.accumulateBonus(slotBonus, accumulatedBonuses);
+        if (slotBonus) ResourceSystem.accumulateBonus(slotBonus, bonuses);
       } else if ((targetBody as Satellite).landBonus) {
-        ResourceSystem.accumulateBonus((targetBody as Satellite).landBonus, accumulatedBonuses);
+        ResourceSystem.accumulateBonus((targetBody as Satellite).landBonus, bonuses);
       }
     }
 
+    // Logique spécifique Carte 13 (Rover Perseverance)
+    if (sourceId === '13') {
+      const isMars = planetId === 'mars';
+      const isMercury = planetId === 'mercury';
+      const isMoon = updatedGame.board.planets.some(p => p.satellites?.some(s => s.id === planetId));
+
+      if (isMars || isMercury || isMoon) {
+        bonuses.pv = (bonuses.pv || 0) + 4;
+      }
+    }
+
+    const currentSequenceId = sequenceId || `land-${Date.now()}`;
+    const species = game.species.find(s => s.planet?.id === planetId);
+    const speciesId = species?.id;
+    const result = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'land', currentSequenceId, speciesId);
+
+    // Logique pour GAIN_LANDING_AND_SPECIMEN
+    if (sourceId) {
+      const allCards = [...updatedGame.decks.cards, ...(updatedGame.decks.discardPile || []), ...updatedGame.players.flatMap(p => p.cards), ...updatedGame.players.flatMap(p => p.playedCards || [])];
+      const sourceCard = allCards.find(c => c.id === sourceId);
+      
+      if (sourceCard && sourceCard.passiveEffects?.some(e => e.type === 'GAIN_LANDING_AND_SPECIMEN')) {
+          const isJupiterOrSaturn = planetId === 'jupiter' || planetId === 'saturn';
+          const planet = updatedGame.board.planets.find(p => p.id === planetId);
+          const hasTokens = planet && planet.mascamiteTokens && planet.mascamiteTokens.length > 0;
+
+          if (isJupiterOrSaturn && hasTokens) {
+              result.newPendingInteractions.push({ type: 'COLLECTING_SPECIMEN', planetId: planetId, sequenceId: sequenceId });
+          }
+      }
+    }
+  
     // Traitement des buffs permanents
-    this.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_LAND' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
+    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_LAND' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
+    if (hasFulfillable) {
+      result.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId: currentSequenceId});
+    }
 
     return {
-      updatedGame,
+      updatedGame: result.updatedGame,
       isFirstLander,
       isSecondLander,
       isThirdLander,
       planetId,
-      bonuses: accumulatedBonuses,
-      completedMissions
+      historyEntries: result.historyEntries,
+      newPendingInteractions: result.newPendingInteractions
     };
-  }
-
-  private static processMissionBuffs(
-    player: Player,
-    shouldTrigger: (buff: CardEffect) => boolean
-  ): void {
-    const processedMissionNames = new Set<string>();
-    player.permanentBuffs.forEach(buff => {
-      if (shouldTrigger(buff)) {
-        // Un buff de mission doit avoir un `id` et une `source` pour être traité.
-        if (buff.id && buff.source) {
-          // Identifier la mission de manière robuste
-          const mission = player.missions.find(m => m.name === buff.source);
-          const deduplicationKey = mission ? mission.id : buff.source;
-
-          // Ignorer si cette mission a déjà été traitée par un autre buff durant cet événement
-          if (processedMissionNames.has(deduplicationKey)) return;
-
-          // Vérifications d'état sur la mission
-          if (mission) {
-            if (mission.completedRequirementIds.includes(buff.id)) return;
-            if (mission.fulfillableRequirementIds?.includes(buff.id)) return;
-          }
-
-          // Marquer cette mission comme traitée pour cet événement
-          processedMissionNames.add(deduplicationKey);
-
-          // Marquer comme remplie (en attente de clic)
-          CardSystem.markMissionRequirementFulfillable(player, buff);
-        }
-      }
-    });
   }
 
   /**

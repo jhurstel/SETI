@@ -134,29 +134,15 @@ export class TechnologySystem {
     }
 
     // Traitement des missions conditionnelles (GAIN_ON_TECH)
-    const processedSources = new Set<string>();
-    player.permanentBuffs.forEach(buff => {
-      let shouldTrigger = false;
-      if (tech.type === TechnologyCategory.EXPLORATION && buff.type === 'GAIN_ON_YELLOW_TECH') shouldTrigger = true;
-      if (tech.type === TechnologyCategory.OBSERVATION && buff.type === 'GAIN_ON_RED_TECH') shouldTrigger = true;
-      if (tech.type === TechnologyCategory.COMPUTING && buff.type === 'GAIN_ON_BLUE_TECH') shouldTrigger = true;
-
-      if (shouldTrigger) {
-        // Ignorer si le prérequis est déjà complété
-        if (buff.id && buff.source) {
-          const mission = player.missions.find(m => m.name === buff.source);
-          if (mission && mission.completedRequirementIds.includes(buff.id)) return;
-          if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
-        }
-
-        if (buff.source && processedSources.has(buff.source)) return;
-
-        if (buff.source) processedSources.add(buff.source);
-
-        // Marquer comme remplie (en attente de clic)
-        CardSystem.markMissionRequirementFulfillable(player, buff);
-      }
+    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
+      if (tech.type === TechnologyCategory.EXPLORATION && buff.type === 'GAIN_ON_YELLOW_TECH') return true;
+      if (tech.type === TechnologyCategory.OBSERVATION && buff.type === 'GAIN_ON_RED_TECH') return true;
+      if (tech.type === TechnologyCategory.COMPUTING && buff.type === 'GAIN_ON_BLUE_TECH') return true;
+      return false;
     });
+    if (hasFulfillable) {
+      historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId: ''});
+    }
 
     // Traitement des buffs actifs (ex: Recherche Ciblée, Coopération Scientifique)
     const buffsToRemove: number[] = [];

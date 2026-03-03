@@ -88,7 +88,7 @@ describe('ProbeSystem', () => {
     const { updatedGame: gameWithProbe, probeId } = ProbeSystem.launchProbe(game, 'p1');
     
     // Move probe from Earth (A3) to adjacent sector
-    const { updatedGame } = ProbeSystem.moveProbe(gameWithProbe, 'p1', probeId!, 1, 'A', 4);
+    const { updatedGame } = ProbeSystem.moveProbe(gameWithProbe, 'p1', probeId!, 'A', 4, 1);
 
     expect(updatedGame.players[0].energy).toBe(9); // 10 - 1 energy cost
     const movedProbe = updatedGame.board.solarSystem.probes.find(p => p.id === probeId);

@@ -521,31 +521,22 @@ export class ScanSystem {
       }
     }
 
-    // Traitement des missions conditionnelles (GAIN_ON_SCAN)
+    // Traitement des missions conditionnelles (GAIN_ON_SIGNAL)
     const player = updatedGame.players.find(p => p.id === playerId);
     if (player) {
-      const processedSources = new Set<string>();
-      player.permanentBuffs.forEach(buff => {
-        if (buff.type === 'GAIN_ON_SCAN') {
-          // Ignorer si le prérequis est déjà complété
-          if (buff.id && buff.source) {
-            const mission = player.missions.find(m => m.name === buff.source);
-            if (mission && mission.completedRequirementIds.includes(buff.id)) return;
-            if (mission && mission.fulfillableRequirementIds?.includes(buff.id)) return;
-          }
-
-          if (buff.source && processedSources.has(buff.source)) return;
-
-          if (buff.source) processedSources.add(buff.source);
-
-          // Re-récupérer le joueur car updatedGame a pu changer
-          const currentPlayer = updatedGame.players.find(p => p.id === playerId);
-          if (currentPlayer) {
-            // Marquer comme remplie (en attente de clic)
-            CardSystem.markMissionRequirementFulfillable(currentPlayer, buff);
-          }
+      const sector = this.getSectorById(updatedGame, sectorId);
+      const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
+        if (buff.type === 'GAIN_ON_SCAN') return true;
+        if (sector) {
+          if (sector.color === SectorType.YELLOW && buff.type === 'GAIN_ON_YELLOW_SIGNAL') return true;
+          if (sector.color === SectorType.RED && buff.type === 'GAIN_ON_RED_SIGNAL') return true;
+          if (sector.color === SectorType.BLUE && buff.type === 'GAIN_ON_BLUE_SIGNAL') return true;
         }
+        return false;
       });
+      if (hasFulfillable) {
+        historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId});
+      }
     }
 
     // 3. Check if covered

@@ -671,7 +671,9 @@ export type InteractionState =
   /** Le joueur doit choisir une récompense Centaurienne. */
   | { type: 'CHOOSING_CENTAURIEN_REWARD', sequenceId?: string }
   /** Le joueur doit cliquer sur un token Mascamite pour le collecter. */
-  | { type: 'COLLECTING_SPECIMEN', planetId: string, sequenceId?: string };
+  | { type: 'COLLECTING_SPECIMEN', planetId: string, sequenceId?: string }
+  /** Le joueur doit confirmer la validation d'une mission. */
+  | { type: 'SELECTING_MISSION', missionId?: string, requirementId?: string, sequenceId?: string }; // Deprecated
 
   // Helper pour les libellés des interactions
 export const getInteractionLabel = (state: InteractionState): string => {
@@ -702,6 +704,7 @@ export const getInteractionLabel = (state: InteractionState): string => {
     case 'ACQUIRING_ALIEN_CARD': return `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''} Alien (Pioche ou Rangée).`;
     case 'CHOOSING_CENTAURIEN_REWARD': return `Veuillez choisir une récompense Centaurienne.`;
     case 'COLLECTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour le prélever.`;
+    case 'SELECTING_MISSION': return `Veuillez confirmer la mission à recouvrir.`;
     default: return "Action inconnue";
   }
 };

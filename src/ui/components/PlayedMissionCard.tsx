@@ -1,11 +1,9 @@
 import React from 'react';
-import { Card, CardType, Game } from '../../core/types';
+import { Card, CardType } from '../../core/types';
 import { CardTooltip } from './CardTooltip';
 
 interface PlayedMissionCardProps {
   card: Card;
-  game?: Game;
-  playerId?: string;
   isCurrentTurn?: boolean;
   isRobot?: boolean;
   onMissionClick?: (missionId: string, requirementId?: string) => void;
@@ -13,11 +11,11 @@ interface PlayedMissionCardProps {
   handleTooltipLeave: () => void;
 }
 
-export const PlayedMissionCard: React.FC<PlayedMissionCardProps> = ({ card, game, playerId, isCurrentTurn, isRobot, onMissionClick, handleTooltipHover, handleTooltipLeave }) => {
+export const PlayedMissionCard: React.FC<PlayedMissionCardProps> = ({ card, isCurrentTurn, isRobot, onMissionClick, handleTooltipHover, handleTooltipLeave }) => {
   let missionRequirementStrings: string[] = [];
   if (card.description) {
     if (card.description.includes('Mission:')) {
-      missionRequirementStrings = card.description.split('Mission:').slice(1).filter(s => s.trim() !== '');
+      missionRequirementStrings = [card.description.split('Mission:')[1].trim()];
     } else if (card.description.includes('Fin de jeu:')) {
       missionRequirementStrings = [card.description.split('Fin de jeu:')[1].trim()];
     } else if (card.description.includes('Réception:')) {

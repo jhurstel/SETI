@@ -652,7 +652,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             )}
             {isDiscardingForSignal && !isRobot && (
               <div className="seti-cards-warning">
-                Sélectionnez jusqu'à {discardForSignalCount} carte(s) à défausser pour gagner des signaux.
+                Veuillez sélectionner jusqu'à {discardForSignalCount} carte(s) à défausser pour gagner des signaux.
                 <br />
                 Sélectionnées : {selectedCardIds.length}
                 <button 
@@ -696,6 +696,15 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
           {/* Missions */}
           <div className="seti-player-section">
             <div className="seti-player-section-title">Mission</div>
+            {/*isSelectingMission && !isRobot && (
+              <div className="seti-cards-warning">
+                Veuillez sélectionner une mission à accomplir.
+                <br />
+                Sélectionnées : {selectedMissionId ? 1 : 0} / 1
+                <button className="seti-confirm-btn" onClick={onConfirmMissionClaim}>Confirmer</button>
+                <button className="seti-cancel-btn" onClick={onCancelMissionClaim}>Annuler</button>
+              </div>
+            )*/}
             <div className="seti-player-list seti-cards-list">
               {((currentPlayer.missions && currentPlayer.missions.length > 0) || (currentPlayer.playedCards && currentPlayer.playedCards.length > 0)) ? (
                 <>
@@ -720,8 +729,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   <PlayedMissionCard
                     key={card.id}
                     card={card}
-                    game={game}
-                    playerId={currentPlayer.id}
                     isCurrentTurn={isCurrentTurn}
                     isRobot={isRobot}
                     onMissionClick={onMissionClick}

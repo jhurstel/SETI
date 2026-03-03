@@ -92,7 +92,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
           let isConditional = false;
 
           // Vérifier si la condition est marquée comme "fulfillable" (GAIN_ON_...)
-          if (requirement?.id && mission.fulfillableRequirementIds?.includes(requirement.id)) {
+          if (requirement?.id && mission.fulfillableRequirementIds.includes(requirement.id)) {
             isFulfillable = true;
           }
 

@@ -1,6 +1,7 @@
 import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode } from '../core/types';
 import { ResourceSystem } from './ResourceSystem';
 import { getObjectPosition } from '../core/SolarSystemPosition';
+import { CardSystem } from './CardSystem';
 
 export class SpeciesSystem {
     /**
@@ -202,7 +203,7 @@ export class SpeciesSystem {
             location: slotType,
             slotIndex: slotType === 'species' ? (slotIndex !== undefined ? slotIndex : 0) : undefined
         });
-
+  
         // Check for species discovery
         const traces = board.lifeTraces;
         const hasRed = traces.some(t => t.type === LifeTraceType.RED);
@@ -258,6 +259,19 @@ export class SpeciesSystem {
             }
         }
 
+        // Traitement des missions conditionnelles (GAIN_ON_TECH)
+        const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
+            if (color === LifeTraceType.YELLOW && buff.type === 'GAIN_ON_YELLOW_LIFETRACE') return true;
+            if (color === LifeTraceType.RED && buff.type === 'GAIN_ON_RED_LIFETRACE') return true;
+            if (color === LifeTraceType.BLUE && buff.type === 'GAIN_ON_BLUE_LIFETRACE') return true;
+            if (color === LifeTraceType.ANY && (
+                buff.type.includes('GAIN_ON_BLUE_LIFETRACE') ||
+                buff.type.includes('GAIN_ON_YELLOW_LIFETACE') ||
+                buff.type.includes('GAIN_ON_RED_LIFETACE')
+            )) return true;
+            return false;
+        });
+
         // Process bonuses
         const res = ResourceSystem.processBonuses(bonusToApply, updatedGame, playerId, 'lifetrace', sequenceId, species?.id);
         updatedGame = res.updatedGame;
@@ -272,6 +286,10 @@ export class SpeciesSystem {
         }
 
         res.historyEntries.unshift({ message: mainLog, playerId, sequenceId });
+
+        if (hasFulfillable) {
+            res.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId });
+        }
 
         return {
             updatedGame,

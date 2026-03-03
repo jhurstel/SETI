@@ -112,29 +112,6 @@ export const BoardUI: React.FC = () => {
     }
   };
 
-  const triggerSignalMission = (game: Game, playerId: string, sectorId: string): Game => {
-    const updatedGame = structuredClone(game);
-    const player = updatedGame.players.find(p => p.id === playerId);
-    const sector = updatedGame.board.sectors.find(s => s.id === sectorId);
-    if (!player || !sector) return game;
-
-    const processedSources = new Set<string>();
-    player.permanentBuffs.forEach(buff => {
-        let buffTypeMatches = false;
-        if (sector.color === SectorType.YELLOW && buff.type === 'GAIN_ON_YELLOW_SIGNAL') buffTypeMatches = true;
-        if (sector.color === SectorType.RED && buff.type === 'GAIN_ON_RED_SIGNAL') buffTypeMatches = true;
-        if (sector.color === SectorType.BLUE && buff.type === 'GAIN_ON_BLUE_SIGNAL') buffTypeMatches = true;
-        
-        if (buffTypeMatches) {
-            if (buff.id && buff.source && (player.missions.find(m => m.name === buff.source)?.completedRequirementIds.includes(buff.id) || player.missions.find(m => m.name === buff.source)?.fulfillableRequirementIds?.includes(buff.id))) return;
-            if (buff.source && processedSources.has(buff.source)) return;
-            if (buff.source) processedSources.add(buff.source);
-            CardSystem.markMissionRequirementFulfillable(player, buff);
-        }
-    });
-    return updatedGame;
-  }
-
   // Sauvegarde automatique à chaque modification du jeu
   useEffect(() => {
     if (game) {
@@ -450,14 +427,13 @@ export const BoardUI: React.FC = () => {
 
       // Validation de mission
       else if (interactionState.type === 'CLAIMING_MISSION_REQUIREMENT') {
-        const { missionId, requirementId } = interactionState;
-        const mission = player.missions.find(m => m.id === missionId);
-        if (mission && !mission.completedRequirementIds.includes(requirementId)) {
-            const requirement = mission.requirements.find(r => r.id === requirementId);
+        const mission = player.missions.find(m => m.id === interactionState.missionId);
+        if (mission && !mission.completedRequirementIds.includes(interactionState.requirementId)) {
+            const requirement = mission.requirements.find(r => r.id === interactionState.requirementId);
             let bonuses: Bonus = {};
             
             // Vérifier si on doit sauter la vérification (cas GAIN_ON_... déjà validé par le système)
-            const skipCheck = mission.fulfillableRequirementIds?.includes(requirementId);
+            const skipCheck = mission.fulfillableRequirementIds.includes(interactionState.requirementId);
 
             if (requirement && (requirement.type.startsWith('GAIN_IF_') || requirement.type.startsWith('GAIN_ON_'))) {
                  const bonus = CardSystem.evaluateMission(updatedGame, player.id, requirement.value, skipCheck);
@@ -470,7 +446,12 @@ export const BoardUI: React.FC = () => {
                  }
             }
             
-            mission.completedRequirementIds.push(requirementId);
+            mission.completedRequirementIds.push(interactionState.requirementId);
+            // Vider la liste des prérequis réalisables pour TOUTES les missions du joueur après en avoir choisi un
+            player.missions.forEach(m => {
+                m.fulfillableRequirementIds = [];
+            });
+            
             const isCompleted = mission.completedRequirementIds.length >= mission.requirements.length;
             if (isCompleted) {
                 mission.completed = true;
@@ -757,12 +738,8 @@ export const BoardUI: React.FC = () => {
                                 const disk = destKey[0] as DiskName;
                                 const sector = parseInt(destKey.substring(1)) as SectorNumber;
                                 
-                                const stepCost = ProbeSystem.getMovementCost(aiGame, player.id, probe.id);
-                                const energyCost = Math.max(0, stepCost - 1);
-
-                                const moveRes = ProbeSystem.moveProbe(aiGame, player.id, probe.id, energyCost, disk, sector);
+                                const moveRes = ProbeSystem.moveProbe(aiGame, player.id, probe.id, disk, sector, 1);
                                 aiGame = moveRes.updatedGame;
-                                addToHistory(moveRes.message, player.id, aiGame, undefined, sequenceId);
                             }
                         }
                     }
@@ -961,25 +938,13 @@ export const BoardUI: React.FC = () => {
               let aiGame = result.updatedGame;
               const sequenceId = `ai-orbit-${Date.now()}`;
 
-              const bonusRes = ResourceSystem.processBonuses(result.bonuses, aiGame, currentPlayer.id, 'orbit', sequenceId);
-              aiGame = bonusRes.updatedGame;
-
               const pIndex = aiGame.players.findIndex(p => p.id === currentPlayer.id);
               if (pIndex !== -1) aiGame.players[pIndex].hasPerformedMainAction = true;
 
-              let message = `met une sonde en orbite`;
-              if (bonusRes.passiveGains && bonusRes.passiveGains.length > 0) {
-                  message += ` et gagne ${bonusRes.passiveGains.join(', ')}`;
-              }
-              if (result.completedMissions && result.completedMissions.length > 0) {
-                  message += ` et accomplit la mission "${result.completedMissions.join('", "')}"`;
-              }
+              result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
 
-              addToHistory(message, currentPlayer.id, game, undefined, sequenceId);
-              bonusRes.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
-
-              if (bonusRes.newPendingInteractions.length > 0) {
-                   aiGame = processAIInteractions(aiGame, bonusRes.newPendingInteractions, sequenceId);
+              if (result.newPendingInteractions.length > 0) {
+                   aiGame = processAIInteractions(aiGame, result.newPendingInteractions, sequenceId);
               }
 
               setGame(aiGame);
@@ -991,25 +956,13 @@ export const BoardUI: React.FC = () => {
               let aiGame = result.updatedGame;
               const sequenceId = `ai-land-${Date.now()}`;
 
-              const bonusRes = ResourceSystem.processBonuses(result.bonuses, aiGame, currentPlayer.id, 'land', sequenceId);
-              aiGame = bonusRes.updatedGame;
-
               const pIndex = aiGame.players.findIndex(p => p.id === currentPlayer.id);
               if (pIndex !== -1) aiGame.players[pIndex].hasPerformedMainAction = true;
 
-              let message = `fait atterrir une sonde`;
-              if (bonusRes.passiveGains && bonusRes.passiveGains.length > 0) {
-                  message += ` et gagne ${bonusRes.passiveGains.join(', ')}`;
-              }
-              if (result.completedMissions && result.completedMissions.length > 0) {
-                  message += ` et accomplit la mission "${result.completedMissions.join('", "')}"`;
-              }
+              result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
 
-              addToHistory(message, currentPlayer.id, game, undefined, sequenceId);
-              bonusRes.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
-
-              if (bonusRes.newPendingInteractions.length > 0) {
-                   aiGame = processAIInteractions(aiGame, bonusRes.newPendingInteractions, sequenceId);
+              if (result.newPendingInteractions.length > 0) {
+                   aiGame = processAIInteractions(aiGame, result.newPendingInteractions, sequenceId);
               }
 
               setGame(aiGame);
@@ -1126,6 +1079,7 @@ export const BoardUI: React.FC = () => {
         const card = cardsWithAction.length > 0 ? cardsWithAction[Math.floor(Math.random() * cardsWithAction.length)] : player.cards[Math.floor(Math.random() * player.cards.length)];
         
         if (card.freeAction) {
+             const sequenceId = `ai-free-action-${Date.now()}`;
              let updatedGame = structuredClone(currentGame);
              let logMsg = "";
              if (card.freeAction === FreeActionType.MEDIA) {
@@ -1156,11 +1110,8 @@ export const BoardUI: React.FC = () => {
                           const destKey = destinations[Math.floor(Math.random() * destinations.length)];
                           const disk = destKey[0] as DiskName;
                           const sector = parseInt(destKey.substring(1)) as SectorNumber;
-                          
-                          const stepCost = ProbeSystem.getMovementCost(updatedGame, player.id, probe.id);
-                          const energyCost = Math.max(0, stepCost - 1);
 
-                          const moveRes = ProbeSystem.moveProbe(updatedGame, player.id, probe.id, energyCost, disk, sector);
+                          const moveRes = ProbeSystem.moveProbe(updatedGame, player.id, probe.id, disk, sector, 1, sequenceId);
                           updatedGame = moveRes.updatedGame;
                           logMsg = "déplace une sonde";
                       } else {
@@ -1174,7 +1125,7 @@ export const BoardUI: React.FC = () => {
              updatedGame = CardSystem.discardCard(updatedGame, player.id, card.id);
              setGame(updatedGame);
              if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-             addToHistory(`défausse "${card.name}" et ${logMsg}`, player.id, currentGame);
+             addToHistory(`défausse "${card.name}" et ${logMsg}`, player.id, currentGame, undefined, sequenceId);
              return true;
         }
     }
@@ -1747,8 +1698,7 @@ export const BoardUI: React.FC = () => {
         gameEngineRef.current.setState(game);
         const result = gameEngineRef.current.executeAction(action);
         if (result.success && result.updatedState) {
-          let gameAfterScan = result.updatedState;
-          gameAfterScan = triggerSignalMission(gameAfterScan, currentPlayer.id, sector.id);
+          const gameAfterScan = result.updatedState;
           setGame(gameAfterScan);
           action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
           handleNewInteractions(action.newPendingInteractions);
@@ -1806,7 +1756,8 @@ export const BoardUI: React.FC = () => {
       const result = gameEngineRef.current.executeAction(action);
       if (result.success && result.updatedState) {
         setGame(result.updatedState);
-        addToHistory(`paye ${ResourceSystem.formatResource(GAME_CONSTANTS.PROBE_LAUNCH_COST, 'CREDIT')} pour <strong>Lancer une sonde</strong> depuis la Terre`, currentPlayer.id, game);
+        action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
+        handleNewInteractions(action.newPendingInteractions);
       } else {
         console.error('Erreur lors du lancement de la sonde:', result.error);
         alert(result.error || 'Impossible de lancer la sonde');
@@ -1821,8 +1772,6 @@ export const BoardUI: React.FC = () => {
       if (result.success && result.updatedState) {
         setGame(result.updatedState);
         action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-
-        // Ajouter les nouvelles interactions et lancer la première
         handleNewInteractions(action.newPendingInteractions);
       } else {
         console.error("Erreur lors du scan d'un secteur:", result.error);
@@ -1859,8 +1808,6 @@ export const BoardUI: React.FC = () => {
       if (result.success && result.updatedState) {
         setGame(result.updatedState);
         action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-
-        // Ajouter les nouvelles interactions et lancer la première
         handleNewInteractions(action.newPendingInteractions);
       } else {
         console.error("Erreur lors de la recherche de technologie:", result.error);
@@ -2150,7 +2097,7 @@ export const BoardUI: React.FC = () => {
   const handlePlanetInteraction = (
     action: OrbitAction | LandAction,
     planetId: string,
-    actionFn: (game: Game, playerId: string, probeId: string, targetId: string) => { updatedGame: Game, bonuses?: any, completedMissions?: string[] },
+    actionFn: (game: Game, playerId: string, probeId: string, targetId: string) => { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[], completedMissions?: string[] },
     historyMessagePrefix: string,
     successMessage: string
   ): boolean => {
@@ -2202,12 +2149,9 @@ export const BoardUI: React.FC = () => {
 
     try {
       const result = actionFn(game, currentPlayer.id, probe.id, planetId);
-
-      // Identifier l'espèce associée à la planète (ex: Oumuamua) pour les bonus de carte Alien
-      const species = game.species.find(s => s.planet?.id === planetId);
-      const speciesId = species?.id;
-
-      const { updatedGame, newPendingInteractions, passiveGains, logs: allBonusLogs, historyEntries } = ResourceSystem.processBonuses(result.bonuses, result.updatedGame, currentPlayer.id, 'land/orbit', sequenceId, speciesId);
+      const updatedGame = result.updatedGame;
+      const historyEntries = result.historyEntries;
+      const newPendingInteractions = result.newPendingInteractions;
 
       // Marquer l'action principale comme effectuée manuellement
       // ATTENTION TODO devrait etre fait dans GameEngine ou au moins dans la logique métier
@@ -2216,25 +2160,13 @@ export const BoardUI: React.FC = () => {
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-
-      const summary = passiveGains.length > 0 ? `Vous avez gagné : ${passiveGains.join(', ')}.` : "Gains interactifs :";
-      const interactionTriggered = handleNewInteractions(newPendingInteractions, sequenceId, summary);
-
-      let message = `${historyMessagePrefix} ${planetDef.name}`;
-      if (passiveGains.length > 0) {
-        message += ` et gagne ${passiveGains.join(', ')}`;
-      }
-      
+      const interactionTriggered = handleNewInteractions(newPendingInteractions, sequenceId);
+      let message = `${historyMessagePrefix} ${planetDef.name}`;      
       if (result.completedMissions && result.completedMissions.length > 0) {
         message += ` et accomplit la mission "${result.completedMissions.join('", "')}"`;
       }
 
       addToHistory(message, currentPlayer.id, stateBeforeAction, undefined, sequenceId);
-
-      const otherLogs = allBonusLogs.filter(log => !log.startsWith('gagne ') && !log.startsWith('pioche '));
-      if (otherLogs.length > 0) {
-        otherLogs.forEach(log => addToHistory(log, currentPlayer.id, updatedGame, undefined, sequenceId));
-      }
 
       if (historyEntries.length > 0) {
         historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, updatedGame, undefined, sequenceId));
@@ -2442,54 +2374,7 @@ export const BoardUI: React.FC = () => {
           new LandAction(currentPlayer.id, probe.id, planetId), // Action pour le type, pas pour la validation ici
           planetId, // planetId pour la logique interne
           (g, pid, prid, targetId) => {
-            const result = ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex); // Toujours gratuit en mode LANDING_PROBE
-            const sourceId = interactionState.source;
-
-            // Logique spécifique Carte 13 (Rover Perseverance)
-            // "Si vous posez une sonde sur Mars, Mercure ou n'importe quelle lune avec cette action, gagnez 4 PVs."
-            if (sourceId === '13') {
-              const isMars = targetId === 'mars';
-              const isMercury = targetId === 'mercury';
-              // Vérifier si c'est une lune (satellite)
-              const isMoon = g.board.planets.some(p => p.satellites?.some(s => s.id === targetId));
-
-              if (isMars || isMercury || isMoon) {
-                if (!result.bonuses) result.bonuses = {};
-                result.bonuses.pv = (result.bonuses.pv || 0) + 4;
-
-                // Appliquer le gain de PV à l'état du jeu
-                const pIndex = result.updatedGame.players.findIndex(p => p.id === pid);
-                if (pIndex !== -1) {
-                  const p = { ...result.updatedGame.players[pIndex] };
-                  p.score += 4;
-                  result.updatedGame.players = [...result.updatedGame.players];
-                  result.updatedGame.players[pIndex] = p;
-                }
-              }
-            }
-
-            // Logique pour GAIN_LANDING_AND_SPECIMEN
-            // Vérifier si la carte source a cet effet
-            if (sourceId) {
-              // Chercher la carte dans les cartes jouées ou la défausse (car elle vient d'être jouée)
-              const allCards = [...g.decks.cards, ...(g.decks.discardPile || []), ...g.players.flatMap(p => p.cards), ...g.players.flatMap(p => p.playedCards || [])];
-              const sourceCard = allCards.find(c => c.id === sourceId);
-              
-              if (sourceCard && sourceCard.passiveEffects?.some(e => e.type === 'GAIN_LANDING_AND_SPECIMEN')) {
-                  const isJupiterOrSaturn = targetId === 'jupiter' || targetId === 'saturn';
-                  const planet = g.board.planets.find(p => p.id === targetId);
-                  const hasTokens = planet && planet.mascamiteTokens && planet.mascamiteTokens.length > 0;
-
-                  if (isJupiterOrSaturn && hasTokens) {
-                      // On signale qu'on veut enchaîner sur la collecte
-                      // On utilise une propriété temporaire sur result pour passer l'info
-                      (result as any).triggerSpecimenCollection = true;
-                  } else {
-                      // Sinon l'effet est perdu (droppé) comme demandé
-                  }
-              }
-            }
-            return result;
+            return ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex, interactionState.source, interactionState.sequenceId);
           },
           "fait atterrir une sonde (Bonus) sur",
           "Atterrissage réussi"
@@ -2504,29 +2389,6 @@ export const BoardUI: React.FC = () => {
           return;
         }
 
-        // Vérification post-action pour GAIN_LANDING_AND_SPECIMEN
-        // On doit le faire ici car handlePlanetInteraction a fini son travail
-        const sourceId = (interactionState as any).source;
-        if (sourceId) {
-             // On utilise gameRef.current car handlePlanetInteraction a mis à jour le jeu
-             const currentGame = gameRef.current!; 
-             const allCards = [...currentGame.decks.cards, ...(currentGame.decks.discardPile || []), ...currentGame.players.flatMap(p => p.cards), ...currentGame.players.flatMap(p => p.playedCards || [])];
-             const sourceCard = allCards.find(c => c.id === sourceId);
-             
-             if (sourceCard && sourceCard.passiveEffects?.some(e => e.type === 'GAIN_LANDING_AND_SPECIMEN')) {
-                 // targetId n'est pas dispo ici directement, mais on sait que c'est planetId (ou son parent)
-                 let targetId = planetId;
-                 const parent = currentGame.board.planets.find(p => p.satellites?.some(s => s.id === planetId));
-                 if (parent) targetId = parent.id;
-
-                 const planet = currentGame.board.planets.find(p => p.id === targetId);
-                 if ((targetId === 'jupiter' || targetId === 'saturn') && planet?.mascamiteTokens?.length) {
-                     setInteractionState({ type: 'COLLECTING_SPECIMEN', planetId: targetId, sequenceId: interactionState.sequenceId });
-                     return;
-                 }
-             }
-        }
-        
         // Décrémenter ou terminer l'interaction
         if (interactionState.count > 1) {
           setInteractionState({ ...interactionState, count: interactionState.count - 1 });
@@ -2549,7 +2411,7 @@ export const BoardUI: React.FC = () => {
         action,
         planetId,
         // On passe planetId comme targetId pour supporter l'atterrissage sur les satellites
-        (g, pid, prid, targetId) => ProbeSystem.landProbe(g, pid, prid, targetId, false, slotIndex),
+        (g, pid, prid, targetId) => ProbeSystem.landProbe(g, pid, prid, targetId, false, slotIndex, undefined, interactionState.sequenceId),
         "fait atterrir une sonde sur",
         "Atterrissage réussi"
       );
@@ -2645,45 +2507,35 @@ export const BoardUI: React.FC = () => {
       const disk = cellKey[0] as DiskName;
       const sector = parseInt(cellKey.substring(1)) as SectorNumber;
 
-      // Sauvegarder l'état avant le mouvement pour l'historique (copie profonde)
-      const stateBeforeMove = structuredClone(currentGame);
-
       // Utiliser l'action pour effectuer le mouvement
       const cost = ProbeSystem.getMovementCost(currentGame, currentPlayerId, probeId);
       const usedFree = Math.min(cost, freeMovements);
-      const action = new MoveProbeAction(currentPlayerId, probeId, { disk, sector }, freeMovements);
+      if (!currentSequenceId) currentSequenceId = `move-${Date.now()}`;
+      const action = new MoveProbeAction(currentPlayerId, probeId, { disk, sector }, freeMovements, currentSequenceId);
       const result = gameEngineRef.current.executeAction(action);
 
       if (result.success && result.updatedState) {
         const updatedGame = result.updatedState;
 
-        // Récupérer le message généré par ProbeSystem via l'action
-        const message = action.executionMessage;
+        action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
+        // Ajouter les nouvelles interactions et lancer la première
+        handleNewInteractions(action.newPendingInteractions);
 
-        if (message) {
-          const oldPlayer = currentGame.players.find(p => p.id === currentPlayerId);
+        const oldPlayer = currentGame.players.find(p => p.id === currentPlayerId);
 
-          // Détection Card 19 (Assistance Gravitationnelle)
-          const targetCell = getCell(disk, sector, createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0));
-          const hasChoiceBuff = oldPlayer?.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
+        // Détection Card 19 (Assistance Gravitationnelle)
+        const targetCell = getCell(disk, sector, createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0));
+        const hasChoiceBuff = oldPlayer?.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
 
-          if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
-            // Calculer les mouvements restants après ce pas (si gratuit)
-            const remaining = freeMovements - usedFree;
-            if (!currentSequenceId) currentSequenceId = `move-${Date.now()}`;
-            setInteractionState({ type: 'CHOOSING_MEDIA_OR_MOVE', remainingMoves: remaining, sequenceId: currentSequenceId });
-            interruptedForChoice = true;
-            if (i < path.length - 1) {
-              setToast({ message: "Déplacement interrompu. Choisissez un bonus.", visible: true });
-            }
+        if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
+          // Calculer les mouvements restants après ce pas (si gratuit)
+          const remaining = freeMovements - usedFree;
+          if (!currentSequenceId) currentSequenceId = `move-${Date.now()}`;
+          setInteractionState({ type: 'CHOOSING_MEDIA_OR_MOVE', remainingMoves: remaining, sequenceId: currentSequenceId });
+          interruptedForChoice = true;
+          if (i < path.length - 1) {
+            setToast({ message: "Déplacement interrompu. Choisissez un bonus.", visible: true });
           }
-
-          let logMessage = message;
-          if (freeMovements > 0) {
-             const remaining = freeMovements - usedFree;
-             logMessage += ` (${remaining} mouvement${remaining > 1 ? 's' : ''} gratuit${remaining > 1 ? 's' : ''} restant${remaining > 1 ? 's' : ''})`;
-          }
-          addToHistory(logMessage, currentPlayerId, stateBeforeMove, undefined, currentSequenceId);
         }
 
         currentGame = updatedGame;
@@ -3266,14 +3118,8 @@ export const BoardUI: React.FC = () => {
         if (playedCard && playedCard.type === CardType.CENTAURIEN) {
             // Traitement spécial pour les cartes Centauriennes
             if (!playedCard.completed) {
-                playedCard.completed = true;
-                
-                // On marque comme complété et on log
-                setGame(updatedGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-                
-                addToHistory(`valide la réception du message Centaurien "${playedCard.name}"`, player.id, game);
-                setInteractionState({ type: 'IDLE' });
+                // Passer par la confirmation avec un ID de requirement fictif
+                setInteractionState({ type: 'CLAIMING_MISSION_REQUIREMENT', missionId, requirementId: 'reception' });
             }
             return;
         }
@@ -3305,19 +3151,6 @@ export const BoardUI: React.FC = () => {
              setToast({ message: "Aucune condition remplie pour cette mission.", visible: true });
         } else if (fulfillableReqs.length === 1) {
              setInteractionState({ type: 'CLAIMING_MISSION_REQUIREMENT', missionId, requirementId: fulfillableReqs[0].req.id });
-        } else {
-             // Choix multiple
-             const missionRequirementStrings = mission.description.split('Mission:').slice(1).filter(s => s.trim() !== '');
-             setInteractionState({
-                type: 'CHOOSING_BONUS_ACTION',
-                bonusesSummary: "Plusieurs conditions remplies. Choisissez laquelle valider :",
-                choices: fulfillableReqs.map(item => ({
-                    id: item.req.id,
-                    label: missionRequirementStrings[item.index]?.trim() || `Condition ${item.index + 1}`,
-                    state: { type: 'CLAIMING_MISSION_REQUIREMENT', missionId, requirementId: item.req.id },
-                    done: false
-                }))
-             });
         }
     }
   };

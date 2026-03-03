@@ -3,50 +3,28 @@ import { BaseAction } from './Action';
 import { ProbeSystem } from '../systems/ProbeSystem';
 
 export class MoveProbeAction extends BaseAction {
-  public executionMessage: string = "";
-
   constructor(
     playerId: string,
     public probeId: string,
     public targetPosition: { disk: DiskName; sector: SectorNumber },
-    public availableFreeMovements: number = 0
+    public availableFreeMovements: number = 0,
+    public sequenceId?: string
   ) {
     super(playerId, ActionType.MOVE_PROBE);
   }
 
   validate(game: Game): ValidationResult {
-    const cost = ProbeSystem.getMovementCost(game, this.playerId, this.probeId);
-    const usedFree = Math.min(cost, this.availableFreeMovements);
-    const finalCost = cost - usedFree;
-
-    const check = ProbeSystem.canMoveProbe(
-      game,
-      this.playerId,
-      this.probeId,
-      finalCost
-    );
-
+    const check = ProbeSystem.canMoveProbe(game, this.playerId, this.probeId, this.availableFreeMovements);
     if (!check.canMove) {
       return { valid: false, errors: [{ code: 'CANNOT_MOVE', message: check.reason || 'Déplacement impossible' }], warnings: [] };
     }
-
     return { valid: true, errors: [], warnings: [] };
   }
 
   execute(game: Game): Game {
-    const cost = ProbeSystem.getMovementCost(game, this.playerId, this.probeId);
-    const usedFree = Math.min(cost, this.availableFreeMovements);
-    const finalCost = cost - usedFree;
-
-    const result = ProbeSystem.moveProbe(
-      game,
-      this.playerId,
-      this.probeId,
-      finalCost,
-      this.targetPosition.disk,
-      this.targetPosition.sector
-    );
-    this.executionMessage = result.message;
+    const result = ProbeSystem.moveProbe(game, this.playerId, this.probeId, this.targetPosition.disk, this.targetPosition.sector, this.availableFreeMovements, this.sequenceId);
+    this.historyEntries = result.historyEntries;
+    this.newPendingInteractions = result.newPendingInteractions;
     return result.updatedGame;
   }
 }

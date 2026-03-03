@@ -212,27 +212,11 @@ export class CardSystem {
         }
 
         // Check for GAIN_ON_PLAY buffs
-        const processedSources = new Set<string>();
-        const missionsToTrigger: { missionId: string, requirementId: string }[] = [];
-        player.permanentBuffs.forEach(buff => {
-            let buffTypeMatches = false;
-            if (card.cost === 1 && buff.type === 'GAIN_ON_PLAY_1_CREDIT') buffTypeMatches = true;
-            else if (card.cost === 2 && buff.type === 'GAIN_ON_PLAY_2_CREDITS') buffTypeMatches = true;
-            else if (card.cost === 3 && buff.type === 'GAIN_ON_PLAY_3_CREDITS') buffTypeMatches = true;
-
-            if (buffTypeMatches) {
-                if (buff.id && buff.source) {
-                    const mission = player.missions.find(m => m.name === buff.source);
-                    if (mission && (mission.completedRequirementIds.includes(buff.id) || mission.fulfillableRequirementIds?.includes(buff.id))) return;
-                    if (mission && buff.id) {
-                        missionsToTrigger.push({ missionId: mission.id, requirementId: buff.id });
-                    }
-                }
-                if (buff.source && processedSources.has(buff.source)) return;
-                if (buff.source) processedSources.add(buff.source);
-
-                CardSystem.markMissionRequirementFulfillable(player, buff);
-            }
+        const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
+            if (card.cost === 1 && buff.type === 'GAIN_ON_PLAY_1_CREDIT') return true;
+            if (card.cost === 2 && buff.type === 'GAIN_ON_PLAY_2_CREDITS') return true;
+            if (card.cost === 3 && buff.type === 'GAIN_ON_PLAY_3_CREDITS') return true;
+            return false;
         });
 
         // Retirer la carte de la main
@@ -676,6 +660,9 @@ export class CardSystem {
         if (otherLogs.length > 0) {
             otherLogs.forEach(log => historyEntries.push({ message: log, playerId, sequenceId }));
         }
+        if (hasFulfillable) {
+            historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId});
+        }
 
         return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions };
     }
@@ -740,29 +727,13 @@ export class CardSystem {
         }
 
         // 2. Check for GAIN_ON_DISCARD buffs and mark mission as fulfillable
-        const processedSources = new Set<string>();
-        const missionsToTrigger: { missionId: string, requirementId: string }[] = [];
-        player.permanentBuffs.forEach(buff => {
-            let buffTypeMatches = false;
-            if (card.freeAction === FreeActionType.MEDIA && buff.type === 'GAIN_ON_DISCARD_MEDIA') buffTypeMatches = true;
-            if (card.freeAction === FreeActionType.DATA && buff.type === 'GAIN_ON_DISCARD_DATA') buffTypeMatches = true;
-            if (card.freeAction === FreeActionType.MOVEMENT && buff.type === 'GAIN_ON_DISCARD_MOVE') buffTypeMatches = true;
-
-            if (buffTypeMatches) {
-                if (buff.id && buff.source) {
-                    const mission = player.missions.find(m => m.name === buff.source);
-                    if (mission && (mission.completedRequirementIds.includes(buff.id) || mission.fulfillableRequirementIds?.includes(buff.id))) return;
-                    if (mission && buff.id) {
-                        missionsToTrigger.push({ missionId: mission.id, requirementId: buff.id });
-                    }
-                }
-                if (buff.source && processedSources.has(buff.source)) return;
-                if (buff.source) processedSources.add(buff.source);
-
-                CardSystem.markMissionRequirementFulfillable(player, buff);
-            }
+        const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
+            if (card.freeAction === FreeActionType.MEDIA && buff.type === 'GAIN_ON_DISCARD_MEDIA') return true;
+            if (card.freeAction === FreeActionType.DATA && buff.type === 'GAIN_ON_DISCARD_DATA') return true;
+            if (card.freeAction === FreeActionType.MOVEMENT && buff.type === 'GAIN_ON_DISCARD_MOVE') return true;
+            return false;
         });
-
+    
         // 3. Discard the card
         updatedGame = this.discardCard(updatedGame, playerId, cardId);
 
@@ -775,6 +746,9 @@ export class CardSystem {
             message += ` et ${logs.join(', ')}`;
         }
         historyEntries.unshift({ message, playerId, sequenceId });
+        if (hasFulfillable) {
+            historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId});
+        }
 
         return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions };
     }
@@ -856,6 +830,36 @@ export class CardSystem {
     }
 
     /**
+     * Traite les buffs de mission permanents d'un joueur.
+     * Si la condition `shouldTrigger` est remplie, marque le prérequis comme réalisable.
+     */
+    static processMissionBuffs(
+        player: Player,
+        shouldTrigger: (buff: CardEffect) => boolean
+    ): boolean {
+        let atLeastOneFulfillable = false;
+        player.permanentBuffs.forEach(buff => {
+            if (shouldTrigger(buff)) {
+                if (buff.id && buff.source) {
+                    const mission = player.missions.find(m => m.name === buff.source);
+                    if (mission) {
+                        // Si déjà complété ou déjà marqué comme fulfillable, on ignore
+                        if (mission.completedRequirementIds.includes(buff.id)) return null;
+                        if (!mission.fulfillableRequirementIds) mission.fulfillableRequirementIds = [];
+                        if (mission.fulfillableRequirementIds.includes(buff.id)) return null;
+
+                        mission.fulfillableRequirementIds.push(buff.id);
+                        atLeastOneFulfillable = true;
+                        return mission.name;
+                    }
+                }
+            }
+            return null;
+        });
+        return atLeastOneFulfillable;
+    }
+
+    /**
      * Met à jour la progression d'une mission conditionnelle (liée à un buff permanent)
      */
     static updateMissionProgress(player: Player, buff: CardEffect): string | null {
@@ -871,26 +875,6 @@ export class CardSystem {
                     mission.completed = true;
                     return mission.name;
                 }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Marque une condition de mission comme "remplie" (en attente de validation par le joueur)
-     * Utilisé pour les missions déclenchables (GAIN_ON_...)
-     */
-    static markMissionRequirementFulfillable(player: Player, buff: CardEffect): string | null {
-        if (buff.source && buff.id) {
-            const mission = player.missions.find(m => m.name === buff.source);
-            if (mission) {
-                // Si déjà complété ou déjà marqué comme fulfillable, on ignore
-                if (mission.completedRequirementIds.includes(buff.id)) return null;
-                if (!mission.fulfillableRequirementIds) mission.fulfillableRequirementIds = [];
-                if (mission.fulfillableRequirementIds.includes(buff.id)) return null;
-
-                mission.fulfillableRequirementIds.push(buff.id);
-                return mission.name;
             }
         }
         return null;

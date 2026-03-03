@@ -16,6 +16,7 @@ export class LaunchProbeAction extends BaseAction {
   execute(game: Game): Game {
     const result = ProbeSystem.launchProbe(game, this.playerId);
     this.historyEntries = result.historyEntries;
+    this.newPendingInteractions = result.newPendingInteractions;
     return result.updatedGame;
   }
 }
