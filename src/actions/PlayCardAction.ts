@@ -3,7 +3,7 @@ import { Game, ActionType, ValidationResult } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 
 export class PlayCardAction extends BaseAction {
-    constructor(public playerId: string, public cardId: string) {
+    constructor(playerId: string, public cardId: string) {
         super(playerId, ActionType.PLAY_CARD);
     }
 

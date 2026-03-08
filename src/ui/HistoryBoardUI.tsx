@@ -157,10 +157,10 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
 
         return message.split(splitRegex).map((part, index) => {
             if (part.startsWith('"') && part.endsWith('"')) {
-                const cardName = part.slice(1, -1);
-                if (!cardName) return part;
+                const name = part.slice(1, -1);
+                if (!name) return part;
                 
-                const card = findCardByName(cardName);
+                const card = findCardByName(name);
                 if (card) {
                     return (
                         <span
@@ -172,12 +172,12 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                             }}
                             onMouseLeave={() => setActiveTooltip(null)}
                         >
-                            "{cardName}"
+                            "{card.name}"
                         </span>
                     );
                 }
 
-                const tech = findTechByName(cardName);
+                const tech = findTechByName(name);
                 if (tech) {
                     return (
                         <span
@@ -189,7 +189,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                             }}
                             onMouseLeave={() => setActiveTooltip(null)}
                         >
-                            "{cardName}"
+                            "{tech.type} {tech.name}"
                         </span>
                     );
                 }

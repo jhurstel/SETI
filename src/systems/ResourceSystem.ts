@@ -450,6 +450,9 @@ export class ResourceSystem {
     if (bonuses.atmosphericEntry) {
       newPendingInteractions.push({ type: 'REMOVING_ORBITER', sequenceId });
     }
+    if (bonuses.sampleReturn) {
+      newPendingInteractions.push({ type: 'REMOVING_LANDER', sequenceId });
+    }
     if (bonuses.gainSignalFromHand) {
       newPendingInteractions.push({ type: 'DISCARDING_FOR_SIGNAL', count: bonuses.gainSignalFromHand, selectedCards: [], sequenceId });
     }

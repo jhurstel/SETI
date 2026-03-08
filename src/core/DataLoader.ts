@@ -329,6 +329,11 @@ export class DataLoader {
         effects.push({ type: 'ATMOSPHERIC_ENTRY', value: 1 });
       }
 
+      // Gestion du format SAMPLE_RETURN
+      else if (passive === 'SAMPLE_RETURN') {
+        effects.push({ type: 'SAMPLE_RETURN', value: 1 });
+      }
+      
       // Gestion du format IGNORE_PROBE_LIMIT
       else if (passive === 'IGNORE_PROBE_LIMIT') {
         effects.push({ type: 'IGNORE_PROBE_LIMIT', value: true });

@@ -135,6 +135,11 @@ export enum LifeTraceType {
   ANY = "quelconque"
 }
 
+export enum LifeTraceLocation {
+  TRIANGLE = "triangle",
+  SPECIES = "species"
+}
+
 export enum EventType {
   PROBE_LAUNCHED = "PROBE_LAUNCHED",
   PROBE_MOVED = "PROBE_MOVED",
@@ -245,6 +250,7 @@ export interface Game {
   isRoundEnd: boolean;
   gameLog: GameLogEntry[];
   neutralMilestonesAvailable: Record<number, number>;
+  isSpeciesDiscovered: boolean;
 }
 
 export interface Player {
@@ -378,7 +384,7 @@ export interface LifeTrace {
   id: string;
   type: LifeTraceType;
   playerId: string;
-  location?: 'triangle' | 'species';
+  location?: LifeTraceLocation;
   slotIndex?: number;
 }
 
@@ -426,7 +432,7 @@ export interface Card {
   immediateEffects?: CardEffect[];
   passiveEffects?: CardEffect[];
   permanentEffects?: CardEffect[];
-  isRevealed?: boolean;
+  isRevealed: boolean;
   completed?: boolean;
 }
 
@@ -521,6 +527,7 @@ export interface Bonus {
   token?: number;
   ignoreProbeLimit?: boolean;
   atmosphericEntry?: boolean;
+  sampleReturn?: boolean;
   sharedOnly?: boolean;
   noTileBonus?: boolean;
   gainSignal?: { amount: number; scope: string }[];
@@ -697,6 +704,7 @@ export const getInteractionLabel = (state: InteractionState): string => {
     case 'CHOOSING_OBS4_ACTION': return `Veuillez sélectionner le bonus de technologie Observation IV.`;
     case 'DISCARDING_FOR_SIGNAL': return `Veuillez défausser ${state.count} carte${state.count > 1 ? 's' : ''} pour marquer un signal.`;
     case 'REMOVING_ORBITER': return "Veuillez retirer un orbiteur (bonus carte 15).";
+    case 'REMOVING_LANDER': return "Veuillez retirer un atterrisseur (bonus carte 84).";
     case 'CHOOSING_BONUS_ACTION': return `Veuillez choisir la prochaine action.`;
     case 'RESOLVING_SECTOR': return `Résolution du secteur complété...`;
     case 'DRAW_AND_SCAN': return `Pioche d'une carte pour signal...`;

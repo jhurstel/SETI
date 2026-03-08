@@ -245,7 +245,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         );
         const sectorsWithProbes = new Set<string>();
 
-        currentPlayer.probes.forEach(p => {
+        const probesToCheck = interactionState.anyProbe ? (game.board.solarSystem.probes || []) : currentPlayer.probes;
+        probesToCheck.forEach(p => {
           if (p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition) {
             const absoluteSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
             sectorsWithProbes.add(`sector_${absoluteSector}`);
@@ -900,6 +901,11 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     if (interactionState.type === 'REMOVING_ORBITER') {
       const planetData = getPlanetData(obj.id);
       if (planetData && planetData.orbiters.some(p => p.ownerId === currentPlayer.id)) {
+        canInteract = true;
+      }
+    } else if (interactionState.type === 'REMOVING_LANDER') {
+      const planetData = getPlanetData(obj.id);
+      if (planetData && planetData.landers.some(p => p.ownerId === currentPlayer.id)) {
         canInteract = true;
       }
     } else if (!currentPlayer.hasPerformedMainAction && !isRobot && game.phase !== GamePhase.SETUP) {

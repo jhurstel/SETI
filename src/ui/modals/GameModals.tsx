@@ -1,5 +1,6 @@
-import { InteractionState, Game } from '../../core/types';
+import { InteractionState, Game, AlienBoardType } from '../../core/types';
 import { ScoreManager } from '../../core/ScoreManager';
+import { ResourceSystem } from '../../systems/ResourceSystem';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {
   if (!visible) return null;
@@ -11,6 +12,45 @@ export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visibl
         <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
           <button onClick={onCancel} style={{ padding: '8px 16px', backgroundColor: '#555', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Annuler</button>
           <button onClick={onConfirm} style={{ padding: '8px 16px', backgroundColor: '#ff6b6b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Continuer quand même</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const CentaurienRewardModal = ({ game, interactionState, onChoice }: { game: Game, interactionState: InteractionState, onChoice: (index: number) => void }) => {
+  if (interactionState.type !== 'CHOOSING_CENTAURIEN_REWARD') return null;
+
+  const species = game.species.find(s => s.name === AlienBoardType.CENTAURIENS);
+  if (!species || !species.message) return null;
+
+  return (
+    <div className="seti-modal-overlay">
+      <div className="seti-modal-content">
+        <h3>Message Centaurien Décodé !</h3>
+        <p>Choisissez une récompense parmi les messages disponibles :</p>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '20px' }}>
+          {species.message.map((token, index) => (
+            <button
+              key={index}
+              disabled={!token.isAvailable}
+              onClick={() => onChoice(index)}
+              className="seti-action-btn"
+              style={{
+                opacity: token.isAvailable ? 1 : 0.5,
+                backgroundColor: '#2a2a2a',
+                border: '1px solid #555',
+                padding: '15px',
+                minWidth: '120px',
+                cursor: token.isAvailable ? 'pointer' : 'not-allowed'
+              }}
+            >
+              <div style={{ fontSize: '2em', marginBottom: '10px' }}>📩</div>
+              <div style={{ color: '#ffd700' }}>
+                {(ResourceSystem.formatBonus(token.bonus) || []).join(', ')}
+              </div>
+            </button>
+          ))}
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode } from '../core/types';
+import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode, LifeTraceLocation } from '../core/types';
 import { ResourceSystem } from './ResourceSystem';
 import { getObjectPosition } from '../core/SolarSystemPosition';
 import { CardSystem } from './CardSystem';
@@ -47,6 +47,7 @@ export class SpeciesSystem {
 
                     if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
                         board.isDiscovered = true;
+                        updatedGame.isSpeciesDiscovered = true;
 
                         const distResult = this.distributeDiscoveryCards(updatedGame, i);
                         updatedGame = distResult.updatedGame;
@@ -110,10 +111,8 @@ export class SpeciesSystem {
     /**
     * Place une trace de vie sur un plateau Alien et gère la découverte d'espèce
     */
-    static placeLifeTrace(game: Game, boardIndex: number, color: LifeTraceType, playerId: string, sequenceId: string = '', slotType: 'triangle' | 'species', slotIndex?: number): {
+    static placeLifeTrace(game: Game, boardIndex: number, color: LifeTraceType, playerId: string, sequenceId: string = '', slotType: LifeTraceLocation, slotIndex?: number): {
         updatedGame: Game;
-        isDiscovered: boolean;
-        speciesId?: string;
         historyEntries: HistoryEntry[];
         newPendingInteractions: InteractionState[];
     } {
@@ -124,7 +123,7 @@ export class SpeciesSystem {
 
         if (!board || !player) {
             // Should not happen if called correctly
-            return { updatedGame: game, isDiscovered: false, historyEntries: [], newPendingInteractions: [] };
+            return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
         }
 
         const species = updatedGame.species.find(s => s.name === board.speciesId);
@@ -132,18 +131,17 @@ export class SpeciesSystem {
         let bonusToApply: Bonus = {};
         let costText = '';
 
-        if (slotType === 'triangle') {
+        if (slotType === LifeTraceLocation.TRIANGLE) {
             // Le joueur a cliqué sur le triangle. On compte combien de ses traces y sont déjà.
-            // On inclut `location === undefined` pour la compatibilité avec les anciennes données de sauvegarde.
-            const tracesOnTriangle = board.lifeTraces.filter(t => t.playerId === playerId && t.type === color && (t.location === 'triangle' || t.location === undefined)).length;
+            const tracesOnTriangle = board.lifeTraces.filter(t => t.type === color && t.location === LifeTraceLocation.TRIANGLE).length;
             if (tracesOnTriangle === 0) {
                 bonusToApply = board.firstBonus;
             } else {
                 bonusToApply = board.nextBonus;
             }
-        } else { // slotType === 'species'
+        } else { // slotType === LifeTraceLocation.SPECIES
             if (!board.isDiscovered || !species) {
-                return { updatedGame: game, isDiscovered: false, historyEntries: [{ message: "Impossible de placer sur la piste d'espèce avant sa découverte.", playerId, sequenceId }], newPendingInteractions: [] };
+                return { updatedGame: game, historyEntries: [{ message: "Impossible de placer sur la piste d'espèce avant sa découverte.", playerId, sequenceId }], newPendingInteractions: [] };
             }
 
             let trackIndex = 0;
@@ -151,13 +149,13 @@ export class SpeciesSystem {
                 trackIndex = slotIndex;
             } else {
                 // Fallback (ne devrait pas arriver avec la nouvelle UI)
-                const tracesOnSpeciesTrack = board.lifeTraces.filter(t => t.playerId === playerId && t.type === color && t.location === 'species').length;
+                const tracesOnSpeciesTrack = board.lifeTraces.filter(t => t.type === color && t.location === LifeTraceLocation.SPECIES).length;
                 trackIndex = tracesOnSpeciesTrack;
             }
 
-            const isOccupied = board.lifeTraces.some(t => t.type === color && t.location === 'species' && t.slotIndex === trackIndex);
+            const isOccupied = board.lifeTraces.some(t => t.type === color && t.location === LifeTraceLocation.SPECIES && t.slotIndex === trackIndex);
             if (isOccupied) {
-                return { updatedGame: game, isDiscovered: false, historyEntries: [{ message: "Emplacement déjà occupé.", playerId, sequenceId }], newPendingInteractions: [] };
+                return { updatedGame: game, historyEntries: [{ message: "Emplacement déjà occupé.", playerId, sequenceId }], newPendingInteractions: [] };
             }
 
             // Déterminer le bonus en fonction de l'index sur la piste
@@ -179,7 +177,6 @@ export class SpeciesSystem {
             if ((player.tokens || 0) < cost) {
                 return {
                     updatedGame: game,
-                    isDiscovered: false,
                     historyEntries: [{ message: `Pas assez de tokens pour placer la trace.`, playerId, sequenceId }],
                     newPendingInteractions: []
                 };
@@ -194,14 +191,14 @@ export class SpeciesSystem {
             type: color,
             playerId: playerId,
             location: slotType,
-            slotIndex: slotType === 'species' ? (slotIndex !== undefined ? slotIndex : 0) : undefined
+            slotIndex: slotType === LifeTraceLocation.SPECIES ? (slotIndex !== undefined ? slotIndex : 0) : undefined
         });
         player.lifeTraces.push({
             id: `player-trace-${Date.now()}`,
             type: color,
             playerId: playerId,
             location: slotType,
-            slotIndex: slotType === 'species' ? (slotIndex !== undefined ? slotIndex : 0) : undefined
+            slotIndex: slotType === LifeTraceLocation.SPECIES ? (slotIndex !== undefined ? slotIndex : 0) : undefined
         });
   
         // Check for species discovery
@@ -211,10 +208,9 @@ export class SpeciesSystem {
         const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
 
         let discoveryLogs: string[] = [];
-        let wasDiscoveredThisTurn = false;
         if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
-            wasDiscoveredThisTurn = true;
             board.isDiscovered = true;
+            updatedGame.isSpeciesDiscovered = true;
             const distResult = this.distributeDiscoveryCards(updatedGame, boardIndex);
             updatedGame = distResult.updatedGame;
             discoveryLogs = distResult.logs;
@@ -293,8 +289,6 @@ export class SpeciesSystem {
 
         return {
             updatedGame,
-            isDiscovered: wasDiscoveredThisTurn,
-            speciesId: board.speciesId,
             historyEntries: res.historyEntries,
             newPendingInteractions: res.newPendingInteractions
         };
@@ -442,13 +436,13 @@ export class SpeciesSystem {
         return logs;
     }
 
-    static claimCentaurienReward(game: Game, playerId: string, tokenIndex: number): { updatedGame: Game, logs: string[] } {
+    static claimCentaurienReward(game: Game, playerId: string, tokenIndex: number): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
         let updatedGame = structuredClone(game);
         const player = updatedGame.players.find(p => p.id === playerId);
         const species = updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS);
 
         if (!player || !species || !species.message || !species.message[tokenIndex] || !species.message[tokenIndex].isAvailable) {
-            return { updatedGame, logs: [] };
+            return { updatedGame, historyEntries: [], newPendingInteractions: [] };
         }
 
         species.message[tokenIndex].isAvailable = false;
@@ -461,6 +455,10 @@ export class SpeciesSystem {
         }
 
         const res = ResourceSystem.processBonuses(species.message[tokenIndex].bonus, updatedGame, playerId, 'centaurien_message', `centaurien-${Date.now()}`);
-        return { updatedGame: res.updatedGame, logs: [`déchiffre un message Centaurien`, ...res.logs] };
+        return { 
+            updatedGame: res.updatedGame, 
+            historyEntries: [{ message: `déchiffre un message Centaurien`, playerId }, ...res.historyEntries], 
+            newPendingInteractions: res.newPendingInteractions || [] 
+        };
     }
 }

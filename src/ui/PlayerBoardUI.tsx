@@ -32,9 +32,9 @@ interface PlayerBoardUIProps {
   onDirectTradeAction: (spendType: string, gainType: string) => void;
   onConfirmDiscardForSignal: () => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
-  onSettingsClick?: () => void;
-  onMissionClick?: (missionId: string, requirementId?: string) => void;
-  onConfirmAction?: (message: string, onConfirm: () => void) => void;
+  onSettingsClick: () => void;
+  onMissionClick: (missionId: string, requirementId: string) => void;
+  onConfirmAction: (message: string, onConfirm: () => void) => void;
 }
 
 export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction }) => {
@@ -688,7 +688,35 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   <div className="seti-player-list-empty">Aucune carte en main</div>
                 )
               ) : (
-                <div className="seti-player-list-empty">{currentPlayer.cards.length} carte{currentPlayer.cards.length > 1 ? 's' : ''} en main (Masqué)</div>
+                currentPlayer.cards.some(c => c.isRevealed) ? (
+                  <>
+                    {currentPlayer.cards.filter(c => c.isRevealed).map(card => (
+                      <HandCard
+                        key={card.id}
+                        card={card}
+                        game={game}
+                        currentPlayerId={currentPlayer.id}
+                        interactionState={interactionState}
+                        highlightedCardId={null}
+                        setHighlightedCardId={() => {}}
+                        onCardClick={() => {}}
+                        onPlayCard={() => {}}
+                        onDiscardCardAction={() => {}}
+                        handleTooltipHover={handleTooltipHover}
+                        handleTooltipLeave={handleTooltipLeave}
+                        renderActionButton={() => null}
+                        cardOrigin="hand"
+                      />
+                    ))}
+                    {currentPlayer.cards.filter(c => !c.isRevealed).length > 0 && (
+                      <div className="seti-player-list-empty" style={{ width: '100%', marginTop: '8px' }}>
+                        + {currentPlayer.cards.filter(c => !c.isRevealed).length} carte{currentPlayer.cards.filter(c => !c.isRevealed).length > 1 ? 's' : ''} masquée{currentPlayer.cards.filter(c => !c.isRevealed).length > 1 ? 's' : ''}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="seti-player-list-empty">{currentPlayer.cards.length} carte{currentPlayer.cards.length > 1 ? 's' : ''} en main (Masqué)</div>
+                )
               )}
             </div>
           </div>

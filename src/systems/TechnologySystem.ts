@@ -132,6 +132,7 @@ export class TechnologySystem {
         }
       }
     }
+    historyEntries.push({ message: `acquiert technologie "${tech.type} ${tech.name}"${gains.length > 0 ? ` et gagne ${gains.join(', ')}` : ''}`, playerId, sequenceId: '' });
 
     // Traitement des missions conditionnelles (GAIN_ON_TECH)
     const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {

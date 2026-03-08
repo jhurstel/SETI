@@ -9,7 +9,7 @@
  * - Limites (max 1 sonde dans le système solaire sans technologie)
  */
 
-import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, InteractionState } from '../core/types';
+import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, InteractionState, LifeTraceType } from '../core/types';
 import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { CardSystem } from './CardSystem';
@@ -543,7 +543,8 @@ export class ProbeSystem {
     game: Game,
     playerId: string,
     probeId: string,
-    planetId: string
+    planetId: string,
+    sequenceId?: string
   ): {
     updatedGame: Game;
     isFirstOrbiter: boolean;
@@ -597,15 +598,15 @@ export class ProbeSystem {
       if (slotBonus) ResourceSystem.accumulateBonus(slotBonus, bonuses);
     }
 
-    const sequenceId = `orbit-${Date.now()}`;
+    const currentSequenceId = sequenceId || `orbit-${Date.now()}`;
     const species = game.species.find(s => s.planet?.id === planetId);
     const speciesId = species?.id;
-    const result = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'orbit', sequenceId, speciesId);
+    const result = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'orbit', currentSequenceId, speciesId);
 
     // Traitement des buffs permanents
     const hasFulfillable = CardSystem.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_ORBIT' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
     if (hasFulfillable) {
-      result.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId});
+      result.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId: currentSequenceId});
     }
 
     return {
@@ -797,6 +798,88 @@ export class ProbeSystem {
       planetId,
       historyEntries: result.historyEntries,
       newPendingInteractions: result.newPendingInteractions
+    };
+  }
+
+  /**
+   * Retire un orbiteur d'une planète (effet de carte)
+   */
+  static removeOrbiter(game: Game, playerId: string, planetId: string, orbiterIndex: number, sequenceId?: string): {
+    updatedGame: Game;
+    historyEntries: HistoryEntry[];
+    newPendingInteractions: InteractionState[];
+  } {
+    let updatedGame = structuredClone(game);
+    const player = updatedGame.players.find(p => p.id === playerId);
+    const planet = updatedGame.board.planets.find(p => p.id === planetId);
+
+    if (!player || !planet || !planet.orbiters[orbiterIndex] || planet.orbiters[orbiterIndex].ownerId !== playerId) {
+      throw new Error("Impossible de retirer l'orbiteur.");
+    }
+
+    const removedProbe = planet.orbiters[orbiterIndex];
+
+    // Retirer de la planète
+    planet.orbiters.splice(orbiterIndex, 1);
+
+    // Retirer de la liste globale des sondes du système solaire (si elle y était, ce qui ne devrait pas être le cas pour un orbiteur)
+    updatedGame.board.solarSystem.probes = updatedGame.board.solarSystem.probes.filter(p => p.id !== removedProbe.id);
+
+    // Retirer de la liste du joueur
+    player.probes = player.probes.filter(p => p.id !== removedProbe.id);
+
+    // Appliquer les gains via ResourceSystem : 3 PV, 1 Donnée, 1 Carte
+    const bonuses: Bonus = { pv: 3, data: 1, card: 1 };
+    const currentSequenceId = sequenceId || `remove-orbiter-${Date.now()}`;
+    const res = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'atmospheric_entry', currentSequenceId);
+    
+    res.historyEntries.unshift({ message: `retire un orbiteur de ${planet.name}`, playerId, sequenceId: currentSequenceId });
+
+    return {
+      updatedGame: res.updatedGame,
+      historyEntries: res.historyEntries,
+      newPendingInteractions: res.newPendingInteractions
+    };
+  }
+
+  /**
+   * Retire un atterrisseur d'une planète (effet de carte)
+   */
+  static removeLander(game: Game, playerId: string, planetId: string, landerIndex: number, sequenceId?: string): {
+    updatedGame: Game;
+    historyEntries: HistoryEntry[];
+    newPendingInteractions: InteractionState[];
+  } {
+    let updatedGame = structuredClone(game);
+    const player = updatedGame.players.find(p => p.id === playerId);
+    const planet = updatedGame.board.planets.find(p => p.id === planetId);
+
+    if (!player || !planet || !planet.landers[landerIndex] || planet.landers[landerIndex].ownerId !== playerId) {
+      throw new Error("Impossible de retirer l'atterrisseur.");
+    }
+
+    const removedProbe = planet.landers[landerIndex];
+
+    // Retirer de la planète
+    planet.landers.splice(landerIndex, 1);
+
+    // Retirer de la liste globale des sondes du système solaire (si elle y était, ce qui ne devrait pas être le cas pour un atterrisseur)
+    updatedGame.board.solarSystem.probes = updatedGame.board.solarSystem.probes.filter(p => p.id !== removedProbe.id);
+
+    // Retirer de la liste du joueur
+    player.probes = player.probes.filter(p => p.id !== removedProbe.id);
+
+    // Appliquer les gains via ResourceSystem : 1 Trace de Vie Jaune
+    const bonuses: Bonus = { lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] };
+    const currentSequenceId = sequenceId || `remove-lander-${Date.now()}`;
+    const res = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'sample_return', currentSequenceId);
+    
+    res.historyEntries.unshift({ message: `retire un atterrisseur de ${planet.name}`, playerId, sequenceId: currentSequenceId });
+
+    return {
+      updatedGame: res.updatedGame,
+      historyEntries: res.historyEntries,
+      newPendingInteractions: res.newPendingInteractions
     };
   }
 

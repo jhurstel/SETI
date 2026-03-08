@@ -3,7 +3,7 @@ import { Game, ActionType, ValidationResult } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 
 export class LandAction extends BaseAction {
-    constructor(public playerId: string, public probeId: string, public planetId: string) {
+    constructor(playerId: string, public probeId: string, public planetId: string) {
         super(playerId, ActionType.LAND);
     }
 

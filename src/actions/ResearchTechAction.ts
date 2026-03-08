@@ -5,7 +5,7 @@ import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 
 export class ResearchTechAction extends BaseAction {
-    constructor(playerId: string) {
+    constructor(playerId: string, public techId?: string) {
         super(playerId, ActionType.RESEARCH_TECH);
     }
 

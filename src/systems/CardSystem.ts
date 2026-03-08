@@ -396,7 +396,6 @@ export class CardSystem {
                         }
                     });
                     if (movementCardsCount > 0) {
-                        bonuses.probe = (bonuses.probe || 0) + movementCardsCount;
                         bonuses.movements = (bonuses.movements || 0) + movementCardsCount;
                     }
                 } else if (effect.type === 'GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE') {
@@ -436,14 +435,14 @@ export class CardSystem {
                     const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, updatedGame.board.solarSystem.extraCelestialObjects);
                     if (earthPos) {
                         let movementBonus = 0;
-                        const allObjects = getAllCelestialObjects();
+                        const allObjects = getAllCelestialObjects(updatedGame.board.solarSystem.extraCelestialObjects);
 
                         allObjects.forEach(obj => {
                             if (obj.id === 'earth') return;
                             if (obj.type !== 'planet' && obj.type !== 'comet') return;
 
                             const objPos = calculateAbsolutePosition(obj, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
-                            if (objPos.isVisible && objPos.disk === earthPos.disk && objPos.absoluteSector === earthPos.absoluteSector) {
+                            if (objPos.isVisible && objPos.absoluteSector === earthPos.absoluteSector) {
                                 movementBonus++;
                             }
                         });
@@ -518,6 +517,8 @@ export class CardSystem {
                     updatedGame.decks.cardRow = [];
                 } else if (effect.type === 'ATMOSPHERIC_ENTRY') {
                     bonuses.atmosphericEntry = true;
+                } else if (effect.type === 'SAMPLE_RETURN') {
+                    bonuses.sampleReturn = true;
                 } else if (effect.type === 'GAIN_SIGNAL_FROM_HAND') {
                     bonuses.gainSignalFromHand = effect.value;
                 } else if (effect.type === 'BONUS_IF_COVERED') {

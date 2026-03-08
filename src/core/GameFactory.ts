@@ -79,7 +79,8 @@ export class GameFactory {
       isFirstToPass: false,
       isRoundEnd: false,
       gameLog,
-      neutralMilestonesAvailable
+      neutralMilestonesAvailable,
+      isSpeciesDiscovered: false
     };
 
     return game;

@@ -6,7 +6,7 @@ interface PlayedMissionCardProps {
   card: Card;
   isCurrentTurn?: boolean;
   isRobot?: boolean;
-  onMissionClick?: (missionId: string, requirementId?: string) => void;
+  onMissionClick: (missionId: string, requirementId: string) => void;
   handleTooltipHover: (e: React.MouseEvent, content: React.ReactNode) => void;
   handleTooltipLeave: () => void;
 }
@@ -62,7 +62,7 @@ export const PlayedMissionCard: React.FC<PlayedMissionCardProps> = ({ card, isCu
               onClick={(e) => {
                 e.stopPropagation();
                 if (canClick && onMissionClick) {
-                  onMissionClick(card.id);
+                  onMissionClick(card.id, 'centaurien');
                 }
               }}
             >

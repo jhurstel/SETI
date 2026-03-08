@@ -1,6 +1,6 @@
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject, AlienBoardType } from './types';
+import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject, AlienBoardType, LifeTraceLocation } from './types';
 
 /**
  * Position absolue d'un objet après toutes les rotations
@@ -796,7 +796,7 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
         if (color && bonus) {
           const traceType = color;
           // Ne prendre en compte que les slots 'species' (pas 'triangle')
-          const trackTraces = anomalyBoard.lifeTraces.filter(t => t.type === traceType && t.location === 'species');
+          const trackTraces = anomalyBoard.lifeTraces.filter(t => t.type === traceType && t.location === LifeTraceLocation.SPECIES);
           // Trier par index décroissant pour trouver le plus haut
           trackTraces.sort((a, b) => (b.slotIndex || 0) - (a.slotIndex || 0));
 

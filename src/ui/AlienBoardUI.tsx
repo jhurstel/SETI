@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus } from '../core/types';
+import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { CardTooltip } from './components/CardTooltip';
 import './AlienBoardUI.css';
@@ -8,7 +8,7 @@ interface AlienBoardUIProps {
     game: Game;
     boardIndex: number;
     interactionState: InteractionState;
-    onPlaceLifeTrace: (boardIndex: number, color: LifeTraceType, slotType: 'triangle' | 'species', slotIndex?: number) => void;
+    onPlaceLifeTrace: (boardIndex: number, color: LifeTraceType, slotType: LifeTraceLocation, slotIndex?: number) => void;
     onSpeciesCardClick: (speciesId: string, cardId: string) => void;
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
     forceOpen?: boolean;
@@ -198,10 +198,10 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
         const currentPlayer = game.players[game.currentPlayerIndex];
         const isPlacing = interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === type;
 
-        const trace = board.lifeTraces.find(t => t.location === 'species' && t.type === type && t.slotIndex === index);
+        const trace = board.lifeTraces.find(t => t.location === LifeTraceLocation.SPECIES && t.type === type && t.slotIndex === index);
         const isFilled = !!trace;
         const canAfford = !bonus.token || bonus.token >= 0 || (currentPlayer.tokens || 0) >= Math.abs(bonus.token);
-        const isNext = index === 0 || (isInfinite && index === fixedSlotsLength) || !!board.lifeTraces.find(t => t.location === 'species' && t.type === type && t.slotIndex === index - 1);
+        const isNext = index === 0 || (isInfinite && index === fixedSlotsLength) || !!board.lifeTraces.find(t => t.location === LifeTraceLocation.SPECIES && t.type === type && t.slotIndex === index - 1);
         const isClickable = isInfinite ? isPlacing && !isFilled && isNext && canAfford : isPlacing && !isFilled && canAfford; // Note: Fixed slots logic simplified for Mascamites specific placement if needed, but standard logic applies
 
         const handleMouseEnter = (e: React.MouseEvent) => {
@@ -290,7 +290,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 style={style}
                 onClick={(e) => {
                     e.stopPropagation();
-                    if (isClickable) onPlaceLifeTrace(boardIndex, type, 'species', index);
+                    if (isClickable) onPlaceLifeTrace(boardIndex, type, LifeTraceLocation.SPECIES, index);
                 }}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={() => setActiveTooltip(null)}
@@ -423,10 +423,10 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                     <div className="alien-triangles-container">
                         <div className="alien-track-column-wrapper">
                             <AlienTriangleSlot color="#ff6b6b"
-                                traces={board.lifeTraces.filter(t => t.type === LifeTraceType.RED && (t.location === 'triangle' || t.location === undefined))}
+                                traces={board.lifeTraces.filter(t => t.type === LifeTraceType.RED && (t.location === LifeTraceLocation.TRIANGLE || t.location === undefined))}
                                 game={game}
                                 isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.RED}
-                                onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.RED, 'triangle')}
+                                onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.RED, LifeTraceLocation.TRIANGLE)}
                                 onMouseEnter={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
                                     setActiveTooltip({ content: renderAlienSlotTooltip(LifeTraceType.RED), rect });
@@ -436,10 +436,10 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                         </div>
                         <div className="alien-track-column-wrapper">
                             <AlienTriangleSlot color="#ffd700"
-                                traces={board.lifeTraces.filter(t => t.type === LifeTraceType.YELLOW && (t.location === 'triangle' || t.location === undefined))}
+                                traces={board.lifeTraces.filter(t => t.type === LifeTraceType.YELLOW && (t.location === LifeTraceLocation.TRIANGLE || t.location === undefined))}
                                 game={game}
                                 isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.YELLOW}
-                                onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.YELLOW, 'triangle')}
+                                onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.YELLOW, LifeTraceLocation.TRIANGLE)}
                                 onMouseEnter={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
                                     setActiveTooltip({ content: renderAlienSlotTooltip(LifeTraceType.YELLOW), rect });
@@ -449,10 +449,10 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                         </div>
                         <div className="alien-track-column-wrapper">
                             <AlienTriangleSlot color="#4a9eff"
-                                traces={board.lifeTraces.filter(t => t.type === LifeTraceType.BLUE && (t.location === 'triangle' || t.location === undefined))}
+                                traces={board.lifeTraces.filter(t => t.type === LifeTraceType.BLUE && (t.location === LifeTraceLocation.TRIANGLE || t.location === undefined))}
                                 game={game}
                                 isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE}
-                                onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.BLUE, 'triangle')}
+                                onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.BLUE, LifeTraceLocation.TRIANGLE)}
                                 onMouseEnter={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
                                     setActiveTooltip({ content: renderAlienSlotTooltip(LifeTraceType.BLUE), rect });

@@ -10,7 +10,7 @@ interface MissionCardProps {
   isCurrentTurn: boolean;
   isRobot: boolean;
   isInteractiveMode: boolean;
-  onMissionClick?: (missionId: string, requirementId?: string) => void;
+  onMissionClick: (missionId: string, requirementId: string) => void;
   handleTooltipHover: (e: React.MouseEvent, content: React.ReactNode) => void;
   handleTooltipLeave: () => void;
 }
