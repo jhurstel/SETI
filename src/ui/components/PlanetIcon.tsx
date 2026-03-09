@@ -17,9 +17,10 @@ interface PlanetIconProps {
   removingItem: { type: 'orbiter' | 'lander', planetId: string, index: number } | null;
   hoverTimeoutRef: React.MutableRefObject<any>;
   setHoveredSlot: (slot: { type: 'orbiter' | 'lander', planetId: string, index: number, rect: DOMRect } | null) => void;
+  isInteractive?: boolean;
 }
 
-export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, game, interactionState, onOrbit, onLand, handleSlotClick, removingItem, hoverTimeoutRef, setHoveredSlot }) => {
+export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, game, interactionState, onOrbit, onLand, handleSlotClick, removingItem, hoverTimeoutRef, setHoveredSlot, isInteractive = true }) => {
   const style = PLANET_STYLES[id] || {
     background: 'radial-gradient(circle, #888, #555)',
     border: '2px solid #aaa',
@@ -183,7 +184,7 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
 
   const svgMultiplier = id === 'oumuamua' ? 4 : 3;
   return (
-    <div style={{ width: `${size}px`, height: `${size}px`, position: 'relative' }}>
+    <div style={{ width: `${size}px`, height: `${size}px`, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       {style.hasRings && renderRings(false)}
       <div
         className="seti-planet-icon-body"
@@ -223,7 +224,7 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
       )}
 
       {/* Marqueurs d'orbite et d'atterrissage (Overlay) */}
-      {planetData && (
+      {planetData && isInteractive && (
         <svg
           style={{
             position: 'absolute',
@@ -477,7 +478,7 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
       )}
 
       {/* Satellites */}
-      {planetData && renderSatellites()}
+      {planetData && isInteractive && renderSatellites()}
     </div>
   );
 };

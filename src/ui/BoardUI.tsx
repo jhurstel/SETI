@@ -33,6 +33,7 @@ import { CardRowUI } from './CardRowUI';
 import { AlienBoardUI } from './AlienBoardUI';
 import { SettingsModal } from './modals/SettingsModal';
 import { ComputerSystem } from '../systems/ComputerSystem';
+import { PlanetBoardUI } from './PlanetBoardUI';
 import './BoardUI.css';
 
 export const BoardUI: React.FC = () => {
@@ -3354,6 +3355,15 @@ export const BoardUI: React.FC = () => {
               game={game}
               interactionState={interactionState}
               onCardClick={handleCardRowClick}
+              setActiveTooltip={setActiveTooltip}
+            />
+
+            {/* Planètes */}
+            <PlanetBoardUI
+              game={game}
+              interactionState={interactionState}
+              onOrbit={handleOrbit}
+              onLand={handleLand}
               setActiveTooltip={setActiveTooltip}
             />
           </div>
