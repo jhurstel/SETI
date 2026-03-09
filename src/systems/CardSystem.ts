@@ -224,6 +224,7 @@ export class CardSystem {
 
         // Initialiser les bonus
         const bonuses: Bonus = {};
+        const completedMissions: string[] = [];
 
         // Ajouter la carte jouée à la pile de défausse ou aux cartes jouées (Missions Fin de partie)
         if (card) {
@@ -255,6 +256,22 @@ export class CardSystem {
                         originalCard: card
                     };
                     player.missions.push(newMission);
+
+                    if (card.type === CardType.CONDITIONAL_MISSION) {
+                        newMission.requirements.forEach(req => {
+                            if (req.type.startsWith('GAIN_IF_')) {
+                                const bonus = CardSystem.evaluateMission(updatedGame, player.id, req.value);
+                                if (bonus) {
+                                    ResourceSystem.accumulateBonus(bonus, bonuses);
+                                    newMission.completedRequirementIds.push(req.id!);
+                                }
+                            }
+                        });
+                        if (newMission.completedRequirementIds.length > 0 && newMission.completedRequirementIds.length >= newMission.requirements.length) {
+                            newMission.completed = true;
+                            completedMissions.push(newMission.name);
+                        }
+                    }
                 }
             } else {
                 if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
@@ -681,6 +698,9 @@ export class CardSystem {
         }
         if (extras.length > 0) {
             message += ` et ${extras.join(' et ')}`;
+        }
+        if (completedMissions.length > 0) {
+            message += ` et accomplit la mission "${completedMissions.join('", "')}"`;
         }
 
         historyEntries.unshift({ message, playerId, sequenceId });

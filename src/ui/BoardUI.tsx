@@ -2990,7 +2990,6 @@ export const BoardUI: React.FC = () => {
     // Finaliser la transaction
     setGame(result.updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    addToHistory(`acquiert technologie "${tech.type} ${tech.name}"${result.gains.length > 0 ? ` et gagne ${result.gains.join(', ')}` : ''}`, currentPlayer.id, currentGame, undefined, interactionState.sequenceId);
     result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, currentGame, undefined, interactionState.sequenceId));
 
     if (result.newPendingInteractions && result.newPendingInteractions.length > 0) {
