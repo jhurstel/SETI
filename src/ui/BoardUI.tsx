@@ -2270,14 +2270,39 @@ export const BoardUI: React.FC = () => {
     });
     if (!probe) return;
 
-    const action = new OrbitAction(currentPlayer.id, probe.id, planetId);
-    const validation = ActionValidator.validateAction(game, action);
-    if (!validation.valid) {
-      setToast({ message: validation.errors[0]?.message || "Mise en orbite impossible", visible: true });
-      return;
-    }
-
     const executeOrbit = () => {
+      // Vérifier si on est en mode orbite gratuite
+      if (interactionState.type === 'ORBITING_PROBE') {
+        const interactionTriggered = handlePlanetInteraction(
+          new OrbitAction(currentPlayer.id, probe.id, planetId),
+          planetId,
+          (g, pid, prid, targetId, seqId) => ProbeSystem.orbitProbe(g, pid, prid, targetId, seqId, true),
+          "<strong>Met en orbite</strong> (Bonus) une sonde autour de",
+          "Sonde mise en orbite"
+        );
+
+        if (interactionTriggered) {
+           if (interactionState.count > 1) {
+             setPendingInteractions(prev => [...prev, { ...interactionState, count: interactionState.count - 1 }]);
+           }
+           return;
+        }
+
+        if (interactionState.count > 1) {
+          setInteractionState({ ...interactionState, count: interactionState.count - 1 });
+        } else {
+          setInteractionState({ type: 'IDLE' });
+        }
+        return;
+      }
+
+      const action = new OrbitAction(currentPlayer.id, probe.id, planetId);
+      const validation = ActionValidator.validateAction(game, action);
+      if (!validation.valid) {
+        setToast({ message: validation.errors[0]?.message || "Mise en orbite impossible", visible: true });
+        return;
+      }
+
       handlePlanetInteraction(
         action,
         planetId,
@@ -2298,13 +2323,29 @@ export const BoardUI: React.FC = () => {
       }
     }
 
+    // Logique pour GAIN_LANDING_AND_SPECIMEN et GAIN_SATELLITE_LANDING_AND_SPECIMEN et GAIN_ORBIT_OR_LAND_AND_SPECIMEN
+    if (interactionState.type === 'ORBITING_PROBE' && interactionState.source) {
+      const allCards = [...game.decks.cards, ...(game.decks.discardPile || []), ...game.players.flatMap(p => p.cards), ...game.players.flatMap(p => p.playedCards || [])];
+      const sourceCard = allCards.find(c => c.id === interactionState.source);
+      
+      if (sourceCard && sourceCard.passiveEffects?.some(e => e.type === 'GAIN_LANDING_AND_SPECIMEN' || e.type === 'GAIN_SATELLITE_LANDING_AND_SPECIMEN' || e.type === 'GAIN_ORBIT_OR_LAND_AND_SPECIMEN')) {
+          const isJupiterOrSaturn = planetId === 'jupiter' || planetId === 'saturn';
+          const planet = game.board.planets.find(p => p.id === planetId);
+          const hasTokens = planet && planet.mascamiteTokens && planet.mascamiteTokens.length > 0;
+
+          if (isJupiterOrSaturn && hasTokens) {
+              setPendingInteractions(prev => [{ type: 'COLLECTING_SPECIMEN', planetId: planetId, sequenceId: interactionState.sequenceId }, ...prev]);
+          }
+      }
+    }
+
     executeOrbit();
   };
 
   // Gestionnaire pour le clic sur un token Mascamite
   const handleMascamiteClick = (planetId: string, tokenIndex: number) => {
     if (!game) return;
-    if (interactionState.type !== 'COLLECTING_SPECIMEN') return;
+    if (interactionState.type !== 'COLLECTING_SPECIMEN' && interactionState.type !== 'CONSULTING_SPECIMEN') return;
     if (interactionState.planetId !== planetId) return;
 
     let updatedGame = structuredClone(game);
@@ -2312,8 +2353,10 @@ export const BoardUI: React.FC = () => {
     const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
 
     if (planet && planet.mascamiteTokens && planet.mascamiteTokens[tokenIndex]) {
-        const token = planet.mascamiteTokens.splice(tokenIndex, 1)[0];
-        
+        const token = interactionState.type === 'CONSULTING_SPECIMEN' 
+            ? planet.mascamiteTokens[tokenIndex] 
+            : planet.mascamiteTokens.splice(tokenIndex, 1)[0];
+                
         // Appliquer le bonus du token
         // TODO: créer une capsule
         const sequenceId = interactionState.sequenceId || `mascamite-${Date.now()}`;
@@ -2323,7 +2366,8 @@ export const BoardUI: React.FC = () => {
         setGame(updatedGame);
         if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
 
-        addToHistory(`prélève un spécimen Mascamite sur ${planet.name}`, currentPlayer.id, game, undefined, sequenceId);
+        const actionVerb = interactionState.type === 'CONSULTING_SPECIMEN' ? "étudie" : "prélève";
+        addToHistory(`${actionVerb} un spécimen Mascamite sur ${planet.name}`, currentPlayer.id, game, undefined, sequenceId);
         res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, sequenceId));
         
         if (!handleNewInteractions(res.newPendingInteractions, sequenceId)) {

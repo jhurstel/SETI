@@ -493,7 +493,8 @@ export class ProbeSystem {
   static canOrbit(
     game: Game,
     playerId: string,
-    probeId: string
+    probeId: string,
+    checkCost: boolean = true
   ): {
     canOrbit: boolean;
     reason?: string;
@@ -519,14 +520,14 @@ export class ProbeSystem {
     }
 
     // Vérifier les ressources
-    if (player.credits < GAME_CONSTANTS.ORBIT_COST_CREDITS) {
+    if (checkCost && player.credits < GAME_CONSTANTS.ORBIT_COST_CREDITS) {
       return {
         canOrbit: false,
         reason: `Crédits insuffisants (nécessite ${GAME_CONSTANTS.ORBIT_COST_CREDITS})`
       };
     }
 
-    if (player.energy < GAME_CONSTANTS.ORBIT_COST_ENERGY) {
+    if (checkCost && player.energy < GAME_CONSTANTS.ORBIT_COST_ENERGY) {
       return {
         canOrbit: false,
         reason: `Énergie insuffisante (nécessite ${GAME_CONSTANTS.ORBIT_COST_ENERGY})`
@@ -544,7 +545,8 @@ export class ProbeSystem {
     playerId: string,
     probeId: string,
     planetId: string,
-    sequenceId?: string
+    sequenceId?: string,
+    free: boolean = false
   ): {
     updatedGame: Game;
     isFirstOrbiter: boolean;
@@ -552,7 +554,7 @@ export class ProbeSystem {
     historyEntries: HistoryEntry[];
     newPendingInteractions: InteractionState[];
   } {
-    const validation = this.canOrbit(game, playerId, probeId);
+    const validation = this.canOrbit(game, playerId, probeId, !free);
     if (!validation.canOrbit) {
       throw new Error(validation.reason || 'Mise en orbite impossible');
     }
@@ -570,8 +572,10 @@ export class ProbeSystem {
     const isFirstOrbiter = planet ? planet.orbiters.length === 0 : true;
 
     // Payer le coût
-    player.credits -= GAME_CONSTANTS.ORBIT_COST_CREDITS;
-    player.energy -= GAME_CONSTANTS.ORBIT_COST_ENERGY;
+    if (!free) {
+      player.credits -= GAME_CONSTANTS.ORBIT_COST_CREDITS;
+      player.energy -= GAME_CONSTANTS.ORBIT_COST_ENERGY;
+    }
 
     // Mettre à jour la sonde
     probe.state = ProbeState.IN_ORBIT;

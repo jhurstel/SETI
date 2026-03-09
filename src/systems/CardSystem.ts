@@ -297,9 +297,12 @@ export class CardSystem {
                         case 'ROTATION':
                             bonuses.rotation = (bonuses.rotation || 0) + effect.value;
                             break;
-                        case 'LAND':
-                            bonuses.landing = (bonuses.landing || 0) + effect.value;
+                        case 'ORBIT':
+                            bonuses.orbiting = (bonuses.orbiting || 0) + effect.value;
                             break;
+                        case 'LAND':
+                        bonuses.landing = (bonuses.landing || 0) + effect.value;
+                        break;
                         case 'MOVEMENT':
                             bonuses.movements = (bonuses.movements || 0) + effect.value;
                             break;
@@ -539,6 +542,29 @@ export class CardSystem {
                     bonuses.ignoreSatelliteLimit = true;
                 } else if (effect.type === 'GAIN_LANDING_AND_SPECIMEN') {
                     bonuses.landing = (bonuses.landing || 0) + 1;
+                    bonuses.collectSpecimen = true;
+                } else if (effect.type === 'GAIN_SATELLITE_LANDING_AND_SPECIMEN') {
+                    bonuses.landing = (bonuses.landing || 0) + 1;
+                    bonuses.ignoreSatelliteLimit = true;
+                    bonuses.collectSpecimen = true;
+                } else if (effect.type === 'GAIN_ORBIT_OR_LAND_AND_SPECIMEN') {
+                    bonuses.orbitOrLandAndSpecimen = true;
+                    bonuses.collectSpecimen = true;
+                } else if (effect.type === 'GAIN_SPECIMEN_BONUS') {
+                    bonuses.consultSpecimen = true;
+                } else if (effect.type === 'SCORE_PER_LIFETRACE') {
+                    let scope: LifeTraceType = LifeTraceType.ANY;
+                    if (effect.target === 'red') scope = LifeTraceType.RED;
+                    else if (effect.target === 'yellow') scope = LifeTraceType.YELLOW;
+                    else if (effect.target === 'blue') scope = LifeTraceType.BLUE;
+
+                    const count = player.lifeTraces.filter(t => scope === LifeTraceType.ANY || t.type === scope).length;
+                    if (count > 0) {
+                        bonuses.pv = (bonuses.pv || 0) + (count * effect.value);
+                    }
+                } else if (effect.type === 'GAIN_SPECIMEN_BONUS') {
+                    // Handled via interaction
+                    bonuses.consultSpecimen = true;
                 } else if (effect.type === 'NO_MEDIA') {
                     player.activeBuffs.push({ ...effect, source: card.name });
                 } else if (effect.type === 'GAIN_MOVE_IF_ANOMALY') {
@@ -904,6 +930,7 @@ export class CardSystem {
             'GAIN_IF_COVERED',
             'GAIN_IF_LIFETRACE_BOTH_SPECIES',
             'GAIN_IF_3_LIFETRACES',
+            'GAIN_IF_2_LIFETRACES',
             'GAIN_ON_VISIT',
             'GAIN_ON_TECH',
             'GAIN_ON_SIGNAL',
@@ -1067,6 +1094,18 @@ export class CardSystem {
             }
         }
 
+        if (conditionType === 'GAIN_IF_2_LIFETRACES') {
+            let type: LifeTraceType | undefined;
+            if (target === 'red') type = LifeTraceType.RED;
+            else if (target === 'blue') type = LifeTraceType.BLUE;
+            else if (target === 'yellow') type = LifeTraceType.YELLOW;
+
+            if (type) {
+                const count = player.lifeTraces.filter(t => t.type === type).length;
+                if (count >= 2) return rewards;
+            }
+        }
+
         if (conditionType === 'GAIN_IF_PROBE_IN_DEEP_SPACE') {
             const rotationState = createRotationState(
                 game.board.solarSystem.rotationAngleLevel1 || 0,
@@ -1141,6 +1180,14 @@ export class CardSystem {
         if (conditionType === 'GAIN_IF_3_TECH_OBS') {
             const obsTechCount = player.technologies.filter(t => t.type === TechnologyCategory.OBSERVATION).length;
             if (obsTechCount >= 3) return rewards;
+        }
+
+        if (conditionType === 'GAIN_IF_SPECIMEN') {
+            // Vérifie si le joueur a une sonde sur la planète cible (ex: earth, mars)
+            // Simplification de "amener le spécimen"
+            if (target && ProbeSystem.hasPresenceOnPlanet(game, playerId, target)) {
+                return rewards;
+            }
         }
 
         return null;

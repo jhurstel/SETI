@@ -58,6 +58,7 @@ export class ResourceSystem {
     else if (key === 'ENERGY' || key === 'ENERGIE') label = `Énergie${plural}`;
     else if (key === 'CARD' || key === 'CARDS' || key === 'CARTES') label = `Carte${plural}`;
     else if (key === 'PROBE' || key === 'PROBES' || key === 'SONDE') label = `Sonde${plural}`;
+    else if (key === 'ORBITING' || key === 'ORBITINGS') label = `Mise${plural} en orbite`;
     else if (key === 'LANDING' || key === 'LANDINGS') label = `Atterrissage${plural}`;
     else if (key === 'TOKEN' || key === 'TOKENS') label = `Token${plural}`;
     else if (key === 'REVENUE' || key === 'REVENUES') label = `Réservation${plural}`;
@@ -102,6 +103,7 @@ export class ResourceSystem {
     }
 
     if (bonus.probe) items.push(`${bonus.probe} Sonde`);
+    if (bonus.orbiting) items.push(`${bonus.orbiting} Orbiteur`);
     if (bonus.landing) items.push(`${bonus.landing} Atterrisseur`);
     if (bonus.movements) items.push(`${bonus.movements} Déplacement`);
     if (bonus.token && bonus.token > 0) items.push(`${bonus.token} Token`);
@@ -254,6 +256,7 @@ export class ResourceSystem {
     if (bonuses.data) { const txt = ResourceSystem.formatResource(bonuses.data, 'DATA'); passiveGains.push(txt); }
     if (bonuses.pv) { const txt = ResourceSystem.formatResource(bonuses.pv, 'PV'); passiveGains.push(txt); }
     if (bonuses.probe) { const txt = ResourceSystem.formatResource(bonuses.probe, 'PROBE'); passiveGains.push(txt); }
+    if (bonuses.orbiting) { const txt = ResourceSystem.formatResource(bonuses.orbiting, 'ORBITING'); passiveGains.push(txt); }
     if (bonuses.landing) { const txt = ResourceSystem.formatResource(bonuses.landing, 'LANDING'); passiveGains.push(txt); }
     if (bonuses.token && bonuses.token > 0) { const txt = ResourceSystem.formatResource(bonuses.token, 'TOKEN'); passiveGains.push(txt); }
     if (bonuses.revenue) { const txt = ResourceSystem.formatResource(bonuses.revenue, 'REVENUE'); passiveGains.push(txt); }
@@ -423,8 +426,38 @@ export class ResourceSystem {
       }
     }
 
+    if (bonuses.orbiting) {
+      newPendingInteractions.push({ type: 'ORBITING_PROBE', count: bonuses.orbiting, source: sourceId, sequenceId });
+    }
+
     if (bonuses.landing) {
       newPendingInteractions.push({ type: 'LANDING_PROBE', count: bonuses.landing, source: sourceId, ignoreSatelliteLimit: bonuses.ignoreSatelliteLimit, sequenceId });
+    }
+
+    if (bonuses.orbitOrLandAndSpecimen) {
+      newPendingInteractions.push({
+        type: 'CHOOSING_BONUS_ACTION',
+        bonusesSummary: "Choisissez entre une mise en orbite ou un atterrissage (avec prélèvement de spécimen)",
+        choices: [
+          {
+            id: 'orbit',
+            label: 'Mise en orbite',
+            state: { type: 'ORBITING_PROBE', count: 1, source: sourceId, sequenceId },
+            done: false
+          },
+          {
+            id: 'land',
+            label: 'Atterrissage',
+            state: { type: 'LANDING_PROBE', count: 1, source: sourceId, sequenceId },
+            done: false
+          }
+        ],
+        sequenceId
+      });
+    }
+
+    if (bonuses.consultSpecimen) {
+      newPendingInteractions.push({ type: 'CONSULTING_SPECIMEN', sequenceId });
     }
 
     if (bonuses.lifetraces) {

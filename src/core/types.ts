@@ -521,6 +521,7 @@ export interface Bonus {
   revenue?: number;
   rotation?: number;
   technologies?: { amount: number, scope: TechnologyCategory }[];
+  orbiting?: number;
   probe?: number;
   movements?: number;
   landing?: number;
@@ -538,6 +539,9 @@ export interface Bonus {
   gainSignalAdjacents?: boolean;
   scorePerMedia?: number;
   ignoreSatelliteLimit?: boolean;
+  orbitOrLandAndSpecimen?: boolean;
+  collectSpecimen?: boolean;
+  consultSpecimen?: boolean;
   revealAndTriggerFreeAction?: boolean;
 }
 
@@ -633,6 +637,8 @@ export type InteractionState =
   | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, triggerFreeAction?: boolean, sequenceId?: string }
   /** Le joueur a des déplacements gratuits à effectuer. */
   | { type: 'MOVING_PROBE', count: number, autoSelectProbeId?: string, sequenceId?: string }
+  /** Le joueur a une mise en orbite gratuite. */
+  | { type: 'ORBITING_PROBE', count: number, source?: string, sequenceId?: string }
   /** Le joueur a un atterrissage gratuit (ex: Carte 13). */
   | { type: 'LANDING_PROBE', count: number, source?: string, ignoreSatelliteLimit?: boolean, categories?: TechnologyCategory[], sequenceId?: string }
   /** Le joueur acquiert une technologie (en payant ou en bonus) et doit la sélectionner. */
@@ -679,6 +685,8 @@ export type InteractionState =
   | { type: 'CHOOSING_CENTAURIEN_REWARD', sequenceId?: string }
   /** Le joueur doit cliquer sur un token Mascamite pour le collecter. */
   | { type: 'COLLECTING_SPECIMEN', planetId: string, sequenceId?: string }
+  /** Le joueur doit cliquer sur un token Mascamite pour le consulter (et gagner son bonus sans le retirer). */
+  | { type: 'CONSULTING_SPECIMEN', planetId?: string, sequenceId?: string }
   /** Le joueur doit confirmer la validation d'une mission. */
   | { type: 'SELECTING_MISSION', missionId?: string, requirementId?: string, sequenceId?: string }; // Deprecated
 
@@ -690,6 +698,7 @@ export const getInteractionLabel = (state: InteractionState): string => {
     case 'TRADING_CARD': return `Veuillez échanger ${state.count} carte${state.count > 1 ? 's' : ''} pour gagner ${state.targetGain}.`;
     case 'ACQUIRING_CARD': return state.isFree ? `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''}.` : `Veuillez acheter ${state.count} carte${state.count > 1 ? 's' : ''}.`;
     case 'MOVING_PROBE': return `Veuillez déplacer une sonde gratuitement (${state.count} déplacement${state.count > 1 ? 's' : ''}).`;
+    case 'ORBITING_PROBE': return `Veuillez mettre une sonde en orbite gratuitement.`;
     case 'LANDING_PROBE': return `Veuillez poser une sonde gratuitement.`;
     case 'ACQUIRING_TECH': return state.isBonus ? `Veuillez sélectionner une technologie ${state.categories ? state.categories.join(' ou ') : ''}.` : `Veuillez acheter une technologie.`;
     case 'SELECTING_COMPUTER_SLOT': return `Veuillez sélectionner un emplacement d'ordinateur pour technologie ${state.tech.shorttext}.`;
@@ -712,6 +721,7 @@ export const getInteractionLabel = (state: InteractionState): string => {
     case 'ACQUIRING_ALIEN_CARD': return `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''} Alien (Pioche ou Rangée).`;
     case 'CHOOSING_CENTAURIEN_REWARD': return `Veuillez choisir une récompense Centaurienne.`;
     case 'COLLECTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour le prélever.`;
+    case 'CONSULTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour l'étudier.`;
     case 'SELECTING_MISSION': return `Veuillez confirmer la mission à recouvrir.`;
     default: return "Action inconnue";
   }
