@@ -112,7 +112,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   let cleanPreviousState = undefined;
                   if (isLast && entry.previousState) {
                       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                      const { gameLog, history, ...rest } = entry.previousState as any;
+                      const { gameLog, history, ...rest } = entry.previousState;
                       cleanPreviousState = rest;
                   }
                   return {

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { Game, InteractionState, Planet, ProbeState, Bonus, AlienBoardType } from '../core/types';
+import React, { useState, useRef } from 'react';
+import { Game, InteractionState, Planet, ProbeState, AlienBoardType } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { PlanetIcon } from './components/PlanetIcon';
 import { Tooltip } from './Tooltip';
@@ -22,6 +22,7 @@ const PLANET_IDS = ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', '
 export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionState, onOrbit, onLand, setActiveTooltip }) => {
     const [isOpen, setIsOpen] = useState(false);
     const hoverTimeoutRef = useRef<any>(null);
+    const panelHoverTimeoutRef = useRef<any>(null);
     const [removingItem, setRemovingItem] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number } | null>(null);
     const processingRef = useRef(false);
     const [hoveredSlot, setHoveredSlot] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number, rect: DOMRect } | null>(null);
@@ -218,11 +219,26 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
         }
     };
 
+    const handlePanelMouseEnter = () => {
+        if (panelHoverTimeoutRef.current) {
+            clearTimeout(panelHoverTimeoutRef.current);
+            panelHoverTimeoutRef.current = null;
+        }
+        setIsOpen(true);
+    };
+
+    const handlePanelMouseLeave = () => {
+        panelHoverTimeoutRef.current = setTimeout(() => {
+            setIsOpen(false);
+        }, 300);
+    };
+
     const handleMouseEnter = (e: React.MouseEvent, planet: Planet) => {
         if (hoverTimeoutRef.current) {
             clearTimeout(hoverTimeoutRef.current);
             hoverTimeoutRef.current = null;
         }
+        handlePanelMouseEnter();
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         setActiveTooltip({
             rect,
@@ -241,8 +257,12 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
             pointerEvents: 'auto',
             onMouseEnter: () => {
                 if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                handlePanelMouseEnter();
             },
-            onMouseLeave: handleMouseLeave
+            onMouseLeave: () => {
+                handleMouseLeave();
+                handlePanelMouseLeave();
+            }
         });
     };
 
@@ -253,7 +273,8 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
     return (
         <div 
             className={`seti-foldable-container seti-icon-panel seti-planet-board ${isOpen ? 'open' : 'collapsed'}`}
-            onMouseEnter={() => setIsOpen(true)}
+            onMouseEnter={handlePanelMouseEnter}
+            onMouseLeave={handlePanelMouseLeave}
             style={{ pointerEvents: 'auto' }}
         >
             <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>

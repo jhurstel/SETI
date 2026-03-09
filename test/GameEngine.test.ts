@@ -35,6 +35,7 @@ const createMockGame = (): Game => {
     history: [],
     isFirstToPass: false,
     isRoundEnd: false,
+    isSpeciesDiscovered: false,
     gameLog: [],
     neutralMilestonesAvailable: {}
   };

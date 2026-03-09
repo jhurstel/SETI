@@ -57,9 +57,11 @@ export class DataLoader {
         freeAction: this.mapFreeActionType(actionGratuite.trim()),
         scanSector: this.mapSectorType(couleurScan.trim()),
         revenue: this.mapRevenueType(revenue.trim()),
+        ownerId: '',
         immediateEffects: this.parseImmediateEffects(gain.trim()),
         passiveEffects: this.parsePassiveEffects(contrainte.trim()),
-        permanentEffects: this.parsePermanentEffects(contrainte.trim())
+        permanentEffects: this.parsePermanentEffects(contrainte.trim()),
+        isRevealed: false,
       });
     }
     return cards;

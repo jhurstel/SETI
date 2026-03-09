@@ -428,10 +428,10 @@ export interface Card {
   freeAction: FreeActionType;
   scanSector: SectorType;
   revenue: RevenueType;
-  ownerId?: string;
-  immediateEffects?: CardEffect[];
-  passiveEffects?: CardEffect[];
-  permanentEffects?: CardEffect[];
+  ownerId: string;
+  immediateEffects: CardEffect[];
+  passiveEffects: CardEffect[];
+  permanentEffects: CardEffect[];
   isRevealed: boolean;
   completed?: boolean;
 }

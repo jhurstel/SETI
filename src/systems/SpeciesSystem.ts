@@ -427,7 +427,7 @@ export class SpeciesSystem {
                         name: `Anomalie ${token.color}`,
                         position: { disk: 'D', sector: sector, x: 0, y: 0 },
                         level: 0,
-                        anomalyData: { color: token.color, side: side as any, bonus: bonus }
+                        anomalyData: { color: token.color, side, bonus }
                     });
                 });
                 logs.push("Des anomalies apparaissent en périphérie du système solaire !");
