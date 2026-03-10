@@ -439,8 +439,7 @@ export class CardSystem {
                 } else if (effect.type === 'GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE') {
                     const creditRevCards = player.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS;
                     if (creditRevCards > 0) {
-                        const pvGain = creditRevCards * 3;
-                        bonuses.pv = (bonuses.pv || 0) + pvGain;
+                        bonuses.pv = (bonuses.pv || 0) + creditRevCards * 3;
                     }
                     // Reserve self (Credit)
                     player.revenueCredits += 1;

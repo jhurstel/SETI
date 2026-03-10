@@ -615,7 +615,7 @@ export const BoardUI: React.FC = () => {
                             }
                         }
 
-                        const res = ScanSystem.performSignalAndCover(aiGame, currentPlayer.id, chosen.id, initialLogs, false, sequenceId);
+                        const res = ScanSystem.performSignalAndCover(aiGame, currentPlayer.id, chosen.id, initialLogs, interaction.noData, sequenceId);
                         aiGame = res.updatedGame;
                         res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, stateBeforeStep, undefined, sequenceId));
                         if (res.newPendingInteractions) {
