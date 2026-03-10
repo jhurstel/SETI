@@ -6,6 +6,7 @@
 
 // Ai
 export * from './ai/AIBehavior';
+export * from './ai/AIController';
 
 // Core
 export * from './core/ActionValidator';

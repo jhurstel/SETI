@@ -22,8 +22,8 @@ import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { ScanSystem } from '../systems/ScanSystem';
 import { ScoreManager } from '../core/ScoreManager';
-import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { AIBehavior } from '../ai/AIBehavior';
+import { AIController } from '../ai/AIController';
 import { DebugPanel } from './DebugPanel';
 import { PassModal } from './modals/PassModal';
 import { Tooltip } from './Tooltip';
@@ -35,6 +35,7 @@ import { SettingsModal } from './modals/SettingsModal';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { PlanetBoardUI } from './PlanetBoardUI';
 import './BoardUI.css';
+import { SpeciesSystem } from '../systems/SpeciesSystem';
 
 export const BoardUI: React.FC = () => {
   // États pour le jeu
@@ -417,7 +418,7 @@ export const BoardUI: React.FC = () => {
                     type: 'SELECTING_SCAN_SECTOR', 
                     color: drawnCard.scanSector, 
                     cardId: drawnCard.id, 
-                    message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")`, 
+                    message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")`,
                     sequenceId 
                 };
                 
@@ -568,299 +569,8 @@ export const BoardUI: React.FC = () => {
             return;
         }
 
-        // Décision de l'IA (Niveau FACILE)
+        // Décision de l'IA
         const decision = AIBehavior.decideAction(game, currentPlayer, 'EASY');
-
-        // Helper pour traiter la file d'attente des interactions pour l'IA
-        const processAIInteractions = (initialGame: Game, initialQueue: InteractionState[], sequenceId: string) => {
-            let aiGame = initialGame;
-            const queue = [...initialQueue];
-            
-            while (queue.length > 0) {
-                const interaction = queue.shift()!;
-                
-                if (interaction.type === 'SELECTING_SCAN_SECTOR') {
-                    // Filtre les secteurs déjà couverts
-                    let validSectors = aiGame.board.sectors.filter(s => !s.isCovered);
-                    
-                    // Filtre les secteurs de la couleur demandée
-                    if (interaction.color && interaction.color !== SectorType.ANY) {
-                        validSectors = validSectors.filter(s => s.color === interaction.color);
-                    }
-                    
-                    // Filtre les secteurs adjacents à la Terre
-                    if (interaction.adjacents) {
-                          const solarSystem = aiGame.board.solarSystem;
-                          const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
-                          if (earthPos) {
-                              validSectors = validSectors.filter(s => {
-                                  const sNum = parseInt(s.id.replace('sector_', ''));
-                                  const diff = Math.abs(earthPos.absoluteSector - sNum);
-                                  return diff <= 1 || diff === 7;
-                              });
-                          }
-                    }
-                    
-                    if (validSectors.length > 0) {
-                        const chosen = validSectors[Math.floor(Math.random() * validSectors.length)];
-                        const initialLogs: string[] = [];
-                        const stateBeforeStep = aiGame;
-
-                        // Gestion de la défausse de carte (si issue de SELECTING_SCAN_CARD)
-                        if (interaction.cardId) {
-                            const { updatedGame, discardedCard } = CardSystem.discardFromRow(aiGame, interaction.cardId);
-                            if (discardedCard) {
-                                aiGame = updatedGame;
-                                initialLogs.push(`utilise carte "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`);
-                            }
-                        }
-
-                        const res = ScanSystem.performSignalAndCover(aiGame, currentPlayer.id, chosen.id, initialLogs, interaction.noData, sequenceId);
-                        aiGame = res.updatedGame;
-                        res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, stateBeforeStep, undefined, sequenceId));
-                        if (res.newPendingInteractions) {
-                            queue.unshift(...res.newPendingInteractions);
-                        }
-                    }
-                } else if (interaction.type === 'DRAW_AND_SCAN') {
-                    if (aiGame.decks.cards.length > 0) {
-                        const drawnCard = aiGame.decks.cards.shift();
-                        if (drawnCard) {
-                            if (!aiGame.decks.discardPile) aiGame.decks.discardPile = [];
-                            aiGame.decks.discardPile.push(drawnCard);
-                            addToHistory(`révèle carte "${drawnCard.name}" (${drawnCard.scanSector}) de la pioche`, currentPlayer.id, aiGame, undefined, sequenceId);
-                            
-                            queue.unshift({ 
-                                type: 'SELECTING_SCAN_SECTOR', 
-                                color: drawnCard.scanSector, 
-                                cardId: drawnCard.id, 
-                                message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")`, 
-                                sequenceId 
-                            });
-                        }
-                    }
-                } else if (interaction.type === 'SELECTING_SCAN_CARD') {
-                    const row = aiGame.decks.cardRow;
-                    if (row.length > 0) {
-                        const randomCard = row[Math.floor(Math.random() * row.length)];
-                        queue.unshift({
-                            type: 'SELECTING_SCAN_SECTOR',
-                            color: randomCard.scanSector,
-                            sequenceId: sequenceId,
-                            cardId: randomCard.id
-                        });
-                    }
-                } else if (interaction.type === 'RESOLVING_SECTOR') {
-                    const { sectorId } = interaction;
-                    const coverageResult = ScanSystem.coverSector(aiGame, currentPlayer.id, sectorId);
-                    aiGame = coverageResult.updatedGame;
-                    
-                    const coverageLogs = [...coverageResult.logs];
-
-                    if (coverageResult.bonuses) {
-                        const bonusRes = ResourceSystem.processBonuses(coverageResult.bonuses, aiGame, currentPlayer.id, 'scan', sequenceId || '');
-                        aiGame = bonusRes.updatedGame;
-                        coverageLogs.push(...bonusRes.logs);
-                        
-                        bonusRes.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
-                        if (bonusRes.newPendingInteractions.length > 0) {
-                            queue.unshift(...bonusRes.newPendingInteractions.map(i => ({ ...i, sequenceId })));
-                        }
-                    }
-                    
-                    if (coverageLogs.length > 0) {
-                        addToHistory(coverageLogs.join(', '), coverageResult.winnerId || currentPlayer.id, aiGame, undefined, sequenceId);
-                    }
-                } else if (interaction.type === 'PLACING_LIFE_TRACE') {
-                     const slotType = Math.random() < 0.5 ? LifeTraceLocation.TRIANGLE : LifeTraceLocation.SPECIES;
-                     const slotIndex = slotType === LifeTraceLocation.SPECIES ? getLifeTraceSpeciesSlotIndex(aiGame, 0, interaction.color, slotType) : undefined;
-                     const { updatedGame, historyEntries, newPendingInteractions } = SpeciesSystem.placeLifeTrace(aiGame, 0, interaction.color, currentPlayer.id, sequenceId, slotType, slotIndex);
-                     
-                     historyEntries.forEach((e, index) => addToHistory(e.message, e.playerId, index === 0 ? aiGame : undefined, undefined, sequenceId));
-
-                     if (updatedGame.isSpeciesDiscovered) {
-                         addToHistory("découvre une nouvelle espèce Alien !", currentPlayer.id, undefined, undefined, sequenceId);
-                         updatedGame.isSpeciesDiscovered = false;
-                     }
-
-                     aiGame = updatedGame;
-                     
-                     
-                     if (newPendingInteractions.length > 0) {
-                        queue.unshift(...newPendingInteractions.map(i => ({ ...i, sequenceId })));
-                     }
-                } else if (interaction.type === 'PLACING_OBJECTIVE_MARKER') {
-                  // Choisit aléatoirement parmi les objectifs disponibles (que le joueur n'a pas déjà sélectionnés)
-                  const availableObjectives = aiGame.board.objectiveTiles.filter(tile =>
-                    !tile.markers.includes(currentPlayer.id)
-                  );
-                  const randomObjective = availableObjectives[Math.floor(Math.random() * availableObjectives.length)];
-                  const tileId = typeof randomObjective === 'string' ? randomObjective : randomObjective.id;
-                  // Appel métier pour placer le marqueur d'objectif
-                  const result = ScoreManager.placeObjectiveMarker(aiGame, currentPlayer.id, tileId, interaction.milestone);
-                  
-                  aiGame = result.updatedGame;
-
-                  if (result.logMessage) addToHistory(result.logMessage, currentPlayer.id, aiGame, interaction, sequenceId);
-                } else if (interaction.type === 'RESERVING_CARD') {
-                    const player = aiGame.players.find(p => p.id === currentPlayer.id);
-                    if (player && player.cards.length > 0) {
-                        const count = Math.min(interaction.count, player.cards.length);
-                        const shuffled = [...player.cards].sort(() => 0.5 - Math.random());
-                        const cardsToReserve = shuffled.slice(0, count);
-                        
-                        cardsToReserve.forEach(card => {
-                            aiGame = CardSystem.reserveCard(aiGame, player.id, card.id);
-                            addToHistory(`réserve carte "${card.name}"`, player.id, aiGame, undefined, sequenceId);
-                        });
-                    }
-                } else if (interaction.type === 'ACQUIRING_CARD') {
-                    for (let i = 0; i < interaction.count; i++) {
-                        const row = aiGame.decks.cardRow;
-                        let cardId: string | undefined = undefined;
-                        if (row.length > 0) {
-                            cardId = row[Math.floor(Math.random() * row.length)].id;
-                        }
-                        
-                        const res = CardSystem.buyCard(aiGame, currentPlayer.id, cardId, interaction.isFree);
-                        if (!res.error) {
-                            aiGame = res.updatedGame;
-                            const cardName = cardId ? row.find(c => c.id === cardId)?.name : "Pioche";
-                            addToHistory(`acquiert carte ${cardId ? `"${cardName}"` : "de la pioche"}`, currentPlayer.id, aiGame, undefined, sequenceId);
-                            
-                            if (interaction.triggerFreeAction) {
-                                const p = aiGame.players.find(p => p.id === currentPlayer.id);
-                                if (p && p.cards.length > 0) {
-                                    const card = p.cards[p.cards.length - 1];
-                                    if (card.freeAction === FreeActionType.MEDIA) {
-                                        p.mediaCoverage = Math.min(p.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-                                    } else if (card.freeAction === FreeActionType.DATA) {
-                                        p.data = Math.min(p.data + 1, GAME_CONSTANTS.MAX_DATA);
-                                    } else if (card.freeAction === FreeActionType.MOVEMENT) {
-                                        queue.unshift({ type: 'MOVING_PROBE', count: 1, sequenceId });
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else if (interaction.type === 'MOVING_PROBE') {
-                    const player = aiGame.players.find(p => p.id === currentPlayer.id);
-                    if (player) {
-                        const probes = player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition);
-                        if (probes.length > 0) {
-                            const probe = probes[Math.floor(Math.random() * probes.length)];
-                            const rotationState = createRotationState(
-                                aiGame.board.solarSystem.rotationAngleLevel1 || 0,
-                                aiGame.board.solarSystem.rotationAngleLevel2 || 0,
-                                aiGame.board.solarSystem.rotationAngleLevel3 || 0
-                            );
-                            const absPos = getAbsoluteSectorForProbe(probe.solarPosition!, rotationState);
-                            
-                            const reachable = calculateReachableCellsWithEnergy(
-                                probe.solarPosition!.disk,
-                                absPos,
-                                1, player.energy, rotationState, false
-                            );
-                            
-                            const destinations = Array.from(reachable.keys());
-                            const currentKey = `${probe.solarPosition!.disk}${absPos}`;
-                            const validDestinations = destinations.filter(k => k !== currentKey);
-                            
-                            if (validDestinations.length > 0) {
-                                const destKey = validDestinations[Math.floor(Math.random() * validDestinations.length)];
-                                const disk = destKey[0] as DiskName;
-                                const sector = parseInt(destKey.substring(1)) as SectorNumber;
-                                
-                                const moveRes = ProbeSystem.moveProbe(aiGame, player.id, probe.id, disk, sector, 1);
-                                aiGame = moveRes.updatedGame;
-                            }
-                        }
-                    }
-                    if (interaction.count > 1) {
-                        queue.unshift({ ...interaction, count: interaction.count - 1 });
-                    }
-                } else if (interaction.type === 'ACQUIRING_TECH') {
-                    const availableTechs = TechnologySystem.getAvailableTechs(aiGame);
-                    const player = aiGame.players.find(p => p.id === currentPlayer.id);
-                    let validTechs = availableTechs;
-                    
-                    if (player) {
-                        validTechs = validTechs.filter(tech => {
-                            const baseId = tech.id.substring(0, tech.id.lastIndexOf('-'));
-                            return !player.technologies.some(t => t.id.startsWith(baseId));
-                        });
-                    }
-
-                    if (interaction.categories) {
-                        validTechs = validTechs.filter(t => interaction.categories!.includes(t.type));
-                    }
-                    
-                    if (validTechs.length > 0) {
-                        const tech = validTechs[Math.floor(Math.random() * validTechs.length)];
-                        let targetCol = undefined;
-                        if (tech.type === TechnologyCategory.COMPUTING) {
-                            targetCol = [1, 3, 5, 6][Math.floor(Math.random() * 4)];
-                        }
-                        
-                        const res = TechnologySystem.acquireTechnology(aiGame, currentPlayer.id, tech, targetCol, interaction.noTileBonus);
-                        aiGame = res.updatedGame;
-                        if (res.historyEntries) {
-                             res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
-                        }
-                        if (res.newPendingInteractions && res.newPendingInteractions.length > 0) {
-                            queue.unshift(...res.newPendingInteractions.map(i => ({ ...i, sequenceId })));
-                        }
-                    }
-                } else if (interaction.type === 'SELECTING_COMPUTER_SLOT') {
-                    const tech = interaction.tech;
-                    const targetCol = [1, 3, 5, 6][Math.floor(Math.random() * 4)];
-                    const player = aiGame.players.find(p => p.id === currentPlayer.id);
-                    if (player) {
-                        ComputerSystem.assignTechnology(player, tech, targetCol);
-                        addToHistory(`assigne technologie "${tech.name}" au slot ${targetCol}`, currentPlayer.id, aiGame, undefined, sequenceId);
-                    }
-                } else if (interaction.type === 'CHOOSING_OBS2_ACTION') {
-                    const player = aiGame.players.find(p => p.id === currentPlayer.id);
-                    if (player && player.mediaCoverage > 0) {
-                        player.mediaCoverage -= 1;
-                        const rotationState = createRotationState(aiGame.board.solarSystem.rotationAngleLevel1 || 0, aiGame.board.solarSystem.rotationAngleLevel2 || 0, aiGame.board.solarSystem.rotationAngleLevel3 || 0);
-                        const mercuryPos = getObjectPosition('mercury', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle);
-                        if (mercuryPos) {
-                            const mercurySector = aiGame.board.sectors[mercuryPos.absoluteSector - 1];
-                            const res = ScanSystem.performSignalAndCover(aiGame, player.id, mercurySector.id, [`paye 1 Média pour utiliser Observation II`], false, sequenceId);
-                            aiGame = res.updatedGame;
-                            res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, sequenceId));
-                            if (res.newPendingInteractions) queue.unshift(...res.newPendingInteractions);
-                        }
-                    }
-                } else if (interaction.type === 'CHOOSING_OBS3_ACTION') {
-                    const player = aiGame.players.find(p => p.id === currentPlayer.id);
-                    if (player && player.cards.length > 0) {
-                        const card = player.cards[0];
-                        aiGame = CardSystem.discardCard(aiGame, player.id, card.id);
-                        queue.unshift({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId: sequenceId, cardId: card.id });
-                        addToHistory(`utilise carte "${card.name}" pour Observation III`, player.id, aiGame, undefined, sequenceId);
-                    }
-                } else if (interaction.type === 'CHOOSING_OBS4_ACTION') {
-                    const choice = Math.random() > 0.5 ? 'PROBE' : 'MOVE';
-                    const player = aiGame.players.find(p => p.id === currentPlayer.id);
-                    if (player) {
-                        if (choice === 'PROBE' && player.energy >= 1) {
-                            player.energy -= 1;
-                            const launchRes = ProbeSystem.launchProbe(aiGame, player.id, true, false);
-                            if (launchRes.probeId) {
-                                aiGame = launchRes.updatedGame;
-                                addToHistory(`lance 1 sonde (Observation IV)`, player.id, aiGame, undefined, sequenceId);
-                            }
-                        } else {
-                            queue.unshift({ type: 'MOVING_PROBE', count: 1, sequenceId });
-                            addToHistory(`choisit 1 déplacement (Observation IV)`, player.id, aiGame, undefined, sequenceId);
-                        }
-                    }
-                }
-            }
-            return aiGame;
-        };
 
         if (decision) {
           switch (decision.action) {
@@ -876,7 +586,9 @@ export const BoardUI: React.FC = () => {
                 }
 
                 if (action.newPendingInteractions.length > 0) {
-                  aiGame = processAIInteractions(aiGame, action.newPendingInteractions, sequenceId);
+                  const res = AIController.processInteractionQueue(aiGame, action.newPendingInteractions, sequenceId, currentPlayer);
+                  aiGame = res.updatedGame;
+                  res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, undefined, undefined, e.sequenceId));
                 }
                 
                 setGame(aiGame);
@@ -896,7 +608,9 @@ export const BoardUI: React.FC = () => {
                 }
 
                 if (action.newPendingInteractions.length > 0) {
-                  aiGame = processAIInteractions(aiGame, action.newPendingInteractions, sequenceId);
+                  const res = AIController.processInteractionQueue(aiGame, action.newPendingInteractions, sequenceId, currentPlayer);
+                  aiGame = res.updatedGame;
+                  res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, undefined, undefined, e.sequenceId));
                 }
 
                 setGame(aiGame);
@@ -924,7 +638,9 @@ export const BoardUI: React.FC = () => {
                 }
 
                 if (res.newPendingInteractions.length > 0) {
-                     aiGame = processAIInteractions(aiGame, res.newPendingInteractions, sequenceId);
+                        const resAI = AIController.processInteractionQueue(aiGame, res.newPendingInteractions, sequenceId, currentPlayer);
+                        aiGame = resAI.updatedGame;
+                        resAI.historyEntries.forEach(e => addToHistory(e.message, e.playerId, undefined, undefined, e.sequenceId));
                 }
 
                 setGame(aiGame);
@@ -947,8 +663,9 @@ export const BoardUI: React.FC = () => {
                   res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, e.sequenceId));
                 }
                 if (res.newPendingInteractions && res.newPendingInteractions.length > 0) {
-                     const sequenceId = `ai-tech-${Date.now()}`;
-                     aiGame = processAIInteractions(aiGame, res.newPendingInteractions, sequenceId);
+                    const sequenceId = `ai-tech-${Date.now()}`;
+                    const resAI = AIController.processInteractionQueue(aiGame, res.newPendingInteractions, sequenceId, currentPlayer);
+                    aiGame = resAI.updatedGame;
                 }
                 setGame(aiGame);
                 if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
@@ -967,7 +684,9 @@ export const BoardUI: React.FC = () => {
                 }
 
                 if (action.newPendingInteractions.length > 0) {
-                  aiGame = processAIInteractions(aiGame, action.newPendingInteractions || [], sequenceId);
+                  const res = AIController.processInteractionQueue(aiGame, action.newPendingInteractions || [], sequenceId, currentPlayer);
+                  aiGame = res.updatedGame;
+                  res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, undefined, undefined, e.sequenceId));
                 }
 
                 setGame(aiGame);
@@ -987,7 +706,9 @@ export const BoardUI: React.FC = () => {
                 }
 
                 if (action.newPendingInteractions.length > 0) {
-                  aiGame = processAIInteractions(aiGame, action.newPendingInteractions, sequenceId);
+                  const res = AIController.processInteractionQueue(aiGame, action.newPendingInteractions, sequenceId, currentPlayer);
+                  aiGame = res.updatedGame;
+                  res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, undefined, undefined, e.sequenceId));
                 }
 
                 setGame(aiGame);
@@ -1007,7 +728,9 @@ export const BoardUI: React.FC = () => {
                 }
 
                 if (action.newPendingInteractions.length > 0) {
-                    aiGame = processAIInteractions(aiGame, action.newPendingInteractions, sequenceId);
+                    const res = AIController.processInteractionQueue(aiGame, action.newPendingInteractions, sequenceId, currentPlayer);
+                    aiGame = res.updatedGame;
+                    res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, undefined, undefined, e.sequenceId));
                 }
 
                 setGame(aiGame);
