@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation } from '../core/types';
+import React, { useState, useEffect, useRef } from 'react';
+import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { CardTooltip } from './components/CardTooltip';
 import './AlienBoardUI.css';
+import { HandCard } from './components/HandCard';
+import { Tooltip } from './Tooltip';
 
 interface AlienBoardUIProps {
     game: Game;
@@ -10,7 +12,7 @@ interface AlienBoardUIProps {
     interactionState: InteractionState;
     onPlaceLifeTrace: (boardIndex: number, color: LifeTraceType, slotType: LifeTraceLocation, slotIndex?: number) => void;
     onSpeciesCardClick: (speciesId: string, cardId: string) => void;
-    setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
+    setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto' } | null) => void;
     forceOpen?: boolean;
 }
 
@@ -119,6 +121,69 @@ const SpeciesCardArea: React.FC<{
     );
 };
 
+// Nouveau composant pour le contenu de l'infobulle afin de gérer ses propres infobulles imbriquées
+const ExertienDangerTooltip: React.FC<{
+    game: Game;
+    onEnter: () => void;
+    onLeave: () => void;
+}> = ({ game, onEnter, onLeave }) => {
+    const [cardTooltip, setCardTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
+    const cardHoverTimeoutRef = useRef<any>(null);
+
+    const handleCardHover = (e: React.MouseEvent, content: React.ReactNode) => {
+        if (cardHoverTimeoutRef.current) {
+            clearTimeout(cardHoverTimeoutRef.current);
+        }
+        const rect = e.currentTarget.getBoundingClientRect();
+        setCardTooltip({ content, rect });
+    };
+
+    const handleCardLeave = () => {
+        cardHoverTimeoutRef.current = setTimeout(() => {
+            setCardTooltip(null);
+        }, 100);
+    };
+
+    return (
+        <div 
+            style={{ textAlign: 'left', minWidth: '250px', maxWidth: '500px' }}
+            onMouseEnter={onEnter}
+            onMouseLeave={onLeave}
+        >
+            <div style={{ fontWeight: 'bold', marginBottom: '8px', borderBottom: '1px solid #555', paddingBottom: '4px', color: '#ffd700' }}>Niveau de danger</div>
+            {game.players.map(p => {
+                const exertienCards = [...(p.cards || []), ...(p.playedCards || [])].filter(c => c.type === CardType.EXERTIEN);
+                return (
+                    <div key={p.id} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #333' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', marginBottom: '4px' }}>
+                            <span style={{ color: p.color, fontWeight: 'bold' }}>{p.name}</span>
+                            <span style={{ backgroundColor: '#333', padding: '0 6px', borderRadius: '4px' }}>{p.danger || 0}</span>
+                        </div>
+                        {exertienCards.length > 0 ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' }}>
+                                {exertienCards.map(card => (
+                                    <HandCard key={card.id} card={card} game={game} currentPlayerId={p.id} interactionState={{ type: 'IDLE' }} highlightedCardId={null} setHighlightedCardId={() => {}} onCardClick={() => {}} onPlayCard={() => {}} onDiscardCardAction={() => {}} handleTooltipHover={handleCardHover} handleTooltipLeave={handleCardLeave} renderActionButton={() => null} disableGrayOut={true} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div style={{ fontSize: '0.8em', color: '#888', fontStyle: 'italic' }}>Aucune carte Exertien</div>
+                        )}
+                    </div>
+                );
+            })}
+            {cardTooltip && (
+                <Tooltip 
+                    content={cardTooltip.content} 
+                    targetRect={cardTooltip.rect}
+                    pointerEvents="auto"
+                    onMouseEnter={() => { if (cardHoverTimeoutRef.current) clearTimeout(cardHoverTimeoutRef.current); }}
+                    onMouseLeave={handleCardLeave}
+                />
+            )}
+        </div>
+    );
+};
+
 export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, onPlaceLifeTrace, onSpeciesCardClick, setActiveTooltip, forceOpen }) => {
     const board = game.board.alienBoards[boardIndex];
     const species = game.species.find(s => s.name === board.speciesId);
@@ -126,12 +191,25 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
     const isMascamites = species?.name === AlienBoardType.MASCAMITES;
     const isPlacingTrace = interactionState.type === 'PLACING_LIFE_TRACE';
     const [isOpen, setIsOpen] = useState(isPlacingTrace || forceOpen);
+    const hoverTimeoutRef = useRef<any>(null);
 
     useEffect(() => {
         if (isPlacingTrace || forceOpen) {
             setIsOpen(true);
         }
     }, [isPlacingTrace, forceOpen]);
+
+    const handleMouseLeaveWithDelay = () => {
+        hoverTimeoutRef.current = setTimeout(() => {
+            setActiveTooltip(null);
+        }, 200);
+    };
+
+    const handleMouseEnterClearDelay = () => {
+        if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+        }
+    };
 
     if (!board) return null;
 
@@ -394,6 +472,25 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                         onMouseLeave={() => setActiveTooltip(null)}
                                     >
                                         🦠
+                                    </div>
+                                )}
+                                {board.speciesId === AlienBoardType.EXERTIENS && (
+                                    <div className="alien-exertien-danger"
+                                        onMouseEnter={(e) => {
+                                            handleMouseEnterClearDelay();
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            const content = (
+                                                <ExertienDangerTooltip
+                                                    game={game}
+                                                    onEnter={handleMouseEnterClearDelay}
+                                                    onLeave={handleMouseLeaveWithDelay}
+                                                />
+                                            );
+                                            setActiveTooltip({ content, rect, pointerEvents: 'auto' });
+                                        }}
+                                        onMouseLeave={handleMouseLeaveWithDelay}
+                                    >
+                                        ☣️
                                     </div>
                                 )}
                             </div>

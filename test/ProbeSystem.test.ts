@@ -31,7 +31,7 @@ const createMockGame = (): Game => {
     visitedPlanetsThisTurn: [],
     activeBuffs: [],
     permanentBuffs: [],
-    centaurienMilestone: []
+    centaurienMilestones: []
   };
 
   return {

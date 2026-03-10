@@ -61,6 +61,7 @@ export class DataLoader {
         immediateEffects: this.parseImmediateEffects(gain.trim()),
         passiveEffects: this.parsePassiveEffects(contrainte.trim()),
         permanentEffects: this.parsePermanentEffects(contrainte.trim()),
+        danger: this.parseDanger(contrainte.trim()),
         isRevealed: false,
       });
     }
@@ -623,5 +624,15 @@ export class DataLoader {
       }
     }
     return effects;
+  }
+
+
+  private static parseDanger(constraint: string): number | undefined {
+    if (!constraint) return undefined;
+    const dangerMatch = constraint.match(/DANGER:(\d+)/);
+    if (dangerMatch) {
+        return parseInt(dangerMatch[1], 10);
+    }
+    return undefined;
   }
 }

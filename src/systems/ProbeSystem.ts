@@ -607,14 +607,22 @@ export class ProbeSystem {
     const speciesId = species?.id;
     const result = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'orbit', currentSequenceId, speciesId);
 
+    // Convertir les logs de bonus en entrées d'historique
+    result.logs.forEach(log => {
+        result.historyEntries.push({ message: log, playerId, sequenceId: currentSequenceId });
+    });
+
+    // Récupérer le joueur depuis l'état de jeu mis à jour (au cas où processBonuses aurait cloné le jeu)
+    const updatedPlayer = result.updatedGame.players.find(p => p.id === playerId)!;
+
     // Traitement des buffs permanents
-    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_ORBIT' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
+    const hasFulfillable = CardSystem.processMissionBuffs(updatedPlayer, buff => buff.type === 'GAIN_ON_ORBIT' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
     if (hasFulfillable) {
       result.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId: currentSequenceId});
     }
 
     return {
-      updatedGame,
+      updatedGame: result.updatedGame,
       isFirstOrbiter,
       planetId,
       historyEntries: result.historyEntries,
@@ -772,14 +780,22 @@ export class ProbeSystem {
     const speciesId = species?.id;
     const result = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'land', currentSequenceId, speciesId);
 
+    // Convertir les logs de bonus en entrées d'historique
+    result.logs.forEach(log => {
+        result.historyEntries.push({ message: log, playerId, sequenceId: currentSequenceId });
+    });
+
+    // Récupérer le joueur depuis l'état de jeu mis à jour
+    const updatedPlayer = result.updatedGame.players.find(p => p.id === playerId)!;
+
     // Logique pour GAIN_LANDING_AND_SPECIMEN
     if (sourceId) {
-      const allCards = [...updatedGame.decks.cards, ...(updatedGame.decks.discardPile || []), ...updatedGame.players.flatMap(p => p.cards), ...updatedGame.players.flatMap(p => p.playedCards || [])];
+      const allCards = [...result.updatedGame.decks.cards, ...(result.updatedGame.decks.discardPile || []), ...result.updatedGame.players.flatMap(p => p.cards), ...result.updatedGame.players.flatMap(p => p.playedCards || [])];
       const sourceCard = allCards.find(c => c.id === sourceId);
       
       if (sourceCard && sourceCard.passiveEffects?.some(e => e.type === 'GAIN_LANDING_AND_SPECIMEN')) {
           const isJupiterOrSaturn = planetId === 'jupiter' || planetId === 'saturn';
-          const planet = updatedGame.board.planets.find(p => p.id === planetId);
+          const planet = result.updatedGame.board.planets.find(p => p.id === planetId);
           const hasTokens = planet && planet.mascamiteTokens && planet.mascamiteTokens.length > 0;
 
           if (isJupiterOrSaturn && hasTokens) {
@@ -789,7 +805,7 @@ export class ProbeSystem {
     }
   
     // Traitement des buffs permanents
-    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_LAND' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
+    const hasFulfillable = CardSystem.processMissionBuffs(updatedPlayer, buff => buff.type === 'GAIN_ON_LAND' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
     if (hasFulfillable) {
       result.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId: currentSequenceId});
     }
@@ -836,6 +852,11 @@ export class ProbeSystem {
     const bonuses: Bonus = { pv: 3, data: 1, card: 1 };
     const currentSequenceId = sequenceId || `remove-orbiter-${Date.now()}`;
     const res = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'atmospheric_entry', currentSequenceId);
+
+    // Convertir les logs de bonus en entrées d'historique
+    res.logs.forEach(log => {
+        res.historyEntries.push({ message: log, playerId, sequenceId: currentSequenceId });
+    });
     
     res.historyEntries.unshift({ message: `retire un orbiteur de ${planet.name}`, playerId, sequenceId: currentSequenceId });
 
@@ -877,6 +898,11 @@ export class ProbeSystem {
     const bonuses: Bonus = { lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] };
     const currentSequenceId = sequenceId || `remove-lander-${Date.now()}`;
     const res = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'sample_return', currentSequenceId);
+
+    // Convertir les logs de bonus en entrées d'historique
+    res.logs.forEach(log => {
+        res.historyEntries.push({ message: log, playerId, sequenceId: currentSequenceId });
+    });
     
     res.historyEntries.unshift({ message: `retire un atterrisseur de ${planet.name}`, playerId, sequenceId: currentSequenceId });
 

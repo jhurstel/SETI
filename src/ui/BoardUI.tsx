@@ -1688,7 +1688,7 @@ export const BoardUI: React.FC = () => {
             const pIndex = updatedGame.players.findIndex(p => p.id === currentPlayer.id);
             if (pIndex !== -1) {
               updatedGame.players[pIndex].cards.push(card);
-              addToHistory(`récupère la carte "${card.name}" en main (Condition remplie)`, currentPlayer.id, updatedGame, undefined, (interactionState as any).sequenceId);
+              addToHistory(`récupère la carte "${card.name}" en main (Condition remplie)`, currentPlayer.id, updatedGame, undefined, interactionState.sequenceId);
             }
           }
         }
@@ -2426,7 +2426,7 @@ export const BoardUI: React.FC = () => {
           (g, pid, prid, targetId, seqId) => {
             return ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex, interactionState.source, seqId);
           },
-          "paye {probeOnPlanet.landCost} énergie pour <strong>Poser une sonde</strong> sur",
+          `paye ${probeOnPlanet.landCost} énergie pour <strong>Poser une sonde</strong> sur`,
           "Atterrissage réussi"
         );
 
@@ -2462,7 +2462,7 @@ export const BoardUI: React.FC = () => {
         planetId,
         // On passe planetId comme targetId pour supporter l'atterrissage sur les satellites. seqId vient de handlePlanetInteraction
         (g, pid, prid, targetId, seqId) => ProbeSystem.landProbe(g, pid, prid, targetId, false, slotIndex, undefined, seqId),
-        "paye {probeOnPlanet.landCost} énergie pour <strong>Poser une sonde</strong> sur",
+        `paye ${probeOnPlanet.landCost} énergie pour <strong>Poser une sonde</strong> sur`,
         "Atterrissage réussi"
       );
     };
@@ -2966,7 +2966,7 @@ export const BoardUI: React.FC = () => {
     if (interactionState.type === 'REMOVING_ORBITER') {
         handleOrbit(planetId);
     } else if (interactionState.type === 'REMOVING_LANDER') {
-      handleLand(planetId);
+        handleLand(planetId);
     } else if (planetId === 'earth') {
         const action = new LaunchProbeAction(currentPlayer.id);
         const result = gameEngineRef.current.executeAction(action);

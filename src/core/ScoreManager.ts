@@ -370,7 +370,7 @@ export class ScoreManager {
 
         if (result.code === 'PLACED' || result.code === 'DISCOVERED') {
           const { color } = result.data!;
-          historyEntries.push({ message: `a atteint le palier neutre ${m} PV ce qui place une trace de vie ${color} sur le plateau Alien`, playerId, sequenceId });
+          historyEntries.push({ message: `a atteint le palier neutre ${m} PV ce qui place une trace de vie ${color} sur le plateau Alien.`, playerId, sequenceId });
 
           let message = `Palier ${m} PV : Trace de vie ${color} placée`;
 
@@ -383,16 +383,17 @@ export class ScoreManager {
           }
           discoveryNotification = { message };
         } else if (result.code === 'NO_SPACE') {
-          historyEntries.push({ message: `a atteint le palier neutre ${m} PV mais aucun emplacement libre sur les plateaux Alien`, playerId, sequenceId });
+          historyEntries.push({ message: `a atteint le palier neutre ${m} PV mais aucun emplacement libre sur les plateaux Alien.`, playerId, sequenceId });
         }
       }
     }
 
     // 3. Centaurien Milestone
-    const reachedMilestone = player.centaurienMilestone.find(m => player.score >= m);
+    const reachedMilestone = player.centaurienMilestones.find(m => player.score >= m);
     if (reachedMilestone !== undefined) {
       const centaurienSpecies = updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS);
       if (centaurienSpecies && centaurienSpecies.message && centaurienSpecies.message.some(m => m.isAvailable)) {
+        historyEntries.push({ message: `a atteint un palier centaurien et peut choisir une récompense.`, playerId });
         return {
           updatedGame,
           newInteraction: { type: 'CHOOSING_CENTAURIEN_REWARD' },
@@ -402,8 +403,24 @@ export class ScoreManager {
         };
       } else {
         // No more rewards or species not found, remove the milestone to avoid re-triggering
-        const idx = player.centaurienMilestone.indexOf(reachedMilestone);
-        if (idx !== -1) player.centaurienMilestone.splice(idx, 1);
+        const idx = player.centaurienMilestones.indexOf(reachedMilestone);
+        if (idx !== -1) player.centaurienMilestones.splice(idx, 1);
+      }
+    }
+
+    // 4. Exertien Milestone
+    const exertienMilestone = updatedGame.exertienMilestones?.find(m => player.score >= m);
+    if (exertienMilestone !== undefined) {
+      const exertienSpecies = updatedGame.species.find(s => s.name === AlienBoardType.EXERTIENS);
+      if (exertienSpecies) {
+        historyEntries.push({ message: `a atteint un palier Exertien et peut jouer une carte.`, playerId });
+        return {
+          updatedGame,
+          newInteraction: { type: 'CHOOSING_EXERTIEN_CARD' },
+          historyEntries,
+          discoveryNotification,
+          shouldStop: true,
+        };
       }
     }
 

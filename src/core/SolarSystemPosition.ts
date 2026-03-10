@@ -774,9 +774,10 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
     updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
     updatedGame.board.solarSystem.rotationAngleLevel3 || 0
   );
-
+  console.log("cocou rot");
   const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState, updatedGame.board.solarSystem.extraCelestialObjects || []);
   updatedGame = rotationResult.game;
+  console.log("cocou rot");
 
   const diskLevel: Record<number, string> = { 1: 'Bleu', 2: 'Rouge', 3: 'Jaune' };
   const log = formatRotationLogs(`fait tourner le Système Solaire (${diskLevel[currentLevel]})`, rotationResult.logs);
@@ -787,6 +788,7 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
   const anomalyBoard = updatedGame.board.alienBoards.find(b => b.speciesId === AlienBoardType.ANOMALIES);
   const anomalyLogs: string[] = [];
 
+  console.log("cocou rot");
   if (earthPos && anomalyBoard && anomalyBoard.isDiscovered) {
     for (const anomaly of anomalies) {
       const anomalyPos = calculateAbsolutePosition(anomaly, newRotationState, updatedGame.board.solarSystem.extraCelestialObjects);

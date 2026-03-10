@@ -425,8 +425,14 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                   const isPrevSlotOccupied = i === 0 || planetData.landers.some(p => p.planetSlotIndex === i - 1);
                   const isNextAvailable = !isOccupied && isPrevSlotOccupied;
                   const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
-                  const isClickable = !removingItem && (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
 
+                  let isClickable = false;
+                  if (interactionState.type === 'REMOVING_LANDER') {
+                    isClickable = !removingItem && isOccupied && player?.id === currentPlayer.id && !!onLand;
+                  } else {
+                    isClickable = !removingItem && (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
+                  }
+                  
                   const isFullSlot = i === 0 || (planetData.id === 'mars' && i === 1) || (planetData.id === 'oumuamua' && i === 1) || (planetData.id === 'oumuamua' && i === 2);
                   const showFullToken = isFullSlot || !!player;
 

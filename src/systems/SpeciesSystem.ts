@@ -69,13 +69,10 @@ export class SpeciesSystem {
                             distResult.logs.push(...mascamiteLogs);
                         }
 
-                        // Ajout de l'astéroïde Oumuamua si l'espèce est découverte
                         if (board.speciesId === AlienBoardType.OUMUAMUA) {
                             if (!updatedGame.board.solarSystem.extraCelestialObjects) {
                                 updatedGame.board.solarSystem.extraCelestialObjects = [];
                             }
-                            // Disque 1 (Level 1), 2 crans avant Jupiter (C5) -> C3
-                            // C3 est un creux, donc l'objet flottera au-dessus
                             updatedGame.board.solarSystem.extraCelestialObjects.push({ id: 'oumuamua', type: 'planet', name: 'Oumuamua', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 });
                             distResult.logs.push("L'astéroïde Oumuamua apparaît dans le système solaire !");
                         }
@@ -87,9 +84,17 @@ export class SpeciesSystem {
 
                         if (board.speciesId === AlienBoardType.CENTAURIENS) {
                             updatedGame.players.forEach(p => {
-                                p.centaurienMilestone.push(p.score + 15);
+                                p.centaurienMilestones.push(p.score + 15);
                             });
                             distResult.logs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
+                        }
+
+                        if (board.speciesId === AlienBoardType.EXERTIENS) {
+                            const score = Math.max(...updatedGame.players.map(p => p.score));
+                            if (!updatedGame.exertienMilestones) updatedGame.exertienMilestones = [];
+                            updatedGame.exertienMilestones.push(score + 20);
+                            updatedGame.exertienMilestones.push(score + 40);
+                            distResult.logs.push("Deux nouveaus paliers à +20 PV et +40 PV apparaissent permettant d'utiliser la technologie des Exertiens.");
                         }
 
                         return {
@@ -211,6 +216,7 @@ export class SpeciesSystem {
         if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
             board.isDiscovered = true;
             updatedGame.isSpeciesDiscovered = true;
+            
             const distResult = this.distributeDiscoveryCards(updatedGame, boardIndex);
             updatedGame = distResult.updatedGame;
             discoveryLogs = distResult.logs;
@@ -249,9 +255,17 @@ export class SpeciesSystem {
 
             if (board.speciesId === AlienBoardType.CENTAURIENS) {
                 updatedGame.players.forEach(p => {
-                    p.centaurienMilestone.push(p.score + 15);
+                    p.centaurienMilestones.push(p.score + 15);
                 });
                 discoveryLogs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
+            }
+
+            if (board.speciesId === AlienBoardType.EXERTIENS) {
+                const score = Math.max(...updatedGame.players.map(p => p.score));
+                if (!updatedGame.exertienMilestones) updatedGame.exertienMilestones = [];
+                updatedGame.exertienMilestones.push(score + 20);
+                updatedGame.exertienMilestones.push(score + 40);
+                distResult.logs.push("Deux nouveaus paliers à +20 PV et +40 PV apparaissent permettant d'utiliser la technologie des Exertiens.");
             }
         }
 
@@ -335,6 +349,7 @@ export class SpeciesSystem {
         let updatedGame = game;
         const board = updatedGame.board.alienBoards[boardIndex];
         const species = updatedGame.species.find(s => s.name === board.speciesId);
+        if (!species) return { updatedGame, logs: [] };
         const logs: string[] = [];
         const colors = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE];
         const cardsPerPlayer: Record<string, number> = {};
@@ -348,6 +363,12 @@ export class SpeciesSystem {
                 }
             }
         });
+
+        if (species.id === AlienBoardType.EXERTIENS) {
+            updatedGame.players.forEach(p => {
+                cardsPerPlayer[p.id] += 3;
+            });
+        }
 
         for (const [playerId, count] of Object.entries(cardsPerPlayer)) {
             const player = updatedGame.players.find(p => p.id === playerId);
@@ -448,10 +469,10 @@ export class SpeciesSystem {
         species.message[tokenIndex].isAvailable = false;
         
         // Retirer le palier atteint (le plus petit qui est <= au score actuel)
-        player.centaurienMilestone.sort((a, b) => a - b);
-        const reachedIndex = player.centaurienMilestone.findIndex(m => player.score >= m);
+        player.centaurienMilestones.sort((a, b) => a - b);
+        const reachedIndex = player.centaurienMilestones.findIndex(m => player.score >= m);
         if (reachedIndex !== -1) {
-            player.centaurienMilestone.splice(reachedIndex, 1);
+            player.centaurienMilestones.splice(reachedIndex, 1);
         }
 
         const res = ResourceSystem.processBonuses(species.message[tokenIndex].bonus, updatedGame, playerId, 'centaurien_message', `centaurien-${Date.now()}`);

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, ProbeState, GAME_CONSTANTS, SectorType, InteractionState, AlienBoardType, CelestialObject, GamePhase, LifeTraceType } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, ProbeState, GAME_CONSTANTS, SectorType, InteractionState, AlienBoardType, CelestialObject, GamePhase, LifeTraceType, Player } from '../core/types';
 import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getObjectPosition, getAbsoluteSectorForProbe, polarToCartesian, describeArc, sectorToIndex, calculateObjectPosition, SolarSystemCell } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -141,12 +141,12 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
       let isClickable = false;
       if (interactionState.type === 'REMOVING_ORBITER') {
-        isClickable = isOccupied && player?.id === currentPlayer.id && !!onOrbit;
+        isClickable = isOccupied && !!player && player.id === currentPlayer.id && !!onOrbit;
       } else {
         isClickable = isNextAvailable && canOrbit && !!onOrbit;
       }
 
-      return renderTooltipContent(isOccupied, isClickable, player, bonusText, orbitReason, "Cliquez pour mettre en orbite (Coût: 1 Crédit, 1 Énergie)", interactionState.type === 'REMOVING_ORBITER');
+      return renderTooltipContent(isOccupied, isClickable, player!, bonusText, orbitReason, "Cliquez pour mettre en orbite (Coût: 1 Crédit, 1 Énergie)", interactionState.type === 'REMOVING_ORBITER', 'orbiter');
     }
 
     if (type === 'lander') {
@@ -200,20 +200,25 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         }
       }
 
-      const isClickable = (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
+      let isClickable = false;
+      if (interactionState.type === 'REMOVING_LANDER') {
+          isClickable = isOccupied && !!player && player.id === currentPlayer.id && !!onLand;
+      } else {
+          isClickable = (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
+      }
 
       const actionTextSuccess = interactionState.type === 'LANDING_PROBE'
         ? "Cliquez pour atterrir (Bonus)"
         : `Cliquez pour atterrir (Coût: ${landEnergyCost} Énergie)`;
 
-      return renderTooltipContent(isOccupied, isClickable, player, bonusText, landReason, actionTextSuccess, interactionState.type === 'REMOVING_LANDER');
+      return renderTooltipContent(isOccupied, isClickable, player!, bonusText, landReason, actionTextSuccess, interactionState.type === 'REMOVING_LANDER', 'lander');
     }
     return null;
   };
 
-  const renderTooltipContent = (isOccupied: boolean, isClickable: boolean, player: any, bonusText: string, reason: string, actionTextSuccess: string, isRemovingMode: boolean) => {
-    let statusText = isOccupied ? `Occupé par ${player?.name}` : (isClickable ? "Disponible" : "Indisponible");
-    let statusColor = isOccupied ? (player?.color || "#ccc") : (isClickable ? "#4a9eff" : "#ff6b6b");
+  const renderTooltipContent = (isOccupied: boolean, isClickable: boolean, player: Player | null, bonusText: string, reason: string, actionTextSuccess: string, isRemovingMode: boolean, removalType?: 'orbiter' | 'lander') => {
+    let statusText = isOccupied && player ? `Occupé par ${player.name}` : (isClickable ? "Disponible" : "Indisponible");
+    let statusColor = isOccupied && player ? (player.color || "#ccc") : (isClickable ? "#4a9eff" : "#ff6b6b");
     let actionText: string | null = isClickable ? actionTextSuccess : reason;
 
     if (isOccupied && isClickable && isRemovingMode) {
@@ -222,10 +227,19 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       actionText = null;
     }
 
+    let removalBonusText = '';
+    if (isRemovingMode && isClickable) {
+        if (removalType === 'orbiter') {
+            removalBonusText = '3 PV, 1 Donnée, 1 Carte';
+        } else if (removalType === 'lander') {
+            removalBonusText = '1 Trace de Vie Jaune';
+        }
+    }
+
     return (
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>{statusText}</div>
-        <div style={{ fontSize: '0.9em', color: '#ccc' }}>{isRemovingMode && isClickable ? <>Gain retrait : <span style={{ color: '#ffd700' }}>3 PV, 1 Donnée, 1 Carte</span></> : <>Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span></>}</div>
+        <div style={{ fontSize: '0.9em', color: '#ccc' }}>{isRemovingMode && isClickable ? <>Gain retrait : <span style={{ color: '#ffd700' }}>{removalBonusText}</span></> : <>Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span></>}</div>
         {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
       </div>
     );

@@ -49,6 +49,7 @@ export class PassAction extends BaseAction {
 
   execute(game: Game): Game {
     const sequenceId = `pass-${Date.now()}`;
+    const playerId = this.playerId;
 
     let updatedGame = { ...game };
     updatedGame.isFirstToPass = false;
@@ -63,7 +64,7 @@ export class PassAction extends BaseAction {
       const discardedCards = originalPlayer.cards.filter(c => !this.cardIdsToKeep.includes(c.id));
       if (discardedCards.length > 0) {
         const cardNames = discardedCards.map(c => `"${c.name}"`).join(', ');
-        this.historyEntries.push({ message: `défausse ${cardNames}`, playerId: this.playerId, sequenceId: sequenceId });
+        this.historyEntries.push({ message: `défausse ${cardNames}`, playerId, sequenceId });
       }
     }
 
@@ -71,12 +72,14 @@ export class PassAction extends BaseAction {
     updatedGame = CardSystem.discardToHandSize(updatedGame, this.playerId, this.cardIdsToKeep);
     const updatedPlayer = updatedGame.players[playerIndex];
 
+    console.log("coucou");
     // Gérer la carte de fin de manche
     const currentRound = updatedGame.currentRound;
     if (updatedGame.decks.roundDecks[currentRound] && updatedGame.decks.roundDecks[currentRound].length > 0) {
       const deck = updatedGame.decks.roundDecks[currentRound];
       let cardIndex = -1;
 
+      console.log("cocou1");
       if (this.selectedCardId) {
         cardIndex = deck.findIndex(c => c.id === this.selectedCardId);
       } else {
@@ -84,13 +87,14 @@ export class PassAction extends BaseAction {
         cardIndex = 0;
       }
 
+      console.log("cocou2");
       if (cardIndex !== -1) {
         const [card] = deck.splice(cardIndex, 1);
         updatedPlayer.cards.push(card);
         if (updatedPlayer.type === 'robot') {
-          this.historyEntries.push({ message: `choisit carte Fin de Manche`, playerId: this.playerId, sequenceId: sequenceId });
+          this.historyEntries.push({ message: `choisit carte Fin de Manche`, playerId, sequenceId });
         } else {
-          this.historyEntries.push({ message: `choisit carte "${card.name}" de fin de manche`, playerId: this.playerId, sequenceId: sequenceId });
+          this.historyEntries.push({ message: `choisit carte "${card.name}" de fin de manche`, playerId, sequenceId });
         }
       }
     }
@@ -102,13 +106,13 @@ export class PassAction extends BaseAction {
     // Vérifier si c'est le premier Pass de la manche
     // (déclenche la rotation du système solaire)
     if (TurnManager.isFirstPassOfRound(updatedGame)) {
-      this.historyEntries.unshift({ message: `<strong>passe son tour</strong> (premier de la manche)`, playerId: this.playerId, sequenceId: sequenceId });
+      this.historyEntries.unshift({ message: `<strong>passe son tour</strong> (premier de la manche)`, playerId, sequenceId });
       const result = performRotation(updatedGame);
-      result.logs.forEach(log => this.historyEntries.push({ message: log, playerId: this.playerId, sequenceId: sequenceId }));
+      result.logs.forEach(log => this.historyEntries.push({ message: log, playerId, sequenceId }));
       updatedGame = result.updatedGame;
       updatedGame.isFirstToPass = true;
     } else {
-      this.historyEntries.unshift({ message: "<strong>passe son tour</strong>", playerId: updatedPlayer.id, sequenceId: sequenceId });
+      this.historyEntries.unshift({ message: "<strong>passe son tour</strong>", playerId: updatedPlayer.id, sequenceId });
     }
 
     // Passer au joueur suivant ou terminer la manche

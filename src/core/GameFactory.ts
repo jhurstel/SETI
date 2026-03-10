@@ -114,12 +114,13 @@ export class GameFactory {
       hasPerformedMainAction: false,
       type: 'human',
       color: colors[index % colors.length],
+      danger: 0,
       claimedGoldenMilestones: [],
       claimedNeutralMilestones: [],
       visitedPlanetsThisTurn: [],
       activeBuffs: [],
       permanentBuffs: [],
-      centaurienMilestone: []
+      centaurienMilestones: []
     };
   }
 
@@ -402,9 +403,9 @@ export class GameFactory {
         des planètes. L'exploitation intense de cette technologie a finalement conduit à leur extinction. L'utilisation de cette technologie doit être envisagée avec précaution: \
         sa surexploitation pourrait engendrer une désapprobation massive de la population.`,
         fixedSlots: {
-          redlifetrace: [{ pv: 9, credits: 1 }, { pv: 7, credits: 1 }, { pv: 5, credits: 1 }, { pv: 4, credits: 1 }, { pv: 3, media: 1 }],
-          yellowlifetrace: [{ pv: 6, energy: 1, anycard: 1 }, { pv: 4, energy: 1, anycard: 1 }, { pv: 2, energy: 1, anycard: 1 }, { pv: 1, energy: 1, anycard: 1 }, { pv: 3, media: 1 }],
-          bluelifetrace: [{ pv: 6, data: 1, media: 1 }, { pv: 4, data: 1, media: 1 }, { pv: 2, data: 1, media: 1 }, { pv: 1, data: 1, media: 1 }, { pv: 3, media: 1 }]
+          redlifetrace: [{ pv: 9, credits: 1, danger: -3 }, { pv: 7, credits: 1, danger: -3 }, { pv: 5, credits: 1, danger: -2 }, { pv: 4, credits: 1, danger: -2 }, { pv: 3, media: 1, danger: -1 }],
+          yellowlifetrace: [{ pv: 6, energy: 1, anycard: 1, danger: -3 }, { pv: 4, energy: 1, anycard: 1, danger: -3 }, { pv: 2, energy: 1, anycard: 1, danger: -2 }, { pv: 1, energy: 1, anycard: 1, danger: -2 }, { pv: 3, media: 1, danger: -1 }],
+          bluelifetrace: [{ pv: 6, data: 1, media: 1, danger: -3 }, { pv: 4, data: 1, media: 1, danger: -3 }, { pv: 2, data: 1, media: 1, danger: -2 }, { pv: 1, data: 1, media: 1, danger: -2 }, { pv: 3, media: 1, danger: -1 }]
         },
         infiniteSlots: {
           redlifetrace: {},

@@ -234,7 +234,7 @@ export class CardSystem {
                     player.playedCards.push(card);
 
                     if (card.type === CardType.CENTAURIEN) {
-                        player.centaurienMilestone.push(player.score + 15);
+                        player.centaurienMilestones.push(player.score + 15);
                     }
                 }
             } else if (card.type === CardType.CONDITIONAL_MISSION || card.type === CardType.TRIGGERED_MISSION) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, TechnologyCategory, MAIN_ACTION_TYPES } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, TechnologyCategory, MAIN_ACTION_TYPES, CardType } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
@@ -61,6 +61,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   const reservationCount = isReserving ? interactionState.count : 0;
   const discardForSignalCount = isDiscardingForSignal ? interactionState.count : 0;
 
+  const handCards = currentPlayer.cards.filter(c => c.type !== CardType.EXERTIEN);
+
   const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setActiveTooltip({ content, rect });
@@ -82,7 +84,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
     game.players.forEach(p => {
       const prev = prevResourcesRef.current[p.id];
-      const current = { credits: p.credits, energy: p.energy, media: p.mediaCoverage, data: p.data || 0, cards: p.cards.length };
+      const current = { credits: p.credits, energy: p.energy, media: p.mediaCoverage, data: p.data || 0, cards: p.cards.filter(c => c.type !== CardType.EXERTIEN).length };
       
       if (prev) {
         if (current.credits > prev.credits || current.energy > prev.energy || current.media > prev.media || current.data > prev.data || current.cards > prev.cards) {
@@ -209,7 +211,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   const revenueEnergyFlash = useResourceFlash(currentPlayer.revenueEnergy, currentPlayer.id);
   const revenueCardFlash = useResourceFlash(currentPlayer.revenueCards, currentPlayer.id);
   const dataFlash = useResourceFlash(currentPlayer.data, currentPlayer.id);
-  const cardsFlash = useResourceFlash(currentPlayer.cards.length, currentPlayer.id);
+  const cardsFlash = useResourceFlash(handCards.length, currentPlayer.id);
 
   const actionAvailability: Record<ActionType, boolean> = {
     [ActionType.LAUNCH_PROBE]: isCurrentTurn && !isRobot && !hasPerformedMainAction && ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch,
@@ -344,7 +346,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   // Helper pour les boutons d'échange de cartes (initie la sélection)
   const renderCardTradeButton = (gainType: string, icon: string, tooltip: string, style?: React.CSSProperties) => {
     if (isRobot) return null;
-    const canTrade = isCurrentTurn && !isInteractiveMode && currentPlayer.cards.length >= 2;
+    const canTrade = isCurrentTurn && !isInteractiveMode && handCards.length >= 2;
     
     return renderActionButton(
         icon,
@@ -596,7 +598,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 className={`seti-cards-badge ${cardsFlash ? (cardsFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
               >
                 <span>Carte (<span style={{color: '#aaffaa'}}>🃏</span>):</span>
-                <strong style={{ color: '#fff', marginLeft: '6px' }}>{currentPlayer.cards.length}</strong>
+                <strong style={{ color: '#fff', marginLeft: '6px' }}>{handCards.length}</strong>
                 {!isRobot && (
                     <>
                       {renderCardTradeButton('credit', '₢', 'Echanger 2 Cartes contre 1 Crédit', { marginLeft: '10px' })}
@@ -609,8 +611,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
               <div className="seti-cards-warning">
                 Veuillez défausser des cartes pour n'en garder que {GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}.
                 <br />
-                Sélectionnées : {selectedCardIds.length} / {Math.max(0, currentPlayer.cards.length - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS)}
-                {currentPlayer.cards.length - selectedCardIds.length === GAME_CONSTANTS.HAND_SIZE_AFTER_PASS && (
+                Sélectionnées : {selectedCardIds.length} / {Math.max(0, handCards.length - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS)}
+                {handCards.length - selectedCardIds.length === GAME_CONSTANTS.HAND_SIZE_AFTER_PASS && (
                   <button 
                     onClick={onConfirmDiscardForEndTurn}
                     className="seti-confirm-btn"
@@ -665,8 +667,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             )}
             <div className="seti-player-list seti-cards-list">
               {!isRobot ? (
-                currentPlayer.cards.length > 0 ? (
-                  currentPlayer.cards.map(card => (
+                handCards.length > 0 ? (
+                  handCards.map(card => (
                     <HandCard
                         key={card.id}
                         card={card}
@@ -688,9 +690,9 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   <div className="seti-player-list-empty">Aucune carte en main</div>
                 )
               ) : (
-                currentPlayer.cards.some(c => c.isRevealed) ? (
+                handCards.some(c => c.isRevealed) ? (
                   <>
-                    {currentPlayer.cards.filter(c => c.isRevealed).map(card => (
+                    {handCards.filter(c => c.isRevealed).map(card => (
                       <HandCard
                         key={card.id}
                         card={card}
@@ -708,14 +710,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                         cardOrigin="hand"
                       />
                     ))}
-                    {currentPlayer.cards.filter(c => !c.isRevealed).length > 0 && (
+                    {handCards.filter(c => !c.isRevealed).length > 0 && (
                       <div className="seti-player-list-empty" style={{ width: '100%', marginTop: '8px' }}>
-                        + {currentPlayer.cards.filter(c => !c.isRevealed).length} carte{currentPlayer.cards.filter(c => !c.isRevealed).length > 1 ? 's' : ''} masquée{currentPlayer.cards.filter(c => !c.isRevealed).length > 1 ? 's' : ''}
+                        + {handCards.filter(c => !c.isRevealed).length} carte{handCards.filter(c => !c.isRevealed).length > 1 ? 's' : ''} masquée{handCards.filter(c => !c.isRevealed).length > 1 ? 's' : ''}
                       </div>
                     )}
                   </>
                 ) : (
-                  <div className="seti-player-list-empty">{currentPlayer.cards.length} carte{currentPlayer.cards.length > 1 ? 's' : ''} en main (Masqué)</div>
+                  <div className="seti-player-list-empty">{handCards.length} carte{handCards.length > 1 ? 's' : ''} en main (Masqué)</div>
                 )
               )}
             </div>
