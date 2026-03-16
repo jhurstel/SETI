@@ -60,7 +60,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
 
         if (game.decks.roundDecks) {
             for (const key in game.decks.roundDecks) {
-                const cRound = searchIn(game.decks.roundDecks[key as any]);
+                const cRound = searchIn(game.decks.roundDecks[key]);
                 if (cRound) return cRound;
             }
         }

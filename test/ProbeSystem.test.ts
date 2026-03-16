@@ -22,6 +22,7 @@ const createMockGame = (): Game => {
     dataComputer: { canAnalyze: false, slots: {} },
     lifeTraces: [],
     score: 0,
+    danger: 0,
     hasPassed: false,
     hasPerformedMainAction: false,
     type: 'human',

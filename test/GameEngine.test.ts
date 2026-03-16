@@ -22,7 +22,7 @@ const createMockGame = (): Game => {
     probes: [], technologies: [], playedCards: [], reservedCards: [], missions: [],
     dataComputer: { canAnalyze: false, slots: {} }, lifeTraces: [], score: 0,
     type: 'human', color: '#000', claimedGoldenMilestones: [], claimedNeutralMilestones: [],
-    visitedPlanetsThisTurn: [], activeBuffs: [], permanentBuffs: [], centaurienMilestones: []
+    visitedPlanetsThisTurn: [], activeBuffs: [], permanentBuffs: [], centaurienMilestones: [], danger: 0
   });
 
   return {
