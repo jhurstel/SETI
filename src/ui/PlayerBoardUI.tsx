@@ -37,6 +37,78 @@ interface PlayerBoardUIProps {
   onConfirmAction: (message: string, onConfirm: () => void) => void;
 }
 
+interface ObservationTrackProps {
+  game: Game;
+  playerId: string;
+  onAction: (actionType: ActionType) => void;
+  isCurrentTurn: boolean;
+  hasPerformedMainAction: boolean;
+  isInteractiveMode: boolean;
+  handleTooltipHover: (e: React.MouseEvent, content: React.ReactNode) => void;
+  handleTooltipLeave: () => void;
+}
+
+const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onAction, isCurrentTurn, hasPerformedMainAction, isInteractiveMode, handleTooltipHover, handleTooltipLeave }) => {
+  const player = game.players.find(p => p.id === playerId);
+  if (!player) return null;
+
+  const hasObs1 = player.technologies.some(t => t.id.startsWith('observation-1'));
+  const hasObs2 = player.technologies.some(t => t.id.startsWith('observation-2'));
+  const hasObs3 = player.technologies.some(t => t.id.startsWith('observation-3'));
+  const hasObs4 = player.technologies.some(t => t.id.startsWith('observation-4'));
+
+  const canScan = isCurrentTurn && !hasPerformedMainAction && ScanSystem.canScanSector(game, playerId).canScan;
+  const scanDisabled = !canScan || isInteractiveMode;
+
+  const renderSlot = (
+    icon: string,
+    tooltip: string,
+    isClickable: boolean,
+    onClick?: () => void,
+    isTech: boolean = false,
+    techAcquired: boolean = false,
+    isAvailableForAction: boolean = false
+  ) => {
+    let className = 'obs-track-slot';
+    if (isTech) {
+      className += techAcquired ? ' tech-acquired' : ' tech-locked';
+    }
+    if (isClickable) {
+      className += ' clickable';
+    }
+    if (isAvailableForAction) {
+      className += ' available-flash';
+    }
+
+    return (
+      <div
+        className={className}
+        onClick={() => isClickable && onClick ? onClick() : null}
+        onMouseEnter={(e) => handleTooltipHover(e, tooltip)}
+        onMouseLeave={handleTooltipLeave}
+      >
+        {icon}
+      </div>
+    );
+  };
+
+  return (
+    <div className="obs-track-container">
+      {renderSlot('🔭', `Scanner un secteur (coût: 1 crédit, 2 énergies)`, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled)}
+      <div className="obs-track-connector" />
+      {renderSlot('🌍', hasObs1 ? 'Scanner le secteur de la Terre ou un secteur adjacent' : 'Scanner le secteur de la Terre', false)}
+      <div className="obs-track-connector" />
+      {renderSlot('🃏', 'Scanner le secteur d\'une carte de la rangée', false)}
+      <div className="obs-track-connector" />
+      {renderSlot('☿️', 'Payer 1 Média pour scanner le secteur de Mercure (Nécessite Observation II)', false, undefined, true, hasObs2)}
+      <div className="obs-track-connector" />
+      {renderSlot('🗑️', 'Défausser une carte pour scanner son secteur (Nécessite Observation III)', false, undefined, true, hasObs3)}
+      <div className="obs-track-connector" />
+      {renderSlot('?', 'Payer 1 Énergie pour lancer une sonde OU gagner 1 déplacement (Nécessite Observation IV)', false, undefined, true, hasObs4)}
+    </div>
+  );
+};
+
 export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
@@ -561,6 +633,21 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 <div className="seti-player-list-empty">Aucune technologie</div>
               )}
             </div>
+          </div>
+
+          {/* Observation Track */}
+          <div className="seti-player-section">
+            <div className="seti-player-section-title">Observation</div>
+            <ObservationTrack
+              game={game}
+              playerId={currentPlayer.id}
+              onAction={onAction}
+              isCurrentTurn={isCurrentTurn}
+              hasPerformedMainAction={hasPerformedMainAction}
+              isInteractiveMode={isInteractiveMode}
+              handleTooltipHover={handleTooltipHover}
+              handleTooltipLeave={handleTooltipLeave}
+            />
           </div>
 
           {/* Ordinateur */}

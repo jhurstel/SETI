@@ -510,3 +510,75 @@
   right: 5px;
   z-index: 10;
 }
+
+
+.obs-track-container {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  margin-top: 8px;
+}
+
+.obs-track-slot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  background-color: #2a2e33;
+  border: 2px solid #555;
+  color: #ccc;
+  cursor: help;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.obs-track-slot.clickable {
+  cursor: pointer;
+  border-color: #4a9eff;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(74, 158, 255, 0.5);
+}
+
+.obs-track-slot.clickable:hover {
+  transform: scale(1.1);
+  background-color: #3c4148;
+}
+
+.obs-track-slot.tech-locked {
+  background-color: #222;
+  border-color: #444;
+  color: #666;
+  filter: grayscale(80%);
+}
+
+.obs-track-slot.tech-acquired {
+  border-color: #ffd700;
+}
+
+.obs-track-connector {
+  flex-grow: 1;
+  height: 2px;
+  background-color: #444;
+  margin: 0 -2px; /* Overlap with slots */
+}
+
+@keyframes pulseGreenBorder {
+  0% {
+    box-shadow: 0 0 0 0 rgba(80, 255, 80, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 6px 6px rgba(80, 255, 80, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(80, 255, 80, 0);
+  }
+}
+
+.obs-track-slot.available-flash {
+  animation: pulseGreenBorder 2s infinite;
+}
