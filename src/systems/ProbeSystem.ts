@@ -9,6 +9,7 @@
  * - Limites (max 1 sonde dans le système solaire sans technologie)
  */
 
+import { cloneGame } from '../core/cloneGame';
 import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, InteractionState, LifeTraceType } from '../core/types';
 import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
@@ -70,7 +71,7 @@ export class ProbeSystem {
     historyEntries: HistoryEntry[];
     newPendingInteractions: InteractionState[];
   } {
-    const updatedGame = structuredClone(game);
+    const updatedGame = cloneGame(game);
     const solarSystem = updatedGame.board.solarSystem;
     const player = updatedGame.players.find(p => p.id === playerId)!;
     const historyEntries = []
@@ -233,7 +234,7 @@ export class ProbeSystem {
       throw new Error(validation.reason || 'Déplacement impossible');
     }
 
-    let updatedGame = structuredClone(game);
+    let updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId)!;
     const probe = player.probes.find(p => p.id === probeId)!;
     const energySpent = validation.energyCost!;
@@ -559,7 +560,7 @@ export class ProbeSystem {
       throw new Error(validation.reason || 'Mise en orbite impossible');
     }
 
-    const updatedGame = structuredClone(game);
+    const updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId)!;
     const probe = player.probes.find(p => p.id === probeId)!;
 
@@ -700,7 +701,7 @@ export class ProbeSystem {
       throw new Error(validation.reason || 'Atterrissage impossible');
     }
 
-    const updatedGame = structuredClone(game);
+    const updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId)!;
     const probe = player.probes.find(p => p.id === probeId)!;
 
@@ -708,7 +709,7 @@ export class ProbeSystem {
     player.energy = Math.max(0, player.energy - (free ? 0 : (validation.energyCost || GAME_CONSTANTS.LAND_COST_ENERGY)));
 
     // Identifier la cible (Planète ou Satellite)
-    let targetBody: any = updatedGame.board.planets.find(p => p.id === planetId);
+    let targetBody: Planet | Satellite | undefined = updatedGame.board.planets.find(p => p.id === planetId);
     if (!targetBody && planetId === 'oumuamua') {
       const species = updatedGame.species.find(s => s.name === AlienBoardType.OUMUAMUA);
       if (species) targetBody = species.planet;
@@ -736,7 +737,7 @@ export class ProbeSystem {
 
     let slotIndex = forcedSlotIndex;
     if (slotIndex === undefined) {
-      const occupiedIndices = new Set((targetBody.landers || []).map((p: Probe) => p.planetSlotIndex));
+      const occupiedIndices = new Set((targetBody?.landers || []).map((p: Probe) => p.planetSlotIndex));
       let k = 0;
       while (occupiedIndices.has(k)) k++;
       slotIndex = k;
@@ -829,7 +830,7 @@ export class ProbeSystem {
     historyEntries: HistoryEntry[];
     newPendingInteractions: InteractionState[];
   } {
-    const updatedGame = structuredClone(game);
+    const updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId);
     const planet = updatedGame.board.planets.find(p => p.id === planetId);
 
@@ -875,7 +876,7 @@ export class ProbeSystem {
     historyEntries: HistoryEntry[];
     newPendingInteractions: InteractionState[];
   } {
-    const updatedGame = structuredClone(game);
+    const updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId);
     const planet = updatedGame.board.planets.find(p => p.id === planetId);
 
@@ -922,7 +923,7 @@ export class ProbeSystem {
     newRotationState: RotationState,
     extraObjects: import('../core/types').CelestialObject[]
   ): { game: Game; logs: string[] } {
-    const updatedGame = structuredClone(game);
+    const updatedGame = cloneGame(game);
     const logs: string[] = [];
 
     // Déterminer la direction de la poussée

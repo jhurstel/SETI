@@ -1,4 +1,5 @@
-import { Game, InteractionState, SectorType, LifeTraceLocation, TechnologyCategory, Player, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType } from '../core/types';
+import { cloneGame } from '../core/cloneGame';
+import { Game, InteractionState, SectorType, LifeTraceLocation, TechnologyCategory, Player, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType, Probe } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -46,7 +47,7 @@ export class AIController {
         interaction: InteractionState,
         sequenceId: string
     ): AIControllerResult {
-        let updatedGame = structuredClone(game);
+        let updatedGame = cloneGame(game);
         const historyEntries: HistoryEntry[] = [];
         const newPendingInteractions: InteractionState[] = [];
 
@@ -333,7 +334,7 @@ export class AIController {
                 const probesOnPlanets = player.probes.map(probe => {
                     const info = ProbeSystem.probeOnPlanetInfo(updatedGame, player.id);
                     return info.hasProbe ? { probe, planetId: info.planetId } : null;
-                }).filter((p): p is { probe: any, planetId: string | undefined } => p !== null);
+                }).filter((p): p is { probe: Probe, planetId: string | undefined } => p !== null);
 
                 if (probesOnPlanets.length > 0) {
                     const target = probesOnPlanets[0]!;

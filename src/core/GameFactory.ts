@@ -3,6 +3,7 @@ import { BoardManager } from './Board';
 import { CardSystem } from '../systems/CardSystem';
 import { Logger } from './Logger';
 import { DataLoader } from './DataLoader';
+import { cloneGame } from './cloneGame';
 import { ResourceSystem } from '../systems/ResourceSystem';
 
 export class GameFactory {
@@ -153,7 +154,7 @@ export class GameFactory {
       throw new Error('La partie doit être en phase SETUP');
     }
 
-    let updatedGame = { ...game };
+    let updatedGame = cloneGame(game);
 
     // Mélanger le deck de cartes
     updatedGame.decks.cards = ResourceSystem.shuffle(updatedGame.decks.cards);

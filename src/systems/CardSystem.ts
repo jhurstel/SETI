@@ -1,3 +1,4 @@
+import { cloneGame } from '../core/cloneGame';
 import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CelestialObject, CostType } from '../core/types';
 import { createRotationState, calculateAbsolutePosition, getCell, getAdjacentCells, getObjectPosition, getAllCelestialObjects, getAbsoluteSectorForProbe, calculateReachableCells } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
@@ -23,7 +24,7 @@ export class CardSystem {
      * Pioche des cartes pour un joueur
      */
     static drawCards(game: Game, playerId: string, count: number): Game {
-        const updatedGame = structuredClone(game);
+        const updatedGame = cloneGame(game);
         const player = updatedGame.players.find(p => p.id === playerId);
         if (!player) return game;
 
@@ -43,7 +44,7 @@ export class CardSystem {
      * Réserve une carte
      */
     static reserveCard(game: Game, playerId: string, cardId: string): Game {
-        let updatedGame = structuredClone(game);
+        let updatedGame = cloneGame(game);
         const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
         if (playerIndex === -1) return game;
         const player = updatedGame.players[playerIndex];
@@ -186,7 +187,7 @@ export class CardSystem {
      * Joue une carte de la main du joueur
      */
     static playCard(game: Game, playerId: string, cardId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
-        let updatedGame = structuredClone(game);
+        let updatedGame = cloneGame(game);
         const player = updatedGame.players.find(p => p.id === playerId);
 
         if (!player) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
@@ -333,6 +334,10 @@ export class CardSystem {
                         case 'SIGNAL':
                             bonuses.signals = (bonuses.signals || []);
                             bonuses.signals.push(effect.value);
+                            break;
+                        case 'LIFETRACE':
+                            bonuses.lifetraces = (bonuses.lifetraces || []);
+                            bonuses.lifetraces.push(effect.value);
                             break;
                     }
                 }
@@ -714,7 +719,7 @@ export class CardSystem {
     }
 
     static discardToHandSize(game: Game, playerId: string, cardIdsToKeep: string[]): Game {
-        const updatedGame = structuredClone(game);
+        const updatedGame = cloneGame(game);
         const player = updatedGame.players.find(p => p.id === playerId);
         if (!player) return updatedGame;
 
@@ -730,7 +735,7 @@ export class CardSystem {
     }
 
     static discardCard(game: Game, playerId: string, cardId: string): Game {
-        const updatedGame = structuredClone(game);
+        const updatedGame = cloneGame(game);
         const player = updatedGame.players.find(p => p.id === playerId);
         if (!player) return updatedGame;
 
@@ -745,7 +750,7 @@ export class CardSystem {
     }
 
     static discardCardForFreeAction(game: Game, playerId: string, cardId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
-        let updatedGame = structuredClone(game);
+        let updatedGame = cloneGame(game);
         const player = updatedGame.players.find(p => p.id === playerId);
         if (!player) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
 
@@ -800,7 +805,7 @@ export class CardSystem {
     }
 
     static discardFromRow(game: Game, cardId: string): { updatedGame: Game, discardedCard: Card | null } {
-        const updatedGame = structuredClone(game);
+        const updatedGame = cloneGame(game);
         const row = updatedGame.decks.cardRow;
         const index = row.findIndex(c => c.id === cardId);
 

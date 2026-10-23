@@ -1,6 +1,7 @@
 import { CardSystem } from '../src/systems/CardSystem';
-import { CostType, FreeActionType, Game, RevenueType } from '../src/core/types';
-import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
+import { DataLoader } from '../src/core/DataLoader';
+import { CostType, FreeActionType, Game, LifeTraceType, RevenueType } from '../src/core/types';
+import { createTestGame, getPlayer, makeCard, mockFetchFromPublic } from './helpers/gameFixture';
 
 describe('CardSystem', () => {
   let game: Game;
@@ -164,6 +165,26 @@ describe('CardSystem', () => {
       expect(getPlayer(game, P1).mediaCoverage).toBe(5);
       expect(getPlayer(game, P1).cards).toHaveLength(handSize);
       expect(game.decks.cardRow.map(c => c.id)).toEqual(rowIds);
+    });
+  });
+
+  describe('playCard', () => {
+    test.each([
+      ['cards/main.csv', '75'],
+      ['cards/anomalies.csv', 'ET.19'],
+    ])('%s #%s « Gagnez 1 Trace de Vie » déclenche le placement d\'une trace (régression)', async (file, cardId) => {
+      const fetchSpy = mockFetchFromPublic();
+      const card = (await DataLoader.loadCards(file)).find(c => c.id === cardId)!;
+      fetchSpy.mockRestore();
+
+      const player = getPlayer(game, P1);
+      player.credits = 10;
+      player.cards = [card];
+      const { newPendingInteractions } = CardSystem.playCard(game, P1, cardId);
+
+      expect(newPendingInteractions).toContainEqual(
+        expect.objectContaining({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.ANY })
+      );
     });
   });
 

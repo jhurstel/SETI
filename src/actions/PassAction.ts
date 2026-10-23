@@ -4,6 +4,7 @@ import { TurnManager } from '../core/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
 import { performRotation } from '../core/SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
+import { cloneGame } from '../core/cloneGame';
 
 export class PassAction extends BaseAction {
   constructor(
@@ -51,11 +52,8 @@ export class PassAction extends BaseAction {
     const sequenceId = `pass-${Date.now()}`;
     const playerId = this.playerId;
 
-    let updatedGame = { ...game };
+    let updatedGame = cloneGame(game);
     updatedGame.isFirstToPass = false;
-    // Copie profonde des joueurs et du board pour éviter les mutations
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
-    updatedGame.board = { ...updatedGame.board };
     const playerIndex = updatedGame.players.findIndex(p => p.id === this.playerId);
 
     // Log des cartes défaussées

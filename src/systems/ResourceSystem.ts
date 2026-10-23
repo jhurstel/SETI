@@ -137,6 +137,8 @@ export class ResourceSystem {
   }
 
   static accumulateBonus(bonus: Bonus, accumulatedBonuses: Bonus) {
+    // Vue indexée : les champs de Bonus sont hétérogènes (nombres, listes, booléens)
+    const acc = accumulatedBonuses as Record<string, unknown>;
     for (const key in bonus) {
       const k = key as keyof Bonus;
       const val = bonus[k];
@@ -144,12 +146,12 @@ export class ResourceSystem {
       if (val === undefined) continue;
 
       if (typeof val === 'number') {
-        (accumulatedBonuses as any)[k] = ((accumulatedBonuses[k] as number) || 0) + val;
+        acc[k] = ((acc[k] as number | undefined) || 0) + val;
       } else if (Array.isArray(val)) {
-        const existing = (accumulatedBonuses[k] as any[]) || [];
-        (accumulatedBonuses as any)[k] = [...existing, ...val];
+        const existing = (acc[k] as unknown[] | undefined) || [];
+        acc[k] = [...existing, ...val];
       } else {
-        (accumulatedBonuses as any)[k] = val;
+        acc[k] = val;
       }
     }
   }

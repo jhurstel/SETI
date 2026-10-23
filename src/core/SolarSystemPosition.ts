@@ -1,3 +1,4 @@
+import { cloneGame } from './cloneGame';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject, AlienBoardType, LifeTraceLocation } from './types';
@@ -749,7 +750,7 @@ export function formatRotationLogs(baseMessage: string, rotationLogs: string[]) 
 
 // Helper pour effectuer une rotation du système solaire
 export function performRotation(game: Game): { updatedGame: Game, logs: string[] } {
-  let updatedGame = structuredClone(game);
+  let updatedGame = cloneGame(game);
   const currentLevel = updatedGame.board.solarSystem.nextRingLevel;
   const oldRotationState = createRotationState(
     updatedGame.board.solarSystem.rotationAngleLevel1 || 0,

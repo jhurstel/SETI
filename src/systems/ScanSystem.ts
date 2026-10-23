@@ -1,3 +1,4 @@
+import { cloneGame } from '../core/cloneGame';
 import { Game, Sector, Bonus, SignalType, GAME_CONSTANTS, InteractionState, ProbeState, HistoryEntry, SectorType } from '../core/types';
 import { getObjectPosition } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
@@ -68,7 +69,7 @@ export class ScanSystem {
       throw new Error(validation.reason || 'Scan impossible');
     }
 
-    const updatedGame = structuredClone(game);
+    const updatedGame = cloneGame(game);
     const sector = this.getSectorById(updatedGame, sectorId);
     if (!sector) {
       return { updatedGame, logs: [], bonuses: {} };
@@ -152,7 +153,7 @@ export class ScanSystem {
     winnerId?: string;
     newPendingInteractions: { interaction: InteractionState, playerId: string }[];
   } {
-    let updatedGame = structuredClone(game);
+    let updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId)!;
     if (!player) {
       return { updatedGame, logs: [], bonuses: {}, newPendingInteractions: [] };
@@ -411,7 +412,7 @@ export class ScanSystem {
   // Helper pour effectuer une séquence de scan complète
   static performScanAction(game: Game, isBonus: boolean = false, sequenceId?: string, scanSectorId?: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
     // Initier la séquence
-    let updatedGame = structuredClone(game);
+    let updatedGame = cloneGame(game);
     if (!sequenceId) sequenceId = `scan-${Date.now()}`;
     const historyEntries: HistoryEntry[] = [];
     const newPendingInteractions: InteractionState[] = [];

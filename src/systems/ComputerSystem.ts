@@ -14,6 +14,7 @@ import {
   Technology,
   Player
 } from '../core/types';
+import { cloneGame } from '../core/cloneGame';
 
 export class ComputerSystem {
   static canAnalyzeData(game: Game, playerId: string): {
@@ -70,8 +71,8 @@ export class ComputerSystem {
   }
 
   static fillSlot(game: Game, playerId: string, slotId: string): { updatedGame: Game, gains: string[], bonusEffects: { type: string, amount: number }[] } {
-    const updatedGame = { ...game };
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    // Copie profonde : les cases de l'ordinateur (dataComputer.slots) sont modifiées ci-dessous
+    const updatedGame = cloneGame(game);
     const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
     if (playerIndex === -1) return { updatedGame: game, gains: [], bonusEffects: [] };
 
@@ -153,7 +154,7 @@ export class ComputerSystem {
 
   static clearComputer(player: Player) {
     if (player.dataComputer) {
-      Object.values(player.dataComputer.slots).forEach((slot: any) => {
+      Object.values(player.dataComputer.slots).forEach(slot => {
         slot.filled = false;
       });
     }

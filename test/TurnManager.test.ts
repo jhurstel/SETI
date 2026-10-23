@@ -41,12 +41,12 @@ describe('TurnManager', () => {
       expect(updated.currentRound).toBe(2);
     });
 
-    // Bug connu (phase 3) : copie superficielle → le joueur suivant de la partie d'origine est modifié.
-    // Retirer `.failing` une fois corrigé.
-    test.failing('ne modifie pas la partie d\'origine', () => {
+    test('ne modifie pas la partie d\'origine (régression : copie superficielle)', () => {
       game.players[1].hasPerformedMainAction = true;
+      game.players[1].visitedPlanetsThisTurn = ['mars'];
       TurnManager.nextPlayer(game);
       expect(game.players[1].hasPerformedMainAction).toBe(true);
+      expect(game.players[1].visitedPlanetsThisTurn).toEqual(['mars']);
     });
   });
 
@@ -74,6 +74,15 @@ describe('TurnManager', () => {
       expect(updated.currentPlayerIndex).toBe(1);
       expect(updated.currentRound).toBe(2);
       expect(updated.phase).toBe(GamePhase.PLAYING);
+    });
+
+    test('ne modifie pas la partie d\'origine', () => {
+      const deckSize = game.decks.cards.length;
+      const round = game.currentRound;
+      TurnManager.endRound(game);
+      expect(game.decks.cards).toHaveLength(deckSize);
+      expect(game.currentRound).toBe(round);
+      expect(game.isRoundEnd).toBe(false);
     });
 
     test('après la dernière manche, passe au décompte final', () => {
@@ -153,6 +162,17 @@ describe('PassAction', () => {
       expect(p1.cards.map(c => c.id)).toEqual([...kept, roundCard]);
       expect(updated.decks.roundDecks[1].some(c => c.id === roundCard)).toBe(false);
       expect(updated.currentPlayerIndex).toBe(1);
+    });
+
+    test('ne modifie pas la partie d\'origine', () => {
+      const hand = getPlayer(game, P1).cards.map(c => c.id);
+      const roundDeck = game.decks.roundDecks[1].map(c => c.id);
+      new PassAction(P1, hand.slice(0, 2)).execute(game);
+
+      expect(getPlayer(game, P1).cards.map(c => c.id)).toEqual(hand);
+      expect(getPlayer(game, P1).hasPassed).toBe(false);
+      expect(game.decks.roundDecks[1].map(c => c.id)).toEqual(roundDeck);
+      expect(game.currentPlayerIndex).toBe(0);
     });
 
     test('le premier joueur à passer fait tourner le système solaire', () => {

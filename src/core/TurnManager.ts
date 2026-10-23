@@ -1,6 +1,7 @@
 import { Game, GamePhase, Player } from './types';
 import { CardSystem } from '../systems/CardSystem';
 import { ScoreManager } from './ScoreManager';
+import { cloneGame } from './cloneGame';
 
 export class TurnManager {
   /**
@@ -15,7 +16,8 @@ export class TurnManager {
    * Passe au joueur suivant dans l'ordre horaire
    */
   static nextPlayer(game: Game): Game {
-    const updatedGame = { ...game, isRoundEnd: false };
+    const updatedGame = cloneGame(game);
+    updatedGame.isRoundEnd = false;
     const activePlayers = updatedGame.players.filter(p => !p.hasPassed);
 
     if (activePlayers.length === 0) {
@@ -44,7 +46,8 @@ export class TurnManager {
    * Termine la manche actuelle
    */
   static endRound(game: Game): Game {
-    let updatedGame = { ...game, isRoundEnd: true };
+    let updatedGame = cloneGame(game);
+    updatedGame.isRoundEnd = true;
 
     // Calculer les revenus de fin de manche
     updatedGame.players = updatedGame.players.map(player =>

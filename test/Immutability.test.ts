@@ -1,0 +1,107 @@
+import { cloneGame } from '../src/core/cloneGame';
+import { GameEngine } from '../src/core/Game';
+import { GameFactory } from '../src/core/GameFactory';
+import { ComputerSystem } from '../src/systems/ComputerSystem';
+import { PassAction } from '../src/actions/PassAction';
+import { Game, GamePhase } from '../src/core/types';
+import { createTestGame, getPlayer, mockFetchFromPublic } from './helpers/gameFixture';
+
+const P1 = 'player_0';
+
+describe('cloneGame', () => {
+  let game: Game;
+
+  beforeEach(async () => {
+    game = await createTestGame();
+  });
+
+  test('copie profonde : modifier la copie ne touche pas l\'original', () => {
+    const copy = cloneGame(game);
+    copy.players[0].credits += 10;
+    copy.players[0].dataComputer.slots['1a'].filled = true;
+    copy.board.sectors[0].signals[0].marked = true;
+    copy.decks.cards.pop();
+
+    expect(game.players[0].credits).not.toBe(copy.players[0].credits);
+    expect(game.players[0].dataComputer.slots['1a'].filled).toBe(false);
+    expect(game.board.sectors[0].signals[0].marked).toBe(false);
+    expect(game.decks.cards.length).toBe(copy.decks.cards.length + 1);
+  });
+
+  test('l\'historique : nouveau tableau, instantanés partagés (non recopiés)', () => {
+    game.history = [{ state: cloneGame(game), timestamp: 1 }];
+    const copy = cloneGame(game);
+
+    expect(copy.history).not.toBe(game.history);
+    expect(copy.history[0]).toBe(game.history[0]);
+    copy.history.push({ state: cloneGame(game), timestamp: 2 });
+    expect(game.history).toHaveLength(1);
+  });
+});
+
+describe('ComputerSystem.fillSlot', () => {
+  test('ne modifie pas l\'ordinateur de la partie d\'origine (régression)', async () => {
+    const game = await createTestGame();
+    getPlayer(game, P1).data = 2;
+
+    const { updatedGame } = ComputerSystem.fillSlot(game, P1, '1a');
+
+    expect(getPlayer(updatedGame, P1).dataComputer.slots['1a'].filled).toBe(true);
+    expect(getPlayer(updatedGame, P1).data).toBe(1);
+    expect(getPlayer(game, P1).dataComputer.slots['1a'].filled).toBe(false);
+    expect(getPlayer(game, P1).data).toBe(2);
+  });
+});
+
+describe('GameFactory.initializeGame', () => {
+  test('ne modifie pas la partie passée en entrée', async () => {
+    const fetchSpy = mockFetchFromPublic();
+    const setup = await GameFactory.createGame(['Alice', 'Bob']);
+    fetchSpy.mockRestore();
+    const deckSize = setup.decks.cards.length;
+
+    GameFactory.initializeGame(setup);
+
+    expect(setup.decks.cards).toHaveLength(deckSize);
+    expect(setup.decks.cardRow).toHaveLength(0);
+    expect(setup.players.every(p => p.cards.length === 0)).toBe(true);
+  });
+});
+
+describe('GameEngine undo', () => {
+  test('restaure exactement l\'état précédant l\'action', async () => {
+    const game = await createTestGame();
+    game.currentPlayerIndex = 0;
+    game.phase = GamePhase.PLAYING;
+    const engine = new GameEngine(game);
+    const before = engine.getState();
+    const handBefore = getPlayer(before, P1).cards.map(c => c.id);
+    const angleBefore = before.board.solarSystem.rotationAngleLevel3;
+
+    const keep = handBefore.slice(0, 4);
+    expect(engine.executeAction(new PassAction(P1, keep)).success).toBe(true);
+    expect(engine.getState().currentPlayerIndex).toBe(1);
+
+    expect(engine.undo()).toBe(true);
+    const restored = engine.getState();
+
+    expect(restored.currentPlayerIndex).toBe(0);
+    expect(getPlayer(restored, P1).hasPassed).toBe(false);
+    expect(getPlayer(restored, P1).cards.map(c => c.id)).toEqual(handBefore);
+    expect(restored.board.solarSystem.rotationAngleLevel3).toBe(angleBefore);
+    expect(restored.history).toHaveLength(0);
+  });
+
+  test('l\'instantané n\'est pas altéré par une mutation de l\'état courant', async () => {
+    const game = await createTestGame();
+    game.currentPlayerIndex = 0;
+    const engine = new GameEngine(game);
+
+    engine.saveState();
+    // Mutation directe de l'état courant (comme le faisait nextPlayer avant correction)
+    engine.getState().players[0].credits = 999;
+
+    engine.undo();
+    expect(engine.getState().players[0].credits).not.toBe(999);
+  });
+});

@@ -3,6 +3,7 @@ import { BaseAction } from '../actions/Action';
 import { ActionValidator } from './ActionValidator';
 import { TurnManager } from './TurnManager';
 import { ScoreManager } from './ScoreManager';
+import { cloneGame } from './cloneGame';
 
 export class GameEngine {
   private state: Game;
@@ -130,10 +131,10 @@ export class GameEngine {
    * Sauvegarde l'état actuel dans l'historique
    */
   saveState(): void {
-    // On exclut l'historique de la sauvegarde pour éviter la référence circulaire
-    const { history, ...stateWithoutHistory } = this.state;
+    // Instantané profond (sans l'historique, pour éviter la référence circulaire) :
+    // une mutation ultérieure de l'état courant ne doit pas altérer ce qui sera restauré par undo
     const gameState: GameState = {
-      state: { ...stateWithoutHistory, history: [] } as Game,
+      state: { ...cloneGame(this.state), history: [] },
       timestamp: Date.now()
     };
     if (!this.state.history) {

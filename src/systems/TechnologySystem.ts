@@ -1,3 +1,4 @@
+import { cloneGame } from '../core/cloneGame';
 import { Game, Technology, GAME_CONSTANTS, TechnologyCategory, HistoryEntry, InteractionState } from '../core/types';
 import { ComputerSystem } from './ComputerSystem';
 import { ProbeSystem } from './ProbeSystem';
@@ -63,7 +64,7 @@ export class TechnologySystem {
   }
 
   static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[], historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
-    let updatedGame = structuredClone(game);
+    let updatedGame = cloneGame(game);
     let player = updatedGame.players.find(p => p.id === playerId);
     const historyEntries: HistoryEntry[] = [];
     const newPendingInteractions: InteractionState[] = [];

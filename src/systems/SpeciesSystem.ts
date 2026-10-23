@@ -1,3 +1,4 @@
+import { cloneGame } from '../core/cloneGame';
 import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode, LifeTraceLocation } from '../core/types';
 import { ResourceSystem } from './ResourceSystem';
 import { getObjectPosition } from '../core/SolarSystemPosition';
@@ -15,7 +16,7 @@ export class SpeciesSystem {
         data?: { color: LifeTraceType; speciesId?: string; boardIndex: number };
         logs?: string[];
     } {
-        let updatedGame = structuredClone(game);
+        let updatedGame = cloneGame(game);
 
         // Vérifier s'il reste des marqueurs neutres pour ce palier
         if (!updatedGame.neutralMilestonesAvailable || updatedGame.neutralMilestonesAvailable[milestone] <= 0) {
@@ -121,7 +122,7 @@ export class SpeciesSystem {
         historyEntries: HistoryEntry[];
         newPendingInteractions: InteractionState[];
     } {
-        let updatedGame = structuredClone(game);
+        let updatedGame = cloneGame(game);
         const board = updatedGame.board.alienBoards[boardIndex];
 
         const player = updatedGame.players.find(p => p.id === playerId);
@@ -312,7 +313,7 @@ export class SpeciesSystem {
      * Acquiert une carte Alien (depuis la pioche ou la rangée) et remplit la rangée si nécessaire.
      */
     static acquireAlienCard(game: Game, playerId: string, speciesId: string, cardId: string): { updatedGame: Game, drawnCard?: Card } {
-        const updatedGame = structuredClone(game);
+        const updatedGame = cloneGame(game);
         const species = updatedGame.species.find(s => s.id === speciesId);
         const player = updatedGame.players.find(p => p.id === playerId);
 
@@ -458,7 +459,7 @@ export class SpeciesSystem {
     }
 
     static claimCentaurienReward(game: Game, playerId: string, tokenIndex: number): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
-        const updatedGame = structuredClone(game);
+        const updatedGame = cloneGame(game);
         const player = updatedGame.players.find(p => p.id === playerId);
         const species = updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS);
 

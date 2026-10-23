@@ -417,7 +417,7 @@ export interface Technology {
 
 export interface TechnologyEffect {
   type: string;
-  value: any;
+  value: number | boolean | { points: number; credits?: number; energy?: number; cards?: number; media?: number };
 }
 
 export interface Card {
@@ -678,7 +678,7 @@ export type InteractionState =
   /** Le joueur doit résoudre un secteur complété. */
   | { type: 'RESOLVING_SECTOR', sectorId: string, sequenceId?: string }
   /** Un effet de carte non-interactif est déclenché. */
-  | { type: 'TRIGGER_CARD_EFFECT', effectType: string, value: any, sequenceId?: string }
+  | { type: 'TRIGGER_CARD_EFFECT', effectType: string, value: number, sequenceId?: string }
   /** Le joueur doit piocher une carte et scanner son secteur (Bonus Deck). */
   | { type: 'DRAW_AND_SCAN', count: number, sequenceId?: string }
   /** Le joueur valide une condition de mission. */
@@ -752,7 +752,7 @@ export interface ScoreCategories {
 export interface GameEvent {
   type: EventType;
   timestamp: number;
-  data: any;
+  data: unknown;
 }
 
 // ============================================================================
@@ -806,9 +806,11 @@ export const DISK_NAMES: Record<DiskName, number> = {
 // AI Behaviour
 // ============================================================================
 
-export interface AIDecision {
-  action: ActionType;
-  data?: any;
-}
+export type AIDecision =
+  | { action: ActionType.RESEARCH_TECH; data: { tech: Technology } }
+  | { action: ActionType.PLAY_CARD; data: { cardId: string } }
+  | { action: ActionType.ORBIT | ActionType.LAND; data: { probeId: string; planetId: string } }
+  | { action: ActionType.PASS; data: { cardsToKeep: string[] } }
+  | { action: ActionType.LAUNCH_PROBE | ActionType.SCAN_SECTOR | ActionType.ANALYZE_DATA; data?: undefined };
 
 export type AIDifficulty = 'PASS' | 'EASY' | 'MEDIUM' | 'EXPERT';

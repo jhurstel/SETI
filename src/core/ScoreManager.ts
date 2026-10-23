@@ -14,6 +14,7 @@
  * - Effets spécifiques d'espèces
  */
 
+import { cloneGame } from './cloneGame';
 import {
   Game,
   Player,
@@ -337,7 +338,7 @@ export class ScoreManager {
     discoveryNotification?: { message: string };
     shouldStop: boolean; // true if an interaction was triggered and we should wait for the player
   } {
-    let updatedGame = structuredClone(game);
+    let updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId);
     if (!player) {
       return { updatedGame, historyEntries: [], shouldStop: false };
@@ -436,7 +437,7 @@ export class ScoreManager {
     error?: string;
     logMessage?: string;
   } {
-    const updatedGame = structuredClone(game);
+    const updatedGame = cloneGame(game);
     const tile = updatedGame.board.objectiveTiles.find(t => t.id === tileId);
     const player = updatedGame.players.find(p => p.id === playerId);
 

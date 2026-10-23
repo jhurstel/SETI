@@ -178,7 +178,7 @@ export class DataLoader {
         else if (lower.includes('exploorobs')) scope = TechnologyCategory.EXPLORATION_OR_OBSERVATION;
         effects.push({ type: 'ACTION', target: 'TECH', value: { amount, scope } });
       } else if (lower.includes('trace')) {
-        let scope: any = 'ANY';
+        let scope: LifeTraceType = LifeTraceType.ANY;
         if (lower.includes('rouge') || lower.includes('red')) scope = LifeTraceType.RED;
         else if (lower.includes('bleu') || lower.includes('blue')) scope = LifeTraceType.BLUE;
         else if (lower.includes('jaune') || lower.includes('yellow')) scope = LifeTraceType.YELLOW;
