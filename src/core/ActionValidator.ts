@@ -1,4 +1,4 @@
-import { Game, MAIN_ACTION_TYPES, ValidationResult } from './types';
+import { Game, GamePhase, MAIN_ACTION_TYPES, ValidationResult } from './types';
 import { BaseAction } from '../actions/Action';
 
 export class ActionValidator {
@@ -6,6 +6,11 @@ export class ActionValidator {
    * Valide une action avant son exécution
    */
   static validateAction(game: Game, action: BaseAction): ValidationResult {
+    // Plus aucune action une fois la partie terminée
+    if (game.phase === GamePhase.FINAL_SCORING) {
+      return { valid: false, errors: [{ code: 'GAME_OVER', message: 'La partie est terminée' }], warnings: [] };
+    }
+
     // Vérifier que c'est le tour du joueur
     if (game.currentPlayerIndex < 0 || game.currentPlayerIndex >= game.players.length) {
       return {

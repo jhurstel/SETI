@@ -14,7 +14,7 @@
  * - Effets spécifiques d'espèces
  */
 
-import { effectNumber } from './cardEffects';
+import { effectNumber, effectString } from './cardEffects';
 import { cloneGame } from './cloneGame';
 import {
   Game,
@@ -33,7 +33,11 @@ import {
   NEUTRAL_MILESTONES,
   InteractionState,
   AlienBoardType,
-  HistoryEntry
+  HistoryEntry,
+  FinalScore,
+  RevealedExertienCard,
+  LifeTraceLocation,
+  Bonus
 } from '../core/types';
 import { createRotationState, getAbsoluteSectorForProbe, getCell } from './SolarSystemPosition';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
@@ -52,6 +56,7 @@ export class ScoreManager {
       missionEndGame: 0,
       objectiveTiles: 0,
       speciesBonuses: 0,
+      exertienCards: 0,
       total: 0
     };
 
@@ -60,6 +65,8 @@ export class ScoreManager {
     scores.speciesBonuses = this.calculateSpeciesBonuses(player, game.discoveredSpecies);
 
     scores.objectiveTiles = this.calculateObjectiveTiles(player, game.board);
+
+    scores.exertienCards = this.revealExertienCards(game, player).reduce((sum, c) => sum + c.points, 0);
 
     // Total
     scores.total = Object.values(scores).reduce((sum, val) =>
@@ -291,41 +298,158 @@ export class ScoreManager {
   }
 
   /**
-   * Calcule le score de tous les joueurs et détermine le gagnant
+   * Cartes Exertiens jouées par le joueur, révélées avec leurs PV de fin de partie.
+   * Chaque carte rapporte ses PV une seule fois si sa condition (END_CONDITION) est remplie (FAQ Q45).
    */
-  static calculateAllScores(game: Game): Array<{
-    playerId: string;
-    scores: ScoreCategories;
-  }> {
-    return game.players.map(player => ({
-      playerId: player.id,
-      scores: this.calculateFinalScore(game, player.id)
-    }));
+  static revealExertienCards(game: Game, player: Player): RevealedExertienCard[] {
+    return (player.playedCards || [])
+      .filter(card => card.type === CardType.EXERTIEN)
+      .map(card => {
+        const condition = card.passiveEffects.find(e => e.type === 'END_CONDITION');
+        const [param, threshold, pv] = condition ? effectString(condition).split(':') : [];
+        const conditionMet = !!condition && this.exertienConditionValue(game, player, condition.target || '', param) >= parseInt(threshold, 10);
+        return { name: card.name, danger: card.danger || 0, points: conditionMet ? parseInt(pv, 10) : 0, conditionMet };
+      });
+  }
+
+  /** Valeur mesurée pour une condition de carte Exertien (comparée ensuite au seuil). */
+  private static exertienConditionValue(game: Game, player: Player, kind: string, param: string): number {
+    const sectorColors: Record<string, SectorType> = { red: SectorType.RED, blue: SectorType.BLUE, yellow: SectorType.YELLOW, black: SectorType.BLACK };
+    const techCategories: Record<string, TechnologyCategory> = { exploration: TechnologyCategory.EXPLORATION, observation: TechnologyCategory.OBSERVATION, computing: TechnologyCategory.COMPUTING };
+    const owned = (probes: { ownerId: string }[]) => probes.filter(p => p.ownerId === player.id).length;
+    const landersOn = (planet: Game['board']['planets'][number]) =>
+      owned(planet.landers) + (planet.satellites || []).reduce((sum, s) => sum + owned(s.landers), 0);
+    const exertienBoard = game.board.alienBoards.find(b => b.speciesId === AlienBoardType.EXERTIENS);
+
+    switch (kind) {
+      case 'TECH':
+        return player.technologies.filter(t => t.type === techCategories[param]).length;
+      case 'COVERED':
+        return game.board.sectors.filter(s => s.color === sectorColors[param]).reduce((sum, s) => sum + s.coveredBy.filter(id => id === player.id).length, 0);
+      case 'ORBITERS':
+        return game.board.planets.reduce((sum, p) => sum + owned(p.orbiters), 0);
+      case 'LANDERS':
+        return game.board.planets.reduce((sum, p) => sum + landersOn(p), 0);
+      case 'SAME_PLANET':
+        return Math.max(0, ...game.board.planets.map(p => owned(p.orbiters) + landersOn(p)));
+      case 'RESERVED':
+        return (player.reservedCards || []).length;
+      case 'TRACES_SPECIES':
+        // Traces du joueur sur le plateau Exertiens (« this ») ou sur les autres plateaux Alien (« other »)
+        return game.board.alienBoards
+          .filter(b => (param === 'this') === (b === exertienBoard))
+          .reduce((sum, b) => sum + b.lifeTraces.filter(t => t.playerId === player.id).length, 0);
+      case 'TRACES_SAME_COLOR': {
+        const colors = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE];
+        return Math.max(...colors.map(c => player.lifeTraces.filter(t => t.type === c).length));
+      }
+      case 'MISSIONS':
+        return player.missions.filter(m => m.completed).length;
+      default:
+        return 0;
+    }
   }
 
   /**
-   * Détermine le(s) gagnant(s) en cas d'égalité
+   * Danger Exertien d'un joueur : DANGER des cartes Exertiens jouées
+   * + danger des emplacements occupés par ses marqueurs sur la piste d'espèce Exertiens.
    */
-  static determineWinner(
-    scores: Array<{ playerId: string; scores: ScoreCategories }>
-  ): string[] {
-    // Trier par score total décroissant
-    const sorted = [...scores].sort((a, b) =>
-      b.scores.total - a.scores.total
-    );
+  static calculateExertienDanger(game: Game, player: Player): number {
+    const cardsDanger = (player.playedCards || [])
+      .filter(c => c.type === CardType.EXERTIEN)
+      .reduce((sum, c) => sum + (c.danger || 0), 0);
 
-    const winners: string[] = [];
-    const highestScore = sorted[0].scores.total;
+    const board = game.board.alienBoards.find(b => b.speciesId === AlienBoardType.EXERTIENS);
+    const species = game.species.find(s => s.name === AlienBoardType.EXERTIENS);
+    let markersDanger = 0;
+    if (board && species) {
+      const slotsByColor: Partial<Record<LifeTraceType, Bonus[]>> = {
+        [LifeTraceType.RED]: species.fixedSlots.redlifetrace,
+        [LifeTraceType.YELLOW]: species.fixedSlots.yellowlifetrace,
+        [LifeTraceType.BLUE]: species.fixedSlots.bluelifetrace,
+      };
+      board.lifeTraces
+        .filter(t => t.playerId === player.id && t.location === LifeTraceLocation.SPECIES && t.slotIndex !== undefined)
+        .forEach(t => {
+          markersDanger += slotsByColor[t.type]?.[t.slotIndex!]?.danger || 0;
+        });
+    }
+    return cardsDanger + markersDanger;
+  }
 
-    // En cas d'égalité, le dernier marqueur posé gagne
-    // Pour l'instant, on retourne tous les joueurs avec le score le plus élevé
-    sorted.forEach(result => {
-      if (result.scores.total === highestScore) {
-        winners.push(result.playerId);
-      }
+  /**
+   * Décompte final : catégories de fin de partie, révélation des cartes Exertiens,
+   * puis pénalité de danger (calculée après tous les autres PV).
+   *
+   * Pénalité : si les Exertiens ont été découverts, le joueur le plus exposé au danger perd 10 % de son
+   * total (arrondi à l'inférieur) ; en cas d'égalité, tous les joueurs à égalité la subissent.
+   * Si personne n'a de danger positif, personne n'est exposé : aucune pénalité.
+   */
+  static applyFinalScoring(game: Game): { updatedGame: Game; finalScores: FinalScore[]; historyEntries: HistoryEntry[] } {
+    const updatedGame = cloneGame(game);
+
+    const finalScores: FinalScore[] = updatedGame.players.map(player => {
+      const categories = this.calculateFinalScore(updatedGame, player.id);
+      return {
+        playerId: player.id,
+        baseScore: player.score,
+        categories,
+        revealedExertienCards: this.revealExertienCards(updatedGame, player),
+        danger: this.calculateExertienDanger(updatedGame, player),
+        dangerPenalty: 0,
+        finalScore: player.score + categories.total,
+      };
     });
 
-    return winners;
+    const exertiensDiscovered = updatedGame.board.alienBoards.some(b => b.speciesId === AlienBoardType.EXERTIENS && b.isDiscovered);
+    const maxDanger = Math.max(...finalScores.map(s => s.danger));
+    if (exertiensDiscovered && maxDanger > 0) {
+      finalScores.filter(s => s.danger === maxDanger).forEach(s => {
+        s.dangerPenalty = Math.floor(s.finalScore * 0.1);
+        s.finalScore -= s.dangerPenalty;
+      });
+    }
+
+    finalScores.forEach(s => {
+      updatedGame.players.find(p => p.id === s.playerId)!.score = s.finalScore;
+    });
+    updatedGame.finalScores = finalScores;
+
+    return { updatedGame, finalScores, historyEntries: this.describeFinalScores(updatedGame, finalScores) };
+  }
+
+  /** Entrées d'historique du décompte final (révélation des cartes Exertiens, PV gagnés, pénalité). */
+  static describeFinalScores(game: Game, finalScores: FinalScore[]): HistoryEntry[] {
+    const entries: HistoryEntry[] = [{ message: '--- DÉCOMPTE FINAL ---', playerId: '' }];
+    finalScores.forEach(s => {
+      const playerId = s.playerId;
+      if (s.revealedExertienCards.length > 0) {
+        const cards = s.revealedExertienCards
+          .map(c => `"${c.name}" (danger ${c.danger}, ${c.conditionMet ? `+${c.points} PV` : 'condition non remplie'})`)
+          .join(', ');
+        entries.push({ message: `révèle ses cartes Exertiens : ${cards}`, playerId });
+      }
+      const { objectiveTiles, missionEndGame, speciesBonuses, exertienCards, total } = s.categories;
+      entries.push({
+        message: `gagne ${total} PV au décompte final (objectifs ${objectiveTiles}, fin de partie ${missionEndGame}, espèces ${speciesBonuses}, Exertiens ${exertienCards})`,
+        playerId,
+      });
+      if (s.dangerPenalty > 0) {
+        entries.push({ message: `est le plus exposé au danger Exertien (${s.danger}) et perd ${s.dangerPenalty} PV (10 %)`, playerId });
+      }
+    });
+    const best = Math.max(...finalScores.map(s => s.finalScore));
+    const winners = finalScores.filter(s => s.finalScore === best).map(s => game.players.find(p => p.id === s.playerId)!.name);
+    entries.push({ message: `${winners.length > 1 ? 'Vainqueurs ex aequo' : 'Vainqueur'} : ${winners.join(', ')} avec ${best} PV`, playerId: '' });
+    return entries;
+  }
+
+  /**
+   * Gagnant(s) : meilleur score final (pénalité de danger comprise) ; tous les ex aequo sont renvoyés.
+   */
+  static determineWinner(finalScores: FinalScore[]): string[] {
+    const best = Math.max(...finalScores.map(s => s.finalScore));
+    return finalScores.filter(s => s.finalScore === best).map(s => s.playerId);
   }
 
   /**

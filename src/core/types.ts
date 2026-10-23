@@ -251,6 +251,8 @@ export interface Game {
   gameLog: GameLogEntry[];
   neutralMilestonesAvailable: Record<number, number>;
   exertienMilestones?: number[];
+  /** Décompte final, renseigné quand la partie passe en FINAL_SCORING */
+  finalScores?: FinalScore[];
   isSpeciesDiscovered: boolean;
 }
 
@@ -755,7 +757,32 @@ export interface ScoreCategories {
   missionEndGame: number;
   objectiveTiles: number;
   speciesBonuses: number;
+  /** Cartes Exertiens jouées dont la condition de fin de partie est remplie */
+  exertienCards: number;
+  /** Somme des catégories (avant la pénalité de danger) */
   total: number;
+}
+
+/** Carte Exertien révélée au décompte final. */
+export interface RevealedExertienCard {
+  name: string;
+  danger: number;
+  points: number;
+  conditionMet: boolean;
+}
+
+/** Décompte final d'un joueur, calculé une fois à la fin de la partie. */
+export interface FinalScore {
+  playerId: string;
+  /** Score avant le décompte final */
+  baseScore: number;
+  categories: ScoreCategories;
+  revealedExertienCards: RevealedExertienCard[];
+  /** Danger total : cartes Exertiens jouées + marqueurs sur la piste Exertiens */
+  danger: number;
+  /** PV perdus (10 % arrondi à l'inférieur pour le joueur le plus exposé, 0 sinon) */
+  dangerPenalty: number;
+  finalScore: number;
 }
 
 // ============================================================================

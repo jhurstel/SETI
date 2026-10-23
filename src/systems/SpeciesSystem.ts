@@ -388,8 +388,14 @@ export class SpeciesSystem {
             res.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId });
         }
 
-        // Carte 75 (Étude sur les Extrêmophiles) : 1 PV par trace de vie marquée de la couleur qui vient d'être gagnée
         const scoringPlayer = updatedGame.players.find(p => p.id === playerId)!;
+
+        // Piste Exertiens : le danger de l'emplacement s'ajoute à celui du joueur (affichage ; le décompte final le recalcule)
+        if (bonusToApply.danger) {
+            scoringPlayer.danger = (scoringPlayer.danger || 0) + bonusToApply.danger;
+        }
+
+        // Carte 75 (Étude sur les Extrêmophiles) : 1 PV par trace de vie marquée de la couleur qui vient d'être gagnée
         const scorePerTraceBuffs = scoringPlayer.activeBuffs.filter(b => b.type === 'SCORE_PER_TRACE');
         if (scorePerTraceBuffs.length > 0) {
             const tracesOfColor = scoringPlayer.lifeTraces.filter(t => t.type === color).length;

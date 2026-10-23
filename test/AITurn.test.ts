@@ -76,6 +76,10 @@ describe('AITurn (parties complètes entre robots)', () => {
 
     expect(result.game.phase).toBe(GamePhase.FINAL_SCORING);
     expect(result.game.currentRound).toBe(result.game.maxRounds);
+    expect(result.game.finalScores).toHaveLength(playerCount);
+    result.game.players.forEach(p => {
+      expect(p.score).toBe(result.game.finalScores!.find(s => s.playerId === p.id)!.finalScore);
+    });
     expect(result.steps).toBeLessThan(5000);
   }, 60000);
 

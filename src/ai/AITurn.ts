@@ -47,6 +47,8 @@ export class AITurn {
   static playStep(game: Game): AIStep {
     const player = game.players[game.currentPlayerIndex];
 
+    if (game.phase === GamePhase.FINAL_SCORING) return { kind: 'WAIT' };
+
     if (game.phase === GamePhase.SETUP) {
       return this.reserveForSetup(game, player);
     }

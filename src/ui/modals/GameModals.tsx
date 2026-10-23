@@ -1,4 +1,4 @@
-import { InteractionState, Game, AlienBoardType } from '../../core/types';
+import { InteractionState, Game, AlienBoardType, FinalScore } from '../../core/types';
 import { ScoreManager } from '../../core/ScoreManager';
 import { ResourceSystem } from '../../systems/ResourceSystem';
 import { CardSystem } from '../../systems/CardSystem';
@@ -204,20 +204,18 @@ export const BonusChoiceModal = ({ interactionState, onChoice, onFinish }: { int
 }
 
 export const EndGameModal = ({ game }: { game: Game }) => {
-  const scoresData = game.players.map(p => {
-    const bonuses = ScoreManager.calculateFinalScore(game, p.id);
-    // Le score dans game.players est déjà le score final (mis à jour par TurnManager)
-    // On recalcule le score de base pour l'affichage
-    const baseScore = p.score - bonuses.total;
-    return {
-      player: p,
-      bonuses,
-      baseScore,
-      total: p.score
-    };
-  }).sort((a, b) => b.total - a.total);
+  // Décompte calculé une fois par le moteur (TurnManager.endRound → ScoreManager.applyFinalScoring).
+  // Anciennes sauvegardes sans décompte enregistré : seul le score final est connu.
+  const emptyCategories = { missionEndGame: 0, objectiveTiles: 0, speciesBonuses: 0, exertienCards: 0, total: 0 };
+  const finalScores: FinalScore[] = game.finalScores ?? game.players.map(p => ({
+    playerId: p.id, baseScore: p.score, categories: emptyCategories, revealedExertienCards: [], danger: 0, dangerPenalty: 0, finalScore: p.score,
+  }));
+  const rows = finalScores
+    .map(score => ({ score, player: game.players.find(p => p.id === score.playerId)! }))
+    .sort((a, b) => b.score.finalScore - a.score.finalScore);
 
-  const winner = scoresData[0];
+  const winners = ScoreManager.determineWinner(finalScores).map(id => game.players.find(p => p.id === id)!);
+  const withExertienCards = rows.filter(r => r.score.revealedExertienCards.length > 0);
 
   return (
     <div className="seti-endgame-overlay">
@@ -225,34 +223,58 @@ export const EndGameModal = ({ game }: { game: Game }) => {
         <div className="seti-endgame-header">
           <h1>FIN DE PARTIE</h1>
           <div className="seti-endgame-winner">
-            Vainqueur : <span style={{ color: winner.player.color }}>{winner.player.name}</span>
+            {winners.length > 1 ? 'Vainqueurs ex aequo' : 'Vainqueur'} :{' '}
+            {winners.map((w, i) => (
+              <span key={w.id} style={{ color: w.color }}>{i > 0 ? ', ' : ''}{w.name}</span>
+            ))}
           </div>
         </div>
-        
+
         <div className="seti-endgame-scores">
           <div className="seti-endgame-row header">
             <div className="col-rank">#</div>
             <div className="col-player">Joueur</div>
-            <div className="col-score">Base</div>
-            <div className="col-score">Obj.</div>
-            <div className="col-score">Miss.</div>
-            <div className="col-score">Alien</div>
+            <div className="col-score" title="Score avant le décompte final">Base</div>
+            <div className="col-score" title="Tuiles objectif">Obj.</div>
+            <div className="col-score" title="Cartes fin de partie">Fin</div>
+            <div className="col-score" title="Bonus d'espèces">Esp.</div>
+            <div className="col-score" title="Cartes Exertiens jouées">Exert.</div>
+            <div className="col-score" title="Danger Exertien (PV perdus)">Danger</div>
             <div className="col-total">Total</div>
           </div>
-          
-          {scoresData.map((data, index) => (
-            <div key={data.player.id} className="seti-endgame-row">
+
+          {rows.map(({ score, player }, index) => (
+            <div key={player.id} className="seti-endgame-row">
               <div className="col-rank">{index + 1}</div>
-              <div className="col-player" style={{ color: data.player.color }}>{data.player.name}</div>
-              <div className="col-score">{data.baseScore}</div>
-              <div className="col-score">{data.bonuses.objectiveTiles}</div>
-              <div className="col-score">{data.bonuses.missionEndGame}</div>
-              <div className="col-score">{data.bonuses.speciesBonuses}</div>
-              <div className="col-total">{data.total}</div>
+              <div className="col-player" style={{ color: player.color }}>{player.name}</div>
+              <div className="col-score">{score.baseScore}</div>
+              <div className="col-score">{score.categories.objectiveTiles}</div>
+              <div className="col-score">{score.categories.missionEndGame}</div>
+              <div className="col-score">{score.categories.speciesBonuses}</div>
+              <div className="col-score">{score.categories.exertienCards}</div>
+              <div className="col-score" style={score.dangerPenalty > 0 ? { color: '#ff6b6b' } : undefined}>
+                {score.danger}{score.dangerPenalty > 0 ? ` (−${score.dangerPenalty})` : ''}
+              </div>
+              <div className="col-total">{score.finalScore}</div>
             </div>
           ))}
         </div>
-        
+
+        {withExertienCards.length > 0 && (
+          <div className="seti-endgame-exertiens">
+            <div className="seti-endgame-exertiens-title">Cartes Exertiens révélées</div>
+            {withExertienCards.map(({ score, player }) => (
+              <div key={player.id} className="seti-endgame-exertiens-row">
+                <span style={{ color: player.color, fontWeight: 'bold' }}>{player.name} :</span>{' '}
+                {score.revealedExertienCards.map(c => `${c.name} (danger ${c.danger}, ${c.conditionMet ? `+${c.points} PV` : 'non remplie'})`).join(' · ')}
+              </div>
+            ))}
+            <div className="seti-endgame-exertiens-note">
+              Le joueur le plus exposé au danger perd 10 % de son total (arrondi à l'inférieur) ; en cas d'égalité, tous les ex aequo.
+            </div>
+          </div>
+        )}
+
         <button className="seti-endgame-btn" onClick={() => window.location.reload()}>
           Nouvelle Partie
         </button>

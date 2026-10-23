@@ -1,4 +1,4 @@
-import { Game, GamePhase, Player, GameState, MAIN_ACTION_TYPES } from './types';
+import { Game, GamePhase, Player, GameState, MAIN_ACTION_TYPES, FinalScore } from './types';
 import { BaseAction } from '../actions/Action';
 import { ActionValidator } from './ActionValidator';
 import { TurnManager } from './TurnManager';
@@ -108,23 +108,18 @@ export class GameEngine {
   /**
    * Calcule le score final de tous les joueurs
    */
-  calculateFinalScores(): Array<{
-    playerId: string;
-    scores: import('../core/types').ScoreCategories;
-  }> {
-    if (this.state.phase !== GamePhase.FINAL_SCORING) {
+  calculateFinalScores(): FinalScore[] {
+    if (this.state.phase !== GamePhase.FINAL_SCORING || !this.state.finalScores) {
       throw new Error('La partie n\'est pas terminée');
     }
-
-    return ScoreManager.calculateAllScores(this.state);
+    return this.state.finalScores;
   }
 
   /**
-   * Détermine le(s) gagnant(s)
+   * Détermine le(s) gagnant(s) (score final, pénalité de danger comprise)
    */
   determineWinner(): string[] {
-    const scores = this.calculateFinalScores();
-    return ScoreManager.determineWinner(scores);
+    return ScoreManager.determineWinner(this.calculateFinalScores());
   }
 
   /**

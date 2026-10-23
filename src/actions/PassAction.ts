@@ -1,4 +1,5 @@
-import { Game, ActionType, ValidationResult } from '../core/types';
+import { Game, ActionType, ValidationResult, GamePhase } from '../core/types';
+import { ScoreManager } from '../core/ScoreManager';
 import { BaseAction } from './Action';
 import { TurnManager } from '../core/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
@@ -123,6 +124,12 @@ export class PassAction extends BaseAction {
         if (player.revenueCards > 0) gains.push(ResourceSystem.formatResource(player.revenueCards, 'CARD'));
         if (gains.length > 0) this.historyEntries.push({ message: `perçoit ses revenus : ${gains.join(', ')}`, playerId: player.id, sequenceId: '' });
       });
+
+      if (updatedGame.phase === GamePhase.FINAL_SCORING && updatedGame.finalScores) {
+        // Dernière manche terminée : décompte final
+        this.historyEntries.push(...ScoreManager.describeFinalScores(updatedGame, updatedGame.finalScores).map(e => ({ ...e, sequenceId: '' })));
+        return updatedGame;
+      }
 
       // Log du changement de premier joueur
       this.historyEntries.push({ message: `devient le Premier Joueur`, playerId: updatedGame.players[updatedGame.firstPlayerIndex].id, sequenceId: '' });

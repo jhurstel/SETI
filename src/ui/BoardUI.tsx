@@ -292,9 +292,9 @@ export const BoardUI: React.FC = () => {
         action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, currentGame, undefined, e.sequenceId));
       }
 
-      // TODO: gerer la fin de partie
-      // si newGame.phase === GamePhase.FINAL_SCORING
-      
+      // Fin de partie : le décompte final est fait par le moteur (TurnManager.endRound),
+      // l'écran de fin s'affiche dès que la phase passe à FINAL_SCORING
+
       // Patch de sécurité : Si une nouvelle manche commence, réinitialiser hasPerformedMainAction
       if (result.updatedState.currentRound > currentGame.currentRound) {
         result.updatedState.players = result.updatedState.players.map(p => ({ ...p, hasPerformedMainAction: false }));

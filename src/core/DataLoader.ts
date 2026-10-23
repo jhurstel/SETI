@@ -197,8 +197,17 @@ export class DataLoader {
 
     for (const passive of passives) {
 
+      // Condition de fin de partie des cartes Exertiens : END_CONDITION:<type>:<paramètre>:<seuil>:<PV>
+      // (target = type de condition, value = "paramètre:seuil:PV", évalué par ScoreManager)
+      if (passive.startsWith('END_CONDITION:')) {
+        const parts = passive.split(':');
+        if (parts.length === 5) {
+          effects.push({ type: 'END_CONDITION', target: parts[1], value: parts.slice(2).join(':') });
+        }
+      }
+
       // Gestion du format VISIT_PLANET:mars:4 (4 PV)
-      if (passive.startsWith('VISIT_PLANET:')) {
+      else if (passive.startsWith('VISIT_PLANET:')) {
         const parts = passive.split(':');
         if (parts.length === 3) {
           effects.push({ type: 'VISIT_BONUS', target: parts[1], value: parseInt(parts[2], 10) });
