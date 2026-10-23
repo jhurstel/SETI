@@ -371,7 +371,8 @@ export class ScoreManager {
       board.lifeTraces
         .filter(t => t.playerId === player.id && t.location === LifeTraceLocation.SPECIES && t.slotIndex !== undefined)
         .forEach(t => {
-          markersDanger += slotsByColor[t.type]?.[t.slotIndex!]?.danger || 0;
+          // Valeur absolue : les anciennes sauvegardes stockaient ces dangers en négatif
+          markersDanger += Math.abs(slotsByColor[t.type]?.[t.slotIndex!]?.danger || 0);
         });
     }
     return cardsDanger + markersDanger;

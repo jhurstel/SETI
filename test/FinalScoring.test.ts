@@ -83,9 +83,19 @@ describe('Décompte final', () => {
       discoverExertiens(game);
       const player = getPlayer(game, P1);
       player.playedCards = [card('ET.41'), card('ET.43')]; // 6 + 3
-      game.board.alienBoards[0].lifeTraces.push({ id: 'm', type: LifeTraceType.RED, playerId: P1, location: LifeTraceLocation.SPECIES, slotIndex: 0 }); // -3
+      game.board.alienBoards[0].lifeTraces.push({ id: 'm', type: LifeTraceType.RED, playerId: P1, location: LifeTraceLocation.SPECIES, slotIndex: 0 }); // +3
 
-      expect(ScoreManager.calculateExertienDanger(game, player)).toBe(6);
+      expect(ScoreManager.calculateExertienDanger(game, player)).toBe(12);
+    });
+
+    test('les marqueurs ajoutent du danger, même avec une ancienne sauvegarde aux valeurs négatives', () => {
+      discoverExertiens(game);
+      const species = game.species.find(s => s.name === AlienBoardType.EXERTIENS)!;
+      expect(species.fixedSlots.redlifetrace.every(slot => (slot.danger || 0) > 0)).toBe(true);
+
+      species.fixedSlots.redlifetrace[0] = { ...species.fixedSlots.redlifetrace[0], danger: -3 };
+      game.board.alienBoards[0].lifeTraces.push({ id: 'm', type: LifeTraceType.RED, playerId: P1, location: LifeTraceLocation.SPECIES, slotIndex: 0 });
+      expect(ScoreManager.calculateExertienDanger(game, getPlayer(game, P1))).toBe(3);
     });
   });
 

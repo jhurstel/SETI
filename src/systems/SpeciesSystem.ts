@@ -390,9 +390,10 @@ export class SpeciesSystem {
 
         const scoringPlayer = updatedGame.players.find(p => p.id === playerId)!;
 
-        // Piste Exertiens : le danger de l'emplacement s'ajoute à celui du joueur (affichage ; le décompte final le recalcule)
+        // Piste Exertiens : le danger de l'emplacement s'ajoute à celui du joueur (affichage ; le décompte final le recalcule).
+        // Valeur absolue : les anciennes sauvegardes stockaient ces dangers en négatif
         if (bonusToApply.danger) {
-            scoringPlayer.danger = (scoringPlayer.danger || 0) + bonusToApply.danger;
+            scoringPlayer.danger = (scoringPlayer.danger || 0) + Math.abs(bonusToApply.danger);
         }
 
         // Carte 75 (Étude sur les Extrêmophiles) : 1 PV par trace de vie marquée de la couleur qui vient d'être gagnée
