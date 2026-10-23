@@ -9,6 +9,7 @@
  * - Limites (max 1 sonde dans le système solaire sans technologie)
  */
 
+import { effectNumber, effectBonus } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
 import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, InteractionState, LifeTraceType } from '../core/types';
 import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe, getAllCelestialObjects } from '../core/SolarSystemPosition';
@@ -357,8 +358,8 @@ export class ProbeSystem {
       const buffsToTrigger = player.activeBuffs.filter(buff => buff.type === 'VISIT_BONUS' && buff.target === planetId);
 
       buffsToTrigger.forEach(buff => {
-        bonus.pv += buff.value;
-        message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
+        bonus.pv = (bonus.pv || 0) + effectNumber(buff);
+        message += ` et gagne ${ResourceSystem.formatResource(effectNumber(buff), 'PV')} ("${buff.source}")`;
       });
 
       // Retirer les buffs consommés (pour ne pas gagner 2x les points si on revient sur la planète)
@@ -370,8 +371,8 @@ export class ProbeSystem {
       if (isNewVisit) {
         const uniqueBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_UNIQUE');
         uniqueBuffs.forEach(buff => {
-          bonus.pv += buff.value;
-          message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
+          bonus.pv = (bonus.pv || 0) + effectNumber(buff);
+          message += ` et gagne ${ResourceSystem.formatResource(effectNumber(buff), 'PV')} ("${buff.source}")`;
         });
       }
     }
@@ -380,8 +381,8 @@ export class ProbeSystem {
     if (targetCell && targetCell.hasAsteroid) {
       const asteroidBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_ASTEROID');
       asteroidBuffs.forEach(buff => {
-        bonus.data += buff.value;
-        message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'DATA')} ("${buff.source}")`;
+        bonus.data = (bonus.data || 0) + effectNumber(buff);
+        message += ` et gagne ${ResourceSystem.formatResource(effectNumber(buff), 'DATA')} ("${buff.source}")`;
       });
       if (asteroidBuffs.length > 0) {
         player.activeBuffs = player.activeBuffs.filter(buff => buff.type !== 'VISIT_ASTEROID');
@@ -392,8 +393,8 @@ export class ProbeSystem {
     if (targetCell && targetCell.hasComet) {
       const cometBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_COMET');
       cometBuffs.forEach(buff => {
-        bonus.pv += buff.value;
-        message += ` et gagne ${ResourceSystem.formatResource(buff.value, 'PV')} ("${buff.source}")`;
+        bonus.pv = (bonus.pv || 0) + effectNumber(buff);
+        message += ` et gagne ${ResourceSystem.formatResource(effectNumber(buff), 'PV')} ("${buff.source}")`;
       });
       if (cometBuffs.length > 0) {
         player.activeBuffs = player.activeBuffs.filter(buff => buff.type !== 'VISIT_COMET');
@@ -404,12 +405,13 @@ export class ProbeSystem {
     if (targetDisk === probe.solarPosition.disk) {
       const sameDiskBuffs = player.activeBuffs.filter(buff => buff.type === 'SAME_DISK_MOVE');
       sameDiskBuffs.forEach(buff => {
-        if (buff.value.pv) bonus.pv += buff.value.pv;
-        if (buff.value.media) bonus.media += buff.value.media; // Note: mediaBonus is applied to player.mediaCoverage later
+        const gain = effectBonus(buff);
+        if (gain.pv) bonus.pv = (bonus.pv || 0) + gain.pv;
+        if (gain.media) bonus.media = (bonus.media || 0) + gain.media; // Note: mediaBonus is applied to player.mediaCoverage later
 
         const gains: string[] = [];
-        if (buff.value.pv) gains.push(ResourceSystem.formatResource(buff.value.pv, 'PV'));
-        if (buff.value.media) gains.push(ResourceSystem.formatResource(buff.value.media, 'MEDIA'));
+        if (gain.pv) gains.push(ResourceSystem.formatResource(gain.pv, 'PV'));
+        if (gain.media) gains.push(ResourceSystem.formatResource(gain.media, 'MEDIA'));
         message += ` et gagne ${gains.join(', ')} ("${buff.source}")`;
       });
       if (sameDiskBuffs.length > 0) {

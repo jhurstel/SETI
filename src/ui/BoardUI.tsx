@@ -1,3 +1,4 @@
+import { effectNumber, effectAmount } from '../core/cardEffects';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, LifeTraceType, InteractionState, GamePhase, SignalType, HistoryEntry, getInteractionLabel, LifeTraceLocation } from '../core/types';
 import { createRotationState, getCell, getObjectPosition, getAbsoluteSectorForProbe, calculateAbsolutePosition } from '../core/SolarSystemPosition';
@@ -1710,15 +1711,15 @@ export const BoardUI: React.FC = () => {
       if (card.immediateEffects) {
         card.immediateEffects.forEach(effect => {
           if (effect.type === 'GAIN') {
-            if (effect.target === 'PROBE') bonusToCheck.probe = (bonusToCheck.probe || 0) + effect.value;
-            if (effect.target === 'DATA') bonusToCheck.data = (bonusToCheck.data || 0) + effect.value;
-            if (effect.target === 'MEDIA') bonusToCheck.media = (bonusToCheck.media || 0) + effect.value;
+            if (effect.target === 'PROBE') bonusToCheck.probe = (bonusToCheck.probe || 0) + effectNumber(effect);
+            if (effect.target === 'DATA') bonusToCheck.data = (bonusToCheck.data || 0) + effectNumber(effect);
+            if (effect.target === 'MEDIA') bonusToCheck.media = (bonusToCheck.media || 0) + effectNumber(effect);
           } else if (effect.type === 'ACTION') {
-            if (effect.target === 'MOVEMENT') bonusToCheck.movements = (bonusToCheck.movements || 0) + effect.value;
-            if (effect.target === 'LAND') bonusToCheck.landing = (bonusToCheck.landing || 0) + effect.value;
+            if (effect.target === 'MOVEMENT') bonusToCheck.movements = (bonusToCheck.movements || 0) + effectNumber(effect);
+            if (effect.target === 'LAND') bonusToCheck.landing = (bonusToCheck.landing || 0) + effectNumber(effect);
             if (effect.target === 'TECH') {
               if (!bonusToCheck.technologies) bonusToCheck.technologies = [];
-              bonusToCheck.technologies.push(effect.value);
+              bonusToCheck.technologies.push(effectAmount<TechnologyCategory>(effect));
             }
           }
         });

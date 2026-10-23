@@ -1,3 +1,4 @@
+import { effectString } from '../core/cardEffects';
 import { Game, Player, ActionType, GamePhase, RevenueType, FreeActionType, ProbeState, DiskName, SectorNumber, LifeTraceType, HistoryEntry, InteractionState } from '../core/types';
 import { GameEngine } from '../core/Game';
 import { cloneGame } from '../core/cloneGame';
@@ -182,7 +183,7 @@ export class AITurn {
         if (!req.id || (mission.completedRequirementIds || []).includes(req.id)) continue;
         if (!req.type.startsWith('GAIN_IF_')) continue;
 
-        const bonus = CardSystem.evaluateMission(game, player.id, req.value);
+        const bonus = CardSystem.evaluateMission(game, player.id, effectString(req));
         if (!bonus) continue;
 
         const updatedGame = cloneGame(game);

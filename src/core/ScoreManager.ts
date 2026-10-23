@@ -14,6 +14,7 @@
  * - Effets spécifiques d'espèces
  */
 
+import { effectNumber } from './cardEffects';
 import { cloneGame } from './cloneGame';
 import {
   Game,
@@ -95,7 +96,7 @@ export class ScoreManager {
                     count += sat.landers.filter(p => p.ownerId === player.id).length;
                   });
                 }
-                bonus += count * effect.value;
+                bonus += count * effectNumber(effect);
               }
             }
           } else if (effect.type === 'SCORE_PER_COVERED_SECTOR') {
@@ -113,7 +114,7 @@ export class ScoreManager {
                   count += s.coveredBy.filter(id => id === player.id).length;
                 }
               });
-              bonus += count * effect.value;
+              bonus += count * effectNumber(effect);
             }
           } else if (effect.type === 'SCORE_PER_LIFETRACE') {
             const colorStr = effect.target;
@@ -124,11 +125,11 @@ export class ScoreManager {
 
             if (type) {
               const count = player.lifeTraces.filter(t => t.type === type).length;
-              bonus += count * effect.value;
+              bonus += count * effectNumber(effect);
             }
           } else if (effect.type === 'SCORE_PER_SIGNAL') {
             const count = game.board.sectors.filter(s => s.signals.some(sig => sig.markedBy === player.id)).length;
-            bonus += count * effect.value;
+            bonus += count * effectNumber(effect);
           } else if (effect.type === 'SCORE_PER_TECH_CATEGORY') {
             const catStr = effect.target;
             let category: TechnologyCategory | undefined;
@@ -138,7 +139,7 @@ export class ScoreManager {
 
             if (category) {
               const count = player.technologies.filter(t => t.type === category).length;
-              bonus += count * effect.value;
+              bonus += count * effectNumber(effect);
             }
           } else if (effect.type === 'SCORE_IF_PROBE_ON_ASTEROID') {
             const rotationState = createRotationState(
@@ -153,7 +154,7 @@ export class ScoreManager {
               return cell?.hasAsteroid;
             });
             if (hasProbe) {
-              bonus += effect.value;
+              bonus += effectNumber(effect);
             }
           } else if (effect.type === 'SCORE_SOLVAY') {
             // Trouver le gain maximum parmi les récompenses "others" des tuiles non validées par le joueur

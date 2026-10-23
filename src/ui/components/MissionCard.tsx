@@ -1,3 +1,4 @@
+import { effectString } from '../../core/cardEffects';
 import React from 'react';
 import { Mission, Game } from '../../core/types';
 import { CardSystem } from '../../systems/CardSystem';
@@ -99,7 +100,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
           if (requirement) {
             if (requirement.type.startsWith('GAIN_IF_')) {
               isConditional = true;
-              const bonus = CardSystem.evaluateMission(game, playerId, requirement.value);
+              const bonus = CardSystem.evaluateMission(game, playerId, effectString(requirement));
               if (bonus) isFulfillable = true;
             }
           }

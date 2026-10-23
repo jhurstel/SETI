@@ -1,3 +1,4 @@
+import { effectString } from './cardEffects';
 import { Bonus, Game, HistoryEntry, InteractionState } from './types';
 import { cloneGame } from './cloneGame';
 import { ScanSystem } from '../systems/ScanSystem';
@@ -144,7 +145,7 @@ export class InteractionResolver {
     const skipCheck = mission.fulfillableRequirementIds.includes(interaction.requirementId);
 
     if (requirement && (requirement.type.startsWith('GAIN_IF_') || requirement.type.startsWith('GAIN_ON_'))) {
-      const bonus = CardSystem.evaluateMission(updatedGame, playerId, requirement.value, skipCheck);
+      const bonus = CardSystem.evaluateMission(updatedGame, playerId, effectString(requirement), skipCheck);
       if (!bonus) return { updatedGame: game, historyEntries: [], newInteractions: [], error: 'Conditions non remplies.' };
       ResourceSystem.accumulateBonus(bonus, bonuses);
     }

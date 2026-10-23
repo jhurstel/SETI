@@ -40,6 +40,7 @@ src/
 │   ├── GamePersistence.ts   # serializeGame / deserializeGame (autosave et fichiers de sauvegarde)
 │   ├── InteractionResolver.ts # Interactions automatiques (résolution de secteur, missions, PIXL, pioche+scan) — partagé UI/IA
 │   ├── cloneGame.ts         # Copie profonde de l'état (voir « État immuable »)
+│   ├── cardEffects.ts       # Accesseurs typés de CardEffect.value (effectNumber, effectString, effectAmount, effectBonus)
 │   ├── ActionValidator.ts   # Règles génériques (tour, passé, 1 action principale/tour) puis action.validate()
 │   ├── ScoreManager.ts      # Décompte final
 │   └── Logger.ts
@@ -57,13 +58,13 @@ src/
 │   ├── AIController.ts      # Résout automatiquement la file d'interactions en attente pour un robot
 │   └── AITurn.ts            # Tour complet d'un robot, une étape à la fois (pur, testable sans React)
 └── ui/
-    ├── BoardUI.tsx          # ⚠ Composant principal (~2700 lignes) : état React, interactions du joueur humain
+    ├── BoardUI.tsx          # ⚠ Composant principal (~2400 lignes) : état React, interactions du joueur humain
     ├── hooks/               # useAITurn (cadence des robots), useAutosave (localStorage)
     ├── SolarSystemBoardUI.tsx (~1700), PlayerBoardUI, PlanetBoardUI, AlienBoardUI, TechnologyBoardUI, ObjectiveBoardUI, CardRowUI, HistoryBoardUI
     ├── components/          # HandCard, MissionCard, CardTooltip, PlayerComputer, PlanetIcon, SvgBonus, SectorDetails…
     ├── modals/              # NewGame, Settings, Pass, GameModals
     └── styles/celestialStyles.ts
-test/                        # GameEngine.test.ts, ProbeSystem.test.ts (jest)
+test/                        # Jest : un fichier par module moteur + AITurn (parties complètes entre robots), helpers/gameFixture.ts
 docs/archive/                # Documents de conception initiaux, obsolètes
 ```
 
@@ -76,6 +77,7 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
 - **Historique** : `HistoryEntry { message, playerId, sequenceId }`. `sequenceId` regroupe les entrées d'une même action et sert à l'undo. Les messages sont en français et affichés au joueur.
 - **Interactions multi-étapes** : union discriminée `InteractionState` (`types.ts`). `BoardUI` tient `interactionState` et la file `pendingInteractions`. Pour en ajouter une : variant dans `InteractionState`, libellé dans `getInteractionLabel` (BoardUI), gestion dans les handlers **et** dans `AIController.processSingleInteraction` pour les robots.
 - **Cartes** : CSV `;` avec les colonnes `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte`. `Gain` et `Contrainte` encodent les effets (`1 Sonde + 1 Média`, `GAIN_ON_VISIT:jupiter:data:1`, `VISIT_PLANET:mars:4`…), parsés dans `DataLoader`. Modifier une carte = modifier le CSV dans `public/cards/`.
+- **Effets de carte** : `CardEffect.value` est de type `CardEffectValue` (nombre, booléen, chaîne de mission, `EffectAmount` ou `Bonus`). Le lire avec les accesseurs de `core/cardEffects.ts` (`effectNumber(effect)` pour un calcul, `effectString` pour une mission `GAIN_IF_…`, `effectAmount<Scope>` pour quantité + portée, `effectBonus` pour des gains multiples), jamais avec `effect.value` brut dans une opération.
 - **Joueurs** : `type: 'human' | 'robot'`. L'humain est piloté par l'UI. Les robots sont gérés par `AITurn.playStep` / `AITurn.endTurn`, qui s'appuient sur `AIBehavior` et `AIController` ; le hook `useAITurn` appelle une étape toutes les 1,5 s. Toute logique de robot va dans `AITurn` (moteur), pas dans le hook. `test/AITurn.test.ts` joue des parties complètes entre robots : c'est le test de non-régression global du moteur.
 - **Interactions automatiques** (`TRIGGER_CARD_EFFECT`, `RESOLVING_SECTOR`, `DRAW_AND_SCAN`, `CLAIMING_MISSION_REQUIREMENT`) : une seule implémentation, `InteractionResolver.resolve`, appelée par `BoardUI` (joueur humain) et par `AIController` (robots). Ne pas réimplémenter ces règles ailleurs. Une interaction destinée à un autre joueur porte son `playerId` ; pendant le tour d'un robot, celles destinées à un humain remontent à l'interface (`AIController` → `AITurn` → `useAITurn.onHumanInteractions`). Pour placer automatiquement une trace de vie, utiliser `SpeciesSystem.placeLifeTraceAuto`.
 - **Logique métier hors de l'UI** : quand un handler de `BoardUI` contient de la logique de règles, la déplacer dans le moteur (`TurnManager`, systems, actions) et ne garder dans l'UI que l'application de l'état, l'historique et les toasts.
@@ -85,7 +87,7 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
 - **Tests** : Jest + ts-jest dans `test/`, type-checkés via `test/tsconfig.json` (inclus dans `npm run typecheck`).
   - `test/helpers/gameFixture.ts` : `createTestGame()` crée une **vraie** partie (fetch simulé qui sert `public/`, donc les vraies cartes), `makeCard()`, `getPlayer()`. À privilégier plutôt que des mocks d'état écrits à la main.
   - Un bug connu et pas encore corrigé est documenté par un `test.failing(...)`. Retirer `.failing` quand il est corrigé.
-  - Couverture actuelle : SolarSystemPosition, ScanSystem, CardSystem (pioche, réserve, défausse, achat), DataLoader (tous les CSV), TurnManager, PassAction, GameFactory, ProbeSystem (base), GameEngine.
+  - Couverture : SolarSystemPosition, ScanSystem, CardSystem, DataLoader (tous les CSV), TurnManager/PassAction, GameFactory, GameEngine (undo), GamePersistence, InteractionResolver, Exertiens, orbite/atterrissage, immutabilité, cardEffects, et des parties complètes entre robots (AITurn).
 
 ## Points d'attention
 

@@ -440,10 +440,22 @@ export interface Card {
   danger?: number;
 }
 
+/** Quantité + portée (ex: 2 signaux jaunes, 1 technologie Exploration, 1 trace de vie rouge). */
+export interface EffectAmount<S = string> {
+  amount: number;
+  scope: S;
+}
+
+/**
+ * Valeur d'un effet de carte, selon son type : nombre, drapeau, chaîne de mission (« GAIN_IF_… »),
+ * quantité + portée, ou gains multiples. Lire via les accesseurs de core/cardEffects.ts.
+ */
+export type CardEffectValue = number | boolean | string | EffectAmount<string> | Bonus;
+
 export interface CardEffect {
   id?: string;
   type: string;
-  value: any;
+  value: CardEffectValue;
   target?: string;
   source?: string;
 }

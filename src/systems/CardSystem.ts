@@ -1,3 +1,4 @@
+import { effectNumber, effectString, effectAmount } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
 import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CelestialObject, CostType } from '../core/types';
 import { createRotationState, calculateAbsolutePosition, getCell, getAdjacentCells, getObjectPosition, getAllCelestialObjects, getAbsoluteSectorForProbe, calculateReachableCells } from '../core/SolarSystemPosition';
@@ -281,7 +282,7 @@ export class CardSystem {
                     if (card.type === CardType.CONDITIONAL_MISSION) {
                         newMission.requirements.forEach(req => {
                             if (req.type.startsWith('GAIN_IF_')) {
-                                const bonus = CardSystem.evaluateMission(updatedGame, player.id, req.value);
+                                const bonus = CardSystem.evaluateMission(updatedGame, player.id, effectString(req));
                                 if (bonus) {
                                     ResourceSystem.accumulateBonus(bonus, bonuses);
                                     newMission.completedRequirementIds.push(req.id!);
@@ -306,58 +307,58 @@ export class CardSystem {
                 if (effect.type === 'GAIN') {
                     switch (effect.target) {
                         case 'CREDIT':
-                            bonuses.credits = (bonuses.credits || 0) + effect.value;
+                            bonuses.credits = (bonuses.credits || 0) + effectNumber(effect);
                             break;
                         case 'ENERGY':
-                            bonuses.energy = (bonuses.energy || 0) + effect.value;
+                            bonuses.energy = (bonuses.energy || 0) + effectNumber(effect);
                             break;
                         case 'DATA':
-                            bonuses.data = Math.min((bonuses.data || 0) + effect.value, GAME_CONSTANTS.MAX_DATA);
+                            bonuses.data = Math.min((bonuses.data || 0) + effectNumber(effect), GAME_CONSTANTS.MAX_DATA);
                             break;
                         case 'MEDIA':
-                            bonuses.media = Math.min((bonuses.media || 0) + effect.value, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                            bonuses.media = Math.min((bonuses.media || 0) + effectNumber(effect), GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
                             break;
                         case 'CARD':
-                            bonuses.card = (bonuses.card || 0) + effect.value;
+                            bonuses.card = (bonuses.card || 0) + effectNumber(effect);
                             break;
                         case 'PROBE':
-                            bonuses.probe = (bonuses.probe || 0) + effect.value;
+                            bonuses.probe = (bonuses.probe || 0) + effectNumber(effect);
                             break;
                         case 'TOKEN':
-                            bonuses.token = (bonuses.token || 0) + effect.value;
+                            bonuses.token = (bonuses.token || 0) + effectNumber(effect);
                             break;
                     }
                 } else if (effect.type === 'ACTION') {
                     switch (effect.target) {
                         case 'ANYCARD':
-                            bonuses.anycard = (bonuses.anycard || 0) + effect.value;
+                            bonuses.anycard = (bonuses.anycard || 0) + effectNumber(effect);
                             break;
                         case 'ROTATION':
-                            bonuses.rotation = (bonuses.rotation || 0) + effect.value;
+                            bonuses.rotation = (bonuses.rotation || 0) + effectNumber(effect);
                             break;
                         case 'ORBIT':
-                            bonuses.orbiting = (bonuses.orbiting || 0) + effect.value;
+                            bonuses.orbiting = (bonuses.orbiting || 0) + effectNumber(effect);
                             break;
                         case 'LAND':
-                        bonuses.landing = (bonuses.landing || 0) + effect.value;
+                        bonuses.landing = (bonuses.landing || 0) + effectNumber(effect);
                         break;
                         case 'MOVEMENT':
-                            bonuses.movements = (bonuses.movements || 0) + effect.value;
+                            bonuses.movements = (bonuses.movements || 0) + effectNumber(effect);
                             break;
                         case 'TECH':
                             bonuses.technologies = (bonuses.technologies || []);
-                            bonuses.technologies.push(effect.value);
+                            bonuses.technologies.push(effectAmount<TechnologyCategory>(effect));
                             break;
                         case 'SCAN':
-                            bonuses.scan = (bonuses.scan || 0) + effect.value;
+                            bonuses.scan = (bonuses.scan || 0) + effectNumber(effect);
                             break;
                         case 'SIGNAL':
                             bonuses.signals = (bonuses.signals || []);
-                            bonuses.signals.push(effect.value);
+                            bonuses.signals.push(effectAmount<SectorType>(effect));
                             break;
                         case 'LIFETRACE':
                             bonuses.lifetraces = (bonuses.lifetraces || []);
-                            bonuses.lifetraces.push(effect.value);
+                            bonuses.lifetraces.push(effectAmount<LifeTraceType>(effect));
                             break;
                     }
                 }
@@ -370,9 +371,9 @@ export class CardSystem {
                 if (effect.type === 'VISIT_BONUS' && effect.target) {
                     // Si la planète a DÉJÀ été visitée ce tour-ci, on applique le bonus immédiatement
                     if (player.visitedPlanetsThisTurn.includes(effect.target)) {
-                        player.score += effect.value;
+                        player.score += effectNumber(effect);
                         if (!bonuses.pv) bonuses.pv = 0;
-                        bonuses.pv += effect.value;
+                        bonuses.pv += effectNumber(effect);
                     } else {
                         // Sinon on ajoute le buff pour le reste du tour
                         player.activeBuffs.push({ ...effect, source: card.name });
@@ -408,12 +409,12 @@ export class CardSystem {
                         else if (effect.target === 'blue') scope = LifeTraceType.BLUE;
 
                         if (!bonuses.lifetraces) bonuses.lifetraces = [];
-                        bonuses.lifetraces.push({ amount: effect.value, scope });
+                        bonuses.lifetraces.push({ amount: effectNumber(effect), scope });
                     }
                 } else if (effect.type === 'REVEAL_AND_TRIGGER_FREE_ACTION') {
                     bonuses.revealAndTriggerFreeAction = true;
                 } else if (effect.type === 'SCORE_PER_MEDIA') {
-                    bonuses.scorePerMedia = effect.value;
+                    bonuses.scorePerMedia = effectNumber(effect);
                 } else if (effect.type === 'SCORE_PER_TECH_TYPE') {
                     player.activeBuffs.push({ ...effect, source: card.name });
                 } else if (effect.type === 'MEDIA_IF_SHARED_TECH') {
@@ -564,7 +565,7 @@ export class CardSystem {
                 } else if (effect.type === 'SAMPLE_RETURN') {
                     bonuses.sampleReturn = true;
                 } else if (effect.type === 'GAIN_SIGNAL_FROM_HAND') {
-                    bonuses.gainSignalFromHand = effect.value;
+                    bonuses.gainSignalFromHand = effectNumber(effect);
                 } else if (effect.type === 'BONUS_IF_COVERED') {
                     player.activeBuffs.push({ ...effect, source: card.name });
                 } else if (effect.type === 'SCORE_IF_UNIQUE') {
@@ -601,7 +602,7 @@ export class CardSystem {
 
                     const count = player.lifeTraces.filter(t => scope === LifeTraceType.ANY || t.type === scope).length;
                     if (count > 0) {
-                        bonuses.pv = (bonuses.pv || 0) + (count * effect.value);
+                        bonuses.pv = (bonuses.pv || 0) + (count * effectNumber(effect));
                     }
                 } else if (effect.type === 'GAIN_SPECIMEN_BONUS') {
                     // Handled via interaction
@@ -635,7 +636,7 @@ export class CardSystem {
                         }
                     }
                 } else if (effect.type.startsWith('SCORE_PER_ANOMALY')) {
-                    if (!isNaN(effect.value)) {
+                    if (typeof effect.value === 'number' && !isNaN(effect.value)) {
                         const rotationState = createRotationState(
                             updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
                             updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
@@ -657,7 +658,7 @@ export class CardSystem {
                         });
 
                         if (signalCount > 0) {
-                            bonuses.pv = (bonuses.pv || 0) + (signalCount * effect.value);
+                            bonuses.pv = (bonuses.pv || 0) + (signalCount * effectNumber(effect));
                         }
                     }
                 } else if (effect.type === 'GAIN_REWARD_NEXT_ANOMALY') {

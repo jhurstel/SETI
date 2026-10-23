@@ -1,3 +1,4 @@
+import { effectNumber } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
 import { Game, Sector, Bonus, SignalType, GAME_CONSTANTS, InteractionState, ProbeState, HistoryEntry, SectorType } from '../core/types';
 import { getObjectPosition } from '../core/SolarSystemPosition';
@@ -112,8 +113,8 @@ export class ScanSystem {
             else if (buff.target === 'black' && sector.color === SectorType.BLACK) match = true;
 
             if (match) {
-              bonuses.pv = (bonuses.pv || 0) + buff.value;
-              logs.push(`gagne ${ResourceSystem.formatResource(buff.value, 'PV')} (Bonus "${buff.source}")`);
+              bonuses.pv = (bonuses.pv || 0) + effectNumber(buff);
+              logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'PV')} (Bonus "${buff.source}")`);
             }
           }
         });
@@ -122,8 +123,8 @@ export class ScanSystem {
         uniqueBuffs.forEach(buff => {
           const otherPlayers = sector.signals.some(s => s.marked && s.markedBy && s.markedBy !== playerId);
           if (!otherPlayers) {
-            bonuses.pv = (bonuses.pv || 0) + buff.value;
-            logs.push(`gagne ${ResourceSystem.formatResource(buff.value, 'PV')} (Bonus "${buff.source}")`);
+            bonuses.pv = (bonuses.pv || 0) + effectNumber(buff);
+            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'PV')} (Bonus "${buff.source}")`);
           }
         });
       }
@@ -229,14 +230,14 @@ export class ScanSystem {
       buffsToTrigger.forEach(buff => {
         if (winnerId === playerId) {
           if (buff.target === 'energy') {
-            bonuses.energy = (bonuses.energy || 0) + buff.value;
-            logs.push(`gagne ${ResourceSystem.formatResource(buff.value, 'ENERGY')} (Bonus carte "${buff.source}")`);
+            bonuses.energy = (bonuses.energy || 0) + effectNumber(buff);
+            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'ENERGY')} (Bonus carte "${buff.source}")`);
           } else if (buff.target === 'draw') {
-            bonuses.card = (bonuses.card || 0) + buff.value;
-            logs.push(`gagne ${ResourceSystem.formatResource(buff.value, 'CARD')} (Bonus carte "${buff.source}")`);
+            bonuses.card = (bonuses.card || 0) + effectNumber(buff);
+            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'CARD')} (Bonus carte "${buff.source}")`);
           } else if (buff.target === 'data') {
-            bonuses.data = (bonuses.data || 0) + buff.value;
-            logs.push(`gagne ${ResourceSystem.formatResource(buff.value, 'DATA')} (Bonus carte "${buff.source}")`);
+            bonuses.data = (bonuses.data || 0) + effectNumber(buff);
+            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'DATA')} (Bonus carte "${buff.source}")`);
           }
         }
       });

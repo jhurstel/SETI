@@ -1,3 +1,4 @@
+import { effectNumber } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
 import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode, LifeTraceLocation } from '../core/types';
 import { ResourceSystem } from './ResourceSystem';
@@ -393,7 +394,7 @@ export class SpeciesSystem {
         if (scorePerTraceBuffs.length > 0) {
             const tracesOfColor = scoringPlayer.lifeTraces.filter(t => t.type === color).length;
             scorePerTraceBuffs.forEach(buff => {
-                const points = tracesOfColor * (buff.value || 1);
+                const points = tracesOfColor * (effectNumber(buff) || 1);
                 scoringPlayer.score += points;
                 res.historyEntries.push({ message: `gagne ${ResourceSystem.formatResource(points, 'PV')} (${tracesOfColor} trace${tracesOfColor > 1 ? 's' : ''} de vie ${color}, carte "${buff.source}")`, playerId, sequenceId });
             });

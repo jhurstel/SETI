@@ -1,3 +1,4 @@
+import { effectNumber } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
 import { Game, Technology, GAME_CONSTANTS, TechnologyCategory, HistoryEntry, InteractionState } from '../core/types';
 import { ComputerSystem } from './ComputerSystem';
@@ -158,7 +159,7 @@ export class TechnologySystem {
         if (categoryPrefix) {
           // Compter les technologies de ce type possédées par le joueur (incluant la nouvelle)
           const count = player.technologies.filter(t => t.id.startsWith(categoryPrefix)).length;
-          const points = count * buff.value;
+          const points = count * effectNumber(buff);
           if (points > 0) {
             player.score += Number(points);
             gains.push(`${points} PV (${buff.source})`);
@@ -182,7 +183,7 @@ export class TechnologySystem {
         }
 
         if (isShared) {
-          player.mediaCoverage = Math.min(player.mediaCoverage + (buff.value || 0), GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+          player.mediaCoverage = Math.min(player.mediaCoverage + (effectNumber(buff) || 0), GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
           gains.push(`${buff.value} Média (${buff.source})`);
           buffsToRemove.push(index);
         }
