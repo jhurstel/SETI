@@ -348,13 +348,13 @@ export class AIController {
                 }
                 break;
             }
-            case 'COLLECTING_SPECIMEN': {
-                const planet = updatedGame.board.planets.find(p => p.id === interaction.planetId);
-                if (planet && planet.mascamiteTokens && planet.mascamiteTokens.length > 0) {
-                    const token = planet.mascamiteTokens.splice(0, 1)[0];
-                    const res = ResourceSystem.processBonuses(token.bonus, updatedGame, player.id, 'mascamite_specimen', sequenceId);
+            case 'COLLECTING_SPECIMEN':
+            case 'CONSULTING_SPECIMEN': {
+                // Simple AI : premier jeton disponible
+                const mode = interaction.type === 'CONSULTING_SPECIMEN' ? 'consult' : 'collect';
+                const res = interaction.planetId ? SpeciesSystem.takeMascamiteSpecimen(updatedGame, player.id, interaction.planetId, 0, mode, sequenceId) : null;
+                if (res) {
                     updatedGame = res.updatedGame;
-                    addHistory(`prélève un spécimen Mascamite sur ${planet.name}`, player.id, game);
                     historyEntries.push(...res.historyEntries);
                     newPendingInteractions.push(...res.newPendingInteractions);
                 }
@@ -422,18 +422,6 @@ export class AIController {
                      }
                  }
                  break;
-            }
-            case 'CONSULTING_SPECIMEN': {
-                const planet = updatedGame.board.planets.find(p => p.id === interaction.planetId);
-                if (planet && planet.mascamiteTokens && planet.mascamiteTokens.length > 0) {
-                    const token = planet.mascamiteTokens[0]; // Just consult the first one
-                    const res = ResourceSystem.processBonuses(token.bonus, updatedGame, player.id, 'mascamite_specimen', sequenceId);
-                    updatedGame = res.updatedGame;
-                    addHistory(`étudie un spécimen Mascamite sur ${planet.name}`, player.id, game);
-                    historyEntries.push(...res.historyEntries);
-                    newPendingInteractions.push(...res.newPendingInteractions);
-                }
-                break;
             }
             default:
                 addHistory(`AI ne peut pas gérer l'interaction: ${interaction.type}`, player.id);

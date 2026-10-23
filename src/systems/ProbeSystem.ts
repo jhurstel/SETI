@@ -11,11 +11,55 @@
 
 import { cloneGame } from '../core/cloneGame';
 import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, InteractionState, LifeTraceType } from '../core/types';
-import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
+import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe, getAllCelestialObjects } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { CardSystem } from './CardSystem';
 
 export class ProbeSystem {
+  /**
+   * Sonde du joueur (dans le système solaire) sur la case d'une planète.
+   * Un satellite est ramené à sa planète parente. Renvoie aussi le nom de la planète pour l'historique.
+   */
+  static findProbeAtPlanet(game: Game, playerId: string, planetId: string): { probe: Probe; planetName: string } | null {
+    const parent = game.board.planets.find(p => p.satellites?.some(s => s.id === planetId));
+    const targetId = parent ? parent.id : planetId;
+    const planetDef = getAllCelestialObjects(game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === targetId);
+    const player = game.players.find(p => p.id === playerId);
+    if (!planetDef || !player) return null;
+
+    // Comparaison en position relative (même disque, secteur et niveau de plateau) ; niveau 0/absent = plateau fixe
+    const probe = player.probes.find(p =>
+      p.state === ProbeState.IN_SOLAR_SYSTEM &&
+      !!p.solarPosition &&
+      p.solarPosition.disk === planetDef.position.disk &&
+      p.solarPosition.sector === planetDef.position.sector &&
+      (p.solarPosition.level || 0) === (planetDef.level || 0)
+    );
+    return probe ? { probe, planetName: planetDef.name } : null;
+  }
+
+  /** Bonus de l'emplacement d'orbite ou d'atterrissage visé (planète ou satellite). */
+  static getSlotBonus(game: Game, planetId: string, mode: 'orbit' | 'land', slotIndex: number): Bonus | undefined {
+    const planet = game.board.planets.find(p => p.id === planetId);
+    if (planet) return mode === 'orbit' ? planet.orbitSlots?.[slotIndex] : planet.landSlots?.[slotIndex];
+    if (mode === 'orbit') return undefined;
+    const parent = game.board.planets.find(p => p.satellites?.some(s => s.id === planetId));
+    return parent?.satellites?.find(s => s.id === planetId)?.landBonus;
+  }
+
+  /**
+   * Cartes « … et prélevez un spécimen » (GAIN_*_AND_SPECIMEN) : une orbite bonus autour de Jupiter ou Saturne
+   * donne droit à un spécimen Mascamite s'il en reste sur la planète.
+   */
+  static shouldCollectSpecimen(game: Game, planetId: string, sourceCardId?: string): boolean {
+    if (!sourceCardId || (planetId !== 'jupiter' && planetId !== 'saturn')) return false;
+    const allCards = [...game.decks.cards, ...(game.decks.discardPile || []), ...game.players.flatMap(p => p.cards), ...game.players.flatMap(p => p.playedCards || [])];
+    const sourceCard = allCards.find(c => c.id === sourceCardId);
+    const grantsSpecimen = !!sourceCard?.passiveEffects?.some(e => ['GAIN_LANDING_AND_SPECIMEN', 'GAIN_SATELLITE_LANDING_AND_SPECIMEN', 'GAIN_ORBIT_OR_LAND_AND_SPECIMEN'].includes(e.type));
+    const planet = game.board.planets.find(p => p.id === planetId);
+    return grantsSpecimen && !!planet?.mascamiteTokens?.length;
+  }
+
   /**
    * Vérifie si un joueur peut lancer une sonde
    */

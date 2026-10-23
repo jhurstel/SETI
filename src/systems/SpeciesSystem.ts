@@ -39,6 +39,33 @@ export class SpeciesSystem {
     }
 
     /**
+     * Spécimen Mascamite : « collect » retire le jeton de la planète, « consult » l'étudie sans le retirer.
+     * Le bonus du jeton est appliqué au joueur. Renvoie null s'il n'y a pas de jeton à cet index.
+     */
+    static takeMascamiteSpecimen(game: Game, playerId: string, planetId: string, tokenIndex: number, mode: 'collect' | 'consult', sequenceId: string): {
+        updatedGame: Game;
+        historyEntries: HistoryEntry[];
+        newPendingInteractions: InteractionState[];
+    } | null {
+        const updatedGame = cloneGame(game);
+        const planet = updatedGame.board.planets.find(p => p.id === planetId);
+        const tokens = planet?.mascamiteTokens;
+        if (!planet || !tokens || !tokens[tokenIndex]) return null;
+
+        const token = mode === 'consult' ? tokens[tokenIndex] : tokens.splice(tokenIndex, 1)[0];
+        const res = ResourceSystem.processBonuses(token.bonus, updatedGame, playerId, 'mascamite_specimen', sequenceId);
+        const verb = mode === 'consult' ? 'étudie' : 'prélève';
+        return {
+            updatedGame: res.updatedGame,
+            historyEntries: [
+                { message: `${verb} un spécimen Mascamite sur ${planet.name}`, playerId, sequenceId },
+                ...res.historyEntries.map(e => ({ ...e, sequenceId })),
+            ],
+            newPendingInteractions: res.newPendingInteractions,
+        };
+    }
+
+    /**
      * Placement automatique d'une trace de vie (robots) : la piste d'espèce n'est utilisée
      * qu'une fois l'espèce découverte, sinon la trace serait refusée et perdue.
      */

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, LifeTraceType, InteractionState, GamePhase, SignalType, HistoryEntry, getInteractionLabel, LifeTraceLocation } from '../core/types';
-import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, calculateAbsolutePosition } from '../core/SolarSystemPosition';
+import { createRotationState, getCell, getObjectPosition, getAbsoluteSectorForProbe, calculateAbsolutePosition } from '../core/SolarSystemPosition';
 import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
@@ -1285,8 +1285,8 @@ export const BoardUI: React.FC = () => {
   };
 
   // Helper générique pour les interactions avec les planètes (Orbite/Atterrissage)
+  // Renvoie true si de nouvelles interactions ont été déclenchées (bonus à résoudre)
   const handlePlanetInteraction = (
-    action: OrbitAction | LandAction,
     planetId: string,
     actionFn: (game: Game, playerId: string, probeId: string, targetId: string, sequenceId: string) => { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[], completedMissions?: string[] },
     historyMessagePrefix: string,
@@ -1294,54 +1294,14 @@ export const BoardUI: React.FC = () => {
   ): boolean => {
     if (!game) return false;
     const currentPlayer = game.players[game.currentPlayerIndex];
-    action;
-
-    // Résolution de l'ID de la planète parente si c'est un satellite
-    let targetPlanetId = planetId;
-    const parentPlanet = game.board.planets.find(p => p.satellites?.some(s => s.id === planetId));
-    if (parentPlanet) {
-      targetPlanetId = parentPlanet.id;
-    }
-
-    // Trouver la définition statique de la planète pour obtenir sa position relative
-    const allObjects = [
-      ...FIXED_OBJECTS,
-      ...INITIAL_ROTATING_LEVEL1_OBJECTS,
-      ...INITIAL_ROTATING_LEVEL2_OBJECTS,
-      ...INITIAL_ROTATING_LEVEL3_OBJECTS,
-      ...(game.board.solarSystem.extraCelestialObjects || [])
-    ];
-    const planetDef = allObjects.find(o => o.id === targetPlanetId);
-
-    if (!planetDef) {
-      console.error(`Planète introuvable: ${targetPlanetId}`);
-      return false;
-    }
-
-    // Trouver une sonde du joueur sur cette planète (en comparant les positions relatives)
-    const probe = currentPlayer.probes.find(p => {
-      if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-      // Comparaison souple pour le niveau (0, null, undefined sont équivalents pour le niveau fixe)
-      const probeLevel = p.solarPosition.level || 0;
-      const planetLevel = planetDef.level || 0;
-
-      return p.solarPosition.disk === planetDef.position.disk &&
-        p.solarPosition.sector === planetDef.position.sector &&
-        probeLevel === planetLevel;
-    });
-
-    if (!probe) return false;
+    const found = ProbeSystem.findProbeAtPlanet(game, currentPlayer.id, planetId);
+    if (!found) return false;
 
     // Générer un ID de séquence pour grouper l'action et ses bonus
     const sequenceId = interactionState.sequenceId || `seq-${Date.now()}`;
 
-    // Sauvegarder l'état avant l'action pour l'historique (Undo annulera tout, y compris les bonus)
-    const stateBeforeAction = structuredClone(game);
-
     try {
-      const result = actionFn(game, currentPlayer.id, probe.id, planetId, sequenceId);
-      const historyEntries = result.historyEntries;
-      const newPendingInteractions = result.newPendingInteractions;
+      const result = actionFn(game, currentPlayer.id, found.probe.id, planetId, sequenceId);
 
       // Seule l'orbite/atterrissage payant consomme l'action principale ;
       // les versions bonus (ORBITING_PROBE / LANDING_PROBE) sont des effets gratuits
@@ -1352,17 +1312,16 @@ export const BoardUI: React.FC = () => {
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-      const interactionTriggered = handleNewInteractions(newPendingInteractions, sequenceId);
-      let message = `${historyMessagePrefix} ${planetDef.name}`;      
+      const interactionTriggered = handleNewInteractions(result.newPendingInteractions, sequenceId);
+
+      let message = `${historyMessagePrefix} ${found.planetName}`;
       if (result.completedMissions && result.completedMissions.length > 0) {
         message += ` et accomplit la mission "${result.completedMissions.join('", "')}"`;
       }
+      // L'annulation restaure l'état d'avant l'action (bonus compris)
+      addToHistory(message, currentPlayer.id, game, undefined, sequenceId);
+      result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, updatedGame, undefined, sequenceId));
 
-      addToHistory(message, currentPlayer.id, stateBeforeAction, undefined, sequenceId);
-
-      if (historyEntries.length > 0) {
-        historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, updatedGame, undefined, sequenceId));
-      }
       if (!interactionTriggered) {
         setToast({ message: successMessage, visible: true });
       }
@@ -1373,71 +1332,63 @@ export const BoardUI: React.FC = () => {
     }
   };
 
+  // Après une orbite/un atterrissage bonus : décrémente le compteur ou termine l'interaction
+  const continueBonusPlacement = (interactionTriggered: boolean) => {
+    if (interactionState.type !== 'ORBITING_PROBE' && interactionState.type !== 'LANDING_PROBE') return;
+    const remaining = interactionState.count - 1;
+    if (interactionTriggered) {
+      // Des bonus sont à résoudre d'abord : les placements restants sont mis en file d'attente
+      if (remaining > 0) setPendingInteractions(prev => [...prev, { ...interactionState, count: remaining }]);
+      return;
+    }
+    setInteractionState(remaining > 0 ? { ...interactionState, count: remaining } : { type: 'IDLE' });
+  };
+
+  // Retrait d'un orbiteur (carte 15) ou d'un atterrisseur (carte 84)
+  const handleRemoveProbe = (removeFn: () => { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] }) => {
+    if (!game) return;
+    try {
+      const result = removeFn();
+      setGame(result.updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
+      result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, e.sequenceId));
+      if (!handleNewInteractions(result.newPendingInteractions, interactionState.sequenceId)) {
+        setInteractionState({ type: 'IDLE' });
+      }
+    } catch (e: any) {
+      setToast({ message: e.message, visible: true });
+    }
+  };
+
   // Gestionnaire pour la mise en orbite via la hover card
   const handleOrbit = (planetId: string, slotIndex?: number) => {
     if (!game) return;
     const currentPlayer = game.players[game.currentPlayerIndex];
 
-    // Gestion de la carte 15 : Retirer un orbiteur
+    // Carte 15 : retirer un orbiteur
     if (interactionState.type === 'REMOVING_ORBITER') {
-      try {
-        const orbiterIndex = slotIndex !== undefined ? slotIndex : game.board.planets.find(p => p.id === planetId)?.orbiters.findIndex(p => p.ownerId === currentPlayer.id);
-        if (orbiterIndex === undefined || orbiterIndex === -1) return;
-
-        const result = ProbeSystem.removeOrbiter(game, currentPlayer.id, planetId, orbiterIndex, interactionState.sequenceId);
-        
-        setGame(result.updatedGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-        
-        result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, e.sequenceId));
-        
-        if (!handleNewInteractions(result.newPendingInteractions, interactionState.sequenceId)) {
-          setInteractionState({ type: 'IDLE' });
-        }
-      } catch (e: any) {
-        setToast({ message: e.message, visible: true });
-      }
+      const orbiterIndex = slotIndex ?? game.board.planets.find(p => p.id === planetId)?.orbiters.findIndex(p => p.ownerId === currentPlayer.id);
+      if (orbiterIndex === undefined || orbiterIndex === -1) return;
+      handleRemoveProbe(() => ProbeSystem.removeOrbiter(game, currentPlayer.id, planetId, orbiterIndex, interactionState.sequenceId));
       return;
     }
 
-    const probeOnPlanet = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
-
-    // Trouver la sonde sur la planète pour la validation
-    const probe = currentPlayer.probes.find(p => {
-      if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-      const planetDef = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || [])].find(o => o.id === probeOnPlanet.planetId);
-      if (!planetDef) return false;
-      return p.solarPosition.disk === planetDef.position.disk && p.solarPosition.sector === planetDef.position.sector && (p.solarPosition.level || 0) === (planetDef.level || 0);
-    });
-    if (!probe) return;
+    const found = ProbeSystem.findProbeAtPlanet(game, currentPlayer.id, planetId);
+    if (!found) return;
 
     const executeOrbit = () => {
-      // Vérifier si on est en mode orbite gratuite
+      // Orbite bonus (gratuite)
       if (interactionState.type === 'ORBITING_PROBE') {
-        const interactionTriggered = handlePlanetInteraction(
-          new OrbitAction(currentPlayer.id, probe.id, planetId),
+        continueBonusPlacement(handlePlanetInteraction(
           planetId,
           (g, pid, prid, targetId, seqId) => ProbeSystem.orbitProbe(g, pid, prid, targetId, seqId, true),
           "<strong>Met en orbite</strong> (Bonus) une sonde autour de",
           "Sonde mise en orbite"
-        );
-
-        if (interactionTriggered) {
-           if (interactionState.count > 1) {
-             setPendingInteractions(prev => [...prev, { ...interactionState, count: interactionState.count - 1 }]);
-           }
-           return;
-        }
-
-        if (interactionState.count > 1) {
-          setInteractionState({ ...interactionState, count: interactionState.count - 1 });
-        } else {
-          setInteractionState({ type: 'IDLE' });
-        }
+        ));
         return;
       }
 
-      const action = new OrbitAction(currentPlayer.id, probe.id, planetId);
+      const action = new OrbitAction(currentPlayer.id, found.probe.id, planetId);
       const validation = ActionValidator.validateAction(game, action);
       if (!validation.valid) {
         setToast({ message: validation.errors[0]?.message || "Mise en orbite impossible", visible: true });
@@ -1445,39 +1396,20 @@ export const BoardUI: React.FC = () => {
       }
 
       handlePlanetInteraction(
-        action,
         planetId,
-        (g, pid, prid, targetId, seqId) => ProbeSystem.orbitProbe(g, pid, prid, targetId, seqId), // Orbit is not free via LANDING_PROBE
+        (g, pid, prid, targetId, seqId) => ProbeSystem.orbitProbe(g, pid, prid, targetId, seqId),
         "paye 1 Energie et 1 Crédit pour <strong>Mettre en orbite</strong> une sonde autour de",
         "Sonde mise en orbite"
       );
     };
 
-    // Check for bonus warnings
-    if (slotIndex !== undefined) {
-      const planet = game.board.planets.find(p => p.id === planetId);
-      if (planet && planet.orbitSlots && planet.orbitSlots[slotIndex]) {
-        const bonus = planet.orbitSlots[slotIndex];
-        if (checkBonusAndConfirm(bonus, executeOrbit)) {
-          return;
-        }
-      }
-    }
+    // Avertissement si le bonus de l'emplacement serait perdu
+    const bonus = slotIndex !== undefined ? ProbeSystem.getSlotBonus(game, planetId, 'orbit', slotIndex) : undefined;
+    if (bonus && checkBonusAndConfirm(bonus, executeOrbit)) return;
 
-    // Logique pour GAIN_LANDING_AND_SPECIMEN et GAIN_SATELLITE_LANDING_AND_SPECIMEN et GAIN_ORBIT_OR_LAND_AND_SPECIMEN
-    if (interactionState.type === 'ORBITING_PROBE' && interactionState.source) {
-      const allCards = [...game.decks.cards, ...(game.decks.discardPile || []), ...game.players.flatMap(p => p.cards), ...game.players.flatMap(p => p.playedCards || [])];
-      const sourceCard = allCards.find(c => c.id === interactionState.source);
-      
-      if (sourceCard && sourceCard.passiveEffects?.some(e => e.type === 'GAIN_LANDING_AND_SPECIMEN' || e.type === 'GAIN_SATELLITE_LANDING_AND_SPECIMEN' || e.type === 'GAIN_ORBIT_OR_LAND_AND_SPECIMEN')) {
-          const isJupiterOrSaturn = planetId === 'jupiter' || planetId === 'saturn';
-          const planet = game.board.planets.find(p => p.id === planetId);
-          const hasTokens = planet && planet.mascamiteTokens && planet.mascamiteTokens.length > 0;
-
-          if (isJupiterOrSaturn && hasTokens) {
-              setPendingInteractions(prev => [{ type: 'COLLECTING_SPECIMEN', planetId: planetId, sequenceId: interactionState.sequenceId }, ...prev]);
-          }
-      }
+    // Cartes « … et prélevez un spécimen » : le prélèvement Mascamite est résolu juste après l'orbite
+    if (interactionState.type === 'ORBITING_PROBE' && ProbeSystem.shouldCollectSpecimen(game, planetId, interactionState.source)) {
+      setPendingInteractions(prev => [{ type: 'COLLECTING_SPECIMEN', planetId, sequenceId: interactionState.sequenceId }, ...prev]);
     }
 
     executeOrbit();
@@ -1489,144 +1421,72 @@ export const BoardUI: React.FC = () => {
     if (interactionState.type !== 'COLLECTING_SPECIMEN' && interactionState.type !== 'CONSULTING_SPECIMEN') return;
     if (interactionState.planetId !== planetId) return;
 
-    let updatedGame = structuredClone(game);
-    const planet = updatedGame.board.planets.find(p => p.id === planetId);
-    const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
-
-    if (planet && planet.mascamiteTokens && planet.mascamiteTokens[tokenIndex]) {
-        const token = interactionState.type === 'CONSULTING_SPECIMEN' 
-            ? planet.mascamiteTokens[tokenIndex] 
-            : planet.mascamiteTokens.splice(tokenIndex, 1)[0];
-                
-        // Appliquer le bonus du token
-        // TODO: créer une capsule
-        const sequenceId = interactionState.sequenceId || `mascamite-${Date.now()}`;
-        const res = ResourceSystem.processBonuses(token.bonus, updatedGame, currentPlayer.id, 'mascamite_specimen', sequenceId);
-        updatedGame = res.updatedGame;
-
-        setGame(updatedGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-
-        const actionVerb = interactionState.type === 'CONSULTING_SPECIMEN' ? "étudie" : "prélève";
-        addToHistory(`${actionVerb} un spécimen Mascamite sur ${planet.name}`, currentPlayer.id, game, undefined, sequenceId);
-        res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, sequenceId));
-        
-        if (!handleNewInteractions(res.newPendingInteractions, sequenceId)) {
-            setInteractionState({ type: 'IDLE' });
-        }
-    } else {
-        setInteractionState({ type: 'IDLE' });
-    }
-  };
-  
-  // Gestionnaire pour l'atterrissage via la hover card
-  const handleLand = (planetId: string, slotIndex?: number) => {
-    if (!game) return;
-
-    const currentPlayer = game.players[game.currentPlayerIndex];
-
-    // Gestion de la carte 84 : Retirer un atterrisseur
-    if (interactionState.type === 'REMOVING_LANDER') {
-      try {
-        const landerIndex = slotIndex !== undefined ? slotIndex : game.board.planets.find(p => p.id === planetId)?.orbiters.findIndex(p => p.ownerId === currentPlayer.id);
-        if (landerIndex === undefined || landerIndex === -1) return;
-
-        const result = ProbeSystem.removeLander(game, currentPlayer.id, planetId, landerIndex, interactionState.sequenceId);
-        
-        setGame(result.updatedGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-        
-        result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, e.sequenceId));
-        
-        if (!handleNewInteractions(result.newPendingInteractions, interactionState.sequenceId)) {
-          setInteractionState({ type: 'IDLE' });
-        }
-      } catch (e: any) {
-        setToast({ message: e.message, visible: true });
-      }
+    const playerId = game.players[game.currentPlayerIndex].id;
+    const sequenceId = interactionState.sequenceId || `mascamite-${Date.now()}`;
+    const mode = interactionState.type === 'CONSULTING_SPECIMEN' ? 'consult' : 'collect';
+    const result = SpeciesSystem.takeMascamiteSpecimen(game, playerId, planetId, tokenIndex, mode, sequenceId);
+    if (!result) {
+      setInteractionState({ type: 'IDLE' });
       return;
     }
 
-    const probeOnPlanet = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
+    setGame(result.updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
+    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
+    if (!handleNewInteractions(result.newPendingInteractions, sequenceId)) {
+      setInteractionState({ type: 'IDLE' });
+    }
+  };
 
-    const probe = currentPlayer.probes.find(p => {
-      if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-      const planetDef = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || [])].find(o => o.id === probeOnPlanet.planetId);
-      if (!planetDef) return false;
-      return p.solarPosition.disk === planetDef.position.disk && p.solarPosition.sector === planetDef.position.sector && (p.solarPosition.level || 0) === (planetDef.level || 0);
-    });
-    if (!probe) return;
+  // Gestionnaire pour l'atterrissage via la hover card
+  const handleLand = (planetId: string, slotIndex?: number) => {
+    if (!game) return;
+    const currentPlayer = game.players[game.currentPlayerIndex];
+
+    // Carte 84 : retirer un atterrisseur
+    if (interactionState.type === 'REMOVING_LANDER') {
+      const landerIndex = slotIndex ?? game.board.planets.find(p => p.id === planetId)?.landers.findIndex(p => p.ownerId === currentPlayer.id);
+      if (landerIndex === undefined || landerIndex === -1) return;
+      handleRemoveProbe(() => ProbeSystem.removeLander(game, currentPlayer.id, planetId, landerIndex, interactionState.sequenceId));
+      return;
+    }
+
+    const found = ProbeSystem.findProbeAtPlanet(game, currentPlayer.id, planetId);
+    if (!found) return;
 
     const executeLand = () => {
-      // Vérifier si on est en mode atterrissage gratuit
+      // Atterrissage bonus (gratuit)
       if (interactionState.type === 'LANDING_PROBE') {
-        const interactionTriggered = handlePlanetInteraction(
-          new LandAction(currentPlayer.id, probe.id, planetId), // Action pour le type, pas pour la validation ici
-          planetId, // planetId pour la logique interne
-          (g, pid, prid, targetId, seqId) => {
-            return ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex, interactionState.source, seqId);
-          },
-          `paye ${probeOnPlanet.landCost} énergie pour <strong>Poser une sonde</strong> sur`,
+        const source = interactionState.source;
+        continueBonusPlacement(handlePlanetInteraction(
+          planetId,
+          (g, pid, prid, targetId, seqId) => ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex, source, seqId),
+          "<strong>Pose une sonde</strong> (Bonus) sur",
           "Atterrissage réussi"
-        );
-
-        if (interactionTriggered) {
-          // Si une interaction a été déclenchée (bonus), on doit s'assurer que les atterrissages restants sont mis en file d'attente
-          if (interactionState.count > 1) {
-            const remainingState: InteractionState = { ...interactionState, count: interactionState.count - 1 };
-            setPendingInteractions(prev => [...prev, remainingState]);
-          }
-          return;
-        }
-
-        // Décrémenter ou terminer l'interaction
-        if (interactionState.count > 1) {
-          setInteractionState({ ...interactionState, count: interactionState.count - 1 });
-        } else {
-          // Si on vient d'un menu de choix, on retourne à IDLE (le menu gère la suite via pendingInteractions)
-          // Sinon IDLE
-          setInteractionState({ type: 'IDLE' });
-        }
+        ));
         return;
       }
 
-      const action = new LandAction(currentPlayer.id, probe.id, planetId);
+      const action = new LandAction(currentPlayer.id, found.probe.id, planetId);
       const validation = ActionValidator.validateAction(game, action);
       if (!validation.valid) {
         setToast({ message: validation.errors[0]?.message || "Atterrissage impossible", visible: true });
         return;
       }
 
+      const { landCost } = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
       handlePlanetInteraction(
-        action,
         planetId,
-        // On passe planetId comme targetId pour supporter l'atterrissage sur les satellites. seqId vient de handlePlanetInteraction
+        // planetId est passé comme cible pour supporter l'atterrissage sur les satellites
         (g, pid, prid, targetId, seqId) => ProbeSystem.landProbe(g, pid, prid, targetId, false, slotIndex, undefined, seqId),
-        `paye ${probeOnPlanet.landCost} énergie pour <strong>Poser une sonde</strong> sur`,
+        `paye ${landCost} énergie pour <strong>Poser une sonde</strong> sur`,
         "Atterrissage réussi"
       );
     };
 
-    // Check for bonus warnings
-    if (slotIndex !== undefined) {
-      let bonus: Bonus | undefined;
-
-      // Check if planet
-      const planet = game.board.planets.find(p => p.id === planetId);
-      if (planet && planet.landSlots) {
-        bonus = planet.landSlots[slotIndex];
-      } else {
-        // Check if satellite
-        const parentPlanet = game.board.planets.find(p => p.satellites?.some(s => s.id === planetId));
-        bonus = parentPlanet?.satellites?.find(s => s.id === planetId)?.landBonus;
-      }
-
-      if (bonus) {
-        if (checkBonusAndConfirm(bonus, executeLand)) {
-          return;
-        }
-      }
-    }
+    // Avertissement si le bonus de l'emplacement serait perdu
+    const bonus = slotIndex !== undefined ? ProbeSystem.getSlotBonus(game, planetId, 'land', slotIndex) : undefined;
+    if (bonus && checkBonusAndConfirm(bonus, executeLand)) return;
 
     executeLand();
   };
