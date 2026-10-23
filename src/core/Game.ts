@@ -137,10 +137,8 @@ export class GameEngine {
       state: { ...cloneGame(this.state), history: [] },
       timestamp: Date.now()
     };
-    if (!this.state.history) {
-      this.state.history = [];
-    }
-    this.state.history.push(gameState);
+    // Nouveau tableau : l'état fourni au moteur (ex: état React) ne doit pas être modifié
+    this.state = { ...this.state, history: [...(this.state.history || []), gameState] };
   }
 
   /**

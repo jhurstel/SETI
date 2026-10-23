@@ -3,6 +3,8 @@ import { GameEngine } from '../src/core/Game';
 import { GameFactory } from '../src/core/GameFactory';
 import { ComputerSystem } from '../src/systems/ComputerSystem';
 import { PassAction } from '../src/actions/PassAction';
+import { ResearchTechAction } from '../src/actions/ResearchTechAction';
+import { AnalyzeDataAction } from '../src/actions/AnalyzeDataAction';
 import { Game, GamePhase } from '../src/core/types';
 import { createTestGame, getPlayer, mockFetchFromPublic } from './helpers/gameFixture';
 
@@ -65,6 +67,32 @@ describe('GameFactory.initializeGame', () => {
     expect(setup.decks.cards).toHaveLength(deckSize);
     expect(setup.decks.cardRow).toHaveLength(0);
     expect(setup.players.every(p => p.cards.length === 0)).toBe(true);
+  });
+});
+
+describe('Actions moteur', () => {
+  test.each([
+    ['ResearchTechAction', (id: string) => new ResearchTechAction(id)],
+    ['AnalyzeDataAction', (id: string) => new AnalyzeDataAction(id)],
+  ])('%s.execute ne modifie pas la partie reçue (régression)', async (_name, makeAction) => {
+    const game = await createTestGame();
+    getPlayer(game, P1).mediaCoverage = 8;
+    getPlayer(game, P1).energy = 3;
+    const before = JSON.stringify(game);
+
+    makeAction(P1).execute(game);
+
+    expect(JSON.stringify(game)).toBe(before);
+  });
+
+  test('GameEngine.executeAction n\'ajoute pas d\'instantané dans la partie fournie', async () => {
+    const game = await createTestGame();
+    game.currentPlayerIndex = 0;
+    const engine = new GameEngine(game);
+    engine.executeAction(new PassAction(P1, getPlayer(game, P1).cards.slice(0, 4).map(c => c.id)));
+
+    expect(game.history).toHaveLength(0);
+    expect(engine.getState().players[0].hasPassed).toBe(true);
   });
 });
 

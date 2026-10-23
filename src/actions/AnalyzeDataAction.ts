@@ -1,6 +1,7 @@
 import { BaseAction } from './Action';
 import { Game, ActionType, ValidationResult } from '../core/types';
 import { ComputerSystem } from '../systems/ComputerSystem';
+import { cloneGame } from '../core/cloneGame';
 
 export class AnalyzeDataAction extends BaseAction {
     constructor(playerId: string) {
@@ -18,9 +19,10 @@ export class AnalyzeDataAction extends BaseAction {
     execute(game: Game): Game {
         // L'exécution réelle est gérée dans l'UI pour l'animation et l'interaction.
         // Cette méthode est pour la complétude et une future exécution par le moteur.
-        const player = game.players.find(p => p.id === this.playerId)!;
+        const updatedGame = cloneGame(game);
+        const player = updatedGame.players.find(p => p.id === this.playerId)!;
         player.energy -= 1;
         ComputerSystem.clearComputer(player);
-        return game;
+        return updatedGame;
     }
 }

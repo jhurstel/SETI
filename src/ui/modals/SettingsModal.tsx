@@ -3,6 +3,8 @@ import { Game, HistoryEntry, InteractionState } from '../../core/types';
 import { GameFactory } from '../../core/GameFactory';
 import { GameEngine } from '../../core/Game';
 import { NewGameModal } from './NewGameModal';
+import { serializeGame, deserializeGame } from '../../core/GamePersistence';
+import { readAutosave } from '../hooks/useAutosave';
 import './SettingsModal.css';
 
 interface SettingsModalProps {
@@ -35,9 +37,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Vérifier s'il y a une sauvegarde automatique au démarrage ou à l'ouverture
   useEffect(() => {
-    const saved = localStorage.getItem('seti_autosave');
-    setHasAutosave(!!saved);
+    setHasAutosave(!!readAutosave());
   }, [visible]);
+
+  // Restaure une partie sauvegardée (fichier ou sauvegarde automatique)
+  const applySavedGame = (json: string) => {
+      const { game: loadedGame, historyLog: loadedLog } = deserializeGame(json);
+      setGame(loadedGame);
+      if (gameEngineRef.current) {
+          gameEngineRef.current.setState(loadedGame);
+      } else {
+          gameEngineRef.current = new GameEngine(loadedGame);
+      }
+      setHistoryLog(loadedLog);
+      setVisible(false);
+  };
 
   const handleNewGameRequest = () => {
       setNewGameModalVisible(true);
@@ -101,31 +115,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSaveGame = async () => {
       if (!game) return;
       try {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { history, ...cleanGame } = game;
-
-          // Préparer l'objet à sauvegarder avec l'historique à jour
-          const gameToSave = { 
-              ...cleanGame,
-              gameLog: historyLog.map((entry, index) => {
-                  const isLast = index === historyLog.length - 1;
-                  let cleanPreviousState = undefined;
-                  if (isLast && entry.previousState) {
-                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                      const { gameLog, history, ...rest } = entry.previousState;
-                      cleanPreviousState = rest;
-                  }
-                  return {
-                      id: entry.id,
-                      message: entry.message,
-                      timestamp: entry.timestamp,
-                      playerId: entry.playerId,
-                      sequenceId: entry.sequenceId,
-                      previousState: cleanPreviousState
-                  };
-              })
-          };
-          const gameState = JSON.stringify(gameToSave, null, 2);
+          const gameState = JSON.stringify(serializeGame(game, historyLog), null, 2);
 
           // Utiliser l'API File System Access si disponible pour ouvrir une boîte de dialogue "Enregistrer sous"
           // @ts-ignore
@@ -186,33 +176,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               try {
                   const savedState = event.target?.result as string;
                   if (savedState) {
-                      const loadedGame = JSON.parse(savedState);
-                      if (!loadedGame.history) {
-                          loadedGame.history = [];
-                      }
-                      setGame(loadedGame);
-                      if (gameEngineRef.current) {
-                          gameEngineRef.current.setState(loadedGame);
-                      } else {
-                          gameEngineRef.current = new GameEngine(loadedGame);
-                      }
-                      
-                      if (loadedGame.gameLog) {
-                          setHistoryLog(loadedGame.gameLog.map((l: any) => ({
-                              id: l.id,
-                              message: l.message,
-                              playerId: l.playerId,
-                              timestamp: l.timestamp,
-                              previousInteractionState: { type: 'IDLE' },
-                              previousPendingInteractions: [],
-                              sequenceId: l.sequenceId,
-                              previousState: l.previousState
-                          })));
-                      } else {
-                          setHistoryLog([]);
-                      }
-                      
-                      setVisible(false);
+                      applySavedGame(savedState);
                   }
               } catch (e) {
                   console.error(e);
@@ -227,35 +191,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleContinue = () => {
       try {
-          const savedState = localStorage.getItem('seti_autosave');
+          const savedState = readAutosave();
           if (savedState) {
-              const loadedGame = JSON.parse(savedState);
-              if (!loadedGame.history) {
-                  loadedGame.history = [];
-              }
-              setGame(loadedGame);
-              if (gameEngineRef.current) {
-                  gameEngineRef.current.setState(loadedGame);
-              } else {
-                  gameEngineRef.current = new GameEngine(loadedGame);
-              }
-              
-              if (loadedGame.gameLog) {
-                  setHistoryLog(loadedGame.gameLog.map((l: any) => ({
-                      id: l.id,
-                      message: l.message,
-                      playerId: l.playerId,
-                      timestamp: l.timestamp,
-                      previousInteractionState: { type: 'IDLE' },
-                      previousPendingInteractions: [],
-                      sequenceId: l.sequenceId,
-                      previousState: l.previousState
-                  })));
-              } else {
-                  setHistoryLog([]);
-              }
-              
-              setVisible(false);
+              applySavedGame(savedState);
           }
       } catch (e) {
           console.error(e);

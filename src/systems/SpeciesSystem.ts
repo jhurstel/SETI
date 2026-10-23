@@ -6,6 +6,17 @@ import { CardSystem } from './CardSystem';
 
 export class SpeciesSystem {
     /**
+     * Premier emplacement libre d'une couleur sur une piste du plateau Alien
+     */
+    static getNextSpeciesSlotIndex(game: Game, boardIndex: number, color: LifeTraceType, location: LifeTraceLocation): number {
+        const board = game.board.alienBoards[boardIndex];
+        const indices = new Set(board.lifeTraces.filter(t => t.type === color && t.location === location).map(t => t.slotIndex));
+        let slotIndex = 0;
+        while (indices.has(slotIndex)) slotIndex++;
+        return slotIndex;
+    }
+
+    /**
      * Tente de placer un marqueur neutre sur le plateau Alien pour un palier donné.
      * Gère la décrémentation du stock de marqueurs, le placement sur le premier emplacement libre,
      * et la découverte potentielle d'une espèce.

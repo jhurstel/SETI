@@ -3,6 +3,7 @@ import { Game, ActionType, ValidationResult, GAME_CONSTANTS } from '../core/type
 import { performRotation } from '../core/SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
+import { cloneGame } from '../core/cloneGame';
 
 export class ResearchTechAction extends BaseAction {
     constructor(playerId: string, public techId?: string) {
@@ -19,7 +20,8 @@ export class ResearchTechAction extends BaseAction {
     }
 
     execute(game: Game): Game {
-        const player = game.players.find(p => p.id === this.playerId)!;
+        const updatedGame = cloneGame(game);
+        const player = updatedGame.players.find(p => p.id === this.playerId)!;
         const sequenceId = `tech-${Date.now()}`;
 
         // Payer le coût
@@ -28,7 +30,7 @@ export class ResearchTechAction extends BaseAction {
         this.historyEntries.push({ message, playerId: this.playerId, sequenceId });
 
         // Faire tourner le systeme solaire
-        const result = performRotation(game);
+        const result = performRotation(updatedGame);
         result.logs.forEach(log => this.historyEntries.push({ message: log, playerId: this.playerId, sequenceId }));
 
         this.newPendingInteractions.push({ type: 'ACQUIRING_TECH', sequenceId })

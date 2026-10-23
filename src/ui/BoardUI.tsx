@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, LifeTraceType, InteractionState, GamePhase, Mission, Player, SignalType, HistoryEntry, getInteractionLabel, LifeTraceLocation } from '../core/types';
-import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, performRotation, calculateReachableCellsWithEnergy, calculateAbsolutePosition } from '../core/SolarSystemPosition';
+import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, LifeTraceType, InteractionState, GamePhase, SignalType, HistoryEntry, getInteractionLabel, LifeTraceLocation } from '../core/types';
+import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, calculateAbsolutePosition } from '../core/SolarSystemPosition';
 import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
@@ -16,14 +16,15 @@ import { PlayCardAction } from '../actions/PlayCardAction';
 import { ResearchTechAction } from '../actions/ResearchTechAction';
 import { ScanSectorAction } from '../actions/ScanSectorAction';
 import { GameEngine } from '../core/Game';
+import { TurnManager } from '../core/TurnManager';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { ScanSystem } from '../systems/ScanSystem';
 import { ScoreManager } from '../core/ScoreManager';
-import { AIBehavior } from '../ai/AIBehavior';
-import { AIController } from '../ai/AIController';
+import { useAITurn } from './hooks/useAITurn';
+import { useAutosave } from './hooks/useAutosave';
 import { DebugPanel } from './DebugPanel';
 import { PassModal } from './modals/PassModal';
 import { Tooltip } from './Tooltip';
@@ -32,7 +33,6 @@ import { HistoryBoardUI } from './HistoryBoardUI';
 import { CardRowUI } from './CardRowUI';
 import { AlienBoardUI } from './AlienBoardUI';
 import { SettingsModal } from './modals/SettingsModal';
-import { ComputerSystem } from '../systems/ComputerSystem';
 import { PlanetBoardUI } from './PlanetBoardUI';
 import './BoardUI.css';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
@@ -116,54 +116,7 @@ export const BoardUI: React.FC = () => {
   };
 
   // Sauvegarde automatique à chaque modification du jeu
-  useEffect(() => {
-    if (game) {
-      try {
-        // Préparer l'objet à sauvegarder avec l'historique à jour
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { history, ...cleanGame } = game;
-
-        const lastEntry = historyLog.length > 0 ? historyLog[historyLog.length - 1] : null;
-        const lastSequenceId = lastEntry?.sequenceId;
-
-        const gameToSave = { 
-            ...cleanGame,
-            gameLog: historyLog.map((entry, index) => {
-                // Sauvegarder le previousState uniquement pour la dernière entrée
-                // pour permettre l'undo immédiat après rechargement
-                const isLast = index === historyLog.length - 1;
-                let cleanPreviousState = undefined;
-                
-                let shouldSaveState = false;
-                if (isLast && entry.previousState) {
-                    shouldSaveState = true;
-                } else if (lastSequenceId && entry.sequenceId === lastSequenceId && entry.previousState) {
-                    shouldSaveState = true;
-                }
-
-                if (shouldSaveState) {
-                    // Exclure gameLog et history du previousState pour éviter la récursion/taille
-                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                    const { gameLog, history, ...rest } = entry.previousState as any;
-                    cleanPreviousState = rest;
-                }
-                return {
-                    id: entry.id,
-                    message: entry.message,
-                    timestamp: entry.timestamp,
-                    playerId: entry.playerId,
-                    sequenceId: entry.sequenceId,
-                    previousState: cleanPreviousState
-                };
-            })
-        };
-        // Sauvegarder l'état complet
-        localStorage.setItem('seti_autosave', JSON.stringify(gameToSave));
-      } catch (e) {
-        console.warn("Erreur lors de la sauvegarde automatique (QuotaExceededError probable) :", e);
-      }
-    }
-  }, [game, historyLog]);
+  useAutosave(game, historyLog);
 
 
   // Ref pour accéder à l'état d'interaction actuel dans addToHistory sans dépendance
@@ -382,7 +335,7 @@ export const BoardUI: React.FC = () => {
             aiInteractions.forEach(interaction => {
                 if (interaction.type === 'PLACING_LIFE_TRACE' && interaction.playerId) {
                      const slotType = Math.random() < 0.5 ? LifeTraceLocation.TRIANGLE : LifeTraceLocation.SPECIES;
-                     const slotIndex = slotType === LifeTraceLocation.SPECIES ? getLifeTraceSpeciesSlotIndex(updatedGame, 0, interaction.color, slotType) : undefined;
+                     const slotIndex = slotType === LifeTraceLocation.SPECIES ? SpeciesSystem.getNextSpeciesSlotIndex(updatedGame, 0, interaction.color, slotType) : undefined;
                      const { updatedGame: ug, historyEntries, newPendingInteractions } = SpeciesSystem.placeLifeTrace(updatedGame, 0, interaction.color, interaction.playerId, sequenceId, slotType, slotIndex);
                      updatedGame = ug;
                      historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, sequenceId));
@@ -516,410 +469,30 @@ export const BoardUI: React.FC = () => {
     }
   }, [addToHistory]);
 
-  const getLifeTraceSpeciesSlotIndex = (game: Game, boardIndex: number, slotType: LifeTraceType, slotLocation: LifeTraceLocation): number => {
-    const board = game.board.alienBoards[boardIndex];
-    const traces = board.lifeTraces.filter(t => t.type === slotType && t.location === slotLocation);
-    const indices = new Set(traces.map(t => t.slotIndex));
-    let slotIndex = 0;
-    while (indices.has(slotIndex)) slotIndex++;
-    return slotIndex;
-  }
-
-  // Effet pour gérer le tour du joueur Mock
-  useEffect(() => {
-    if (!game) return;
-    
-    // Bloquer l'IA si une interaction est en cours (ex: joueur humain doit placer une trace de vie)
-    if (interactionState.type !== 'IDLE') return;
-
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    if (currentPlayer && currentPlayer.type === 'robot') {
-      // Synchroniser le moteur avec l'état actuel pour l'IA
-      if (gameEngineRef.current) gameEngineRef.current.setState(game);
-
-      const timer = setTimeout(() => {
-        // Gestion de la phase de SETUP (Réservation)
-        if (game.phase === GamePhase.SETUP) {
-            const cardId = AIBehavior.decideReservation(game, currentPlayer);
-            if (cardId) {
-                const updatedGame = CardSystem.reserveCard(game, currentPlayer.id, cardId);
-                
-                // Logique de log pour la réservation (similaire à handleConfirmReservation)
-                const card = currentPlayer.cards.find(c => c.id === cardId);
-                let gainMsg = "";
-                if (card) {
-                    if (card.revenue === RevenueType.CREDIT) gainMsg = "1 Crédit";
-                    else if (card.revenue === RevenueType.ENERGY) gainMsg = "1 Énergie";
-                    else if (card.revenue === RevenueType.CARD) gainMsg = "1 Carte";
-                    addToHistory(`réserve carte "${card.name}" et gagne ${gainMsg}`, currentPlayer.id, game);
-                }
-
-                // Passer au joueur suivant
-                handleSetupNextPlayer(updatedGame);
-            }
-            return;
-        }
-
-        // Tentative d'actions gratuites (avant ou après l'action principale)
-        if (performAIFreeActions(game, currentPlayer)) return;
-
-        // Si le robot a déjà joué son action principale et n'a plus d'actions gratuites à faire
-        if (currentPlayer.hasPerformedMainAction) {
-            handleNextPlayer();
-            return;
-        }
-
-        // Décision de l'IA
-        const decision = AIBehavior.decideAction(game, currentPlayer, 'EASY');
-
-        if (decision) {
-          switch (decision.action) {
-            case ActionType.LAUNCH_PROBE: {
-              const action = new LaunchProbeAction(currentPlayer.id);
-              const result = gameEngineRef.current!.executeAction(action);
-              if (result.success && result.updatedState) {
-                let aiGame = result.updatedState;
-                const sequenceId = `ai-launch-${Date.now()}`;
-                
-                if (action.historyEntries) {
-                    action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
-                }
-
-                if (action.newPendingInteractions.length > 0) {
-                  const res = AIController.processInteractionQueue(aiGame, action.newPendingInteractions, sequenceId, currentPlayer);
-                  aiGame = res.updatedGame;
-                  res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, undefined, undefined, e.sequenceId));
-                }
-                
-                setGame(aiGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
-              }
-              break;
-            }
-            case ActionType.SCAN_SECTOR: {
-              const action = new ScanSectorAction(currentPlayer.id);
-              const result = gameEngineRef.current!.executeAction(action);
-              if (result.success && result.updatedState) {
-                let aiGame = result.updatedState;
-                const sequenceId = `ai-scan-${Date.now()}`;
-                
-                if (action.historyEntries) {
-                    action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
-                }
-
-                if (action.newPendingInteractions.length > 0) {
-                  const res = AIController.processInteractionQueue(aiGame, action.newPendingInteractions, sequenceId, currentPlayer);
-                  aiGame = res.updatedGame;
-                  res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, undefined, undefined, e.sequenceId));
-                }
-
-                setGame(aiGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
-              }
-              break;
-            }
-            case ActionType.ANALYZE_DATA: {
-              const action = new AnalyzeDataAction(currentPlayer.id);
-              const result = gameEngineRef.current!.executeAction(action);
-              if (result.success && result.updatedState) {
-                let aiGame = result.updatedState;
-                const sequenceId = `ai-analyze-${Date.now()}`;
-
-                addToHistory(`paye ${ResourceSystem.formatResource(1, 'ENERGY')} pour <strong>Analyser les données</strong>`, currentPlayer.id, game, undefined, sequenceId);
-                const slotType = Math.random() < 0.5 ? LifeTraceLocation.TRIANGLE : LifeTraceLocation.SPECIES;
-                const slotIndex = slotType === LifeTraceLocation.SPECIES ? getLifeTraceSpeciesSlotIndex(aiGame, 0, LifeTraceType.BLUE, slotType) : undefined;
-                const res = SpeciesSystem.placeLifeTrace(aiGame, 0, LifeTraceType.BLUE, currentPlayer.id, sequenceId, slotType, slotIndex);
-                res.historyEntries.forEach((e, index) => addToHistory(e.message, e.playerId, index === 0 ? aiGame : undefined, undefined, sequenceId));
-                aiGame = res.updatedGame;
-
-                if (aiGame.isSpeciesDiscovered) {
-                    addToHistory("découvre une nouvelle espèce Alien !", currentPlayer.id, undefined, undefined, sequenceId);
-                    aiGame.isSpeciesDiscovered = false;
-                }
-
-                if (res.newPendingInteractions.length > 0) {
-                        const resAI = AIController.processInteractionQueue(aiGame, res.newPendingInteractions, sequenceId, currentPlayer);
-                        aiGame = resAI.updatedGame;
-                        resAI.historyEntries.forEach(e => addToHistory(e.message, e.playerId, undefined, undefined, e.sequenceId));
-                }
-
-                setGame(aiGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
-              }
-              break;
-            }
-            case ActionType.RESEARCH_TECH: {
-              const action = new ResearchTechAction(currentPlayer.id);
-              const result = gameEngineRef.current!.executeAction(action);
-              if (result.success && result.updatedState) {
-                // Finaliser l'acquisition
-                const res = TechnologySystem.acquireTechnology(result.updatedState, currentPlayer.id, decision.data.tech);
-                let aiGame = res.updatedGame;
-                
-                if (action.historyEntries) {
-                  action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, e.sequenceId));
-                }
-                if (res.historyEntries) {
-                  res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, aiGame, undefined, e.sequenceId));
-                }
-                if (res.newPendingInteractions && res.newPendingInteractions.length > 0) {
-                    const sequenceId = `ai-tech-${Date.now()}`;
-                    const resAI = AIController.processInteractionQueue(aiGame, res.newPendingInteractions, sequenceId, currentPlayer);
-                    aiGame = resAI.updatedGame;
-                }
-                setGame(aiGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
-              }
-              break;
-            }
-            case ActionType.PLAY_CARD: {
-              const action = new PlayCardAction(currentPlayer.id, decision.data.cardId);
-              const result = gameEngineRef.current!.executeAction(action);
-              if (result.success && result.updatedState) {
-                let aiGame = result.updatedState;
-                const sequenceId = `ai-play-${Date.now()}`;
-
-                if (action.historyEntries) {
-                  action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
-                }
-
-                if (action.newPendingInteractions.length > 0) {
-                  const res = AIController.processInteractionQueue(aiGame, action.newPendingInteractions || [], sequenceId, currentPlayer);
-                  aiGame = res.updatedGame;
-                  res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, undefined, undefined, e.sequenceId));
-                }
-
-                setGame(aiGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
-              }
-              break;
-            }
-            case ActionType.ORBIT: {
-              const action = new OrbitAction(currentPlayer.id, decision.data.probeId, decision.data.planetId);
-              const result = gameEngineRef.current!.executeAction(action);
-              if (result.success && result.updatedState) {
-                let aiGame = result.updatedState;
-                const sequenceId = `ai-orbit-${Date.now()}`;
-
-                if (action.historyEntries) {
-                  action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
-                }
-
-                if (action.newPendingInteractions.length > 0) {
-                  const res = AIController.processInteractionQueue(aiGame, action.newPendingInteractions, sequenceId, currentPlayer);
-                  aiGame = res.updatedGame;
-                  res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, undefined, undefined, e.sequenceId));
-                }
-
-                setGame(aiGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
-              }
-              break;
-            }
-            case ActionType.LAND: {
-              const action = new LandAction(currentPlayer.id, decision.data.probeId, decision.data.planetId);
-              const result = gameEngineRef.current!.executeAction(action);
-              if (result.success && result.updatedState) {
-                let aiGame = result.updatedState;
-                const sequenceId = `ai-land-${Date.now()}`;
-
-                if (action.historyEntries) {
-                  action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
-                }
-
-                if (action.newPendingInteractions.length > 0) {
-                    const res = AIController.processInteractionQueue(aiGame, action.newPendingInteractions, sequenceId, currentPlayer);
-                    aiGame = res.updatedGame;
-                    res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, undefined, undefined, e.sequenceId));
-                }
-
-                setGame(aiGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
-              }
-              break;
-            }
-            case ActionType.PASS: {
-              performPass(decision.data.cardsToKeep);
-              break;
-            }
-          }
-        }
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-    return;
-  }, [game, performPass, addToHistory]);
-
-  // Helper pour les actions gratuites de l'IA
-  const performAIFreeActions = (currentGame: Game, player: Player): boolean => {
-    // 1. Complete Missions
-    if (player.missions && Math.random() < 0.4) {
-        for (const mission of player.missions) {
-            if (mission.completed) continue;
-            for (const req of mission.requirements) {
-                if (!req.id) continue;
-                if ((mission.completedRequirementIds || []).includes(req.id)) continue;
-                if (req.type.startsWith('GAIN_IF_')) {
-                    const bonus = CardSystem.evaluateMission(currentGame, player.id, req.value);
-                    if (bonus) {
-                        const updatedGame = structuredClone(currentGame);
-                        const p = updatedGame.players.find((p: Player) => p.id === player.id);
-                        if (!p) {
-                            // If player not found, exit early
-                            break;
-                        }
-                        const m = p.missions.find((m: Mission) => m.id === mission.id);
-                        if (!m) {
-                            // If mission not found, exit early
-                            break;
-                        }
-                        m.completedRequirementIds.push(req.id);
-                        if (m.completedRequirementIds.length >= m.requirements.length) {
-                            m.completed = true;
-                        }
-                        const sequenceId = `ai-mission-${Date.now()}`;
-                        const res = ResourceSystem.processBonuses(bonus, updatedGame, player.id, 'mission-claim', sequenceId);
-                        
-                        setGame(res.updatedGame);
-                        if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
-                        
-                        const actionText = m.completed ? "accomplit" : "valide un objectif de";
-                        addToHistory(`${actionText} la mission "${m.name}" ${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, currentGame, undefined, sequenceId);
-                        res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, sequenceId));
-
-                        if (res.newPendingInteractions.length > 0) {
-                          const interactionsWithSeqId = res.newPendingInteractions.map(i => ({ ...i, sequenceId }));
-                          handleNewInteractions(interactionsWithSeqId, sequenceId);
-                        }
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-
-    // 2. Transfer Data
-    if (player.data > 0 && Math.random() < 0.4) {
-        for (const slotId in player.dataComputer.slots) {
-            if (ComputerSystem.canFillSlot(player, slotId)) {
-                const { updatedGame, gains, bonusEffects } = ComputerSystem.fillSlot(currentGame, player.id, slotId);
-                const sequenceId = `ai-computer-${Date.now()}`;
-                
-                let aiGame = updatedGame;
-                bonusEffects.forEach(effect => {
-                     if (effect.type === 'card') {
-                         aiGame = CardSystem.drawCards(aiGame, player.id, effect.amount);
-                     } else if (effect.type === 'reservation') {
-                         const row = aiGame.decks.cardRow;
-                         if (row.length > 0) {
-                             const card = row[Math.floor(Math.random() * row.length)];
-                             aiGame = CardSystem.reserveCard(aiGame, player.id, card.id);
-                         }
-                     }
-                });
-
-                setGame(aiGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
-                const gainText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
-                addToHistory(`transfère 1 donnée vers l'ordinateur ${gainText}`, player.id, currentGame, undefined, sequenceId);
-                return true;
-            }
-        }
-    }
-
-    // 3. Buy Card (Media >= 3)
-    if (player.mediaCoverage >= 3 && Math.random() < 0.1) {
-        const row = currentGame.decks.cardRow;
-        if (row.length > 0) {
-            const card = row[Math.floor(Math.random() * row.length)];
-            const res = CardSystem.buyCard(currentGame, player.id, card.id, false);
-            if (!res.error) {
-                setGame(res.updatedGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
-                addToHistory(`achète la carte "${card.name}"`, player.id, currentGame);
-                return true;
-            }
-        }
-    }
-
-    // 4. Discard Card (Free Action)
-    if (player.cards.length > 0 && Math.random() < 0.1) {
-        const cardsWithAction = player.cards.filter((c: any) => c.freeAction);
-        const card = cardsWithAction.length > 0 ? cardsWithAction[Math.floor(Math.random() * cardsWithAction.length)] : player.cards[Math.floor(Math.random() * player.cards.length)];
-        
-        if (card.freeAction) {
-             const sequenceId = `ai-free-action-${Date.now()}`;
-             let updatedGame = structuredClone(currentGame);
-             let logMsg = "";
-             if (card.freeAction === FreeActionType.MEDIA) {
-                 const res = ResourceSystem.updateMedia(updatedGame, player.id, 1);
-                 updatedGame = res.updatedGame;
-                 logMsg = "gagne 1 Média";
-             } else if (card.freeAction === FreeActionType.DATA) {
-                 const res = ResourceSystem.updateData(updatedGame, player.id, 1);
-                 updatedGame = res.updatedGame;
-                 logMsg = "gagne 1 Donnée";
-             } else if (card.freeAction === FreeActionType.MOVEMENT) {
-                 const probes = player.probes.filter((p: any) => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition);
-                 if (probes.length > 0) {
-                     const probe = probes[Math.floor(Math.random() * probes.length)];
-                     const rotationState = createRotationState(
-                          updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-                          updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-                          updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-                      );
-                      const absPos = getAbsoluteSectorForProbe(probe.solarPosition!, rotationState);
-                      const reachable = calculateReachableCellsWithEnergy(
-                          probe.solarPosition!.disk,
-                          absPos,
-                          1, player.energy, rotationState, false
-                      );
-                      const destinations = Array.from(reachable.keys()).filter(k => k !== `${probe.solarPosition!.disk}${absPos}`);
-                      if (destinations.length > 0) {
-                          const destKey = destinations[Math.floor(Math.random() * destinations.length)];
-                          const disk = destKey[0] as DiskName;
-                          const sector = parseInt(destKey.substring(1)) as SectorNumber;
-
-                          const moveRes = ProbeSystem.moveProbe(updatedGame, player.id, probe.id, disk, sector, 1, sequenceId);
-                          updatedGame = moveRes.updatedGame;
-                          logMsg = "déplace une sonde";
-                      } else {
-                          logMsg = "gagne 1 déplacement (inutilisé)";
-                      }
-                 } else {
-                     logMsg = "gagne 1 déplacement (inutilisé)";
-                 }
-             }
-             
-             updatedGame = CardSystem.discardCard(updatedGame, player.id, card.id);
-             setGame(updatedGame);
-             if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-             addToHistory(`défausse "${card.name}" et ${logMsg}`, player.id, currentGame, undefined, sequenceId);
-             return true;
-        }
-    }
-
-    return false;
-  };
+  // Tour des robots (logique dans AITurn, cadence dans useAITurn)
+  useAITurn(game, interactionState, {
+    applyGame: (updatedGame) => {
+      setGame(updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+    },
+    addToHistory,
+    onSetupReserved: (updatedGame) => handleSetupNextPlayer(updatedGame),
+    onPass: (cardsToKeep) => performPass(cardsToKeep),
+    onDiscovery: (message) => {
+      setAlienDiscoveryNotification({ visible: true, message });
+      setTimeout(() => setAlienDiscoveryNotification(null), 4000);
+    },
+    onTurnEnded: () => {
+      setPendingInteractions([]);
+      setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
+    },
+  });
 
   // Gestionnaire pour passer au joueur suivant pendant la phase de SETUP
   const handleSetupNextPlayer = (currentGame: Game) => {
-      const nextGame = { ...currentGame };
-      const nextIndex = (nextGame.currentPlayerIndex + 1) % nextGame.players.length;
-      
-      if (nextIndex === nextGame.firstPlayerIndex) {
-          nextGame.phase = GamePhase.PLAYING;
-          nextGame.currentPlayerIndex = nextGame.firstPlayerIndex;
-          // Réinitialiser hasPerformedMainAction pour tous les joueurs au début de la partie
-          nextGame.players = nextGame.players.map(p => ({ ...p, hasPerformedMainAction: false }));
+      const { updatedGame: nextGame, historyEntries } = TurnManager.advanceSetup(currentGame);
+      historyEntries.forEach(e => addToHistory(e.message, e.playerId || undefined, nextGame));
 
-          addToHistory("--- DÉBUT DE LA PARTIE ---", undefined, nextGame);
-          const firstPlayer = nextGame.players[nextGame.firstPlayerIndex];
-          addToHistory(`--- Tour de ${firstPlayer.name} ---`, firstPlayer.id, nextGame);
-      } else {
-          nextGame.currentPlayerIndex = nextIndex;
-      }
-      
       setGame(nextGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(nextGame);
   };
@@ -931,30 +504,21 @@ export const BoardUI: React.FC = () => {
     // Vérifier les paliers de score avant de passer au joueur suivant
     // Utiliser l'état du moteur pour avoir la version la plus à jour
     const stateBeforeMilestones = gameEngineRef.current.getState();
-    const currentPlayer = stateBeforeMilestones.players[stateBeforeMilestones.currentPlayerIndex];
+    const turn = TurnManager.finishTurn(stateBeforeMilestones);
 
-    const milestoneResult = ScoreManager.checkScoreMilestones(stateBeforeMilestones, currentPlayer.id);
+    gameEngineRef.current.setState(turn.updatedGame);
+    setGame(turn.updatedGame);
 
-    // Apply updates from milestone checks (e.g., neutral milestone placement)
-    const stateAfterMilestones = milestoneResult.updatedGame;
-    gameEngineRef.current.setState(stateAfterMilestones);
-    setGame(stateAfterMilestones);
-
-    // Handle history and notifications
-    if (milestoneResult.historyEntries.length > 0) {
-      milestoneResult.historyEntries.forEach(entry => {
-        // The state to save for undo should be the one *before* the milestone check
-        addToHistory(entry.message, entry.playerId, stateBeforeMilestones, undefined, entry.sequenceId);
-      });
-    }
-    if (milestoneResult.discoveryNotification) {
-      setAlienDiscoveryNotification({ visible: true, message: milestoneResult.discoveryNotification.message });
+    // L'état à restaurer en cas d'undo est celui d'avant la vérification des paliers
+    turn.milestoneEntries.forEach(entry => addToHistory(entry.message, entry.playerId, stateBeforeMilestones, undefined, entry.sequenceId));
+    if (turn.discoveryNotification) {
+      setAlienDiscoveryNotification({ visible: true, message: turn.discoveryNotification.message });
       setTimeout(() => setAlienDiscoveryNotification(null), 4000);
     }
 
-    // If a milestone triggered an interaction, stop here and let the user interact
-    if (milestoneResult.shouldStop && milestoneResult.newInteraction) {
-      const interaction = milestoneResult.newInteraction;
+    // Un palier exige un choix : on s'arrête là et on laisse le joueur interagir
+    if (!turn.turnEnded && turn.pendingInteraction) {
+      const interaction = turn.pendingInteraction;
       setInteractionState(interaction);
       let toastMessage = getInteractionLabel(interaction);
       if (interaction.type === 'PLACING_OBJECTIVE_MARKER') {
@@ -966,18 +530,11 @@ export const BoardUI: React.FC = () => {
       return;
     }
 
-    // Applique la logique de passe au joueur suivant
-    gameEngineRef.current.nextPlayer();
-
-    // Sauvegarde l'état et réinitialise les interactions
-    const nextState = gameEngineRef.current.getState();
-    setGame(nextState);
+    // Le joueur suivant est déjà actif dans turn.updatedGame : réinitialiser les interactions
     setInteractionState({ type: 'IDLE' });
     setPendingInteractions([]);
     setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
-
-    const nextPlayer = nextState.players[nextState.currentPlayerIndex];
-    addToHistory(`--- Tour de ${nextPlayer.name} ---`, nextPlayer.id, nextState);
+    turn.turnEntries.forEach(e => addToHistory(e.message, e.playerId, turn.updatedGame));
   };
 
   // Gestionnaire pour le clic sur une carte en mode défausse/échange/réservation/signal
@@ -1924,14 +1481,15 @@ export const BoardUI: React.FC = () => {
 
     try {
       const result = actionFn(game, currentPlayer.id, probe.id, planetId, sequenceId);
-      const updatedGame = result.updatedGame;
       const historyEntries = result.historyEntries;
       const newPendingInteractions = result.newPendingInteractions;
 
-      // Marquer l'action principale comme effectuée manuellement
-      // ATTENTION TODO devrait etre fait dans GameEngine ou au moins dans la logique métier
-      const playerIndex = updatedGame.players.findIndex(p => p.id === currentPlayer.id);
-      if (playerIndex !== -1) updatedGame.players[playerIndex].hasPerformedMainAction = true;
+      // Seule l'orbite/atterrissage payant consomme l'action principale ;
+      // les versions bonus (ORBITING_PROBE / LANDING_PROBE) sont des effets gratuits
+      const isBonusAction = interactionState.type === 'ORBITING_PROBE' || interactionState.type === 'LANDING_PROBE';
+      const updatedGame = isBonusAction
+        ? result.updatedGame
+        : TurnManager.markMainActionPerformed(result.updatedGame, currentPlayer.id);
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
@@ -2701,7 +2259,7 @@ export const BoardUI: React.FC = () => {
   };
 
   // Fonction interne pour traiter l'achat (commune à l'achat direct et après sélection)
-  const processTechPurchase = (tech: Technology, targetComputerCol?: number, noTileBonus?: boolean, baseGame?: Game) => {
+  const processTechPurchase = (tech: Technology, targetComputerCol?: number, noTileBonus?: boolean, baseGame?: Game, sequenceId: string | undefined = interactionState.sequenceId) => {
     if (!game || !gameRef.current) return;
 
     const currentGame = baseGame || gameRef.current;
@@ -2713,11 +2271,11 @@ export const BoardUI: React.FC = () => {
     // Finaliser la transaction
     setGame(result.updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, currentGame, undefined, interactionState.sequenceId));
+    result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, currentGame, undefined, sequenceId));
 
     if (result.newPendingInteractions && result.newPendingInteractions.length > 0) {
-        const interactionsWithSeqId = result.newPendingInteractions.map(i => ({ ...i, sequenceId: interactionState.sequenceId }));
-        handleNewInteractions(interactionsWithSeqId, interactionState.sequenceId);
+        const interactionsWithSeqId = result.newPendingInteractions.map(i => ({ ...i, sequenceId }));
+        handleNewInteractions(interactionsWithSeqId, sequenceId);
     } else {
         setInteractionState({ type: 'IDLE' });
     }
@@ -2748,34 +2306,25 @@ export const BoardUI: React.FC = () => {
         return;
       }
 
-      let updatedGame = structuredClone(game);
-      const player = updatedGame.players[updatedGame.currentPlayerIndex];
-
-      // Initier la séquence
-      interactionState.sequenceId = `tech-${Date.now()}`;
-
-      // Payer le coût
-      player.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
-      addToHistory(`paye ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias pour <strong>Rechercher une technologie</strong>`, player.id, game, undefined, interactionState.sequenceId);
-
-      // Faire tourner le systeme solaire
-      const rotationResult = performRotation(updatedGame);
-      updatedGame = rotationResult.updatedGame;
-      addToHistory(rotationResult.logs.join(', '), player.id, game, undefined, interactionState.sequenceId);
-
-      // Marquer l'action principale comme effectuée manuellement
-      // ATTENTION TODO devrait etre fait dans GameEngine ou au moins dans la logique métier
-      const playerIndex = updatedGame.players.findIndex(p => p.id === player.id);
-      if (playerIndex !== -1) updatedGame.players[playerIndex].hasPerformedMainAction = true;
+      // Paiement + rotation via l'action moteur (marque aussi l'action principale)
+      const engine = new GameEngine(game);
+      const result = engine.executeAction(action);
+      if (!result.success || !result.updatedState) {
+        setToast({ message: result.error || "Recherche impossible", visible: true });
+        return;
+      }
+      const updatedGame = result.updatedState;
+      const sequenceId = action.historyEntries[0]?.sequenceId || `tech-${Date.now()}`;
+      action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
 
       if (tech.type === TechnologyCategory.COMPUTING) {
         // Sélection du slot
         setGame(updatedGame);
         if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-        setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId: interactionState.sequenceId });
+        setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId });
       } else {
         // Finaliser l'achat
-        processTechPurchase(tech, undefined, false, updatedGame);
+        processTechPurchase(tech, undefined, false, updatedGame, sequenceId);
       }
     }
   };

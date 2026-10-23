@@ -36,7 +36,9 @@ src/
 │   ├── DataLoader.ts        # fetch + parsing CSV des cartes, mini-DSL d'effets (colonne Contrainte)
 │   ├── Board.ts             # BoardManager : secteurs, planètes, plateau techno, plateaux alien, objectifs
 │   ├── SolarSystemPosition.ts # Géométrie : disques A–E × secteurs 1–8, 3 anneaux rotatifs, rotation, adjacence
-│   ├── TurnManager.ts       # Joueur suivant, fin de manche, revenus
+│   ├── TurnManager.ts       # Mise en place, fin de tour (paliers), joueur suivant, fin de manche, revenus
+│   ├── GamePersistence.ts   # serializeGame / deserializeGame (autosave et fichiers de sauvegarde)
+│   ├── cloneGame.ts         # Copie profonde de l'état (voir « État immuable »)
 │   ├── ActionValidator.ts   # Règles génériques (tour, passé, 1 action principale/tour) puis action.validate()
 │   ├── ScoreManager.ts      # Décompte final
 │   └── Logger.ts
@@ -51,9 +53,11 @@ src/
 │   └── SpeciesSystem.ts     # Traces de vie, découverte et mécaniques des 5 espèces (Mascamites, Anomalies, Oumuamua, Centauriens, Exertiens)
 ├── ai/
 │   ├── AIBehavior.ts        # Choix d'action du robot (EASY = aléatoire), réservation, paliers
-│   └── AIController.ts      # Résout automatiquement la file d'interactions en attente pour un robot
+│   ├── AIController.ts      # Résout automatiquement la file d'interactions en attente pour un robot
+│   └── AITurn.ts            # Tour complet d'un robot, une étape à la fois (pur, testable sans React)
 └── ui/
-    ├── BoardUI.tsx          # ⚠ Composant « dieu » (~3100 lignes) : état React, orchestration des tours, IA, sauvegarde
+    ├── BoardUI.tsx          # ⚠ Composant principal (~2700 lignes) : état React, interactions du joueur humain
+    ├── hooks/               # useAITurn (cadence des robots), useAutosave (localStorage)
     ├── SolarSystemBoardUI.tsx (~1700), PlayerBoardUI, PlanetBoardUI, AlienBoardUI, TechnologyBoardUI, ObjectiveBoardUI, CardRowUI, HistoryBoardUI
     ├── components/          # HandCard, MissionCard, CardTooltip, PlayerComputer, PlanetIcon, SvgBonus, SectorDetails…
     ├── modals/              # NewGame, Settings, Pass, GameModals
@@ -71,8 +75,9 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
 - **Historique** : `HistoryEntry { message, playerId, sequenceId }`. `sequenceId` regroupe les entrées d'une même action et sert à l'undo. Les messages sont en français et affichés au joueur.
 - **Interactions multi-étapes** : union discriminée `InteractionState` (`types.ts`). `BoardUI` tient `interactionState` et la file `pendingInteractions`. Pour en ajouter une : variant dans `InteractionState`, libellé dans `getInteractionLabel` (BoardUI), gestion dans les handlers **et** dans `AIController.processSingleInteraction` pour les robots.
 - **Cartes** : CSV `;` avec les colonnes `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte`. `Gain` et `Contrainte` encodent les effets (`1 Sonde + 1 Média`, `GAIN_ON_VISIT:jupiter:data:1`, `VISIT_PLANET:mars:4`…), parsés dans `DataLoader`. Modifier une carte = modifier le CSV dans `public/cards/`.
-- **Joueurs** : `type: 'human' | 'robot'`. L'humain est piloté par l'UI, les robots par `AIBehavior` et `AIController`, déclenchés depuis `BoardUI`.
-- **Persistance** : autosave dans `localStorage['seti_autosave']` + export/import JSON depuis `BoardUI`.
+- **Joueurs** : `type: 'human' | 'robot'`. L'humain est piloté par l'UI. Les robots sont gérés par `AITurn.playStep` / `AITurn.endTurn`, qui s'appuient sur `AIBehavior` et `AIController` ; le hook `useAITurn` appelle une étape toutes les 1,5 s. Toute logique de robot va dans `AITurn` (moteur), pas dans le hook. `test/AITurn.test.ts` joue des parties complètes entre robots : c'est le test de non-régression global du moteur.
+- **Logique métier hors de l'UI** : quand un handler de `BoardUI` contient de la logique de règles, la déplacer dans le moteur (`TurnManager`, systems, actions) et ne garder dans l'UI que l'application de l'état, l'historique et les toasts.
+- **Persistance** : `GamePersistence` (pur) + `useAutosave` (`localStorage['seti_autosave']`) + export/import JSON dans `SettingsModal`.
 - **Style** : TS `strict`, `noUnusedLocals/Parameters`, `.editorconfig` (2 espaces, LF). Identifiants en anglais, commentaires et messages en français. Les valeurs d'enum sont des libellés FR affichés (`SectorType.YELLOW = "Jaune"`) et utilisés au parsing CSV : ne pas les modifier à la légère.
 - **Tests** : Jest + ts-jest dans `test/`, type-checkés via `test/tsconfig.json` (inclus dans `npm run typecheck`).
   - `test/helpers/gameFixture.ts` : `createTestGame()` crée une **vraie** partie (fetch simulé qui sert `public/`, donc les vraies cartes), `makeCard()`, `getPlayer()`. À privilégier plutôt que des mocks d'état écrits à la main.

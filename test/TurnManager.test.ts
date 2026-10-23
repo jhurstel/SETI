@@ -93,6 +93,56 @@ describe('TurnManager', () => {
     });
   });
 
+  describe('advanceSetup', () => {
+    test('passe au joueur suivant tant que la mise en place n\'est pas finie', () => {
+      game.phase = GamePhase.SETUP;
+      const { updatedGame, started, historyEntries } = TurnManager.advanceSetup(game);
+      expect(started).toBe(false);
+      expect(updatedGame.currentPlayerIndex).toBe(1);
+      expect(updatedGame.phase).toBe(GamePhase.SETUP);
+      expect(historyEntries).toEqual([]);
+    });
+
+    test('démarre la partie au retour au premier joueur', () => {
+      game.phase = GamePhase.SETUP;
+      game.currentPlayerIndex = 2;
+      game.players.forEach(p => (p.hasPerformedMainAction = true));
+      const { updatedGame, started, historyEntries } = TurnManager.advanceSetup(game);
+
+      expect(started).toBe(true);
+      expect(updatedGame.phase).toBe(GamePhase.PLAYING);
+      expect(updatedGame.currentPlayerIndex).toBe(0);
+      expect(updatedGame.players.every(p => !p.hasPerformedMainAction)).toBe(true);
+      expect(historyEntries.map(e => e.message)).toEqual(['--- DÉBUT DE LA PARTIE ---', '--- Tour de Alice ---']);
+      expect(game.phase).toBe(GamePhase.SETUP);
+    });
+  });
+
+  describe('finishTurn', () => {
+    test('sans palier atteint : passe au joueur suivant', () => {
+      const turn = TurnManager.finishTurn(game);
+      expect(turn.turnEnded).toBe(true);
+      expect(turn.updatedGame.currentPlayerIndex).toBe(1);
+      expect(turn.turnEntries[0].message).toBe('--- Tour de Bob ---');
+    });
+
+    test('palier doré atteint : le tour s\'arrête sur le choix d\'un objectif', () => {
+      game.players[0].score = 26;
+      const turn = TurnManager.finishTurn(game);
+      expect(turn.turnEnded).toBe(false);
+      expect(turn.pendingInteraction).toEqual({ type: 'PLACING_OBJECTIVE_MARKER', milestone: 25 });
+      expect(turn.updatedGame.currentPlayerIndex).toBe(0);
+    });
+  });
+
+  describe('markMainActionPerformed', () => {
+    test('marque le joueur sans modifier l\'original', () => {
+      const updated = TurnManager.markMainActionPerformed(game, P2);
+      expect(getPlayer(updated, P2).hasPerformedMainAction).toBe(true);
+      expect(getPlayer(game, P2).hasPerformedMainAction).toBe(false);
+    });
+  });
+
   describe('utilitaires', () => {
     test('markPlayerPassed / allPlayersPassed / isFirstPassOfRound', () => {
       let updated = TurnManager.markPlayerPassed(game, P1);
