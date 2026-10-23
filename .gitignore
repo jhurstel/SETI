@@ -26,3 +26,6 @@ npm-debug.log*
 .env
 .env.local
 
+
+# Secrets
+gittoken.txt
