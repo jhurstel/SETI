@@ -23,7 +23,7 @@ export class AIController {
         player: Player
     ): AIControllerResult {
         let game = initialGame;
-        let queue = [...initialQueue];
+        const queue = [...initialQueue];
         const historyEntries: HistoryEntry[] = [];
 
         while (queue.length > 0) {
@@ -48,7 +48,7 @@ export class AIController {
     ): AIControllerResult {
         let updatedGame = structuredClone(game);
         const historyEntries: HistoryEntry[] = [];
-        let newPendingInteractions: InteractionState[] = [];
+        const newPendingInteractions: InteractionState[] = [];
 
         const addHistory = (message: string, playerId: string, previousState?: Game) => {
             historyEntries.push({ message, playerId, previousState, sequenceId });

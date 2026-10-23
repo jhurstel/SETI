@@ -556,7 +556,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         break;
     }
 
-    let rect = e.currentTarget.getBoundingClientRect();
+    const rect = e.currentTarget.getBoundingClientRect();
     setActiveTooltip({
       content,
       rect,

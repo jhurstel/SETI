@@ -75,7 +75,7 @@ export class ScanSystem {
     }
 
     const logs: string[] = [];
-    let bonuses: Bonus = {};
+    const bonuses: Bonus = {};
     const player = updatedGame.players.find(p => p.id === playerId);
 
     // Find first available signal
@@ -163,7 +163,7 @@ export class ScanSystem {
     }
 
     const logs: string[] = [];
-    let bonuses: Bonus = {};
+    const bonuses: Bonus = {};
     const newPendingInteractions: { interaction: InteractionState, playerId: string }[] = [];
     const majorities = this.calculateMajorities(sector);
     if (majorities.length === 0) {
@@ -501,7 +501,7 @@ export class ScanSystem {
     const historyEntries: HistoryEntry[] = [];
     const scanLogs: string[] = [...initialLogs];
 
-    let newPendingInteractions: InteractionState[] = [];
+    const newPendingInteractions: InteractionState[] = [];
 
     // 1. Scan
     const scanResult = ScanSystem.scanSector(updatedGame, playerId, sectorId, false, noData);

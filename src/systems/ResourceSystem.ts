@@ -188,7 +188,7 @@ export class ResourceSystem {
   }
 
   static updateMedia(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
-    let updatedGame = { ...game };
+    const updatedGame = { ...game };
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
     const player = updatedGame.players.find(p => p.id === playerId);
     if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
@@ -198,7 +198,7 @@ export class ResourceSystem {
   }
 
   static updateCredit(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
-    let updatedGame = { ...game };
+    const updatedGame = { ...game };
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
     const player = updatedGame.players.find(p => p.id === playerId);
     if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
@@ -208,7 +208,7 @@ export class ResourceSystem {
   }
 
   static updateEnergy(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
-    let updatedGame = { ...game };
+    const updatedGame = { ...game };
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
     const player = updatedGame.players.find(p => p.id === playerId);
     if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
@@ -218,7 +218,7 @@ export class ResourceSystem {
   }
 
   static updateData(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
-    let updatedGame = { ...game };
+    const updatedGame = { ...game };
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
     const player = updatedGame.players.find(p => p.id === playerId);
     if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
@@ -461,7 +461,7 @@ export class ResourceSystem {
     }
 
     if (bonuses.lifetraces) {
-      let tracesText = [];
+      const tracesText = [];
       for (const lifetraceBonus of bonuses.lifetraces) {
         for (let i = 0; i < lifetraceBonus.amount; i++) {
           newPendingInteractions.push({ type: 'PLACING_LIFE_TRACE', color: lifetraceBonus.scope, sequenceId });

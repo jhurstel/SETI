@@ -1,165 +1,56 @@
-# SETI - Adaptation Numérique
+# SETI – Adaptation numérique
 
-Adaptation numérique du jeu de société SETI (Iello) développée en TypeScript.
+Adaptation numérique du jeu de société **SETI** (Iello) en TypeScript et React : partie solo contre 1 à 3 robots, dans le navigateur.
 
-## Architecture
+Règles de référence : [`seti-rules-fr.pdf`](./seti-rules-fr.pdf) et [`SETI-FAQ-FR.pdf`](./SETI-FAQ-FR.pdf).
 
-### Structure du Projet
+## Démarrage
 
-```
-src/
-├── core/              # Cœur du jeu
-│   ├── Game.ts        # Moteur de jeu principal
-│   ├── GameFactory.ts # Factory pour créer des parties
-│   ├── TurnManager.ts # Gestion des tours et manches
-│   ├── Board.ts       # Gestion du plateau
-│   └── types.ts       # Types et interfaces
-│
-├── systems/           # Systèmes de jeu
-│   ├── ProbeSystem.ts      # Gestion des sondes
-│   ├── ScanSystem.ts     # Scans et majorités
-│   ├── ComputerSystem.ts       # Ordinateur et analyse
-│   ├── TechnologySystem.ts # Technologies
-│   ├── CardSystem.ts       # Cartes et missions
-│   ├── SpeciesSystem.ts    # Espèces extraterrestres
-│   ├── MediaSystem.ts      # Couverture médiatique
-│   └── SolarSystemRotation.ts # Rotation du système solaire
-│
-├── actions/          # Actions de jeu
-│   ├── Action.ts            # Interface de base
-│   ├── LaunchProbeAction.ts
-│   ├── MoveProbeAction.ts
-│   ├── OrbitAction.ts
-│   ├── LandAction.ts
-│   ├── ScanSectorAction.ts
-│   ├── AnalyzeDataAction.ts
-│   ├── PlayCardAction.ts
-│   ├── ResearchTechAction.ts
-│   └── PassAction.ts
-│
-├── validation/       # Validation et règles
-│   ├── ActionValidator.ts # Validateur d'actions
-│   └── RuleEngine.ts      # Moteur de règles
-│
-└── scoring/          # Scoring
-    └── ScoreManager.ts    # Gestionnaire de scoring
+Prérequis : Node.js ≥ 20.19.
+
+```bash
+npm install
+npm run dev        # lance le jeu sur http://localhost:5173
 ```
 
-## Utilisation
+## Scripts
 
-### Créer une partie
+| Commande | Rôle |
+| --- | --- |
+| `npm run dev` | Serveur de développement Vite |
+| `npm run build` | Vérification de types puis build de production dans `dist/` |
+| `npm run preview` | Sert le build de production |
+| `npm run typecheck` | Vérification de types TypeScript |
+| `npm run lint` / `lint:fix` | ESLint |
+| `npm test` | Tests unitaires (Jest, dossier `test/`) |
+| `npm run check` | Typecheck + lint + tests + build (comme la CI) |
 
-```typescript
-import { GameFactory, GameEngine } from './src';
+La CI GitHub Actions (`.github/workflows/ci.yml`) exécute ces vérifications à chaque push sur `main` et à chaque pull request.
 
-// Créer une nouvelle partie avec 2 joueurs
-const gameState = GameFactory.createGame(['Alice', 'Bob']);
+## Structure
 
-// Initialiser la partie
-const initializedGame = GameFactory.initializeGame(gameState);
-
-// Créer le moteur de jeu
-const engine = new GameEngine(initializedGame);
+```
+public/cards/      Cartes du jeu (CSV) : main.csv + une feuille par espèce
+src/core/          Modèle de données (types.ts), moteur (Game.ts), création de partie, plateau, système solaire, score
+src/actions/       Actions principales (lancer, déplacer, orbite, atterrir, scanner, analyser, jouer une carte, technologie, passer)
+src/systems/       Règles métier : sondes, cartes, scans, ressources, ordinateur, technologies, espèces
+src/ai/            Comportement des robots
+src/ui/            Interface React (plateaux, cartes, modales)
+test/              Tests Jest
 ```
 
-### Exécuter une action
+Le détail de l'architecture et des conventions est dans [`CLAUDE.md`](./CLAUDE.md).
 
-```typescript
-import { LaunchProbeAction } from './src/actions/LaunchProbeAction';
+## Modifier les cartes
 
-// Lancer une sonde
-const action = new LaunchProbeAction('player_0');
-const result = engine.executeAction(action);
+Les cartes sont décrites dans `public/cards/*.csv` (séparateur `;`) :
 
-if (result.success) {
-  console.log('Sonde lancée avec succès !');
-} else {
-  console.error('Erreur:', result.error);
-}
+```
+Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
 ```
 
-### Exemples d'actions
-
-```typescript
-// Déplacer une sonde
-const moveAction = new MoveProbeAction(
-  'player_0',
-  'probe_123',
-  { x: 5, y: 3 }
-);
-
-// Scanner un secteur
-const scan = new ScanSectorAction(
-  'player_0',
-  'sector_1',
-  ['signal_1', 'signal_2']
-);
-
-// Analyser des données
-const analyzeAction = new AnalyzeDataAction('player_0');
-
-// Passer son tour
-const passAction = new PassAction(
-  'player_0',
-  ['card_1', 'card_2', 'card_3', 'card_4']
-);
-```
-
-## Phases de Développement
-
-### Phase 1 – Fondations ✅
-- Modèle de données complet
-- Gestion basique du tour/manche
-- Actions principales (squelettes)
-- Système de validation basique
-
-### Phase 2 – Plateau & Déplacements (À venir)
-- Système solaire complet
-- Rotation fonctionnelle
-- Gestion complète des sondes
-
-### Phase 3 – Observation & Données (À venir)
-- Système de scans complet
-- Gestion des majorités
-- Ordinateur et analyse
-
-### Phase 4 – Technologies & Cartes (À venir)
-- Technologies actives
-- Missions
-- Effets combinés
-
-### Phase 5 – Espèces Extraterrestres (À venir)
-- Déclenchement de découverte
-- Règles spécifiques
-- Cartes extraterrestres
-
-### Phase 6 – Scoring & Fin de Partie (À venir)
-- Scoring complet
-- Décompte final
-- Toutes les catégories
-
-## Points d'Attention Techniques
-
-### ⚠️ Rotation du Système Solaire
-Système complexe isolé dans `SolarSystemRotation.ts`. Nécessite des tests exhaustifs.
-
-### ⚠️ Gestion des Égalités
-En cas d'égalité dans un secteur, le dernier marqueur posé gagne (géré par timestamp).
-
-### ⚠️ Ordre de Résolution
-Les effets sont appliqués dans l'ordre : action → règles → limites.
-
-### ⚠️ Actions Gratuites
-Les actions gratuites peuvent être exécutées à tout moment (à implémenter).
-
-## Documentation
-
-- [Architecture](./docs/Architecture.md)
-- [Cahier des Charges](./docs/CahierDesCharges.md)
-- [Modèle de Données](./docs/ModeleDonnees.md)
-- [Plan de Développement](./docs/PlanDeveloppement.md)
+Les colonnes `Gain` et `Contrainte` encodent les effets (par ex. `1 Sonde + 1 Média`, `GAIN_ON_VISIT:jupiter:data:1`). Elles sont interprétées par `src/core/DataLoader.ts`.
 
 ## Licence
 
-Ce projet est une adaptation numérique du jeu SETI (Iello).
-
+Projet personnel, adaptation non officielle du jeu SETI (Iello).

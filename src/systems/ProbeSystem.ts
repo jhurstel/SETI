@@ -73,8 +73,8 @@ export class ProbeSystem {
     const updatedGame = structuredClone(game);
     const solarSystem = updatedGame.board.solarSystem;
     const player = updatedGame.players.find(p => p.id === playerId)!;
-    let historyEntries = []
-    let newPendingInteractions: InteractionState[] = [];
+    const historyEntries = []
+    const newPendingInteractions: InteractionState[] = [];
     let message = '';
 
     // Calculer la position réelle absolue de la Terre
@@ -234,7 +234,7 @@ export class ProbeSystem {
     }
 
     let updatedGame = structuredClone(game);
-    let player = updatedGame.players.find(p => p.id === playerId)!;
+    const player = updatedGame.players.find(p => p.id === playerId)!;
     const probe = player.probes.find(p => p.id === probeId)!;
     const energySpent = validation.energyCost!;
 
@@ -829,7 +829,7 @@ export class ProbeSystem {
     historyEntries: HistoryEntry[];
     newPendingInteractions: InteractionState[];
   } {
-    let updatedGame = structuredClone(game);
+    const updatedGame = structuredClone(game);
     const player = updatedGame.players.find(p => p.id === playerId);
     const planet = updatedGame.board.planets.find(p => p.id === planetId);
 
@@ -875,7 +875,7 @@ export class ProbeSystem {
     historyEntries: HistoryEntry[];
     newPendingInteractions: InteractionState[];
   } {
-    let updatedGame = structuredClone(game);
+    const updatedGame = structuredClone(game);
     const player = updatedGame.players.find(p => p.id === playerId);
     const planet = updatedGame.board.planets.find(p => p.id === planetId);
 

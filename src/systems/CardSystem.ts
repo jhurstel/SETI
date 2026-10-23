@@ -46,7 +46,7 @@ export class CardSystem {
         let updatedGame = structuredClone(game);
         const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
         if (playerIndex === -1) return game;
-        let player = updatedGame.players[playerIndex];
+        const player = updatedGame.players[playerIndex];
 
         const cardIndex = player.cards.findIndex(c => c.id === cardId);
         if (cardIndex === -1) return game;

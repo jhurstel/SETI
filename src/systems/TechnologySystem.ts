@@ -65,8 +65,8 @@ export class TechnologySystem {
   static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[], historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
     let updatedGame = structuredClone(game);
     let player = updatedGame.players.find(p => p.id === playerId);
-    let historyEntries: HistoryEntry[] = [];
-    let newPendingInteractions: InteractionState[] = [];
+    const historyEntries: HistoryEntry[] = [];
+    const newPendingInteractions: InteractionState[] = [];
     if (!player) return { updatedGame: game, gains: [], historyEntries: [], newPendingInteractions: [] };
 
     const updatedTechBoard = updatedGame.board.technologyBoard;
@@ -92,7 +92,7 @@ export class TechnologySystem {
     }
 
     // Apply bonuses
-    let gains: string[] = [];
+    const gains: string[] = [];
     if (!noTileBonus) {
       //const { updatedGame: gameAfterBonus, newPendingInteractions, passiveGains, logs, historyEntries } = ResourceSystem.processBonuses(tech.bonus, updatedGame, currentPlayer.id);
       if (tech.bonus.pv) {

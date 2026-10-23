@@ -312,7 +312,7 @@ export class SpeciesSystem {
      * Acquiert une carte Alien (depuis la pioche ou la rangée) et remplit la rangée si nécessaire.
      */
     static acquireAlienCard(game: Game, playerId: string, speciesId: string, cardId: string): { updatedGame: Game, drawnCard?: Card } {
-        let updatedGame = structuredClone(game);
+        const updatedGame = structuredClone(game);
         const species = updatedGame.species.find(s => s.id === speciesId);
         const player = updatedGame.players.find(p => p.id === playerId);
 
@@ -346,7 +346,7 @@ export class SpeciesSystem {
     }
 
     private static distributeDiscoveryCards(game: Game, boardIndex: number): { updatedGame: Game, logs: string[] } {
-        let updatedGame = game;
+        const updatedGame = game;
         const board = updatedGame.board.alienBoards[boardIndex];
         const species = updatedGame.species.find(s => s.name === board.speciesId);
         if (!species) return { updatedGame, logs: [] };
@@ -458,7 +458,7 @@ export class SpeciesSystem {
     }
 
     static claimCentaurienReward(game: Game, playerId: string, tokenIndex: number): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
-        let updatedGame = structuredClone(game);
+        const updatedGame = structuredClone(game);
         const player = updatedGame.players.find(p => p.id === playerId);
         const species = updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS);
 

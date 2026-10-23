@@ -297,7 +297,7 @@ export const BoardUI: React.FC = () => {
       const { sequenceId } = interactionState;
       const currentPlayer = game.players[game.currentPlayerIndex];
       let updatedGame = structuredClone(game);
-      let player = updatedGame.players[updatedGame.currentPlayerIndex];
+      const player = updatedGame.players[updatedGame.currentPlayerIndex];
       let logMessage = "";
 
       // Carte 119 - PIXL
@@ -435,7 +435,7 @@ export const BoardUI: React.FC = () => {
         const mission = player.missions.find(m => m.id === interactionState.missionId);
         if (mission && !mission.completedRequirementIds.includes(interactionState.requirementId)) {
             const requirement = mission.requirements.find(r => r.id === interactionState.requirementId);
-            let bonuses: Bonus = {};
+            const bonuses: Bonus = {};
             
             // Vérifier si on doit sauter la vérification (cas GAIN_ON_... déjà validé par le système)
             const skipCheck = mission.fulfillableRequirementIds.includes(interactionState.requirementId);
@@ -542,7 +542,7 @@ export const BoardUI: React.FC = () => {
         if (game.phase === GamePhase.SETUP) {
             const cardId = AIBehavior.decideReservation(game, currentPlayer);
             if (cardId) {
-                let updatedGame = CardSystem.reserveCard(game, currentPlayer.id, cardId);
+                const updatedGame = CardSystem.reserveCard(game, currentPlayer.id, cardId);
                 
                 // Logique de log pour la réservation (similaire à handleConfirmReservation)
                 const card = currentPlayer.cards.find(c => c.id === cardId);
@@ -820,7 +820,7 @@ export const BoardUI: React.FC = () => {
 
                 setGame(aiGame);
                 if (gameEngineRef.current) gameEngineRef.current.setState(aiGame);
-                let gainText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
+                const gainText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
                 addToHistory(`transfère 1 donnée vers l'ordinateur ${gainText}`, player.id, currentGame, undefined, sequenceId);
                 return true;
             }
@@ -904,8 +904,8 @@ export const BoardUI: React.FC = () => {
 
   // Gestionnaire pour passer au joueur suivant pendant la phase de SETUP
   const handleSetupNextPlayer = (currentGame: Game) => {
-      let nextGame = { ...currentGame };
-      let nextIndex = (nextGame.currentPlayerIndex + 1) % nextGame.players.length;
+      const nextGame = { ...currentGame };
+      const nextIndex = (nextGame.currentPlayerIndex + 1) % nextGame.players.length;
       
       if (nextIndex === nextGame.firstPlayerIndex) {
           nextGame.phase = GamePhase.PLAYING;
@@ -1066,8 +1066,8 @@ export const BoardUI: React.FC = () => {
         return;
       }
 
-      let updatedGame = structuredClone(game);
-      let updatedPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
+      const updatedGame = structuredClone(game);
+      const updatedPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
 
       const cardsToDiscard = updatedPlayer.cards.filter(c => selectedCards.includes(c.id));
 
@@ -1367,12 +1367,12 @@ export const BoardUI: React.FC = () => {
       }
 
       const sequenceId = interactionState.sequenceId || `scan-${Date.now()}`;
-      let res = ScanSystem.performSignalAndCover(updatedGame, currentPlayer.id, sector.id, initialLogs, interactionState.noData, sequenceId);
+      const res = ScanSystem.performSignalAndCover(updatedGame, currentPlayer.id, sector.id, initialLogs, interactionState.noData, sequenceId);
       updatedGame = res.updatedGame;
       // Log immediately for interactive scan
       res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, sequenceId));
       
-      let allNewInteractions = [...res.newPendingInteractions];
+      const allNewInteractions = [...res.newPendingInteractions];
 
       if (interactionState.markAdjacents) {
           const sectorNumber = parseInt(sectorId.replace('sector_', ''));
@@ -2565,10 +2565,9 @@ export const BoardUI: React.FC = () => {
     // Cas 2: Sélection pour achat ou gain de carte (bonus)
     } else if (interactionState.type === 'ACQUIRING_CARD') {
         const currentPlayer = game.players[game.currentPlayerIndex];
-        let result: { updatedGame: Game, error?: string };
 
         // Passer interactionState.isFree
-        result = CardSystem.buyCard(game, currentPlayer.id, cardId, interactionState.isFree);
+        const result = CardSystem.buyCard(game, currentPlayer.id, cardId, interactionState.isFree);
         if (result.error) {
           setToast({ message: result.error, visible: true });
           // On reste dans l'état ACQUIRING_CARD pour permettre de réessayer ou d'annuler via l'overlay

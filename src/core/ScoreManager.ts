@@ -282,7 +282,7 @@ export class ScoreManager {
   ): number {
     // TODO: Implémenter les bonus selon les règles de chaque espèce
     // Chaque espèce peut avoir des modificateurs de scoring différents
-    let bonus = 0;
+    const bonus = 0;
     player;
 
     return bonus;

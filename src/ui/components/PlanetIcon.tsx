@@ -120,7 +120,7 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
       const isOccupied = !!player;
       const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
       const allowSatelliteLanding = interactionState.type === 'LANDING_PROBE' && (interactionState.source === '12' || interactionState.ignoreSatelliteLimit);
-      let isSatClickable =
+      const isSatClickable =
         (!isOccupied || allowOccupiedLanding) &&
         canLand &&
         !!onLand &&

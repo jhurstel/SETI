@@ -72,14 +72,12 @@ export class PassAction extends BaseAction {
     updatedGame = CardSystem.discardToHandSize(updatedGame, this.playerId, this.cardIdsToKeep);
     const updatedPlayer = updatedGame.players[playerIndex];
 
-    console.log("coucou");
     // Gérer la carte de fin de manche
     const currentRound = updatedGame.currentRound;
     if (updatedGame.decks.roundDecks[currentRound] && updatedGame.decks.roundDecks[currentRound].length > 0) {
       const deck = updatedGame.decks.roundDecks[currentRound];
       let cardIndex = -1;
 
-      console.log("cocou1");
       if (this.selectedCardId) {
         cardIndex = deck.findIndex(c => c.id === this.selectedCardId);
       } else {
@@ -87,7 +85,6 @@ export class PassAction extends BaseAction {
         cardIndex = 0;
       }
 
-      console.log("cocou2");
       if (cardIndex !== -1) {
         const [card] = deck.splice(cardIndex, 1);
         updatedPlayer.cards.push(card);
