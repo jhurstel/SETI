@@ -1,0 +1,122 @@
+/* Styles for the new Planet Board */
+.seti-planet-board .seti-foldable-content {
+    padding: 8px;
+}
+
+.planet-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 4 columns for the first row, then wraps */
+    gap: 10px;
+    justify-items: center;
+}
+
+.planet-icon-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    width: 50px;
+}
+
+.planet-icon-wrapper:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.planet-icon-wrapper .planet-name {
+    font-size: 10px;
+    margin-top: 4px;
+    color: #ccc;
+    white-space: nowrap;
+}
+
+/* Tooltip styles */
+.planet-tooltip {
+    min-width: 250px;
+    background-color: #1a2b4a;
+    border: 1px solid #4a9eff;
+    padding: 12px;
+    border-radius: 4px;
+    color: white;
+    z-index: 1000;
+}
+
+.planet-tooltip h4 {
+    margin: 0 0 10px 0;
+    text-align: center;
+    font-size: 16px;
+}
+
+.planet-tooltip-section {
+    margin-bottom: 10px;
+}
+
+.planet-tooltip-section h5 {
+    margin: 0 0 5px 0;
+    font-size: 12px;
+    color: #aaa;
+    text-transform: uppercase;
+}
+
+.planet-tooltip .slots {
+    display: flex;
+    gap: 5px;
+}
+
+.planet-tooltip .slot {
+    width: 45px;
+    height: 45px;
+    border: 1px dashed #555;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    font-size: 9px;
+    text-align: center;
+    position: relative;
+}
+
+.planet-tooltip .slot .bonus-text {
+    line-height: 1.1;
+}
+
+.planet-tooltip .slot.occupied {
+    border-style: solid;
+}
+
+.planet-tooltip .slot.available {
+    cursor: pointer;
+    border-color: #ffd700;
+    background-color: rgba(255, 215, 0, 0.1);
+}
+
+.planet-tooltip .slot.available:hover {
+    background-color: rgba(255, 215, 0, 0.2);
+}
+
+.planet-tooltip .player-marker {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid white;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.planet-tooltip .slot.occupied .bonus-text {
+    display: none; /* Hide bonus text if occupied */
+}
+
+/* Styles for PlanetIcon component used in the board */
+.seti-planet-icon-body {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+}

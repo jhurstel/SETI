@@ -1,53 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Card, Game, InteractionState, Technology, TechnologyCategory, CardType } from '../core/types';
-import { CardTooltip } from './CardTooltip';
+import { Card, Game, Technology, TechnologyCategory, CardType, Bonus, HistoryEntry } from '../core/types';
+import { CardTooltip } from '../ui/components/CardTooltip';
 import './HistoryBoardUI.css';
-
-export interface HistoryEntry {
-    id: string;
-    message: string;
-    playerId?: string;
-    previousState?: Game;
-    previousInteractionState: InteractionState;
-    previousPendingInteractions: InteractionState[];
-    timestamp: number;
-    sequenceId?: string;
-}
-
-export const RESOURCE_CONFIG: Record<string, { label: string, plural: string, icon: string, color: string, regex: RegExp }> = {
-    CREDIT: {
-        label: 'Crédit', plural: 'Crédits', icon: '₢', color: '#ffd700',
-        regex: /Crédit(?:s?)|Credit(?:s?)|crédit(?:s?)|credit(?:s?)/
-    },
-    ENERGY: {
-        label: 'Énergie', plural: 'Énergies', icon: '⚡', color: '#4caf50',
-        regex: /Énergie(?:s?)|énergie(?:s?)|Energie(?:s?)|energie(?:s?)/
-    },
-    MEDIA: {
-        label: 'Média', plural: 'Médias', icon: '🎤', color: '#ff6b6b',
-        regex: /Média(?:s?)|Media(?:s?)|média(?:s?)|media(?:s?)/
-    },
-    DATA: {
-        label: 'Donnée', plural: 'Données', icon: '💾', color: '#03a9f4',
-        regex: /Donnée(?:s?)|donnée(?:s?)|Data|data/
-    },
-    CARD: {
-        label: 'Carte', plural: 'Cartes', icon: '🃏', color: '#aaffaa',
-        regex: /Carte(?:s?)|carte(?:s?)/
-    },
-    PV: {
-        label: 'PV', plural: 'PVs', icon: '🏆', color: '#fff',
-        regex: /\bPV\b/
-    },
-    SONDE: {
-        label: 'Sonde', plural: 'Sondes', icon: '🚀', color: '#fff',
-        regex: /Sonde(?:s?)|sonde(?:s?)/
-    },
-    TECH: {
-        label: 'Technologie', plural: 'Technologies', icon: '🔬', color: '#fff',
-        regex: /Technologie(?:s?)|technologie(?:s?)/
-    }
-};
+import { ResourceSystem } from '../systems/ResourceSystem';
 
 interface HistoryBoardUIProps {
     historyLog: HistoryEntry[];
@@ -105,7 +60,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
 
         if (game.decks.roundDecks) {
             for (const key in game.decks.roundDecks) {
-                const cRound = searchIn(game.decks.roundDecks[key as any]);
+                const cRound = searchIn(game.decks.roundDecks[key]);
                 if (cRound) return cRound;
             }
         }
@@ -170,7 +125,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         const level = getTechLevel(tech.id);
         const displayName = level ? `${tech.type} ${level}` : tech.name;
 
-        const renderBonus = (bonus: any) => {
+        const renderBonus = (bonus: Bonus) => {
             const elements = [];
             if (bonus.pv) elements.push(<span key="pv" style={{ color: '#8affc0', fontWeight: 'bold' }}>{bonus.pv} PV</span>);
             if (bonus.media) elements.push(<span key="media" style={{ color: '#ff6b6b' }}>{bonus.media} Média</span>);
@@ -178,6 +133,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
             if (bonus.card) elements.push(<span key="card" style={{ color: '#fff' }}>{bonus.card} Carte</span>);
             if (bonus.probe) elements.push(<span key="probe" style={{ color: '#fff', border: '1px solid #fff', padding: '0 2px', borderRadius: '2px' }}>{bonus.probe} Sonde</span>);
             if (bonus.data) elements.push(<span key="data" style={{ color: '#fff', border: '1px solid #aaa', padding: '0 2px', borderRadius: '2px', backgroundColor: '#333' }}>{bonus.data} Data</span>);
+            if (bonus.token) elements.push(<span key="token" style={{ color: '#fff', border: '1px solid #fff', padding: '0 2px', borderRadius: '50%', backgroundColor: '#555' }}>{bonus.token} Token</span>);
             return <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>{elements}</div>;
         };
 
@@ -196,15 +152,15 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
     };
 
     const formatHistoryMessage = (message: string) => {
-        const resourcePattern = Object.values(RESOURCE_CONFIG).map(c => c.regex.source).join('|');
+        const resourcePattern = Object.values(ResourceSystem.RESOURCE_CONFIG).map(c => c.regex.source).join('|');
         const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${resourcePattern}|"[^"]+")`, 'g');
 
         return message.split(splitRegex).map((part, index) => {
             if (part.startsWith('"') && part.endsWith('"')) {
-                const cardName = part.slice(1, -1);
-                if (!cardName) return part;
+                const name = part.slice(1, -1);
+                if (!name) return part;
                 
-                const card = findCardByName(cardName);
+                const card = findCardByName(name);
                 if (card) {
                     return (
                         <span
@@ -216,12 +172,12 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                             }}
                             onMouseLeave={() => setActiveTooltip(null)}
                         >
-                            "{cardName}"
+                            "{card.name}"
                         </span>
                     );
                 }
 
-                const tech = findTechByName(cardName);
+                const tech = findTechByName(name);
                 if (tech) {
                     return (
                         <span
@@ -233,7 +189,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                             }}
                             onMouseLeave={() => setActiveTooltip(null)}
                         >
-                            "{cardName}"
+                            "{tech.type} {tech.name}"
                         </span>
                     );
                 }
@@ -253,7 +209,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                 );
             }
 
-            for (const config of Object.values(RESOURCE_CONFIG)) {
+            for (const config of Object.values(ResourceSystem.RESOURCE_CONFIG)) {
                 if (new RegExp(`^${config.regex.source}$`).test(part)) {
                     return <span key={index} title={config.label} className="seti-history-resource-icon" style={{ color: config.color }}>{config.icon}</span>;
                 }
@@ -263,13 +219,19 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         });
     };
 
+    const lastEntry = historyLog.length > 0 ? historyLog[historyLog.length - 1] : null;
+    const canUndo = lastEntry && !lastEntry.message.startsWith('---') && (
+        !!lastEntry.previousState || 
+        (!!lastEntry.sequenceId && !!historyLog.find(e => e.sequenceId === lastEntry.sequenceId)?.previousState)
+    );
+
     return (
         <div className="seti-history-wrapper">
             <div className={`seti-foldable-container seti-history-container seti-icon-panel ${isHistoryOpen ? 'open' : 'collapsed'}`}>
                 <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
                     <span className="panel-icon">📜</span>
                     <span className="panel-title seti-history-title">Historique</span>
-                    {historyLog.length > 0 && historyLog[historyLog.length - 1].previousState && (
+                    {canUndo && (
                         <button
                             className="panel-title seti-history-undo-btn"
                             onClick={(e) => { e.stopPropagation(); onUndo(); }}

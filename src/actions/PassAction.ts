@@ -1,15 +1,11 @@
-import { Game, ActionType, ValidationResult, InteractionState, HistoryEntry } from '../core/types';
+import { Game, ActionType, ValidationResult } from '../core/types';
 import { BaseAction } from './Action';
 import { TurnManager } from '../core/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
-import { ProbeSystem } from '../systems/ProbeSystem';
-import { createRotationState, getRotationLevelName, performRotation } from '../core/SolarSystemPosition';
+import { performRotation } from '../core/SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
 
 export class PassAction extends BaseAction {
-  public historyEntries: HistoryEntry[] = [];
-  public newPendingInteractions: InteractionState[] = [];
-  
   constructor(
     playerId: string,
     public cardIdsToKeep: string[], // Cartes à garder (max 4)
@@ -40,18 +36,21 @@ export class PassAction extends BaseAction {
     // Vérifier si une carte de manche doit être choisie
     const currentRound = game.currentRound;
     const roundDeck = game.decks.roundDecks[currentRound];
-    
+
     // Si le paquet existe et n'est pas vide, une carte doit être sélectionnée (sauf si géré automatiquement pour robot, mais l'action doit valider la cohérence)
     if (roundDeck && roundDeck.length > 0 && this.selectedCardId) {
-       if (!roundDeck.some(c => c.id === this.selectedCardId)) {
+      if (!roundDeck.some(c => c.id === this.selectedCardId)) {
         return { valid: false, errors: [{ code: 'INVALID_CARDS', message: 'Carte sélectionnée invalides' }], warnings: [] };
-       }
+      }
     }
 
     return { valid: true, errors: [], warnings: [] };
   }
 
   execute(game: Game): Game {
+    const sequenceId = `pass-${Date.now()}`;
+    const playerId = this.playerId;
+
     let updatedGame = { ...game };
     updatedGame.isFirstToPass = false;
     // Copie profonde des joueurs et du board pour éviter les mutations
@@ -65,11 +64,7 @@ export class PassAction extends BaseAction {
       const discardedCards = originalPlayer.cards.filter(c => !this.cardIdsToKeep.includes(c.id));
       if (discardedCards.length > 0) {
         const cardNames = discardedCards.map(c => `"${c.name}"`).join(', ');
-        this.historyEntries.push({ 
-          message: `défausse ${cardNames}`, 
-          playerId: this.playerId, 
-          sequenceId: '' 
-        });
+        this.historyEntries.push({ message: `défausse ${cardNames}`, playerId, sequenceId });
       }
     }
 
@@ -77,22 +72,30 @@ export class PassAction extends BaseAction {
     updatedGame = CardSystem.discardToHandSize(updatedGame, this.playerId, this.cardIdsToKeep);
     const updatedPlayer = updatedGame.players[playerIndex];
 
+    console.log("coucou");
     // Gérer la carte de fin de manche
     const currentRound = updatedGame.currentRound;
     if (updatedGame.decks.roundDecks[currentRound] && updatedGame.decks.roundDecks[currentRound].length > 0) {
       const deck = updatedGame.decks.roundDecks[currentRound];
       let cardIndex = -1;
 
+      console.log("cocou1");
       if (this.selectedCardId) {
         cardIndex = deck.findIndex(c => c.id === this.selectedCardId);
-      } else if (deck.length > 0) {
+      } else {
         // Si aucune carte n'est sélectionnée (ex: Robot), on prend la première
         cardIndex = 0;
       }
-      
+
+      console.log("cocou2");
       if (cardIndex !== -1) {
         const [card] = deck.splice(cardIndex, 1);
         updatedPlayer.cards.push(card);
+        if (updatedPlayer.type === 'robot') {
+          this.historyEntries.push({ message: `choisit carte Fin de Manche`, playerId, sequenceId });
+        } else {
+          this.historyEntries.push({ message: `choisit carte "${card.name}" de fin de manche`, playerId, sequenceId });
+        }
       }
     }
 
@@ -102,15 +105,14 @@ export class PassAction extends BaseAction {
 
     // Vérifier si c'est le premier Pass de la manche
     // (déclenche la rotation du système solaire)
-    if (TurnManager.isFirstPassOfRound(updatedGame)) {      
-      const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 1;
-      this.historyEntries.push({ message: `passe son tour en premier, fait tourner le Système Solaire (${getRotationLevelName(currentLevel)}) et choisit 1 carte à garder`, playerId: updatedPlayer.id, sequenceId: '' });
-
-      performRotation(updatedGame);
-      
+    if (TurnManager.isFirstPassOfRound(updatedGame)) {
+      this.historyEntries.unshift({ message: `<strong>passe son tour</strong> (premier de la manche)`, playerId, sequenceId });
+      const result = performRotation(updatedGame);
+      result.logs.forEach(log => this.historyEntries.push({ message: log, playerId, sequenceId }));
+      updatedGame = result.updatedGame;
       updatedGame.isFirstToPass = true;
     } else {
-      this.historyEntries.push({ message: "passe son tour et choisit 1 carte à garder", playerId: updatedPlayer.id, sequenceId: '' });
+      this.historyEntries.unshift({ message: "<strong>passe son tour</strong>", playerId: updatedPlayer.id, sequenceId });
     }
 
     // Passer au joueur suivant ou terminer la manche
@@ -129,14 +131,13 @@ export class PassAction extends BaseAction {
 
       // Log du changement de premier joueur
       this.historyEntries.push({ message: `devient le Premier Joueur`, playerId: updatedGame.players[updatedGame.firstPlayerIndex].id, sequenceId: '' });
-      
+
       const firstPlayer = updatedGame.players[updatedGame.firstPlayerIndex];
       this.historyEntries.push({ message: `--- Tour de ${firstPlayer.name} ---`, playerId: firstPlayer.id, sequenceId: '' });
     } else {
       const nextPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
       this.historyEntries.push({ message: `--- Tour de ${nextPlayer.name} ---`, playerId: nextPlayer.id, sequenceId: '' });
     }
-
 
     return updatedGame;
   }

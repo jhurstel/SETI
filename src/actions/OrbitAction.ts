@@ -3,7 +3,7 @@ import { Game, ActionType, ValidationResult } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 
 export class OrbitAction extends BaseAction {
-    constructor(public playerId: string, public probeId: string, public planetId: string) {
+    constructor(playerId: string, public probeId: string, public planetId: string) {
         super(playerId, ActionType.ORBIT);
     }
 
@@ -16,8 +16,9 @@ export class OrbitAction extends BaseAction {
     }
 
     execute(game: Game): Game {
-        // L'exécution réelle est gérée dans l'UI pour les bonus.
         const result = ProbeSystem.orbitProbe(game, this.playerId, this.probeId, this.planetId);
+        this.historyEntries = result.historyEntries;
+        this.newPendingInteractions = result.newPendingInteractions;
         return result.updatedGame;
     }
 }

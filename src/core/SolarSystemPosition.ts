@@ -1,20 +1,6 @@
-/**
- * Module de gestion des positions et de la visibilité dans le système solaire
- * Gère le calcul des positions absolues, la visibilité des objets, et le calcul de trajectoires
- */
-
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { DiskName, DISK_NAMES, SectorNumber, Game } from './types';
-
-/**
- * Position d'un objet céleste
- */
-export interface CelestialPosition {
-  disk: DiskName; // A, B, C, D, ou E
-  sector: SectorNumber; // 1 à 8
-  x: number; // Position X en pourcentage (0-100)
-  y: number; // Position Y en pourcentage (0-100)
-}
+import { ResourceSystem } from '../systems/ResourceSystem';
+import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject, AlienBoardType, LifeTraceLocation } from './types';
 
 /**
  * Position absolue d'un objet après toutes les rotations
@@ -38,22 +24,6 @@ export interface RotationState {
 }
 
 /**
- * Type d'objet céleste
- */
-export type CelestialObjectType = 'planet' | 'comet' | 'asteroid' | 'hollow' | 'empty';
-
-/**
- * Objet céleste avec sa position relative
- */
-export interface CelestialObject {
-  id: string;
-  type: CelestialObjectType;
-  name: string;
-  position: CelestialPosition;
-  level?: 0 | 1 | 2 | 3; // Niveau du plateau (0 = fixe, 1-3 = rotatif)
-}
-
-/**
  * Case du système solaire
  */
 export interface SolarSystemCell {
@@ -71,16 +41,16 @@ export interface SolarSystemCell {
  * Configuration des creux (zones transparentes) des plateaux rotatifs
  */
 const HOLLOW_ZONES = {
-  level3: { // Ancien niveau 1 (Jaune)
+  level1: { // Bleu
     A: [4, 5],
     B: [2, 5, 7],
     C: [2, 3, 7, 8],
   },
-  level2: { // Rouge (Inchangé)
+  level2: { // Rouge
     A: [2, 3, 4],
     B: [2, 3, 4, 7, 8],
   },
-  level1: { // Ancien niveau 3 (Bleu)
+  level3: { // Jaune
     A: [3, 7, 8],
   },
 };
@@ -113,33 +83,33 @@ export const FIXED_OBJECTS: CelestialObject[] = [
 ];
 
 /**
- * Configuration initiale des objets célestes rotatifs (niveau 3 - Bleu)
+ * Configuration initiale des objets célestes rotatifs (niveau 1 - Bleu)
  */
-export const INITIAL_ROTATING_LEVEL3_OBJECTS: CelestialObject[] = [
-  { id: 'saturn', type: 'planet', name: 'Saturne', position: { disk: 'C', sector: 1, x: 0, y: 0 }, level: 3 },
-  { id: 'jupiter', type: 'planet', name: 'Jupiter', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 3 },
-  { id: 'comet-b8-l3', type: 'comet', name: 'Comète', position: { disk: 'B', sector: 8, x: 0, y: 0 }, level: 3 },
-  { id: 'comet-a7-l3', type: 'comet', name: 'Comète', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 3 },
-  { id: 'asteroid-b1-l3', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 1, x: 0, y: 0 }, level: 3 },
-  { id: 'asteroid-b4-l3', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 4, x: 0, y: 0 }, level: 3 },
-  { id: 'asteroid-a1-l3', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 3 },
-  { id: 'asteroid-a2-l3', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 3 },
-  { id: 'asteroid-a6-l3', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 3 },
-  { id: 'hollow-c2-l3', type: 'hollow', name: 'Creux C2', position: { disk: 'C', sector: 2, x: 0, y: 0 }, level: 3 },
-  { id: 'hollow-c3-l3', type: 'hollow', name: 'Creux C3', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 3 },
-  { id: 'empty-c4-l3', type: 'empty', name: 'Vide C5', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 3 },
-  { id: 'empty-c6-l3', type: 'empty', name: 'Vide C6', position: { disk: 'C', sector: 6, x: 0, y: 0 }, level: 3 },
-  { id: 'hollow-c7-l3', type: 'hollow', name: 'Creux C7', position: { disk: 'C', sector: 7, x: 0, y: 0 }, level: 3 },
-  { id: 'hollow-c8-l3', type: 'hollow', name: 'Creux C8', position: { disk: 'C', sector: 8, x: 0, y: 0 }, level: 3 },
-  { id: 'hollow-b2-l3', type: 'hollow', name: 'Creux B2', position: { disk: 'B', sector: 2, x: 0, y: 0 }, level: 3 },
-  { id: 'empty-b3-l3', type: 'empty', name: 'Vide B3', position: { disk: 'B', sector: 3, x: 0, y: 0 }, level: 3 },
-  { id: 'hollow-b5-l3', type: 'hollow', name: 'Creux B5', position: { disk: 'B', sector: 5, x: 0, y: 0 }, level: 3 },
-  { id: 'empty-b6-l3', type: 'empty', name: 'Vide B6', position: { disk: 'B', sector: 6, x: 0, y: 0 }, level: 3 },
-  { id: 'hollow-b7-l3', type: 'hollow', name: 'Creux B7', position: { disk: 'B', sector: 7, x: 0, y: 0 }, level: 3 },
-  { id: 'empty-a3-l3', type: 'empty', name: 'Vide A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 3 },
-  { id: 'hollow-a4-l3', type: 'hollow', name: 'Creux A4', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 3 },
-  { id: 'hollow-a5-l3', type: 'hollow', name: 'Creux A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 3 },
-  { id: 'empty-a8-l3', type: 'empty', name: 'Vide A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 3 },
+export const INITIAL_ROTATING_LEVEL1_OBJECTS: CelestialObject[] = [
+  { id: 'saturn', type: 'planet', name: 'Saturne', position: { disk: 'C', sector: 1, x: 0, y: 0 }, level: 1 },
+  { id: 'jupiter', type: 'planet', name: 'Jupiter', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 1 },
+  { id: 'comet-b8-l1', type: 'comet', name: 'Comète', position: { disk: 'B', sector: 8, x: 0, y: 0 }, level: 1 },
+  { id: 'comet-a7-l1', type: 'comet', name: 'Comète', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-b1-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 1, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-b4-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'B', sector: 4, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-a1-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-a2-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 1 },
+  { id: 'asteroid-a6-l1', type: 'asteroid', name: 'Astéroïdes', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-c2-l1', type: 'hollow', name: 'Creux C2', position: { disk: 'C', sector: 2, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-c3-l1', type: 'hollow', name: 'Creux C3', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-c4-l1', type: 'empty', name: 'Vide C5', position: { disk: 'C', sector: 5, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-c6-l1', type: 'empty', name: 'Vide C6', position: { disk: 'C', sector: 6, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-c7-l1', type: 'hollow', name: 'Creux C7', position: { disk: 'C', sector: 7, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-c8-l1', type: 'hollow', name: 'Creux C8', position: { disk: 'C', sector: 8, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-b2-l1', type: 'hollow', name: 'Creux B2', position: { disk: 'B', sector: 2, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-b3-l1', type: 'empty', name: 'Vide B3', position: { disk: 'B', sector: 3, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-b5-l1', type: 'hollow', name: 'Creux B5', position: { disk: 'B', sector: 5, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-b6-l1', type: 'empty', name: 'Vide B6', position: { disk: 'B', sector: 6, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-b7-l1', type: 'hollow', name: 'Creux B7', position: { disk: 'B', sector: 7, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-a3-l1', type: 'empty', name: 'Vide A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-a4-l1', type: 'hollow', name: 'Creux A4', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 1 },
+  { id: 'hollow-a5-l1', type: 'hollow', name: 'Creux A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 1 },
+  { id: 'empty-a8-l1', type: 'empty', name: 'Vide A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 1 },
 ];
 
 /**
@@ -165,17 +135,17 @@ export const INITIAL_ROTATING_LEVEL2_OBJECTS: CelestialObject[] = [
 ];
 
 /**
- * Configuration initiale des objets célestes rotatifs (niveau 1 - Jaune)
+ * Configuration initiale des objets célestes rotatifs (niveau 3 - Jaune)
  */
-export const INITIAL_ROTATING_LEVEL1_OBJECTS: CelestialObject[] = [
-  { id: 'empty-a1-l1', type: 'empty', name: 'Vide A1', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 1 },
-  { id: 'earth', type: 'planet', name: 'Terre', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 1 },
-  { id: 'hollow-a3-l1', type: 'hollow', name: 'Creux A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 1 },
-  { id: 'venus', type: 'planet', name: 'Vénus', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 1 },
-  { id: 'empty-a5-l1', type: 'empty', name: 'Vide A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 1 },
-  { id: 'mercury', type: 'planet', name: 'Mercure', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 1 },
-  { id: 'hollow-a7-l1', type: 'hollow', name: 'Creux A7', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 1 },
-  { id: 'hollow-a8-l1', type: 'hollow', name: 'Creux A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 1 },
+export const INITIAL_ROTATING_LEVEL3_OBJECTS: CelestialObject[] = [
+  { id: 'empty-a1-l3', type: 'empty', name: 'Vide A1', position: { disk: 'A', sector: 1, x: 0, y: 0 }, level: 3 },
+  { id: 'earth', type: 'planet', name: 'Terre', position: { disk: 'A', sector: 2, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-a3-l3', type: 'hollow', name: 'Creux A3', position: { disk: 'A', sector: 3, x: 0, y: 0 }, level: 3 },
+  { id: 'venus', type: 'planet', name: 'Vénus', position: { disk: 'A', sector: 4, x: 0, y: 0 }, level: 3 },
+  { id: 'empty-a5-l3', type: 'empty', name: 'Vide A5', position: { disk: 'A', sector: 5, x: 0, y: 0 }, level: 3 },
+  { id: 'mercury', type: 'planet', name: 'Mercure', position: { disk: 'A', sector: 6, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-a7-l3', type: 'hollow', name: 'Creux A7', position: { disk: 'A', sector: 7, x: 0, y: 0 }, level: 3 },
+  { id: 'hollow-a8-l3', type: 'hollow', name: 'Creux A8', position: { disk: 'A', sector: 8, x: 0, y: 0 }, level: 3 },
 ];
 
 // Conversion secteur -> index (sens trigonométrique/anti-horaire: 1=0, 2=1, 3=2, 4=3, 5=4, 6=5, 7=6, 8=7)
@@ -204,12 +174,13 @@ export function createRotationState(
 /**
  * Obtient tous les objets célestes (fixes et rotatifs)
  */
-export function getAllCelestialObjects(): CelestialObject[] {
+export function getAllCelestialObjects(extraObjects: CelestialObject[] = []): CelestialObject[] {
   return [
     ...FIXED_OBJECTS,
-    ...INITIAL_ROTATING_LEVEL3_OBJECTS,
-    ...INITIAL_ROTATING_LEVEL2_OBJECTS,
     ...INITIAL_ROTATING_LEVEL1_OBJECTS,
+    ...INITIAL_ROTATING_LEVEL2_OBJECTS,
+    ...INITIAL_ROTATING_LEVEL3_OBJECTS,
+    ...extraObjects
   ];
 }
 
@@ -255,29 +226,26 @@ export function calculateObjectPosition(disk: DiskName, sector: SectorNumber, ro
  */
 export function calculateAbsolutePosition(
   object: CelestialObject,
-  rotationState: RotationState
+  rotationState: RotationState,
+  extraObjects: CelestialObject[] = []
 ): AbsolutePosition {
   let absoluteSector = object.position.sector;
-  
+
   // Appliquer les rotations selon le niveau
-  if (object.level === 1) {
-    absoluteSector = rotateSector(absoluteSector, rotationState.level1Angle);
-  } else if (object.level === 2) {
-    // Le niveau 2 tourne avec le niveau 3 (Jaune)
-    absoluteSector = rotateSector(absoluteSector, rotationState.level2Angle);
-  } else if (object.level === 3) {
-    // Le niveau 3 tourne seul (ou entraine les autres selon la logique physique, ici on applique juste l'angle)
-    absoluteSector = rotateSector(absoluteSector, rotationState.level3Angle);
-  }
+  // La logique de couplage des rotations (ex: niveau 1 fait tourner 2 et 3)
+  // est gérée en amont par la mise à jour des angles dans rotationState.
+  if (object.level === 1) absoluteSector = rotateSector(absoluteSector, rotationState.level1Angle);
+  else if (object.level === 2) absoluteSector = rotateSector(absoluteSector, rotationState.level2Angle);
+  else if (object.level === 3) absoluteSector = rotateSector(absoluteSector, rotationState.level3Angle);
   // Niveau 0 (fixe) : pas de rotation
-  
+
   // Calculer les coordonnées X et Y (sera calculé plus tard si nécessaire)
   const x = 0; // TODO: Calculer en fonction du disque et du secteur
   const y = 0; // TODO: Calculer en fonction du disque et du secteur
-  
+
   // Vérifier la visibilité
-  const isVisible = checkVisibilityAboveLevel(object.level || 0, object.position.disk, absoluteSector, rotationState);
-  
+  const isVisible = checkVisibilityAboveLevel(object.level || 0, object.position.disk, absoluteSector, rotationState, extraObjects);
+
   return {
     disk: object.position.disk,
     sector: object.position.sector,
@@ -298,34 +266,41 @@ export function calculateAbsolutePosition(
 export function getVisibleLevel(
   disk: DiskName,
   absoluteSector: SectorNumber,
-  rotationState: RotationState
+  rotationState: RotationState,
+  extraObjects: CelestialObject[] = []
 ): number {
-  // Niveau 1 (Bleu - Top) - Disque A uniquement
+  // Helper pour vérifier si un objet supplémentaire comble le trou
+  const hasExtraObject = (level: number, relSector: SectorNumber) => {
+    return extraObjects.some(o => o.level === level && o.position.disk === disk && o.position.sector === relSector);
+  };
+
+  // Niveau 3 (Jaune - Top) - Disques A uniquement
   if (disk === 'A') {
-    const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
-    if (!HOLLOW_ZONES.level1.A.includes(level1Sector)) {
-      return 1;
-    }
-  }
-  
-  // Niveau 2 (Rouge - Mid) - Disques A et B
-  if (disk === 'A' || disk === 'B') {
-    const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
-    const hollowZones = HOLLOW_ZONES.level2[disk];
-    if (hollowZones && !hollowZones.includes(level2Sector)) {
-      return 2;
-    }
-  }
-  
-  // Niveau 3 (Jaune - Bot) - Disques A, B, C
-  if (disk === 'A' || disk === 'B' || disk === 'C') {
     const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
-    const hollowZones = HOLLOW_ZONES.level3[disk];
-    if (hollowZones && !hollowZones.includes(level3Sector)) {
+    const hollowZones = HOLLOW_ZONES.level3[disk] || [];
+    if (!hollowZones.includes(level3Sector) || hasExtraObject(3, level3Sector)) {
       return 3;
     }
   }
-  
+
+  // Niveau 2 (Rouge - Mid) - Disques A et B
+  if (disk === 'A' || disk === 'B') {
+    const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
+    const hollowZones = HOLLOW_ZONES.level2[disk] || [];
+    if (!hollowZones.includes(level2Sector) || hasExtraObject(2, level2Sector)) {
+      return 2;
+    }
+  }
+
+  // Niveau 1 (Bleu - Bot) - Disque A, B, C
+  if (disk === 'A' || disk === 'B' || disk === 'C') {
+    const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
+    const hollowZones = HOLLOW_ZONES.level1[disk] || [];
+    if (!hollowZones.includes(level1Sector) || hasExtraObject(1, level1Sector)) {
+      return 1;
+    }
+  }
+
   // Niveau 0 (fixe) - Disques D, E ou trous dans les niveaux supérieurs
   return 0;
 }
@@ -338,42 +313,49 @@ function checkVisibilityAboveLevel(
   objectLevel: number,
   disk: DiskName,
   absoluteSector: SectorNumber,
-  rotationState: RotationState
+  rotationState: RotationState,
+  extraObjects: CelestialObject[] = []
 ): boolean {
-  // Les disques D et E sont toujours visibles (pas de plateau rotatif au-dessus)
+  // Helper pour vérifier si un objet supplémentaire comble le trou
+  const hasExtraObject = (level: number, relSector: SectorNumber) => {
+    return extraObjects.some(o => o.level === level && o.position.disk === disk && o.position.sector === relSector);
+  };
+
+  // Les disques D et E sont toujours visibles car ils sont sur le dessus ou en dehors des plateaux rotatifs.
   if (disk === 'D' || disk === 'E') {
     return true;
   }
-  
-  // Niveau 1 (Bleu - Top)
-  // Si l'objet n'est pas niveau 1, on vérifie si le niveau 1 le cache
-  if (objectLevel !== 1 && disk === 'A') {
-    const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
-    if (!HOLLOW_ZONES.level1.A.includes(level1Sector)) {
-      return false; // Recouvert par le niveau 1
-    }
-  }
-  
-  // Niveau 2 (Rouge - Mid)
-  // Si l'objet est en dessous du niveau 2 (donc 3 ou 0), on vérifie si le niveau 2 le cache
-  if ((objectLevel === 3 || objectLevel === 0) && (disk === 'A' || disk === 'B')) {
-    const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
-    const hollowZones = HOLLOW_ZONES.level2[disk];
-    if (hollowZones && !hollowZones.includes(level2Sector)) {
-      return false; // Recouvert par le niveau 2
-    }
-  }
-  
-  // Niveau 3 (Jaune - Bot)
-  // Si l'objet est en dessous du niveau 3 (donc 0), on vérifie si le niveau 3 le cache
-  if (objectLevel === 0 && (disk === 'A' || disk === 'B' || disk === 'C')) {
+
+  // Vérifier le niveau 3 (Jaune - Top) - Disque A uniquement
+  // Si l'objet est en dessous du niveau 3, on vérifie si le niveau 3 le cache
+  if (objectLevel < 3 && disk === 'A') {
     const level3Sector = rotateSector(absoluteSector, -rotationState.level3Angle);
-    const hollowZones = HOLLOW_ZONES.level3[disk];
-    if (hollowZones && !hollowZones.includes(level3Sector)) {
+    const hollowZones = HOLLOW_ZONES.level3[disk] || [];
+    if (!hollowZones.includes(level3Sector) || hasExtraObject(3, level3Sector)) {
       return false; // Recouvert par le niveau 3
     }
   }
-  
+
+  // Vérifier le niveau 2 (Rouge - Mid) - Disques A et B
+  // Si l'objet est en dessous du niveau 2, on vérifie si le niveau 2 le cache
+  if (objectLevel < 2 && (disk === 'A' || disk === 'B')) {
+    const level2Sector = rotateSector(absoluteSector, -rotationState.level2Angle);
+    const hollowZones = HOLLOW_ZONES.level2[disk] || [];
+    if (!hollowZones.includes(level2Sector) || hasExtraObject(2, level2Sector)) {
+      return false; // Recouvert par le niveau 2
+    }
+  }
+
+  // Vérifier le niveau 1 (Bleu - Bot) - Disques A, B, C
+  // Si l'objet est en dessous du niveau 1, on vérifie si le niveau 1 le cache
+  if (objectLevel < 1 && (disk === 'A' || disk === 'B' || disk === 'C')) {
+    const level1Sector = rotateSector(absoluteSector, -rotationState.level1Angle);
+    const hollowZones = HOLLOW_ZONES.level1[disk] || [];
+    if (!hollowZones.includes(level1Sector) || hasExtraObject(1, level1Sector)) {
+      return false; // Recouvert par le niveau 1
+    }
+  }
+
   return true;
 }
 
@@ -383,52 +365,58 @@ function checkVisibilityAboveLevel(
 function checkVisibility(
   disk: DiskName,
   absoluteSector: SectorNumber,
-  rotationState: RotationState
+  rotationState: RotationState,
+  extraObjects: CelestialObject[] = []
 ): boolean {
   // Vérifie la visibilité du niveau 0 (le fond du plateau)
-  return checkVisibilityAboveLevel(0, disk, absoluteSector, rotationState);
+  return checkVisibilityAboveLevel(0, disk, absoluteSector, rotationState, extraObjects);
 }
 
 /**
  * Obtient toutes les positions absolues de tous les objets célestes
  */
-export function getAllAbsolutePositions(rotationState: RotationState): Map<string, AbsolutePosition> {
+export function getAllAbsolutePositions(rotationState: RotationState, extraObjects: CelestialObject[] = []): Map<string, AbsolutePosition> {
   const positions = new Map<string, AbsolutePosition>();
-  
+
   // Objets fixes
   FIXED_OBJECTS.forEach(obj => {
-    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
+    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState, extraObjects));
   });
-  
-  // Objets rotatifs niveau 3 (Jaune)
-  INITIAL_ROTATING_LEVEL3_OBJECTS.forEach(obj => {
-    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
-  });
-  
-  // Objets rotatifs niveau 2 (Rouge)
-  INITIAL_ROTATING_LEVEL2_OBJECTS.forEach(obj => {
-    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
-  });
-  
+
   // Objets rotatifs niveau 1 (Bleu)
   INITIAL_ROTATING_LEVEL1_OBJECTS.forEach(obj => {
-    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState));
+    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState, extraObjects));
   });
-  
+
+  // Objets rotatifs niveau 2 (Rouge)
+  INITIAL_ROTATING_LEVEL2_OBJECTS.forEach(obj => {
+    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState, extraObjects));
+  });
+
+  // Objets rotatifs niveau 3 (Jaune)
+  INITIAL_ROTATING_LEVEL3_OBJECTS.forEach(obj => {
+    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState, extraObjects));
+  });
+
+  // Objets supplémentaires
+  extraObjects.forEach(obj => {
+    positions.set(obj.id, calculateAbsolutePosition(obj, rotationState, extraObjects));
+  });
+
   return positions;
 }
 
 /**
  * Obtient toutes les cases du système solaire avec leur état
  */
-export function getAllCells(rotationState: RotationState): Map<string, SolarSystemCell> {
+export function getAllCells(rotationState: RotationState, extraObjects: CelestialObject[] = []): Map<string, SolarSystemCell> {
   const cells = new Map<string, SolarSystemCell>();
-  const positions = getAllAbsolutePositions(rotationState);
-  
+  const positions = getAllAbsolutePositions(rotationState, extraObjects);
+
   // Parcourir tous les disques et secteurs
   const disks: DiskName[] = ['A', 'B', 'C', 'D', 'E'];
   const sectors: SectorNumber[] = [1, 2, 3, 4, 5, 6, 7, 8];
-  
+
   disks.forEach(disk => {
     sectors.forEach(sector => {
       const cellKey = `${disk}${sector}`;
@@ -438,15 +426,15 @@ export function getAllCells(rotationState: RotationState): Map<string, SolarSyst
         hasAsteroid: false,
         hasComet: false,
         hasPlanet: false,
-        isVisible: checkVisibility(disk, sector, rotationState),
+        isVisible: checkVisibility(disk, sector, rotationState, extraObjects),
       };
-      
+
       // Vérifier quels objets sont sur cette case
       positions.forEach((pos, objId) => {
         if (pos.disk === disk && pos.absoluteSector === sector && pos.isVisible) {
-          const obj = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS]
+          const obj = getAllCelestialObjects(extraObjects)
             .find(o => o.id === objId);
-          
+
           if (obj) {
             if (obj.type === 'planet') {
               cell.hasPlanet = true;
@@ -460,19 +448,12 @@ export function getAllCells(rotationState: RotationState): Map<string, SolarSyst
           }
         }
       });
-      
+
       cells.set(cellKey, cell);
     });
   });
-  
-  return cells;
-}
 
-/**
- * Convertit l'énergie en déplacements (1 énergie = 1 déplacement)
- */
-export function energyToMovements(energy: number): number {
-  return energy;
+  return cells;
 }
 
 /**
@@ -490,10 +471,12 @@ export function calculateReachableCellsWithEnergy(
   movements: number,
   energy: number,
   rotationState: RotationState,
-  ignoreAsteroidPenalty: boolean = false
-): Map<string, { movements: number; path: string[] }> {
-  const totalMovements = movements + energyToMovements(energy);
-  return calculateReachableCells(startDisk, startSector, totalMovements, rotationState, ignoreAsteroidPenalty);
+  ignoreAsteroidPenalty: boolean = false,
+  getMediaBonus?: (cell: SolarSystemCell) => number,
+  extraObjects: CelestialObject[] = []
+): Map<string, { movements: number; path: string[]; media: number }> {
+  const totalMovements = movements + energy;
+  return calculateReachableCells(startDisk, startSector, totalMovements, rotationState, ignoreAsteroidPenalty, getMediaBonus, extraObjects);
 }
 
 /**
@@ -509,77 +492,89 @@ export function calculateReachableCells(
   startSector: SectorNumber,
   maxMovements: number,
   rotationState: RotationState,
-  ignoreAsteroidPenalty: boolean = false
-): Map<string, { movements: number; path: string[] }> {
-  const reachable = new Map<string, { movements: number; path: string[] }>();
-  const cells = getAllCells(rotationState);
-  
+  ignoreAsteroidPenalty: boolean = false,
+  getMediaBonus?: (cell: SolarSystemCell) => number,
+  extraObjects: CelestialObject[] = []
+): Map<string, { movements: number; path: string[]; media: number }> {
+  const reachable = new Map<string, { movements: number; path: string[]; media: number }>();
+  const cells = getAllCells(rotationState, extraObjects);
+
   // File d'attente pour le parcours en largeur (BFS)
-  const queue: Array<{ disk: DiskName; sector: SectorNumber; movements: number; path: string[] }> = [];
-  queue.push({ disk: startDisk, sector: startSector, movements: 0, path: [`${startDisk}${startSector}`] });
-  
+  const queue: Array<{ disk: DiskName; sector: SectorNumber; movements: number; path: string[]; media: number }> = [];
+  queue.push({ disk: startDisk, sector: startSector, movements: 0, path: [`${startDisk}${startSector}`], media: 0 });
+
   while (queue.length > 0) {
     const current = queue.shift()!;
     const currentKey = `${current.disk}${current.sector}`;
-    
-    // Si on a déjà visité cette case avec moins de déplacements, on ignore
+
+    // Si on a déjà visité cette case avec un meilleur score (moins de déplacements, ou même déplacements et plus de média), on ignore
     const existing = reachable.get(currentKey);
-    if (existing && existing.movements <= current.movements) {
-      continue;
+    if (existing) {
+      if (existing.movements < current.movements) continue;
+      if (existing.movements === current.movements && existing.media >= current.media) continue;
     }
-    
-    // Enregistrer cette case
-    reachable.set(currentKey, { movements: current.movements, path: [...current.path] });
-    
+
+    // Enregistrer cette case (meilleur chemin trouvé pour l'instant)
+    reachable.set(currentKey, { movements: current.movements, path: [...current.path], media: current.media });
+
     // Si on a atteint le maximum de déplacements, on ne continue pas
     if (current.movements >= maxMovements) {
       continue;
     }
-    
+
     // Obtenir la case actuelle
     const currentCell = cells.get(currentKey);
     if (!currentCell) {
       continue;
     }
-    
+
     // Trouver les cases adjacentes (même disque, secteurs adjacents, ou disques adjacents)
     const adjacentCells = getAdjacentCells(current.disk, current.sector);
-    
+
     adjacentCells.forEach(adj => {
       if (adj.disk === 'E') return;
 
       const adjKey = `${adj.disk}${adj.sector}`;
       const adjCell = cells.get(adjKey);
-      
+
       if (!adjCell) {
         return;
       }
-      
+
       // Calculer le coût pour atteindre cette case
       let cost = 1; // Coût de base pour une case adjacente
-      
+
       // Si on sort d'un champ d'astéroïdes, coût supplémentaire
       if (currentCell.hasAsteroid && !ignoreAsteroidPenalty) {
         cost += 1; // Total = 2 pour sortir d'un champ d'astéroïdes
       }
-      
+
       const newMovements = current.movements + cost;
-      
+      const mediaGain = getMediaBonus ? getMediaBonus(adjCell) : 0;
+      const newMedia = current.media + mediaGain;
+
       if (newMovements <= maxMovements) {
-        // Vérifier si on n'a pas déjà visité avec moins de déplacements
+        // Vérifier si on n'a pas déjà visité avec un meilleur score
         const existing = reachable.get(adjKey);
-        if (!existing || existing.movements > newMovements) {
+        let shouldPush = true;
+        if (existing) {
+          if (existing.movements < newMovements) shouldPush = false;
+          else if (existing.movements === newMovements && existing.media >= newMedia) shouldPush = false;
+        }
+
+        if (shouldPush) {
           queue.push({
             disk: adj.disk,
             sector: adj.sector,
             movements: newMovements,
             path: [...current.path, adjKey],
+            media: newMedia
           });
         }
       }
     });
   }
-  
+
   return reachable;
 }
 
@@ -591,27 +586,27 @@ export function getAdjacentCells(
   sector: SectorNumber
 ): Array<{ disk: DiskName; sector: SectorNumber }> {
   const adjacent: Array<{ disk: DiskName; sector: SectorNumber }> = [];
-  
+
   // Secteurs adjacents (même disque)
   const sectors: SectorNumber[] = [1, 2, 3, 4, 5, 6, 7, 8];
   const sectorIndex = sectors.indexOf(sector);
   const prevSector = sectors[(sectorIndex - 1 + 8) % 8];
   const nextSector = sectors[(sectorIndex + 1) % 8];
-  
+
   adjacent.push({ disk, sector: prevSector });
   adjacent.push({ disk, sector: nextSector });
-  
+
   // Disques adjacents (même secteur)
   const disks: DiskName[] = ['A', 'B', 'C', 'D', 'E'];
   const diskIndex = disks.indexOf(disk);
-  
+
   if (diskIndex > 0) {
     adjacent.push({ disk: disks[diskIndex - 1], sector });
   }
   if (diskIndex < disks.length - 1) {
     adjacent.push({ disk: disks[diskIndex + 1], sector });
   }
-  
+
   return adjacent;
 }
 
@@ -622,17 +617,18 @@ export function getObjectPosition(
   objectId: string,
   level1Angle: number,
   level2Angle: number,
-  level3Angle: number
+  level3Angle: number,
+  extraObjects: CelestialObject[] = []
 ): AbsolutePosition | null {
   const rotationState = createRotationState(level1Angle, level2Angle, level3Angle);
-  const allObjects = getAllCelestialObjects();
+  const allObjects = getAllCelestialObjects(extraObjects);
   const object = allObjects.find(obj => obj.id === objectId);
-  
+
   if (!object) {
     return null;
   }
-  
-  return calculateAbsolutePosition(object, rotationState);
+
+  return calculateAbsolutePosition(object, rotationState, extraObjects);
 }
 
 /**
@@ -641,12 +637,13 @@ export function getObjectPosition(
 export function getObjectsOnCell(
   disk: DiskName,
   sector: SectorNumber,
-  rotationState: RotationState
+  rotationState: RotationState,
+  extraObjects: CelestialObject[] = []
 ): CelestialObject[] {
-  const allObjects = getAllCelestialObjects();
-  const positions = getAllAbsolutePositions(rotationState);
+  const allObjects = getAllCelestialObjects(extraObjects);
+  const positions = getAllAbsolutePositions(rotationState, extraObjects);
   const objectsOnCell: CelestialObject[] = [];
-  
+
   positions.forEach((pos, objId) => {
     if (pos.disk === disk && pos.absoluteSector === sector && pos.isVisible) {
       const obj = allObjects.find(o => o.id === objId);
@@ -655,7 +652,7 @@ export function getObjectsOnCell(
       }
     }
   });
-  
+
   return objectsOnCell;
 }
 
@@ -665,34 +662,31 @@ export function getObjectsOnCell(
 export function getCell(
   disk: DiskName,
   sector: SectorNumber,
-  rotationState: RotationState
+  rotationState: RotationState,
+  extraObjects: CelestialObject[] = []
 ): SolarSystemCell | null {
-  const cells = getAllCells(rotationState);
+  const cells = getAllCells(rotationState, extraObjects);
   return cells.get(`${disk}${sector}`) || null;
 }
 
 export function getAbsoluteSectorForProbe(
-  solarPosition: { disk: DiskName, sector: SectorNumber }, 
+  solarPosition: { disk: DiskName, sector: SectorNumber, level?: number },
   rotationState: { level1Angle: number, level2Angle: number, level3Angle: number }
-): number {
+): SectorNumber {
   let angle = 0;
-  // Disk C is level 1 (innermost), B is 2, A is 3 (outermost)
-  if (solarPosition.disk === 'A') {
-    angle = rotationState.level3Angle;
-  } else if (solarPosition.disk === 'B') {
-    angle = rotationState.level2Angle;
-  } else if (solarPosition.disk === 'C') {
-    angle = rotationState.level1Angle;
+
+  if (solarPosition.level !== undefined) {
+    if (solarPosition.level === 1) angle = rotationState.level1Angle;
+    else if (solarPosition.level === 2) angle = rotationState.level2Angle;
+    else if (solarPosition.level === 3) angle = rotationState.level3Angle;
+  } else {
+    // Fallback si le niveau n'est pas défini (ne devrait pas arriver pour une sonde placée)
+    if (solarPosition.disk === 'A') angle = rotationState.level3Angle;
+    else if (solarPosition.disk === 'B') angle = rotationState.level2Angle;
+    else if (solarPosition.disk === 'C') angle = rotationState.level1Angle;
   }
 
-  const offset = angle / 45; // e.g., -1 for -45deg
-
-  // ( ( (value - 1) % N ) + N ) % N to handle negative results of %
-  const baseSector = solarPosition.sector - 1; // 0-7
-  const absoluteSectorIndex = baseSector + offset;
-  const absoluteSector = ((absoluteSectorIndex % 8) + 8) % 8 + 1;
-
-  return absoluteSector;
+  return rotateSector(solarPosition.sector, angle);
 };
 
 export function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
@@ -704,23 +698,23 @@ export function polarToCartesian(centerX: number, centerY: number, radius: numbe
 };
 
 export function describeArc(x: number, y: number, radius: number, startAngle: number, endAngle: number, reverse: boolean = false) {
-    const start = polarToCartesian(x, y, radius, endAngle);
-    const end = polarToCartesian(x, y, radius, startAngle);
-    const largeArcFlag = Math.abs(endAngle - startAngle) <= 180 ? "0" : "1";
-    
-    if (reverse) {
-        // Sens anti-horaire (Start -> End) pour le texte du bas
-        return [ "M", end.x, end.y, "A", radius, radius, 0, largeArcFlag, 0, start.x, start.y ].join(" ");
-    }
+  const start = polarToCartesian(x, y, radius, endAngle);
+  const end = polarToCartesian(x, y, radius, startAngle);
+  const largeArcFlag = Math.abs(endAngle - startAngle) <= 180 ? "0" : "1";
 
-    // Sens horaire (End -> Start) pour le texte du haut
-    return [ "M", start.x, start.y, "A", radius, radius, 0, largeArcFlag, 1, end.x, end.y ].join(" ");
+  if (reverse) {
+    // Sens anti-horaire (Start -> End) pour le texte du bas
+    return ["M", end.x, end.y, "A", radius, radius, 0, largeArcFlag, 0, start.x, start.y].join(" ");
+  }
+
+  // Sens horaire (End -> Start) pour le texte du haut
+  return ["M", start.x, start.y, "A", radius, radius, 0, largeArcFlag, 1, end.x, end.y].join(" ");
 };
 
 // Fonction helper pour déterminer le type de secteur (normal, hollow, empty) pour tous les niveaux
 export function getSectorType(level: number, disk: DiskName, relativeSector: SectorNumber): 'normal' | 'hollow' | 'empty' {
   let obj: CelestialObject | undefined;
-  
+
   // Chercher dans le bon tableau selon le niveau
   if (level === 1) {
     obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(
@@ -735,7 +729,7 @@ export function getSectorType(level: number, disk: DiskName, relativeSector: Sec
       o => o.level === level && o.position.disk === disk && o.position.sector === relativeSector
     );
   }
-  
+
   if (obj?.type === 'hollow') return 'hollow';
   if (obj?.type === 'empty') return 'empty';
   return 'normal';
@@ -752,49 +746,77 @@ export function formatRotationLogs(baseMessage: string, rotationLogs: string[]) 
   return `${baseMessage}. Poussée(s) : ${details}`;
 };
 
-export function getRotationLevelName(level: number): string {
-  switch (level) {
-    case 1: return 'Jaune';
-    case 2: return 'Rouge';
-    case 3: return 'Bleu';
-    default: return `Niveau ${level}`;
-  }
-};
-
 // Helper pour effectuer une rotation du système solaire
-export function performRotation(currentGame: Game): { updatedGame: Game, logs: string[] }
-{
-    let updatedGame = structuredClone(currentGame);
-    const currentLevel = updatedGame.board.solarSystem.nextRingLevel || 3;
-    const oldRotationState = createRotationState(
-      updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-      updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-      updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-    );
+export function performRotation(game: Game): { updatedGame: Game, logs: string[] } {
+  let updatedGame = structuredClone(game);
+  const currentLevel = updatedGame.board.solarSystem.nextRingLevel;
+  const oldRotationState = createRotationState(
+    updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+    updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+    updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+  );
 
-    if (currentLevel === 3) {
-      updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
-      updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-      updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-    } else if (currentLevel === 2) {
-      updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-      updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-    } else if (currentLevel === 1) {
-      updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-    }
-
-    updatedGame.board.solarSystem.nextRingLevel = currentLevel === 3 ? 1 : currentLevel + 1;
-
-    const newRotationState = createRotationState(
-      updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-      updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-      updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-    );
-
-    const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState);
-    updatedGame = rotationResult.game;
-
-    const log = formatRotationLogs(`fait tourner le Système Solaire (${getRotationLevelName(currentLevel)})`, rotationResult.logs);
-    return { updatedGame, logs: [log] };
+  if (currentLevel === 1) { // Bleu
+    updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
+    updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+    updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+  } else if (currentLevel === 2) { // Rouge
+    updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
+    updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+  } else if (currentLevel === 3) { // Jaune
+    updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
   }
 
+  updatedGame.board.solarSystem.nextRingLevel = currentLevel === 1 ? 3 : currentLevel - 1;
+
+  const newRotationState = createRotationState(
+    updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
+    updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
+    updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+  );
+  console.log("cocou rot");
+  const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState, updatedGame.board.solarSystem.extraCelestialObjects || []);
+  updatedGame = rotationResult.game;
+  console.log("cocou rot");
+
+  const diskLevel: Record<number, string> = { 1: 'Bleu', 2: 'Rouge', 3: 'Jaune' };
+  const log = formatRotationLogs(`fait tourner le Système Solaire (${diskLevel[currentLevel]})`, rotationResult.logs);
+
+  // Vérification des anomalies après rotation
+  const earthPos = getObjectPosition('earth', newRotationState.level1Angle, newRotationState.level2Angle, newRotationState.level3Angle, updatedGame.board.solarSystem.extraCelestialObjects);
+  const anomalies = (updatedGame.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly');
+  const anomalyBoard = updatedGame.board.alienBoards.find(b => b.speciesId === AlienBoardType.ANOMALIES);
+  const anomalyLogs: string[] = [];
+
+  console.log("cocou rot");
+  if (earthPos && anomalyBoard && anomalyBoard.isDiscovered) {
+    for (const anomaly of anomalies) {
+      const anomalyPos = calculateAbsolutePosition(anomaly, newRotationState, updatedGame.board.solarSystem.extraCelestialObjects);
+      if (anomalyPos.absoluteSector === earthPos.absoluteSector) {
+        const color = anomaly.anomalyData?.color;
+        const bonus = anomaly.anomalyData?.bonus;
+        if (color && bonus) {
+          const traceType = color;
+          // Ne prendre en compte que les slots 'species' (pas 'triangle')
+          const trackTraces = anomalyBoard.lifeTraces.filter(t => t.type === traceType && t.location === LifeTraceLocation.SPECIES);
+          // Trier par index décroissant pour trouver le plus haut
+          trackTraces.sort((a, b) => (b.slotIndex || 0) - (a.slotIndex || 0));
+
+          if (trackTraces.length > 0) {
+            const highestPlayerId = trackTraces[0].playerId;
+            if (highestPlayerId && highestPlayerId !== 'neutral') {
+              const player = updatedGame.players.find(p => p.id === highestPlayerId);
+              if (player) {
+                const res = ResourceSystem.processBonuses(bonus, updatedGame, highestPlayerId, 'anomaly', `anomaly-${Date.now()}`);
+                updatedGame = res.updatedGame;
+                anomalyLogs.push(`Anomalie ${color} activée : ${player.name} gagne ${res.logs.join(', ')}`);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return { updatedGame, logs: [log, ...anomalyLogs] };
+}

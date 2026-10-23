@@ -1,6 +1,7 @@
-import { Game, LifeTraceType } from '../core/types';
-
-export type SpeciesDiscoveryCode = 'NO_MARKERS' | 'NO_SPACE' | 'PLACED' | 'DISCOVERED';
+import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode, LifeTraceLocation } from '../core/types';
+import { ResourceSystem } from './ResourceSystem';
+import { getObjectPosition } from '../core/SolarSystemPosition';
+import { CardSystem } from './CardSystem';
 
 export class SpeciesSystem {
     /**
@@ -12,8 +13,9 @@ export class SpeciesSystem {
         updatedGame: Game;
         code: SpeciesDiscoveryCode;
         data?: { color: LifeTraceType; speciesId?: string; boardIndex: number };
+        logs?: string[];
     } {
-        const updatedGame = structuredClone(game);
+        let updatedGame = structuredClone(game);
 
         // Vérifier s'il reste des marqueurs neutres pour ce palier
         if (!updatedGame.neutralMilestonesAvailable || updatedGame.neutralMilestonesAvailable[milestone] <= 0) {
@@ -24,7 +26,7 @@ export class SpeciesSystem {
 
         const boards = updatedGame.board.alienBoards;
         const colors = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE];
-        
+
         for (let i = 0; i < boards.length; i++) {
             const board = boards[i];
             for (const color of colors) {
@@ -43,15 +45,63 @@ export class SpeciesSystem {
                     const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
                     const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
 
-                    if (hasRed && hasYellow && hasBlue && !board.speciesId) {
-                        const ALIEN_SPECIES = ['Centauriens', 'Exertiens', 'Oumuamua'];
-                        const randomSpecies = ALIEN_SPECIES[Math.floor(Math.random() * ALIEN_SPECIES.length)];
-                        board.speciesId = randomSpecies;
-                        
-                        return { 
-                            updatedGame, 
-                            code: 'DISCOVERED', 
-                            data: { color, speciesId: randomSpecies, boardIndex: i } 
+                    if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
+                        board.isDiscovered = true;
+                        updatedGame.isSpeciesDiscovered = true;
+
+                        const distResult = this.distributeDiscoveryCards(updatedGame, i);
+                        updatedGame = distResult.updatedGame;
+
+                        // Remplir la rangée de carte de l'espèce
+                        const species = updatedGame.species.find(s => s.name === board.speciesId);
+                        if (species) {
+                            if (!species.cardRow) species.cardRow = [];
+                            if (species.cards.length > 0 && species.cardRow.length < 1) {
+                                const card = species.cards.shift();
+                                if (card) {
+                                    species.cardRow.push(card);
+                                }
+                            }
+                        }
+
+                        if (board.speciesId === AlienBoardType.MASCAMITES) {
+                            const mascamiteLogs = this.spawnMascamites(updatedGame);
+                            distResult.logs.push(...mascamiteLogs);
+                        }
+
+                        if (board.speciesId === AlienBoardType.OUMUAMUA) {
+                            if (!updatedGame.board.solarSystem.extraCelestialObjects) {
+                                updatedGame.board.solarSystem.extraCelestialObjects = [];
+                            }
+                            updatedGame.board.solarSystem.extraCelestialObjects.push({ id: 'oumuamua', type: 'planet', name: 'Oumuamua', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 });
+                            distResult.logs.push("L'astéroïde Oumuamua apparaît dans le système solaire !");
+                        }
+
+                        if (board.speciesId === AlienBoardType.ANOMALIES) {
+                            const anomalyLogs = this.spawnAnomalies(updatedGame);
+                            distResult.logs.push(...anomalyLogs);
+                        }
+
+                        if (board.speciesId === AlienBoardType.CENTAURIENS) {
+                            updatedGame.players.forEach(p => {
+                                p.centaurienMilestones.push(p.score + 15);
+                            });
+                            distResult.logs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
+                        }
+
+                        if (board.speciesId === AlienBoardType.EXERTIENS) {
+                            const score = Math.max(...updatedGame.players.map(p => p.score));
+                            if (!updatedGame.exertienMilestones) updatedGame.exertienMilestones = [];
+                            updatedGame.exertienMilestones.push(score + 20);
+                            updatedGame.exertienMilestones.push(score + 40);
+                            distResult.logs.push("Deux nouveaus paliers à +20 PV et +40 PV apparaissent permettant d'utiliser la technologie des Exertiens.");
+                        }
+
+                        return {
+                            updatedGame,
+                            code: 'DISCOVERED',
+                            data: { color, speciesId: board.speciesId, boardIndex: i },
+                            logs: distResult.logs
                         };
                     }
 
@@ -61,5 +111,375 @@ export class SpeciesSystem {
         }
 
         return { updatedGame, code: 'NO_SPACE' };
+    }
+
+    /**
+    * Place une trace de vie sur un plateau Alien et gère la découverte d'espèce
+    */
+    static placeLifeTrace(game: Game, boardIndex: number, color: LifeTraceType, playerId: string, sequenceId: string = '', slotType: LifeTraceLocation, slotIndex?: number): {
+        updatedGame: Game;
+        historyEntries: HistoryEntry[];
+        newPendingInteractions: InteractionState[];
+    } {
+        let updatedGame = structuredClone(game);
+        const board = updatedGame.board.alienBoards[boardIndex];
+
+        const player = updatedGame.players.find(p => p.id === playerId);
+
+        if (!board || !player) {
+            // Should not happen if called correctly
+            return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+        }
+
+        const species = updatedGame.species.find(s => s.name === board.speciesId);
+
+        let bonusToApply: Bonus = {};
+        let costText = '';
+
+        if (slotType === LifeTraceLocation.TRIANGLE) {
+            // Le joueur a cliqué sur le triangle. On compte combien de ses traces y sont déjà.
+            const tracesOnTriangle = board.lifeTraces.filter(t => t.type === color && t.location === LifeTraceLocation.TRIANGLE).length;
+            if (tracesOnTriangle === 0) {
+                bonusToApply = board.firstBonus;
+            } else {
+                bonusToApply = board.nextBonus;
+            }
+        } else { // slotType === LifeTraceLocation.SPECIES
+            if (!board.isDiscovered || !species) {
+                return { updatedGame: game, historyEntries: [{ message: "Impossible de placer sur la piste d'espèce avant sa découverte.", playerId, sequenceId }], newPendingInteractions: [] };
+            }
+
+            let trackIndex = 0;
+            if (slotIndex !== undefined) {
+                trackIndex = slotIndex;
+            } else {
+                // Fallback (ne devrait pas arriver avec la nouvelle UI)
+                const tracesOnSpeciesTrack = board.lifeTraces.filter(t => t.type === color && t.location === LifeTraceLocation.SPECIES).length;
+                trackIndex = tracesOnSpeciesTrack;
+            }
+
+            const isOccupied = board.lifeTraces.some(t => t.type === color && t.location === LifeTraceLocation.SPECIES && t.slotIndex === trackIndex);
+            if (isOccupied) {
+                return { updatedGame: game, historyEntries: [{ message: "Emplacement déjà occupé.", playerId, sequenceId }], newPendingInteractions: [] };
+            }
+
+            // Déterminer le bonus en fonction de l'index sur la piste
+            const { fixedSlots, infiniteSlots } = species;
+            const trackSlots = (color === LifeTraceType.RED) ? fixedSlots.redlifetrace : (color === LifeTraceType.YELLOW) ? fixedSlots.yellowlifetrace : fixedSlots.bluelifetrace;
+            const infiniteSlot = (color === LifeTraceType.RED) ? infiniteSlots.redlifetrace : (color === LifeTraceType.YELLOW) ? infiniteSlots.yellowlifetrace : infiniteSlots.bluelifetrace;
+            const fixedSlotCount = trackSlots.length;
+
+            if (trackIndex < fixedSlotCount) {
+                bonusToApply = trackSlots[trackIndex];
+            } else {
+                bonusToApply = infiniteSlot;
+            }
+        }
+
+        // Handle costs
+        if (typeof bonusToApply.token === 'number' && bonusToApply.token < 0) {
+            const cost = Math.abs(bonusToApply.token);
+            if ((player.tokens || 0) < cost) {
+                return {
+                    updatedGame: game,
+                    historyEntries: [{ message: `Pas assez de tokens pour placer la trace.`, playerId, sequenceId }],
+                    newPendingInteractions: []
+                };
+            }
+            player.tokens = (player.tokens || 0) - cost;
+            costText = ` et paye ${cost} token${cost > 1 ? 's' : ''}`;
+        }
+
+        // Add the trace to the board and the player
+        board.lifeTraces.push({
+            id: `trace-${Date.now()}`,
+            type: color,
+            playerId: playerId,
+            location: slotType,
+            slotIndex: slotType === LifeTraceLocation.SPECIES ? (slotIndex !== undefined ? slotIndex : 0) : undefined
+        });
+        player.lifeTraces.push({
+            id: `player-trace-${Date.now()}`,
+            type: color,
+            playerId: playerId,
+            location: slotType,
+            slotIndex: slotType === LifeTraceLocation.SPECIES ? (slotIndex !== undefined ? slotIndex : 0) : undefined
+        });
+  
+        // Check for species discovery
+        const traces = board.lifeTraces;
+        const hasRed = traces.some(t => t.type === LifeTraceType.RED);
+        const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
+        const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
+
+        let discoveryLogs: string[] = [];
+        if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
+            board.isDiscovered = true;
+            updatedGame.isSpeciesDiscovered = true;
+            
+            const distResult = this.distributeDiscoveryCards(updatedGame, boardIndex);
+            updatedGame = distResult.updatedGame;
+            discoveryLogs = distResult.logs;
+
+            // Remplir la rangée de carte de l'espèce
+            const discoveredSpecies = updatedGame.species.find(s => s.name === board.speciesId);
+            if (discoveredSpecies) {
+                if (!discoveredSpecies.cardRow) discoveredSpecies.cardRow = [];
+                if (discoveredSpecies.cards.length > 0 && discoveredSpecies.cardRow.length < 1) {
+                    const card = discoveredSpecies.cards.shift();
+                    if (card) {
+                        discoveredSpecies.cardRow.push(card);
+                    }
+                }
+            }
+
+            if (board.speciesId === AlienBoardType.MASCAMITES) {
+                const mascamiteLogs = this.spawnMascamites(updatedGame);
+                discoveryLogs.push(...mascamiteLogs);
+            }
+
+            if (board.speciesId === AlienBoardType.OUMUAMUA) {
+                if (!updatedGame.board.solarSystem.extraCelestialObjects) {
+                    updatedGame.board.solarSystem.extraCelestialObjects = [];
+                }
+                // Disque 1 (Level 1), 2 crans avant Jupiter (C5) -> C3
+                // C3 est un creux, donc l'objet flottera au-dessus
+                updatedGame.board.solarSystem.extraCelestialObjects.push({ id: 'oumuamua', type: 'planet', name: 'Oumuamua', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 });
+                discoveryLogs.push("L'astéroïde Oumuamua apparaît dans le système solaire !");
+            }
+
+            if (board.speciesId === AlienBoardType.ANOMALIES) {
+                const anomalyLogs = this.spawnAnomalies(updatedGame);
+                discoveryLogs.push(...anomalyLogs);
+            }
+
+            if (board.speciesId === AlienBoardType.CENTAURIENS) {
+                updatedGame.players.forEach(p => {
+                    p.centaurienMilestones.push(p.score + 15);
+                });
+                discoveryLogs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
+            }
+
+            if (board.speciesId === AlienBoardType.EXERTIENS) {
+                const score = Math.max(...updatedGame.players.map(p => p.score));
+                if (!updatedGame.exertienMilestones) updatedGame.exertienMilestones = [];
+                updatedGame.exertienMilestones.push(score + 20);
+                updatedGame.exertienMilestones.push(score + 40);
+                distResult.logs.push("Deux nouveaus paliers à +20 PV et +40 PV apparaissent permettant d'utiliser la technologie des Exertiens.");
+            }
+        }
+
+        // Traitement des missions conditionnelles (GAIN_ON_TECH)
+        const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
+            if (color === LifeTraceType.YELLOW && buff.type === 'GAIN_ON_YELLOW_LIFETRACE') return true;
+            if (color === LifeTraceType.RED && buff.type === 'GAIN_ON_RED_LIFETRACE') return true;
+            if (color === LifeTraceType.BLUE && buff.type === 'GAIN_ON_BLUE_LIFETRACE') return true;
+            if (color === LifeTraceType.ANY && (
+                buff.type.includes('GAIN_ON_BLUE_LIFETRACE') ||
+                buff.type.includes('GAIN_ON_YELLOW_LIFETACE') ||
+                buff.type.includes('GAIN_ON_RED_LIFETACE')
+            )) return true;
+            return false;
+        });
+
+        // Process bonuses
+        const res = ResourceSystem.processBonuses(bonusToApply, updatedGame, playerId, 'lifetrace', sequenceId, species?.id);
+        updatedGame = res.updatedGame;
+
+        const boardSideText = (boardIndex === 0) ? "gauche" : "droit";
+        let mainLog = `place une trace de vie ${color} sur le plateau Alien ${boardSideText}${costText}`;
+        if (res.logs.length > 0) {
+            mainLog += ` et ${res.logs.join(' et ')}`;
+        }
+        if (discoveryLogs.length > 0) {
+            mainLog += `. ${discoveryLogs.join('. ')}`;
+        }
+
+        res.historyEntries.unshift({ message: mainLog, playerId, sequenceId });
+
+        if (hasFulfillable) {
+            res.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId });
+        }
+
+        return {
+            updatedGame,
+            historyEntries: res.historyEntries,
+            newPendingInteractions: res.newPendingInteractions
+        };
+    }
+
+    /**
+     * Acquiert une carte Alien (depuis la pioche ou la rangée) et remplit la rangée si nécessaire.
+     */
+    static acquireAlienCard(game: Game, playerId: string, speciesId: string, cardId: string): { updatedGame: Game, drawnCard?: Card } {
+        let updatedGame = structuredClone(game);
+        const species = updatedGame.species.find(s => s.id === speciesId);
+        const player = updatedGame.players.find(p => p.id === playerId);
+
+        if (!species || !player) return { updatedGame };
+
+        let drawnCard: Card | undefined;
+
+        if (cardId === 'deck') {
+            if (species.cards.length > 0) {
+                drawnCard = species.cards.shift();
+            }
+        } else {
+            if (species.cardRow) {
+                const index = species.cardRow.findIndex(c => c.id === cardId);
+                if (index !== -1) {
+                    drawnCard = species.cardRow.splice(index, 1)[0];
+                    // Remplir la rangée immédiatement
+                    if (species.cards.length > 0) {
+                        const newCard = species.cards.shift();
+                        if (newCard) species.cardRow.push(newCard);
+                    }
+                }
+            }
+        }
+
+        if (drawnCard) {
+            player.cards.push(drawnCard);
+        }
+
+        return { updatedGame, drawnCard };
+    }
+
+    private static distributeDiscoveryCards(game: Game, boardIndex: number): { updatedGame: Game, logs: string[] } {
+        let updatedGame = game;
+        const board = updatedGame.board.alienBoards[boardIndex];
+        const species = updatedGame.species.find(s => s.name === board.speciesId);
+        if (!species) return { updatedGame, logs: [] };
+        const logs: string[] = [];
+        const colors = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE];
+        const cardsPerPlayer: Record<string, number> = {};
+
+        colors.forEach(color => {
+            const traces = board.lifeTraces.filter(t => t.type === color);
+            if (traces.length > 0) {
+                const firstTrace = traces[0];
+                if (firstTrace.playerId !== 'neutral') {
+                    cardsPerPlayer[firstTrace.playerId] = (cardsPerPlayer[firstTrace.playerId] || 0) + 1;
+                }
+            }
+        });
+
+        if (species.id === AlienBoardType.EXERTIENS) {
+            updatedGame.players.forEach(p => {
+                cardsPerPlayer[p.id] += 3;
+            });
+        }
+
+        for (const [playerId, count] of Object.entries(cardsPerPlayer)) {
+            const player = updatedGame.players.find(p => p.id === playerId);
+            if (player && species) {
+                let drawnCount = 0;
+                const drawnCardNames: string[] = [];
+                for (let i = 0; i < count; i++) {
+                    const card = species.cards.shift();
+                    if (card) {
+                        player.cards.push(card);
+                        drawnCount++;
+                        drawnCardNames.push(card.name);
+                    }
+                }
+                if (drawnCount > 0) {
+                    const cardsStr = drawnCardNames.map(name => `"${name}"`).join(', ');
+                    logs.push(`${player.name} pioche ${drawnCount} carte${drawnCount > 1 ? 's' : ''} Alien ${cardsStr} (Découverte)`);
+                }
+            }
+        }
+
+        return { updatedGame, logs };
+    }
+
+    private static spawnMascamites(game: Game): string[] {
+        const logs: string[] = [];
+        const species = game.species.find(s => s.name === AlienBoardType.MASCAMITES);
+        if (species && species.specimen) {
+            const tokens = [...species.specimen];
+            const shuffledTokens = ResourceSystem.shuffle(tokens);
+            const saturnTokens = shuffledTokens.splice(0, 3);
+            const jupiterTokens = shuffledTokens.splice(0, 3);
+            const boardToken = shuffledTokens[0];
+
+            const saturn = game.board.planets.find(p => p.id === 'saturn');
+            if (saturn) saturn.mascamiteTokens = saturnTokens;
+
+            const jupiter = game.board.planets.find(p => p.id === 'jupiter');
+            if (jupiter) jupiter.mascamiteTokens = jupiterTokens;
+
+            if (boardToken) species.fixedSlots.bluelifetrace[2] = boardToken.bonus;
+            logs.push("Les Mascamites sont découverts ! Des spécimens apparaissent sur Jupiter et Saturne.");
+        }
+        return logs;
+    }
+
+    private static spawnAnomalies(game: Game): string[] {
+        const logs: string[] = [];
+        if (!game.board.solarSystem.extraCelestialObjects) {
+            game.board.solarSystem.extraCelestialObjects = [];
+        }
+
+        const species = game.species.find(s => s.name === AlienBoardType.ANOMALIES);
+        const tokens = species?.anomalie;
+
+        if (tokens) {
+            const shuffledTokens = ResourceSystem.shuffle(tokens);
+            const solarSystem = game.board.solarSystem;
+            const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0, solarSystem.extraCelestialObjects);
+
+            if (earthPos) {
+                const earthSector = earthPos.absoluteSector;
+                const sectors = [
+                    earthSector,
+                    ((earthSector - 1 - 3 + 8) % 8) + 1,
+                    ((earthSector - 1 + 3) % 8) + 1
+                ];
+
+                shuffledTokens.forEach((token, index) => {
+                    const side = Math.random() < 0.5 ? 'head' : 'tail';
+                    const bonus = side === 'head' ? token.head : token.tail;
+                    const sector = sectors[index] as SectorNumber;
+
+                    game.board.solarSystem.extraCelestialObjects!.push({
+                        id: `anomaly-${token.color}-${Date.now()}-${index}`,
+                        type: 'anomaly',
+                        name: `Anomalie ${token.color}`,
+                        position: { disk: 'D', sector: sector, x: 0, y: 0 },
+                        level: 0,
+                        anomalyData: { color: token.color, side, bonus }
+                    });
+                });
+                logs.push("Des anomalies apparaissent en périphérie du système solaire !");
+            }
+        }
+        return logs;
+    }
+
+    static claimCentaurienReward(game: Game, playerId: string, tokenIndex: number): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
+        let updatedGame = structuredClone(game);
+        const player = updatedGame.players.find(p => p.id === playerId);
+        const species = updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS);
+
+        if (!player || !species || !species.message || !species.message[tokenIndex] || !species.message[tokenIndex].isAvailable) {
+            return { updatedGame, historyEntries: [], newPendingInteractions: [] };
+        }
+
+        species.message[tokenIndex].isAvailable = false;
+        
+        // Retirer le palier atteint (le plus petit qui est <= au score actuel)
+        player.centaurienMilestones.sort((a, b) => a - b);
+        const reachedIndex = player.centaurienMilestones.findIndex(m => player.score >= m);
+        if (reachedIndex !== -1) {
+            player.centaurienMilestones.splice(reachedIndex, 1);
+        }
+
+        const res = ResourceSystem.processBonuses(species.message[tokenIndex].bonus, updatedGame, playerId, 'centaurien_message', `centaurien-${Date.now()}`);
+        return { 
+            updatedGame: res.updatedGame, 
+            historyEntries: [{ message: `déchiffre un message Centaurien`, playerId }, ...res.historyEntries], 
+            newPendingInteractions: res.newPendingInteractions || [] 
+        };
     }
 }

@@ -14,22 +14,32 @@ export enum GamePhase {
 }
 
 export enum ActionType {
-  LAUNCH_PROBE = "LAUNCH_PROBE",
-  MOVE_PROBE = "MOVE_PROBE",
-  ORBIT = "ORBIT",
-  LAND = "LAND",
-  SCAN_SECTOR = "SCAN_SECTOR",
-  ANALYZE_DATA = "ANALYZE_DATA",
-  TRANSFERE_DATA = "TRANSFERE_DATA",
-  DRAW_CARDS = "DRAW_CARDS",
-  DISCARD_CARDS = "DISCARD_CARDS",
-  PLAY_CARD = "PLAY_CARD",
-  RESERVE_CARD = "RESERVE_CARD",
-  BUY_CARD = "BUY_CARD",
-  RESEARCH_TECH = "RESEARCH_TECH",
-  TRADE_RESOURCES = "TRADE_RESOURCES",
-  PASS = "PASS"
+  LAUNCH_PROBE = "Lancer une sonde",
+  ORBIT = "Mettre en orbite",
+  LAND = "Poser une sonde",
+  SCAN_SECTOR = "Scanner un secteur",
+  ANALYZE_DATA = "Analyser les données",
+  PLAY_CARD = "Jouer une carte",
+  RESEARCH_TECH = "Rechercher une tech",
+  PASS = "Passer définitivement",
+  MOVE_PROBE = "Déplacer une sonde",
+  TRANSFERE_DATA = "Transférer une donnée",
+  DISCARD_CARD = "Défausser une carte",
+  BUY_CARD = "Acheter une carte",
+  TRADE_RESOURCES = "Echanger des ressources",
+  ACCOMPLISH_MISSION = "Accomplir une mission"
 }
+
+export const MAIN_ACTION_TYPES: ActionType[] = [
+  ActionType.LAUNCH_PROBE,
+  ActionType.ORBIT,
+  ActionType.LAND,
+  ActionType.SCAN_SECTOR,
+  ActionType.ANALYZE_DATA,
+  ActionType.PLAY_CARD,
+  ActionType.RESEARCH_TECH,
+  ActionType.PASS
+];
 
 export type DiskName = 'A' | 'B' | 'C' | 'D' | 'E';
 export type SectorNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
@@ -43,6 +53,7 @@ export enum ProbeState {
 export enum SignalType {
   DATA = "Donnée",
   MEDIA = "Média",
+  TOKEN = "Token",
   OTHER = "OTHER"
 }
 
@@ -50,19 +61,35 @@ export enum CardType {
   ACTION = "Action",
   CONDITIONAL_MISSION = "Mission Conditionnelle",
   TRIGGERED_MISSION = "Mission Déclenchable",
-  END_GAME = "Fin de partie"
+  END_GAME = "Fin de jeu",
+  CENTAURIEN = "Centaurien",
+  EXERTIEN = "Exertien",
+  UNDEFINED = "Non défini"
+}
+
+export enum CostType {
+  CREDIT = "Crédit",
+  ENERGY = "Energie",
+  UNDEFINED = "Non défini"
 }
 
 export enum FreeActionType {
   MOVEMENT = "Déplacement",
   DATA = "Donnée",
-  MEDIA = "Média"
+  MEDIA = "Média",
+  PV_MOVEMENT = "PV + Déplacement",
+  PV_DATA = "PV + Donnée",
+  TWO_MEDIA = "2 Médias",
+  UNDEFINED = "Non défini"
 }
 
 export enum RevenueType {
   CREDIT = "Crédit",
   ENERGY = "Energie",
-  CARD = "Carte"
+  CARD = "Carte",
+  DATA = "Data",
+  MEDIA = "Média",
+  UNDEFINED = "Non défini"
 }
 
 export enum SectorType {
@@ -87,21 +114,30 @@ export enum SectorType {
   PROCYON = "Procyon",
   VEGA = "Vega",
   PICTORIS = "Beta Pictoris",
-  ANY = "N'importe quelle couleur"
+  OUMUAMUA = "Oumuamua",
+  ANOMALY = "Anomalie",
+  ANY = "quelconque",
+  UNDEFINED = "Non défini"
 }
 
 export enum TechnologyCategory {
   EXPLORATION = "Exploration",
   OBSERVATION = "Observation",
   COMPUTING = "Informatique",
-  ANY = "N'importe quelle type"
+  EXPLORATION_OR_OBSERVATION = "Exploration ou Observation",
+  ANY = "quelconque"
 }
 
 export enum LifeTraceType {
   RED = "Rouge",
   YELLOW = "Jaune",
   BLUE = "Bleu",
-  ANY = "N'importe quelle couleur"
+  ANY = "quelconque"
+}
+
+export enum LifeTraceLocation {
+  TRIANGLE = "triangle",
+  SPECIES = "species"
 }
 
 export enum EventType {
@@ -119,12 +155,22 @@ export enum EventType {
   GAME_ENDED = "GAME_ENDED"
 }
 
+export enum AlienBoardType {
+  ANOMALIES = "Anomalies",
+  OUMUAMUA = "Oumuamua",
+  EXERTIENS = "Exertiens",
+  MASCAMITES = "Mascamites",
+  CENTAURIENS = "Centauriens"
+}
+
 export enum ObjectiveCategory {
   TECHNOLOGY = "TECHNOLOGY",
   MISSION = "MISSION",
   REVENUE = "REVENUE",
   OTHER = "OTHER"
 }
+
+export type SpeciesDiscoveryCode = 'NO_MARKERS' | 'NO_SPACE' | 'PLACED' | 'DISCOVERED';
 
 // ============================================================================
 // INTERFACES DE BASE
@@ -135,11 +181,44 @@ export interface Position {
   y: number;
 }
 
+/**
+ * Position d'un objet céleste
+ */
+export interface CelestialPosition {
+  disk: DiskName; // A, B, C, D, ou E
+  sector: SectorNumber; // 1 à 8
+  x: number; // Position X en pourcentage (0-100)
+  y: number; // Position Y en pourcentage (0-100)
+}
+
+/**
+ * Type d'objet céleste
+ */
+export type CelestialObjectType = 'planet' | 'comet' | 'asteroid' | 'hollow' | 'empty' | 'anomaly';
+
+/**
+ * Objet céleste avec sa position relative
+ */
+export interface CelestialObject {
+  id: string;
+  type: CelestialObjectType;
+  name: string;
+  position: CelestialPosition;
+  level?: 0 | 1 | 2 | 3; // Niveau du plateau (0 = fixe, 1-3 = rotatif)
+  anomalyData?: {
+    color: LifeTraceType;
+    side: 'head' | 'tail';
+    bonus: Bonus;
+  };
+}
+
 export interface GameLogEntry {
   id: string;
   message: string;
   timestamp: number;
   playerId?: string;
+  sequenceId?: string;
+  previousState?: Game;
 }
 
 export interface GameState {
@@ -149,7 +228,6 @@ export interface GameState {
 
 export interface Decks {
   cards: Card[];
-  speciesCards: Card[];
   cardRow: Card[];
   discardPile: Card[];
   roundDecks: { [round: number]: Card[] };
@@ -172,6 +250,8 @@ export interface Game {
   isRoundEnd: boolean;
   gameLog: GameLogEntry[];
   neutralMilestonesAvailable: Record<number, number>;
+  exertienMilestones?: number[];
+  isSpeciesDiscovered: boolean;
 }
 
 export interface Player {
@@ -181,6 +261,7 @@ export interface Player {
   revenueCredits: number;
   energy: number;
   data: number;
+  tokens?: number;
   revenueEnergy: number;
   revenueCards: number;
   mediaCoverage: number;
@@ -193,6 +274,7 @@ export interface Player {
   dataComputer: DataComputer;
   lifeTraces: LifeTrace[];
   score: number;
+  danger: number;
   hasPassed: boolean;
   hasPerformedMainAction: boolean;
   type: 'human' | 'robot';
@@ -202,6 +284,7 @@ export interface Player {
   visitedPlanetsThisTurn: string[]; // Planètes visitées ce tour-ci
   activeBuffs: CardEffect[]; // Effets passifs temporaires (ex: bonus de visite)
   permanentBuffs: CardEffect[]; // Effets passifs permanents (ex: carte mission)
+  centaurienMilestones: number[]; // Paliers de score pour les messages Centauriens
 }
 
 export interface Board {
@@ -230,6 +313,7 @@ export interface SolarSystem {
   rotationAngleLevel2: number; // Angle de rotation actuel du plateau niveau 2 (en degrés)
   rotationAngleLevel3: number; // Angle de rotation actuel du plateau niveau 3 (en degrés)
   nextRingLevel: number; // Prochain niveau à tourner (1, 2 ou 3)
+  extraCelestialObjects?: CelestialObject[];
 }
 
 export interface Probe {
@@ -294,13 +378,16 @@ export interface AlienBoard {
   firstBonus: Bonus;
   nextBonus: Bonus;
   isFirstBoard: boolean;
-  speciesId?: string; // ID de l'espèce découverte sur ce plateau
+  speciesId: AlienBoardType;
+  isDiscovered: boolean;
 }
 
 export interface LifeTrace {
   id: string;
   type: LifeTraceType;
-  playerId: string
+  playerId: string;
+  location?: LifeTraceLocation;
+  slotIndex?: number;
 }
 
 export interface ObjectiveTile {
@@ -339,18 +426,21 @@ export interface Card {
   description: string;
   type: CardType;
   cost: number;
+  costType: CostType;
   freeAction: FreeActionType;
   scanSector: SectorType;
   revenue: RevenueType;
-  ownerId?: string;
-  immediateEffects?: CardEffect[];
-  passiveEffects?: CardEffect[];
-  permanentEffects?: CardEffect[];
-  scoringModifiers?: ScoringModifier[];
-  isRevealed?: boolean;
+  ownerId: string;
+  immediateEffects: CardEffect[];
+  passiveEffects: CardEffect[];
+  permanentEffects: CardEffect[];
+  isRevealed: boolean;
+  completed?: boolean;
+  danger?: number;
 }
 
 export interface CardEffect {
+  id?: string;
   type: string;
   value: any;
   target?: string;
@@ -364,39 +454,34 @@ export interface Mission {
   description: string;
   ownerId: string;
   requirements: CardEffect[];
-  progress: MissionProgress;
+  completedRequirementIds: string[];
+  fulfillableRequirementIds: string[];
   completed: boolean;
   originalCard?: Card;
-}
-
-export interface MissionProgress {
-  current: number;
-  target: number;
 }
 
 export interface Species {
   id: string;
   name: string;
-  lifeTraceTypes: LifeTraceType[];
-  rules: SpeciesRules;
+  description: string;
+  fixedSlots: {
+    redlifetrace: Bonus[],
+    yellowlifetrace: Bonus[],
+    bluelifetrace: Bonus[],
+  };
+  infiniteSlots: {
+    redlifetrace: Bonus,
+    yellowlifetrace: Bonus,
+    bluelifetrace: Bonus,
+  };
   cards: Card[];
-  scoringModifiers: ScoringModifier[];
+  cardRow: Card[];
   discovered: boolean;
-}
-
-export interface SpeciesRules {
-  modifications: RuleModification[];
-}
-
-export interface RuleModification {
-  type: string;
-  target: string;
-  value: any;
-}
-
-export interface ScoringModifier {
-  category: string;
-  value: number;
+  sector?: Sector;
+  planet?: Planet;
+  anomalie?: AnomalieToken[];
+  message?: CentaurienToken[];
+  specimen?: MascamitesToken[];
 }
 
 export interface Planet {
@@ -408,10 +493,12 @@ export interface Planet {
   orbitNextBonus?: Bonus;
   landFirstBonus?: Bonus;
   landSecondBonus?: Bonus;
+  landThirdBonus?: Bonus;
   landNextBonus?: Bonus;
   orbitSlots: Bonus[];
   landSlots: Bonus[];
   satellites?: Satellite[];
+  mascamiteTokens?: MascamitesToken[];
 }
 
 export interface Satellite {
@@ -431,16 +518,21 @@ export interface Bonus {
   signals?: { amount: number, scope: SectorType }[];
   scan?: number;
   card?: number;
+  speciesCard?: number;
   anycard?: number;
   lifetraces?: { amount: number, scope: LifeTraceType }[];
   revenue?: number;
   rotation?: number;
   technologies?: { amount: number, scope: TechnologyCategory }[];
+  orbiting?: number;
   probe?: number;
   movements?: number;
   landing?: number;
+  token?: number;
+  danger?: number;
   ignoreProbeLimit?: boolean;
   atmosphericEntry?: boolean;
+  sampleReturn?: boolean;
   sharedOnly?: boolean;
   noTileBonus?: boolean;
   gainSignal?: { amount: number; scope: string }[];
@@ -450,6 +542,26 @@ export interface Bonus {
   anyProbe?: boolean;
   gainSignalAdjacents?: boolean;
   scorePerMedia?: number;
+  ignoreSatelliteLimit?: boolean;
+  orbitOrLandAndSpecimen?: boolean;
+  collectSpecimen?: boolean;
+  consultSpecimen?: boolean;
+  revealAndTriggerFreeAction?: boolean;
+}
+
+export interface AnomalieToken {
+  color: LifeTraceType;
+  head: Bonus;
+  tail: Bonus;
+}
+
+export interface CentaurienToken {
+  bonus: Bonus;
+  isAvailable: boolean;
+}
+
+export interface MascamitesToken {
+  bonus: Bonus;
 }
 
 export interface RotationDisk {
@@ -481,11 +593,15 @@ export interface TechnologyCategorySlots {
 export type Action = import('../actions/Action').IAction;
 
 export interface HistoryEntry {
+  id?: string;
   message: string;
   playerId: string;
-  sequenceId: string;
+  previousState?: Game;
+  previousInteractionState?: InteractionState;
+  previousPendingInteractions?: InteractionState[];
+  timestamp?: number;
+  sequenceId?: string;
 }
-
 // ============================================================================
 // VALIDATION
 // ============================================================================
@@ -516,33 +632,35 @@ export type InteractionState =
   /** Le joueur est en attente, aucune interaction en cours. */
   | { type: 'IDLE', sequenceId?: string }
   /** Le joueur a un bonus de réservation et doit choisir une carte à glisser sous son plateau. */
-  | { type: 'RESERVING_CARD', count: number, sequenceId?: string, selectedCards: string[] }
+  | { type: 'RESERVING_CARD', count: number, selectedCards: string[], sequenceId?: string }
   /** Le joueur doit défausser des cartes (ex: fin de manche). */
   | { type: 'DISCARDING_CARD', count: number, selectedCards: string[], sequenceId?: string }
   /** Le joueur a initié un échange et doit choisir la ressource à dépenser. */
   | { type: 'TRADING_CARD', count: number, targetGain: string, selectedCards: string[], sequenceId?: string }
   /** Le joueur acquiert une carte (gratuitement ou en payant) et doit la sélectionner dans la pioche ou la rangée. */
-  | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, sequenceId?: string, triggerFreeAction?: boolean }
+  | { type: 'ACQUIRING_CARD', count: number, isFree?: boolean, triggerFreeAction?: boolean, sequenceId?: string }
   /** Le joueur a des déplacements gratuits à effectuer. */
   | { type: 'MOVING_PROBE', count: number, autoSelectProbeId?: string, sequenceId?: string }
+  /** Le joueur a une mise en orbite gratuite. */
+  | { type: 'ORBITING_PROBE', count: number, source?: string, sequenceId?: string }
   /** Le joueur a un atterrissage gratuit (ex: Carte 13). */
-  | { type: 'LANDING_PROBE', count: number, source?: string, sequenceId?: string }
+  | { type: 'LANDING_PROBE', count: number, source?: string, ignoreSatelliteLimit?: boolean, categories?: TechnologyCategory[], sequenceId?: string }
   /** Le joueur acquiert une technologie (en payant ou en bonus) et doit la sélectionner. */
-  | { type: 'ACQUIRING_TECH', isBonus: boolean, sequenceId?: string, category?: TechnologyCategory, sharedOnly?: boolean, noTileBonus?: boolean }
+  | { type: 'ACQUIRING_TECH', isBonus?: boolean, categories?: TechnologyCategory[], sharedOnly?: boolean, noTileBonus?: boolean, sequenceId?: string }
   /** Le joueur a choisi une technologie "Informatique" et doit sélectionner une colonne sur son ordinateur. */
   | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, sequenceId?: string }
   /** Le joueur a lancé l'action "Analyser", principalement pour l'animation. */
   | { type: 'ANALYZING', sequenceId?: string }
   /** Le joueur doit placer une trace de vie sur le plateau Alien. */
-  | { type: 'PLACING_LIFE_TRACE', color: LifeTraceType, sequenceId?: string }
+  | { type: 'PLACING_LIFE_TRACE', color: LifeTraceType, playerId?: string, sequenceId?: string }
   /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number, sequenceId?: string }
   /** Le joueur scanne un secteur (2ème étape : choix de la carte). */
   | { type: 'SELECTING_SCAN_CARD', sequenceId?: string }
   /** Le joueur scanne un secteur (3ème étape : choix du secteur couleur). */
-  | { type: 'SELECTING_SCAN_SECTOR', color: SectorType, noData?: boolean, onlyProbes?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string, message?: string }
+  | { type: 'SELECTING_SCAN_SECTOR', color: SectorType, noData?: boolean, onlyProbes?: boolean, anyProbe?: boolean, adjacents?: boolean, keepCardIfOnly?: boolean, sequenceId?: string, cardId?: string, message?: string, markAdjacents?: boolean, usedProbeIds?: string[], cardProcessed?: boolean }
   /** Le joueur doit choisir entre un gain de média ou un déplacement (Carte 19). */
-  | { type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId?: string, remainingMoves?: number }
+  | { type: 'CHOOSING_MEDIA_OR_MOVE', remainingMoves?: number, sequenceId?: string }
   /** Le joueur doit choisir s'il utilise la technologie Observation 2 (Payer 1 Média pour scanner Mercure). */
   | { type: 'CHOOSING_OBS2_ACTION', sequenceId?: string }
   /** Le joueur doit choisir s'il utilise la technologie Observation 3 (Défausser une carte pour un signal). */
@@ -553,10 +671,68 @@ export type InteractionState =
   | { type: 'DISCARDING_FOR_SIGNAL', count: number, selectedCards: string[], sequenceId?: string }
   /** Le joueur doit retirer un orbiteur (Carte 15). */
   | { type: 'REMOVING_ORBITER', sequenceId?: string }
+  /** Le joueur doit retirer un atterrisseur (Carte 84). */
+  | { type: 'REMOVING_LANDER', sequenceId?: string }
   /** Le joueur a reçu plusieurs bonus interactifs et doit choisir l'ordre de résolution. */
   | { type: 'CHOOSING_BONUS_ACTION', bonusesSummary: string, choices: { id: string, label: string, state: InteractionState, done: boolean }[], sequenceId?: string }
+  /** Le joueur doit résoudre un secteur complété. */
+  | { type: 'RESOLVING_SECTOR', sectorId: string, sequenceId?: string }
   /** Un effet de carte non-interactif est déclenché. */
-  | { type: 'TRIGGER_CARD_EFFECT', effectType: string, value: any, sequenceId?: string };
+  | { type: 'TRIGGER_CARD_EFFECT', effectType: string, value: any, sequenceId?: string }
+  /** Le joueur doit piocher une carte et scanner son secteur (Bonus Deck). */
+  | { type: 'DRAW_AND_SCAN', count: number, sequenceId?: string }
+  /** Le joueur valide une condition de mission. */
+  | { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: string, requirementId: string, sequenceId?: string }
+  /** Le joueur acquiert une carte Alien (bonus) et doit la sélectionner dans la pioche ou la rangée de l'espèce. */
+  | { type: 'ACQUIRING_ALIEN_CARD', count: number, speciesId: string, sequenceId?: string }
+  /** Le joueur doit choisir une récompense Centaurien. */
+  | { type: 'CHOOSING_CENTAURIEN_REWARD', sequenceId?: string }
+  /** Le joueur doit cliquer sur un token Mascamite pour le collecter. */
+  | { type: 'COLLECTING_SPECIMEN', planetId: string, sequenceId?: string }
+  /** Le joueur doit cliquer sur un token Mascamite pour le consulter (et gagner son bonus sans le retirer). */
+  | { type: 'CONSULTING_SPECIMEN', planetId?: string, sequenceId?: string }
+  /** Le joueur doit choisir une carte Exertien. */
+  | { type: 'CHOOSING_EXERTIEN_CARD', sequenceId?: string }
+  /** Le joueur doit confirmer la validation d'une mission. */
+  | { type: 'SELECTING_MISSION', missionId?: string, requirementId?: string, sequenceId?: string }; // Deprecated
+
+  // Helper pour les libellés des interactions
+export const getInteractionLabel = (state: InteractionState): string => {
+  switch (state.type) {
+    case 'RESERVING_CARD': return `Veuillez réservez ${state.count} carte${state.count > 1 ? 's' : ''}.`;
+    case 'DISCARDING_CARD': return `Veuillez défausser ${state.count} carte${state.count > 1 ? 's' : ''}.`;
+    case 'TRADING_CARD': return `Veuillez échanger ${state.count} carte${state.count > 1 ? 's' : ''} pour gagner ${state.targetGain}.`;
+    case 'ACQUIRING_CARD': return state.isFree ? `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''}.` : `Veuillez acheter ${state.count} carte${state.count > 1 ? 's' : ''}.`;
+    case 'MOVING_PROBE': return `Veuillez déplacer une sonde gratuitement (${state.count} déplacement${state.count > 1 ? 's' : ''}).`;
+    case 'ORBITING_PROBE': return `Veuillez mettre une sonde en orbite gratuitement.`;
+    case 'LANDING_PROBE': return `Veuillez poser une sonde gratuitement.`;
+    case 'ACQUIRING_TECH': return state.isBonus ? `Veuillez sélectionner une technologie ${state.categories ? state.categories.join(' ou ') : ''}.` : `Veuillez acheter une technologie.`;
+    case 'SELECTING_COMPUTER_SLOT': return `Veuillez sélectionner un emplacement d'ordinateur pour technologie ${state.tech.shorttext}.`;
+    case 'ANALYZING': return `Analyse en cours...`;
+    case 'PLACING_LIFE_TRACE': return `Veuillez placer trace de vie (${state.color}).`;
+    case 'PLACING_OBJECTIVE_MARKER': return `Veuillez placer un marqueur d'objectif pour avoir dépassé ${state.milestone} PV.`;
+    case 'SELECTING_SCAN_CARD': return `Veuillez sélectionner une carte de la rangée pour marquer un signal.`;
+    case 'SELECTING_SCAN_SECTOR': return state.adjacents ? `Veuillez sélectionner un secteur adjacent à la Terre pour marquer un signal.` : `Veuillez sélectionner un secteur ${state.color} pour marquer un signal.`;
+    case 'CHOOSING_MEDIA_OR_MOVE': return `Veuillez sélectionner le bonus de la carte 19.`;
+    case 'CHOOSING_OBS2_ACTION': return `Veuillez sélectionner le bonus de technologie Observation II.`;
+    case 'CHOOSING_OBS3_ACTION': return `Veuillez sélectionner le bonus de technologie Observation III.`;
+    case 'CHOOSING_OBS4_ACTION': return `Veuillez sélectionner le bonus de technologie Observation IV.`;
+    case 'DISCARDING_FOR_SIGNAL': return `Veuillez défausser ${state.count} carte${state.count > 1 ? 's' : ''} pour marquer un signal.`;
+    case 'REMOVING_ORBITER': return "Veuillez retirer un orbiteur (bonus carte 15).";
+    case 'REMOVING_LANDER': return "Veuillez retirer un atterrisseur (bonus carte 84).";
+    case 'CHOOSING_BONUS_ACTION': return `Veuillez choisir la prochaine action.`;
+    case 'RESOLVING_SECTOR': return `Résolution du secteur complété...`;
+    case 'DRAW_AND_SCAN': return `Pioche d'une carte pour signal...`;
+    case 'CLAIMING_MISSION_REQUIREMENT': return `Validation d'une mission...`;
+    case 'ACQUIRING_ALIEN_CARD': return `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''} Alien (Pioche ou Rangée).`;
+    case 'CHOOSING_CENTAURIEN_REWARD': return `Veuillez choisir une récompense Centaurien.`;
+    case 'COLLECTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour le prélever.`;
+    case 'CONSULTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour l'étudier.`;
+    case 'CHOOSING_EXERTIEN_CARD': return `Veuillez choisir une carte Exertien.`;
+    case 'SELECTING_MISSION': return `Veuillez confirmer la mission à recouvrir.`;
+    default: return "Action inconnue";
+  }
+};
 
 // ============================================================================
 // SCORING
@@ -602,6 +778,7 @@ export const GAME_CONSTANTS = {
   SCAN_COST_ENERGY: 2,
   ANALYZE_COST_ENERGY: 1,
   TECH_RESEARCH_COST_MEDIA: 6,
+  BUY_CARD_COST_MEDIA: 3,
   SPECIES_DISCOVERY_TRACES: 3,
   HAND_SIZE_AFTER_PASS: 4,
   INITIAL_CREDITS: 4,
@@ -624,3 +801,14 @@ export const DISK_NAMES: Record<DiskName, number> = {
   D: 3,
   E: 4,
 } as const;
+
+// ============================================================================
+// AI Behaviour
+// ============================================================================
+
+export interface AIDecision {
+  action: ActionType;
+  data?: any;
+}
+
+export type AIDifficulty = 'PASS' | 'EASY' | 'MEDIUM' | 'EXPERT';

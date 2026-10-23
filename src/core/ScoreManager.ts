@@ -25,8 +25,16 @@ import {
   ObjectiveCategory,
   TechnologyCategory,
   GAME_CONSTANTS,
-  ProbeState
+  ProbeState,
+  SectorType,
+  GOLDEN_MILESTONES,
+  NEUTRAL_MILESTONES,
+  InteractionState,
+  AlienBoardType,
+  HistoryEntry
 } from '../core/types';
+import { createRotationState, getAbsoluteSectorForProbe, getCell } from './SolarSystemPosition';
+import { SpeciesSystem } from '../systems/SpeciesSystem';
 
 export class ScoreManager {
   /**
@@ -45,14 +53,14 @@ export class ScoreManager {
       total: 0
     };
 
-    scores.missionEndGame = this.calculateMissionEndGame(player);
+    scores.missionEndGame = this.calculateMissionEndGame(player, game);
 
     scores.speciesBonuses = this.calculateSpeciesBonuses(player, game.discoveredSpecies);
 
     scores.objectiveTiles = this.calculateObjectiveTiles(player, game.board);
 
     // Total
-    scores.total = Object.values(scores).reduce((sum, val) => 
+    scores.total = Object.values(scores).reduce((sum, val) =>
       typeof val === 'number' ? sum + val : sum, 0
     );
 
@@ -62,17 +70,104 @@ export class ScoreManager {
   /**
    * Calcule les points des paires missions/cartes fin de partie
    */
-  private static calculateMissionEndGame(player: Player): number {
-    // TODO: Implémenter les bonus selon les règles de chaque espèce
-    // Chaque espèce peut avoir des modificateurs de scoring différents
+  private static calculateMissionEndGame(player: Player, game: Game): number {
     let bonus = 0;
-    const endGameCards : Card[] = (player.playedCards || []).filter(c => c.type === CardType.END_GAME);
+    const endGameCards: Card[] = (player.playedCards || []).filter(c => c.type === CardType.END_GAME);
 
     endGameCards.forEach(card => {
-      card.scoringModifiers.forEach(modifier => {
-        // Appliquer les modificateurs selon leur type
-        bonus += modifier.value;
-      });
+      // Traitement des règles de scoring définies dans passiveEffects
+      if (card.passiveEffects) {
+        card.passiveEffects.forEach(effect => {
+          if (effect.type === 'SCORE_PER_ORBITER_LANDER') {
+            const planetId = effect.target;
+            if (planetId) {
+              const planet = game.board.planets.find(p => p.id === planetId);
+              if (planet) {
+                let count = 0;
+                // Orbiteurs sur la planète
+                count += planet.orbiters.filter(p => p.ownerId === player.id).length;
+                // Atterrisseurs sur la planète
+                count += planet.landers.filter(p => p.ownerId === player.id).length;
+                // Satellites
+                if (planet.satellites) {
+                  planet.satellites.forEach(sat => {
+                    count += sat.landers.filter(p => p.ownerId === player.id).length;
+                  });
+                }
+                bonus += count * effect.value;
+              }
+            }
+          } else if (effect.type === 'SCORE_PER_COVERED_SECTOR') {
+            const colorStr = effect.target;
+            let color: SectorType | undefined;
+            if (colorStr === 'red') color = SectorType.RED;
+            else if (colorStr === 'blue') color = SectorType.BLUE;
+            else if (colorStr === 'yellow') color = SectorType.YELLOW;
+            else if (colorStr === 'black') color = SectorType.BLACK;
+
+            if (color) {
+              let count = 0;
+              game.board.sectors.forEach(s => {
+                if (s.color === color) {
+                  count += s.coveredBy.filter(id => id === player.id).length;
+                }
+              });
+              bonus += count * effect.value;
+            }
+          } else if (effect.type === 'SCORE_PER_LIFETRACE') {
+            const colorStr = effect.target;
+            let type: LifeTraceType | undefined;
+            if (colorStr === 'red') type = LifeTraceType.RED;
+            else if (colorStr === 'blue') type = LifeTraceType.BLUE;
+            else if (colorStr === 'yellow') type = LifeTraceType.YELLOW;
+
+            if (type) {
+              const count = player.lifeTraces.filter(t => t.type === type).length;
+              bonus += count * effect.value;
+            }
+          } else if (effect.type === 'SCORE_PER_SIGNAL') {
+            const count = game.board.sectors.filter(s => s.signals.some(sig => sig.markedBy === player.id)).length;
+            bonus += count * effect.value;
+          } else if (effect.type === 'SCORE_PER_TECH_CATEGORY') {
+            const catStr = effect.target;
+            let category: TechnologyCategory | undefined;
+            if (catStr === 'computing') category = TechnologyCategory.COMPUTING;
+            else if (catStr === 'exploration') category = TechnologyCategory.EXPLORATION;
+            else if (catStr === 'observation') category = TechnologyCategory.OBSERVATION;
+
+            if (category) {
+              const count = player.technologies.filter(t => t.type === category).length;
+              bonus += count * effect.value;
+            }
+          } else if (effect.type === 'SCORE_IF_PROBE_ON_ASTEROID') {
+            const rotationState = createRotationState(
+              game.board.solarSystem.rotationAngleLevel1 || 0,
+              game.board.solarSystem.rotationAngleLevel2 || 0,
+              game.board.solarSystem.rotationAngleLevel3 || 0
+            );
+            const hasProbe = player.probes.some(p => {
+              if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+              const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
+              const cell = getCell(p.solarPosition.disk, absSector, rotationState, game.board.solarSystem.extraCelestialObjects);
+              return cell?.hasAsteroid;
+            });
+            if (hasProbe) {
+              bonus += effect.value;
+            }
+          } else if (effect.type === 'SCORE_SOLVAY') {
+            // Trouver le gain maximum parmi les récompenses "others" des tuiles non validées par le joueur
+            let maxPoints = 0;
+            if (game.board.objectiveTiles) {
+              game.board.objectiveTiles.forEach(tile => {
+                if (!tile.markers.includes(player.id)) {
+                  if (tile.rewards.others > maxPoints) maxPoints = tile.rewards.others;
+                }
+              });
+            }
+            bonus += maxPoints;
+          }
+        });
+      }
     });
 
     return bonus;
@@ -103,7 +198,7 @@ export class ScoreManager {
               player.technologies.forEach(t => {
                 typeCounts.set(t.type, (typeCounts.get(t.type) || 0) + 1);
               });
-              
+
               const counts = Array.from(typeCounts.values()).sort((a, b) => b - a);
               while (counts.length < 3) counts.push(0);
               // Greedy algorithm for sets of 3 distinct types (assuming max 4 types)
@@ -111,11 +206,11 @@ export class ScoreManager {
 
               let sets = 0;
               while (counts[2] > 0) {
-                 sets++;
-                 counts[0]--;
-                 counts[1]--;
-                 counts[2]--;
-                 counts.sort((a, b) => b - a);
+                sets++;
+                counts[0]--;
+                counts[1]--;
+                counts[2]--;
+                counts.sort((a, b) => b - a);
               }
               count = sets;
             } else {
@@ -162,7 +257,10 @@ export class ScoreManager {
               count = Math.min(cBlue, cRed, cYellow);
             } else {
               // Paire secteur couvert / sonde (orbiteur ou atterrisseur)
-              const coveredSectors = board.sectors.filter(s => s.coveredBy.includes(player.id)).length;
+              let coveredSectors = 0;
+              board.sectors.forEach(s => {
+                coveredSectors += s.coveredBy.filter(id => id === player.id).length;
+              });
               const probes = player.probes.filter(p => p.state === ProbeState.IN_ORBIT || p.state === ProbeState.LANDED).length;
               count = Math.min(coveredSectors, probes);
             }
@@ -180,19 +278,12 @@ export class ScoreManager {
    */
   private static calculateSpeciesBonuses(
     player: Player,
-    discoveredSpecies: Species[]
+    _discoveredSpecies: Species[]
   ): number {
     // TODO: Implémenter les bonus selon les règles de chaque espèce
     // Chaque espèce peut avoir des modificateurs de scoring différents
     let bonus = 0;
     player;
-    
-    discoveredSpecies.forEach(species => {
-      species.scoringModifiers.forEach(modifier => {
-        // Appliquer les modificateurs selon leur type
-        bonus += modifier.value;
-      });
-    });
 
     return bonus;
   }
@@ -217,7 +308,7 @@ export class ScoreManager {
     scores: Array<{ playerId: string; scores: ScoreCategories }>
   ): string[] {
     // Trier par score total décroissant
-    const sorted = [...scores].sort((a, b) => 
+    const sorted = [...scores].sort((a, b) =>
       b.scores.total - a.scores.total
     );
 
@@ -233,5 +324,137 @@ export class ScoreManager {
     });
 
     return winners;
+  }
+
+  /**
+   * Checks for score milestones for a player and returns potential new interactions.
+   * This is typically called at the end of a player's turn or after a score change.
+   */
+  static checkScoreMilestones(game: Game, playerId: string): {
+    updatedGame: Game;
+    newInteraction?: InteractionState;
+    historyEntries: HistoryEntry[];
+    discoveryNotification?: { message: string };
+    shouldStop: boolean; // true if an interaction was triggered and we should wait for the player
+  } {
+    let updatedGame = structuredClone(game);
+    const player = updatedGame.players.find(p => p.id === playerId);
+    if (!player) {
+      return { updatedGame, historyEntries: [], shouldStop: false };
+    }
+
+    const historyEntries: HistoryEntry[] = [];
+    let discoveryNotification: { message: string } | undefined;
+
+    // 1. Golden Milestones (Objectives)
+    for (const m of GOLDEN_MILESTONES) {
+      if (player.score >= m && !player.claimedGoldenMilestones.includes(m)) {
+        return {
+          updatedGame: game, // Return original game state, no changes made yet
+          newInteraction: { type: 'PLACING_OBJECTIVE_MARKER', milestone: m },
+          historyEntries: [],
+          shouldStop: true,
+        };
+      }
+    }
+
+    // 2. Neutral Milestones (2-3 player games)
+    const neutralMilestonesToCheck = updatedGame.players.length < 4 ? NEUTRAL_MILESTONES : [];
+    for (const m of neutralMilestonesToCheck) {
+      if (player.score >= m && !player.claimedNeutralMilestones.includes(m)) {
+        player.claimedNeutralMilestones.push(m);
+
+        const result = SpeciesSystem.placeNeutralMilestone(updatedGame, m);
+        updatedGame = result.updatedGame;
+        const sequenceId = `neutral-${Date.now()}`;
+
+        if (result.code === 'PLACED' || result.code === 'DISCOVERED') {
+          const { color } = result.data!;
+          historyEntries.push({ message: `a atteint le palier neutre ${m} PV ce qui place une trace de vie ${color} sur le plateau Alien.`, playerId, sequenceId });
+
+          let message = `Palier ${m} PV : Trace de vie ${color} placée`;
+
+          if (result.code === 'DISCOVERED') {
+            message += " - Espèce découverte !";
+            historyEntries.push({ message: `déclenche la découverte d'une nouvelle espèce Alien !`, playerId, sequenceId });
+            if (result.logs) {
+              result.logs.forEach(log => historyEntries.push({ message: log, playerId, sequenceId }));
+            }
+          }
+          discoveryNotification = { message };
+        } else if (result.code === 'NO_SPACE') {
+          historyEntries.push({ message: `a atteint le palier neutre ${m} PV mais aucun emplacement libre sur les plateaux Alien.`, playerId, sequenceId });
+        }
+      }
+    }
+
+    // 3. Centaurien Milestone
+    const reachedMilestone = player.centaurienMilestones.find(m => player.score >= m);
+    if (reachedMilestone !== undefined) {
+      const centaurienSpecies = updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS);
+      if (centaurienSpecies && centaurienSpecies.message && centaurienSpecies.message.some(m => m.isAvailable)) {
+        historyEntries.push({ message: `a atteint un palier centaurien et peut choisir une récompense.`, playerId });
+        return {
+          updatedGame,
+          newInteraction: { type: 'CHOOSING_CENTAURIEN_REWARD' },
+          historyEntries,
+          discoveryNotification,
+          shouldStop: true,
+        };
+      } else {
+        // No more rewards or species not found, remove the milestone to avoid re-triggering
+        const idx = player.centaurienMilestones.indexOf(reachedMilestone);
+        if (idx !== -1) player.centaurienMilestones.splice(idx, 1);
+      }
+    }
+
+    // 4. Exertien Milestone
+    const exertienMilestone = updatedGame.exertienMilestones?.find(m => player.score >= m);
+    if (exertienMilestone !== undefined) {
+      const exertienSpecies = updatedGame.species.find(s => s.name === AlienBoardType.EXERTIENS);
+      if (exertienSpecies) {
+        historyEntries.push({ message: `a atteint un palier Exertien et peut jouer une carte.`, playerId });
+        return {
+          updatedGame,
+          newInteraction: { type: 'CHOOSING_EXERTIEN_CARD' },
+          historyEntries,
+          discoveryNotification,
+          shouldStop: true,
+        };
+      }
+    }
+
+    return { updatedGame, historyEntries, discoveryNotification, shouldStop: false };
+  }
+
+  /**
+   * Places an objective marker on a tile for a player who reached a milestone.
+   */
+  static placeObjectiveMarker(game: Game, playerId: string, tileId: string, milestone: number): {
+    updatedGame: Game;
+    success: boolean;
+    error?: string;
+    logMessage?: string;
+  } {
+    const updatedGame = structuredClone(game);
+    const tile = updatedGame.board.objectiveTiles.find(t => t.id === tileId);
+    const player = updatedGame.players.find(p => p.id === playerId);
+
+    if (!tile || !player) {
+      return { updatedGame: game, success: false, error: "Objectif ou joueur introuvable." };
+    }
+
+    if (tile.markers.includes(playerId)) {
+      return { updatedGame: game, success: false, error: "Emplacement déjà occupé. Sélectionnez un autre objectif." };
+    }
+
+    tile.markers.push(playerId);
+    player.claimedGoldenMilestones.push(milestone);
+
+    return {
+        updatedGame,
+        success: true,
+        logMessage: `a atteint le palier objectif ${milestone} PV et place un marqueur sur "${tile.name}" (Points fin de partie)`
+    };
   }
 }

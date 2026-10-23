@@ -1,14 +1,11 @@
 import { BaseAction } from './Action';
-import { Game, ActionType, ValidationResult, GAME_CONSTANTS, InteractionState } from '../core/types';
+import { Game, ActionType, ValidationResult, GAME_CONSTANTS } from '../core/types';
 import { performRotation } from '../core/SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 
 export class ResearchTechAction extends BaseAction {
-    public historyEntries: { message: string, playerId: string, sequenceId: string }[] = [];
-    public newPendingInteractions: InteractionState[] = [];
-
-    constructor(playerId: string) {
+    constructor(playerId: string, public techId?: string) {
         super(playerId, ActionType.RESEARCH_TECH);
     }
 
@@ -29,12 +26,12 @@ export class ResearchTechAction extends BaseAction {
         player.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
         const message = `paye ${ResourceSystem.formatResource(GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA, 'MEDIA')} pour <strong>Rechercher une technologie</strong>`
         this.historyEntries.push({ message, playerId: this.playerId, sequenceId });
-  
+
         // Faire tourner le systeme solaire
         const result = performRotation(game);
         result.logs.forEach(log => this.historyEntries.push({ message: log, playerId: this.playerId, sequenceId }));
-  
-        this.newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: false, sequenceId })
+
+        this.newPendingInteractions.push({ type: 'ACQUIRING_TECH', sequenceId })
         return result.updatedGame;
     }
 }

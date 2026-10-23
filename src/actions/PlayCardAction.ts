@@ -3,7 +3,7 @@ import { Game, ActionType, ValidationResult } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 
 export class PlayCardAction extends BaseAction {
-    constructor(public playerId: string, public cardId: string) {
+    constructor(playerId: string, public cardId: string) {
         super(playerId, ActionType.PLAY_CARD);
     }
 
@@ -23,6 +23,8 @@ export class PlayCardAction extends BaseAction {
 
     execute(game: Game): Game {
         const result = CardSystem.playCard(game, this.playerId, this.cardId);
+        this.historyEntries = result.historyEntries;
+        this.newPendingInteractions = result.newPendingInteractions;
         return result.updatedGame;
     }
 }
