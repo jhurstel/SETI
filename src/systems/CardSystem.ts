@@ -200,8 +200,8 @@ export class CardSystem {
             }
         }
 
-        // TODO: Ajouter d'autres conditions de carte ici
-        return { canPlay: true, reason: `Jouer la carte (coût: ${card.cost} crédit${card.cost > 1 ? 's' : ''})` };
+        const costUnit = card.costType === CostType.ENERGY ? 'énergie' : 'crédit';
+        return { canPlay: true, reason: `Jouer la carte (coût: ${card.cost} ${costUnit}${card.cost > 1 ? 's' : ''})` };
     }
 
     /**

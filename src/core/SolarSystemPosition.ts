@@ -10,8 +10,6 @@ export interface AbsolutePosition {
   disk: DiskName;
   sector: SectorNumber;
   absoluteSector: SectorNumber; // Secteur absolu après rotation
-  x: number;
-  y: number;
   isVisible: boolean; // Si l'objet est visible (pas recouvert par un plateau opaque)
 }
 
@@ -241,10 +239,6 @@ export function calculateAbsolutePosition(
   else if (object.level === 3) absoluteSector = rotateSector(absoluteSector, rotationState.level3Angle);
   // Niveau 0 (fixe) : pas de rotation
 
-  // Calculer les coordonnées X et Y (sera calculé plus tard si nécessaire)
-  const x = 0; // TODO: Calculer en fonction du disque et du secteur
-  const y = 0; // TODO: Calculer en fonction du disque et du secteur
-
   // Vérifier la visibilité
   const isVisible = checkVisibilityAboveLevel(object.level || 0, object.position.disk, absoluteSector, rotationState, extraObjects);
 
@@ -252,8 +246,6 @@ export function calculateAbsolutePosition(
     disk: object.position.disk,
     sector: object.position.sector,
     absoluteSector,
-    x,
-    y,
     isVisible,
   };
 }

@@ -922,7 +922,7 @@ export const BoardUI: React.FC = () => {
         handleNewInteractions(action.newPendingInteractions);
       } else {
         console.error('Erreur lors du lancement de la sonde:', result.error);
-        alert(result.error || 'Impossible de lancer la sonde');
+        setToast({ message: result.error || 'Impossible de lancer la sonde', visible: true });
       }
     }
     /***
@@ -937,7 +937,7 @@ export const BoardUI: React.FC = () => {
         handleNewInteractions(action.newPendingInteractions);
       } else {
         console.error("Erreur lors du scan d'un secteur:", result.error);
-        alert(result.error || 'Impossible de scanner un secteur');
+        setToast({ message: result.error || 'Impossible de scanner un secteur', visible: true });
       }
     }
     /***
@@ -973,7 +973,7 @@ export const BoardUI: React.FC = () => {
         handleNewInteractions(action.newPendingInteractions);
       } else {
         console.error("Erreur lors de la recherche de technologie:", result.error);
-        alert(result.error || 'Impossible de rechercher une technologie');
+        setToast({ message: result.error || 'Impossible de rechercher une technologie', visible: true });
       }
     }
     /***

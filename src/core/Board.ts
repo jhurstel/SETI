@@ -1,4 +1,4 @@
-import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, RotationDisk, TechnologyCategory, Technology, TechnologyEffect, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorType, SignalType, Signal, LifeTraceType, AlienBoardType } from './types';
+import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, TechnologyCategory, Technology, TechnologyEffect, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorType, SignalType, Signal, LifeTraceType, AlienBoardType } from './types';
 import { sectorToIndex } from './SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
 
@@ -21,10 +21,6 @@ export class BoardManager {
    * Crée le système solaire initial
    */
   private static createSolarSystem(): SolarSystem {
-    // Implémenter la création complète du système solaire
-    // Basé sur la configuration exacte du plateau physique
-    const rotationDisks: RotationDisk[] = this.createRotationDisks();
-
     // Calculer les angles initiaux à partir des secteurs initiaux
     const initialSector1 = Math.floor(Math.random() * 8) + 1;
     const initialSector2 = Math.floor(Math.random() * 8) + 1;
@@ -37,7 +33,6 @@ export class BoardManager {
     const initialAngle3 = sectorIndex3 * 45;
 
     return {
-      rotationDisks,
       currentRotation: 0,
       probes: [],
       initialSectorLevel1: initialSector1,
@@ -51,15 +46,6 @@ export class BoardManager {
       rotationAngleLevel3: initialAngle3, // Angle de rotation initial calculé
       nextRingLevel: 3,
     };
-  }
-
-  /**
-   * Crée les disques rotatifs
-   */
-  private static createRotationDisks(): RotationDisk[] {
-    // TODO: Implémenter selon la configuration exacte
-    // Le plateau SETI a des disques rotatifs qui changent les positions
-    return [];
   }
 
   /**

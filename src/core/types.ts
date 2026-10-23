@@ -300,7 +300,6 @@ export interface Board {
 }
 
 export interface SolarSystem {
-  rotationDisks: RotationDisk[];
   currentRotation: number;
   probes: Probe[];
   // Positions initiales des plateaux rotatifs (1-8)

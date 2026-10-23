@@ -156,24 +156,4 @@ export class GameEngine {
 
     return false;
   }
-
-  /**
-   * Réinitialise le jeu pour une nouvelle partie
-   */
-  reset(): void {
-    // TODO: Implémenter la réinitialisation complète
-    this.state.currentRound = 1;
-    this.state.currentPlayerIndex = 0;
-    this.state.firstPlayerIndex = 0;
-    this.state.phase = GamePhase.SETUP;
-    this.state.history = [];
-
-    // Réinitialiser les joueurs
-    this.state.players.forEach(player => {
-      player.hasPassed = false;
-      player.hasPerformedMainAction = false;
-      player.score = 0;
-      // TODO: Réinitialiser toutes les ressources
-    });
-  }
 }
