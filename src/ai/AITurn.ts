@@ -1,4 +1,4 @@
-import { Game, Player, ActionType, GamePhase, RevenueType, FreeActionType, ProbeState, DiskName, SectorNumber, LifeTraceType, LifeTraceLocation, HistoryEntry, InteractionState } from '../core/types';
+import { Game, Player, ActionType, GamePhase, RevenueType, FreeActionType, ProbeState, DiskName, SectorNumber, LifeTraceType, HistoryEntry, InteractionState } from '../core/types';
 import { GameEngine } from '../core/Game';
 import { cloneGame } from '../core/cloneGame';
 import { TurnManager } from '../core/TurnManager';
@@ -31,11 +31,12 @@ import { AIController } from './AIController';
 export type AIStep =
   | { kind: 'WAIT' }
   | { kind: 'SETUP_RESERVED'; updatedGame: Game; historyEntries: HistoryEntry[] }
-  | { kind: 'UPDATED'; updatedGame: Game; historyEntries: HistoryEntry[] }
+  | { kind: 'UPDATED'; updatedGame: Game; historyEntries: HistoryEntry[]; humanInteractions?: InteractionState[] }
   | { kind: 'END_TURN' }
   | { kind: 'PASS'; cardsToKeep: string[] };
 
-type StepResult = { updatedGame: Game; historyEntries: HistoryEntry[] };
+/** humanInteractions : interactions destinées à un joueur humain, à confier à l'interface. */
+type StepResult = { updatedGame: Game; historyEntries: HistoryEntry[]; humanInteractions?: InteractionState[] };
 
 /**
  * Tour d'un robot, sans dépendance à React : une étape à la fois
@@ -139,9 +140,7 @@ export class AITurn {
     if (decision.action === ActionType.ANALYZE_DATA) {
       // L'analyse place une trace de vie bleue
       historyEntries.push({ message: `paye ${ResourceSystem.formatResource(1, 'ENERGY')} pour <strong>Analyser les données</strong>`, playerId: player.id, sequenceId });
-      const location = Math.random() < 0.5 ? LifeTraceLocation.TRIANGLE : LifeTraceLocation.SPECIES;
-      const slotIndex = location === LifeTraceLocation.SPECIES ? SpeciesSystem.getNextSpeciesSlotIndex(updatedGame, 0, LifeTraceType.BLUE, location) : undefined;
-      const trace = SpeciesSystem.placeLifeTrace(updatedGame, 0, LifeTraceType.BLUE, player.id, sequenceId, location, slotIndex);
+      const trace = SpeciesSystem.placeLifeTraceAuto(updatedGame, 0, LifeTraceType.BLUE, player.id, sequenceId);
       updatedGame = trace.updatedGame;
       historyEntries.push(...trace.historyEntries);
       if (updatedGame.isSpeciesDiscovered) {
@@ -163,7 +162,7 @@ export class AITurn {
   private static resolvePending(game: Game, player: Player, historyEntries: HistoryEntry[], pending: InteractionState[], sequenceId: string): StepResult {
     if (pending.length === 0) return { updatedGame: game, historyEntries };
     const res = AIController.processInteractionQueue(game, pending, sequenceId, player);
-    return { updatedGame: res.updatedGame, historyEntries: [...historyEntries, ...res.historyEntries] };
+    return { updatedGame: res.updatedGame, historyEntries: [...historyEntries, ...res.historyEntries], humanInteractions: res.newPendingInteractions };
   }
 
   /** Tente une action gratuite (avec une part d'aléatoire). Renvoie null si aucune n'est jouée. */

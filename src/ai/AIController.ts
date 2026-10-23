@@ -1,11 +1,12 @@
 import { cloneGame } from '../core/cloneGame';
-import { Game, InteractionState, SectorType, LifeTraceLocation, TechnologyCategory, Player, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType, Probe } from '../core/types';
+import { Game, InteractionState, SectorType, TechnologyCategory, Player, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType, Probe } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { ScanSystem } from '../systems/ScanSystem';
 import { ScoreManager } from '../core/ScoreManager';
+import { InteractionResolver } from '../core/InteractionResolver';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { getObjectPosition, createRotationState, getAbsoluteSectorForProbe, calculateReachableCellsWithEnergy } from '../core/SolarSystemPosition';
@@ -13,6 +14,7 @@ import { getObjectPosition, createRotationState, getAbsoluteSectorForProbe, calc
 interface AIControllerResult {
     updatedGame: Game;
     historyEntries: HistoryEntry[];
+    /** Interactions destinées à un joueur humain (ex: gagnant d'un secteur couvert par le robot), à confier à l'interface. */
     newPendingInteractions: InteractionState[];
 }
 
@@ -26,19 +28,29 @@ export class AIController {
         let game = initialGame;
         const queue = [...initialQueue];
         const historyEntries: HistoryEntry[] = [];
+        const humanInteractions: InteractionState[] = [];
 
         while (queue.length > 0) {
             const interaction = queue.shift()!;
-            const result = this.processSingleInteraction(game, player, interaction, sequenceId);
-            
+
+            // Interaction adressée à un autre joueur : un robot la résout lui-même, un humain la reçoit dans l'interface
+            const ownerId = 'playerId' in interaction ? interaction.playerId : undefined;
+            const owner = ownerId && ownerId !== player.id ? game.players.find(p => p.id === ownerId) : undefined;
+            if (owner?.type === 'human') {
+                humanInteractions.push(interaction);
+                continue;
+            }
+
+            const result = this.processSingleInteraction(game, owner ?? player, interaction, sequenceId);
+
             game = result.updatedGame;
             historyEntries.push(...result.historyEntries);
-            
+
             // Add new interactions to the front of the queue to be processed immediately
             queue.unshift(...result.newPendingInteractions);
         }
 
-        return { updatedGame: game, historyEntries, newPendingInteractions: [] };
+        return { updatedGame: game, historyEntries, newPendingInteractions: humanInteractions };
     }
 
     private static processSingleInteraction(
@@ -89,16 +101,15 @@ export class AIController {
                 }
                 break;
             }
-            case 'DRAW_AND_SCAN': {
-                if (updatedGame.decks.cards.length > 0) {
-                    const drawnCard = updatedGame.decks.cards.shift();
-                    if (drawnCard) {
-                        if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
-                        updatedGame.decks.discardPile.push(drawnCard);
-                        addHistory(`révèle carte "${drawnCard.name}" (${drawnCard.scanSector}) de la pioche`, player.id, game);
-                        newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: drawnCard.scanSector, cardId: drawnCard.id, sequenceId });
-                    }
-                }
+            case 'TRIGGER_CARD_EFFECT':
+            case 'DRAW_AND_SCAN':
+            case 'RESOLVING_SECTOR':
+            case 'CLAIMING_MISSION_REQUIREMENT': {
+                // Même implémentation que pour le joueur humain
+                const res = InteractionResolver.resolve(updatedGame, player.id, { ...interaction, sequenceId: interaction.sequenceId || sequenceId });
+                updatedGame = res.updatedGame;
+                historyEntries.push(...res.historyEntries.map(e => ({ ...e, sequenceId: e.sequenceId || sequenceId })));
+                newPendingInteractions.push(...res.newInteractions.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId })));
                 break;
             }
             case 'SELECTING_SCAN_CARD': {
@@ -109,36 +120,9 @@ export class AIController {
                 }
                 break;
             }
-            case 'RESOLVING_SECTOR': {
-                const { sectorId } = interaction;
-                const coverageResult = ScanSystem.coverSector(updatedGame, player.id, sectorId);
-                updatedGame = coverageResult.updatedGame;
-                const coverageLogs = [...coverageResult.logs];
-                if (coverageResult.bonuses) {
-                    const bonusRes = ResourceSystem.processBonuses(coverageResult.bonuses, updatedGame, player.id, 'scan', sequenceId || '');
-                    updatedGame = bonusRes.updatedGame;
-                    coverageLogs.push(...bonusRes.logs);
-                    historyEntries.push(...bonusRes.historyEntries);
-                    newPendingInteractions.push(...(bonusRes.newPendingInteractions || []).map(i => ({ ...i, sequenceId })));
-                }
-                if (coverageLogs.length > 0) {
-                    addHistory(coverageLogs.join(', '), coverageResult.winnerId || player.id, game);
-                }
-                break;
-            }
             case 'PLACING_LIFE_TRACE': {
-                const slotType = Math.random() < 0.5 ? LifeTraceLocation.TRIANGLE : LifeTraceLocation.SPECIES;
-                const board = updatedGame.board.alienBoards[0]; // Simple AI: always place on first board
-                const species = updatedGame.species.find(s => s.name === board.speciesId);
-                let slotIndex: number | undefined = undefined;
-                if (slotType === LifeTraceLocation.SPECIES && species) {
-                    const traces = board.lifeTraces.filter(t => t.type === interaction.color && t.location === LifeTraceLocation.SPECIES);
-                    const indices = new Set(traces.map(t => t.slotIndex));
-                    let i = 0;
-                    while (indices.has(i)) i++;
-                    slotIndex = i;
-                }
-                const res = SpeciesSystem.placeLifeTrace(updatedGame, 0, interaction.color, player.id, sequenceId, slotType, slotIndex);
+                // Simple AI: always place on first board
+                const res = SpeciesSystem.placeLifeTraceAuto(updatedGame, 0, interaction.color, player.id, sequenceId);
                 historyEntries.push(...res.historyEntries);
                 if (res.updatedGame.isSpeciesDiscovered) {
                     addHistory("découvre une nouvelle espèce Alien !", player.id);
@@ -386,33 +370,6 @@ export class AIController {
                         updatedGame = res.updatedGame;
                         historyEntries.push(...res.historyEntries);
                         newPendingInteractions.push(...res.newPendingInteractions);
-                    }
-                }
-                break;
-            }
-            case 'CLAIMING_MISSION_REQUIREMENT': {
-                const p = updatedGame.players.find(p => p.id === player.id)!;
-                const mission = p.missions.find(m => m.id === interaction.missionId);
-                if (mission && !mission.completedRequirementIds.includes(interaction.requirementId)) {
-                    const requirement = mission.requirements.find(r => r.id === interaction.requirementId);
-                    if (requirement) {
-                        const bonus = CardSystem.evaluateMission(updatedGame, player.id, requirement.value, true); // skipCheck = true
-                        if (bonus) {
-                            const res = ResourceSystem.processBonuses(bonus, updatedGame, player.id, 'mission-claim', sequenceId);
-                            updatedGame = res.updatedGame;
-                            const updatedPlayer = updatedGame.players.find(p => p.id === player.id)!;
-                            const m = updatedPlayer.missions.find(m => m.id === mission.id)!;
-                            m.completedRequirementIds.push(interaction.requirementId);
-                            if (m.completedRequirementIds.length >= m.requirements.length) {
-                                m.completed = true;
-                            }
-                            updatedPlayer.missions.forEach(mis => mis.fulfillableRequirementIds = []);
-                            
-                            const actionText = m.completed ? "accomplit" : "valide un objectif de";
-                            addHistory(`${actionText} la mission "${m.name}"${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, game);
-                            historyEntries.push(...res.historyEntries);
-                            newPendingInteractions.push(...res.newPendingInteractions);
-                        }
                     }
                 }
                 break;

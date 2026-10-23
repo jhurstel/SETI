@@ -39,6 +39,17 @@ export class SpeciesSystem {
     }
 
     /**
+     * Placement automatique d'une trace de vie (robots) : la piste d'espèce n'est utilisée
+     * qu'une fois l'espèce découverte, sinon la trace serait refusée et perdue.
+     */
+    static placeLifeTraceAuto(game: Game, boardIndex: number, color: LifeTraceType, playerId: string, sequenceId: string = '') {
+        const board = game.board.alienBoards[boardIndex];
+        const location = board?.isDiscovered && Math.random() < 0.5 ? LifeTraceLocation.SPECIES : LifeTraceLocation.TRIANGLE;
+        const slotIndex = location === LifeTraceLocation.SPECIES ? this.getNextSpeciesSlotIndex(game, boardIndex, color, location) : undefined;
+        return this.placeLifeTrace(game, boardIndex, color, playerId, sequenceId, location, slotIndex);
+    }
+
+    /**
      * Premier emplacement libre d'une couleur sur une piste du plateau Alien
      */
     static getNextSpeciesSlotIndex(game: Game, boardIndex: number, color: LifeTraceType, location: LifeTraceLocation): number {

@@ -17,6 +17,8 @@ interface AITurnCallbacks {
   onDiscovery: (message: string) => void;
   /** Le robot a terminé son tour (le joueur suivant est actif). */
   onTurnEnded: () => void;
+  /** Interactions destinées au joueur humain déclenchées par le robot (ex: trace de vie du gagnant d'un secteur). */
+  onHumanInteractions: (interactions: InteractionState[]) => void;
 }
 
 /**
@@ -50,6 +52,7 @@ export function useAITurn(game: Game | null, interactionState: InteractionState,
         case 'UPDATED':
           record(step.historyEntries);
           cb.applyGame(step.updatedGame);
+          if (step.humanInteractions?.length) cb.onHumanInteractions(step.humanInteractions);
           return;
         case 'END_TURN': {
           const end = AITurn.endTurn(game);

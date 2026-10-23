@@ -17,6 +17,7 @@ import { ResearchTechAction } from '../actions/ResearchTechAction';
 import { ScanSectorAction } from '../actions/ScanSectorAction';
 import { GameEngine } from '../core/Game';
 import { TurnManager } from '../core/TurnManager';
+import { InteractionResolver, isAutomaticInteraction } from '../core/InteractionResolver';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -244,194 +245,30 @@ export const BoardUI: React.FC = () => {
     }
   }, [interactionState, pendingInteractions, game]);
 
-  // Effet pour traiter les interactions automatiques (effets de carte, résolution de secteur)
+  // Effet pour traiter les interactions automatiques (effets de carte, résolution de secteur, missions)
+  // La logique de jeu est dans InteractionResolver ; l'UI applique le résultat
   useEffect(() => {
-    if (game && (interactionState.type === 'TRIGGER_CARD_EFFECT' || interactionState.type === 'RESOLVING_SECTOR' || interactionState.type === 'DRAW_AND_SCAN' || interactionState.type === 'CLAIMING_MISSION_REQUIREMENT')) {
-      const { sequenceId } = interactionState;
-      const currentPlayer = game.players[game.currentPlayerIndex];
-      let updatedGame = structuredClone(game);
-      const player = updatedGame.players[updatedGame.currentPlayerIndex];
-      let logMessage = "";
+    if (!game || !isAutomaticInteraction(interactionState)) return;
 
-      // Carte 119 - PIXL
-      if (interactionState.type === 'TRIGGER_CARD_EFFECT') {
-        const { effectType, value } = interactionState;
-        if (effectType === 'SCORE_PER_MEDIA') {
-          const pointsGained = player.mediaCoverage * value;
-          if (pointsGained > 0) {
-            player.score += pointsGained;
-            logMessage = `gagne ${pointsGained} PV (Bonus PIXL)`;
-          }
-        }
-        
-        if (logMessage) {
-          setGame(updatedGame);
-          if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-          addToHistory(logMessage, currentPlayer.id, game, undefined, sequenceId);
-        }
-        setInteractionState({ type: 'IDLE' });
-      }
-      
-      // Résolution de secteur
-      else if (interactionState.type === 'RESOLVING_SECTOR') {
-        const { sectorId } = interactionState;
-        const coverageResult = ScanSystem.coverSector(updatedGame, currentPlayer.id, sectorId);
-        updatedGame = coverageResult.updatedGame;
-        
-        const coverageLogs = [...coverageResult.logs];
-        let newInteractions: InteractionState[] = [];
+    const { sequenceId } = interactionState;
+    const playerId = game.players[game.currentPlayerIndex].id;
+    const result = InteractionResolver.resolve(game, playerId, interactionState);
 
-        if (coverageResult.bonuses) {
-            const bonusRes = ResourceSystem.processBonuses(coverageResult.bonuses, updatedGame, currentPlayer.id, 'scan', sequenceId || '');
-            updatedGame = bonusRes.updatedGame;
-            
-            // Fusionner "couvre le secteur" avec le premier gain (ex: "couvre le secteur et obtient 1 trace de vie")
-            if (coverageLogs.length > 0 && coverageLogs[0] === 'couvre le secteur' && bonusRes.logs.length > 0) {
-                const firstBonusLog = bonusRes.logs[0];
-                if (firstBonusLog.startsWith('obtient') || firstBonusLog.startsWith('gagne')) {
-                     coverageLogs[0] = `couvre le secteur et ${firstBonusLog}`;
-                     bonusRes.logs.shift();
-                }
-            }
-            
-            coverageLogs.push(...bonusRes.logs);
-            
-            bonusRes.historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, sequenceId));
-            if (bonusRes.newPendingInteractions.length > 0) {
-                newInteractions = bonusRes.newPendingInteractions.map(i => ({ ...i, sequenceId }));
-            }
-        }
+    if (result.error) {
+      setToast({ message: result.error, visible: true });
+      setInteractionState({ type: 'IDLE' });
+      return;
+    }
 
-        setGame(updatedGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-        
-        if (coverageLogs.length > 0) {
-            addToHistory(coverageLogs.join(', '), coverageResult.winnerId || currentPlayer.id, game, undefined, sequenceId);
-        }
+    if (result.updatedGame !== game) {
+      setGame(result.updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
+    }
+    // L'état à restaurer en cas d'annulation est celui d'avant la résolution
+    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, e.sequenceId || sequenceId));
 
-        // Traitement des interactions pour les autres joueurs (ex: gagnant de la majorité)
-        if (coverageResult.newPendingInteractions && coverageResult.newPendingInteractions.length > 0) {
-            const otherInteractions = coverageResult.newPendingInteractions.map(item => ({
-                ...item.interaction,
-                playerId: item.playerId,
-                sequenceId: sequenceId
-            }));
-
-            // Séparer IA et Humain
-            const humanInteractions = otherInteractions.filter(i => {
-                const p = updatedGame.players.find(p => p.id === i.playerId);
-                return p && p.type === 'human';
-            });
-
-            const aiInteractions = otherInteractions.filter(i => {
-                const p = updatedGame.players.find(p => p.id === i.playerId);
-                return p && p.type === 'robot';
-            });
-
-            // Ajouter les interactions humaines à la file d'attente
-            newInteractions.push(...humanInteractions);
-
-            // Résoudre automatiquement les interactions IA simples (ex: placer trace de vie) pour ne pas bloquer
-            aiInteractions.forEach(interaction => {
-                if (interaction.type === 'PLACING_LIFE_TRACE' && interaction.playerId) {
-                     const slotType = Math.random() < 0.5 ? LifeTraceLocation.TRIANGLE : LifeTraceLocation.SPECIES;
-                     const slotIndex = slotType === LifeTraceLocation.SPECIES ? SpeciesSystem.getNextSpeciesSlotIndex(updatedGame, 0, interaction.color, slotType) : undefined;
-                     const { updatedGame: ug, historyEntries, newPendingInteractions } = SpeciesSystem.placeLifeTrace(updatedGame, 0, interaction.color, interaction.playerId, sequenceId, slotType, slotIndex);
-                     updatedGame = ug;
-                     historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, sequenceId));
-                     if (updatedGame.isSpeciesDiscovered) {
-                         addToHistory("découvre une nouvelle espèce Alien !", interaction.playerId, undefined, undefined, sequenceId);
-                         updatedGame.isSpeciesDiscovered = false;
-                     }
-                     newInteractions.push(...newPendingInteractions);                }
-            });
-            
-            // Mettre à jour le jeu après résolution IA
-            setGame(updatedGame);
-            if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-        }
-
-        const summary = coverageLogs.length > 0 ? `Secteur résolu. ${coverageLogs.join(', ')}` : "Secteur résolu.";
-        if (!handleNewInteractions(newInteractions, sequenceId, summary)) {
-            setInteractionState({ type: 'IDLE' });
-        }
-      }
-      
-      // Pioche et Scan (Astronomes Amateurs)
-      else if (interactionState.type === 'DRAW_AND_SCAN') {
-        if (updatedGame.decks.cards.length > 0) {
-            const drawnCard = updatedGame.decks.cards.shift();
-            if (drawnCard) {
-                if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
-                updatedGame.decks.discardPile.push(drawnCard);
-                
-                addToHistory(`révèle carte "${drawnCard.name}" (${drawnCard.scanSector}) de la pioche`, currentPlayer.id, game, undefined, sequenceId);
-                
-                const scanInteraction: InteractionState = { 
-                    type: 'SELECTING_SCAN_SECTOR', 
-                    color: drawnCard.scanSector, 
-                    cardId: drawnCard.id, 
-                    message: `Marquez un signal dans un secteur ${drawnCard.scanSector} (Carte "${drawnCard.name}")`,
-                    sequenceId 
-                };
-                
-                setGame(updatedGame);
-                if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-                
-                handleNewInteractions([scanInteraction], sequenceId, undefined, true);
-            } else { setInteractionState({ type: 'IDLE' }); }
-        } else { setInteractionState({ type: 'IDLE' }); }
-      }
-
-      // Validation de mission
-      else if (interactionState.type === 'CLAIMING_MISSION_REQUIREMENT') {
-        const mission = player.missions.find(m => m.id === interactionState.missionId);
-        if (mission && !mission.completedRequirementIds.includes(interactionState.requirementId)) {
-            const requirement = mission.requirements.find(r => r.id === interactionState.requirementId);
-            const bonuses: Bonus = {};
-            
-            // Vérifier si on doit sauter la vérification (cas GAIN_ON_... déjà validé par le système)
-            const skipCheck = mission.fulfillableRequirementIds.includes(interactionState.requirementId);
-
-            if (requirement && (requirement.type.startsWith('GAIN_IF_') || requirement.type.startsWith('GAIN_ON_'))) {
-                 const bonus = CardSystem.evaluateMission(updatedGame, player.id, requirement.value, skipCheck);
-                 if (bonus) {
-                     ResourceSystem.accumulateBonus(bonus, bonuses);
-                 } else {
-                     setToast({ message: "Conditions non remplies.", visible: true });
-                     setInteractionState({ type: 'IDLE' });
-                     return;
-                 }
-            }
-            
-            mission.completedRequirementIds.push(interactionState.requirementId);
-            // Vider la liste des prérequis réalisables pour TOUTES les missions du joueur après en avoir choisi un
-            player.missions.forEach(m => {
-                m.fulfillableRequirementIds = [];
-            });
-            
-            const isCompleted = mission.completedRequirementIds.length >= mission.requirements.length;
-            if (isCompleted) {
-                mission.completed = true;
-            }
-            
-            const seqId = sequenceId || `mission-claim-${Date.now()}`;
-            const res = ResourceSystem.processBonuses(bonuses, updatedGame, player.id, 'mission-claim', seqId);
-            
-            setGame(res.updatedGame);
-            if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
-            
-            const actionText = isCompleted ? "accomplit" : "valide un objectif de";
-            addToHistory(`${actionText} la mission "${mission.name}"${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, player.id, game, { type: 'IDLE' }, seqId);
-            res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, updatedGame, undefined, seqId));
-
-            if (!handleNewInteractions(res.newPendingInteractions.map(i => ({ ...i, sequenceId: seqId })), seqId)) {
-                setInteractionState({ type: 'IDLE' });
-            }
-        } else {
-            setInteractionState({ type: 'IDLE' });
-        }
-      }
+    if (!handleNewInteractions(result.newInteractions, sequenceId, result.summary, result.forceStacking)) {
+      setInteractionState({ type: 'IDLE' });
     }
   }, [interactionState, game, addToHistory]);
 
@@ -486,6 +323,7 @@ export const BoardUI: React.FC = () => {
       setPendingInteractions([]);
       setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
     },
+    onHumanInteractions: (interactions) => handleNewInteractions(interactions, interactions[0]?.sequenceId),
   });
 
   // Gestionnaire pour passer au joueur suivant pendant la phase de SETUP
