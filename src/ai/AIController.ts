@@ -160,9 +160,10 @@ export class AIController {
             }
             case 'RESERVING_CARD': {
                 const p = updatedGame.players.find(p => p.id === player.id);
-                if (p && p.cards.length > 0) {
-                    const count = Math.min(interaction.count, p.cards.length);
-                    const shuffled = [...p.cards].sort(() => 0.5 - Math.random());
+                const hand = p ? CardSystem.getHandCards(p) : [];
+                if (p && hand.length > 0) {
+                    const count = Math.min(interaction.count, hand.length);
+                    const shuffled = [...hand].sort(() => 0.5 - Math.random());
                     const cardsToReserve = shuffled.slice(0, count);
                     cardsToReserve.forEach(card => {
                         updatedGame = CardSystem.reserveCard(updatedGame, p.id, card.id);
@@ -272,10 +273,21 @@ export class AIController {
                 }
                 break;
             }
+            case 'CHOOSING_EXERTIEN_CARD': {
+                // Stratégie simple : jouer la carte la moins dangereuse
+                const p = updatedGame.players.find(p => p.id === player.id);
+                const exertienCards = (p?.cards || []).filter(c => CardSystem.isExertienCard(c));
+                const card = [...exertienCards].sort((a, b) => (a.danger || 0) - (b.danger || 0))[0];
+                const res = SpeciesSystem.playExertienCard(updatedGame, player.id, interaction.milestone, card?.id);
+                updatedGame = res.updatedGame;
+                historyEntries.push(...res.historyEntries.map(e => ({ ...e, sequenceId })));
+                break;
+            }
             case 'CHOOSING_OBS3_ACTION': {
                 const p = updatedGame.players.find(p => p.id === player.id);
-                if (p && p.cards.length > 0) {
-                    const card = p.cards[0];
+                const hand = p ? CardSystem.getHandCards(p) : [];
+                if (p && hand.length > 0) {
+                    const card = hand[0];
                     updatedGame = CardSystem.discardCard(updatedGame, p.id, card.id);
                     newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId: sequenceId, cardId: card.id });
                     addHistory(`utilise carte "${card.name}" pour Observation III`, p.id, game);

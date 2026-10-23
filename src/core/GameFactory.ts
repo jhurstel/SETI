@@ -121,7 +121,8 @@ export class GameFactory {
       visitedPlanetsThisTurn: [],
       activeBuffs: [],
       permanentBuffs: [],
-      centaurienMilestones: []
+      centaurienMilestones: [],
+      claimedExertienMilestones: []
     };
   }
 

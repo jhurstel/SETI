@@ -339,7 +339,7 @@ export class ScoreManager {
     shouldStop: boolean; // true if an interaction was triggered and we should wait for the player
   } {
     let updatedGame = cloneGame(game);
-    const player = updatedGame.players.find(p => p.id === playerId);
+    let player = updatedGame.players.find(p => p.id === playerId);
     if (!player) {
       return { updatedGame, historyEntries: [], shouldStop: false };
     }
@@ -367,6 +367,8 @@ export class ScoreManager {
 
         const result = SpeciesSystem.placeNeutralMilestone(updatedGame, m);
         updatedGame = result.updatedGame;
+        // Nouvelle copie de la partie : reprendre le joueur pour que les modifications suivantes y soient appliquées
+        player = updatedGame.players.find(p => p.id === playerId)!;
         const sequenceId = `neutral-${Date.now()}`;
 
         if (result.code === 'PLACED' || result.code === 'DISCOVERED') {
@@ -409,20 +411,22 @@ export class ScoreManager {
       }
     }
 
-    // 4. Exertien Milestone
-    const exertienMilestone = updatedGame.exertienMilestones?.find(m => player.score >= m);
+    // 4. Exertien Milestone (chaque joueur utilise chaque palier une seule fois)
+    const claimedExertien = player.claimedExertienMilestones || [];
+    const exertienMilestone = updatedGame.exertienMilestones?.find(m => player.score >= m && !claimedExertien.includes(m));
     if (exertienMilestone !== undefined) {
-      const exertienSpecies = updatedGame.species.find(s => s.name === AlienBoardType.EXERTIENS);
-      if (exertienSpecies) {
+      if (player.cards.some(c => c.type === CardType.EXERTIEN)) {
         historyEntries.push({ message: `a atteint un palier Exertien et peut jouer une carte.`, playerId });
         return {
           updatedGame,
-          newInteraction: { type: 'CHOOSING_EXERTIEN_CARD' },
+          newInteraction: { type: 'CHOOSING_EXERTIEN_CARD', milestone: exertienMilestone },
           historyEntries,
           discoveryNotification,
           shouldStop: true,
         };
       }
+      // Aucune carte Exertien à jouer : le palier est consommé pour ne pas se redéclencher
+      player.claimedExertienMilestones = [...claimedExertien, exertienMilestone];
     }
 
     return { updatedGame, historyEntries, discoveryNotification, shouldStop: false };

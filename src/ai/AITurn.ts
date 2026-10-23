@@ -244,10 +244,11 @@ export class AITurn {
   }
 
   private static tryDiscardForFreeAction(game: Game, player: Player): StepResult | null {
-    if (player.cards.length === 0 || Math.random() >= 0.1) return null;
+    const hand = CardSystem.getHandCards(player);
+    if (hand.length === 0 || Math.random() >= 0.1) return null;
 
-    const withAction = player.cards.filter(c => c.freeAction);
-    const pool = withAction.length > 0 ? withAction : player.cards;
+    const withAction = hand.filter(c => c.freeAction);
+    const pool = withAction.length > 0 ? withAction : hand;
     const card = pool[Math.floor(Math.random() * pool.length)];
     if (!card.freeAction) return null;
 

@@ -59,7 +59,7 @@ export class PassAction extends BaseAction {
     // Log des cartes défaussées
     const originalPlayer = game.players.find(p => p.id === this.playerId);
     if (originalPlayer) {
-      const discardedCards = originalPlayer.cards.filter(c => !this.cardIdsToKeep.includes(c.id));
+      const discardedCards = CardSystem.getHandCards(originalPlayer).filter(c => !this.cardIdsToKeep.includes(c.id));
       if (discardedCards.length > 0) {
         const cardNames = discardedCards.map(c => `"${c.name}"`).join(', ');
         this.historyEntries.push({ message: `défausse ${cardNames}`, playerId, sequenceId });

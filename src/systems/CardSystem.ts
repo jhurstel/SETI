@@ -21,6 +21,20 @@ import { ProbeSystem } from './ProbeSystem';
  */
 export class CardSystem {
     /**
+     * Cartes Exertiens : stockées dans player.cards mais elles ne sont pas « en main ».
+     * Elles ne comptent pas dans la limite de 4 cartes et ne peuvent être ni défaussées,
+     * ni réservées, ni jouées normalement (uniquement via un palier Exertien).
+     */
+    static isExertienCard(card: Card): boolean {
+        return card.type === CardType.EXERTIEN;
+    }
+
+    /** Cartes réellement en main (hors cartes Exertiens). */
+    static getHandCards(player: Player): Card[] {
+        return player.cards.filter(c => !this.isExertienCard(c));
+    }
+
+    /**
      * Pioche des cartes pour un joueur
      */
     static drawCards(game: Game, playerId: string, count: number): Game {
@@ -52,6 +66,7 @@ export class CardSystem {
         const cardIndex = player.cards.findIndex(c => c.id === cardId);
         if (cardIndex === -1) return game;
         const card = player.cards[cardIndex];
+        if (this.isExertienCard(card)) return game;
 
         // Retirer la carte
         player.cards.splice(cardIndex, 1);
@@ -143,11 +158,12 @@ export class CardSystem {
             return { canPlay: false, reason: "Joueur non trouvé" };
         }
 
-        if (player.cards.length === 0) {
+        const hand = this.getHandCards(player);
+        if (hand.length === 0) {
             return { canPlay: false, reason: "Aucune carte en main" };
         }
 
-        return player.cards.some(card => this.canPlayCard(game, playerId, card).canPlay)
+        return hand.some(card => this.canPlayCard(game, playerId, card).canPlay)
             ? { canPlay: true, reason: "Au moins une carte peut être jouée" }
             : { canPlay: false, reason: "Aucune carte ne peut être jouée" };
     }
@@ -167,6 +183,10 @@ export class CardSystem {
 
         if (game.players[game.currentPlayerIndex].id !== playerId) {
             return { canPlay: false, reason: "Ce n'est pas votre tour" };
+        }
+
+        if (this.isExertienCard(card)) {
+            return { canPlay: false, reason: "Une carte Exertien se joue uniquement en atteignant un palier Exertien" };
         }
 
         if (card.costType === CostType.ENERGY) {
@@ -723,8 +743,10 @@ export class CardSystem {
         const player = updatedGame.players.find(p => p.id === playerId);
         if (!player) return updatedGame;
 
-        const cardsToDiscard = player.cards.filter(c => !cardIdsToKeep.includes(c.id));
-        player.cards = player.cards.filter(c => cardIdsToKeep.includes(c.id));
+        // Les cartes Exertiens ne sont pas en main : elles sont toujours conservées
+        const keep = (c: Card) => this.isExertienCard(c) || cardIdsToKeep.includes(c.id);
+        const cardsToDiscard = player.cards.filter(c => !keep(c));
+        player.cards = player.cards.filter(keep);
 
         if (cardsToDiscard.length > 0) {
             if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
@@ -740,7 +762,8 @@ export class CardSystem {
         if (!player) return updatedGame;
 
         const cardIndex = player.cards.findIndex(c => c.id === cardId);
-        if (cardIndex !== -1) {
+        // Une carte Exertien ne peut être défaussée par aucun moyen (FAQ Q40)
+        if (cardIndex !== -1 && !this.isExertienCard(player.cards[cardIndex])) {
             const [card] = player.cards.splice(cardIndex, 1);
             if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
             updatedGame.decks.discardPile.push(card);
@@ -755,7 +778,7 @@ export class CardSystem {
         if (!player) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
 
         const card = player.cards.find(c => c.id === cardId);
-        if (!card || !card.freeAction) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+        if (!card || !card.freeAction || this.isExertienCard(card)) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
 
         const sequenceId = `free-action-discard-${Date.now()}`;
         const bonuses: Bonus = {};

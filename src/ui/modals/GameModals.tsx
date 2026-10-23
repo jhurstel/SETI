@@ -1,6 +1,7 @@
 import { InteractionState, Game, AlienBoardType } from '../../core/types';
 import { ScoreManager } from '../../core/ScoreManager';
 import { ResourceSystem } from '../../systems/ResourceSystem';
+import { CardSystem } from '../../systems/CardSystem';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {
   if (!visible) return null;
@@ -57,7 +58,41 @@ export const CentaurienRewardModal = ({ game, interactionState, onChoice }: { ga
   );
 };
 
-export const AlienDiscoveryModal = ({ visible, message }: { visible: boolean, message: string }) => {
+export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: Game, interactionState: InteractionState, onChoice: (cardId?: string) => void }) => {
+  if (interactionState.type !== 'CHOOSING_EXERTIEN_CARD') return null;
+
+  const player = game.players[game.currentPlayerIndex];
+  const cards = player.cards.filter(c => CardSystem.isExertienCard(c));
+
+  return (
+    <div className="seti-modal-overlay">
+      <div className="seti-modal-content">
+        <h3>Palier Exertien atteint ({interactionState.milestone} PV)</h3>
+        <p>Vous pouvez jouer une de vos cartes Exertiens face cachée. Son DANGER s'ajoute au vôtre (actuellement {player.danger || 0}).</p>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '20px' }}>
+          {cards.map(card => (
+            <button
+              key={card.id}
+              onClick={() => onChoice(card.id)}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #555', borderRadius: '6px', padding: '12px', width: '200px', cursor: 'pointer', textAlign: 'left' }}
+            >
+              <div style={{ fontWeight: 'bold', color: '#ffd700', marginBottom: '6px' }}>{card.name}</div>
+              <div style={{ fontSize: '0.85em', color: '#ff6b6b', marginBottom: '6px' }}>DANGER {card.danger || 0}</div>
+              <div style={{ fontSize: '0.8em', color: '#ccc' }}>{card.description.replace(/^DANGER \d+\.\s*/, '')}</div>
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+          <button onClick={() => onChoice(undefined)} style={{ padding: '8px 16px', backgroundColor: '#555', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+            Ne pas jouer de carte
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const AlienDiscoveryModal =({ visible, message }: { visible: boolean, message: string }) => {
   if (!visible) return null;
   return (
     <div style={{

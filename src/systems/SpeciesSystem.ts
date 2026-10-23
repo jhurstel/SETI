@@ -6,6 +6,39 @@ import { CardSystem } from './CardSystem';
 
 export class SpeciesSystem {
     /**
+     * Palier Exertien atteint : le joueur joue face cachée l'une de ses cartes Exertiens
+     * (son DANGER s'ajoute au sien), ou y renonce si cardId est absent.
+     * Dans les deux cas, le palier est consommé pour ce joueur.
+     */
+    static playExertienCard(game: Game, playerId: string, milestone: number, cardId?: string): { updatedGame: Game; historyEntries: HistoryEntry[]; error?: string } {
+        const updatedGame = cloneGame(game);
+        const player = updatedGame.players.find(p => p.id === playerId);
+        if (!player) return { updatedGame: game, historyEntries: [], error: 'Joueur introuvable' };
+
+        let card: Card | undefined;
+        if (cardId) {
+            card = player.cards.find(c => c.id === cardId);
+            if (!card || !CardSystem.isExertienCard(card)) {
+                return { updatedGame: game, historyEntries: [], error: "Cette carte n'est pas une de vos cartes Exertiens" };
+            }
+        }
+
+        player.claimedExertienMilestones = [...(player.claimedExertienMilestones || []), milestone];
+
+        if (!card) {
+            return { updatedGame, historyEntries: [{ message: `renonce à jouer une carte Exertien (palier ${milestone} PV)`, playerId }] };
+        }
+
+        player.cards = player.cards.filter(c => c.id !== card!.id);
+        player.playedCards = [...(player.playedCards || []), card];
+        player.danger = (player.danger || 0) + (card.danger || 0);
+        return {
+            updatedGame,
+            historyEntries: [{ message: `joue une carte Exertien face cachée (palier ${milestone} PV)`, playerId }],
+        };
+    }
+
+    /**
      * Premier emplacement libre d'une couleur sur une piste du plateau Alien
      */
     static getNextSpeciesSlotIndex(game: Game, boardIndex: number, color: LifeTraceType, location: LifeTraceLocation): number {
@@ -376,9 +409,10 @@ export class SpeciesSystem {
             }
         });
 
-        if (species.id === AlienBoardType.EXERTIENS) {
+        // Exertiens : chaque joueur reçoit en plus 3 cartes (species.name, l'id contient un suffixe unique)
+        if (species.name === AlienBoardType.EXERTIENS) {
             updatedGame.players.forEach(p => {
-                cardsPerPlayer[p.id] += 3;
+                cardsPerPlayer[p.id] = (cardsPerPlayer[p.id] || 0) + 3;
             });
         }
 

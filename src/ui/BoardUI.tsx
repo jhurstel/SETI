@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Game, ActionType, DiskName, SectorNumber, FreeActionType, GAME_CONSTANTS, SectorType, Bonus, Technology, RevenueType, ProbeState, TechnologyCategory, LifeTraceType, InteractionState, GamePhase, SignalType, HistoryEntry, getInteractionLabel, LifeTraceLocation } from '../core/types';
 import { createRotationState, getCell, getObjectPosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getAbsoluteSectorForProbe, calculateAbsolutePosition } from '../core/SolarSystemPosition';
-import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal } from './modals/GameModals';
+import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -548,7 +548,7 @@ export const BoardUI: React.FC = () => {
       } else {
         // Vérifier qu'on ne sélectionne pas plus que nécessaire
         const currentPlayer = game.players[game.currentPlayerIndex];
-        const cardsToKeep = currentPlayer.cards.length - (currentCards.length + 1);
+        const cardsToKeep = CardSystem.getHandCards(currentPlayer).length - (currentCards.length + 1);
         if (cardsToKeep >= GAME_CONSTANTS.HAND_SIZE_AFTER_PASS) {
           setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
         }
@@ -596,7 +596,7 @@ export const BoardUI: React.FC = () => {
     // Cas 1: Défausse pour fin de tour
     if (interactionState.type === 'DISCARDING_CARD') {
       const currentPlayer = game.players[game.currentPlayerIndex];
-      const cardsToKeep = currentPlayer.cards.filter(c => !interactionState.selectedCards.includes(c.id)).map(c => c.id);
+      const cardsToKeep = CardSystem.getHandCards(currentPlayer).filter(c => !interactionState.selectedCards.includes(c.id)).map(c => c.id);
 
       // Réinitialiser l'état de défausse
       setInteractionState({ type: 'IDLE' });
@@ -1177,14 +1177,14 @@ export const BoardUI: React.FC = () => {
      */
     else if (actionType === ActionType.PASS) {
       // 1. Vérifier la taille de la main
-      const toDiscard = currentPlayer.cards.length - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS
+      const toDiscard = CardSystem.getHandCards(currentPlayer).length - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS
       if (toDiscard > 0) {
         setInteractionState({ type: 'DISCARDING_CARD', count: toDiscard, selectedCards: [] });
         setToast({ message: "Veuillez défausser pour ne garder que 4 cartes en main.", visible: true });
         return;
       }
 
-      const cardsToKeep = currentPlayer.cards.map(c => c.id);
+      const cardsToKeep = CardSystem.getHandCards(currentPlayer).map(c => c.id);
 
       // Vérifier s'il y a un paquet de manche pour déclencher la modale
       const roundDeck = game.decks.roundDecks[game.currentRound];
@@ -1252,8 +1252,29 @@ export const BoardUI: React.FC = () => {
     handleNextPlayer();
   };
 
+  // Gestionnaire pour le choix d'une carte Exertien à un palier (cardId absent = renoncer)
+  const handleExertienCardChoice = (cardId?: string) => {
+    if (!game) return;
+    if (interactionState.type !== 'CHOOSING_EXERTIEN_CARD') return;
+
+    const playerId = game.players[game.currentPlayerIndex].id;
+    const result = SpeciesSystem.playExertienCard(game, playerId, interactionState.milestone, cardId);
+    if (result.error) {
+      setToast({ message: result.error, visible: true });
+      return;
+    }
+
+    setGame(result.updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
+    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, interactionState));
+    setInteractionState({ type: 'IDLE' });
+
+    // Continuer la fin de tour
+    handleNextPlayer();
+  };
+
   // Gestionnaire pour le clic sur une carte Alien
-  const handleSpeciesCardClick = (speciesId: string, cardId: string) => {
+  const handleSpeciesCardClick =(speciesId: string, cardId: string) => {
     if (!game) return;
     if (interactionState.type !== 'ACQUIRING_ALIEN_CARD') return;
     if (interactionState.speciesId !== speciesId) return;
@@ -2469,7 +2490,7 @@ export const BoardUI: React.FC = () => {
         cards={passModalState.cards}
         onConfirm={(selectedCardId) => {
           const currentPlayer = game.players[game.currentPlayerIndex];
-          const cardsToKeep = passModalState.cardsToKeep || currentPlayer.cards.map(c => c.id);
+          const cardsToKeep = passModalState.cardsToKeep || CardSystem.getHandCards(currentPlayer).map(c => c.id);
           performPass(cardsToKeep, selectedCardId);
           setPassModalState({ visible: false, cards: [], selectedCardId: null });
         }}
@@ -2518,6 +2539,13 @@ export const BoardUI: React.FC = () => {
         game={game}
         interactionState={interactionState}
         onChoice={handleCentaurienRewardClick}
+      />
+
+      {/* Modal pour palier Exertien */}
+      <ExertienCardModal
+        game={game}
+        interactionState={interactionState}
+        onChoice={handleExertienCardChoice}
       />
 
       {/* Modale de confirmation */}

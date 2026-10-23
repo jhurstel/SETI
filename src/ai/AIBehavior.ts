@@ -125,7 +125,7 @@ export class AIBehavior {
      * Crée une décision de passer avec choix aléatoire des cartes à garder
      */
     private static createPassDecision(game: Game, player: Player): AIDecision {
-        const hand = player.cards;
+        const hand = CardSystem.getHandCards(player);
         const keepCount = Math.min(hand.length, GAME_CONSTANTS.HAND_SIZE_AFTER_PASS);
         const shuffled = [...hand].sort(() => 0.5 - Math.random());
         const cardsToKeep = shuffled.slice(0, keepCount).map(c => c.id);
@@ -140,10 +140,11 @@ export class AIBehavior {
      * Décide quelle carte réserver (Setup)
      */
     static decideReservation(game: Game, player: Player): string | null {
-        if (player.cards.length === 0) return null;
+        const hand = CardSystem.getHandCards(player);
+        if (hand.length === 0) return null;
         game;
-        const randomIndex = Math.floor(Math.random() * player.cards.length);
-        return player.cards[randomIndex].id;
+        const randomIndex = Math.floor(Math.random() * hand.length);
+        return hand[randomIndex].id;
     }
 
     /**

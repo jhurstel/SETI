@@ -285,6 +285,7 @@ export interface Player {
   activeBuffs: CardEffect[]; // Effets passifs temporaires (ex: bonus de visite)
   permanentBuffs: CardEffect[]; // Effets passifs permanents (ex: carte mission)
   centaurienMilestones: number[]; // Paliers de score pour les messages Centauriens
+  claimedExertienMilestones?: number[]; // Paliers Exertiens déjà utilisés par ce joueur (optionnel : anciennes sauvegardes)
 }
 
 export interface Board {
@@ -691,8 +692,8 @@ export type InteractionState =
   | { type: 'COLLECTING_SPECIMEN', planetId: string, sequenceId?: string }
   /** Le joueur doit cliquer sur un token Mascamite pour le consulter (et gagner son bonus sans le retirer). */
   | { type: 'CONSULTING_SPECIMEN', planetId?: string, sequenceId?: string }
-  /** Le joueur doit choisir une carte Exertien. */
-  | { type: 'CHOOSING_EXERTIEN_CARD', sequenceId?: string }
+  /** Le joueur a atteint un palier Exertien : il peut jouer une de ses cartes Exertiens face cachée (ou y renoncer). */
+  | { type: 'CHOOSING_EXERTIEN_CARD', milestone: number, sequenceId?: string }
   /** Le joueur doit confirmer la validation d'une mission. */
   | { type: 'SELECTING_MISSION', missionId?: string, requirementId?: string, sequenceId?: string }; // Deprecated
 
@@ -728,7 +729,7 @@ export const getInteractionLabel = (state: InteractionState): string => {
     case 'CHOOSING_CENTAURIEN_REWARD': return `Veuillez choisir une récompense Centaurien.`;
     case 'COLLECTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour le prélever.`;
     case 'CONSULTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour l'étudier.`;
-    case 'CHOOSING_EXERTIEN_CARD': return `Veuillez choisir une carte Exertien.`;
+    case 'CHOOSING_EXERTIEN_CARD': return `Palier Exertien (${state.milestone} PV) : vous pouvez jouer une carte Exertien.`;
     case 'SELECTING_MISSION': return `Veuillez confirmer la mission à recouvrir.`;
     default: return "Action inconnue";
   }
