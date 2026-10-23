@@ -1,10 +1,21 @@
 import { effectNumber } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
 import { Game, Sector, Bonus, SignalType, GAME_CONSTANTS, InteractionState, ProbeState, HistoryEntry, SectorType } from '../core/types';
-import { getObjectPosition } from '../core/SolarSystemPosition';
+import { getObjectPosition, createRotationState, calculateAbsolutePosition, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { CardSystem } from './CardSystem';
+
+type ScanSectorSelection = Extract<InteractionState, { type: 'SELECTING_SCAN_SECTOR' }>;
+
+/** Planète désignée par une couleur de scan */
+const PLANET_SCOPES: Partial<Record<SectorType, string>> = {
+  [SectorType.MERCURY]: 'mercury',
+  [SectorType.MARS]: 'mars',
+  [SectorType.JUPITER]: 'jupiter',
+  [SectorType.SATURN]: 'saturn',
+  [SectorType.EARTH]: 'earth',
+};
 
 export class ScanSystem {
   /**
@@ -553,4 +564,222 @@ export class ScanSystem {
 
     return { updatedGame, historyEntries, newPendingInteractions };
   };
+
+  /**
+   * Vérifie qu'un secteur peut être choisi pour une interaction SELECTING_SCAN_SECTOR :
+   * couleur ou planète demandée, Oumuamua, secteurs adjacents à la Terre, sonde présente (onlyProbes).
+   * Renvoie la sonde retenue quand l'interaction exige une sonde.
+   */
+  static validateScanSectorSelection(
+    game: Game,
+    playerId: string,
+    interaction: ScanSectorSelection,
+    sectorId: string
+  ): { valid: boolean; error?: string; usedProbeId?: string } {
+    const sector = this.getSectorById(game, sectorId);
+    const player = game.players.find(p => p.id === playerId);
+    if (!sector || !player) return { valid: false, error: 'Secteur introuvable' };
+
+    const solarSystem = game.board.solarSystem;
+    const extraObjects = solarSystem.extraCelestialObjects || [];
+    const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
+    const oumuamua = extraObjects.find(o => o.id === 'oumuamua');
+    const oumuamuaSector = oumuamua ? calculateAbsolutePosition(oumuamua, rotationState, extraObjects).absoluteSector : undefined;
+    // Numéro du secteur du plateau (pour Oumuamua : le secteur où il se trouve)
+    const sectorNumber = sector.id.startsWith('sector_') ? parseInt(sector.id.replace('sector_', '')) : oumuamuaSector;
+
+    const isAdjacentToEarth = (sectorNum: number | undefined) => {
+      if (!interaction.adjacents || sectorNum === undefined) return false;
+      const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, extraObjects);
+      if (!earthPos) return false;
+      const diff = Math.abs(earthPos.absoluteSector - sectorNum);
+      return diff <= 1 || diff === 7;
+    };
+
+    // Couleur
+    const color = interaction.color;
+    if (color !== SectorType.ANY && color !== SectorType.PROBE) {
+      let isColorValid = sector.color === color;
+      if (!isColorValid && sector.id === 'oumuamua' && oumuamuaSector !== undefined) {
+        // Oumuamua est valide s'il se trouve dans un secteur de la couleur demandée
+        isColorValid = color === SectorType.OUMUAMUA || game.board.sectors[oumuamuaSector - 1]?.color === color;
+      }
+      if (!isColorValid && color === SectorType.OUMUAMUA) {
+        isColorValid = sectorNumber !== undefined && sectorNumber === oumuamuaSector;
+      }
+      const planetId = PLANET_SCOPES[color];
+      if (!isColorValid && planetId) {
+        const planetPos = getObjectPosition(planetId, rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, extraObjects);
+        isColorValid = !!planetPos && planetPos.absoluteSector === sectorNumber;
+      }
+      if (!isColorValid && !isAdjacentToEarth(sectorNumber)) {
+        return { valid: false, error: `Couleur incorrecte. Sélectionnez un secteur ${color}.` };
+      }
+    }
+
+    // Sonde présente dans le secteur (carte 120…)
+    if (!interaction.onlyProbes) return { valid: true };
+
+    const candidateProbes = interaction.anyProbe ? solarSystem.probes : player.probes;
+    const validProbes = candidateProbes.filter(p => {
+      if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+      if (sector.id === 'oumuamua') {
+        return !!oumuamua &&
+          p.solarPosition.disk === oumuamua.position.disk &&
+          p.solarPosition.sector === oumuamua.position.sector &&
+          (p.solarPosition.level || 0) === (oumuamua.level || 0);
+      }
+      return getAbsoluteSectorForProbe(p.solarPosition, rotationState) === sectorNumber;
+    });
+    // Une sonde ne sert qu'une fois dans la même séquence
+    const availableProbes = validProbes.filter(p => !(interaction.usedProbeIds || []).includes(p.id));
+    if (availableProbes.length === 0) {
+      if (validProbes.length > 0) return { valid: false, error: 'Cette sonde a déjà été sélectionnée pour cette action.' };
+      return { valid: false, error: interaction.anyProbe ? 'Veuillez sélectionner un secteur contenant une sonde.' : 'Veuillez sélectionner un secteur contenant une de vos sondes.' };
+    }
+    return { valid: true, usedProbeId: availableProbes[0].id };
+  }
+
+  /**
+   * Résout le choix d'un secteur pour une interaction SELECTING_SCAN_SECTOR (joueur humain et robots) :
+   * défausse de la carte utilisée (rangée, pioche ou main), signal et couverture,
+   * signaux dans les secteurs voisins (markAdjacents), reprise de la carte (keepCardIfOnly, carte 120).
+   */
+  static resolveScanSectorSelection(
+    game: Game,
+    playerId: string,
+    interaction: ScanSectorSelection,
+    sectorId: string,
+    sequenceId: string
+  ): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[], usedProbeId?: string, error?: string } {
+    const validation = this.validateScanSectorSelection(game, playerId, interaction, sectorId);
+    if (!validation.valid) {
+      return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: validation.error };
+    }
+    const sector = this.getSectorById(game, sectorId)!;
+
+    let updatedGame = cloneGame(game);
+    const historyEntries: HistoryEntry[] = [];
+    const newPendingInteractions: InteractionState[] = [];
+    const initialLogs: string[] = [];
+
+    if (interaction.cardId) {
+      let cardProcessed = interaction.cardProcessed || false;
+      if (cardProcessed && interaction.message) initialLogs.push(interaction.message);
+
+      // Carte de la rangée
+      if (!cardProcessed) {
+        const { updatedGame: gameAfterRowDiscard, discardedCard } = CardSystem.discardFromRow(updatedGame, interaction.cardId);
+        if (discardedCard) {
+          updatedGame = gameAfterRowDiscard;
+          initialLogs.push(`utilise carte "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`);
+          cardProcessed = true;
+        }
+      }
+
+      // Sinon, carte de la pioche, puis de la main
+      const sources = [
+        { cards: updatedGame.decks.cards, label: 'de la pioche' },
+        { cards: updatedGame.players.find(p => p.id === playerId)?.cards || [], label: 'de la main' },
+      ];
+      for (const source of sources) {
+        if (cardProcessed) break;
+        const cardIndex = source.cards.findIndex(c => c.id === interaction.cardId);
+        if (cardIndex !== -1) {
+          const removedCard = source.cards.splice(cardIndex, 1)[0];
+          if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
+          updatedGame.decks.discardPile.push(removedCard);
+          initialLogs.push(`utilise carte "${removedCard.name}" (${removedCard.scanSector}) ${source.label}`);
+          cardProcessed = true;
+        }
+      }
+    }
+
+    const signal = (targetSectorId: string, logs: string[]) => {
+      const res = this.performSignalAndCover(updatedGame, playerId, targetSectorId, logs, interaction.noData, sequenceId);
+      updatedGame = res.updatedGame;
+      historyEntries.push(...res.historyEntries.map(e => ({ ...e, sequenceId })));
+      newPendingInteractions.push(...res.newPendingInteractions);
+    };
+
+    signal(sector.id, initialLogs);
+
+    if (interaction.markAdjacents && sector.id.startsWith('sector_')) {
+      const sectorNumber = parseInt(sector.id.replace('sector_', ''));
+      const prevSectorNum = sectorNumber === 1 ? 8 : sectorNumber - 1;
+      const nextSectorNum = sectorNumber === 8 ? 1 : sectorNumber + 1;
+      signal(updatedGame.board.sectors[prevSectorNum - 1].id, []);
+      signal(updatedGame.board.sectors[nextSectorNum - 1].id, []);
+    }
+
+    // Carte 120 : reprendre la carte si c'est le seul signal du joueur dans le secteur
+    if (interaction.keepCardIfOnly && interaction.cardId) {
+      const updatedSector = this.getSectorById(updatedGame, sector.id);
+      const playerSignals = updatedSector ? updatedSector.signals.filter(s => s.markedBy === playerId) : [];
+      const discardPile = updatedGame.decks.discardPile || [];
+      const cardIndex = discardPile.findIndex(c => c.id === interaction.cardId);
+      const player = updatedGame.players.find(p => p.id === playerId);
+      if (playerSignals.length === 1 && cardIndex !== -1 && player) {
+        const card = discardPile.splice(cardIndex, 1)[0];
+        player.cards.push(card);
+        historyEntries.push({ message: `récupère la carte "${card.name}" en main (Condition remplie)`, playerId, sequenceId });
+      }
+    }
+
+    return { updatedGame, historyEntries, newPendingInteractions, usedProbeId: validation.usedProbeId };
+  }
+
+  /**
+   * Observation II : payer 1 Média pour marquer un signal dans le secteur de Mercure
+   */
+  static applyObservation2(game: Game, playerId: string, sequenceId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[], error?: string } {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player || player.mediaCoverage < 1) {
+      return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: 'Média insuffisant pour utiliser Observation II' };
+    }
+    const solarSystem = game.board.solarSystem;
+    const mercuryPos = getObjectPosition('mercury', solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0, solarSystem.extraCelestialObjects);
+    if (!mercuryPos) {
+      return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: 'Mercure introuvable' };
+    }
+
+    const updatedGame = cloneGame(game);
+    updatedGame.players.find(p => p.id === playerId)!.mediaCoverage -= 1;
+    const mercurySector = updatedGame.board.sectors[mercuryPos.absoluteSector - 1];
+    const res = this.performSignalAndCover(updatedGame, playerId, mercurySector.id, ['paye 1 Média pour utiliser Observation II'], false, sequenceId);
+    return {
+      updatedGame: res.updatedGame,
+      historyEntries: res.historyEntries.map(e => ({ ...e, sequenceId })),
+      newPendingInteractions: res.newPendingInteractions.map(i => ({ ...i, sequenceId })),
+    };
+  }
+
+  /**
+   * Observation IV : payer 1 Énergie pour lancer une sonde, ou gagner 1 déplacement
+   */
+  static applyObservation4(game: Game, playerId: string, choice: 'PROBE' | 'MOVE', sequenceId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[], error?: string } {
+    if (choice === 'MOVE') {
+      return {
+        updatedGame: game,
+        historyEntries: [{ message: 'choisit de gagner 1 déplacement (Observation IV)', playerId, sequenceId }],
+        newPendingInteractions: [{ type: 'MOVING_PROBE', count: 1, sequenceId }],
+      };
+    }
+
+    const player = game.players.find(p => p.id === playerId);
+    if (!player || player.energy < 1) {
+      return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: 'Énergie insuffisante pour utiliser Observation IV' };
+    }
+    let updatedGame = cloneGame(game);
+    updatedGame.players.find(p => p.id === playerId)!.energy -= 1;
+    const historyEntries: HistoryEntry[] = [{ message: 'paye 1 Énergie pour utiliser Observation IV (Lancement de sonde)', playerId, sequenceId }];
+
+    // Lancement gratuit en crédits : l'énergie payée en tient lieu
+    const launchRes = ProbeSystem.launchProbe(updatedGame, playerId, true, false);
+    if (launchRes.probeId) {
+      updatedGame = launchRes.updatedGame;
+      historyEntries.push({ message: 'lance 1 sonde depuis la Terre (Observation IV)', playerId, sequenceId });
+    }
+    return { updatedGame, historyEntries, newPendingInteractions: [] };
+  }
 }

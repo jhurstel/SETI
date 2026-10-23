@@ -1,5 +1,5 @@
 import { cloneGame } from '../core/cloneGame';
-import { Game, InteractionState, SectorType, TechnologyCategory, Player, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType, Probe } from '../core/types';
+import { Game, InteractionState, TechnologyCategory, Player, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType, Probe } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -9,7 +9,7 @@ import { ScoreManager } from '../core/ScoreManager';
 import { InteractionResolver } from '../core/InteractionResolver';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
-import { getObjectPosition, createRotationState, getAbsoluteSectorForProbe, calculateReachableCellsWithEnergy } from '../core/SolarSystemPosition';
+import { createRotationState, getAbsoluteSectorForProbe, calculateReachableCellsWithEnergy } from '../core/SolarSystemPosition';
 
 interface AIControllerResult {
     updatedGame: Game;
@@ -69,35 +69,16 @@ export class AIController {
 
         switch (interaction.type) {
             case 'SELECTING_SCAN_SECTOR': {
-                let validSectors = updatedGame.board.sectors.filter(s => !s.isCovered);
-                if (interaction.color && interaction.color !== SectorType.ANY) {
-                    validSectors = validSectors.filter(s => s.color === interaction.color);
-                }
-                if (interaction.adjacents) {
-                    const solarSystem = updatedGame.board.solarSystem;
-                    const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3, solarSystem.extraCelestialObjects);
-                    if (earthPos) {
-                        validSectors = validSectors.filter(s => {
-                            const sNum = parseInt(s.id.replace('sector_', ''));
-                            const diff = Math.abs(earthPos.absoluteSector - sNum);
-                            return diff <= 1 || diff === 7;
-                        });
-                    }
-                }
+                // Mêmes règles que pour le joueur humain : on tire au hasard parmi les secteurs valides
+                const validSectors = updatedGame.board.sectors.filter(s =>
+                    !s.isCovered && ScanSystem.validateScanSectorSelection(updatedGame, player.id, interaction, s.id).valid
+                );
                 if (validSectors.length > 0) {
                     const chosen = validSectors[Math.floor(Math.random() * validSectors.length)];
-                    const initialLogs: string[] = [];
-                    if (interaction.cardId) {
-                        const { updatedGame: ug, discardedCard } = CardSystem.discardFromRow(updatedGame, interaction.cardId);
-                        if (discardedCard) {
-                            updatedGame = ug;
-                            initialLogs.push(`utilise carte "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`);
-                        }
-                    }
-                    const res = ScanSystem.performSignalAndCover(updatedGame, player.id, chosen.id, initialLogs, interaction.noData, sequenceId);
+                    const res = ScanSystem.resolveScanSectorSelection(updatedGame, player.id, interaction, chosen.id, interaction.sequenceId || sequenceId);
                     updatedGame = res.updatedGame;
                     historyEntries.push(...res.historyEntries);
-                    newPendingInteractions.push(...(res.newPendingInteractions || []));
+                    newPendingInteractions.push(...res.newPendingInteractions);
                 }
                 break;
             }
@@ -242,18 +223,11 @@ export class AIController {
                 break;
             }
             case 'CHOOSING_OBS2_ACTION': {
-                const p = updatedGame.players.find(p => p.id === player.id);
-                if (p && p.mediaCoverage > 0) {
-                    p.mediaCoverage -= 1;
-                    const rotationState = createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0);
-                    const mercuryPos = getObjectPosition('mercury', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, updatedGame.board.solarSystem.extraCelestialObjects);
-                    if (mercuryPos) {
-                        const mercurySector = updatedGame.board.sectors[mercuryPos.absoluteSector - 1];
-                        const res = ScanSystem.performSignalAndCover(updatedGame, p.id, mercurySector.id, [`paye 1 Média pour utiliser Observation II`], false, sequenceId);
-                        updatedGame = res.updatedGame;
-                        historyEntries.push(...res.historyEntries);
-                        newPendingInteractions.push(...(res.newPendingInteractions || []));
-                    }
+                const res = ScanSystem.applyObservation2(updatedGame, player.id, sequenceId);
+                if (!res.error) {
+                    updatedGame = res.updatedGame;
+                    historyEntries.push(...res.historyEntries);
+                    newPendingInteractions.push(...res.newPendingInteractions);
                 }
                 break;
             }
@@ -279,21 +253,12 @@ export class AIController {
                 break;
             }
             case 'CHOOSING_OBS4_ACTION': {
-                const choice = Math.random() > 0.5 ? 'PROBE' : 'MOVE';
                 const p = updatedGame.players.find(p => p.id === player.id);
-                if (p) {
-                    if (choice === 'PROBE' && p.energy >= 1) {
-                        p.energy -= 1;
-                        const launchRes = ProbeSystem.launchProbe(updatedGame, p.id, true, false);
-                        if (launchRes.probeId) {
-                            updatedGame = launchRes.updatedGame;
-                            addHistory(`lance 1 sonde (Observation IV)`, p.id, game);
-                        }
-                    } else {
-                        newPendingInteractions.push({ type: 'MOVING_PROBE', count: 1, sequenceId });
-                        addHistory(`choisit 1 déplacement (Observation IV)`, p.id, game);
-                    }
-                }
+                const choice = p && p.energy >= 1 && Math.random() > 0.5 ? 'PROBE' : 'MOVE';
+                const res = ScanSystem.applyObservation4(updatedGame, player.id, choice, sequenceId);
+                updatedGame = res.updatedGame;
+                historyEntries.push(...res.historyEntries);
+                newPendingInteractions.push(...res.newPendingInteractions);
                 break;
             }
             case 'CHOOSING_BONUS_ACTION': {

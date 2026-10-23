@@ -1,5 +1,7 @@
 import { ScanSystem } from '../src/systems/ScanSystem';
-import { Game, Sector, SignalType } from '../src/core/types';
+import { Game, InteractionState, Sector, SectorType, SignalType } from '../src/core/types';
+
+type ScanSectorSelection = Extract<InteractionState, { type: 'SELECTING_SCAN_SECTOR' }>;
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 
 /** Marque les signaux d'un secteur dans l'ordre donné (le dernier est le plus récent). */
@@ -174,6 +176,74 @@ describe('ScanSystem', () => {
       expect(winnerId).toBe(P2);
       expect(bonuses.pv).toBeUndefined();
       expect(getPlayer(updatedGame, P2).score).toBe(scoreBefore + 3);
+    });
+  });
+  describe('resolveScanSectorSelection', () => {
+    const scanInteraction = (overrides: Partial<ScanSectorSelection> = {}): ScanSectorSelection =>
+      ({ type: 'SELECTING_SCAN_SECTOR', color: SectorType.ANY, sequenceId: 'seq', ...overrides });
+    const markedBy = (g: Game, sectorId: string, playerId: string) =>
+      ScanSystem.getSectorById(g, sectorId)!.signals.filter(s => s.marked && s.markedBy === playerId).length;
+
+    test('refuse un secteur de la mauvaise couleur', () => {
+      const other = game.board.sectors.find(s => s.color !== sector.color)!;
+      const res = ScanSystem.resolveScanSectorSelection(game, P1, scanInteraction({ color: other.color }), sector.id, 'seq');
+      expect(res.error).toContain('Couleur incorrecte');
+      expect(res.updatedGame).toBe(game);
+    });
+
+    test('défausse la carte de la rangée et marque un signal sans modifier la partie reçue', () => {
+      const rowCard = game.decks.cardRow[0];
+      const res = ScanSystem.resolveScanSectorSelection(game, P1, scanInteraction({ cardId: rowCard.id }), sector.id, 'seq');
+
+      expect(res.error).toBeUndefined();
+      expect(res.updatedGame.decks.cardRow.some(c => c.id === rowCard.id)).toBe(false);
+      expect(res.updatedGame.decks.discardPile.some(c => c.id === rowCard.id)).toBe(true);
+      expect(markedBy(res.updatedGame, sector.id, P1)).toBe(1);
+      expect(markedBy(game, sector.id, P1)).toBe(0);
+      expect(res.historyEntries[0].message).toContain('de la rangée');
+    });
+
+    test('markAdjacents marque aussi les deux secteurs voisins', () => {
+      const res = ScanSystem.resolveScanSectorSelection(game, P1, scanInteraction({ markAdjacents: true }), 'sector_1', 'seq');
+      ['sector_8', 'sector_1', 'sector_2'].forEach(id => expect(markedBy(res.updatedGame, id, P1)).toBe(1));
+    });
+
+    test("keepCardIfOnly remet la carte en main s'il s'agit du seul signal du joueur", () => {
+      const card = getPlayer(game, P1).cards[0];
+      const res = ScanSystem.resolveScanSectorSelection(game, P1, scanInteraction({ cardId: card.id, keepCardIfOnly: true }), sector.id, 'seq');
+      expect(getPlayer(res.updatedGame, P1).cards.some(c => c.id === card.id)).toBe(true);
+      expect(res.updatedGame.decks.discardPile.some(c => c.id === card.id)).toBe(false);
+    });
+
+    test('onlyProbes exige une sonde du joueur dans le secteur', () => {
+      const res = ScanSystem.resolveScanSectorSelection(game, P1, scanInteraction({ color: SectorType.PROBE, onlyProbes: true }), sector.id, 'seq');
+      expect(res.error).toContain('une de vos sondes');
+    });
+  });
+
+  describe('Observation II et IV', () => {
+    test('Observation II coûte 1 Média', () => {
+      getPlayer(game, P1).mediaCoverage = 0;
+      expect(ScanSystem.applyObservation2(game, P1, 'seq').error).toBeDefined();
+
+      getPlayer(game, P1).mediaCoverage = 2;
+      const res = ScanSystem.applyObservation2(game, P1, 'seq');
+      expect(res.error).toBeUndefined();
+      expect(res.historyEntries[0].message).toContain('Observation II');
+      expect(getPlayer(game, P1).mediaCoverage).toBe(2);
+    });
+
+    test('Observation IV : 1 Énergie pour lancer une sonde, ou 1 déplacement', () => {
+      getPlayer(game, P1).energy = 0;
+      expect(ScanSystem.applyObservation4(game, P1, 'PROBE', 'seq').error).toBeDefined();
+      expect(ScanSystem.applyObservation4(game, P1, 'MOVE', 'seq').newPendingInteractions).toEqual([{ type: 'MOVING_PROBE', count: 1, sequenceId: 'seq' }]);
+
+      getPlayer(game, P1).energy = 3;
+      const probesBefore = getPlayer(game, P1).probes.length;
+      const res = ScanSystem.applyObservation4(game, P1, 'PROBE', 'seq');
+      expect(getPlayer(res.updatedGame, P1).energy).toBe(2);
+      expect(getPlayer(res.updatedGame, P1).probes.length).toBe(probesBefore + 1);
+      expect(getPlayer(game, P1).energy).toBe(3);
     });
   });
 });
