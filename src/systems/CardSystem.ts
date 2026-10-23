@@ -608,6 +608,9 @@ export class CardSystem {
                     bonuses.consultSpecimen = true;
                 } else if (effect.type === 'NO_MEDIA') {
                     player.activeBuffs.push({ ...effect, source: card.name });
+                } else if (effect.type === 'SCORE_PER_TRACE') {
+                    // Carte 75 : les PV dépendent de la couleur de la trace gagnée, appliqués au placement (SpeciesSystem.placeLifeTrace)
+                    player.activeBuffs.push({ ...effect, source: card.name });
                 } else if (effect.type === 'GAIN_MOVE_IF_ANOMALY') {
                     // Vérifier si la Terre est dans un secteur avec une anomalie
                     const rotationState = createRotationState(

@@ -1,6 +1,7 @@
 import { CardSystem } from '../src/systems/CardSystem';
 import { DataLoader } from '../src/core/DataLoader';
-import { CostType, FreeActionType, Game, LifeTraceType, RevenueType } from '../src/core/types';
+import { CostType, FreeActionType, Game, LifeTraceLocation, LifeTraceType, RevenueType } from '../src/core/types';
+import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { createTestGame, getPlayer, makeCard, mockFetchFromPublic } from './helpers/gameFixture';
 
 describe('CardSystem', () => {
@@ -185,6 +186,48 @@ describe('CardSystem', () => {
       expect(newPendingInteractions).toContainEqual(
         expect.objectContaining({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.ANY })
       );
+    });
+  });
+
+  describe('carte 75 « Étude sur les Extrêmophiles »', () => {
+    const playCard75 = async () => {
+      const fetchSpy = mockFetchFromPublic();
+      const card = (await DataLoader.loadCards('cards/main.csv')).find(c => c.id === '75')!;
+      fetchSpy.mockRestore();
+      const player = getPlayer(game, P1);
+      player.credits = 10;
+      player.cards = [card];
+      return CardSystem.playCard(game, P1, '75').updatedGame;
+    };
+
+    test('après la trace gagnée : 1 PV par trace de vie de cette couleur (celle-ci comprise)', async () => {
+      game.players[0].lifeTraces = [{ id: 'old', type: LifeTraceType.RED, playerId: P1 }];
+      const afterPlay = await playCard75();
+      const scoreBefore = getPlayer(afterPlay, P1).score;
+
+      const res = SpeciesSystem.placeLifeTrace(afterPlay, 0, LifeTraceType.RED, P1, 'seq', LifeTraceLocation.TRIANGLE);
+
+      expect(getPlayer(res.updatedGame, P1).score - scoreBefore).toBeGreaterThanOrEqual(2);
+      expect(res.historyEntries.some(e => e.message.includes('2 traces de vie Rouge'))).toBe(true);
+      expect(getPlayer(res.updatedGame, P1).activeBuffs.some(b => b.type === 'SCORE_PER_TRACE')).toBe(false);
+    });
+
+    test('les traces suivantes ne rapportent plus ce bonus', async () => {
+      const afterPlay = await playCard75();
+      const first = SpeciesSystem.placeLifeTrace(afterPlay, 0, LifeTraceType.BLUE, P1, 'seq', LifeTraceLocation.TRIANGLE).updatedGame;
+      const second = SpeciesSystem.placeLifeTrace(first, 0, LifeTraceType.BLUE, P1, 'seq2', LifeTraceLocation.TRIANGLE);
+
+      expect(second.historyEntries.some(e => e.message.includes('Extrêmophiles'))).toBe(false);
+    });
+  });
+
+  describe('placement automatique (robots)', () => {
+    test('une trace « de n\'importe quelle couleur » reçoit une vraie couleur', () => {
+      for (let i = 0; i < 10; i++) {
+        const res = SpeciesSystem.placeLifeTraceAuto(game, 0, LifeTraceType.ANY, P1, 'seq');
+        const trace = getPlayer(res.updatedGame, P1).lifeTraces.at(-1)!;
+        expect([LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE]).toContain(trace.type);
+      }
     });
   });
 

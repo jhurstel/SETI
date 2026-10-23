@@ -42,7 +42,10 @@ export class SpeciesSystem {
      * Placement automatique d'une trace de vie (robots) : la piste d'espèce n'est utilisée
      * qu'une fois l'espèce découverte, sinon la trace serait refusée et perdue.
      */
-    static placeLifeTraceAuto(game: Game, boardIndex: number, color: LifeTraceType, playerId: string, sequenceId: string = '') {
+    static placeLifeTraceAuto(game: Game, boardIndex: number, requestedColor: LifeTraceType, playerId: string, sequenceId: string = '') {
+        // Trace « de n'importe quelle couleur » : le robot choisit une vraie couleur
+        const colors = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE];
+        const color = requestedColor === LifeTraceType.ANY ? colors[Math.floor(Math.random() * colors.length)] : requestedColor;
         const board = game.board.alienBoards[boardIndex];
         const location = board?.isDiscovered && Math.random() < 0.5 ? LifeTraceLocation.SPECIES : LifeTraceLocation.TRIANGLE;
         const slotIndex = location === LifeTraceLocation.SPECIES ? this.getNextSpeciesSlotIndex(game, boardIndex, color, location) : undefined;
@@ -332,8 +335,8 @@ export class SpeciesSystem {
             if (color === LifeTraceType.BLUE && buff.type === 'GAIN_ON_BLUE_LIFETRACE') return true;
             if (color === LifeTraceType.ANY && (
                 buff.type.includes('GAIN_ON_BLUE_LIFETRACE') ||
-                buff.type.includes('GAIN_ON_YELLOW_LIFETACE') ||
-                buff.type.includes('GAIN_ON_RED_LIFETACE')
+                buff.type.includes('GAIN_ON_YELLOW_LIFETRACE') ||
+                buff.type.includes('GAIN_ON_RED_LIFETRACE')
             )) return true;
             return false;
         });
@@ -355,6 +358,19 @@ export class SpeciesSystem {
 
         if (hasFulfillable) {
             res.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId });
+        }
+
+        // Carte 75 (Étude sur les Extrêmophiles) : 1 PV par trace de vie marquée de la couleur qui vient d'être gagnée
+        const scoringPlayer = updatedGame.players.find(p => p.id === playerId)!;
+        const scorePerTraceBuffs = scoringPlayer.activeBuffs.filter(b => b.type === 'SCORE_PER_TRACE');
+        if (scorePerTraceBuffs.length > 0) {
+            const tracesOfColor = scoringPlayer.lifeTraces.filter(t => t.type === color).length;
+            scorePerTraceBuffs.forEach(buff => {
+                const points = tracesOfColor * (buff.value || 1);
+                scoringPlayer.score += points;
+                res.historyEntries.push({ message: `gagne ${ResourceSystem.formatResource(points, 'PV')} (${tracesOfColor} trace${tracesOfColor > 1 ? 's' : ''} de vie ${color}, carte "${buff.source}")`, playerId, sequenceId });
+            });
+            scoringPlayer.activeBuffs = scoringPlayer.activeBuffs.filter(b => b.type !== 'SCORE_PER_TRACE');
         }
 
         return {
