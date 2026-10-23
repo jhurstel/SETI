@@ -74,7 +74,10 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
 - **Joueurs** : `type: 'human' | 'robot'`. L'humain est piloté par l'UI, les robots par `AIBehavior` et `AIController`, déclenchés depuis `BoardUI`.
 - **Persistance** : autosave dans `localStorage['seti_autosave']` + export/import JSON depuis `BoardUI`.
 - **Style** : TS `strict`, `noUnusedLocals/Parameters`, `.editorconfig` (2 espaces, LF). Identifiants en anglais, commentaires et messages en français. Les valeurs d'enum sont des libellés FR affichés (`SectorType.YELLOW = "Jaune"`) et utilisés au parsing CSV : ne pas les modifier à la légère.
-- **Tests** : dans `test/`, hors `rootDir` de `tsconfig` (non type-checkés par `tsc`, seulement par ts-jest).
+- **Tests** : Jest + ts-jest dans `test/`, type-checkés via `test/tsconfig.json` (inclus dans `npm run typecheck`).
+  - `test/helpers/gameFixture.ts` : `createTestGame()` crée une **vraie** partie (fetch simulé qui sert `public/`, donc les vraies cartes), `makeCard()`, `getPlayer()`. À privilégier plutôt que des mocks d'état écrits à la main.
+  - Un bug connu et pas encore corrigé est documenté par un `test.failing(...)`. Retirer `.failing` quand il est corrigé.
+  - Couverture actuelle : SolarSystemPosition, ScanSystem, CardSystem (pioche, réserve, défausse, achat), DataLoader (tous les CSV), TurnManager, PassAction, GameFactory, ProbeSystem (base), GameEngine.
 
 ## Points d'attention
 

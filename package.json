@@ -11,7 +11,7 @@
     "dev:ui": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p test",
     "typecheck:watch": "tsc --noEmit --watch",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

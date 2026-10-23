@@ -197,7 +197,8 @@ export function rotateSector(relativeSector: SectorNumber, rotationAngle: number
   const sectorsRotated = Math.round(rotationAngle / 45);
   // Calculer le nouvel index en tenant compte de la rotation
   // On soustrait car rotation anti-horaire (négative) doit incrémenter l'index (1->2)
-  const newIndex = (sectorIndex - sectorsRotated + 8) % 8;
+  // Double modulo : reste correct même au-delà d'un tour complet (angles cumulés sur la partie)
+  const newIndex = (((sectorIndex - sectorsRotated) % 8) + 8) % 8;
   return indexToSector[newIndex];
 }
 

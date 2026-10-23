@@ -1,0 +1,187 @@
+import { CardSystem } from '../src/systems/CardSystem';
+import { CostType, FreeActionType, Game, RevenueType } from '../src/core/types';
+import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
+
+describe('CardSystem', () => {
+  let game: Game;
+  const P1 = 'player_0';
+  const P2 = 'player_1';
+
+  beforeEach(async () => {
+    game = await createTestGame();
+    game.currentPlayerIndex = 0;
+  });
+
+  describe('drawCards', () => {
+    test('prend les cartes du dessus de la pioche', () => {
+      const top = game.decks.cards.slice(0, 2).map(c => c.id);
+      const handBefore = getPlayer(game, P1).cards.length;
+      const updated = CardSystem.drawCards(game, P1, 2);
+
+      expect(getPlayer(updated, P1).cards).toHaveLength(handBefore + 2);
+      expect(getPlayer(updated, P1).cards.slice(-2).map(c => c.id)).toEqual(top);
+      expect(updated.decks.cards).toHaveLength(game.decks.cards.length - 2);
+    });
+
+    test('s\'arrête quand la pioche est vide', () => {
+      game.decks.cards = [makeCard('x1')];
+      const updated = CardSystem.drawCards(game, P1, 3);
+      expect(updated.decks.cards).toHaveLength(0);
+      expect(getPlayer(updated, P1).cards.some(c => c.id === 'x1')).toBe(true);
+    });
+
+    test('ne modifie pas la partie d\'origine', () => {
+      const deckSize = game.decks.cards.length;
+      CardSystem.drawCards(game, P1, 2);
+      expect(game.decks.cards).toHaveLength(deckSize);
+    });
+  });
+
+  describe('reserveCard', () => {
+    test.each([
+      [RevenueType.CREDIT, 'revenueCredits', 'credits'],
+      [RevenueType.ENERGY, 'revenueEnergy', 'energy'],
+    ] as const)('revenu %s : +1 revenu et +1 ressource immédiate', (revenue, revenueKey, resourceKey) => {
+      const player = getPlayer(game, P1);
+      player.cards = [makeCard('r1', { revenue })];
+      const updated = CardSystem.reserveCard(game, P1, 'r1');
+      const after = getPlayer(updated, P1);
+
+      expect(after.cards).toHaveLength(0);
+      expect(after.reservedCards.map(c => c.id)).toEqual(['r1']);
+      expect(after[revenueKey]).toBe(player[revenueKey] + 1);
+      expect(after[resourceKey]).toBe(player[resourceKey] + 1);
+    });
+
+    test('revenu Pioche : +1 revenu carte et pioche immédiate', () => {
+      getPlayer(game, P1).cards = [makeCard('r1', { revenue: RevenueType.CARD })];
+      const updated = CardSystem.reserveCard(game, P1, 'r1');
+      const after = getPlayer(updated, P1);
+
+      expect(after.revenueCards).toBe(getPlayer(game, P1).revenueCards + 1);
+      expect(after.cards).toHaveLength(1);
+    });
+
+    test('carte absente de la main : partie inchangée', () => {
+      expect(CardSystem.reserveCard(game, P1, 'inconnue')).toBe(game);
+    });
+  });
+
+  describe('défausses', () => {
+    test('discardToHandSize garde uniquement les cartes choisies', () => {
+      const hand = getPlayer(game, P1).cards;
+      const keep = hand.slice(0, 2).map(c => c.id);
+      const updated = CardSystem.discardToHandSize(game, P1, keep);
+
+      expect(getPlayer(updated, P1).cards.map(c => c.id)).toEqual(keep);
+      expect(updated.decks.discardPile).toHaveLength(hand.length - 2);
+    });
+
+    test('discardCard envoie la carte dans la défausse', () => {
+      const cardId = getPlayer(game, P1).cards[0].id;
+      const updated = CardSystem.discardCard(game, P1, cardId);
+
+      expect(getPlayer(updated, P1).cards.some(c => c.id === cardId)).toBe(false);
+      expect(updated.decks.discardPile.map(c => c.id)).toContain(cardId);
+    });
+
+    test('discardFromRow retire la carte de la rangée', () => {
+      const cardId = game.decks.cardRow[0].id;
+      const { updatedGame, discardedCard } = CardSystem.discardFromRow(game, cardId);
+
+      expect(discardedCard?.id).toBe(cardId);
+      expect(updatedGame.decks.cardRow).toHaveLength(2);
+      expect(CardSystem.discardFromRow(game, 'inconnue').discardedCard).toBeNull();
+    });
+
+    test('discardCardForFreeAction (Média) : +1 média et carte défaussée', () => {
+      const player = getPlayer(game, P1);
+      player.mediaCoverage = 2;
+      player.cards = [makeCard('f1', { freeAction: FreeActionType.MEDIA })];
+      const { updatedGame, historyEntries } = CardSystem.discardCardForFreeAction(game, P1, 'f1');
+
+      expect(getPlayer(updatedGame, P1).mediaCoverage).toBe(3);
+      expect(getPlayer(updatedGame, P1).cards).toHaveLength(0);
+      expect(historyEntries[0].message).toContain('défausse carte "Carte f1"');
+    });
+  });
+
+  describe('refillCardRow', () => {
+    test('complète la rangée jusqu\'à 3 cartes', () => {
+      game.decks.cardRow = [];
+      const updated = CardSystem.refillCardRow(game);
+      expect(updated.decks.cardRow).toHaveLength(3);
+      expect(game.decks.cardRow).toHaveLength(0);
+    });
+
+    test('ne dépasse pas la pioche disponible', () => {
+      game.decks.cardRow = [];
+      game.decks.cards = [makeCard('only')];
+      expect(CardSystem.refillCardRow(game).decks.cardRow.map(c => c.id)).toEqual(['only']);
+    });
+  });
+
+  describe('buyCard', () => {
+    test('coûte 3 médias, prend la carte de la rangée et la recomplète', () => {
+      getPlayer(game, P1).mediaCoverage = 4;
+      const cardId = game.decks.cardRow[1].id;
+      const { updatedGame, error } = CardSystem.buyCard(game, P1, cardId);
+
+      expect(error).toBeUndefined();
+      expect(getPlayer(updatedGame, P1).mediaCoverage).toBe(1);
+      expect(getPlayer(updatedGame, P1).cards.some(c => c.id === cardId)).toBe(true);
+      expect(updatedGame.decks.cardRow).toHaveLength(3);
+      expect(updatedGame.decks.cardRow.some(c => c.id === cardId)).toBe(false);
+    });
+
+    test('sans carte ciblée, pioche dans le paquet', () => {
+      getPlayer(game, P1).mediaCoverage = 3;
+      const top = game.decks.cards[0].id;
+      const { updatedGame } = CardSystem.buyCard(game, P1);
+      expect(getPlayer(updatedGame, P1).cards.some(c => c.id === top)).toBe(true);
+    });
+
+    test('refusé avec moins de 3 médias, sauf si gratuit', () => {
+      getPlayer(game, P1).mediaCoverage = 2;
+      expect(CardSystem.buyCard(game, P1).error).toBe('Couverture médiatique insuffisante');
+
+      const { updatedGame, error } = CardSystem.buyCard(game, P1, undefined, true);
+      expect(error).toBeUndefined();
+      expect(getPlayer(updatedGame, P1).mediaCoverage).toBe(2);
+    });
+
+    test('erreur si la carte n\'est pas dans la rangée', () => {
+      getPlayer(game, P1).mediaCoverage = 5;
+      expect(CardSystem.buyCard(game, P1, 'inconnue').error).toBe('Carte non trouvée dans la rangée');
+    });
+
+    test('ne modifie pas la partie d\'origine', () => {
+      getPlayer(game, P1).mediaCoverage = 5;
+      const rowIds = game.decks.cardRow.map(c => c.id);
+      const handSize = getPlayer(game, P1).cards.length;
+      CardSystem.buyCard(game, P1, rowIds[0]);
+
+      expect(getPlayer(game, P1).mediaCoverage).toBe(5);
+      expect(getPlayer(game, P1).cards).toHaveLength(handSize);
+      expect(game.decks.cardRow.map(c => c.id)).toEqual(rowIds);
+    });
+  });
+
+  describe('canPlayCard', () => {
+    test('vérifie le coût en crédits', () => {
+      getPlayer(game, P1).credits = 2;
+      expect(CardSystem.canPlayCard(game, P1, makeCard('c', { cost: 2 })).canPlay).toBe(true);
+      expect(CardSystem.canPlayCard(game, P1, makeCard('c', { cost: 3 })).canPlay).toBe(false);
+    });
+
+    test('vérifie le coût en énergie', () => {
+      getPlayer(game, P1).energy = 1;
+      const card = makeCard('c', { cost: 2, costType: CostType.ENERGY });
+      expect(CardSystem.canPlayCard(game, P1, card)).toMatchObject({ canPlay: false, reason: expect.stringContaining('Énergie') });
+    });
+
+    test('refusé hors de son tour', () => {
+      expect(CardSystem.canPlayCard(game, P2, makeCard('c', { cost: 0 })).reason).toBe("Ce n'est pas votre tour");
+    });
+  });
+});
