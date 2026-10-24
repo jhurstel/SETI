@@ -4,6 +4,7 @@ import { GameFactory } from '../src/core/GameFactory';
 import { TurnManager } from '../src/core/TurnManager';
 import { PassAction } from '../src/actions/PassAction';
 import { CardSystem } from '../src/systems/CardSystem';
+import { ScanSystem } from '../src/systems/ScanSystem';
 import { AIDifficulty, Game, GamePhase } from '../src/core/types';
 import { mockFetchFromPublic } from './helpers/gameFixture';
 
@@ -99,6 +100,27 @@ describe('AITurn (parties complètes entre robots)', () => {
     const snapshot = JSON.stringify(started);
     for (let i = 0; i < 3; i++) AITurn.playStep(started);
     expect(JSON.stringify(started)).toBe(snapshot);
+  }, 60000);
+
+  test("un robot valide un objectif de mission GAIN_ON_… réalisable (Temps de Télescope)", async () => {
+    let game = playRobotGame(await createRobotGame(['R1', 'R2'], ['MEDIUM', 'MEDIUM']), 2).game;
+    const robot = game.players[game.currentPlayerIndex];
+    const card = [...game.decks.cards, ...game.decks.cardRow, ...game.players.flatMap(p => p.cards)].find(c => c.id === '101')!;
+    game.decks.cards = game.decks.cards.filter(c => c.id !== '101');
+    game.decks.cardRow = game.decks.cardRow.filter(c => c.id !== '101');
+    game.players.forEach(p => (p.cards = p.cards.filter(c => c.id !== '101')));
+    game.players.find(p => p.id === robot.id)!.cards.push(card);
+    game.players.find(p => p.id === robot.id)!.credits = 10;
+    game = CardSystem.playCard(game, robot.id, '101').updatedGame;
+    game = ScanSystem.performScanAction(game, true, 'seq', 'sector_1').updatedGame;
+    const missionOf = (g: Game) => g.players.find(p => p.id === robot.id)!.missions.find(m => m.cardId === '101')!;
+    expect(missionOf(game).fulfillableRequirementIds.length).toBeGreaterThan(0);
+
+    const step = AITurn.playStep(game);
+    expect(step.kind).toBe('UPDATED');
+    if (step.kind !== 'UPDATED') return;
+    expect(missionOf(step.updatedGame).completedRequirementIds).toHaveLength(1);
+    expect(missionOf(step.updatedGame).fulfillableRequirementIds).toEqual([]);
   }, 60000);
 
   test('la mise en place : chaque robot réserve une carte puis la partie démarre', async () => {

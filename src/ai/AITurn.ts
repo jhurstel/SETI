@@ -1,8 +1,7 @@
-import { effectString } from '../core/cardEffects';
 import { Game, Player, ActionType, GamePhase, RevenueType, FreeActionType, ProbeState, DiskName, SectorNumber, LifeTraceType, HistoryEntry, InteractionState, AIDecision, Card, GAME_CONSTANTS } from '../core/types';
 import { GameEngine } from '../core/Game';
-import { cloneGame } from '../core/cloneGame';
 import { TurnManager } from '../core/TurnManager';
+import { InteractionResolver } from '../core/InteractionResolver';
 import { createRotationState, getAbsoluteSectorForProbe, calculateReachableCellsWithEnergy, calculateReachableCells, getAdjacentCells } from '../core/SolarSystemPosition';
 import { BaseAction } from '../actions/Action';
 import { LaunchProbeAction } from '../actions/LaunchProbeAction';
@@ -319,36 +318,34 @@ export class AITurn {
     return options;
   }
 
+  /**
+   * Validation d'un objectif de mission (même règle que le joueur humain, via InteractionResolver) :
+   * objectifs GAIN_ON_… signalés réalisables par le moteur, puis missions conditionnelles GAIN_IF_… remplies.
+   * Un robot stratégique choisit l'objectif le plus rentable.
+   */
   private static tryClaimMission(game: Game, player: Player, always = false): StepResult | null {
     if (!player.missions || (!always && Math.random() >= 0.4)) return null;
 
-    for (const mission of player.missions) {
-      if (mission.completed) continue;
-      for (const req of mission.requirements) {
-        if (!req.id || (mission.completedRequirementIds || []).includes(req.id)) continue;
-        if (!req.type.startsWith('GAIN_IF_')) continue;
+    // Les objectifs réalisables d'abord : valider un objectif efface les autres objectifs réalisables
+    const candidates = player.missions
+      .filter(mission => !mission.completed)
+      .flatMap(mission => mission.requirements
+        .filter(req => req.id && !mission.completedRequirementIds.includes(req.id))
+        .filter(req => mission.fulfillableRequirementIds.includes(req.id!) || req.type.startsWith('GAIN_IF_'))
+        .map(req => ({ missionId: mission.id, requirementId: req.id!, fulfillable: mission.fulfillableRequirementIds.includes(req.id!) })))
+      .sort((a, b) => Number(b.fulfillable) - Number(a.fulfillable));
 
-        const bonus = CardSystem.evaluateMission(game, player.id, effectString(req));
-        if (!bonus) continue;
-
-        const updatedGame = cloneGame(game);
-        const m = updatedGame.players.find(p => p.id === player.id)?.missions.find(x => x.id === mission.id);
-        if (!m) return null;
-        m.completedRequirementIds.push(req.id);
-        if (m.completedRequirementIds.length >= m.requirements.length) m.completed = true;
-
-        const sequenceId = `ai-mission-${Date.now()}`;
-        const res = ResourceSystem.processBonuses(bonus, updatedGame, player.id, 'mission-claim', sequenceId);
-        const actionText = m.completed ? 'accomplit' : 'valide un objectif de';
-        const historyEntries: HistoryEntry[] = [
-          { message: `${actionText} la mission "${m.name}" ${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, playerId: player.id, sequenceId },
-          ...res.historyEntries.map(e => ({ ...e, sequenceId })),
-        ];
-        // Les interactions déclenchées sont résolues par l'IA (et non confiées à l'interface du joueur humain)
-        return this.resolvePending(res.updatedGame, player, historyEntries, res.newPendingInteractions, sequenceId);
-      }
+    const options: StepResult[] = [];
+    for (const candidate of candidates) {
+      const sequenceId = `ai-mission-${Date.now()}`;
+      const res = InteractionResolver.resolve(game, player.id, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: candidate.missionId, requirementId: candidate.requirementId, sequenceId });
+      if (res.error || res.updatedGame === game) continue;
+      // Les interactions déclenchées sont résolues par l'IA (et non confiées à l'interface du joueur humain)
+      const option = this.resolvePending(res.updatedGame, player, res.historyEntries, res.newInteractions, sequenceId);
+      if (!AIBehavior.isStrategic(player)) return option;
+      options.push(option);
     }
-    return null;
+    return this.pickBest(options, player.id, -Infinity);
   }
 
   private static tryTransferData(game: Game, player: Player, always = false): StepResult | null {
