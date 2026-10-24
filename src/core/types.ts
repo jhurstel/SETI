@@ -280,6 +280,7 @@ export interface Player {
   hasPassed: boolean;
   hasPerformedMainAction: boolean;
   type: 'human' | 'robot';
+  aiDifficulty?: AIDifficulty; // Niveau du robot (absent : EASY, anciennes sauvegardes)
   color: string;
   claimedGoldenMilestones: number[];
   claimedNeutralMilestones: number[];

@@ -10,6 +10,17 @@ import { InteractionResolver } from '../core/InteractionResolver';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { createRotationState, getAbsoluteSectorForProbe, calculateReachableCellsWithEnergy } from '../core/SolarSystemPosition';
+import { AIBehavior } from './AIBehavior';
+import { AIEvaluator } from './AIEvaluator';
+
+/** Interactions où le robot fait un choix au hasard : un robot stratégique tire plusieurs choix et garde le meilleur */
+const RANDOM_CHOICE_INTERACTIONS: InteractionState['type'][] = [
+    'SELECTING_SCAN_SECTOR', 'PLACING_OBJECTIVE_MARKER', 'RESERVING_CARD', 'ACQUIRING_CARD', 'MOVING_PROBE',
+    'ACQUIRING_TECH', 'SELECTING_COMPUTER_SLOT', 'CHOOSING_OBS4_ACTION', 'ACQUIRING_ALIEN_CARD',
+    'CHOOSING_CENTAURIEN_REWARD', 'CHOOSING_MEDIA_OR_MOVE',
+];
+/** Nombre de tirages comparés par un robot stratégique */
+const STRATEGIC_SAMPLES = 4;
 
 interface AIControllerResult {
     updatedGame: Game;
@@ -41,7 +52,7 @@ export class AIController {
                 continue;
             }
 
-            const result = this.processSingleInteraction(game, owner ?? player, interaction, sequenceId);
+            const result = this.resolveInteraction(game, owner ?? player, interaction, sequenceId);
 
             game = result.updatedGame;
             historyEntries.push(...result.historyEntries);
@@ -51,6 +62,23 @@ export class AIController {
         }
 
         return { updatedGame: game, historyEntries, newPendingInteractions: humanInteractions };
+    }
+
+    /**
+     * Résout une interaction. Un robot stratégique compare plusieurs tirages des choix aléatoires
+     * et garde celui qui donne la meilleure position.
+     */
+    private static resolveInteraction(game: Game, player: Player, interaction: InteractionState, sequenceId: string): AIControllerResult {
+        if (!AIBehavior.isStrategic(player) || !RANDOM_CHOICE_INTERACTIONS.includes(interaction.type)) {
+            return this.processSingleInteraction(game, player, interaction, sequenceId);
+        }
+        let best: { result: AIControllerResult; value: number } | null = null;
+        for (let i = 0; i < STRATEGIC_SAMPLES; i++) {
+            const result = this.processSingleInteraction(game, player, interaction, sequenceId);
+            const value = AIEvaluator.evaluate(result.updatedGame, player.id);
+            if (!best || value > best.value) best = { result, value };
+        }
+        return best!.result;
     }
 
     private static processSingleInteraction(

@@ -1,9 +1,9 @@
 import { effectString } from '../core/cardEffects';
-import { Game, Player, ActionType, GamePhase, RevenueType, FreeActionType, ProbeState, DiskName, SectorNumber, LifeTraceType, HistoryEntry, InteractionState } from '../core/types';
+import { Game, Player, ActionType, GamePhase, RevenueType, FreeActionType, ProbeState, DiskName, SectorNumber, LifeTraceType, HistoryEntry, InteractionState, AIDecision, Card, GAME_CONSTANTS } from '../core/types';
 import { GameEngine } from '../core/Game';
 import { cloneGame } from '../core/cloneGame';
 import { TurnManager } from '../core/TurnManager';
-import { createRotationState, getAbsoluteSectorForProbe, calculateReachableCellsWithEnergy } from '../core/SolarSystemPosition';
+import { createRotationState, getAbsoluteSectorForProbe, calculateReachableCellsWithEnergy, calculateReachableCells, getAdjacentCells } from '../core/SolarSystemPosition';
 import { BaseAction } from '../actions/Action';
 import { LaunchProbeAction } from '../actions/LaunchProbeAction';
 import { ScanSectorAction } from '../actions/ScanSectorAction';
@@ -20,6 +20,7 @@ import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { AIBehavior } from './AIBehavior';
 import { AIController } from './AIController';
+import { AIEvaluator } from './AIEvaluator';
 
 /**
  * Résultat d'une étape de jeu d'un robot.
@@ -39,6 +40,11 @@ export type AIStep =
 /** humanInteractions : interactions destinées à un joueur humain, à confier à l'interface. */
 type StepResult = { updatedGame: Game; historyEntries: HistoryEntry[]; humanInteractions?: InteractionState[] };
 
+/** Gain minimal (en équivalent PV) pour qu'un robot stratégique joue une action gratuite facultative */
+const FREE_ACTION_MIN_GAIN = 0.2;
+/** Gain minimal pour qu'un robot stratégique joue une action principale plutôt que de passer */
+const MAIN_ACTION_MIN_GAIN = 0;
+
 /**
  * Tour d'un robot, sans dépendance à React : une étape à la fois
  * (réservation de mise en place, action gratuite, action principale ou fin de tour).
@@ -53,13 +59,22 @@ export class AITurn {
       return this.reserveForSetup(game, player);
     }
 
+    const strategic = AIBehavior.isStrategic(player);
+
     // Actions gratuites (avant ou après l'action principale)
-    const freeAction = this.tryFreeAction(game, player);
+    const freeAction = strategic ? this.tryBestFreeAction(game, player) : this.tryFreeAction(game, player);
     if (freeAction) return { kind: 'UPDATED', ...freeAction };
 
     if (player.hasPerformedMainAction) return { kind: 'END_TURN' };
 
-    const decision = AIBehavior.decideAction(game, player, 'EASY');
+    if (strategic) {
+      const best = this.chooseBestMainAction(game, player);
+      if (best) return { kind: 'UPDATED', ...best };
+      const pass = AIBehavior.createPassDecision(player);
+      return { kind: 'PASS', cardsToKeep: pass.action === ActionType.PASS ? pass.data.cardsToKeep : [] };
+    }
+
+    const decision = AIBehavior.decideRandomAction(game, player);
     if (decision.action === ActionType.PASS) {
       return { kind: 'PASS', cardsToKeep: decision.data.cardsToKeep };
     }
@@ -119,7 +134,7 @@ export class AITurn {
   }
 
   /** Exécute une action principale via le moteur, puis résout automatiquement les interactions qu'elle déclenche. */
-  private static playMainAction(game: Game, player: Player, decision: ReturnType<typeof AIBehavior.decideAction>): StepResult | null {
+  private static playMainAction(game: Game, player: Player, decision: AIDecision): StepResult | null {
     let action: BaseAction;
     switch (decision.action) {
       case ActionType.LAUNCH_PROBE: action = new LaunchProbeAction(player.id); break;
@@ -132,7 +147,13 @@ export class AITurn {
       default: return null;
     }
 
-    const result = new GameEngine(game).executeAction(action);
+    let result: ReturnType<GameEngine['executeAction']>;
+    try {
+      result = new GameEngine(game).executeAction(action);
+    } catch (error) {
+      console.warn(`[AI] ${player.name} : action ${decision.action} impossible`, error);
+      return null;
+    }
     if (!result.success || !result.updatedState) return null;
 
     let updatedGame = result.updatedState;
@@ -176,8 +197,130 @@ export class AITurn {
       ?? this.tryDiscardForFreeAction(game, player);
   }
 
-  private static tryClaimMission(game: Game, player: Player): StepResult | null {
-    if (!player.missions || Math.random() >= 0.4) return null;
+  // ---------------------------------------------------------------------------
+  // Robot stratégique (MEDIUM, EXPERT) : chaque option est simulée avec le moteur,
+  // puis la position obtenue est notée par AIEvaluator.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Simule chaque action principale possible et renvoie le résultat de la meilleure.
+   * Renvoie null si aucune ne vaut mieux que passer.
+   */
+  private static chooseBestMainAction(game: Game, player: Player): StepResult | null {
+    const baseline = AIEvaluator.evaluate(game, player.id);
+    let best: { result: StepResult; gain: number; decision: AIDecision } | null = null;
+
+    for (const decision of AIBehavior.listMainActions(game, player)) {
+      const result = this.playMainAction(game, player, decision);
+      if (!result) continue;
+      const gain = AIEvaluator.evaluate(result.updatedGame, player.id) - baseline;
+      if (!best || gain > best.gain) best = { result, gain, decision };
+    }
+
+    if (!best || best.gain <= MAIN_ACTION_MIN_GAIN) {
+      console.log(`[AI] ${player.name} : aucune action rentable, passe`);
+      return null;
+    }
+    console.log(`[AI] ${player.name} chose:`, best.decision.action, `(gain estimé ${best.gain.toFixed(2)})`);
+    return best.result;
+  }
+
+  /**
+   * Action gratuite d'un robot stratégique : missions et transfert de données dès que possible,
+   * sinon la meilleure option (déplacement, achat de carte, défausse) si elle rapporte assez.
+   */
+  private static tryBestFreeAction(game: Game, player: Player): StepResult | null {
+    const sure = this.tryClaimMission(game, player, true) ?? this.tryTransferData(game, player, true);
+    if (sure) return sure;
+
+    const baseline = AIEvaluator.evaluate(game, player.id);
+    const candidates = [
+      ...this.probeMoveOptions(game, player, 0),
+      ...this.buyCardOptions(game, player),
+      ...this.discardForFreeActionOptions(game, player),
+    ];
+    return this.pickBest(candidates, player.id, baseline + FREE_ACTION_MIN_GAIN);
+  }
+
+  /** Meilleur résultat dont l'évaluation dépasse le seuil, ou null */
+  private static pickBest(candidates: StepResult[], playerId: string, threshold: number): StepResult | null {
+    let best: StepResult | null = null;
+    let bestValue = threshold;
+    for (const candidate of candidates) {
+      const value = AIEvaluator.evaluate(candidate.updatedGame, playerId);
+      if (value > bestValue) {
+        best = candidate;
+        bestValue = value;
+      }
+    }
+    return best;
+  }
+
+  /** Tous les déplacements d'une case des sondes du joueur (payés en énergie au-delà des déplacements gratuits) */
+  private static probeMoveOptions(game: Game, player: Player, freeMovements: number): StepResult[] {
+    const options: StepResult[] = [];
+    const solarSystem = game.board.solarSystem;
+    const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
+
+    for (const probe of player.probes) {
+      if (probe.state !== ProbeState.IN_SOLAR_SYSTEM || !probe.solarPosition) continue;
+      if (!ProbeSystem.canMoveProbe(game, player.id, probe.id, freeMovements).canMove) continue;
+
+      const absSector = getAbsoluteSectorForProbe(probe.solarPosition, rotationState);
+      // Cases voisines existantes (le disque E est hors du système solaire)
+      const destinations = calculateReachableCells(probe.solarPosition.disk, absSector, 2, rotationState, true, undefined, solarSystem.extraCelestialObjects);
+      getAdjacentCells(probe.solarPosition.disk, absSector)
+        .filter(adj => destinations.has(`${adj.disk}${adj.sector}`))
+        .forEach(adj => {
+          const sequenceId = `ai-move-${Date.now()}`;
+          try {
+            const res = ProbeSystem.moveProbe(game, player.id, probe.id, adj.disk, adj.sector, freeMovements, sequenceId);
+            options.push(this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, sequenceId));
+          } catch {
+            // Déplacement refusé par le moteur : option ignorée
+          }
+        });
+    }
+    return options;
+  }
+
+  /** Achat d'une carte de la rangée ou de la pioche avec 3 Médias */
+  private static buyCardOptions(game: Game, player: Player): StepResult[] {
+    if (player.mediaCoverage < GAME_CONSTANTS.BUY_CARD_COST_MEDIA) return [];
+    const choices: (Card | undefined)[] = [...game.decks.cardRow, undefined];
+    return choices.flatMap(card => {
+      const res = CardSystem.buyCard(game, player.id, card?.id, false);
+      if (res.error) return [];
+      const message = card ? `achète la carte "${card.name}"` : 'achète une carte de la pioche';
+      return [{ updatedGame: res.updatedGame, historyEntries: [{ message, playerId: player.id }] }];
+    });
+  }
+
+  /** Défausse d'une carte de la main pour son action gratuite (Média, Donnée ou déplacement) */
+  private static discardForFreeActionOptions(game: Game, player: Player): StepResult[] {
+    const options: StepResult[] = [];
+    for (const card of CardSystem.getHandCards(player)) {
+      if (!card.freeAction) continue;
+      const sequenceId = `ai-free-action-${Date.now()}`;
+      const discarded = CardSystem.discardCard(game, player.id, card.id);
+      const discardedPlayer = discarded.players.find(p => p.id === player.id)!;
+
+      if (card.freeAction === FreeActionType.MEDIA) {
+        options.push({ updatedGame: ResourceSystem.updateMedia(discarded, player.id, 1).updatedGame, historyEntries: [{ message: `défausse "${card.name}" et gagne 1 Média`, playerId: player.id, sequenceId }] });
+      } else if (card.freeAction === FreeActionType.DATA) {
+        options.push({ updatedGame: ResourceSystem.updateData(discarded, player.id, 1).updatedGame, historyEntries: [{ message: `défausse "${card.name}" et gagne 1 Donnée`, playerId: player.id, sequenceId }] });
+      } else if (card.freeAction === FreeActionType.MOVEMENT) {
+        const move = this.pickBest(this.probeMoveOptions(discarded, discardedPlayer, 1), player.id, -Infinity);
+        if (move) {
+          options.push({ ...move, historyEntries: [{ message: `défausse "${card.name}" pour un déplacement gratuit`, playerId: player.id, sequenceId }, ...move.historyEntries] });
+        }
+      }
+    }
+    return options;
+  }
+
+  private static tryClaimMission(game: Game, player: Player, always = false): StepResult | null {
+    if (!player.missions || (!always && Math.random() >= 0.4)) return null;
 
     for (const mission of player.missions) {
       if (mission.completed) continue;
@@ -208,8 +351,8 @@ export class AITurn {
     return null;
   }
 
-  private static tryTransferData(game: Game, player: Player): StepResult | null {
-    if (player.data <= 0 || Math.random() >= 0.4) return null;
+  private static tryTransferData(game: Game, player: Player, always = false): StepResult | null {
+    if (player.data <= 0 || (!always && Math.random() >= 0.4)) return null;
 
     const slotId = Object.keys(player.dataComputer.slots).find(id => ComputerSystem.canFillSlot(player, id));
     if (!slotId) return null;

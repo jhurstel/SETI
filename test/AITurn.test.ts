@@ -4,15 +4,18 @@ import { GameFactory } from '../src/core/GameFactory';
 import { TurnManager } from '../src/core/TurnManager';
 import { PassAction } from '../src/actions/PassAction';
 import { CardSystem } from '../src/systems/CardSystem';
-import { Game, GamePhase } from '../src/core/types';
+import { AIDifficulty, Game, GamePhase } from '../src/core/types';
 import { mockFetchFromPublic } from './helpers/gameFixture';
 
 /** Partie en phase SETUP dont tous les joueurs sont des robots. */
-async function createRobotGame(names: string[]): Promise<Game> {
+async function createRobotGame(names: string[], levels: AIDifficulty[] = []): Promise<Game> {
   const fetchSpy = mockFetchFromPublic();
   try {
     const game = await GameFactory.createGame(names);
-    game.players.forEach(p => (p.type = 'robot'));
+    game.players.forEach((p, i) => {
+      p.type = 'robot';
+      p.aiDifficulty = levels[i];
+    });
     return GameFactory.initializeGame(game);
   } finally {
     fetchSpy.mockRestore();
@@ -81,6 +84,21 @@ describe('AITurn (parties complètes entre robots)', () => {
       expect(p.score).toBe(result.game.finalScores!.find(s => s.playerId === p.id)!.finalScore);
     });
     expect(result.steps).toBeLessThan(5000);
+  }, 60000);
+
+  test("une partie entre robots intermédiaires et débutants va jusqu'au décompte final", async () => {
+    const game = await createRobotGame(['R1', 'R2', 'R3'], ['MEDIUM', 'EASY', 'MEDIUM']);
+    const result = playRobotGame(game);
+
+    expect(result.game.phase).toBe(GamePhase.FINAL_SCORING);
+    expect(result.game.finalScores).toHaveLength(3);
+  }, 120000);
+
+  test('un robot intermédiaire ne modifie pas la partie reçue', async () => {
+    const started = playRobotGame(await createRobotGame(['R1', 'R2'], ['MEDIUM', 'MEDIUM']), 2).game;
+    const snapshot = JSON.stringify(started);
+    for (let i = 0; i < 3; i++) AITurn.playStep(started);
+    expect(JSON.stringify(started)).toBe(snapshot);
   }, 60000);
 
   test('la mise en place : chaque robot réserve une carte puis la partie démarre', async () => {

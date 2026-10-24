@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Game, HistoryEntry, InteractionState } from '../../core/types';
+import { AIDifficulty, Game, HistoryEntry, InteractionState } from '../../core/types';
 import { GameFactory } from '../../core/GameFactory';
 import { GameEngine } from '../../core/Game';
 import { NewGameModal } from './NewGameModal';
@@ -62,7 +62,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       try {
           const robotNamesPool = ['R2-D2', 'C-3PO', 'HAL 9000', 'Wall-E', 'T-800', 'Data', 'Bender', 'Marvin', 'Bishop', 'GLaDOS', 'Auto', 'EVE'];
           const shuffledRobots = [...robotNamesPool].sort(() => 0.5 - Math.random());
-          difficulty;
 
           const playerNames = ['Thierry'];
           for (let i = 1; i < playerCount; i++) {
@@ -74,6 +73,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               newGame.players[0].type = 'human';
               for(let i=1; i<newGame.players.length; i++) {
               newGame.players[i].type = 'robot';
+              newGame.players[i].aiDifficulty = difficulty as AIDifficulty;
             }
 
           newGame = GameFactory.initializeGame(newGame);

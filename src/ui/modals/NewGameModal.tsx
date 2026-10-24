@@ -9,7 +9,7 @@ interface NewGameModalProps {
 
 export const NewGameModal: React.FC<NewGameModalProps> = ({ visible, onConfirm, onCancel }) => {
   const [playerCount, setPlayerCount] = useState(2);
-  const [difficulty, setDifficulty] = useState('EASY');
+  const [difficulty, setDifficulty] = useState('MEDIUM');
   const [isFirstPlayer, setIsFirstPlayer] = useState(true);
 
   if (!visible) return null;
@@ -44,9 +44,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({ visible, onConfirm, 
                 <input type="radio" checked={difficulty === 'EASY'} onChange={() => setDifficulty('EASY')} /> 
                 Débutant
             </label>
-            <label className="seti-radio-label disabled">
-                <input type="radio" checked={difficulty === 'MEDIUM'} disabled /> 
-                Intermédiaire (Bientôt)
+            <label className={`seti-radio-label ${difficulty === 'MEDIUM' ? 'selected' : ''}`}>
+                <input type="radio" checked={difficulty === 'MEDIUM'} onChange={() => setDifficulty('MEDIUM')} /> 
+                Intermédiaire
             </label>
             <label className="seti-radio-label disabled">
                 <input type="radio" checked={difficulty === 'EXPERT'} disabled /> 
