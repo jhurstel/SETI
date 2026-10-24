@@ -443,6 +443,12 @@ export class ScanSystem {
       historyEntries.push({ message: `gagne l'action <strong>Scanner un secteur</strong>`, playerId: currentPlayer.id, sequenceId });
     }
 
+    // Missions « après avoir effectué l'action Scanner un secteur » (ex: Temps de Télescope).
+    // Déclenchées par l'action elle-même : les signaux gagnés en récompense ne les relancent pas
+    if (CardSystem.processMissionBuffs(currentPlayer, buff => buff.type === 'GAIN_ON_SCAN')) {
+      historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId: currentPlayer.id, sequenceId });
+    }
+
     // 1. Signal depuis la Terre
     if (scanSectorId) {
       const res = this.performSignalAndCover(updatedGame, currentPlayer.id, scanSectorId, [], false, sequenceId);
@@ -534,12 +540,12 @@ export class ScanSystem {
       }
     }
 
-    // Traitement des missions conditionnelles (GAIN_ON_SIGNAL)
+    // Traitement des missions conditionnelles (GAIN_ON_<couleur>_SIGNAL).
+    // GAIN_ON_SCAN est traité par performScanAction : une fois par action Scanner, pas à chaque signal
     const player = updatedGame.players.find(p => p.id === playerId);
     if (player) {
       const sector = this.getSectorById(updatedGame, sectorId);
       const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
-        if (buff.type === 'GAIN_ON_SCAN') return true;
         if (sector) {
           if (sector.color === SectorType.YELLOW && buff.type === 'GAIN_ON_YELLOW_SIGNAL') return true;
           if (sector.color === SectorType.RED && buff.type === 'GAIN_ON_RED_SIGNAL') return true;

@@ -3,6 +3,8 @@ import { Game, InteractionState, Sector, SectorType, SignalType } from '../src/c
 
 type ScanSectorSelection = Extract<InteractionState, { type: 'SELECTING_SCAN_SECTOR' }>;
 import { createTestGame, getPlayer } from './helpers/gameFixture';
+import { CardSystem } from '../src/systems/CardSystem';
+import { InteractionResolver } from '../src/core/InteractionResolver';
 
 /** Marque les signaux d'un secteur dans l'ordre donné (le dernier est le plus récent). */
 function markSignals(sector: Sector, playerIds: string[]): void {
@@ -244,6 +246,38 @@ describe('ScanSystem', () => {
       expect(getPlayer(res.updatedGame, P1).energy).toBe(2);
       expect(getPlayer(res.updatedGame, P1).probes.length).toBe(probesBefore + 1);
       expect(getPlayer(game, P1).energy).toBe(3);
+    });
+  });
+  describe('missions « après avoir effectué l’action Scanner un secteur »', () => {
+    test('Temps de Télescope : un scan ne déclenche qu’un objectif, et le signal gagné ne relance pas la mission', () => {
+      const playerId = game.players[game.currentPlayerIndex].id;
+      const card = [...game.decks.cards, ...game.decks.cardRow, ...game.players.flatMap(p => p.cards)].find(c => c.id === '101')!;
+      game.decks.cards = game.decks.cards.filter(c => c.id !== '101');
+      game.decks.cardRow = game.decks.cardRow.filter(c => c.id !== '101');
+      game.players.forEach(p => (p.cards = p.cards.filter(c => c.id !== '101')));
+      getPlayer(game, playerId).cards.push(card);
+      getPlayer(game, playerId).credits = 10;
+      let current = CardSystem.playCard(game, playerId, '101').updatedGame;
+      const missionOf = (g: Game) => getPlayer(g, playerId).missions.find(m => m.cardId === '101')!;
+
+      // Un signal qui ne vient pas de l'action Scanner ne déclenche rien
+      current = ScanSystem.performSignalAndCover(current, playerId, 'sector_1', [], false, 'seq').updatedGame;
+      expect(missionOf(current).fulfillableRequirementIds).toEqual([]);
+
+      // L'action Scanner rend les objectifs réalisables
+      current = ScanSystem.performScanAction(current, true, 'seq', 'sector_1').updatedGame;
+      expect(missionOf(current).fulfillableRequirementIds.length).toBeGreaterThan(0);
+
+      // Valider l'objectif « signal jaune » puis marquer ce signal
+      const requirementId = missionOf(current).requirements[0].id!;
+      const claim = InteractionResolver.resolve(current, playerId, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: missionOf(current).id, requirementId, sequenceId: 'seq' });
+      const signal = claim.newInteractions.find(i => i.type === 'SELECTING_SCAN_SECTOR') as ScanSectorSelection;
+      expect(signal).toBeDefined();
+      const yellowSector = claim.updatedGame.board.sectors.find(s => s.color === SectorType.YELLOW)!;
+      current = ScanSystem.resolveScanSectorSelection(claim.updatedGame, playerId, signal, yellowSector.id, 'seq').updatedGame;
+
+      expect(missionOf(current).completedRequirementIds).toEqual([requirementId]);
+      expect(missionOf(current).fulfillableRequirementIds).toEqual([]);
     });
   });
 });
