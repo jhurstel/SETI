@@ -1,9 +1,8 @@
 import { cloneGame } from '../core/cloneGame';
-import { Game, InteractionState, RevenueType, TechnologyCategory, Player, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType } from '../core/types';
+import { Game, InteractionState, TechnologyCategory, Player, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { ResourceSystem } from '../systems/ResourceSystem';
 import { ScanSystem } from '../systems/ScanSystem';
 import { ScoreManager } from '../core/ScoreManager';
 import { InteractionResolver } from '../core/InteractionResolver';
@@ -152,44 +151,21 @@ export class AIController {
             }
             case 'RESERVING_CARD': {
                 const p = updatedGame.players.find(p => p.id === player.id);
-                const hand = p ? CardSystem.getHandCards(p) : [];
-                if (p && hand.length > 0) {
-                    const count = Math.min(interaction.count, hand.length);
-                    const shuffled = [...hand].sort(() => 0.5 - Math.random());
-                    const cardsToReserve = shuffled.slice(0, count);
-                    cardsToReserve.forEach(card => {
-                        updatedGame = CardSystem.reserveCard(updatedGame, p.id, card.id);
-                        const gain = card.revenue === RevenueType.CREDIT ? ResourceSystem.formatResource(1, 'CREDIT')
-                            : card.revenue === RevenueType.ENERGY ? ResourceSystem.formatResource(1, 'ENERGY')
-                            : ResourceSystem.formatResource(1, 'CARD');
-                        addHistory(`réserve carte "${card.name}" et gagne ${gain}`, p.id, game);
-                    });
-                }
+                const hand = p ? [...CardSystem.getHandCards(p)].sort(() => 0.5 - Math.random()) : [];
+                const res = CardSystem.reserveCards(updatedGame, player.id, hand.slice(0, interaction.count).map(c => c.id), sequenceId);
+                updatedGame = res.updatedGame;
+                historyEntries.push(...res.historyEntries);
                 break;
             }
             case 'ACQUIRING_CARD': {
                 for (let i = 0; i < interaction.count; i++) {
                     const row = updatedGame.decks.cardRow;
-                    let cardId: string | undefined = undefined;
-                    if (row.length > 0 && Math.random() > 0.5) {
-                        cardId = row[Math.floor(Math.random() * row.length)].id;
-                    }
-                    const res = CardSystem.buyCard(updatedGame, player.id, cardId, interaction.isFree);
-                    if (!res.error) {
-                        const cardName = cardId ? row.find(c => c.id === cardId)?.name : "Pioche";
-                        addHistory(`acquiert carte ${cardId ? `"${cardName}"` : "de la pioche"}`, player.id, updatedGame);
-                        updatedGame = res.updatedGame;
-                        if (interaction.triggerFreeAction) {
-                            const p = updatedGame.players.find(p => p.id === player.id);
-                            if (p && p.cards.length > 0) {
-                                const card = p.cards[p.cards.length - 1];
-                                if (card.freeAction === FreeActionType.MOVEMENT) {
-                                    newPendingInteractions.push({ type: 'MOVING_PROBE', count: 1, sequenceId });
-                                }
-                                // Other free actions are applied directly in ResourceSystem
-                            }
-                        }
-                    }
+                    const cardId = row.length > 0 && Math.random() > 0.5 ? row[Math.floor(Math.random() * row.length)].id : undefined;
+                    const res = CardSystem.acquireCard(updatedGame, player.id, cardId, { isFree: interaction.isFree, triggerFreeAction: interaction.triggerFreeAction }, sequenceId);
+                    if (res.error) continue;
+                    updatedGame = res.updatedGame;
+                    historyEntries.push(...res.historyEntries);
+                    newPendingInteractions.push(...res.newPendingInteractions);
                 }
                 break;
             }
@@ -244,9 +220,10 @@ export class AIController {
             }
             case 'SELECTING_COMPUTER_SLOT': {
                 const tech = interaction.tech;
-                const targetCol = [1, 3, 5, 6][Math.floor(Math.random() * 4)];
                 const p = updatedGame.players.find(p => p.id === player.id);
-                if (p) {
+                const columns = p ? ComputerSystem.TECH_COLUMNS.filter(col => ComputerSystem.canAssignTechnology(p, col).canAssign) : [];
+                if (p && columns.length > 0) {
+                    const targetCol = columns[Math.floor(Math.random() * columns.length)];
                     ComputerSystem.assignTechnology(p, tech, targetCol);
                     addHistory(`assigne technologie "${tech.name}" au slot ${targetCol}`, player.id, game);
                 }
@@ -356,14 +333,13 @@ export class AIController {
                 break;
             }
             case 'DISCARDING_FOR_SIGNAL': {
-                // Défausser des cartes de la main pour leurs signaux (le nombre est tiré au hasard ; un robot stratégique compare les tirages)
+                // Nombre de cartes tiré au hasard ; un robot stratégique compare les tirages
                 const p = updatedGame.players.find(p => p.id === player.id);
                 const hand = p ? [...CardSystem.getHandCards(p)].sort(() => 0.5 - Math.random()) : [];
                 const count = Math.floor(Math.random() * (Math.min(interaction.count, hand.length) + 1));
-                hand.slice(0, count).forEach(card => {
-                    newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, cardId: card.id, sequenceId });
-                });
-                if (count > 0) addHistory(`défausse ${count} carte${count > 1 ? 's' : ''} pour leurs signaux`, player.id, game);
+                const res = CardSystem.discardForSignals(updatedGame, player.id, hand.slice(0, count).map(c => c.id), sequenceId);
+                historyEntries.push(...res.historyEntries);
+                newPendingInteractions.push(...res.newPendingInteractions);
                 break;
             }
             case 'CHOOSING_CENTAURIEN_REWARD': {
@@ -381,18 +357,10 @@ export class AIController {
                 break;
             }
             case 'CHOOSING_MEDIA_OR_MOVE': {
-                const choice = Math.random() > 0.5 ? 'MEDIA' : 'MOVE';
-                if (choice === 'MEDIA') {
-                    const res = ResourceSystem.updateMedia(updatedGame, player.id, 1);
-                    updatedGame = res.updatedGame;
-                    addHistory(`choisit de gagner ${ResourceSystem.formatResource(1, 'MEDIA')}`, player.id, game);
-                } else {
-                    newPendingInteractions.push({ type: 'MOVING_PROBE', count: 1, sequenceId });
-                    addHistory(`choisit un déplacement gratuit`, player.id, game);
-                }
-                if (interaction.remainingMoves && interaction.remainingMoves > 0) {
-                    newPendingInteractions.push({ type: 'MOVING_PROBE', count: interaction.remainingMoves, sequenceId });
-                }
+                const res = ProbeSystem.chooseMediaOrMove(updatedGame, player.id, Math.random() > 0.5 ? 'MEDIA' : 'MOVE', interaction.remainingMoves || 0, sequenceId);
+                updatedGame = res.updatedGame;
+                historyEntries.push(...res.historyEntries);
+                if (res.nextInteraction) newPendingInteractions.push(res.nextInteraction);
                 break;
             }
             case 'REMOVING_ORBITER': {

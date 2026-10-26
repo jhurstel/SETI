@@ -98,6 +98,132 @@ export class CardSystem {
     }
 
     /**
+     * Réserve des cartes de la main (revenu + gain immédiat, pioche comprise) et décrit l'opération.
+     * Les cartes sans revenu ou absentes de la main sont ignorées.
+     */
+    static reserveCards(game: Game, playerId: string, cardIds: string[], sequenceId?: string): { updatedGame: Game; historyEntries: HistoryEntry[]; reservedCount: number } {
+        let updatedGame = game;
+        const historyEntries: HistoryEntry[] = [];
+        let reservedCount = 0;
+        for (const cardId of cardIds) {
+            const before = updatedGame.players.find(p => p.id === playerId);
+            const card = before?.cards.find(c => c.id === cardId);
+            if (!before || !card || !card.revenue) continue;
+            const handBefore = before.cards.map(c => c.id);
+            const next = this.reserveCard(updatedGame, playerId, cardId);
+            if (next === updatedGame) continue;
+            updatedGame = next;
+            reservedCount++;
+
+            let gain = ResourceSystem.formatResource(1, card.revenue === RevenueType.CREDIT ? 'CREDIT' : card.revenue === RevenueType.ENERGY ? 'ENERGY' : 'CARD');
+            if (card.revenue === RevenueType.CARD) {
+                const drawn = updatedGame.players.find(p => p.id === playerId)!.cards.find(c => !handBefore.includes(c.id));
+                if (drawn) gain += ` "${drawn.name}"`;
+            }
+            historyEntries.push({ message: `réserve carte "${card.name}" et gagne ${gain}`, playerId, sequenceId });
+        }
+        return { updatedGame, historyEntries, reservedCount };
+    }
+
+    /**
+     * Gain ou achat (3 Médias) d'une carte de la rangée ou de la pioche (cardId absent).
+     * Avec triggerFreeAction (Subventions, carte 11), la carte est révélée et son action gratuite appliquée.
+     */
+    static acquireCard(game: Game, playerId: string, cardId: string | undefined, options: { isFree?: boolean; triggerFreeAction?: boolean } = {}, sequenceId?: string): {
+        updatedGame: Game; historyEntries: HistoryEntry[]; newPendingInteractions: InteractionState[]; error?: string;
+    } {
+        const handBefore = game.players.find(p => p.id === playerId)?.cards.map(c => c.id) || [];
+        const bought = this.buyCard(game, playerId, cardId, !!options.isFree);
+        if (bought.error) return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: bought.error };
+
+        const updatedGame = cloneGame(bought.updatedGame);
+        const player = updatedGame.players.find(p => p.id === playerId)!;
+        const card = player.cards.find(c => !handBefore.includes(c.id));
+        const cardName = card?.name || 'Inconnue';
+        const newPendingInteractions: InteractionState[] = [];
+
+        let message = options.isFree
+            ? (cardId ? `choisit carte "${cardName}"` : `pioche carte "${cardName}"`)
+            : `paye 3 médias pour acheter carte "${cardName}" depuis ${cardId ? 'la rangée' : 'la pioche'}`;
+
+        if (options.triggerFreeAction && card) {
+            card.isRevealed = true;
+            switch (card.freeAction) {
+                case FreeActionType.MEDIA:
+                    player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                    message += ' et gagne 1 Média';
+                    break;
+                case FreeActionType.DATA:
+                    player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
+                    message += ' et gagne 1 Donnée';
+                    break;
+                case FreeActionType.MOVEMENT:
+                    newPendingInteractions.push({ type: 'MOVING_PROBE', count: 1, sequenceId });
+                    message += ' et gagne 1 Déplacement';
+                    break;
+                case FreeActionType.PV_MOVEMENT:
+                    player.score += 1;
+                    newPendingInteractions.push({ type: 'MOVING_PROBE', count: 1, sequenceId });
+                    message += ' et gagne 1 PV et 1 Déplacement';
+                    break;
+                case FreeActionType.PV_DATA:
+                    player.score += 1;
+                    player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
+                    message += ' et gagne 1 PV et 1 Donnée';
+                    break;
+                case FreeActionType.TWO_MEDIA:
+                    player.mediaCoverage = Math.min(player.mediaCoverage + 2, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+                    message += ' et gagne 2 Médias';
+                    break;
+            }
+        }
+        return { updatedGame, historyEntries: [{ message, playerId, sequenceId }], newPendingInteractions };
+    }
+
+    /**
+     * Défausse de cartes de la main pour leurs signaux (cartes 67, 114, Observation III) :
+     * une sélection de secteur par carte (la carte est défaussée lors du signal).
+     */
+    static discardForSignals(game: Game, playerId: string, cardIds: string[], sequenceId?: string): { historyEntries: HistoryEntry[]; newPendingInteractions: InteractionState[] } {
+        const player = game.players.find(p => p.id === playerId);
+        const cards = player ? this.getHandCards(player).filter(c => cardIds.includes(c.id)) : [];
+        if (cards.length === 0) {
+            return { historyEntries: [{ message: 'ne défausse aucune carte pour marquer des signaux', playerId, sequenceId }], newPendingInteractions: [] };
+        }
+        return {
+            historyEntries: [],
+            newPendingInteractions: cards.map(card => ({ type: 'SELECTING_SCAN_SECTOR' as const, color: card.scanSector, cardId: card.id, sequenceId })),
+        };
+    }
+
+    /**
+     * Gains immédiats annoncés par une carte (sans la jouer), pour avertir le joueur d'un gain perdu
+     * (données au maximum, pas de sonde à lancer…) avant confirmation.
+     */
+    static previewImmediateBonuses(card: Card): Bonus {
+        const bonus: Bonus = {};
+        (card.immediateEffects || []).forEach(effect => {
+            if (effect.type === 'GAIN') {
+                if (effect.target === 'PROBE') bonus.probe = (bonus.probe || 0) + effectNumber(effect);
+                if (effect.target === 'DATA') bonus.data = (bonus.data || 0) + effectNumber(effect);
+                if (effect.target === 'MEDIA') bonus.media = (bonus.media || 0) + effectNumber(effect);
+            } else if (effect.type === 'ACTION') {
+                if (effect.target === 'MOVEMENT') bonus.movements = (bonus.movements || 0) + effectNumber(effect);
+                if (effect.target === 'LAND') bonus.landing = (bonus.landing || 0) + effectNumber(effect);
+                if (effect.target === 'TECH') {
+                    if (!bonus.technologies) bonus.technologies = [];
+                    bonus.technologies.push(effectAmount<TechnologyCategory>(effect));
+                }
+            }
+        });
+        const passives = card.passiveEffects || [];
+        if (passives.some(e => e.type === 'ATMOSPHERIC_ENTRY')) bonus.atmosphericEntry = true;
+        if (passives.some(e => e.type === 'SAMPLE_RETURN')) bonus.sampleReturn = true;
+        if (passives.some(e => e.type === 'IGNORE_PROBE_LIMIT')) bonus.ignoreProbeLimit = true;
+        return bonus;
+    }
+
+    /**
      * Vérifie si un joueur peut défausser une carte
      */
     static canDiscardFreeAction(game: Game, playerId: string, freeAction: FreeActionType): { canDiscard: boolean, reason: string } {
@@ -918,10 +1044,7 @@ export class CardSystem {
      * Achète une carte (depuis la rangée ou la pioche)
      */
     static buyCard(game: Game, playerId: string, cardIdFromRow?: string, isFree: boolean = false): { updatedGame: Game, error?: string } {
-        let updatedGame = { ...game };
-
-        // Copie profonde du joueur et de ses cartes
-        updatedGame.players = updatedGame.players.map(p => p.id === playerId ? { ...p, cards: [...p.cards] } : p);
+        let updatedGame = cloneGame(game);
         const player = updatedGame.players.find(p => p.id === playerId);
         if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
 
@@ -934,12 +1057,6 @@ export class CardSystem {
         }
 
         if (cardIdFromRow) {
-            // Copie profonde de la rangée de cartes avant modification
-            updatedGame.decks = {
-                ...updatedGame.decks,
-                cardRow: [...(updatedGame.decks.cardRow || [])]
-            };
-
             const cardIndex = updatedGame.decks.cardRow.findIndex(c => c.id === cardIdFromRow);
             if (cardIndex !== -1) {
                 const [card] = updatedGame.decks.cardRow.splice(cardIndex, 1);

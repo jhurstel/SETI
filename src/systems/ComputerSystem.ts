@@ -127,6 +127,18 @@ export class ComputerSystem {
     return { updatedGame, gains, bonusEffects };
   }
 
+  /** Colonnes de l'ordinateur pouvant recevoir une technologie Informatique */
+  static readonly TECH_COLUMNS = [1, 3, 5, 6];
+
+  /** Une technologie Informatique peut-elle être placée dans cette colonne (colonne prévue et encore libre) ? */
+  static canAssignTechnology(player: Player, column: number): { canAssign: boolean; reason?: string } {
+    if (!this.TECH_COLUMNS.includes(column)) return { canAssign: false, reason: 'Colonne non prévue pour une technologie' };
+    if (player.dataComputer.slots?.[`${column}a`]?.bonus === '2pv') {
+      return { canAssign: false, reason: 'Emplacement déjà occupé. Sélectionnez un autre emplacement.' };
+    }
+    return { canAssign: true };
+  }
+
   static assignTechnology(player: Player, tech: Technology, column: number) {
     const slots = player.dataComputer.slots;
     const topSlotId = `${column}a`;

@@ -1,5 +1,6 @@
 import { getObjectPosition, performRotation } from '../core/SolarSystemPosition';
 import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, HistoryEntry, ProbeState } from '../core/types';
+import { cloneGame } from '../core/cloneGame';
 import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';
@@ -156,42 +157,52 @@ export class ResourceSystem {
     }
   }
 
-  static tradeResources(game: Game, playerId: string, spendType: string, gainType: string, cardIdsToSpend?: string[]): { updatedGame: Game, error?: string } {
-    let updatedGame = { ...game };
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+  /**
+   * Échange : 2 crédits, 2 énergies ou 2 cartes de la main (défaussées) contre 1 crédit, 1 énergie ou 1 carte piochée.
+   * Renvoie aussi le message d'historique.
+   */
+  static tradeResources(game: Game, playerId: string, spendType: string, gainType: string, cardIdsToSpend?: string[]): { updatedGame: Game, error?: string, historyEntries: HistoryEntry[] } {
+    let updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId);
-    if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
+    if (!player) return { updatedGame: game, error: "Joueur non trouvé", historyEntries: [] };
+    let spentText = ResourceSystem.formatResource(2, spendType);
 
     const normalizedSpend = spendType.toLowerCase().trim().replace('é', 'e');
     const normalizedGain = gainType.toLowerCase().trim().replace('é', 'e');
 
     if (normalizedSpend === 'credit') {
-      if (player.credits < 2) return { updatedGame: game, error: "Pas assez de crédits" };
+      if (player.credits < 2) return { updatedGame: game, error: "Pas assez de crédits", historyEntries: [] };
       player.credits -= 2;
     } else if (normalizedSpend === 'energy') {
-      if (player.energy < 2) return { updatedGame: game, error: "Pas assez d'énergie" };
+      if (player.energy < 2) return { updatedGame: game, error: "Pas assez d'énergie", historyEntries: [] };
       player.energy -= 2;
     } else if (normalizedSpend === 'card') {
-      if (!cardIdsToSpend || cardIdsToSpend.length !== 2) return { updatedGame: game, error: "2 cartes doivent être sélectionnées" };
+      const spent = CardSystem.getHandCards(player).filter(c => cardIdsToSpend?.includes(c.id));
+      if (!cardIdsToSpend || cardIdsToSpend.length !== 2 || spent.length !== 2) return { updatedGame: game, error: "2 cartes doivent être sélectionnées", historyEntries: [] };
       player.cards = player.cards.filter(c => !cardIdsToSpend.includes(c.id));
+      updatedGame.decks.discardPile = [...(updatedGame.decks.discardPile || []), ...spent];
+      spentText = spent.map(c => `"${c.name}"`).join(' et ');
     }
 
+    let gainedText = ResourceSystem.formatResource(1, gainType);
     if (normalizedGain === 'credit') {
       player.credits += 1;
     } else if (normalizedGain === 'energy') {
       player.energy += 1;
     } else if (normalizedGain === 'carte' || normalizedGain === 'card') {
+      const handBefore = player.cards.map(c => c.id);
       updatedGame = CardSystem.drawCards(updatedGame, playerId, 1);
+      const drawn = updatedGame.players.find(p => p.id === playerId)!.cards.find(c => !handBefore.includes(c.id));
+      if (drawn) gainedText += ` "${drawn.name}"`;
     } else {
-      return { updatedGame: game, error: "Type de ressource à recevoir invalide" };
+      return { updatedGame: game, error: "Type de ressource à recevoir invalide", historyEntries: [] };
     }
 
-    return { updatedGame };
+    return { updatedGame, historyEntries: [{ message: `échange ${spentText} contre ${gainedText}`, playerId }] };
   }
 
   static updateMedia(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
-    const updatedGame = { ...game };
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId);
     if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
 
@@ -200,8 +211,7 @@ export class ResourceSystem {
   }
 
   static updateCredit(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
-    const updatedGame = { ...game };
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId);
     if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
 
@@ -210,8 +220,7 @@ export class ResourceSystem {
   }
 
   static updateEnergy(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
-    const updatedGame = { ...game };
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId);
     if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
 
@@ -220,8 +229,7 @@ export class ResourceSystem {
   }
 
   static updateData(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
-    const updatedGame = { ...game };
-    updatedGame.players = updatedGame.players.map(p => ({ ...p }));
+    const updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId);
     if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
 

@@ -66,6 +66,30 @@ export class ProbeSystem {
     return grantsSpecimen && !!planet?.mascamiteTokens?.length;
   }
 
+  /**
+   * Carte 19 (Assistance Gravitationnelle) : en arrivant sur une planète, 1 Média ou 1 déplacement gratuit.
+   * Renvoie le déplacement à poursuivre (déplacements gratuits restants, plus celui choisi).
+   */
+  static chooseMediaOrMove(game: Game, playerId: string, choice: 'MEDIA' | 'MOVE', remainingMoves: number, sequenceId?: string): {
+    updatedGame: Game; historyEntries: HistoryEntry[]; nextInteraction?: InteractionState;
+  } {
+    if (choice === 'MEDIA') {
+      const updatedGame = cloneGame(game);
+      const player = updatedGame.players.find(p => p.id === playerId);
+      if (player) player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+      return {
+        updatedGame,
+        historyEntries: [{ message: `choisit de gagner ${ResourceSystem.formatResource(1, 'MEDIA')}`, playerId, sequenceId }],
+        nextInteraction: remainingMoves > 0 ? { type: 'MOVING_PROBE', count: remainingMoves, sequenceId } : undefined,
+      };
+    }
+    return {
+      updatedGame: game,
+      historyEntries: [{ message: 'choisit un déplacement gratuit', playerId, sequenceId }],
+      nextInteraction: { type: 'MOVING_PROBE', count: remainingMoves + 1, sequenceId },
+    };
+  }
+
   /** Planète porteuse de spécimens Mascamites (Jupiter ou Saturne) pour une planète ou une de ses lunes, sinon null */
   static specimenPlanetId(game: Game, planetId: string): string | null {
     const parent = game.board.planets.find(p => p.satellites?.some(s => s.id === planetId));
