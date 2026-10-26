@@ -163,7 +163,7 @@ export class AITurn {
     if (decision.action === ActionType.ANALYZE_DATA) {
       // L'analyse place une trace de vie bleue
       historyEntries.push({ message: `paye ${ResourceSystem.formatResource(1, 'ENERGY')} pour <strong>Analyser les données</strong>`, playerId: player.id, sequenceId });
-      const trace = SpeciesSystem.placeLifeTraceAuto(updatedGame, 0, LifeTraceType.BLUE, player.id, sequenceId);
+      const trace = SpeciesSystem.placeLifeTraceAuto(updatedGame, LifeTraceType.BLUE, player.id, sequenceId);
       updatedGame = trace.updatedGame;
       historyEntries.push(...trace.historyEntries);
       if (updatedGame.isSpeciesDiscovered) {
@@ -357,22 +357,20 @@ export class AITurn {
 
     const { updatedGame, gains, bonusEffects } = ComputerSystem.fillSlot(game, player.id, slotId);
     let aiGame = updatedGame;
+    const pending: InteractionState[] = [];
+    const sequenceId = `ai-computer-${Date.now()}`;
     bonusEffects.forEach(effect => {
       if (effect.type === 'card') {
         aiGame = CardSystem.drawCards(aiGame, player.id, effect.amount);
       } else if (effect.type === 'reservation') {
-        const row = aiGame.decks.cardRow;
-        if (row.length > 0) {
-          aiGame = CardSystem.reserveCard(aiGame, player.id, row[Math.floor(Math.random() * row.length)].id);
-        }
+        // Réserver une carte de la main (revenu + gain immédiat), comme le joueur humain
+        pending.push({ type: 'RESERVING_CARD', count: effect.amount, selectedCards: [], sequenceId });
       }
     });
 
     const gainText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
-    return {
-      updatedGame: aiGame,
-      historyEntries: [{ message: `transfère 1 donnée vers l'ordinateur ${gainText}`, playerId: player.id, sequenceId: `ai-computer-${Date.now()}` }],
-    };
+    const historyEntries: HistoryEntry[] = [{ message: `transfère 1 donnée vers l'ordinateur ${gainText}`, playerId: player.id, sequenceId }];
+    return this.resolvePending(aiGame, player, historyEntries, pending, sequenceId);
   }
 
   private static tryBuyCard(game: Game, player: Player): StepResult | null {

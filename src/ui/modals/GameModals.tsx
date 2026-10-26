@@ -203,6 +203,23 @@ export const BonusChoiceModal = ({ interactionState, onChoice, onFinish }: { int
   );
 }
 
+/** Infobulle d'une case du décompte : une ligne par élément, puis le total */
+const detailTitle = (label: string, lines: string[] | undefined, total: number) =>
+  [`${label} : ${total} PV`, ...(lines && lines.length > 0 ? lines.map(l => `• ${l}`) : ['• Aucun'])].join('\n');
+
+/** Infobulle de la colonne Espèces : bonus d'espèces, cartes Exertiens et danger */
+const speciesTitle = (score: FinalScore) => {
+  const lines = [
+    `Bonus d'espèces : ${score.categories.speciesBonuses} PV`,
+    `Cartes Exertiens : ${score.categories.exertienCards} PV`,
+    ...(score.details?.speciesBonuses || []).map(l => `• ${l}`),
+    `Danger Exertien : ${score.danger}`,
+    ...(score.details?.danger || []).map(l => `• ${l}`),
+  ];
+  if (score.dangerPenalty > 0) lines.push(`Pénalité : −${score.dangerPenalty} PV`);
+  return lines.join('\n');
+};
+
 export const EndGameModal = ({ game }: { game: Game }) => {
   // Décompte calculé une fois par le moteur (TurnManager.endRound → ScoreManager.applyFinalScoring).
   // Anciennes sauvegardes sans décompte enregistré : seul le score final est connu.
@@ -237,9 +254,7 @@ export const EndGameModal = ({ game }: { game: Game }) => {
             <div className="col-score" title="Score avant le décompte final">Base</div>
             <div className="col-score" title="Tuiles objectif">Obj.</div>
             <div className="col-score" title="Cartes fin de partie">Fin</div>
-            <div className="col-score" title="Bonus d'espèces">Esp.</div>
-            <div className="col-score" title="Cartes Exertiens jouées">Exert.</div>
-            <div className="col-score" title="Danger Exertien (PV perdus)">Danger</div>
+            <div className="col-score" title="Espèces : bonus d'espèces, cartes Exertiens, pénalité de danger">Espèces</div>
             <div className="col-total">Total</div>
           </div>
 
@@ -247,15 +262,13 @@ export const EndGameModal = ({ game }: { game: Game }) => {
             <div key={player.id} className="seti-endgame-row">
               <div className="col-rank">{index + 1}</div>
               <div className="col-player" style={{ color: player.color }}>{player.name}</div>
-              <div className="col-score">{score.baseScore}</div>
-              <div className="col-score">{score.categories.objectiveTiles}</div>
-              <div className="col-score">{score.categories.missionEndGame}</div>
-              <div className="col-score">{score.categories.speciesBonuses}</div>
-              <div className="col-score">{score.categories.exertienCards}</div>
-              <div className="col-score" style={score.dangerPenalty > 0 ? { color: '#ff6b6b' } : undefined}>
-                {score.danger}{score.dangerPenalty > 0 ? ` (−${score.dangerPenalty})` : ''}
+              <div className="col-score" title="Score avant le décompte final">{score.baseScore}</div>
+              <div className="col-score" title={detailTitle('Tuiles objectif', score.details?.objectiveTiles, score.categories.objectiveTiles)}>{score.categories.objectiveTiles}</div>
+              <div className="col-score" title={detailTitle('Cartes fin de partie', score.details?.missionEndGame, score.categories.missionEndGame)}>{score.categories.missionEndGame}</div>
+              <div className="col-score" title={speciesTitle(score)} style={score.dangerPenalty > 0 ? { color: '#ff6b6b' } : undefined}>
+                {score.categories.speciesBonuses + score.categories.exertienCards - score.dangerPenalty}
               </div>
-              <div className="col-total">{score.finalScore}</div>
+              <div className="col-total" title={`${score.baseScore} + ${score.categories.objectiveTiles} + ${score.categories.missionEndGame} + ${score.categories.speciesBonuses + score.categories.exertienCards}${score.dangerPenalty > 0 ? ` − ${score.dangerPenalty}` : ''} = ${score.finalScore} PV`}>{score.finalScore}</div>
             </div>
           ))}
         </div>

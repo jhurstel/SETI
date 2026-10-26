@@ -88,3 +88,43 @@
     box-shadow: 0 0 4px rgba(0,0,0,0.5);
     cursor: help;
 }
+
+/* Statut des manches */
+.seti-round-badge {
+    margin-left: auto;
+    margin-right: 8px;
+    font-size: 0.75rem;
+    color: #ffd700;
+    white-space: nowrap;
+}
+.seti-round-status {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 15px 0;
+    font-size: 0.75rem;
+    color: #bbb;
+}
+.seti-round-pill {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #555;
+    color: #888;
+}
+.seti-round-pill.done {
+    background: #2e3a4f;
+    color: #ccc;
+}
+.seti-round-pill.current {
+    border-color: #ffd700;
+    color: #ffd700;
+    box-shadow: 0 0 6px rgba(255, 215, 0, 0.5);
+}
+.seti-round-passed {
+    margin-left: 6px;
+}

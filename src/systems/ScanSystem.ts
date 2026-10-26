@@ -160,7 +160,10 @@ export class ScanSystem {
    */
   static coverSector(game: Game, playerId: string, sectorId: string): {
     updatedGame: Game;
+    /** Gains du gagnant (le premier élément est « couvre le secteur … ») */
     logs: string[];
+    /** Gains communs à tous les joueurs présents dans le secteur (Média, ou Token pour Oumuamua) */
+    sharedLogs?: string[];
     bonuses: Bonus;
     winnerId?: string;
     newPendingInteractions: { interaction: InteractionState, playerId: string }[];
@@ -176,6 +179,7 @@ export class ScanSystem {
     }
 
     const logs: string[] = [];
+    const sharedLogs: string[] = [];
     const bonuses: Bonus = {};
     const newPendingInteractions: { interaction: InteractionState, playerId: string }[] = [];
     const majorities = this.calculateMajorities(sector);
@@ -232,8 +236,8 @@ export class ScanSystem {
           const others = mediaWinners.slice(0, -1);
           winnersText = `${others.join(', ')} et ${last}`;
         }
-        const resourceName = sector.id === 'oumuamua' ? 'Token' : 'Média';
-        logs.push(`${winnersText} gagn${mediaWinners.length > 1 ? 'ent' : 'e'} 1 ${resourceName}`);
+        const resource = sector.id === 'oumuamua' ? '1 Token' : ResourceSystem.formatResource(1, 'MEDIA');
+        sharedLogs.push(`${mediaWinners.length > 1 ? 'les joueurs présents' : 'le joueur présent'} (${winnersText}) gagn${mediaWinners.length > 1 ? 'ent' : 'e'} chacun ${resource}`);
       }
 
       // Bonus BONUS_IF_COVERED (Cartes 45, 46, 47)
@@ -302,7 +306,7 @@ export class ScanSystem {
         }
       }
     }
-    return { updatedGame, logs, bonuses, winnerId, newPendingInteractions };
+    return { updatedGame, logs, sharedLogs, bonuses, winnerId, newPendingInteractions };
   }
 
   /**

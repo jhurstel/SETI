@@ -1,5 +1,5 @@
 import { cloneGame } from '../core/cloneGame';
-import { Game, InteractionState, TechnologyCategory, Player, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType, Probe } from '../core/types';
+import { Game, InteractionState, RevenueType, TechnologyCategory, Player, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType, Probe } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -131,7 +131,7 @@ export class AIController {
             }
             case 'PLACING_LIFE_TRACE': {
                 // Simple AI: always place on first board
-                const res = SpeciesSystem.placeLifeTraceAuto(updatedGame, 0, interaction.color, player.id, sequenceId);
+                const res = SpeciesSystem.placeLifeTraceAuto(updatedGame, interaction.color, player.id, sequenceId);
                 historyEntries.push(...res.historyEntries);
                 if (res.updatedGame.isSpeciesDiscovered) {
                     addHistory("découvre une nouvelle espèce Alien !", player.id);
@@ -160,7 +160,10 @@ export class AIController {
                     const cardsToReserve = shuffled.slice(0, count);
                     cardsToReserve.forEach(card => {
                         updatedGame = CardSystem.reserveCard(updatedGame, p.id, card.id);
-                        addHistory(`réserve carte "${card.name}"`, p.id, game);
+                        const gain = card.revenue === RevenueType.CREDIT ? ResourceSystem.formatResource(1, 'CREDIT')
+                            : card.revenue === RevenueType.ENERGY ? ResourceSystem.formatResource(1, 'ENERGY')
+                            : ResourceSystem.formatResource(1, 'CARD');
+                        addHistory(`réserve carte "${card.name}" et gagne ${gain}`, p.id, game);
                     });
                 }
                 break;

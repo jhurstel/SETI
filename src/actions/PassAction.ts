@@ -135,6 +135,7 @@ export class PassAction extends BaseAction {
       this.historyEntries.push({ message: `devient le Premier Joueur`, playerId: updatedGame.players[updatedGame.firstPlayerIndex].id, sequenceId: '' });
 
       const firstPlayer = updatedGame.players[updatedGame.firstPlayerIndex];
+      this.historyEntries.push({ message: `--- Manche ${updatedGame.currentRound} / ${updatedGame.maxRounds} ---`, playerId: '', sequenceId: '' });
       this.historyEntries.push({ message: `--- Tour de ${firstPlayer.name} ---`, playerId: firstPlayer.id, sequenceId: '' });
     } else {
       const nextPlayer = updatedGame.players[updatedGame.currentPlayerIndex];

@@ -121,6 +121,17 @@ describe('Décompte final', () => {
       expect(updatedGame.finalScores).toEqual(finalScores);
     });
 
+    test("le détail des calculs est enregistré pour l'écran de fin (cartes, danger, pénalité, objectifs)", () => {
+      getPlayer(game, P1).playedCards = [card('ET.53')];
+      const tile = game.board.objectiveTiles[0];
+      tile.markers = [P1];
+      const s1 = ScoreManager.applyFinalScoring(game).finalScores.find(s => s.playerId === P1)!;
+
+      expect(s1.details?.speciesBonuses.some(l => l.startsWith('Exertiens — '))).toBe(true);
+      expect(s1.details?.danger).toEqual(expect.arrayContaining([expect.stringMatching(/^Carte .+ : danger 9$/), expect.stringMatching(/^Plus exposé au danger : −10 %/)]));
+      expect(s1.details?.objectiveTiles).toEqual([expect.stringContaining(`${tile.name} (1er marqueur)`)]);
+    });
+
     test('la pénalité est calculée après tous les PV, y compris ceux des cartes Exertiens', () => {
       const player = getPlayer(game, P1);
       player.playedCards = [card('ET.51')]; // danger 8, +18 PV avec 8 réservations

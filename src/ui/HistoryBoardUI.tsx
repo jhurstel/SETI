@@ -8,10 +8,12 @@ interface HistoryBoardUIProps {
     historyLog: HistoryEntry[];
     game: Game;
     onUndo: () => void;
+    /** Retour au début du dernier tour du joueur (absent : rien à annuler) */
+    onUndoTurn?: () => void;
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
 
-export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game, onUndo, setActiveTooltip }) => {
+export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game, onUndo, onUndoTurn, setActiveTooltip }) => {
     const [isHistoryOpen, setIsHistoryOpen] = useState(true);
     const historyContentRef = useRef<HTMLDivElement>(null);
 
@@ -231,9 +233,19 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                 <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
                     <span className="panel-icon">📜</span>
                     <span className="panel-title seti-history-title">Historique</span>
+                    {onUndoTurn && (
+                        <button
+                            className="panel-title seti-history-undo-btn"
+                            title="Revenir au début de mon dernier tour"
+                            onClick={(e) => { e.stopPropagation(); onUndoTurn(); }}
+                        >
+                            ⏪
+                        </button>
+                    )}
                     {canUndo && (
                         <button
                             className="panel-title seti-history-undo-btn"
+                            title="Annuler la dernière action"
                             onClick={(e) => { e.stopPropagation(); onUndo(); }}
                         >
                             ↩

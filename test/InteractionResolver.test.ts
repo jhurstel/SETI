@@ -72,6 +72,13 @@ describe('InteractionResolver', () => {
       expect(res.historyEntries.every(e => e.sequenceId === 'seq')).toBe(true);
     });
 
+    test("l'historique sépare les gains du gagnant de ceux communs aux joueurs présents", () => {
+      markSignals(sector, [P1, P2, P1]);
+      const res = InteractionResolver.resolve(game, P1, { type: 'RESOLVING_SECTOR', sectorId: sector.id, sequenceId: 'seq' });
+      const message = res.historyEntries.find(e => e.message.startsWith('couvre le secteur'))!.message;
+      expect(message).toMatch(new RegExp(`^couvre le secteur ${sector.name} et gagne .+ ; les joueurs présents \\(.+ et .+\\) gagnent chacun`));
+    });
+
     test('gagnant humain d\'une autre couleur : son interaction lui est adressée (playerId)', () => {
       sector.firstBonus = { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] };
       markSignals(sector, [P2, P2, P1]);

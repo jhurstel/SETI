@@ -1,7 +1,8 @@
 import { CardSystem } from '../src/systems/CardSystem';
 import { DataLoader } from '../src/core/DataLoader';
-import { CostType, FreeActionType, Game, LifeTraceLocation, LifeTraceType, RevenueType } from '../src/core/types';
+import { AlienBoardType, CostType, FreeActionType, Game, LifeTraceLocation, LifeTraceType, RevenueType } from '../src/core/types';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
+import { AIController } from '../src/ai/AIController';
 import { createTestGame, getPlayer, makeCard, mockFetchFromPublic } from './helpers/gameFixture';
 
 describe('CardSystem', () => {
@@ -224,10 +225,38 @@ describe('CardSystem', () => {
   describe('placement automatique (robots)', () => {
     test('une trace « de n\'importe quelle couleur » reçoit une vraie couleur', () => {
       for (let i = 0; i < 10; i++) {
-        const res = SpeciesSystem.placeLifeTraceAuto(game, 0, LifeTraceType.ANY, P1, 'seq');
+        const res = SpeciesSystem.placeLifeTraceAuto(game, LifeTraceType.ANY, P1, 'seq');
         const trace = getPlayer(res.updatedGame, P1).lifeTraces.at(-1)!;
         expect([LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE]).toContain(trace.type);
       }
+    });
+
+    test("sur un plateau découvert, la trace va sur la piste d'espèce, quel que soit le plateau", () => {
+      game.board.alienBoards[1].speciesId = AlienBoardType.MASCAMITES;
+      game.board.alienBoards[1].isDiscovered = true;
+      const res = SpeciesSystem.placeLifeTraceAuto(game, LifeTraceType.RED, P1, 'seq');
+      const trace = res.updatedGame.board.alienBoards[1].lifeTraces.find(t => t.playerId === P1)!;
+      expect(trace).toMatchObject({ type: LifeTraceType.RED, location: LifeTraceLocation.SPECIES, slotIndex: 0 });
+      expect(res.updatedGame.board.alienBoards[0].lifeTraces.some(t => t.playerId === P1)).toBe(false);
+    });
+
+    test("sans espèce découverte, la trace va sur un triangle où sa couleur manque", () => {
+      game.board.alienBoards[0].lifeTraces = [{ id: 't', type: LifeTraceType.RED, playerId: P2, location: LifeTraceLocation.TRIANGLE }];
+      const res = SpeciesSystem.placeLifeTraceAuto(game, LifeTraceType.RED, P1, 'seq');
+      expect(res.updatedGame.board.alienBoards[1].lifeTraces.find(t => t.playerId === P1)?.location).toBe(LifeTraceLocation.TRIANGLE);
+    });
+  });
+
+  describe('réservation par un robot', () => {
+    test('la carte réservée vient de la main et rapporte son revenu', () => {
+      const card = makeCard('res', { revenue: RevenueType.CREDIT });
+      getPlayer(game, P1).cards = [card];
+      const { credits, revenueCredits } = getPlayer(game, P1);
+      const res = AIController.processInteractionQueue(game, [{ type: 'RESERVING_CARD', count: 1, selectedCards: [] }], 'seq', getPlayer(game, P1));
+      expect(getPlayer(res.updatedGame, P1).reservedCards.map(c => c.id)).toEqual(['res']);
+      expect(getPlayer(res.updatedGame, P1).credits).toBe(credits + 1);
+      expect(getPlayer(res.updatedGame, P1).revenueCredits).toBe(revenueCredits + 1);
+      expect(res.historyEntries[0].message).toContain('et gagne');
     });
   });
 

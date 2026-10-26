@@ -71,6 +71,13 @@ docs/archive/                # Documents de conception initiaux, obsolètes
 
 Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `assets/`).
 
+## Règles de travail
+
+- **Séparer le moteur de l'affichage.** Toute règle du jeu (coûts, gains, validations, effets de carte, décisions des robots) vit dans le moteur (`core/`, `systems/`, `actions/`, `ai/`), en TypeScript pur, sans React. L'interface (`ui/`) ne fait qu'appeler le moteur, appliquer l'état renvoyé, afficher l'historique, les toasts et les fenêtres. Si un handler de l'UI calcule une règle, la déplacer dans le moteur avant d'y ajouter quoi que ce soit.
+- **Tester chaque opération du moteur.** Toute nouvelle opération ou toute correction du moteur s'accompagne d'un test Jest dans `test/` (avec une vraie partie via `createTestGame()`), qui vérifie le résultat et que la partie reçue n'est pas modifiée. Un bug corrigé reçoit un test de non-régression ; un bug connu non corrigé, un `test.failing`.
+- **Les robots passent par les mêmes opérations que le joueur humain** (pas de copie des règles dans `ai/`), et chaque opération de robot est testée.
+- Lancer `npm run check` avant chaque commit.
+
 ## Architecture et conventions
 
 - **Moteur indépendant de l'UI** : `core/`, `systems/` et `actions/` sont du TS pur. `BoardUI.tsx` passe par `GameEngine.executeAction` pour les actions principales, mais appelle aussi directement les systems pour les bonus et interactions. Suivre le schéma du handler voisin.

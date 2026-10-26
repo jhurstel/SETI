@@ -37,6 +37,7 @@ export class TurnManager {
       updatedGame,
       historyEntries: [
         { message: '--- DÉBUT DE LA PARTIE ---', playerId: '' },
+        { message: `--- Manche ${updatedGame.currentRound} / ${updatedGame.maxRounds} ---`, playerId: '' },
         { message: `--- Tour de ${firstPlayer.name} ---`, playerId: firstPlayer.id },
       ],
       started: true,

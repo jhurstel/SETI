@@ -29,6 +29,7 @@ import { useAITurn } from './hooks/useAITurn';
 import { useAutosave } from './hooks/useAutosave';
 import { DebugPanel } from './DebugPanel';
 import { PassModal } from './modals/PassModal';
+import { findTurnUndoPoint } from '../core/TurnUndo';
 import { Tooltip } from './Tooltip';
 import { ObjectiveBoardUI } from './ObjectiveBoardUI';
 import { HistoryBoardUI } from './HistoryBoardUI';
@@ -195,6 +196,26 @@ export const BoardUI: React.FC = () => {
       }
     }
     return true;
+  };
+
+  // Retour au début du dernier tour du joueur humain (annule aussi les tours des robots qui ont suivi)
+  const humanPlayerId = game?.players.find(p => p.type === 'human')?.id;
+  const turnUndoPoint = humanPlayerId ? findTurnUndoPoint(historyLog, humanPlayerId) : null;
+  const handleUndoTurn = () => {
+    if (!turnUndoPoint) return;
+    setConfirmModalState({
+      visible: true,
+      cardId: null,
+      message: "Revenir au début de votre dernier tour ? Toutes les actions jouées depuis, y compris celles des robots, seront annulées.",
+      onConfirm: () => {
+        setGame(turnUndoPoint.state);
+        if (gameEngineRef.current) gameEngineRef.current.setState(turnUndoPoint.state);
+        setHistoryLog(prev => prev.slice(0, turnUndoPoint.keepCount));
+        setPendingInteractions([]);
+        setInteractionState({ type: 'IDLE' });
+        setPassModalState({ visible: false, cards: [], selectedCardId: null });
+      }
+    });
   };
 
   // Gestionnaire pour annuler une action
@@ -789,10 +810,19 @@ export const BoardUI: React.FC = () => {
      */
     else if (actionType === ActionType.PASS) {
       // 1. Vérifier la taille de la main
-      const toDiscard = CardSystem.getHandCards(currentPlayer).length - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS
+      const handSize = CardSystem.getHandCards(currentPlayer).length;
+      const toDiscard = handSize - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS;
       if (toDiscard > 0) {
-        setInteractionState({ type: 'DISCARDING_CARD', count: toDiscard, selectedCards: [] });
-        setToast({ message: "Veuillez défausser pour ne garder que 4 cartes en main.", visible: true });
+        // Avertir avant de passer : le joueur ne jouera plus de la manche et perdra des cartes
+        setConfirmModalState({
+          visible: true,
+          cardId: null,
+          message: `Passer définitivement ? Vous ne pourrez plus agir avant la prochaine manche. Vous avez ${handSize} cartes en main : vous devrez en défausser ${toDiscard} pour n'en garder que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}.`,
+          onConfirm: () => {
+            setInteractionState({ type: 'DISCARDING_CARD', count: toDiscard, selectedCards: [] });
+            setToast({ message: `Veuillez défausser pour ne garder que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} cartes en main.`, visible: true });
+          }
+        });
         return;
       }
 
@@ -1489,8 +1519,14 @@ export const BoardUI: React.FC = () => {
       }
     }
 
+    // Synchroniser le moteur avec l'état affiché : sinon il peut refuser la carte sur un état périmé
+    gameEngineRef.current.setState(gameRef.current);
     const action = new PlayCardAction(currentPlayer.id, cardId);
     const result = gameEngineRef.current.executeAction(action);
+    if (!result.success || !result.updatedState) {
+      setToast({ message: result.error || 'Impossible de jouer cette carte', visible: true });
+      return;
+    }
     if (result.success && result.updatedState) {
       setGame(result.updatedState);
       if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedState);
@@ -1718,12 +1754,16 @@ export const BoardUI: React.FC = () => {
     } else if (interactionState.type === 'REMOVING_LANDER') {
         handleLand(planetId);
     } else if (planetId === 'earth') {
+        if (!gameRef.current) return;
+        gameEngineRef.current.setState(gameRef.current);
         const action = new LaunchProbeAction(currentPlayer.id);
         const result = gameEngineRef.current.executeAction(action);
         if (result.success && result.updatedState) {
           setGame(result.updatedState);
-          action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, undefined, undefined, entry.sequenceId));
+          action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, gameRef.current ?? undefined, undefined, entry.sequenceId));
           handleNewInteractions(action.newPendingInteractions);
+        } else {
+          setToast({ message: result.error || 'Impossible de lancer une sonde', visible: true });
         }
     }
   };
@@ -2134,6 +2174,7 @@ export const BoardUI: React.FC = () => {
             historyLog={historyLog}
             game={game}
             onUndo={handleUndo}
+            onUndoTurn={turnUndoPoint ? handleUndoTurn : undefined}
             setActiveTooltip={setActiveTooltip}
           />
 

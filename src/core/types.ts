@@ -748,7 +748,16 @@ export const getInteractionLabel = (state: InteractionState): string => {
     case 'CONSULTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour l'étudier.`;
     case 'CHOOSING_EXERTIEN_CARD': return `Palier Exertien (${state.milestone} PV) : vous pouvez jouer une carte Exertien.`;
     case 'SELECTING_MISSION': return `Veuillez confirmer la mission à recouvrir.`;
-    default: return "Action inconnue";
+    case 'TRIGGER_CARD_EFFECT':
+      return state.effectType === 'SCORE_PER_MEDIA'
+        ? `Gagner ${state.value} PV par niveau de Média (PIXL).`
+        : `Appliquer l'effet de la carte.`;
+    case 'IDLE': return `Aucune action en cours.`;
+    default: {
+      // Chaque type d'interaction doit avoir un libellé : erreur de compilation si un cas manque
+      const missing: never = state;
+      return missing;
+    }
   }
 };
 
@@ -786,6 +795,16 @@ export interface FinalScore {
   /** PV perdus (10 % arrondi à l'inférieur pour le joueur le plus exposé, 0 sinon) */
   dangerPenalty: number;
   finalScore: number;
+  /** Détail des calculs, une ligne par élément (affiché dans l'écran de fin) */
+  details?: ScoreDetails;
+}
+
+/** Détail du décompte final par catégorie */
+export interface ScoreDetails {
+  objectiveTiles: string[];
+  missionEndGame: string[];
+  speciesBonuses: string[];
+  danger: string[];
 }
 
 // ============================================================================

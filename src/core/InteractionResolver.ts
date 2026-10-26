@@ -79,8 +79,13 @@ export class InteractionResolver {
       newInteractions.push(...bonusRes.newPendingInteractions.map(i => ({ ...i, sequenceId })));
     }
 
-    if (coverageLogs.length > 0) {
-      historyEntries.push({ message: coverageLogs.join(', '), playerId: coverage.winnerId || playerId, sequenceId });
+    // « couvre le secteur X et gagne … ; les joueurs présents (A et B) gagnent chacun 1 Média »
+    const [coverLog, ...winnerGains] = coverageLogs;
+    const coverageMessage = coverLog
+      ? [coverLog + (winnerGains.length > 0 ? ` et ${winnerGains.join(', ')}` : ''), ...(coverage.sharedLogs || [])].join(' ; ')
+      : '';
+    if (coverageMessage) {
+      historyEntries.push({ message: coverageMessage, playerId: coverage.winnerId || playerId, sequenceId });
     }
 
     // Interactions des autres joueurs (ex: le gagnant de la majorité place une trace de vie)
@@ -92,7 +97,7 @@ export class InteractionResolver {
         newInteractions.push({ ...other, playerId: otherId, sequenceId } as InteractionState);
       } else if (other.type === 'PLACING_LIFE_TRACE') {
         // Robot : placement automatique pour ne pas bloquer la partie
-        const trace = SpeciesSystem.placeLifeTraceAuto(updatedGame, 0, other.color, otherId, sequenceId);
+        const trace = SpeciesSystem.placeLifeTraceAuto(updatedGame, other.color, otherId, sequenceId);
         updatedGame = trace.updatedGame;
         historyEntries.push(...trace.historyEntries.map(e => ({ ...e, sequenceId })));
         if (updatedGame.isSpeciesDiscovered) {
@@ -103,7 +108,7 @@ export class InteractionResolver {
       }
     }
 
-    const summary = coverageLogs.length > 0 ? `Secteur résolu. ${coverageLogs.join(', ')}` : 'Secteur résolu.';
+    const summary = coverageMessage ? `Secteur résolu. ${coverageMessage}` : 'Secteur résolu.';
     return { updatedGame, historyEntries, newInteractions, summary };
   }
 

@@ -114,7 +114,7 @@ describe('TurnManager', () => {
       expect(updatedGame.phase).toBe(GamePhase.PLAYING);
       expect(updatedGame.currentPlayerIndex).toBe(0);
       expect(updatedGame.players.every(p => !p.hasPerformedMainAction)).toBe(true);
-      expect(historyEntries.map(e => e.message)).toEqual(['--- DÉBUT DE LA PARTIE ---', '--- Tour de Alice ---']);
+      expect(historyEntries.map(e => e.message)).toEqual(['--- DÉBUT DE LA PARTIE ---', `--- Manche 1 / ${updatedGame.maxRounds} ---`, '--- Tour de Alice ---']);
       expect(game.phase).toBe(GamePhase.SETUP);
     });
   });

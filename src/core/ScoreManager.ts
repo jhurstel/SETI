@@ -35,6 +35,7 @@ import {
   AlienBoardType,
   HistoryEntry,
   FinalScore,
+  ScoreDetails,
   RevealedExertienCard,
   LifeTraceLocation,
   Bonus
@@ -46,7 +47,7 @@ export class ScoreManager {
   /**
    * Calcule le score final d'un joueur
    */
-  static calculateFinalScore(game: Game, playerId: string): ScoreCategories {
+  static calculateFinalScore(game: Game, playerId: string, details?: ScoreDetails): ScoreCategories {
     const player = game.players.find(p => p.id === playerId);
     if (!player) {
       throw new Error(`Player ${playerId} not found`);
@@ -60,11 +61,11 @@ export class ScoreManager {
       total: 0
     };
 
-    scores.missionEndGame = this.calculateMissionEndGame(player, game);
+    scores.missionEndGame = this.calculateMissionEndGame(player, game, details?.missionEndGame);
 
     scores.speciesBonuses = this.calculateSpeciesBonuses(player, game.discoveredSpecies);
 
-    scores.objectiveTiles = this.calculateObjectiveTiles(player, game.board);
+    scores.objectiveTiles = this.calculateObjectiveTiles(player, game.board, details?.objectiveTiles);
 
     scores.exertienCards = this.revealExertienCards(game, player).reduce((sum, c) => sum + c.points, 0);
 
@@ -79,11 +80,12 @@ export class ScoreManager {
   /**
    * Calcule les points des paires missions/cartes fin de partie
    */
-  private static calculateMissionEndGame(player: Player, game: Game): number {
+  private static calculateMissionEndGame(player: Player, game: Game, details?: string[]): number {
     let bonus = 0;
     const endGameCards: Card[] = (player.playedCards || []).filter(c => c.type === CardType.END_GAME);
 
     endGameCards.forEach(card => {
+      const bonusBefore = bonus;
       // Traitement des règles de scoring définies dans passiveEffects
       if (card.passiveEffects) {
         card.passiveEffects.forEach(effect => {
@@ -177,6 +179,7 @@ export class ScoreManager {
           }
         });
       }
+      details?.push(`${card.name} : ${bonus - bonusBefore} PV`);
     });
 
     return bonus;
@@ -185,7 +188,7 @@ export class ScoreManager {
   /**
    * Calcule les points des tuiles objectifs du plateau
    */
-  private static calculateObjectiveTiles(player: Player, board: Game['board']): number {
+  private static calculateObjectiveTiles(player: Player, board: Game['board'], details?: string[]): number {
     let total = 0;
     if (!board.objectiveTiles) return 0;
 
@@ -277,6 +280,8 @@ export class ScoreManager {
         }
 
         total += count * rewardValue;
+        const rank = index === 0 ? '1er' : index === 1 ? '2e' : `${index + 1}e`;
+        details?.push(`${tile.name} (${rank} marqueur) : ${count} × ${rewardValue} PV = ${count * rewardValue} PV`);
       }
     });
     return total;
@@ -354,10 +359,10 @@ export class ScoreManager {
    * Danger Exertien d'un joueur : DANGER des cartes Exertiens jouées
    * + danger des emplacements occupés par ses marqueurs sur la piste d'espèce Exertiens.
    */
-  static calculateExertienDanger(game: Game, player: Player): number {
-    const cardsDanger = (player.playedCards || [])
-      .filter(c => c.type === CardType.EXERTIEN)
-      .reduce((sum, c) => sum + (c.danger || 0), 0);
+  static calculateExertienDanger(game: Game, player: Player, details?: string[]): number {
+    const exertienCards = (player.playedCards || []).filter(c => c.type === CardType.EXERTIEN);
+    exertienCards.forEach(c => details?.push(`Carte ${c.name} : danger ${c.danger || 0}`));
+    const cardsDanger = exertienCards.reduce((sum, c) => sum + (c.danger || 0), 0);
 
     const board = game.board.alienBoards.find(b => b.speciesId === AlienBoardType.EXERTIENS);
     const species = game.species.find(s => s.name === AlienBoardType.EXERTIENS);
@@ -374,6 +379,7 @@ export class ScoreManager {
           // Valeur absolue : les anciennes sauvegardes stockaient ces dangers en négatif
           markersDanger += Math.abs(slotsByColor[t.type]?.[t.slotIndex!]?.danger || 0);
         });
+      if (markersDanger > 0) details?.push(`Marqueurs sur la piste Exertiens : danger ${markersDanger}`);
     }
     return cardsDanger + markersDanger;
   }
@@ -390,15 +396,20 @@ export class ScoreManager {
     const updatedGame = cloneGame(game);
 
     const finalScores: FinalScore[] = updatedGame.players.map(player => {
-      const categories = this.calculateFinalScore(updatedGame, player.id);
+      const details: ScoreDetails = { objectiveTiles: [], missionEndGame: [], speciesBonuses: [], danger: [] };
+      const categories = this.calculateFinalScore(updatedGame, player.id, details);
+      const revealedExertienCards = this.revealExertienCards(updatedGame, player);
+      revealedExertienCards.forEach(c => details.speciesBonuses.push(`Exertiens — ${c.name} : ${c.conditionMet ? `${c.points} PV` : 'condition non remplie'}`));
+      const danger = this.calculateExertienDanger(updatedGame, player, details.danger);
       return {
         playerId: player.id,
         baseScore: player.score,
         categories,
-        revealedExertienCards: this.revealExertienCards(updatedGame, player),
-        danger: this.calculateExertienDanger(updatedGame, player),
+        revealedExertienCards,
+        danger,
         dangerPenalty: 0,
         finalScore: player.score + categories.total,
+        details,
       };
     });
 
@@ -407,6 +418,7 @@ export class ScoreManager {
     if (exertiensDiscovered && maxDanger > 0) {
       finalScores.filter(s => s.danger === maxDanger).forEach(s => {
         s.dangerPenalty = Math.floor(s.finalScore * 0.1);
+        s.details?.danger.push(`Plus exposé au danger : −10 % de ${s.finalScore} PV = −${s.dangerPenalty} PV`);
         s.finalScore -= s.dangerPenalty;
       });
     }

@@ -81,14 +81,37 @@ export class SpeciesSystem {
      * Placement automatique d'une trace de vie (robots) : la piste d'espèce n'est utilisée
      * qu'une fois l'espèce découverte, sinon la trace serait refusée et perdue.
      */
-    static placeLifeTraceAuto(game: Game, boardIndex: number, requestedColor: LifeTraceType, playerId: string, sequenceId: string = '') {
-        // Trace « de n'importe quelle couleur » : le robot choisit une vraie couleur
-        const colors = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE];
-        const color = requestedColor === LifeTraceType.ANY ? colors[Math.floor(Math.random() * colors.length)] : requestedColor;
-        const board = game.board.alienBoards[boardIndex];
-        const location = board?.isDiscovered && Math.random() < 0.5 ? LifeTraceLocation.SPECIES : LifeTraceLocation.TRIANGLE;
-        const slotIndex = location === LifeTraceLocation.SPECIES ? this.getNextSpeciesSlotIndex(game, boardIndex, color, location) : undefined;
-        return this.placeLifeTrace(game, boardIndex, color, playerId, sequenceId, location, slotIndex);
+    static placeLifeTraceAuto(game: Game, requestedColor: LifeTraceType, playerId: string, sequenceId: string = '') {
+        // Premier emplacement accepté par le moteur, dans l'ordre de préférence de lifeTraceOptions
+        for (const option of this.lifeTraceOptions(game, requestedColor)) {
+            const res = this.placeLifeTrace(game, option.boardIndex, option.color, playerId, sequenceId, option.location, option.slotIndex);
+            if (res.updatedGame !== game) return res;
+        }
+        return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+    }
+
+    /**
+     * Emplacements possibles pour une trace de vie, du plus intéressant au moins intéressant :
+     * piste d'une espèce découverte (récompenses fixes), puis triangle d'un plateau où la couleur manque
+     * (bonus de découverte, rapproche la découverte), puis les autres triangles.
+     * Une trace « de n'importe quelle couleur » envisage les trois couleurs.
+     */
+    static lifeTraceOptions(game: Game, requestedColor: LifeTraceType): { boardIndex: number; color: LifeTraceType; location: LifeTraceLocation; slotIndex?: number }[] {
+        const colors = requestedColor === LifeTraceType.ANY ? [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE] : [requestedColor];
+        const speciesSlots: ReturnType<typeof this.lifeTraceOptions> = [];
+        const missingColorTriangles: ReturnType<typeof this.lifeTraceOptions> = [];
+        const otherTriangles: ReturnType<typeof this.lifeTraceOptions> = [];
+
+        game.board.alienBoards.forEach((board, boardIndex) => {
+            for (const color of colors) {
+                if (board.isDiscovered) {
+                    speciesSlots.push({ boardIndex, color, location: LifeTraceLocation.SPECIES, slotIndex: this.getNextSpeciesSlotIndex(game, boardIndex, color, LifeTraceLocation.SPECIES) });
+                }
+                const hasColor = board.lifeTraces.some(t => t.type === color);
+                (hasColor ? otherTriangles : missingColorTriangles).push({ boardIndex, color, location: LifeTraceLocation.TRIANGLE });
+            }
+        });
+        return [...speciesSlots, ...missingColorTriangles, ...otherTriangles];
     }
 
     /**

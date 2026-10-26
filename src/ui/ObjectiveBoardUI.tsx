@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Game, InteractionState, GOLDEN_MILESTONES, NEUTRAL_MILESTONES } from '../core/types';
+import { Game, GamePhase, InteractionState, GOLDEN_MILESTONES, NEUTRAL_MILESTONES } from '../core/types';
 import './ObjectiveBoardUI.css';
 
 interface ObjectiveBoardUIProps {
@@ -25,8 +25,22 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
             <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
                 <span className="panel-icon">🏆</span>
                 <span className="panel-title">Objectifs</span>
+                <span className="seti-round-badge" title="Manche en cours">Manche {Math.min(game.currentRound, game.maxRounds)} / {game.maxRounds}</span>
             </div>
             <div className="seti-foldable-content">
+                {/* Statut des manches et des joueurs qui ont passé */}
+                <div className="seti-round-status">
+                    {Array.from({ length: game.maxRounds }, (_, i) => i + 1).map(round => {
+                        const status = round < game.currentRound || game.phase === GamePhase.FINAL_SCORING ? 'done' : round === game.currentRound ? 'current' : 'upcoming';
+                        const label = status === 'done' ? 'terminée' : status === 'current' ? 'en cours' : 'à venir';
+                        return <span key={round} className={`seti-round-pill ${status}`} title={`Manche ${round} : ${label}`}>{round}</span>;
+                    })}
+                    <span className="seti-round-passed">
+                        {game.players.filter(p => p.hasPassed).length > 0
+                            ? `Ont passé : ${game.players.filter(p => p.hasPassed).map(p => p.name).join(', ')}`
+                            : "Personne n'a encore passé"}
+                    </span>
+                </div>
                 <div className="seti-score-track" style={{ padding: '30px 15px 40px 15px', position: 'relative', borderBottom: '1px solid #444', marginBottom: '10px' }}>
                     <div style={{ height: '4px', background: 'linear-gradient(90deg, #444, #666)', borderRadius: '2px', position: 'relative' }}>
                         {/* Ticks */}
