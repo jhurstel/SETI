@@ -39,9 +39,20 @@ Ces cartes n'ont pas d'effet visible lors du test automatique, faute de contexte
 - **98 à 100** : il faut déjà une trace de cette couleur.
 - **ET.5** : il faut une sonde sur Jupiter ou Saturne avec des spécimens.
 
+## Règles complétées (seconde passe)
+
+| Carte / règle | Problème | Correction |
+|---|---|---|
+| Bonus d'espèces au décompte final | `calculateSpeciesBonuses` marqué « à implémenter » | Vérifié dans les règles (p. 21) et la FAQ : seuls les Exertiens ajoutent une étape (cartes Exertiens et danger, déjà décomptés) ; les exofossiles d'Oumuamua ne rapportent rien (Q42). Rien d'autre à décompter. |
+| 113 Congrès Solvay | Effet `SCORE_SOLVAY` absent du CSV ; le calcul ne prenait que la valeur de la case | Effet ajouté ; la meilleure tuile Score sans marqueur est décomptée (séries × case la plus à droite) |
+| ET.5 Étude de l'Écosystème, ET.24 Cartographie du Terrain | « 1 PV par trace pour cette espèce » : cible `any` non gérée (ET.5), effet absent (ET.24) | `SCORE_PER_SPECIES_LIFETRACE:<espèce>:1` (traces du joueur sur le plateau de l'espèce, FAQ Q38) |
+| ET.5 (joueur humain) | Les jetons Mascamites n'étaient cliquables que pour un prélèvement : la consultation était impossible | Planètes consultables calculées par le moteur (`SpeciesSystem.consultablePlanets`), utilisées par l'interface et les robots |
+| ET.8, ET.9, ET.10 | Condition comptée sur toutes les espèces ; récompense « jeton Mascamite » absente | 2 traces de la couleur pour les Mascamites ; récompense d'un jeton de Jupiter ou Saturne au choix (`CONSULTING_SPECIMEN` avec `anyPlanet`) |
+| 102 | « 3 couleurs pour une espèce » compté toutes espèces confondues ; trace gagnée sur n'importe quel plateau | Condition par espèce ; trace limitée aux espèces qui remplissent la condition |
+| ET.30 Rover d'Excavation | 3 PV pour tout atterrissage sur Oumuamua | Bonus d'atterrissage de la carte (`LAND_BONUS`), seulement avec l'atterrissage qu'elle donne |
+| Robots Débutants | Ne déplaçaient pas leurs capsules | Ils rapprochent leurs capsules de la Terre d'une case par tour (énergie) |
+
 ## Limites connues
 
-- **Bonus des espèces au décompte final** (`ScoreManager.calculateSpeciesBonuses`) : non implémenté, règles à fournir.
-- **ET.30** : « si vous posez une sonde sur Oumuamua grâce à cette action » est traité comme une mission déclenchable (atterrissage sur Oumuamua après avoir joué la carte), pas uniquement avec l'atterrissage gagné par la carte.
-- **ET.8, ET.9, ET.10** : la récompense « jeton Mascamite de la planète » (`specimen:1`) n'est pas appliquée.
-- **Robots Débutants** : ils ne déplacent pas les capsules et ne prennent les cartes qu'au hasard. Le niveau Expert joue comme le niveau Intermédiaire.
+- **Robots** : le niveau Expert joue comme le niveau Intermédiaire ; les robots Débutants prennent les cartes au hasard.
+- **Fiches des espèces** : les règles des espèces viennent des CSV, des règles et de la FAQ. Une règle propre à une fiche Espèce qui n'y figure pas serait à signaler.

@@ -78,6 +78,24 @@ export class SpeciesSystem {
     }
 
     /**
+     * Planètes dont le joueur peut consulter un spécimen : celle indiquée, Jupiter ou Saturne au choix (ET.8 à ET.10),
+     * ou celles où il a une sonde (Étude de l'Écosystème) ; seulement s'il y reste des spécimens.
+     */
+    static consultablePlanets(game: Game, playerId: string, interaction: { planetId?: string; anyPlanet?: boolean }): string[] {
+        const candidates = interaction.planetId ? [interaction.planetId] : ['jupiter', 'saturn'];
+        return candidates.filter(id =>
+            !!game.board.planets.find(p => p.id === id)?.mascamiteTokens?.length &&
+            (interaction.planetId !== undefined || interaction.anyPlanet || !!ProbeSystem.findProbeAtPlanet(game, playerId, id))
+        );
+    }
+
+    /** Traces de vie d'un joueur pour une espèce (piste, emplacements Découverte et excédentaires, FAQ Q38) */
+    static playerTracesForSpecies(game: Game, playerId: string, speciesName: string) {
+        const board = game.board.alienBoards.find(b => b.speciesId.toLowerCase() === speciesName.toLowerCase());
+        return board ? board.lifeTraces.filter(t => t.playerId === playerId) : [];
+    }
+
+    /**
      * Placement automatique d'une trace de vie (robots) : la piste d'espèce n'est utilisée
      * qu'une fois l'espèce découverte, sinon la trace serait refusée et perdue.
      */

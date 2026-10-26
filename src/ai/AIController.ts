@@ -320,9 +320,9 @@ export class AIController {
             case 'COLLECTING_SPECIMEN':
             case 'CONSULTING_SPECIMEN': {
                 const mode = interaction.type === 'CONSULTING_SPECIMEN' ? 'consult' : 'collect';
-                // Étude de l'Écosystème : planète (Jupiter ou Saturne) où le robot a une sonde
-                const planetId = interaction.planetId
-                    ?? ['jupiter', 'saturn'].find(id => ProbeSystem.findProbeAtPlanet(updatedGame, player.id, id) && updatedGame.board.planets.find(p => p.id === id)?.mascamiteTokens?.length);
+                // Planète prélevée, ou consultable (Étude de l'Écosystème : sonde présente ; ET.8 à ET.10 : au choix)
+                const options = interaction.type === 'CONSULTING_SPECIMEN' ? SpeciesSystem.consultablePlanets(updatedGame, player.id, interaction) : [interaction.planetId];
+                const planetId = options[Math.floor(Math.random() * options.length)];
                 const tokenCount = planetId ? updatedGame.board.planets.find(p => p.id === planetId)?.mascamiteTokens?.length || 0 : 0;
                 const res = planetId && tokenCount > 0 ? SpeciesSystem.takeMascamiteSpecimen(updatedGame, player.id, planetId, Math.floor(Math.random() * tokenCount), mode, sequenceId) : null;
                 if (res) {

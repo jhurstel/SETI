@@ -5,8 +5,10 @@ import { CardSystem } from '../src/systems/CardSystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { AIController } from '../src/ai/AIController';
 import { InteractionResolver } from '../src/core/InteractionResolver';
-import { AlienBoardType, Card, CardType, Game, LifeTraceLocation, LifeTraceType, ProbeState } from '../src/core/types';
-import { createTestGame, getPlayer, mockFetchFromPublic } from './helpers/gameFixture';
+import { AlienBoardType, Card, CardType, Game, LifeTraceLocation, LifeTraceType, ObjectiveCategory, ProbeState, Technology, TechnologyCategory } from '../src/core/types';
+import { ScoreManager } from '../src/core/ScoreManager';
+import { SpeciesSystem } from '../src/systems/SpeciesSystem';
+import { createTestGame, getPlayer, makeCard, mockFetchFromPublic } from './helpers/gameFixture';
 
 /**
  * Catalogue des cartes : chaque carte des CSV est lue, ses effets sont traités par le moteur,
@@ -211,5 +213,85 @@ describe('Cartes corrigées', () => {
       expect(res.historyEntries.some(e => e.message.startsWith('AI ne peut pas gérer'))).toBe(false);
     }
     expect(discarded).toBeGreaterThan(0);
+  });
+});
+
+describe('Règles complétées', () => {
+  /** Plateau Alien 0 de l'espèce donnée, découvert, avec les traces de P1 */
+  const boardOf = (game: Game, species: AlienBoardType, colors: LifeTraceType[]) => {
+    const board = game.board.alienBoards[0];
+    board.speciesId = species;
+    board.isDiscovered = true;
+    board.lifeTraces = colors.map((type, i) => ({ id: `t${i}`, type, playerId: P1, location: LifeTraceLocation.TRIANGLE }));
+    return board;
+  };
+
+  test('113 Congrès Solvay : décompte la meilleure tuile Score sans marqueur avec sa case la plus à droite', async () => {
+    const game = await createTestGame(['A', 'B']);
+    const player = getPlayer(game, P1);
+    player.playedCards = [card('113')];
+    // 2 technologies de chaque type : des séries pour la tuile Technologie, quelle que soit sa face
+    player.technologies = [TechnologyCategory.EXPLORATION, TechnologyCategory.OBSERVATION, TechnologyCategory.COMPUTING]
+      .flatMap(type => [0, 1].map(i => ({ id: `t-${type}-${i}`, name: 't', type, effects: [], bonus: {}, description: '', shorttext: '' } as unknown as Technology)));
+    game.board.objectiveTiles.forEach(t => (t.markers = t.category === ObjectiveCategory.TECHNOLOGY ? [] : [P1]));
+    const series = (tile: typeof game.board.objectiveTiles[0]) => ScoreManager.objectiveTileSeries(player, game.board, tile);
+    const expected = Math.max(0, ...game.board.objectiveTiles.map(t => series(t) * t.rewards.others));
+    expect(expected).toBeGreaterThan(0);
+    expect(ScoreManager.calculateFinalScore(game, P1).missionEndGame).toBe(expected);
+    expect(card('113').passiveEffects.map(e => e.type)).toContain('SCORE_SOLVAY');
+  });
+
+  test("ET.5 et ET.24 : 1 PV par trace de vie marquée pour l'espèce de la carte", async () => {
+    const game = await createTestGame(['A', 'B']);
+    boardOf(game, AlienBoardType.MASCAMITES, [LifeTraceType.RED, LifeTraceType.BLUE, LifeTraceType.BLUE]);
+    getPlayer(game, P1).playedCards = [card('ET.5')];
+    expect(ScoreManager.calculateFinalScore(game, P1).missionEndGame).toBe(3);
+    getPlayer(game, P1).playedCards = [card('ET.24')];
+    expect(ScoreManager.calculateFinalScore(game, P1).missionEndGame).toBe(0); // aucune trace pour Oumuamua
+  });
+
+  test('ET.8 : avec 2 traces Jaunes pour les Mascamites, consulter un jeton de Jupiter ou Saturne', async () => {
+    const game = CardSystem.playCard(await gameWithCard('ET.8'), P1, 'ET.8').updatedGame;
+    const mission = getPlayer(game, P1).missions.find(m => m.cardId === 'ET.8')!;
+    const claim = () => InteractionResolver.resolve(game, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: mission.id, requirementId: mission.requirements[0].id!, sequenceId: 'seq' });
+
+    boardOf(game, AlienBoardType.CENTAURIENS, [LifeTraceType.YELLOW, LifeTraceType.YELLOW]);
+    expect(claim().error).toBeDefined();
+
+    boardOf(game, AlienBoardType.MASCAMITES, [LifeTraceType.YELLOW, LifeTraceType.YELLOW]);
+    const res = claim();
+    expect(res.error).toBeUndefined();
+    expect(res.newInteractions).toContainEqual(expect.objectContaining({ type: 'CONSULTING_SPECIMEN', anyPlanet: true }));
+  });
+
+  test('consultation de spécimen : au choix (ET.8 à ET.10) ou là où le joueur a une sonde (ET.5)', async () => {
+    const game = await createTestGame(['A', 'B']);
+    game.board.planets.filter(p => p.id === 'jupiter' || p.id === 'saturn').forEach(p => (p.mascamiteTokens = [{ bonus: { pv: 2 } }]));
+    expect(SpeciesSystem.consultablePlanets(game, P1, { anyPlanet: true })).toEqual(['jupiter', 'saturn']);
+    expect(SpeciesSystem.consultablePlanets(game, P1, {})).toEqual([]);
+    getPlayer(game, P1).probes = [{ id: 'p', ownerId: P1, position: { x: 0, y: 0 }, solarPosition: { disk: 'C', sector: 5, level: 1 }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false }];
+    expect(SpeciesSystem.consultablePlanets(game, P1, {})).toEqual(['jupiter']);
+  });
+
+  test('carte 102 : la trace de vie gagnée va sur une espèce où le joueur a les 3 couleurs', async () => {
+    const game = await createTestGame(['A', 'B']);
+    boardOf(game, AlienBoardType.MASCAMITES, [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE]);
+    expect(CardSystem.boardsWithAllTraceColors(game, P1)).toEqual([0]);
+    const interactions = CardSystem.missionRewardInteractions(game, P1, 'GAIN_IF_3_LIFETRACES:different:lifetrace:1', [{ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.ANY }]);
+    expect(interactions).toEqual([{ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.ANY, boardIndices: [0] }]);
+  });
+
+  test("ET.30 : le bonus d'atterrissage n'est gagné que sur la planète indiquée, avec l'atterrissage de la carte", async () => {
+    expect(card('ET.30').passiveEffects).toContainEqual(expect.objectContaining({ type: 'LAND_BONUS', target: 'oumuamua', value: 'pv:3' }));
+    expect(card('ET.30').permanentEffects.some(e => e.type === 'GAIN_ON_LAND')).toBe(false);
+
+    const game = await createTestGame(['A', 'B']);
+    const player = getPlayer(game, P1);
+    player.cards.push(makeCard('lb', { passiveEffects: [{ type: 'LAND_BONUS', target: 'mars', value: 'pv:3' }] }));
+    player.probes = [{ id: 'p', ownerId: P1, position: { x: 0, y: 0 }, solarPosition: { disk: 'B', sector: 1, level: 2 }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false }];
+    game.board.solarSystem.probes = structuredClone(player.probes);
+    const withoutCard = ProbeSystem.landProbe(game, P1, 'p', 'mars', true, undefined, undefined, 'seq');
+    const withCard = ProbeSystem.landProbe(game, P1, 'p', 'mars', true, undefined, 'lb', 'seq');
+    expect(getPlayer(withCard.updatedGame, P1).score - getPlayer(withoutCard.updatedGame, P1).score).toBe(3);
   });
 });

@@ -1112,9 +1112,12 @@ export const BoardUI: React.FC = () => {
   const handleMascamiteClick = (planetId: string, tokenIndex: number) => {
     if (!game) return;
     if (interactionState.type !== 'COLLECTING_SPECIMEN' && interactionState.type !== 'CONSULTING_SPECIMEN') return;
-    if (interactionState.planetId !== planetId) return;
-
     const playerId = game.players[game.currentPlayerIndex].id;
+    const allowed = interactionState.type === 'COLLECTING_SPECIMEN'
+      ? interactionState.planetId === planetId
+      : SpeciesSystem.consultablePlanets(game, playerId, interactionState).includes(planetId);
+    if (!allowed) return;
+
     const sequenceId = interactionState.sequenceId || `mascamite-${Date.now()}`;
     const mode = interactionState.type === 'CONSULTING_SPECIMEN' ? 'consult' : 'collect';
     const result = SpeciesSystem.takeMascamiteSpecimen(game, playerId, planetId, tokenIndex, mode, sequenceId);

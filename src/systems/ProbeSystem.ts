@@ -55,12 +55,7 @@ export class ProbeSystem {
   static shouldCollectSpecimen(game: Game, planetId: string, sourceCardId?: string): boolean {
     const specimenPlanetId = this.specimenPlanetId(game, planetId);
     if (!sourceCardId || !specimenPlanetId) return false;
-    // Une carte mission jouée n'est plus qu'une mission du joueur : la chercher aussi là (Exploration en Rover…)
-    const allCards = [
-      ...game.decks.cards, ...(game.decks.discardPile || []),
-      ...game.players.flatMap(p => [...p.cards, ...(p.playedCards || []), ...p.missions.flatMap(m => m.originalCard ? [m.originalCard] : [])]),
-    ];
-    const sourceCard = allCards.find(c => c.id === sourceCardId);
+    const sourceCard = this.findCard(game, sourceCardId);
     const grantsSpecimen = !!sourceCard?.passiveEffects?.some(e => ['GAIN_LANDING_AND_SPECIMEN', 'GAIN_SATELLITE_LANDING_AND_SPECIMEN', 'GAIN_ORBIT_OR_LAND_AND_SPECIMEN'].includes(e.type));
     const planet = game.board.planets.find(p => p.id === specimenPlanetId);
     return grantsSpecimen && !!planet?.mascamiteTokens?.length;
@@ -88,6 +83,18 @@ export class ProbeSystem {
       historyEntries: [{ message: 'choisit un déplacement gratuit', playerId, sequenceId }],
       nextInteraction: { type: 'MOVING_PROBE', count: remainingMoves + 1, sequenceId },
     };
+  }
+
+  /**
+   * Carte jouée ou en jeu, où qu'elle soit (pioche, défausse, mains, cartes jouées).
+   * Une carte mission jouée n'est plus qu'une mission du joueur : elle est cherchée aussi là (Exploration en Rover…)
+   */
+  static findCard(game: Game, cardId: string) {
+    const allCards = [
+      ...game.decks.cards, ...(game.decks.discardPile || []),
+      ...game.players.flatMap(p => [...p.cards, ...(p.playedCards || []), ...p.missions.flatMap(m => m.originalCard ? [m.originalCard] : [])]),
+    ];
+    return allCards.find(c => c.id === cardId);
   }
 
   /** Planète porteuse de spécimens Mascamites (Jupiter ou Saturne) pour une planète ou une de ses lunes, sinon null */
@@ -919,19 +926,22 @@ export class ProbeSystem {
     // Récupérer le joueur depuis l'état de jeu mis à jour
     const updatedPlayer = result.updatedGame.players.find(p => p.id === playerId)!;
 
+    // Bonus de la carte qui a donné l'atterrissage, seulement sur la planète indiquée (ET.30 : 3 PV sur Oumuamua)
+    const landBonus = sourceId ? this.findCard(result.updatedGame, sourceId)?.passiveEffects?.find(e => e.type === 'LAND_BONUS' && e.target === planetId) : undefined;
+    if (landBonus) {
+      const [resource, amount] = String(landBonus.value).split(':');
+      const bonusRes = ResourceSystem.processBonuses({ [resource]: parseInt(amount, 10) || 0 } as Bonus, result.updatedGame, playerId, 'land-bonus', currentSequenceId);
+      result.updatedGame = bonusRes.updatedGame;
+      if (bonusRes.logs.length > 0) result.historyEntries.push({ message: `${bonusRes.logs.join(', ')} (carte "${this.findCard(result.updatedGame, sourceId!)?.name}")`, playerId, sequenceId: currentSequenceId });
+    }
+
     // Cartes « … et prélevez un spécimen » : sur Jupiter, Saturne ou une de leurs lunes, tant qu'il reste des spécimens
     if (sourceId && this.shouldCollectSpecimen(result.updatedGame, planetId, sourceId)) {
       result.newPendingInteractions.push({ type: 'COLLECTING_SPECIMEN', planetId: this.specimenPlanetId(result.updatedGame, planetId)!, sequenceId: sequenceId });
     }
   
     // Traitement des buffs permanents
-    const hasFulfillable = CardSystem.processMissionBuffs(updatedPlayer, buff => {
-      if (buff.type === 'GAIN_ON_ORBIT_OR_LAND') return true;
-      if (buff.type !== 'GAIN_ON_LAND') return false;
-      // GAIN_ON_LAND:<planète>:<ressource>:<valeur> : seulement en se posant sur cette planète
-      const parts = String(buff.value).split(':');
-      return parts.length !== 4 || parts[1] === planetId;
-    });
+    const hasFulfillable = CardSystem.processMissionBuffs(updatedPlayer, buff => buff.type === 'GAIN_ON_LAND' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
     if (hasFulfillable) {
       result.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId: currentSequenceId});
     }

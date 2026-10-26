@@ -5,6 +5,9 @@ import { TurnManager } from '../src/core/TurnManager';
 import { PassAction } from '../src/actions/PassAction';
 import { CardSystem } from '../src/systems/CardSystem';
 import { ScanSystem } from '../src/systems/ScanSystem';
+import { ProbeSystem } from '../src/systems/ProbeSystem';
+import { AIEvaluator } from '../src/ai/AIEvaluator';
+import { createRotationState, getAbsoluteSectorForProbe } from '../src/core/SolarSystemPosition';
 import { AIDifficulty, Game, GamePhase } from '../src/core/types';
 import { giveCard, mockFetchFromPublic } from './helpers/gameFixture';
 
@@ -118,6 +121,24 @@ describe('AITurn (parties complètes entre robots)', () => {
     expect(missionOf(step.updatedGame).completedRequirementIds).toHaveLength(1);
     expect(missionOf(step.updatedGame).fulfillableRequirementIds).toEqual([]);
   }, 60000);
+
+  test('un robot débutant rapproche sa capsule de la Terre', async () => {
+    const game = playRobotGame(await createRobotGame(['R1', 'R2'], ['EASY', 'EASY']), 2).game;
+    const robot = game.players[game.currentPlayerIndex];
+    robot.energy = 5;
+    const capsule = ProbeSystem.createCapsule(game, robot.id, 'jupiter', { bonus: { pv: 3 } })!;
+    const solar = game.board.solarSystem;
+    const rotation = createRotationState(solar.rotationAngleLevel1, solar.rotationAngleLevel2, solar.rotationAngleLevel3);
+    const distance = (g: Game) => {
+      const c = g.players.find(p => p.id === robot.id)!.probes.find(p => p.id === capsule.id)!;
+      return AIEvaluator.distanceToPlanet(c.solarPosition.disk, getAbsoluteSectorForProbe(c.solarPosition, rotation), rotation, solar.extraCelestialObjects, 'earth');
+    };
+
+    const step = AITurn.playStep(game);
+    expect(step.kind).toBe('UPDATED');
+    if (step.kind !== 'UPDATED') return;
+    expect(distance(step.updatedGame)).toBe(distance(game) - 1);
+  });
 
   test('la mise en place : chaque robot réserve une carte puis la partie démarre', async () => {
     let game = await createRobotGame(['R1', 'R2']);

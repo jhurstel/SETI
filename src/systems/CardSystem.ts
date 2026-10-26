@@ -5,6 +5,7 @@ import { createRotationState, calculateAbsolutePosition, getCell, getAdjacentCel
 import { ResourceSystem } from './ResourceSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';
+import { SpeciesSystem } from './SpeciesSystem';
 
 /** Carte 108 (SETI@home) : Médias nécessaires pour marquer la trace de vie */
 const LIFETRACE_MEDIA_THRESHOLD = 8;
@@ -377,6 +378,8 @@ export class CardSystem {
         // Initialiser les bonus
         const bonuses: Bonus = {};
         const completedMissions: string[] = [];
+        // Conditions de mission remplies dès la pose (récompenses non ressources : spécimen, trace limitée à une espèce)
+        const missionRewards: string[] = [];
 
         // Ajouter la carte jouée à la pile de défausse ou aux cartes jouées (Missions Fin de partie)
         if (card) {
@@ -421,6 +424,7 @@ export class CardSystem {
                                         delete bonus.token;
                                     }
                                     ResourceSystem.accumulateBonus(bonus, bonuses);
+                                    missionRewards.push(effectString(req));
                                     newMission.completedRequirementIds.push(req.id!);
                                 }
                             }
@@ -905,7 +909,40 @@ export class CardSystem {
             historyEntries.push({ message: "n'a encore marqué aucune trace de cette couleur : pas de trace de vie", playerId, sequenceId });
         }
 
-        return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions: [...newPendingInteractions, ...extraInteractions.map(i => ({ ...i, sequenceId }))] };
+        const rewardedInteractions = missionRewards.reduce(
+            (interactions, value) => this.missionRewardInteractions(gameAfterBonuses, playerId, value, interactions, sequenceId),
+            newPendingInteractions);
+        return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions: [...rewardedInteractions, ...extraInteractions.map(i => ({ ...i, sequenceId }))] };
+    }
+
+    /** Plateaux Alien où le joueur a marqué une trace de chaque couleur */
+    static boardsWithAllTraceColors(game: Game, playerId: string): number[] {
+        return game.board.alienBoards
+            .map((board, index) => {
+                const colors = new Set(board.lifeTraces.filter(t => t.playerId === playerId).map(t => t.type));
+                return [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE].every(c => colors.has(c)) ? index : -1;
+            })
+            .filter(index => index !== -1);
+    }
+
+    /**
+     * Récompenses d'une mission qui ne sont pas des ressources (interactions à résoudre) :
+     * « specimen:n » (ET.8 à ET.10 : récompense d'un jeton Mascamite de Jupiter ou Saturne) et trace de vie limitée à
+     * l'espèce qui remplit la condition (carte 102). Les traces de vie de la récompense sont ajustées dans `interactions`.
+     */
+    static missionRewardInteractions(game: Game, playerId: string, requirementValue: string, interactions: InteractionState[], sequenceId?: string): InteractionState[] {
+        const parts = requirementValue.split(':');
+        const result = [...interactions];
+        const specimenIndex = parts.indexOf('specimen');
+        if (parts[0] !== 'GAIN_IF_SPECIMEN' && specimenIndex > 0) {
+            const times = parseInt(parts[specimenIndex + 1], 10) || 1;
+            for (let i = 0; i < times; i++) result.push({ type: 'CONSULTING_SPECIMEN', anyPlanet: true, sequenceId });
+        }
+        if (parts[0] === 'GAIN_IF_3_LIFETRACES' && parts[1] === 'different') {
+            const boardIndices = this.boardsWithAllTraceColors(game, playerId);
+            return result.map(i => i.type === 'PLACING_LIFE_TRACE' ? { ...i, boardIndices } : i);
+        }
+        return result;
     }
 
     /** Couleur de trace de vie d'un paramètre de carte (red, yellow, blue ; sinon n'importe laquelle) */
@@ -1300,8 +1337,8 @@ export class CardSystem {
 
         if (conditionType === 'GAIN_IF_3_LIFETRACES') {
             if (target === 'different') {
-                const types = new Set(player.lifeTraces.map(t => t.type));
-                if (types.size >= 3) return rewards;
+                // Carte 102 : 3 traces de couleurs différentes pour une même espèce
+                if (this.boardsWithAllTraceColors(game, playerId).length > 0) return rewards;
             } else {
                 let type: LifeTraceType | undefined;
                 if (target === 'red') type = LifeTraceType.RED;
@@ -1316,15 +1353,10 @@ export class CardSystem {
         }
 
         if (conditionType === 'GAIN_IF_2_LIFETRACES') {
-            let type: LifeTraceType | undefined;
-            if (target === 'red') type = LifeTraceType.RED;
-            else if (target === 'blue') type = LifeTraceType.BLUE;
-            else if (target === 'yellow') type = LifeTraceType.YELLOW;
-
-            if (type) {
-                const count = player.lifeTraces.filter(t => t.type === type).length;
-                if (count >= 2) return rewards;
-            }
+            // ET.8 à ET.10 (cartes Mascamites) : 2 traces de la couleur « pour cette espèce »
+            const type = this.lifeTraceColor(target);
+            const count = SpeciesSystem.playerTracesForSpecies(game, playerId, AlienBoardType.MASCAMITES).filter(t => t.type === type).length;
+            if (count >= 2) return rewards;
         }
 
         if (conditionType === 'GAIN_IF_PROBE_IN_DEEP_SPACE') {

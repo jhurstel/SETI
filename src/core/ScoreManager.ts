@@ -36,6 +36,7 @@ import {
   HistoryEntry,
   FinalScore,
   ScoreDetails,
+  ObjectiveTile,
   RevealedExertienCard,
   LifeTraceLocation,
   Bonus
@@ -166,16 +167,15 @@ export class ScoreManager {
               bonus += effectNumber(effect);
             }
           } else if (effect.type === 'SCORE_SOLVAY') {
-            // Trouver le gain maximum parmi les récompenses "others" des tuiles non validées par le joueur
-            let maxPoints = 0;
-            if (game.board.objectiveTiles) {
-              game.board.objectiveTiles.forEach(tile => {
-                if (!tile.markers.includes(player.id)) {
-                  if (tile.rewards.others > maxPoints) maxPoints = tile.rewards.others;
-                }
-              });
-            }
-            bonus += maxPoints;
+            // Congrès Solvay : décompter, avec la case la plus à droite, la meilleure tuile Score dorée sans marqueur du joueur
+            const best = (game.board.objectiveTiles || [])
+              .filter(tile => !tile.markers.includes(player.id))
+              .reduce((max, tile) => Math.max(max, this.objectiveTileSeries(player, game.board, tile) * tile.rewards.others), 0);
+            bonus += best;
+          } else if (effect.type === 'SCORE_PER_SPECIES_LIFETRACE') {
+            // ET.5, ET.24 : PV par trace de vie marquée pour l'espèce de la carte
+            const count = effect.target ? SpeciesSystem.playerTracesForSpecies(game, player.id, effect.target).length : 0;
+            bonus += count * effectNumber(effect);
           }
         });
       }
@@ -183,6 +183,92 @@ export class ScoreManager {
     });
 
     return bonus;
+  }
+
+  /**
+   * Nombre de séries réalisées par un joueur pour une tuile Score dorée (à multiplier par la valeur du marqueur).
+   */
+  static objectiveTileSeries(player: Player, board: Game['board'], tile: ObjectiveTile): number {
+    let count = 0;
+
+    switch (tile.category) {
+      case ObjectiveCategory.TECHNOLOGY:
+        if (tile.side === 'A') {
+          // Série de 3 types de technologies
+          const typeCounts = new Map<TechnologyCategory, number>();
+          player.technologies.forEach(t => {
+            typeCounts.set(t.type, (typeCounts.get(t.type) || 0) + 1);
+          });
+
+          const counts = Array.from(typeCounts.values()).sort((a, b) => b - a);
+          while (counts.length < 3) counts.push(0);
+          // Greedy algorithm for sets of 3 distinct types (assuming max 4 types)
+          while (counts.length < 4) counts.push(0);
+
+          let sets = 0;
+          while (counts[2] > 0) {
+            sets++;
+            counts[0]--;
+            counts[1]--;
+            counts[2]--;
+            counts.sort((a, b) => b - a);
+          }
+          count = sets;
+        } else {
+          // Paire de technologies
+          count = Math.floor(player.technologies.length / 2);
+        }
+        break;
+
+      case ObjectiveCategory.MISSION:
+        if (tile.side === 'A') {
+          // Mission accomplie
+          count = player.missions.filter(m => m.completed).length;
+        } else {
+          // Paire Mission / Fin de partie
+          const completedMissions = player.missions.filter(m => m.completed).length;
+          const endGameCards = (player.playedCards || []).filter(c => c.type === CardType.END_GAME).length;
+          count = Math.floor((completedMissions + endGameCards) / 2);
+        }
+        break;
+
+      case ObjectiveCategory.REVENUE:
+        // Revenus réservés (au-delà du départ)
+        const reservedCredits = Math.max(0, player.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS);
+        const reservedEnergy = Math.max(0, player.revenueEnergy - GAME_CONSTANTS.INITIAL_REVENUE_ENERGY);
+        const reservedCards = Math.max(0, player.revenueCards - GAME_CONSTANTS.INITIAL_REVENUE_CARDS);
+
+        if (tile.side === 'A') {
+          // Série de 3 types
+          count = Math.min(reservedCredits, reservedEnergy, reservedCards);
+        } else {
+          // Type le plus réservé
+          count = Math.max(reservedCredits, reservedEnergy, reservedCards);
+        }
+        break;
+
+      case ObjectiveCategory.OTHER:
+        if (tile.side === 'A') {
+          // Série de 3 types de traces de vie
+          const tCounts = new Map<LifeTraceType, number>();
+          player.lifeTraces.forEach(t => tCounts.set(t.type, (tCounts.get(t.type) || 0) + 1));
+          const cBlue = tCounts.get(LifeTraceType.BLUE) || 0;
+          const cRed = tCounts.get(LifeTraceType.RED) || 0;
+          const cYellow = tCounts.get(LifeTraceType.YELLOW) || 0;
+          count = Math.min(cBlue, cRed, cYellow);
+        } else {
+          // Paire secteur couvert / sonde (orbiteur ou atterrisseur)
+          let coveredSectors = 0;
+          board.sectors.forEach(s => {
+            coveredSectors += s.coveredBy.filter(id => id === player.id).length;
+          });
+          const probes = player.probes.filter(p => p.state === ProbeState.IN_ORBIT || p.state === ProbeState.LANDED).length;
+          count = Math.min(coveredSectors, probes);
+        }
+        break;
+    }
+
+    return count;
   }
 
   /**
@@ -200,84 +286,7 @@ export class ScoreManager {
         else if (index === 1) rewardValue = tile.rewards.second;
         else rewardValue = tile.rewards.others;
 
-        let count = 0;
-
-        switch (tile.category) {
-          case ObjectiveCategory.TECHNOLOGY:
-            if (tile.side === 'A') {
-              // Série de 3 types de technologies
-              const typeCounts = new Map<TechnologyCategory, number>();
-              player.technologies.forEach(t => {
-                typeCounts.set(t.type, (typeCounts.get(t.type) || 0) + 1);
-              });
-
-              const counts = Array.from(typeCounts.values()).sort((a, b) => b - a);
-              while (counts.length < 3) counts.push(0);
-              // Greedy algorithm for sets of 3 distinct types (assuming max 4 types)
-              while (counts.length < 4) counts.push(0);
-
-              let sets = 0;
-              while (counts[2] > 0) {
-                sets++;
-                counts[0]--;
-                counts[1]--;
-                counts[2]--;
-                counts.sort((a, b) => b - a);
-              }
-              count = sets;
-            } else {
-              // Paire de technologies
-              count = Math.floor(player.technologies.length / 2);
-            }
-            break;
-
-          case ObjectiveCategory.MISSION:
-            if (tile.side === 'A') {
-              // Mission accomplie
-              count = player.missions.filter(m => m.completed).length;
-            } else {
-              // Paire Mission / Fin de partie
-              const completedMissions = player.missions.filter(m => m.completed).length;
-              const endGameCards = (player.playedCards || []).filter(c => c.type === CardType.END_GAME).length;
-              count = Math.floor((completedMissions + endGameCards) / 2);
-            }
-            break;
-
-          case ObjectiveCategory.REVENUE:
-            // Revenus réservés (au-delà du départ)
-            const reservedCredits = Math.max(0, player.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS);
-            const reservedEnergy = Math.max(0, player.revenueEnergy - GAME_CONSTANTS.INITIAL_REVENUE_ENERGY);
-            const reservedCards = Math.max(0, player.revenueCards - GAME_CONSTANTS.INITIAL_REVENUE_CARDS);
-
-            if (tile.side === 'A') {
-              // Série de 3 types
-              count = Math.min(reservedCredits, reservedEnergy, reservedCards);
-            } else {
-              // Type le plus réservé
-              count = Math.max(reservedCredits, reservedEnergy, reservedCards);
-            }
-            break;
-
-          case ObjectiveCategory.OTHER:
-            if (tile.side === 'A') {
-              // Série de 3 types de traces de vie
-              const tCounts = new Map<LifeTraceType, number>();
-              player.lifeTraces.forEach(t => tCounts.set(t.type, (tCounts.get(t.type) || 0) + 1));
-              const cBlue = tCounts.get(LifeTraceType.BLUE) || 0;
-              const cRed = tCounts.get(LifeTraceType.RED) || 0;
-              const cYellow = tCounts.get(LifeTraceType.YELLOW) || 0;
-              count = Math.min(cBlue, cRed, cYellow);
-            } else {
-              // Paire secteur couvert / sonde (orbiteur ou atterrisseur)
-              let coveredSectors = 0;
-              board.sectors.forEach(s => {
-                coveredSectors += s.coveredBy.filter(id => id === player.id).length;
-              });
-              const probes = player.probes.filter(p => p.state === ProbeState.IN_ORBIT || p.state === ProbeState.LANDED).length;
-              count = Math.min(coveredSectors, probes);
-            }
-            break;
-        }
+        const count = this.objectiveTileSeries(player, board, tile);
 
         total += count * rewardValue;
         const rank = index === 0 ? '1er' : index === 1 ? '2e' : `${index + 1}e`;
@@ -294,12 +303,11 @@ export class ScoreManager {
     player: Player,
     _discoveredSpecies: Species[]
   ): number {
-    // TODO: Implémenter les bonus selon les règles de chaque espèce
-    // Chaque espèce peut avoir des modificateurs de scoring différents
-    const bonus = 0;
+    // Règles (p. 21) : « certaines espèces peuvent ajouter une étape de décompte supplémentaire ». Seuls les
+    // Exertiens en ajoutent une (cartes Exertiens jouées et danger : voir revealExertienCards et calculateExertienDanger).
+    // Les exofossiles d'Oumuamua ne rapportent rien (FAQ Q42) ; les cartes Fin de partie des espèces sont dans missionEndGame.
     player;
-
-    return bonus;
+    return 0;
   }
 
   /**

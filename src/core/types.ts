@@ -708,7 +708,7 @@ export type InteractionState =
   /** Le joueur doit cliquer sur un token Mascamite pour le collecter. */
   | { type: 'COLLECTING_SPECIMEN', planetId: string, sequenceId?: string }
   /** Le joueur doit cliquer sur un token Mascamite pour le consulter (et gagner son bonus sans le retirer). */
-  | { type: 'CONSULTING_SPECIMEN', planetId?: string, sequenceId?: string }
+  | { type: 'CONSULTING_SPECIMEN', planetId?: string, sequenceId?: string, anyPlanet?: boolean } // anyPlanet : Jupiter ou Saturne au choix, sans sonde (ET.8 à ET.10)
   /** Le joueur a atteint un palier Exertien : il peut jouer une de ses cartes Exertiens face cachée (ou y renoncer). */
   | { type: 'CHOOSING_EXERTIEN_CARD', milestone: number, sequenceId?: string }
   /** Le joueur doit confirmer la validation d'une mission. */

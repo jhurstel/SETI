@@ -190,7 +190,8 @@ export class InteractionResolver {
         { message: `${actionText} la mission "${mission.name}"${specimenLog}${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, playerId, sequenceId },
         ...res.historyEntries.map(e => ({ ...e, sequenceId })),
       ],
-      newInteractions: res.newPendingInteractions.map(i => ({ ...i, sequenceId })),
+      newInteractions: (requirement ? CardSystem.missionRewardInteractions(res.updatedGame, playerId, effectString(requirement), res.newPendingInteractions, sequenceId) : res.newPendingInteractions)
+        .map(i => ({ ...i, sequenceId })),
     };
   }
 }

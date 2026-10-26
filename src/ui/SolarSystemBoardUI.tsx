@@ -3,6 +3,7 @@ import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, ProbeSta
 import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getObjectPosition, getAbsoluteSectorForProbe, polarToCartesian, describeArc, sectorToIndex, calculateObjectPosition, SolarSystemCell } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
+import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { Tooltip } from './Tooltip';
 import { PLANET_STYLES, PLANET_SIZES } from './styles/celestialStyles';
 import { PlanetIcon } from './components/PlanetIcon';
@@ -1042,7 +1043,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           const dist = count === 1 ? 0 : size * 0.35;
           const angle = (360 / count) * i - 90;
           const { x: tx, y: ty } = polarToCartesian(0, 0, dist, angle);
-          const isClickable = interactionState.type === 'COLLECTING_SPECIMEN' && interactionState.planetId === planetData.id;
+          const isClickable = (interactionState.type === 'COLLECTING_SPECIMEN' && interactionState.planetId === planetData.id)
+            || (interactionState.type === 'CONSULTING_SPECIMEN' && SpeciesSystem.consultablePlanets(game, game.players[game.currentPlayerIndex].id, interactionState).includes(planetData.id));
 
           return (
             <div

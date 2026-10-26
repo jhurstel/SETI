@@ -423,6 +423,16 @@ export class DataLoader {
       else if (passive === 'TAKE_CARD_ROW') {
         effects.push({ type: 'TAKE_CARD_ROW', value: true });
       }
+      // Fin de partie : PV par trace de vie marquée pour une espèce (ET.5, ET.24)
+      else if (passive.startsWith('SCORE_PER_SPECIES_LIFETRACE:')) {
+        const parts = passive.split(':');
+        effects.push({ type: 'SCORE_PER_SPECIES_LIFETRACE', target: parts[1], value: parseInt(parts[2], 10) || 1 });
+      }
+      // Bonus d'un atterrissage gagné par la carte sur une planète précise : GAIN_ON_LAND:<planète>:<ressource>:<valeur> (ET.30)
+      else if (passive.startsWith('GAIN_ON_LAND:') && passive.split(':').length === 4) {
+        const parts = passive.split(':');
+        effects.push({ type: 'LAND_BONUS', target: parts[1], value: `${parts[2]}:${parts[3]}` });
+      }
       else if (passive === 'GAIN_LANDING_AND_SPECIMEN') {
         effects.push({ type: 'GAIN_LANDING_AND_SPECIMEN', value: true });
       }
@@ -525,10 +535,10 @@ export class DataLoader {
       }
 
       // Gestion du format GAIN_ON_LAND:target:value
-      // (GAIN_ON_LAND:<planète>:<ressource>:<valeur> : seulement en se posant sur cette planète, ex: ET.30)
+      // (le format à 4 éléments est un bonus d'atterrissage de la carte : LAND_BONUS, voir parsePassiveEffects)
       else if (permanent.startsWith('GAIN_ON_LAND:')) {
         const parts = permanent.split(':');
-        if (parts.length === 3 || parts.length === 4) {
+        if (parts.length === 3) {
           effects.push({ type: 'GAIN_ON_LAND', target: parts[1], value: permanent });
         }
       }

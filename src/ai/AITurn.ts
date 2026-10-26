@@ -190,7 +190,8 @@ export class AITurn {
 
   /** Tente une action gratuite (avec une part d'aléatoire). Renvoie null si aucune n'est jouée. */
   private static tryFreeAction(game: Game, player: Player): StepResult | null {
-    return this.tryClaimMission(game, player)
+    return this.tryMoveCapsuleHome(game, player)
+      ?? this.tryClaimMission(game, player)
       ?? this.tryTransferData(game, player)
       ?? this.tryBuyCard(game, player)
       ?? this.tryDiscardForFreeAction(game, player);
@@ -317,6 +318,35 @@ export class AITurn {
       }
     }
     return options;
+  }
+
+  /** Rapproche une capsule (spécimen Mascamite) de la Terre d'une case, en payant l'énergie. Renvoie null si aucune ne progresse. */
+  private static tryMoveCapsuleHome(game: Game, player: Player): StepResult | null {
+    const solarSystem = game.board.solarSystem;
+    const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
+    const extraObjects = solarSystem.extraCelestialObjects || [];
+    const distanceHome = (disk: DiskName, sector: SectorNumber) => AIEvaluator.distanceToPlanet(disk, sector, rotationState, extraObjects, 'earth');
+
+    for (const capsule of player.probes.filter(p => p.state === ProbeState.CAPSULE && p.solarPosition)) {
+      if (!ProbeSystem.canMoveProbe(game, player.id, capsule.id, 0).canMove) continue;
+      const absSector = getAbsoluteSectorForProbe(capsule.solarPosition, rotationState);
+      const current = distanceHome(capsule.solarPosition.disk, absSector);
+      if (current === 0) continue;
+      const cells = calculateReachableCells(capsule.solarPosition.disk, absSector, 2, rotationState, true, undefined, extraObjects);
+      const best = getAdjacentCells(capsule.solarPosition.disk, absSector)
+        .filter(adj => cells.has(`${adj.disk}${adj.sector}`))
+        .map(adj => ({ adj, distance: distanceHome(adj.disk, adj.sector) }))
+        .sort((a, b) => a.distance - b.distance)[0];
+      if (!best || best.distance >= current) continue;
+      const sequenceId = `ai-capsule-${Date.now()}`;
+      try {
+        const res = ProbeSystem.moveProbe(game, player.id, capsule.id, best.adj.disk, best.adj.sector, 0, sequenceId);
+        return this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, sequenceId);
+      } catch {
+        // Déplacement refusé par le moteur : capsule suivante
+      }
+    }
+    return null;
   }
 
   /**
