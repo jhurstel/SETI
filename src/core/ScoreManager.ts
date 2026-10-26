@@ -232,7 +232,7 @@ export class ScoreManager {
         }
         break;
 
-      case ObjectiveCategory.REVENUE:
+      case ObjectiveCategory.REVENUE: {
         // Revenus réservés (au-delà du départ)
         const reservedCredits = Math.max(0, player.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS);
         const reservedEnergy = Math.max(0, player.revenueEnergy - GAME_CONSTANTS.INITIAL_REVENUE_ENERGY);
@@ -246,6 +246,7 @@ export class ScoreManager {
           count = Math.max(reservedCredits, reservedEnergy, reservedCards);
         }
         break;
+      }
 
       case ObjectiveCategory.OTHER:
         if (tile.side === 'A') {
@@ -300,13 +301,12 @@ export class ScoreManager {
    * Calcule les bonus spécifiques des espèces découvertes
    */
   private static calculateSpeciesBonuses(
-    player: Player,
+    _player: Player,
     _discoveredSpecies: Species[]
   ): number {
     // Règles (p. 21) : « certaines espèces peuvent ajouter une étape de décompte supplémentaire ». Seuls les
     // Exertiens en ajoutent une (cartes Exertiens jouées et danger : voir revealExertienCards et calculateExertienDanger).
     // Les exofossiles d'Oumuamua ne rapportent rien (FAQ Q42) ; les cartes Fin de partie des espèces sont dans missionEndGame.
-    player;
     return 0;
   }
 

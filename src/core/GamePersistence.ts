@@ -5,7 +5,6 @@ export type SavedGame = Omit<Game, 'history' | 'gameLog'> & { gameLog: GameLogEn
 
 /** Retire de l'état les champs récursifs ou volumineux qui n'ont pas leur place dans une sauvegarde. */
 function stripForSave(state: Game): Omit<Game, 'history' | 'gameLog'> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { history, gameLog, ...rest } = state;
   return rest;
 }

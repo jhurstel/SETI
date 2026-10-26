@@ -53,19 +53,16 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
 
   let canOrbit = false;
   if (playerProbe) {
-    if (currentPlayer.hasPerformedMainAction || isRobot) {
-    } else {
-      const check = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id);
-      canOrbit = check.canOrbit;
+    if (!currentPlayer.hasPerformedMainAction && !isRobot) {
+      canOrbit = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id).canOrbit;
     }
   }
 
   let canLand = false;
   if (playerProbe) {
-    if ((currentPlayer.hasPerformedMainAction && !(interactionState.type === 'LANDING_PROBE')) || isRobot) {
-    } else {
-      const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !(interactionState.type === 'LANDING_PROBE'));
-      canLand = check.canLand;
+    const isBonusLanding = interactionState.type === 'LANDING_PROBE';
+    if ((!currentPlayer.hasPerformedMainAction || isBonusLanding) && !isRobot) {
+      canLand = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !isBonusLanding).canLand;
     }
   }
 

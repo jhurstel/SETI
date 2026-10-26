@@ -99,10 +99,11 @@ export const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEn
         opacity: 1
       });
 
+      const id = tooltipId.current;
       return () => {
           if (!disableCollision) {
             const reg = window.__SETI_TOOLTIPS__ || [];
-            window.__SETI_TOOLTIPS__ = reg.filter((t) => t.id !== tooltipId.current);
+            window.__SETI_TOOLTIPS__ = reg.filter((t) => t.id !== id);
           }
       };
     }

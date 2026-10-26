@@ -768,9 +768,6 @@ export class CardSystem {
                     if (count > 0) {
                         bonuses.pv = (bonuses.pv || 0) + (count * effectNumber(effect));
                     }
-                } else if (effect.type === 'GAIN_SPECIMEN_BONUS') {
-                    // Handled via interaction
-                    bonuses.consultSpecimen = true;
                 } else if (effect.type === 'NO_MEDIA') {
                     player.activeBuffs.push({ ...effect, source: card.name });
                 } else if (effect.type === 'SCORE_PER_TRACE') {

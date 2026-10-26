@@ -7,6 +7,14 @@ import { serializeGame, deserializeGame } from '../../core/GamePersistence';
 import { readAutosave } from '../hooks/useAutosave';
 import './SettingsModal.css';
 
+/** API File System Access (Chrome, Edge) : absente des types DOM standards */
+type WindowWithSavePicker = Window & {
+  showSaveFilePicker?: (options: {
+    suggestedName?: string;
+    types?: { description: string; accept: Record<string, string[]> }[];
+  }) => Promise<{ createWritable: () => Promise<{ write: (data: string) => Promise<void>; close: () => Promise<void> }> }>;
+};
+
 interface SettingsModalProps {
   visible: boolean;
   setVisible: (visible: boolean) => void;
@@ -118,11 +126,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           const gameState = JSON.stringify(serializeGame(game, historyLog), null, 2);
 
           // Utiliser l'API File System Access si disponible pour ouvrir une boîte de dialogue "Enregistrer sous"
-          // @ts-ignore
-          if (window.showSaveFilePicker) {
+          const { showSaveFilePicker } = window as WindowWithSavePicker;
+          if (showSaveFilePicker) {
               try {
-                  // @ts-ignore
-                  const handle = await window.showSaveFilePicker({
+                  const handle = await showSaveFilePicker({
                       suggestedName: `seti_save_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`,
                       types: [{
                           description: 'Sauvegarde SETI',

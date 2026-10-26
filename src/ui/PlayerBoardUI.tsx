@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, TechnologyCategory, MAIN_ACTION_TYPES, CardType } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
@@ -135,14 +135,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
   const handCards = currentPlayer.cards.filter(c => c.type !== CardType.EXERTIEN);
 
-  const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
+  const handleTooltipHover = useCallback((e: React.MouseEvent, content: React.ReactNode) => {
     const rect = e.currentTarget.getBoundingClientRect();
     setActiveTooltip({ content, rect });
-  };
+  }, [setActiveTooltip]);
 
-  const handleTooltipLeave = () => {
+  const handleTooltipLeave = useCallback(() => {
     setActiveTooltip(null);
-  };
+  }, [setActiveTooltip]);
   
   const isInteractiveMode = isDiscarding || isTrading || isReserving || isSelectingComputerSlot || isAnalyzing || isPlacingLifeTrace || isSelectingSector || isDiscardingForSignal || interactionState.type === 'CHOOSING_BONUS_ACTION' || interactionState.type === 'CLAIMING_MISSION_REQUIREMENT';
 
@@ -310,24 +310,27 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     if (hasPerformedMainAction) return "Action principale déjà effectuée";
 
     switch (actionType) {
-      case ActionType.LAUNCH_PROBE:
+      case ActionType.LAUNCH_PROBE: {
         const launchCheck = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
         if (!launchCheck.canLaunch) return launchCheck.reason || "Impossible de lancer une sonde";
         return `Lancer une sonde depuis la Terre (coût: ${GAME_CONSTANTS.PROBE_LAUNCH_COST} crédits)`;
+      }
 
-      case ActionType.ORBIT:
+      case ActionType.ORBIT: {
         const orbitProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
         if (!orbitProbe) return 'Nécessite une sonde dans le système solaire';
         const orbitCheck = ProbeSystem.canOrbit(game, currentPlayer.id, orbitProbe.id);
         if (!orbitCheck.canOrbit) return orbitCheck.reason || "Impossible";
         return `Mettre une sonde en orbite (coût: ${GAME_CONSTANTS.ORBIT_COST_CREDITS} crédit, ${GAME_CONSTANTS.ORBIT_COST_ENERGY} énergie)`;
-      
-      case ActionType.LAND:
+      }
+
+      case ActionType.LAND: {
         const landProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
         if (!landProbe) return 'Nécessite une sonde dans le système solaire';
         const landCheck = ProbeSystem.canLand(game, currentPlayer.id, landProbe.id);
         if (!landCheck.canLand) return landCheck.reason || "Impossible";
         return `Poser une sonde sur une planète (coût: ${landCheck.energyCost} énergie${hasProbeOnPlanetInfo.hasOrbiter ? ', orbiteur présent' : ''}${hasProbeOnPlanetInfo.hasExploration3 ? ', réduction exploration 3' : ''})`;
+      }
 
       case ActionType.SCAN_SECTOR:
         if (currentPlayer.credits < 1 || currentPlayer.energy < 2) return `Nécessite 1 crédit et 2 énergies (vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s))`;
@@ -342,10 +345,11 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) return `Nécessite ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} points de couverture médiatique (vous avez ${currentPlayer.mediaCoverage})`;
         return `Rechercher une technologie (coût: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} couverture médiatique)`;
 
-      case ActionType.PLAY_CARD:
+      case ActionType.PLAY_CARD: {
         const cardCheck = CardSystem.canPlayCards(game, currentPlayer.id);
         if (!cardCheck.canPlay) return cardCheck.reason || "Impossible";
-        return `Joueur une carte de votre main`;
+        return `Jouer une carte de votre main`;
+      }
         
       default:
         return '';
