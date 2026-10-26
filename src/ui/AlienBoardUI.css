@@ -364,16 +364,20 @@
 }
 
 /* Mascamites : emplacements bleus du haut en triangle (colonnes de 1, 2 et 3 jetons).
-   Même pas que les colonnes dans les deux sens (jeton 28px + écart 15px) : les 9 jetons bleus se suivent
-   sans espace particulier. La base prolonge la colonne bleue ; le triangle n'occupe qu'un jeton de large
-   (marge négative) et déborde vers la gauche, sa pointe au niveau de la colonne jaune. */
+   Verticalement, même pas que les colonnes (jeton 28px + écart 15px) : la base prolonge la colonne bleue
+   et les 9 jetons bleus se suivent sans espace particulier.
+   Horizontalement, les colonnes de pistes sont en space-around : leurs centres sont espacés d'un tiers de la
+   largeur du conteneur. Le triangle couvre ce tiers + un jeton : base sur la colonne bleue, pointe sur la jaune.
+   Il n'occupe qu'un jeton de large dans la mise en page (marge négative) : l'espacement des colonnes est inchangé. */
+.alien-tracks-container {
+    container-type: inline-size;
+}
 .alien-mascamite-triangle {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 15px;
-    width: calc(3 * 28px + 2 * 15px);
-    margin-left: calc(-2 * (28px + 15px));
+    justify-content: space-between;
+    width: calc(100cqw / 3 + 28px);
+    margin-left: calc(-100cqw / 3);
     /* écart de 15px avec le premier jeton de la colonne (l'écart de la colonne est de 8px) */
     margin-bottom: 7px;
 }
