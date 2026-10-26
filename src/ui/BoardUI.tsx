@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, ProbeState, TechnologyCategory, LifeTraceType, InteractionState, GamePhase, SignalType, HistoryEntry, getInteractionLabel, LifeTraceLocation } from '../core/types';
+import { Game, ActionType, Card, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, ProbeState, TechnologyCategory, LifeTraceType, InteractionState, GamePhase, SignalType, HistoryEntry, getInteractionLabel, LifeTraceLocation } from '../core/types';
 import { createRotationState, getCell } from '../core/SolarSystemPosition';
 import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
@@ -64,7 +64,7 @@ export const BoardUI: React.FC = () => {
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
   const [alienDiscoveryNotification, setAlienDiscoveryNotification] = useState<{ visible: boolean; message: string } | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null>(null);
-  const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: any[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
+  const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: Card[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
   const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
   const [isPassModalMinimized, setIsPassModalMinimized] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(true); // Open at launch
@@ -1019,8 +1019,8 @@ export const BoardUI: React.FC = () => {
         setToast({ message: successMessage, visible: true });
       }
       return interactionTriggered;
-    } catch (e: any) {
-      setToast({ message: e.message, visible: true });
+    } catch (e) {
+      setToast({ message: e instanceof Error ? e.message : String(e), visible: true });
       return false;
     }
   };
@@ -1048,8 +1048,8 @@ export const BoardUI: React.FC = () => {
       if (!handleNewInteractions(result.newPendingInteractions, interactionState.sequenceId)) {
         setInteractionState({ type: 'IDLE' });
       }
-    } catch (e: any) {
-      setToast({ message: e.message, visible: true });
+    } catch (e) {
+      setToast({ message: e instanceof Error ? e.message : String(e), visible: true });
     }
   };
 
@@ -1533,9 +1533,8 @@ export const BoardUI: React.FC = () => {
   };
 
   // Gestionnaire pour l'échange de cartes contre des resources crédit/énergie
-  const handleTradeCardAction = (payload?: any) => {
+  const handleTradeCardAction = (targetGain?: string) => {
     if (interactionState.type !== 'IDLE') return;
-    const targetGain = payload?.targetGain;
     if (!targetGain) return;
 
     setInteractionState({ type: 'TRADING_CARD', count: 2, targetGain, selectedCards: [] });
@@ -1902,7 +1901,7 @@ export const BoardUI: React.FC = () => {
               onCardClick={handleCardClick}
               onDiscardCardAction={handleDiscardCardAction}
               onConfirmDiscardForEndTurn={handleConfirmDiscard}
-              onTradeCardAction={(targetGain) => handleTradeCardAction({ targetGain })}
+              onTradeCardAction={handleTradeCardAction}
               onConfirmTrade={handleConfirmTrade}
               onConfirmReserve={() => handleConfirmReservation()}
               onBuyCardAction={handleBuyCardAction}

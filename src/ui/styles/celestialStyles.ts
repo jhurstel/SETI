@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { FreeActionType, SectorType, RevenueType, TechnologyCategory } from '../../core/types';
 
 export const FREE_ACTION_STYLES: Record<string, { color: string, borderColor: string, bgColor: string }> = {
@@ -107,7 +108,10 @@ export const TECHNOLOGY_STYLES: Record<string, { color: string, borderColor: str
   }
 };
 
-export const PLANET_STYLES: { [key: string]: any } = {
+/** Apparence d'une planète : styles CSS, plus des indicateurs de rendu (anneaux…) */
+export type PlanetStyle = CSSProperties & { hasRings?: boolean; hasBands?: boolean; hasContinents?: boolean };
+
+export const PLANET_STYLES: Record<string, PlanetStyle> = {
     'neptune': {
       background: 'radial-gradient(circle, #4166f5, #1e3a8a)',
       border: '2px solid #60a5fa',

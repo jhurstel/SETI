@@ -1,6 +1,18 @@
 import React, { useRef, useState, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 
+/** Positions des infobulles affichées, partagées entre instances pour éviter qu'elles se chevauchent */
+interface TooltipPlacement {
+  id: string;
+  rect: { left: number; top: number; right: number; bottom: number };
+}
+
+declare global {
+  interface Window {
+    __SETI_TOOLTIPS__?: TooltipPlacement[];
+  }
+}
+
 export const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEnter, onMouseLeave, disableCollision = false }: { content: React.ReactNode, targetRect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void, disableCollision?: boolean }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [style, setStyle] = useState<React.CSSProperties>({ opacity: 0 });
@@ -44,7 +56,7 @@ export const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEn
         const width = rect.width;
         const height = rect.height;
         
-        const others = ((window as any).__SETI_TOOLTIPS__ || []).filter((t: any) => t.id !== tooltipId.current);
+        const others = (window.__SETI_TOOLTIPS__ || []).filter((t) => t.id !== tooltipId.current);
         let collision = true;
         let iterations = 0;
 
@@ -77,8 +89,8 @@ export const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEn
 
       // Enregistrer la position finale
       if (!disableCollision) {
-        const registry = (window as any).__SETI_TOOLTIPS__ || [];
-        (window as any).__SETI_TOOLTIPS__ = [...registry.filter((t: any) => t.id !== tooltipId.current), { id: tooltipId.current, rect: { left: finalLeft, top: finalTop, right: finalLeft + rect.width, bottom: finalTop + rect.height } }];
+        const registry = window.__SETI_TOOLTIPS__ || [];
+        window.__SETI_TOOLTIPS__ = [...registry.filter((t) => t.id !== tooltipId.current), { id: tooltipId.current, rect: { left: finalLeft, top: finalTop, right: finalLeft + rect.width, bottom: finalTop + rect.height } }];
       }
 
       setStyle({
@@ -89,8 +101,8 @@ export const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEn
 
       return () => {
           if (!disableCollision) {
-            const reg = (window as any).__SETI_TOOLTIPS__ || [];
-            (window as any).__SETI_TOOLTIPS__ = reg.filter((t: any) => t.id !== tooltipId.current);
+            const reg = window.__SETI_TOOLTIPS__ || [];
+            window.__SETI_TOOLTIPS__ = reg.filter((t) => t.id !== tooltipId.current);
           }
       };
     }

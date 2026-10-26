@@ -43,7 +43,7 @@ const createMockGame = (): Game => {
     firstPlayerIndex: 0,
     phase: GamePhase.PLAYING,
     players: [player],
-    board: { solarSystem: { probes: [], rotationAngleLevel1: 0, rotationAngleLevel2: 0, rotationAngleLevel3: 0, extraCelestialObjects: [] } } as any,
+    board: { solarSystem: { probes: [], rotationAngleLevel1: 0, rotationAngleLevel2: 0, rotationAngleLevel3: 0, extraCelestialObjects: [] } } as unknown as Game['board'],
     decks: { cards: [], cardRow: [], discardPile: [], roundDecks: {} },
     species: [],
     discoveredSpecies: [],

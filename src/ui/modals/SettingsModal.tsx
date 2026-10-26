@@ -134,8 +134,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   await writable.close();
                   setVisible(false);
                   return;
-              } catch (err: any) {
-                  if (err.name === 'AbortError') return; // Annulation utilisateur
+              } catch (err) {
+                  if (err instanceof Error && err.name === 'AbortError') return; // Annulation utilisateur
                   // Sinon continuer vers le fallback
               }
           }

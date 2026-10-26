@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType } from '../core/types';
+import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType, LifeTrace } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { CardTooltip } from './components/CardTooltip';
 import './AlienBoardUI.css';
@@ -16,7 +16,7 @@ interface AlienBoardUIProps {
     forceOpen?: boolean;
 }
 
-const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseEnter, onMouseLeave }: { color: string, traces: any[], game: Game, onClick?: () => void, isClickable?: boolean, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
+const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseEnter, onMouseLeave }: { color: string, traces: LifeTrace[], game: Game, onClick?: () => void, isClickable?: boolean, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
   <div
     className={`alien-triangle-slot ${isClickable ? 'clickable' : 'help'}`}
     style={{ pointerEvents: 'auto' }}
@@ -128,7 +128,7 @@ const ExertienDangerTooltip: React.FC<{
     onLeave: () => void;
 }> = ({ game, onEnter, onLeave }) => {
     const [cardTooltip, setCardTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
-    const cardHoverTimeoutRef = useRef<any>(null);
+    const cardHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleCardHover = (e: React.MouseEvent, content: React.ReactNode) => {
         if (cardHoverTimeoutRef.current) {
@@ -211,7 +211,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
     // Trace limitée à certains plateaux (ex: espèce où le joueur a déjà une trace de cette couleur)
     const isBoardAllowed = interactionState.type !== 'PLACING_LIFE_TRACE' || !interactionState.boardIndices || interactionState.boardIndices.includes(boardIndex);
     const [isOpen, setIsOpen] = useState(isPlacingTrace || forceOpen);
-    const hoverTimeoutRef = useRef<any>(null);
+    const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     useEffect(() => {
         if (isPlacingTrace || forceOpen) {
@@ -399,8 +399,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
     const renderSpeciesTrack = (type: LifeTraceType) => {
         if (!species) return null;
         
-        let fixedSlots: any[] = [];
-        let infiniteSlot: any = {};
+        let fixedSlots: Bonus[] = [];
+        let infiniteSlot: Bonus = {};
         
         if (type === LifeTraceType.RED) {
             fixedSlots = species.fixedSlots.redlifetrace;

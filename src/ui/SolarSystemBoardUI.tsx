@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, ProbeState, GAME_CONSTANTS, SectorType, InteractionState, AlienBoardType, CelestialObject, GamePhase, LifeTraceType, Player } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, ProbeState, GAME_CONSTANTS, SectorType, InteractionState, AlienBoardType, CelestialObject, GamePhase, LifeTraceType, Player, Satellite, Bonus } from '../core/types';
 import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getObjectPosition, getAbsoluteSectorForProbe, polarToCartesian, describeArc, sectorToIndex, calculateObjectPosition, SolarSystemCell } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -83,7 +83,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const { type, planetId, index } = hoveredSlot;
 
     let planetData = getPlanetData(planetId);
-    let satelliteData: any = null;
+    let satelliteData: Satellite | null = null;
 
     if (!planetData) {
       for (const p of game.board.planets) {
@@ -151,8 +151,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     }
 
     if (type === 'lander') {
-      let landSlots: any[] = [];
-      let landers: any[] = [];
+      let landSlots: Bonus[] = [];
+      let landers: Probe[] = [];
 
       if (satelliteData) {
         landSlots = [satelliteData.landBonus];
@@ -165,13 +165,13 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       if (index >= landSlots.length) return null;
       const bonus = landSlots[index];
 
-      const probesOnSlot = landers.filter((p: any) => p.planetSlotIndex === index);
+      const probesOnSlot = landers.filter(p => p.planetSlotIndex === index);
       const probe = probesOnSlot.length > 0 ? probesOnSlot[probesOnSlot.length - 1] : undefined;
       const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
       const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
 
       const isOccupied = !!player;
-      const isPrevSlotOccupied = index === 0 || landers.some((p: any) => p.planetSlotIndex === index - 1);
+      const isPrevSlotOccupied = index === 0 || landers.some(p => p.planetSlotIndex === index - 1);
       const isNextAvailable = !isOccupied && isPrevSlotOccupied;
       const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
 
@@ -461,7 +461,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   }, [game.board.solarSystem.probes]);
 
   // Ref pour le timeout de fermeture du tooltip
-  const hoverTimeoutRef = useRef<any>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnterObject = (e: React.MouseEvent<HTMLDivElement>, obj: CelestialObject) => {
     if (hoverTimeoutRef.current) {

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Game, InteractionState, Planet, ProbeState, AlienBoardType, Player } from '../core/types';
+import { Game, InteractionState, Planet, ProbeState, AlienBoardType, Player, Satellite, Bonus, Probe } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { PlanetIcon } from './components/PlanetIcon';
 import { Tooltip } from './Tooltip';
@@ -21,8 +21,8 @@ const PLANET_IDS = ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', '
 // Main component for the planet panel
 export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionState, onOrbit, onLand, setActiveTooltip }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const hoverTimeoutRef = useRef<any>(null);
-    const panelHoverTimeoutRef = useRef<any>(null);
+    const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const panelHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [removingItem, setRemovingItem] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number } | null>(null);
     const processingRef = useRef(false);
     const [hoveredSlot, setHoveredSlot] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number, rect: DOMRect } | null>(null);
@@ -73,7 +73,7 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
         const { type, planetId, index } = hoveredSlot;
 
         let planetData = getPlanetData(planetId);
-        let satelliteData: any = null;
+        let satelliteData: Satellite | null = null;
 
         if (!planetData) {
             for (const p of game.board.planets) {
@@ -141,8 +141,8 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
         }
 
         if (type === 'lander') {
-            let landSlots: any[] = [];
-            let landers: any[] = [];
+            let landSlots: Bonus[] = [];
+            let landers: Probe[] = [];
 
             if (satelliteData) {
                 landSlots = [satelliteData.landBonus];
@@ -155,13 +155,13 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
             if (index >= landSlots.length) return null;
             const bonus = landSlots[index];
 
-            const probesOnSlot = landers.filter((p: any) => p.planetSlotIndex === index);
+            const probesOnSlot = landers.filter(p => p.planetSlotIndex === index);
             const probe = probesOnSlot.length > 0 ? probesOnSlot[probesOnSlot.length - 1] : undefined;
             const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
             const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
 
             const isOccupied = !!player;
-            const isPrevSlotOccupied = index === 0 || landers.some((p: any) => p.planetSlotIndex === index - 1);
+            const isPrevSlotOccupied = index === 0 || landers.some(p => p.planetSlotIndex === index - 1);
             const isNextAvailable = !isOccupied && isPrevSlotOccupied;
             const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
 

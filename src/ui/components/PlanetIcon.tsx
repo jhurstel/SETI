@@ -15,7 +15,7 @@ interface PlanetIconProps {
   onLand: (planetId: string, slotIndex?: number) => void;
   handleSlotClick: (e: React.MouseEvent, isClickable: boolean, actionFn: ((planetId: string, index: number) => void) | undefined, planetId: string, index: number, removalType?: 'orbiter' | 'lander') => void;
   removingItem: { type: 'orbiter' | 'lander', planetId: string, index: number } | null;
-  hoverTimeoutRef: React.MutableRefObject<any>;
+  hoverTimeoutRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
   setHoveredSlot: (slot: { type: 'orbiter' | 'lander', planetId: string, index: number, rect: DOMRect } | null) => void;
   isInteractive?: boolean;
 }
