@@ -1204,6 +1204,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const isOwner = probe.ownerId === game.players[game.currentPlayerIndex].id;
     const shouldHighlight = highlightPlayerProbes && isOwner;
     const isRobot = player?.type === 'robot';
+    const isCapsule = probe.state === ProbeState.CAPSULE;
+    const specimenReward = probe.specimen ? (ResourceSystem.formatBonus(probe.specimen.bonus) || []).join(', ') : '';
 
     return (
       <div
@@ -1218,7 +1220,14 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           const content = (
             <>
               <div style={{ fontWeight: 'bold' }}>{playerName}</div>
-              <div style={{ fontSize: '0.8em', color: '#ccc', marginTop: '2px' }}>Déplacer la sonde</div>
+              {isCapsule ? (
+                <>
+                  <div style={{ fontSize: '0.85em', color: '#7fff7f', marginTop: '2px' }}>Capsule : spécimen Mascamite{specimenReward ? ` (${specimenReward})` : ''}</div>
+                  <div style={{ fontSize: '0.8em', color: '#ccc', marginTop: '2px' }}>Déplacer la capsule (énergie ou déplacements) jusqu'à sa destination pour réclamer la mission</div>
+                </>
+              ) : (
+                <div style={{ fontSize: '0.8em', color: '#ccc', marginTop: '2px' }}>Déplacer la sonde</div>
+              )}
             </>
           );
           setActiveTooltip({ content, rect: e.currentTarget.getBoundingClientRect() });
@@ -1240,7 +1249,13 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         {/* Ombre portée au sol */}
         <div className="seti-probe-shadow" />
 
-        {/* Structure de la sonde (Type Cassini/Voyager) */}
+        {isCapsule ? (
+          /* Capsule : marqueur du joueur posé sur le spécimen */
+          <div className="seti-capsule" style={{ borderColor: playerColor, filter: isSelected ? 'drop-shadow(0 0 3px #00ff00)' : 'none' }}>
+            <div className="seti-capsule-marker" style={{ backgroundColor: playerColor }} />
+          </div>
+        ) : (
+        /* Structure de la sonde (Type Cassini/Voyager) */
         <div className="seti-probe-body"
           style={{
             filter: isSelected ? 'drop-shadow(0 0 3px #00ff00)' : 'none',
@@ -1264,6 +1279,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           <div className="seti-probe-arm-right" />
           <div className="seti-probe-antenna-bottom" />
         </div>
+        )}
       </div>
     );
   };

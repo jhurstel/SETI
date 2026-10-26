@@ -587,3 +587,26 @@
         opacity: 0;
     }
 }
+
+/* Capsule Mascamite : spécimen (vert) surmonté du marqueur du joueur */
+.seti-capsule {
+    position: relative;
+    width: 20px;
+    height: 14px;
+    margin: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 2px solid;
+    border-radius: 8px;
+    background: radial-gradient(circle at 35% 40%, #b6ff9e, #3f9e3a 70%);
+    box-shadow: 0 0 6px rgba(127, 255, 127, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.seti-capsule-marker {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.6);
+}

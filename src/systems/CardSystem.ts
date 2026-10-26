@@ -982,6 +982,7 @@ export class CardSystem {
             'GAIN_IF_LIFETRACE_BOTH_SPECIES',
             'GAIN_IF_3_LIFETRACES',
             'GAIN_IF_2_LIFETRACES',
+            'GAIN_IF_SPECIMEN',
             'GAIN_ON_VISIT',
             'GAIN_ON_TECH',
             'GAIN_ON_SIGNAL',
@@ -1234,9 +1235,13 @@ export class CardSystem {
         }
 
         if (conditionType === 'GAIN_IF_SPECIMEN') {
-            // Vérifie si le joueur a une sonde sur la planète cible (ex: earth, mars)
-            // Simplification de "amener le spécimen"
-            if (target && ProbeSystem.hasPresenceOnPlanet(game, playerId, target)) {
+            // Une capsule du joueur est sur la destination (Terre ou Mars) : récompense de la mission
+            // plus celle du spécimen (« specimen:2 » : deux fois, carte Prélèvement de Reproducteurs)
+            const capsule = target ? ProbeSystem.findCapsuleOnPlanet(game, playerId, target) : undefined;
+            if (capsule?.specimen) {
+                const specimenIndex = parts.indexOf('specimen');
+                const times = specimenIndex !== -1 ? parseInt(parts[specimenIndex + 1], 10) || 1 : 1;
+                for (let i = 0; i < times; i++) ResourceSystem.accumulateBonus(capsule.specimen.bonus, rewards);
                 return rewards;
             }
         }

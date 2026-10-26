@@ -262,7 +262,8 @@ export class AITurn {
     const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
 
     for (const probe of player.probes) {
-      if (probe.state !== ProbeState.IN_SOLAR_SYSTEM || !probe.solarPosition) continue;
+      // Les capsules (spécimens Mascamites) se déplacent comme les sondes, vers leur destination
+      if ((probe.state !== ProbeState.IN_SOLAR_SYSTEM && probe.state !== ProbeState.CAPSULE) || !probe.solarPosition) continue;
       if (!ProbeSystem.canMoveProbe(game, player.id, probe.id, freeMovements).canMove) continue;
 
       const absSector = getAbsoluteSectorForProbe(probe.solarPosition, rotationState);

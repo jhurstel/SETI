@@ -1,6 +1,7 @@
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
-import { DiskName, Game, Probe, ProbeState, SectorNumber } from '../src/core/types';
+import { DiskName, Game, Mission, Probe, ProbeState, SectorNumber } from '../src/core/types';
+import { InteractionResolver } from '../src/core/InteractionResolver';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -66,13 +67,23 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
       expect(ProbeSystem.shouldCollectSpecimen(game, 'jupiter', undefined)).toBe(false);
     });
 
-    test('prélever retire le jeton et applique son bonus', () => {
+    test("shouldCollectSpecimen : une lune de Jupiter ou Saturne compte (Exploration en Rover, La Reine)", () => {
+      getPlayer(game, P1).cards.push(makeCard('rover', { passiveEffects: [{ type: 'GAIN_SATELLITE_LANDING_AND_SPECIMEN', value: true }] }));
+      const moonId = game.board.planets.find(p => p.id === 'jupiter')!.satellites![0].id;
+      expect(ProbeSystem.shouldCollectSpecimen(game, moonId, 'rover')).toBe(true);
+      expect(ProbeSystem.specimenPlanetId(game, moonId)).toBe('jupiter');
+    });
+
+    test('prélever retire le jeton et le place dans une capsule sur la case de la planète, sans gagner sa récompense', () => {
       const scoreBefore = getPlayer(game, P1).score;
       const res = SpeciesSystem.takeMascamiteSpecimen(game, P1, 'jupiter', 0, 'collect', 'seq')!;
 
       expect(res.updatedGame.board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens).toEqual([{ bonus: { media: 1 } }]);
-      expect(getPlayer(res.updatedGame, P1).score).toBe(scoreBefore + 3);
-      expect(res.historyEntries[0].message).toBe('prélève un spécimen Mascamite sur Jupiter');
+      expect(getPlayer(res.updatedGame, P1).score).toBe(scoreBefore);
+      const capsule = getPlayer(res.updatedGame, P1).probes.find(p => p.state === ProbeState.CAPSULE)!;
+      expect(capsule).toMatchObject({ planetId: 'jupiter', specimen: { bonus: { pv: 3 } }, solarPosition: { disk: 'C', sector: 5, level: 1 } });
+      expect(res.updatedGame.board.solarSystem.probes.some(p => p.id === capsule.id)).toBe(true);
+      expect(res.historyEntries[0].message).toBe('prélève un spécimen Mascamite sur Jupiter et le place dans une capsule');
       expect(game.board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens).toHaveLength(2);
     });
 
@@ -85,6 +96,60 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
     test('aucun jeton à cet index : null', () => {
       expect(SpeciesSystem.takeMascamiteSpecimen(game, P1, 'jupiter', 5, 'collect', 'seq')).toBeNull();
       expect(SpeciesSystem.takeMascamiteSpecimen(game, P1, 'mars', 0, 'collect', 'seq')).toBeNull();
+    });
+  });
+
+  describe('capsules Mascamites', () => {
+    const missionReturning = (value: string): Mission => ({
+      id: 'm1', cardId: 'ET', name: 'Retour de spécimen', description: '', ownerId: P1,
+      requirements: [{ id: 'r1', type: 'GAIN_IF_SPECIMEN', target: value.split(':')[1], value }],
+      completedRequirementIds: [], fulfillableRequirementIds: [], completed: false,
+    });
+
+    test("une capsule se déplace comme une sonde mais n'en est pas une (lancement, orbite)", () => {
+      const withCapsule = SpeciesSystem.takeMascamiteSpecimen(
+        { ...game, board: { ...game.board, planets: game.board.planets.map(p => p.id === 'jupiter' ? { ...p, mascamiteTokens: [{ bonus: { pv: 3 } }] } : p) } },
+        P1, 'jupiter', 0, 'collect', 'seq')!.updatedGame;
+      const capsule = getPlayer(withCapsule, P1).probes.find(p => p.state === ProbeState.CAPSULE)!;
+      getPlayer(withCapsule, P1).energy = 3;
+
+      expect(ProbeSystem.canMoveProbe(withCapsule, P1, capsule.id).canMove).toBe(true);
+      expect(ProbeSystem.canOrbit(withCapsule, P1, capsule.id).canOrbit).toBe(false);
+      expect(ProbeSystem.canLaunchProbe(withCapsule, P1).canLaunch).toBe(true);
+
+      const moved = ProbeSystem.moveProbe(withCapsule, P1, capsule.id, 'C', 4, 0, 'seq');
+      expect(getPlayer(moved.updatedGame, P1).probes.find(p => p.id === capsule.id)!.state).toBe(ProbeState.CAPSULE);
+      expect(moved.historyEntries[0].message).toContain('déplacer une capsule');
+    });
+
+    test('ramener le spécimen sur Terre accomplit la mission : récompense de la carte + celle du spécimen, la capsule disparaît', () => {
+      const capsule = ProbeSystem.createCapsule(game, P1, 'earth', { bonus: { pv: 3 } })!;
+      getPlayer(game, P1).missions = [missionReturning('GAIN_IF_SPECIMEN:earth:pv:3:data:3')];
+      const { score, data } = getPlayer(game, P1);
+
+      const res = InteractionResolver.resolve(game, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: 'm1', requirementId: 'r1', sequenceId: 'seq' });
+
+      expect(res.error).toBeUndefined();
+      expect(getPlayer(res.updatedGame, P1).score).toBe(score + 6);
+      expect(getPlayer(res.updatedGame, P1).data).toBe(data + 3);
+      expect(getPlayer(res.updatedGame, P1).probes.some(p => p.id === capsule.id)).toBe(false);
+      expect(res.updatedGame.board.solarSystem.probes.some(p => p.id === capsule.id)).toBe(false);
+      expect(res.historyEntries[0].message).toContain('en ramenant un spécimen sur Terre');
+    });
+
+    test('Prélèvement de Reproducteurs : la récompense du spécimen est gagnée deux fois', () => {
+      ProbeSystem.createCapsule(game, P1, 'earth', { bonus: { pv: 3 } });
+      getPlayer(game, P1).missions = [missionReturning('GAIN_IF_SPECIMEN:earth:specimen:2')];
+      const score = getPlayer(game, P1).score;
+      const res = InteractionResolver.resolve(game, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: 'm1', requirementId: 'r1', sequenceId: 'seq' });
+      expect(getPlayer(res.updatedGame, P1).score).toBe(score + 6);
+    });
+
+    test('sans capsule sur la destination, la mission ne peut pas être accomplie', () => {
+      ProbeSystem.createCapsule(game, P1, 'jupiter', { bonus: { pv: 3 } });
+      getPlayer(game, P1).missions = [missionReturning('GAIN_IF_SPECIMEN:earth:pv:3:data:3')];
+      const res = InteractionResolver.resolve(game, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: 'm1', requirementId: 'r1', sequenceId: 'seq' });
+      expect(res.error).toBe('Conditions non remplies.');
     });
   });
 });

@@ -1278,7 +1278,8 @@ export const BoardUI: React.FC = () => {
 
         // Détection Card 19 (Assistance Gravitationnelle)
         const targetCell = getCell(disk, sector, createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0));
-        const hasChoiceBuff = oldPlayer?.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
+        const isCapsule = oldPlayer?.probes.some(p => p.id === probeId && p.state === ProbeState.CAPSULE);
+        const hasChoiceBuff = !isCapsule && oldPlayer?.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
 
         if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
           // Calculer les mouvements restants après ce pas (si gratuit)

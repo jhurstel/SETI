@@ -4,6 +4,7 @@ import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bo
 import { ResourceSystem } from './ResourceSystem';
 import { getObjectPosition } from '../core/SolarSystemPosition';
 import { CardSystem } from './CardSystem';
+import { ProbeSystem } from './ProbeSystem';
 
 export class SpeciesSystem {
     /**
@@ -40,8 +41,9 @@ export class SpeciesSystem {
     }
 
     /**
-     * Spécimen Mascamite : « collect » retire le jeton de la planète, « consult » l'étudie sans le retirer.
-     * Le bonus du jeton est appliqué au joueur. Renvoie null s'il n'y a pas de jeton à cet index.
+     * Spécimen Mascamite. « collect » retire le jeton de la planète et le place dans une capsule du joueur
+     * sur la case de la planète (sa récompense sera gagnée en le ramenant à destination) ;
+     * « consult » applique la récompense du jeton sans le retirer. Renvoie null s'il n'y a pas de jeton à cet index.
      */
     static takeMascamiteSpecimen(game: Game, playerId: string, planetId: string, tokenIndex: number, mode: 'collect' | 'consult', sequenceId: string): {
         updatedGame: Game;
@@ -53,13 +55,22 @@ export class SpeciesSystem {
         const tokens = planet?.mascamiteTokens;
         if (!planet || !tokens || !tokens[tokenIndex]) return null;
 
-        const token = mode === 'consult' ? tokens[tokenIndex] : tokens.splice(tokenIndex, 1)[0];
+        if (mode === 'collect') {
+            const token = tokens.splice(tokenIndex, 1)[0];
+            ProbeSystem.createCapsule(updatedGame, playerId, planetId, token);
+            return {
+                updatedGame,
+                historyEntries: [{ message: `prélève un spécimen Mascamite sur ${planet.name} et le place dans une capsule`, playerId, sequenceId }],
+                newPendingInteractions: [],
+            };
+        }
+
+        const token = tokens[tokenIndex];
         const res = ResourceSystem.processBonuses(token.bonus, updatedGame, playerId, 'mascamite_specimen', sequenceId);
-        const verb = mode === 'consult' ? 'étudie' : 'prélève';
         return {
             updatedGame: res.updatedGame,
             historyEntries: [
-                { message: `${verb} un spécimen Mascamite sur ${planet.name}`, playerId, sequenceId },
+                { message: `étudie un spécimen Mascamite sur ${planet.name}`, playerId, sequenceId },
                 ...res.historyEntries.map(e => ({ ...e, sequenceId })),
             ],
             newPendingInteractions: res.newPendingInteractions,

@@ -64,3 +64,23 @@ export function getPlayer(game: Game, playerId: string): Player {
   if (!player) throw new Error(`Joueur ${playerId} introuvable`);
   return player;
 }
+
+/**
+ * Met une vraie carte (chargée depuis les CSV) dans la main d'un joueur, où qu'elle soit
+ * (pioche, rangée, défausse, paquets de fin de manche, mains et réserves).
+ */
+export function giveCard(game: Game, playerId: string, cardId: string): Card {
+  const pools: Card[][] = [
+    game.decks.cards, game.decks.cardRow, game.decks.discardPile || [],
+    ...Object.values(game.decks.roundDecks || {}),
+    ...game.players.flatMap(p => [p.cards, p.reservedCards]),
+  ];
+  let card: Card | undefined;
+  for (const pool of pools) {
+    const index = pool.findIndex(c => c.id === cardId);
+    if (index !== -1) card = pool.splice(index, 1)[0];
+  }
+  if (!card) throw new Error(`Carte ${cardId} introuvable`);
+  getPlayer(game, playerId).cards.push(card);
+  return card;
+}

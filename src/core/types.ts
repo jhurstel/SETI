@@ -47,7 +47,9 @@ export type SectorNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export enum ProbeState {
   IN_SOLAR_SYSTEM = "IN_SOLAR_SYSTEM",
   IN_ORBIT = "IN_ORBIT",
-  LANDED = "LANDED"
+  LANDED = "LANDED",
+  /** Capsule transportant un spécimen Mascamite : se déplace comme une sonde, mais n'en est pas une */
+  CAPSULE = "CAPSULE"
 }
 
 export enum SignalType {
@@ -330,6 +332,7 @@ export interface Probe {
   };
   state: ProbeState;
   planetId?: string;
+  specimen?: MascamitesToken; // Capsule : spécimen transporté (planetId = planète d'origine)
   isOrbiter: boolean;
   isLander: boolean;
   planetSlotIndex?: number;

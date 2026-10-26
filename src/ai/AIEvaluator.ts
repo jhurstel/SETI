@@ -24,6 +24,9 @@ const WEIGHTS = {
   probeInSystem: 1.5,
   probeOnPlanet: 3.5,
   probeStep: 0.45,
+  capsule: 1.5,
+  capsuleAtDestination: 5,
+  capsuleStep: 0.5,
   orbiter: 3,
   lander: 4,
   openMission: 1.5,
@@ -91,12 +94,29 @@ export class AIEvaluator {
       }
     }
 
+    // Capsules : un spécimen vaut d'autant plus qu'il approche de sa destination (Terre, ou Mars pour le Laboratoire Martien)
+    const capsules = player.probes.filter(p => p.state === ProbeState.CAPSULE && p.solarPosition);
+    if (capsules.length > 0) {
+      const solarSystem = game.board.solarSystem;
+      const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
+      const extraObjects = solarSystem.extraCelestialObjects || [];
+      const destinations = player.missions.some(m => !m.completed && m.requirements.some(r => r.type === 'GAIN_IF_SPECIMEN' && r.target === 'mars')) ? ['earth', 'mars'] : ['earth'];
+      for (const capsule of capsules) {
+        const absSector = getAbsoluteSectorForProbe(capsule.solarPosition, rotationState);
+        const distance = Math.min(...destinations.map(d => this.distanceToPlanet(capsule.solarPosition.disk, absSector, rotationState, extraObjects, d)));
+        value += WEIGHTS.capsule + Math.max(0, (WEIGHTS.capsuleAtDestination - WEIGHTS.capsule) - distance * WEIGHTS.capsuleStep);
+      }
+    }
+
     return value;
   }
 
-  /** Nombre de déplacements jusqu'à la planète (hors Terre) la plus proche (mis en cache : ne dépend que du plateau) */
-  static distanceToPlanet(disk: DiskName, absoluteSector: SectorNumber, rotationState: RotationState, extraObjects: Game['board']['solarSystem']['extraCelestialObjects'] = []): number {
-    const key = `${rotationState.level1Angle}/${rotationState.level2Angle}/${rotationState.level3Angle}/${extraObjects.map(o => `${o.id}:${o.position.disk}${o.position.sector}:${o.level ?? 0}`).join(',')}/${disk}${absoluteSector}`;
+  /**
+   * Nombre de déplacements jusqu'à une planète : la plus proche hors Terre par défaut, ou une planète donnée
+   * (mis en cache : ne dépend que du plateau)
+   */
+  static distanceToPlanet(disk: DiskName, absoluteSector: SectorNumber, rotationState: RotationState, extraObjects: Game['board']['solarSystem']['extraCelestialObjects'] = [], targetPlanetId?: string): number {
+    const key = `${targetPlanetId ?? '*'}/${rotationState.level1Angle}/${rotationState.level2Angle}/${rotationState.level3Angle}/${extraObjects.map(o => `${o.id}:${o.position.disk}${o.position.sector}:${o.level ?? 0}`).join(',')}/${disk}${absoluteSector}`;
     const cached = distanceCache.get(key);
     if (cached !== undefined) return cached;
     if (distanceCache.size > DISTANCE_CACHE_SIZE) distanceCache.clear();
@@ -106,7 +126,8 @@ export class AIEvaluator {
     let best = MAX_PROBE_DISTANCE + 1;
     reachable.forEach((info, key) => {
       const cell = cells.get(key);
-      if (cell?.hasPlanet && cell.planetId !== 'earth' && info.movements < best) best = info.movements;
+      const isTarget = targetPlanetId ? cell?.planetId === targetPlanetId : cell?.hasPlanet && cell.planetId !== 'earth';
+      if (isTarget && info.movements < best) best = info.movements;
     });
     distanceCache.set(key, best);
     return best;

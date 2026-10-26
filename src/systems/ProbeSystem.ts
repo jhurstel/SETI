@@ -11,7 +11,7 @@
 
 import { effectNumber, effectBonus } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
-import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, InteractionState, LifeTraceType } from '../core/types';
+import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, InteractionState, LifeTraceType, MascamitesToken } from '../core/types';
 import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe, getAllCelestialObjects } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { CardSystem } from './CardSystem';
@@ -53,12 +53,65 @@ export class ProbeSystem {
    * donne droit à un spécimen Mascamite s'il en reste sur la planète.
    */
   static shouldCollectSpecimen(game: Game, planetId: string, sourceCardId?: string): boolean {
-    if (!sourceCardId || (planetId !== 'jupiter' && planetId !== 'saturn')) return false;
+    const specimenPlanetId = this.specimenPlanetId(game, planetId);
+    if (!sourceCardId || !specimenPlanetId) return false;
     const allCards = [...game.decks.cards, ...(game.decks.discardPile || []), ...game.players.flatMap(p => p.cards), ...game.players.flatMap(p => p.playedCards || [])];
     const sourceCard = allCards.find(c => c.id === sourceCardId);
     const grantsSpecimen = !!sourceCard?.passiveEffects?.some(e => ['GAIN_LANDING_AND_SPECIMEN', 'GAIN_SATELLITE_LANDING_AND_SPECIMEN', 'GAIN_ORBIT_OR_LAND_AND_SPECIMEN'].includes(e.type));
-    const planet = game.board.planets.find(p => p.id === planetId);
+    const planet = game.board.planets.find(p => p.id === specimenPlanetId);
     return grantsSpecimen && !!planet?.mascamiteTokens?.length;
+  }
+
+  /** Planète porteuse de spécimens Mascamites (Jupiter ou Saturne) pour une planète ou une de ses lunes, sinon null */
+  static specimenPlanetId(game: Game, planetId: string): string | null {
+    const parent = game.board.planets.find(p => p.satellites?.some(s => s.id === planetId));
+    const id = parent ? parent.id : planetId;
+    return id === 'jupiter' || id === 'saturn' ? id : null;
+  }
+
+  /**
+   * Crée la capsule d'un spécimen prélevé, posée sur la case de sa planète d'origine.
+   * Modifie la partie reçue (à appeler sur une copie).
+   */
+  static createCapsule(game: Game, playerId: string, planetId: string, specimen: MascamitesToken): Probe | null {
+    const player = game.players.find(p => p.id === playerId);
+    const planetDef = getAllCelestialObjects(game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === planetId);
+    if (!player || !planetDef) return null;
+
+    const capsule: Probe = {
+      id: `capsule_${playerId}_${Date.now()}_${player.probes.length}`,
+      ownerId: playerId,
+      position: { x: 0, y: 0 },
+      solarPosition: { disk: planetDef.position.disk, sector: planetDef.position.sector, level: planetDef.level || 0 },
+      state: ProbeState.CAPSULE,
+      planetId,
+      specimen,
+      isOrbiter: false,
+      isLander: false,
+    };
+    player.probes.push(capsule);
+    game.board.solarSystem.probes.push({ ...capsule });
+    return capsule;
+  }
+
+  /** Capsule du joueur sur la case d'une planète (ex: Terre, Mars), en position relative comme findProbeAtPlanet */
+  static findCapsuleOnPlanet(game: Game, playerId: string, planetId: string): Probe | undefined {
+    const planetDef = getAllCelestialObjects(game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === planetId);
+    const player = game.players.find(p => p.id === playerId);
+    if (!planetDef || !player) return undefined;
+    return player.probes.find(p =>
+      p.state === ProbeState.CAPSULE &&
+      p.solarPosition.disk === planetDef.position.disk &&
+      p.solarPosition.sector === planetDef.position.sector &&
+      (p.solarPosition.level || 0) === (planetDef.level || 0)
+    );
+  }
+
+  /** Retire une capsule (spécimen ramené). Modifie la partie reçue (à appeler sur une copie). */
+  static removeCapsule(game: Game, playerId: string, capsuleId: string): void {
+    const player = game.players.find(p => p.id === playerId);
+    if (player) player.probes = player.probes.filter(p => p.id !== capsuleId);
+    game.board.solarSystem.probes = game.board.solarSystem.probes.filter(p => p.id !== capsuleId);
   }
 
   /**
@@ -211,7 +264,7 @@ export class ProbeSystem {
       return { canMove: false, reason: 'Sonde introuvable' };
     }
 
-    if (probe.state !== ProbeState.IN_SOLAR_SYSTEM) {
+    if (probe.state !== ProbeState.IN_SOLAR_SYSTEM && probe.state !== ProbeState.CAPSULE) {
       return { canMove: false, reason: 'La sonde doit être dans le système solaire' };
     }
 
@@ -283,6 +336,9 @@ export class ProbeSystem {
     const player = updatedGame.players.find(p => p.id === playerId)!;
     const probe = player.probes.find(p => p.id === probeId)!;
     const energySpent = validation.energyCost!;
+    // Une capsule gagne 1 Média sur les cases à microphone (comètes, planètes hors Terre), sans effets de sonde (visites, missions…)
+    const isCapsule = probe.state === ProbeState.CAPSULE;
+    const movedObject = isCapsule ? 'une capsule' : 'une sonde';
 
     // Débiter l'énergie
     player.energy = Math.max(0, player.energy - energySpent);
@@ -315,12 +371,12 @@ export class ProbeSystem {
       if (targetCell.hasComet) bonus.media = (bonus.media || 0) + 1;
       // La Terre ne donne pas de bonus de média
       if (targetCell.hasPlanet && targetCell.planetId !== 'earth') bonus.media = (bonus.media || 0) + 1;
-      if (targetCell.hasAsteroid && player.technologies.some(t => t.id.startsWith('exploration-2'))) bonus.media = (bonus.media || 0) + 1;
+      if (!isCapsule && targetCell.hasAsteroid && player.technologies.some(t => t.id.startsWith('exploration-2'))) bonus.media = (bonus.media || 0) + 1;
     }
 
     // Gestion Card 19 (Assistance Gravitationnelle)
     const hasChoiceBuff = player.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
-    if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
+    if (!isCapsule && hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
       // On retire le bonus de média lié à la planète pour laisser le choix au joueur via l'UI
       if (bonus.media && bonus.media > 0) {
         bonus.media = (bonus.media || 0) - 1;
@@ -338,13 +394,13 @@ export class ProbeSystem {
     const objectName = targetCell?.hasComet ? "Visite de Comète" : targetCell?.hasAsteroid ? "Visite d'Astéroïdes" : targetCell?.hasPlanet ? `Visite de ${targetCell?.planetName}` : "une case vide";
 
     if (energySpent > 0) {
-      message = `paye ${energySpent} énergie pour déplacer une sonde`;
+      message = `paye ${energySpent} énergie pour déplacer ${movedObject}`;
     } else {
-      message = `déplace une sonde gratuitement`;
+      message = `déplace ${movedObject} gratuitement`;
     }
 
     // Gestion des visites de planètes et bonus associés
-    if (targetCell && targetCell.hasPlanet && targetCell.planetId) {
+    if (!isCapsule && targetCell && targetCell.hasPlanet && targetCell.planetId) {
       const planetId = targetCell.planetId;
 
       const isNewVisit = !player.visitedPlanetsThisTurn.includes(planetId);
@@ -378,7 +434,7 @@ export class ProbeSystem {
     }
 
     // Gestion des visites d'astéroïdes (ex: Survol d'Astéroïdes)
-    if (targetCell && targetCell.hasAsteroid) {
+    if (!isCapsule && targetCell && targetCell.hasAsteroid) {
       const asteroidBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_ASTEROID');
       asteroidBuffs.forEach(buff => {
         bonus.data = (bonus.data || 0) + effectNumber(buff);
@@ -390,7 +446,7 @@ export class ProbeSystem {
     }
 
     // Gestion des visites de comètes (ex: Rencontre avec une Comète)
-    if (targetCell && targetCell.hasComet) {
+    if (!isCapsule && targetCell && targetCell.hasComet) {
       const cometBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_COMET');
       cometBuffs.forEach(buff => {
         bonus.pv = (bonus.pv || 0) + effectNumber(buff);
@@ -402,7 +458,7 @@ export class ProbeSystem {
     }
 
     // Gestion du déplacement sur le même disque (ex: Correction de Trajectoire)
-    if (targetDisk === probe.solarPosition.disk) {
+    if (!isCapsule && targetDisk === probe.solarPosition.disk) {
       const sameDiskBuffs = player.activeBuffs.filter(buff => buff.type === 'SAME_DISK_MOVE');
       sameDiskBuffs.forEach(buff => {
         const gain = effectBonus(buff);
@@ -424,7 +480,7 @@ export class ProbeSystem {
     }
 
     // Traitement des missions conditionnelles (GAIN_ON_VISIT)
-    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
+    const hasFulfillable = !isCapsule && CardSystem.processMissionBuffs(player, buff => {
       // Planètes
       if (targetCell && targetCell.hasPlanet && targetCell.planetId) {
         if (buff.type === `GAIN_ON_VISIT_${targetCell.planetId.toUpperCase()}`) return true;
@@ -835,20 +891,9 @@ export class ProbeSystem {
     // Récupérer le joueur depuis l'état de jeu mis à jour
     const updatedPlayer = result.updatedGame.players.find(p => p.id === playerId)!;
 
-    // Logique pour GAIN_LANDING_AND_SPECIMEN
-    if (sourceId) {
-      const allCards = [...result.updatedGame.decks.cards, ...(result.updatedGame.decks.discardPile || []), ...result.updatedGame.players.flatMap(p => p.cards), ...result.updatedGame.players.flatMap(p => p.playedCards || [])];
-      const sourceCard = allCards.find(c => c.id === sourceId);
-      
-      if (sourceCard && sourceCard.passiveEffects?.some(e => e.type === 'GAIN_LANDING_AND_SPECIMEN')) {
-          const isJupiterOrSaturn = planetId === 'jupiter' || planetId === 'saturn';
-          const planet = result.updatedGame.board.planets.find(p => p.id === planetId);
-          const hasTokens = planet && planet.mascamiteTokens && planet.mascamiteTokens.length > 0;
-
-          if (isJupiterOrSaturn && hasTokens) {
-              result.newPendingInteractions.push({ type: 'COLLECTING_SPECIMEN', planetId: planetId, sequenceId: sequenceId });
-          }
-      }
+    // Cartes « … et prélevez un spécimen » : sur Jupiter, Saturne ou une de leurs lunes, tant qu'il reste des spécimens
+    if (sourceId && this.shouldCollectSpecimen(result.updatedGame, planetId, sourceId)) {
+      result.newPendingInteractions.push({ type: 'COLLECTING_SPECIMEN', planetId: this.specimenPlanetId(result.updatedGame, planetId)!, sequenceId: sequenceId });
     }
   
     // Traitement des buffs permanents
@@ -991,7 +1036,7 @@ export class ProbeSystem {
 
       for (let i = 0; i < player.probes.length; i++) {
         const probe = player.probes[i];
-        if (probe.state !== ProbeState.IN_SOLAR_SYSTEM || !probe.solarPosition) {
+        if ((probe.state !== ProbeState.IN_SOLAR_SYSTEM && probe.state !== ProbeState.CAPSULE) || !probe.solarPosition) {
           continue;
         }
 
@@ -1066,7 +1111,7 @@ export class ProbeSystem {
     }
 
     // Mettre à jour les sondes du système solaire (copie de celles des joueurs)
-    updatedGame.board.solarSystem.probes = updatedGame.players.flatMap(p => p.probes.filter(probe => probe.state === ProbeState.IN_SOLAR_SYSTEM));
+    updatedGame.board.solarSystem.probes = updatedGame.players.flatMap(p => p.probes.filter(probe => probe.state === ProbeState.IN_SOLAR_SYSTEM || probe.state === ProbeState.CAPSULE));
 
     return { game: updatedGame, logs };
   }

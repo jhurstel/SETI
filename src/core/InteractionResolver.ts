@@ -5,6 +5,7 @@ import { ScanSystem } from '../systems/ScanSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
+import { ProbeSystem } from '../systems/ProbeSystem';
 
 /** Interactions résolues sans choix du joueur (effets de carte, résolution de secteur, validation de mission…). */
 export type AutomaticInteraction = Extract<InteractionState, { type: 'TRIGGER_CARD_EFFECT' | 'RESOLVING_SECTOR' | 'DRAW_AND_SCAN' | 'CLAIMING_MISSION_REQUIREMENT' }>;
@@ -150,6 +151,16 @@ export class InteractionResolver {
       ResourceSystem.accumulateBonus(bonus, bonuses);
     }
 
+    // Spécimen ramené à destination : la capsule quitte le plateau
+    let specimenLog = '';
+    if (requirement?.type === 'GAIN_IF_SPECIMEN' && requirement.target) {
+      const capsule = ProbeSystem.findCapsuleOnPlanet(updatedGame, playerId, requirement.target);
+      if (capsule) {
+        ProbeSystem.removeCapsule(updatedGame, playerId, capsule.id);
+        specimenLog = requirement.target === 'mars' ? ' en ramenant un spécimen sur Mars' : ' en ramenant un spécimen sur Terre';
+      }
+    }
+
     mission.completedRequirementIds.push(interaction.requirementId);
     // Un seul prérequis réalisable peut être choisi : vider la liste pour toutes les missions du joueur
     player.missions.forEach(m => (m.fulfillableRequirementIds = []));
@@ -162,7 +173,7 @@ export class InteractionResolver {
     return {
       updatedGame: res.updatedGame,
       historyEntries: [
-        { message: `${actionText} la mission "${mission.name}"${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, playerId, sequenceId },
+        { message: `${actionText} la mission "${mission.name}"${specimenLog}${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, playerId, sequenceId },
         ...res.historyEntries.map(e => ({ ...e, sequenceId })),
       ],
       newInteractions: res.newPendingInteractions.map(i => ({ ...i, sequenceId })),
