@@ -19,7 +19,15 @@ export class AIBehavior {
     }
 
     /**
-     * Stratégie Facile : choix aléatoire d'un type d'action valide, puis d'une de ses variantes
+     * Nombre de tirages comparés pour un choix aléatoire (secteur, technologie, carte…) :
+     * le robot Débutant compare 2 tirages, un robot stratégique 4.
+     */
+    static choiceSamples(player: Player): number {
+        return this.isStrategic(player) ? 4 : this.getDifficulty(player) === 'EASY' ? 2 : 1;
+    }
+
+    /**
+     * Choix aléatoire d'un type d'action valide, puis d'une de ses variantes (robot sans évaluation)
      */
     static decideRandomAction(game: Game, player: Player): AIDecision {
         if (this.getDifficulty(player) === 'PASS') return this.createPassDecision(player);
@@ -94,12 +102,12 @@ export class AIBehavior {
     }
 
     /**
-     * Crée une décision de passer : un robot stratégique garde les cartes qu'il pourra jouer, les autres au hasard
+     * Crée une décision de passer : le robot garde les cartes qu'il pourra jouer (au hasard pour le niveau PASS des tests)
      */
     static createPassDecision(player: Player): AIDecision {
         const hand = CardSystem.getHandCards(player);
         const keepCount = Math.min(hand.length, GAME_CONSTANTS.HAND_SIZE_AFTER_PASS);
-        const ordered = this.isStrategic(player)
+        const ordered = this.getDifficulty(player) !== 'PASS'
             ? [...hand].sort((a, b) => this.cardKeepValue(player, b) - this.cardKeepValue(player, a))
             : [...hand].sort(() => 0.5 - Math.random());
         return {
@@ -109,7 +117,7 @@ export class AIBehavior {
     }
 
     /** Intérêt de garder une carte : jouable avec les crédits de la prochaine manche, et de préférence coûteuse (plus puissante) */
-    private static cardKeepValue(player: Player, card: Card): number {
+    static cardKeepValue(player: Player, card: Card): number {
         const nextRoundCredits = player.credits + player.revenueCredits;
         const affordable = card.cost <= nextRoundCredits ? 10 : 0;
         return affordable + card.cost;

@@ -7,6 +7,7 @@ import { CardSystem } from '../src/systems/CardSystem';
 import { ScanSystem } from '../src/systems/ScanSystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { AIEvaluator } from '../src/ai/AIEvaluator';
+import { AIBehavior } from '../src/ai/AIBehavior';
 import { createRotationState, getAbsoluteSectorForProbe } from '../src/core/SolarSystemPosition';
 import { AIDifficulty, Game, GamePhase, LifeTraceType } from '../src/core/types';
 import { giveCard, makeCard, mockFetchFromPublic } from './helpers/gameFixture';
@@ -165,6 +166,27 @@ describe('AITurn (parties complètes entre robots)', () => {
     }
     expect(game.phase).toBe(GamePhase.PLAYING);
     expect(game.players.every(p => p.reservedCards.length === 1)).toBe(true);
+  });
+
+  test('un robot débutant joue une action principale qui améliore sa position, tirée parmi les meilleures', async () => {
+    const started = playRobotGame(await createRobotGame(['R1', 'R2'], ['EASY', 'EASY']), 2).game;
+    const player = started.players[started.currentPlayerIndex];
+    const before = AIEvaluator.evaluate(started, player.id);
+
+    // Tirage haut : aucune action gratuite au hasard, et la 3e meilleure action principale
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    const step = AITurn.playStep(started);
+    randomSpy.mockRestore();
+
+    expect(step.kind).toBe('UPDATED');
+    if (step.kind !== 'UPDATED') return;
+    expect(step.updatedGame.players.find(p => p.id === player.id)!.hasPerformedMainAction).toBe(true);
+    expect(AIEvaluator.evaluate(step.updatedGame, player.id)).toBeGreaterThan(before);
+  });
+
+  test('tirages comparés pour les choix aléatoires : 2 pour le débutant, 4 pour un robot stratégique', async () => {
+    const game = await createRobotGame(['R1', 'R2', 'R3'], ['EASY', 'MEDIUM', 'PASS']);
+    expect(game.players.map(p => AIBehavior.choiceSamples(p))).toEqual([2, 4, 1]);
   });
 
   test('playStep ne modifie pas la partie reçue', async () => {

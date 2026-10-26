@@ -42,6 +42,8 @@ type StepResult = { updatedGame: Game; historyEntries: HistoryEntry[]; humanInte
 const FREE_ACTION_MIN_GAIN = 0.2;
 /** Gain minimal pour qu'un robot stratégique joue une action principale plutôt que de passer */
 const MAIN_ACTION_MIN_GAIN = 0;
+/** Le robot Débutant tire son action principale au hasard parmi ses meilleures options */
+const EASY_TOP_CHOICES = 3;
 
 /**
  * Tour d'un robot, sans dépendance à React : une étape à la fois
@@ -68,6 +70,13 @@ export class AITurn {
     if (strategic) {
       const best = this.chooseBestMainAction(game, player);
       if (best) return { kind: 'UPDATED', ...best };
+      const pass = AIBehavior.createPassDecision(player);
+      return { kind: 'PASS', cardsToKeep: pass.action === ActionType.PASS ? pass.data.cardsToKeep : [] };
+    }
+
+    if (AIBehavior.getDifficulty(player) === 'EASY') {
+      const choice = this.chooseEasyMainAction(game, player);
+      if (choice) return { kind: 'UPDATED', ...choice };
       const pass = AIBehavior.createPassDecision(player);
       return { kind: 'PASS', cardsToKeep: pass.action === ActionType.PASS ? pass.data.cardsToKeep : [] };
     }
@@ -229,6 +238,30 @@ export class AITurn {
     }
     console.log(`[AI] ${player.name} chose:`, best.decision.action, `(gain estimé ${best.gain.toFixed(2)})`);
     return best.result;
+  }
+
+  /**
+   * Robot Débutant : simule chaque action principale (sans préparation ni anticipation) et en tire une
+   * au hasard parmi les meilleures qui améliorent sa position. Il évite ainsi les coups inutiles
+   * sans jouer à coup sûr le meilleur. Renvoie null s'il vaut mieux passer.
+   */
+  private static chooseEasyMainAction(game: Game, player: Player): StepResult | null {
+    const baseline = AIEvaluator.evaluate(game, player.id);
+    const options: { result: StepResult; gain: number; decision: AIDecision }[] = [];
+    for (const decision of AIBehavior.listMainActions(game, player)) {
+      const result = this.playMainAction(game, player, decision);
+      if (!result) continue;
+      const gain = AIEvaluator.evaluate(result.updatedGame, player.id) - baseline;
+      if (gain > MAIN_ACTION_MIN_GAIN) options.push({ result, gain, decision });
+    }
+    if (options.length === 0) {
+      console.log(`[AI] ${player.name} : aucune action utile, passe`);
+      return null;
+    }
+    const top = options.sort((a, b) => b.gain - a.gain).slice(0, EASY_TOP_CHOICES);
+    const chosen = top[Math.floor(Math.random() * top.length)];
+    console.log(`[AI] ${player.name} chose:`, chosen.decision.action, `(gain estimé ${chosen.gain.toFixed(2)})`);
+    return chosen.result;
   }
 
   /** Identifiant d'une action principale (type et cible) pour repérer les actions nouvellement possibles */
@@ -459,10 +492,11 @@ export class AITurn {
     const hand = CardSystem.getHandCards(player);
     if (hand.length === 0 || Math.random() >= 0.1) return null;
 
-    const withAction = hand.filter(c => c.freeAction);
-    const pool = withAction.length > 0 ? withAction : hand;
-    const card = pool[Math.floor(Math.random() * pool.length)];
-    if (!card.freeAction) return null;
+    // La carte la moins utile à garder (trop chère pour la prochaine manche, ou la moins puissante)
+    const card = hand
+      .filter(c => c.freeAction)
+      .sort((a, b) => AIBehavior.cardKeepValue(player, a) - AIBehavior.cardKeepValue(player, b))[0];
+    if (!card) return null;
 
     const sequenceId = `ai-free-action-${Date.now()}`;
     let updatedGame = game;
