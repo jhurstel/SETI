@@ -2,7 +2,9 @@ import { CardSystem } from '../src/systems/CardSystem';
 import { ResourceSystem } from '../src/systems/ResourceSystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { ComputerSystem } from '../src/systems/ComputerSystem';
-import { FreeActionType, Game, RevenueType } from '../src/core/types';
+import { FreeActionType, Game, LifeTraceType, ProbeState, RevenueType } from '../src/core/types';
+import { AnalyzeDataAction } from '../src/actions/AnalyzeDataAction';
+import { getObjectPosition } from '../src/core/SolarSystemPosition';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
 /**
@@ -156,5 +158,56 @@ describe('Opérations du moteur utilisées par l\'interface', () => {
     const media = getPlayer(game, P1).mediaCoverage;
     ResourceSystem.updateMedia(game, P1, 2);
     expect(getPlayer(game, P1).mediaCoverage).toBe(media);
+  });
+
+  describe("règles sorties de l'interface", () => {
+    const probeAtEarth = () => {
+      const solar = game.board.solarSystem;
+      const earth = getObjectPosition('earth', solar.rotationAngleLevel1, solar.rotationAngleLevel2, solar.rotationAngleLevel3, solar.extraCelestialObjects)!;
+      const probe = { id: 'p', ownerId: P1, position: { x: 0, y: 0 }, solarPosition: { disk: earth.disk, sector: earth.absoluteSector, level: 0 }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false };
+      getPlayer(game, P1).probes = [probe];
+      game.board.solarSystem.probes = [structuredClone(probe)];
+    };
+
+    test('carte 19 : en arrivant sur une planète, le moteur propose Média ou déplacement (robots compris)', () => {
+      probeAtEarth();
+      getPlayer(game, P1).activeBuffs = [{ type: 'CHOICE_MEDIA_OR_MOVE', value: true, source: 'Assistance' }];
+      const solar = game.board.solarSystem;
+      const mars = getObjectPosition('mars', solar.rotationAngleLevel1, solar.rotationAngleLevel2, solar.rotationAngleLevel3, solar.extraCelestialObjects)!;
+      const res = ProbeSystem.moveProbe(game, P1, 'p', mars.disk, mars.absoluteSector, 2, 'seq');
+      expect(res.newPendingInteractions).toContainEqual({ type: 'CHOOSING_MEDIA_OR_MOVE', remainingMoves: 1, sequenceId: 'seq' });
+
+      getPlayer(game, P1).activeBuffs = [];
+      expect(ProbeSystem.moveProbe(game, P1, 'p', mars.disk, mars.absoluteSector, 2, 'seq').newPendingInteractions.some(i => i.type === 'CHOOSING_MEDIA_OR_MOVE')).toBe(false);
+    });
+
+    test("analyse de données : l'action paie, vide l'ordinateur et donne une trace de vie Bleue", () => {
+      getPlayer(game, P1).energy = 2;
+      const action = new AnalyzeDataAction(P1);
+      const updated = action.execute(game);
+      expect(getPlayer(updated, P1).energy).toBe(1);
+      expect(action.newPendingInteractions).toEqual([expect.objectContaining({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE })]);
+      expect(action.historyEntries[0].message).toContain('Analyser les données');
+    });
+
+    test("orbite bonus d'une carte « … et prélevez un spécimen » : le prélèvement est proposé par le moteur", () => {
+      getPlayer(game, P1).probes = [{ id: 'p', ownerId: P1, position: { x: 0, y: 0 }, solarPosition: { disk: 'C', sector: 5, level: 1 }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false }];
+      game.board.solarSystem.probes = structuredClone(getPlayer(game, P1).probes);
+      game.board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens = [{ bonus: { pv: 2 } }];
+      getPlayer(game, P1).cards.push(makeCard('spec', { passiveEffects: [{ type: 'GAIN_ORBIT_OR_LAND_AND_SPECIMEN', value: true }] }));
+      const res = ProbeSystem.orbitProbe(game, P1, 'p', 'jupiter', 'seq', true, 'spec');
+      expect(res.newPendingInteractions).toContainEqual({ type: 'COLLECTING_SPECIMEN', planetId: 'jupiter', sequenceId: 'seq' });
+    });
+
+    test('gains perdus : avertissement calculé par le moteur', () => {
+      const player = getPlayer(game, P1);
+      player.data = 6;
+      expect(ResourceSystem.lostBonusWarning(game, P1, { data: 1 })).toContain('limite de données');
+      player.data = 0;
+      expect(ResourceSystem.lostBonusWarning(game, P1, { data: 1 })).toBeNull();
+      player.probes = [];
+      expect(ResourceSystem.lostBonusWarning(game, P1, { movements: 1 })).toContain('aucune sonde');
+      expect(ResourceSystem.lostBonusWarning(game, P1, { movements: 1, probe: 1 })).toBeNull();
+    });
   });
 });

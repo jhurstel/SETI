@@ -8,8 +8,8 @@ import { ScanSystem } from '../src/systems/ScanSystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { AIEvaluator } from '../src/ai/AIEvaluator';
 import { createRotationState, getAbsoluteSectorForProbe } from '../src/core/SolarSystemPosition';
-import { AIDifficulty, Game, GamePhase } from '../src/core/types';
-import { giveCard, mockFetchFromPublic } from './helpers/gameFixture';
+import { AIDifficulty, Game, GamePhase, LifeTraceType } from '../src/core/types';
+import { giveCard, makeCard, mockFetchFromPublic } from './helpers/gameFixture';
 
 /** Partie en phase SETUP dont tous les joueurs sont des robots. */
 async function createRobotGame(names: string[], levels: AIDifficulty[] = []): Promise<Game> {
@@ -138,6 +138,21 @@ describe('AITurn (parties complètes entre robots)', () => {
     expect(step.kind).toBe('UPDATED');
     if (step.kind !== 'UPDATED') return;
     expect(distance(step.updatedGame)).toBe(distance(game) - 1);
+  });
+
+  test("un robot intermédiaire échange des ressources quand c'est ce qui lui permet de jouer une carte rentable", async () => {
+    const game = playRobotGame(await createRobotGame(['R1', 'R2'], ['MEDIUM', 'MEDIUM']), 2).game;
+    const robot = game.players[game.currentPlayerIndex];
+    // Carte à 3 crédits pour 2 crédits en main : 2 énergies → 1 crédit la rend jouable
+    const rich = makeCard('rich', { cost: 3, immediateEffects: [{ type: 'GAIN', target: 'DATA', value: 3 }, { type: 'ACTION', target: 'LIFETRACE', value: { amount: 2, scope: LifeTraceType.ANY } }] });
+    Object.assign(robot, { credits: 2, energy: 2, mediaCoverage: 0, data: 0, cards: [rich], missions: [] });
+
+    const step = AITurn.playStep(game);
+    expect(step.kind).toBe('UPDATED');
+    if (step.kind !== 'UPDATED') return;
+    const messages = step.historyEntries.map(e => e.message);
+    expect(messages[0]).toMatch(/^échange 2 .* contre 1 /);
+    expect(messages.some(m => m.includes('pour jouer carte "Carte rich"'))).toBe(true);
   });
 
   test('la mise en place : chaque robot réserve une carte puis la partie démarre', async () => {

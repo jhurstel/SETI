@@ -3,7 +3,7 @@ import { Game, ActionType, ValidationResult } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 
 export class LandAction extends BaseAction {
-    constructor(playerId: string, public probeId: string, public planetId: string) {
+    constructor(playerId: string, public probeId: string, public planetId: string, public slotIndex?: number) {
         super(playerId, ActionType.LAND);
     }
 
@@ -16,7 +16,7 @@ export class LandAction extends BaseAction {
     }
 
     execute(game: Game): Game {
-        const result = ProbeSystem.landProbe(game, this.playerId, this.probeId, this.planetId);
+        const result = ProbeSystem.landProbe(game, this.playerId, this.probeId, this.planetId, false, this.slotIndex);
         this.historyEntries = result.historyEntries;
         this.newPendingInteractions = result.newPendingInteractions;
         return result.updatedGame;

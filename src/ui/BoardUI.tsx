@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Game, ActionType, Card, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, ProbeState, TechnologyCategory, LifeTraceType, InteractionState, GamePhase, SignalType, HistoryEntry, getInteractionLabel, LifeTraceLocation } from '../core/types';
-import { createRotationState, getCell } from '../core/SolarSystemPosition';
 import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
@@ -102,14 +101,9 @@ export const BoardUI: React.FC = () => {
     onConfirm: () => void
   ) => {
     if (!game) return;
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    if (potentialDataGain > 0 && (currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
-        setConfirmModalState({
-            visible: true,
-            cardId: null,
-            message: "Vous avez atteint la limite de données. Le gain de données sera perdu. Voulez-vous continuer ?",
-            onConfirm: onConfirm
-        });
+    const warning = ResourceSystem.lostBonusWarning(game, game.players[game.currentPlayerIndex].id, { data: potentialDataGain });
+    if (warning) {
+        setConfirmModalState({ visible: true, cardId: null, message: warning, onConfirm });
     } else {
         onConfirm();
     }
@@ -714,10 +708,9 @@ export const BoardUI: React.FC = () => {
 
         const result = gameEngineRef.current.executeAction(action);
         if (result.success && result.updatedState) {
-          const sequenceId = `analyze-${Date.now()}`;
           setGame(result.updatedState);
-          setInteractionState({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE, sequenceId });
-          addToHistory(`paye ${ResourceSystem.formatResource(1, 'ENERGY')} pour <strong>Analyser les données</strong> et gagne une trace de vie Bleu`, currentPlayer.id, previousState, { type: 'IDLE' }, sequenceId);
+          action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, previousState, { type: 'IDLE' }, e.sequenceId));
+          if (!handleNewInteractions(action.newPendingInteractions)) setInteractionState({ type: 'IDLE' });
         } else {
           console.error("Erreur lors de l'analyse:", result.error);
           setToast({ message: result.error || "Erreur lors de l'analyse", visible: true });
@@ -971,6 +964,15 @@ export const BoardUI: React.FC = () => {
     setInteractionState(res.nextInteraction ?? { type: 'IDLE' });
   };
 
+  /** Exécute une action principale par le moteur ; en cas de refus, lève l'erreur (affichée par l'appelant) */
+  const runEngineAction = (action: OrbitAction | LandAction) => {
+    if (!gameEngineRef.current || !gameRef.current) throw new Error('Moteur indisponible');
+    gameEngineRef.current.setState(gameRef.current);
+    const result = gameEngineRef.current.executeAction(action);
+    if (!result.success || !result.updatedState) throw new Error(result.error || 'Action impossible');
+    return { updatedGame: result.updatedState, historyEntries: action.historyEntries, newPendingInteractions: action.newPendingInteractions };
+  };
+
   // Helper générique pour les interactions avec les planètes (Orbite/Atterrissage)
   // Renvoie true si de nouvelles interactions ont été déclenchées (bonus à résoudre)
   const handlePlanetInteraction = (
@@ -989,12 +991,8 @@ export const BoardUI: React.FC = () => {
     try {
       const result = actionFn(game, currentPlayer.id, found.probe.id, planetId, sequenceId);
 
-      // Seule l'orbite/atterrissage payant consomme l'action principale ;
-      // les versions bonus (ORBITING_PROBE / LANDING_PROBE) sont des effets gratuits
-      const isBonusAction = interactionState.type === 'ORBITING_PROBE' || interactionState.type === 'LANDING_PROBE';
-      const updatedGame = isBonusAction
-        ? result.updatedGame
-        : TurnManager.markMainActionPerformed(result.updatedGame, currentPlayer.id);
+      // Les actions payantes (OrbitAction, LandAction) marquent elles-mêmes l'action principale
+      const updatedGame = result.updatedGame;
 
       setGame(updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
@@ -1060,9 +1058,10 @@ export const BoardUI: React.FC = () => {
     const executeOrbit = () => {
       // Orbite bonus (gratuite)
       if (interactionState.type === 'ORBITING_PROBE') {
+        const source = interactionState.source;
         continueBonusPlacement(handlePlanetInteraction(
           planetId,
-          (g, pid, prid, targetId, seqId) => ProbeSystem.orbitProbe(g, pid, prid, targetId, seqId, true),
+          (g, pid, prid, targetId, seqId) => ProbeSystem.orbitProbe(g, pid, prid, targetId, seqId, true, source),
           "Sonde mise en orbite"
         ));
         return;
@@ -1075,21 +1074,12 @@ export const BoardUI: React.FC = () => {
         return;
       }
 
-      handlePlanetInteraction(
-        planetId,
-        (g, pid, prid, targetId, seqId) => ProbeSystem.orbitProbe(g, pid, prid, targetId, seqId),
-        "Sonde mise en orbite"
-      );
+      handlePlanetInteraction(planetId, () => runEngineAction(action), "Sonde mise en orbite");
     };
 
     // Avertissement si le bonus de l'emplacement serait perdu
     const bonus = slotIndex !== undefined ? ProbeSystem.getSlotBonus(game, planetId, 'orbit', slotIndex) : undefined;
     if (bonus && checkBonusAndConfirm(bonus, executeOrbit)) return;
-
-    // Cartes « … et prélevez un spécimen » : le prélèvement Mascamite est résolu juste après l'orbite
-    if (interactionState.type === 'ORBITING_PROBE' && ProbeSystem.shouldCollectSpecimen(game, planetId, interactionState.source)) {
-      setPendingInteractions(prev => [{ type: 'COLLECTING_SPECIMEN', planetId, sequenceId: interactionState.sequenceId }, ...prev]);
-    }
 
     executeOrbit();
   };
@@ -1148,19 +1138,14 @@ export const BoardUI: React.FC = () => {
         return;
       }
 
-      const action = new LandAction(currentPlayer.id, found.probe.id, planetId);
+      const action = new LandAction(currentPlayer.id, found.probe.id, planetId, slotIndex);
       const validation = ActionValidator.validateAction(game, action);
       if (!validation.valid) {
         setToast({ message: validation.errors[0]?.message || "Atterrissage impossible", visible: true });
         return;
       }
 
-      handlePlanetInteraction(
-        planetId,
-        // planetId est passé comme cible pour supporter l'atterrissage sur les satellites
-        (g, pid, prid, targetId, seqId) => ProbeSystem.landProbe(g, pid, prid, targetId, false, slotIndex, undefined, seqId),
-        "Atterrissage réussi"
-      );
+      handlePlanetInteraction(planetId, () => runEngineAction(action), "Atterrissage réussi");
     };
 
     // Avertissement si le bonus de l'emplacement serait perdu
@@ -1203,18 +1188,8 @@ export const BoardUI: React.FC = () => {
         // Ajouter les nouvelles interactions et lancer la première
         handleNewInteractions(action.newPendingInteractions);
 
-        const oldPlayer = currentGame.players.find(p => p.id === currentPlayerId);
-
-        // Détection Card 19 (Assistance Gravitationnelle)
-        const targetCell = getCell(disk, sector, createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0));
-        const isCapsule = oldPlayer?.probes.some(p => p.id === probeId && p.state === ProbeState.CAPSULE);
-        const hasChoiceBuff = !isCapsule && oldPlayer?.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
-
-        if (hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
-          // Calculer les mouvements restants après ce pas (si gratuit)
-          const remaining = freeMovements - usedFree;
-          if (!currentSequenceId) currentSequenceId = `move-${Date.now()}`;
-          setInteractionState({ type: 'CHOOSING_MEDIA_OR_MOVE', remainingMoves: remaining, sequenceId: currentSequenceId });
+        // Carte 19 : le moteur propose le choix Média / déplacement, qui interrompt le chemin
+        if (action.newPendingInteractions.some(i => i.type === 'CHOOSING_MEDIA_OR_MOVE')) {
           interruptedForChoice = true;
           if (i < path.length - 1) {
             setToast({ message: "Déplacement interrompu. Choisissez un bonus.", visible: true });
@@ -1258,122 +1233,10 @@ export const BoardUI: React.FC = () => {
     cardId: string | null = null
   ): boolean => {
     if (!game) return false;
-    const currentPlayer = game.players[game.currentPlayerIndex];
-
-    if (bonus.revenue && currentPlayer.cards.length === 0) {
-      setConfirmModalState({
-        visible: true,
-        cardId,
-        message: "Vous n'avez aucune carte en main pour effectuer la réservation (bonus). Le bonus sera perdu. Voulez-vous continuer ?",
-        onConfirm
-      });
-      return true;
-    }
-
-    if (bonus.data && (currentPlayer.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
-      setConfirmModalState({
-        visible: true,
-        cardId,
-        message: "Vous avez atteint la limite de données. Le gain de données (bonus) sera perdu. Voulez-vous continuer ?",
-        onConfirm
-      });
-      return true;
-    }
-
-    if (bonus.media && currentPlayer.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
-      setConfirmModalState({
-        visible: true,
-        cardId,
-        message: "Vous avez atteint la limite de couverture médiatique. Le gain de médias (bonus) sera perdu. Voulez-vous continuer ?",
-        onConfirm
-      });
-      return true;
-    }
-
-    if (bonus.technologies) {
-      const isTechLost = bonus.technologies.some(t => {
-        const cats = Array.isArray(t.scope) ? t.scope : (t.scope === TechnologyCategory.ANY ? undefined : [t.scope]);
-        return !TechnologySystem.canAcquireTech(game, currentPlayer.id, cats);
-      });
-      if (isTechLost) {
-        setConfirmModalState({
-          visible: true,
-          cardId,
-          message: "Vous avez déjà toutes les technologies disponibles. Le gain de technologie (bonus) sera perdu. Voulez-vous continuer ?",
-          onConfirm
-        });
-        return true;
-      }
-    }
-
-    if (bonus.probe) {
-      const ignoreLimit = bonus.ignoreProbeLimit;
-      const canLaunch = ProbeSystem.canLaunchProbe(game, currentPlayer.id, false, ignoreLimit);
-      if (!canLaunch.canLaunch && canLaunch.reason && canLaunch.reason.includes('Limite')) {
-        setConfirmModalState({
-          visible: true,
-          cardId,
-          message: "Vous avez atteint la limite de sondes dans le système solaire. L'action de lancer une sonde sera perdue. Voulez-vous continuer ?",
-          onConfirm
-        });
-        return true;
-      }
-    }
-
-    if (bonus.movements) {
-      const hasProbeInSystem = currentPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
-      const givesProbe = bonus.probe;
-      if (!hasProbeInSystem && !givesProbe) {
-        setConfirmModalState({
-          visible: true,
-          cardId,
-          message: "Vous n'avez aucune sonde dans le système solaire pour effectuer le déplacement. L'action sera perdue. Voulez-vous continuer ?",
-          onConfirm
-        });
-        return true;
-      }
-    }
-
-    if (bonus.landing) {
-      const probeInfo = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
-      if (!probeInfo.hasProbe) {
-        setConfirmModalState({
-          visible: true,
-          cardId,
-          message: "Vous n'avez aucune sonde sur une planète pour effectuer l'atterrissage. L'action sera perdue. Voulez-vous continuer ?",
-          onConfirm
-        });
-        return true;
-      }
-    }
-
-    if (bonus.atmosphericEntry) {
-      const hasOrbiter = currentPlayer.probes.some(p => p.state === ProbeState.IN_ORBIT);
-      if (!hasOrbiter) {
-        setConfirmModalState({
-          visible: true,
-          cardId,
-          message: "Vous n'avez aucun orbiteur à retirer. L'effet de la carte sera perdu. Voulez-vous continuer ?",
-          onConfirm
-        });
-        return true;
-      }
-    }
-
-    if (bonus.sampleReturn) {
-      const hasLander = currentPlayer.probes.some(p => p.state === ProbeState.LANDED);
-      if (!hasLander) {
-        setConfirmModalState({
-          visible: true,
-          cardId,
-          message: "Vous n'avez aucun atterrisseur à retirer. L'effet de la carte sera perdu. Voulez-vous continuer ?",
-          onConfirm
-        });
-        return true;
-      }
-    }
-
-    return false; // No modal shown
+    const warning = ResourceSystem.lostBonusWarning(game, game.players[game.currentPlayerIndex].id, bonus);
+    if (!warning) return false;
+    setConfirmModalState({ visible: true, cardId, message: warning, onConfirm });
+    return true;
   }, [game]);
 
   // Gestionnaire pour jouer une carte (payer son coût en crédits)

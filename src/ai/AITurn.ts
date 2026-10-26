@@ -1,4 +1,4 @@
-import { Game, Player, ActionType, GamePhase, RevenueType, FreeActionType, ProbeState, DiskName, SectorNumber, LifeTraceType, HistoryEntry, InteractionState, AIDecision, Card, GAME_CONSTANTS } from '../core/types';
+import { Game, Player, ActionType, GamePhase, RevenueType, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, InteractionState, AIDecision, Card, GAME_CONSTANTS } from '../core/types';
 import { GameEngine } from '../core/Game';
 import { TurnManager } from '../core/TurnManager';
 import { InteractionResolver } from '../core/InteractionResolver';
@@ -15,7 +15,6 @@ import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { AIBehavior } from './AIBehavior';
 import { AIController } from './AIController';
@@ -160,18 +159,8 @@ export class AITurn {
     const historyEntries: HistoryEntry[] = action.historyEntries.map(e => ({ ...e, sequenceId: e.sequenceId || sequenceId }));
     let pending: InteractionState[] = action.newPendingInteractions;
 
-    if (decision.action === ActionType.ANALYZE_DATA) {
-      // L'analyse place une trace de vie bleue
-      historyEntries.push({ message: `paye ${ResourceSystem.formatResource(1, 'ENERGY')} pour <strong>Analyser les données</strong>`, playerId: player.id, sequenceId });
-      const trace = SpeciesSystem.placeLifeTraceAuto(updatedGame, LifeTraceType.BLUE, player.id, sequenceId);
-      updatedGame = trace.updatedGame;
-      historyEntries.push(...trace.historyEntries);
-      if (updatedGame.isSpeciesDiscovered) {
-        historyEntries.push({ message: 'découvre une nouvelle espèce Alien !', playerId: player.id, sequenceId });
-        updatedGame.isSpeciesDiscovered = false;
-      }
-      pending = trace.newPendingInteractions;
-    } else if (decision.action === ActionType.RESEARCH_TECH) {
+    // (Analyse de données : la trace de vie Bleue est une interaction de l'action, résolue avec les autres)
+    if (decision.action === ActionType.RESEARCH_TECH) {
       // La technologie est choisie par l'IA : l'interaction ACQUIRING_TECH de l'action n'est pas utilisée
       const tech = TechnologySystem.acquireTechnology(updatedGame, player.id, decision.data.tech);
       updatedGame = tech.updatedGame;
@@ -210,11 +199,28 @@ export class AITurn {
     const baseline = AIEvaluator.evaluate(game, player.id);
     let best: { result: StepResult; gain: number; decision: AIDecision } | null = null;
 
-    for (const decision of AIBehavior.listMainActions(game, player)) {
+    const decisions = AIBehavior.listMainActions(game, player);
+    for (const decision of decisions) {
       const result = this.playMainAction(game, player, decision);
       if (!result) continue;
       const gain = AIEvaluator.evaluate(result.updatedGame, player.id) - baseline;
       if (!best || gain > best.gain) best = { result, gain, decision };
+    }
+
+    // Actions rendues possibles par une préparation (échange de ressources, achat d'une carte) :
+    // la préparation et l'action sont évaluées ensemble, sinon l'échange seul paraîtrait toujours perdant
+    const available = new Set(decisions.map(d => this.decisionKey(d)));
+    for (const preparation of this.preparationOptions(game, player)) {
+      const prepared = preparation.updatedGame.players.find(p => p.id === player.id)!;
+      for (const decision of AIBehavior.listMainActions(preparation.updatedGame, prepared)) {
+        if (available.has(this.decisionKey(decision))) continue;
+        const result = this.playMainAction(preparation.updatedGame, prepared, decision);
+        if (!result) continue;
+        const gain = AIEvaluator.evaluate(result.updatedGame, player.id) - baseline;
+        if (!best || gain > best.gain) {
+          best = { result: { ...result, historyEntries: [...preparation.historyEntries, ...result.historyEntries] }, gain, decision };
+        }
+      }
     }
 
     if (!best || best.gain <= MAIN_ACTION_MIN_GAIN) {
@@ -223,6 +229,41 @@ export class AITurn {
     }
     console.log(`[AI] ${player.name} chose:`, best.decision.action, `(gain estimé ${best.gain.toFixed(2)})`);
     return best.result;
+  }
+
+  /** Identifiant d'une action principale (type et cible) pour repérer les actions nouvellement possibles */
+  private static decisionKey(decision: AIDecision): string {
+    switch (decision.action) {
+      case ActionType.PLAY_CARD: return `${decision.action}:${decision.data.cardId}`;
+      case ActionType.RESEARCH_TECH: return `${decision.action}:${decision.data.tech.id}`;
+      case ActionType.ORBIT:
+      case ActionType.LAND: return `${decision.action}:${decision.data.planetId}`;
+      default: return decision.action;
+    }
+  }
+
+  /**
+   * Préparations d'une action principale : échanges de ressources (2 crédits, 2 énergies ou les 2 cartes
+   * les moins chères de la main contre 1 crédit, 1 énergie ou 1 carte) et achat d'une carte avec 3 Médias.
+   */
+  private static preparationOptions(game: Game, player: Player): StepResult[] {
+    const options: StepResult[] = [];
+    const trade = (spend: string, gain: string, cardIds?: string[]) => {
+      const res = ResourceSystem.tradeResources(game, player.id, spend, gain, cardIds);
+      if (!res.error) options.push({ updatedGame: res.updatedGame, historyEntries: res.historyEntries });
+    };
+    for (const spend of ['credit', 'energy']) {
+      for (const gain of ['credit', 'energy', 'card']) {
+        if (spend !== gain) trade(spend, gain);
+      }
+    }
+    const cheapest = [...CardSystem.getHandCards(player)].sort((a, b) => a.cost - b.cost).slice(0, 2).map(c => c.id);
+    if (cheapest.length === 2) {
+      trade('card', 'credit', cheapest);
+      trade('card', 'energy', cheapest);
+    }
+    options.push(...this.buyCardOptions(game, player));
+    return options;
   }
 
   /**

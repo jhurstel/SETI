@@ -409,13 +409,11 @@ export class ProbeSystem {
       if (!isCapsule && targetCell.hasAsteroid && player.technologies.some(t => t.id.startsWith('exploration-2'))) bonus.media = (bonus.media || 0) + 1;
     }
 
-    // Gestion Card 19 (Assistance Gravitationnelle)
+    // Carte 19 (Assistance Gravitationnelle) : sur une planète, 1 Média ou 1 déplacement au choix (proposé plus bas)
     const hasChoiceBuff = player.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
-    if (!isCapsule && hasChoiceBuff && targetCell?.hasPlanet && targetCell.planetId !== 'earth') {
-      // On retire le bonus de média lié à la planète pour laisser le choix au joueur via l'UI
-      if (bonus.media && bonus.media > 0) {
-        bonus.media = (bonus.media || 0) - 1;
-      }
+    const offersMediaOrMove = !isCapsule && hasChoiceBuff && !!targetCell?.hasPlanet && targetCell.planetId !== 'earth';
+    if (offersMediaOrMove && bonus.media && bonus.media > 0) {
+      bonus.media = (bonus.media || 0) - 1;
     }
 
     // Gestion NO_MEDIA (Card ET.12)
@@ -555,7 +553,13 @@ export class ProbeSystem {
       res.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId});
     }
 
-    return { updatedGame, historyEntries: res.historyEntries, newPendingInteractions: res.newPendingInteractions };
+    // Carte 19 : le choix interrompt le déplacement ; les déplacements gratuits restants sont repris après
+    const newPendingInteractions = [...res.newPendingInteractions];
+    if (offersMediaOrMove) {
+      newPendingInteractions.push({ type: 'CHOOSING_MEDIA_OR_MOVE', remainingMoves: remaining, sequenceId: currentSequenceId });
+    }
+
+    return { updatedGame, historyEntries: res.historyEntries, newPendingInteractions };
   }
 
   /**
@@ -684,7 +688,8 @@ export class ProbeSystem {
     probeId: string,
     planetId: string,
     sequenceId?: string,
-    free: boolean = false
+    free: boolean = false,
+    sourceId?: string
   ): {
     updatedGame: Game;
     isFirstOrbiter: boolean;
@@ -765,6 +770,11 @@ export class ProbeSystem {
     const hasFulfillable = CardSystem.processMissionBuffs(updatedPlayer, buff => buff.type === 'GAIN_ON_ORBIT' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
     if (hasFulfillable) {
       result.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId: currentSequenceId});
+    }
+
+    // Orbite donnée par une carte « … et prélevez un spécimen » (ET.3) : prélèvement sur Jupiter ou Saturne
+    if (sourceId && this.shouldCollectSpecimen(result.updatedGame, planetId, sourceId)) {
+      result.newPendingInteractions.push({ type: 'COLLECTING_SPECIMEN', planetId: this.specimenPlanetId(result.updatedGame, planetId)!, sequenceId: currentSequenceId });
     }
 
     return {

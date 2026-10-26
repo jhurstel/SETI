@@ -4,6 +4,7 @@ import { cloneGame } from '../core/cloneGame';
 import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';
+import { TechnologySystem } from './TechnologySystem';
 
 export class ResourceSystem {
 
@@ -199,6 +200,50 @@ export class ResourceSystem {
     }
 
     return { updatedGame, historyEntries: [{ message: `échange ${spentText} contre ${gainedText}`, playerId }] };
+  }
+
+  /**
+   * Gain annoncé qui serait perdu (données ou médias au maximum, rien à réserver, aucune sonde à déplacer…) :
+   * message d'avertissement à confirmer par le joueur, ou null si tout le gain est utilisable.
+   */
+  static lostBonusWarning(game: Game, playerId: string, bonus: Bonus): string | null {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return null;
+
+    if (bonus.revenue && CardSystem.getHandCards(player).length === 0) {
+      return "Vous n'avez aucune carte en main pour effectuer la réservation (bonus). Le bonus sera perdu. Voulez-vous continuer ?";
+    }
+    if (bonus.data && player.data >= GAME_CONSTANTS.MAX_DATA) {
+      return "Vous avez atteint la limite de données. Le gain de données sera perdu. Voulez-vous continuer ?";
+    }
+    if (bonus.media && player.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
+      return "Vous avez atteint la limite de couverture médiatique. Le gain de médias (bonus) sera perdu. Voulez-vous continuer ?";
+    }
+    if (bonus.technologies?.some(t => {
+      const categories = Array.isArray(t.scope) ? t.scope : (t.scope === TechnologyCategory.ANY ? undefined : [t.scope]);
+      return !TechnologySystem.canAcquireTech(game, playerId, categories);
+    })) {
+      return "Vous avez déjà toutes les technologies disponibles. Le gain de technologie (bonus) sera perdu. Voulez-vous continuer ?";
+    }
+    if (bonus.probe) {
+      const launch = ProbeSystem.canLaunchProbe(game, playerId, false, bonus.ignoreProbeLimit);
+      if (!launch.canLaunch && launch.reason?.includes('Limite')) {
+        return "Vous avez atteint la limite de sondes dans le système solaire. L'action de lancer une sonde sera perdue. Voulez-vous continuer ?";
+      }
+    }
+    if (bonus.movements && !bonus.probe && !player.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
+      return "Vous n'avez aucune sonde dans le système solaire pour effectuer le déplacement. L'action sera perdue. Voulez-vous continuer ?";
+    }
+    if (bonus.landing && !ProbeSystem.probeOnPlanetInfo(game, playerId).hasProbe) {
+      return "Vous n'avez aucune sonde sur une planète pour effectuer l'atterrissage. L'action sera perdue. Voulez-vous continuer ?";
+    }
+    if (bonus.atmosphericEntry && !player.probes.some(p => p.state === ProbeState.IN_ORBIT)) {
+      return "Vous n'avez aucun orbiteur à retirer. L'effet de la carte sera perdu. Voulez-vous continuer ?";
+    }
+    if (bonus.sampleReturn && !player.probes.some(p => p.state === ProbeState.LANDED)) {
+      return "Vous n'avez aucun atterrisseur à retirer. L'effet de la carte sera perdu. Voulez-vous continuer ?";
+    }
+    return null;
   }
 
   static updateMedia(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {

@@ -305,15 +305,11 @@ export class AIController {
                 if (found && info.planetId) {
                     const planetId = info.planetId;
                     const res = interaction.type === 'ORBITING_PROBE'
-                        ? ProbeSystem.orbitProbe(updatedGame, player.id, found.probe.id, planetId, sequenceId, true)
+                        ? ProbeSystem.orbitProbe(updatedGame, player.id, found.probe.id, planetId, sequenceId, true, interaction.source)
                         : ProbeSystem.landProbe(updatedGame, player.id, found.probe.id, planetId, true, undefined, interaction.source, sequenceId);
                     updatedGame = res.updatedGame;
                     historyEntries.push(...res.historyEntries);
                     newPendingInteractions.push(...res.newPendingInteractions);
-                    // Orbite bonus d'une carte « … et prélevez un spécimen » (ET.3) : même règle que pour le joueur humain
-                    if (interaction.type === 'ORBITING_PROBE' && ProbeSystem.shouldCollectSpecimen(updatedGame, planetId, interaction.source)) {
-                        newPendingInteractions.push({ type: 'COLLECTING_SPECIMEN', planetId: ProbeSystem.specimenPlanetId(updatedGame, planetId)!, sequenceId });
-                    }
                 }
                 break;
             }
