@@ -363,10 +363,14 @@
     font-style: italic;
 }
 
-/* Mascamites : emplacements bleus du haut en triangle */
+/* Mascamites : emplacements bleus du haut en triangle.
+   Largeur d'un seul jeton, contenu aligné à droite : la base reste dans l'axe de la colonne bleue
+   et le triangle déborde vers la gauche, au-dessus des colonnes rouge et jaune, sans changer leur espacement. */
 .alien-mascamite-triangle {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    width: 28px;
     gap: 6px;
     margin-bottom: 8px;
 }
