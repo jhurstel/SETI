@@ -362,3 +362,16 @@
     color: #aaa;
     font-style: italic;
 }
+
+/* Mascamites : emplacements bleus du haut en triangle */
+.alien-mascamite-triangle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.alien-mascamite-triangle-column {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}

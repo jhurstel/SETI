@@ -1,7 +1,8 @@
 import { TurnManager } from '../src/core/TurnManager';
 import { GameEngine } from '../src/core/Game';
 import { PassAction } from '../src/actions/PassAction';
-import { Game, GamePhase } from '../src/core/types';
+import { Game, GamePhase, LifeTraceType } from '../src/core/types';
+import { ScoreManager } from '../src/core/ScoreManager';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -266,6 +267,22 @@ describe('PassAction', () => {
       const engine = new GameEngine(game);
       const result = engine.executeAction(new PassAction(P2, []));
       expect(result).toMatchObject({ success: false, error: "Ce n'est pas votre tour" });
+    });
+  });
+  describe('paliers neutres', () => {
+    test("une espèce découverte par un palier neutre ne laisse pas l'indicateur de découverte actif", () => {
+      const board = game.board.alienBoards[0];
+      board.lifeTraces = [
+        { id: 't1', type: LifeTraceType.RED, playerId: P2 },
+        { id: 't2', type: LifeTraceType.YELLOW, playerId: P2 },
+      ];
+      getPlayer(game, P1).score = 20;
+
+      const res = ScoreManager.checkScoreMilestones(game, P1);
+
+      expect(res.updatedGame.board.alienBoards[0].isDiscovered).toBe(true);
+      expect(res.discoveryNotification?.message).toContain('Espèce découverte');
+      expect(res.updatedGame.isSpeciesDiscovered).toBe(false);
     });
   });
 });

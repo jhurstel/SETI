@@ -92,12 +92,16 @@ export const BoardUI: React.FC = () => {
     }
   }, [game, interactionState.type, game?.currentPlayerIndex]);
 
+  // Réservation d'une carte par le joueur humain : fenêtre centrale, comme le choix de fin de manche
+  const reservingPlayer = game && interactionState.type === 'RESERVING_CARD' ? game.players[game.currentPlayerIndex] : undefined;
+  const isReservationModalActive = !!reservingPlayer && reservingPlayer.type === 'human';
+
   // Réinitialiser l'état minimisé lorsque la modale se ferme
   useEffect(() => {
-    if (!passModalState.visible) {
+    if (!passModalState.visible && !isReservationModalActive) {
       setIsPassModalMinimized(false);
     }
-  }, [passModalState.visible]);
+  }, [passModalState.visible, isReservationModalActive]);
 
   const checkDataLimitAndProceed = (
     potentialDataGain: number,
@@ -484,17 +488,18 @@ export const BoardUI: React.FC = () => {
   };
 
   // Gestionnaire pour la réservation de carte
-  const handleConfirmReservation = () => {
+  const handleConfirmReservation = (cardIds?: string[]) => {
     if (!game) return;
 
     if (interactionState.type !== 'RESERVING_CARD') return;
-    if (interactionState.selectedCards.length === 0) return;
+    const selectedCards = cardIds ?? interactionState.selectedCards;
+    if (selectedCards.length === 0) return;
 
     const updatedGame = { ...game };
     updatedGame.players = updatedGame.players.map(p => ({ ...p }));
 
     // Identifier le joueur concerné (celui qui possède la carte sélectionnée)
-    const cardId = interactionState.selectedCards[0];
+    const cardId = selectedCards[0];
     let playerIndex = updatedGame.players.findIndex(p => p.cards.some(c => c.id === cardId));
     if (playerIndex === -1) {
       playerIndex = updatedGame.currentPlayerIndex;
@@ -505,7 +510,7 @@ export const BoardUI: React.FC = () => {
     currentPlayer.reservedCards = [...(currentPlayer.reservedCards || [])];
 
     // Traiter toutes les cartes sélectionnées
-    for (const cardId of interactionState.selectedCards) {
+    for (const cardId of selectedCards) {
       const cardIndex = currentPlayer.cards.findIndex(c => c.id === cardId);
       if (cardIndex === -1) continue;
       const card = currentPlayer.cards[cardIndex];
@@ -551,7 +556,7 @@ export const BoardUI: React.FC = () => {
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
 
     // Mettre à jour l'état d'interaction
-    const newCount = interactionState.count - interactionState.selectedCards.length;
+    const newCount = interactionState.count - selectedCards.length;
     if (newCount > 0) {
       setInteractionState({ type: 'RESERVING_CARD', count: newCount, selectedCards: [], sequenceId: interactionState.sequenceId });
     } else {
@@ -819,13 +824,14 @@ export const BoardUI: React.FC = () => {
     const historyEntries = result.historyEntries;
     const newPendingInteractions = result.newPendingInteractions;
 
-    // Check for species discovery
-    if (updatedGame.isSpeciesDiscovered) {
+    // Découverte d'espèce due à cette trace (comparaison des plateaux : un indicateur resté actif ne relance pas la popup)
+    const discovered = updatedGame.board.alienBoards.some((board, i) => board.isDiscovered && !game.board.alienBoards[i]?.isDiscovered);
+    if (discovered) {
       historyEntries.push({ message: "découvre une nouvelle espèce Alien !", playerId, sequenceId });
       setAlienDiscoveryNotification({ visible: true, message: "Découverte d'une nouvelle espèce Alien !" });
       setTimeout(() => setAlienDiscoveryNotification(null), 4000);
-      updatedGame.isSpeciesDiscovered = false;
     }
+    updatedGame.isSpeciesDiscovered = false;
 
     // End transaction
     setGame(updatedGame);
@@ -1917,7 +1923,7 @@ export const BoardUI: React.FC = () => {
       )}
 
       {/* Bouton pour masquer/afficher la modale de fin de manche */}
-      {passModalState.visible && (
+      {(passModalState.visible || isReservationModalActive) && (
         <button
             onClick={() => setIsPassModalMinimized(!isPassModalMinimized)}
             className={`seti-minimize-modal-btn ${isPassModalMinimized ? 'minimized' : ''}`}
@@ -1938,6 +1944,19 @@ export const BoardUI: React.FC = () => {
         }}
         currentRound={game.currentRound}
       />
+
+      {/* Modale de réservation de carte (mise en place et bonus de réservation) */}
+      {isReservationModalActive && interactionState.type === 'RESERVING_CARD' && (
+        <PassModal
+          visible={!isPassModalMinimized}
+          cards={CardSystem.getHandCards(reservingPlayer!)}
+          onConfirm={(selectedCardId) => handleConfirmReservation([selectedCardId])}
+          currentRound={game.currentRound}
+          title={`Réservez ${interactionState.count > 1 ? `${interactionState.count} cartes` : 'une carte'}`}
+          subtitle="La carte réservée est glissée sous votre plateau : vous gagnez aussitôt son revenu, puis à chaque manche."
+          confirmLabel="Réserver"
+        />
+      )}
 
       {/* Modale de choix Média ou Déplacement (Carte 19) */}
       {interactionState.type === 'CHOOSING_MEDIA_OR_MOVE' && (
@@ -2035,7 +2054,7 @@ export const BoardUI: React.FC = () => {
               onConfirmDiscardForEndTurn={handleConfirmDiscard}
               onTradeCardAction={(targetGain) => handleTradeCardAction({ targetGain })}
               onConfirmTrade={handleConfirmTrade}
-              onConfirmReserve={handleConfirmReservation}
+              onConfirmReserve={() => handleConfirmReservation()}
               onBuyCardAction={handleBuyCardAction}
               onDirectTradeAction={handleDirectTrade}
               onPlayCard={handlePlayCardRequest}

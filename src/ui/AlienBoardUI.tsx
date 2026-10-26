@@ -184,6 +184,24 @@ const ExertienDangerTooltip: React.FC<{
     );
 };
 
+/** Mascamites : nombre d'emplacements bleus du bas affichés en colonne (les suivants forment le triangle) */
+const MASCAMITE_BLUE_COLUMN = 3;
+
+/**
+ * Colonnes du triangle des emplacements bleus Mascamites, de gauche (pointe) à droite (base),
+ * chaque colonne de haut en bas. Le remplissage commence en bas de la base : 3 jetons → 2 → 1.
+ */
+const mascamiteTriangleColumns = (slotCount: number): number[][] => {
+    const columns: number[][] = [];
+    let index = MASCAMITE_BLUE_COLUMN;
+    for (let height = 3; height >= 1 && index < slotCount; height--) {
+        const column: number[] = [];
+        for (let i = 0; i < height && index < slotCount; i++) column.unshift(index++);
+        columns.unshift(column);
+    }
+    return columns;
+};
+
 export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, onPlaceLifeTrace, onSpeciesCardClick, setActiveTooltip, forceOpen }) => {
     const board = game.board.alienBoards[boardIndex];
     const species = game.species.find(s => s.name === board.speciesId);
@@ -413,12 +431,29 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                     </div>
                 </div>
                 )}
+                {isMascamites && type === LifeTraceType.BLUE && fixedSlots.length > MASCAMITE_BLUE_COLUMN ? (
+                    <>
+                        {/* Les jetons du haut en triangle (base à droite, pointe vers la gauche) pour garder la hauteur des autres plateaux */}
+                        <div className="alien-mascamite-triangle">
+                            {mascamiteTriangleColumns(fixedSlots.length).map((column, columnIndex) => (
+                                <div key={columnIndex} className="alien-mascamite-triangle-column">
+                                    {column.map(index => renderBoardSlot(type, index, fixedSlots[index], false, fixedSlots.length))}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="alien-fixed-slots-container">
+                            {fixedSlots.slice(0, MASCAMITE_BLUE_COLUMN).map((_, i) => MASCAMITE_BLUE_COLUMN - 1 - i)
+                                .map(index => renderBoardSlot(type, index, fixedSlots[index], false, fixedSlots.length))}
+                        </div>
+                    </>
+                ) : (
                 <div className="alien-fixed-slots-container">
                     {[...fixedSlots].reverse().map((bonus, reverseIndex) => {
                         const index = fixedSlots.length - 1 - reverseIndex;
                         return renderBoardSlot(type, index, bonus, false, fixedSlots.length);
                     })}
                 </div>
+                )}
             </div>
         );
     };

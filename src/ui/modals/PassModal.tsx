@@ -8,9 +8,14 @@ interface PassModalProps {
   cards: Card[];
   onConfirm: (selectedCardId: string) => void;
   currentRound: number;
+  /** Titre et bouton personnalisés (ex: réservation de carte) ; par défaut, choix de fin de manche */
+  title?: string;
+  subtitle?: string;
+  confirmLabel?: string;
 }
 
-export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm, currentRound }) => {
+/** Choix d'une carte dans une fenêtre centrale (fin de manche, réservation) */
+export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm, currentRound, title, subtitle, confirmLabel }) => {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
 
@@ -20,8 +25,9 @@ export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm,
     <div className="seti-modal-overlay">
       <div className="seti-modal-content">
         <div className="seti-modal-title">
-          Fin de manche {currentRound} : Choisissez une carte
+          {title ?? `Fin de manche ${currentRound} : Choisissez une carte`}
         </div>
+        {subtitle && <div style={{ color: '#ccc', fontSize: '0.9rem', marginBottom: '8px' }}>{subtitle}</div>}
         <div style={{
           display: 'flex',
           gap: '15px',
@@ -78,7 +84,7 @@ export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm,
           className="seti-confirm-btn"
           style={{ marginTop: '30px', padding: '10px 30px', fontSize: '1.1rem', width: 'auto' }}
         >
-          Confirmer et Passer
+          {confirmLabel ?? 'Confirmer et Passer'}
         </button>
       </div>
       {activeTooltip && (

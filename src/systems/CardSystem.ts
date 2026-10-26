@@ -728,7 +728,7 @@ export class CardSystem {
             message += ` et ${extras.join(' et ')}`;
         }
         if (completedMissions.length > 0) {
-            message += ` et accomplit la mission "${completedMissions.join('", "')}"`;
+            message += ` pour avoir accompli la mission "${completedMissions.join('", "')}"`;
         }
 
         historyEntries.unshift({ message, playerId, sequenceId });

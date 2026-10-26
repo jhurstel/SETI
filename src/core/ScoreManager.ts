@@ -493,6 +493,8 @@ export class ScoreManager {
 
         const result = SpeciesSystem.placeNeutralMilestone(updatedGame, m);
         updatedGame = result.updatedGame;
+        // La découverte est signalée par discoveryNotification : l'indicateur ne doit pas rester actif
+        updatedGame.isSpeciesDiscovered = false;
         // Nouvelle copie de la partie : reprendre le joueur pour que les modifications suivantes y soient appliquées
         player = updatedGame.players.find(p => p.id === playerId)!;
         const sequenceId = `neutral-${Date.now()}`;
