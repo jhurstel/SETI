@@ -1,4 +1,6 @@
 import { CardSystem } from '../src/systems/CardSystem';
+import { GameEngine } from '../src/core/Game';
+import { PlayCardAction } from '../src/actions/PlayCardAction';
 import { DataLoader } from '../src/core/DataLoader';
 import { AlienBoardType, CostType, FreeActionType, Game, LifeTraceLocation, LifeTraceType, RevenueType } from '../src/core/types';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
@@ -180,6 +182,24 @@ describe('CardSystem', () => {
   });
 
   describe('playCard', () => {
+    test("les interactions d'une carte jouée (technologie) appartiennent à la séquence de la carte (historique indenté)", async () => {
+      const fetchSpy = mockFetchFromPublic();
+      const card = (await DataLoader.loadCards('cards/main.csv')).find(c => c.id === '61')!;
+      fetchSpy.mockRestore();
+
+      const player = getPlayer(game, P1);
+      player.credits = 10;
+      player.cards = [card];
+      const engine = new GameEngine(game);
+      const action = new PlayCardAction(P1, '61');
+      expect(engine.executeAction(action).success).toBe(true);
+
+      const sequenceId = action.historyEntries[0].sequenceId;
+      expect(sequenceId).toBeTruthy();
+      expect(action.newPendingInteractions).toContainEqual(expect.objectContaining({ type: 'ACQUIRING_TECH' }));
+      action.newPendingInteractions.forEach(i => expect(i.sequenceId).toBe(sequenceId));
+    });
+
     test.each([
       ['cards/main.csv', '75'],
       ['cards/anomalies.csv', 'ET.19'],

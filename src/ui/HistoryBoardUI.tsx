@@ -262,7 +262,11 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                             onMouseLeave={() => setActiveTooltip(null)}
                             onClick={(e) => { e.stopPropagation(); onUndoTurn(); }}
                         >
-                            ↩↩
+                            {/* Deux flèches superposées, décalées en diagonale */}
+                            <span className="seti-undo-turn-icon" aria-label="Revenir au début du tour">
+                                <span>↩</span>
+                                <span>↩</span>
+                            </span>
                         </button>
                     )}
                     {canUndo && (

@@ -580,7 +580,7 @@ export const BoardUI: React.FC = () => {
           const gameAfterScan = result.updatedState;
           setGame(gameAfterScan);
           action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-          handleNewInteractions(action.newPendingInteractions);
+          handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId);
         } else {
           setToast({ message: result.error || "Impossible de scanner ce secteur", visible: true });
         }
@@ -636,7 +636,7 @@ export const BoardUI: React.FC = () => {
       if (result.success && result.updatedState) {
         setGame(result.updatedState);
         action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-        handleNewInteractions(action.newPendingInteractions);
+        handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId);
       } else {
         console.error('Erreur lors du lancement de la sonde:', result.error);
         setToast({ message: result.error || 'Impossible de lancer la sonde', visible: true });
@@ -651,7 +651,7 @@ export const BoardUI: React.FC = () => {
       if (result.success && result.updatedState) {
         setGame(result.updatedState);
         action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-        handleNewInteractions(action.newPendingInteractions);
+        handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId);
       } else {
         console.error("Erreur lors du scan d'un secteur:", result.error);
         setToast({ message: result.error || 'Impossible de scanner un secteur', visible: true });
@@ -687,7 +687,7 @@ export const BoardUI: React.FC = () => {
       if (result.success && result.updatedState) {
         setGame(result.updatedState);
         action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-        handleNewInteractions(action.newPendingInteractions);
+        handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId);
       } else {
         console.error("Erreur lors de la recherche de technologie:", result.error);
         setToast({ message: result.error || 'Impossible de rechercher une technologie', visible: true });
@@ -719,7 +719,7 @@ export const BoardUI: React.FC = () => {
         if (result.success && result.updatedState) {
           setGame(result.updatedState);
           action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, previousState, { type: 'IDLE' }, e.sequenceId));
-          if (!handleNewInteractions(action.newPendingInteractions)) setInteractionState({ type: 'IDLE' });
+          if (!handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId)) setInteractionState({ type: 'IDLE' });
         } else {
           console.error("Erreur lors de l'analyse:", result.error);
           setToast({ message: result.error || "Erreur lors de l'analyse", visible: true });
@@ -1195,7 +1195,7 @@ export const BoardUI: React.FC = () => {
 
         action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
         // Ajouter les nouvelles interactions et lancer la première
-        handleNewInteractions(action.newPendingInteractions);
+        handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId);
 
         // Carte 19 : le moteur propose le choix Média / déplacement, qui interrompt le chemin
         if (action.newPendingInteractions.some(i => i.type === 'CHOOSING_MEDIA_OR_MOVE')) {
@@ -1282,7 +1282,7 @@ export const BoardUI: React.FC = () => {
         // Add pending interactions from processBonuses (objects)
         if (action.newPendingInteractions && action.newPendingInteractions.length > 0) {
           const forceStacking = ['27', '28', '29', '30'].includes(cardId);
-          handleNewInteractions(action.newPendingInteractions, undefined, undefined, forceStacking);
+          handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId, undefined, forceStacking);
         }
     }
   };
@@ -1300,7 +1300,7 @@ export const BoardUI: React.FC = () => {
     if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
 
     result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-    handleNewInteractions(result.newPendingInteractions);
+    handleNewInteractions(result.newPendingInteractions, result.historyEntries[0]?.sequenceId);
   };
 
   // Gestionnaire pour l'action d'achat de carte (payer avec 3 média)
@@ -1428,7 +1428,7 @@ export const BoardUI: React.FC = () => {
         if (result.success && result.updatedState) {
           setGame(result.updatedState);
           action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, gameRef.current ?? undefined, undefined, entry.sequenceId));
-          handleNewInteractions(action.newPendingInteractions);
+          handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId);
         } else {
           setToast({ message: result.error || 'Impossible de lancer une sonde', visible: true });
         }

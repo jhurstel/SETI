@@ -74,6 +74,13 @@ export class GameEngine {
       // Exécuter l'action
       this.state = action.execute(this.state);
 
+      // Les interactions déclenchées par l'action (gains de carte, bonus…) appartiennent à sa séquence :
+      // l'historique les rattache à l'action et l'annulation les traite avec elle
+      const actionSequenceId = action.historyEntries.find(e => e.sequenceId)?.sequenceId;
+      if (actionSequenceId) {
+        action.newPendingInteractions = action.newPendingInteractions.map(i => i.sequenceId ? i : { ...i, sequenceId: actionSequenceId });
+      }
+
       const isMainAction = MAIN_ACTION_TYPES.includes(action.type);
       if (isMainAction && this.state.currentPlayerIndex === previousPlayerIndex) {
         this.state.players[previousPlayerIndex].hasPerformedMainAction = true;
