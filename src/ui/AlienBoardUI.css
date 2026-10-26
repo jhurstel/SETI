@@ -363,16 +363,22 @@
     font-style: italic;
 }
 
-/* Mascamites : emplacements bleus du haut en triangle.
-   Largeur d'un seul jeton, contenu aligné à droite : la base reste dans l'axe de la colonne bleue
-   et le triangle déborde vers la gauche, au-dessus des colonnes rouge et jaune, sans changer leur espacement. */
+/* Mascamites : emplacements bleus du haut en triangle, au-dessus des trois colonnes.
+   Les colonnes de pistes sont réparties en space-around : leurs centres sont espacés d'un tiers de la largeur
+   du conteneur. Le triangle couvre donc deux tiers + un jeton, aligné à droite sur la colonne bleue :
+   base sur la colonne bleue, milieu sur la jaune, pointe sur la rouge. Il reste au-dessus du premier
+   jeton rouge et jaune (marge basse d'une rangée), sans changer l'espacement des colonnes. */
+.alien-tracks-container {
+    container-type: inline-size;
+}
 .alien-mascamite-triangle {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    width: 28px;
-    gap: 6px;
-    margin-bottom: 8px;
+    justify-content: space-between;
+    width: calc(200cqw / 3 + 28px);
+    /* N'occupe qu'un jeton de large dans la colonne bleue : le reste déborde vers la gauche */
+    margin-left: calc(-200cqw / 3);
+    margin-bottom: 43px;
 }
 .alien-mascamite-triangle-column {
     display: flex;
