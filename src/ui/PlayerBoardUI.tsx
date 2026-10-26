@@ -35,6 +35,8 @@ interface PlayerBoardUIProps {
   onSettingsClick: () => void;
   onMissionClick: (missionId: string, requirementId: string) => void;
   onConfirmAction: (message: string, onConfirm: () => void) => void;
+  /** Action « Jouer une carte » choisie : met en avant les cartes jouables de la main */
+  highlightPlayableCards?: boolean;
 }
 
 interface ObservationTrackProps {
@@ -109,7 +111,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction, highlightPlayableCards = false }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -134,6 +136,12 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   const discardForSignalCount = isDiscardingForSignal ? interactionState.count : 0;
 
   const handCards = currentPlayer.cards.filter(c => c.type !== CardType.EXERTIEN);
+  const playableCardIds = highlightPlayableCards ? CardSystem.getPlayableCardIds(game, currentPlayer.id) : [];
+  // Action « Jouer une carte » choisie : la main est ramenée à l'écran
+  const cardsListRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (highlightPlayableCards) cardsListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [highlightPlayableCards]);
 
   const handleTooltipHover = useCallback((e: React.MouseEvent, content: React.ReactNode) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -757,7 +765,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 </button>
               </div>
             )}
-            <div className="seti-player-list seti-cards-list">
+            <div className="seti-player-list seti-cards-list" ref={cardsListRef}>
               {!isRobot ? (
                 handCards.length > 0 ? (
                   handCards.map(card => (
@@ -776,6 +784,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                         handleTooltipLeave={handleTooltipLeave}
                         renderActionButton={renderActionButton}
                         cardOrigin="hand"
+                        isPlayableFocus={playableCardIds.includes(card.id)}
                     />
                   ))
                 ) : (

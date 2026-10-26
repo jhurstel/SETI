@@ -81,7 +81,9 @@ export const HandCard: React.FC<{
   defaultAttribute?: 'revenue' | 'scan' | 'freeAction';
   defaultClickable?: boolean;
   cardOrigin?: 'hand' | 'row';
-}> = ({ card, game, currentPlayerId, interactionState, highlightedCardId, setHighlightedCardId, onCardClick, onPlayCard, onDiscardCardAction, handleTooltipHover, handleTooltipLeave, renderActionButton, disableGrayOut, defaultAttribute = 'freeAction', defaultClickable = true, cardOrigin = 'hand' }) => {
+  /** Action « Jouer une carte » choisie : la carte est jouable et mise en avant */
+  isPlayableFocus?: boolean;
+}> = ({ card, game, currentPlayerId, interactionState, highlightedCardId, setHighlightedCardId, onCardClick, onPlayCard, onDiscardCardAction, handleTooltipHover, handleTooltipLeave, renderActionButton, disableGrayOut, defaultAttribute = 'freeAction', defaultClickable = true, cardOrigin = 'hand', isPlayableFocus = false }) => {
     const currentPlayer = game.players.find(p => p.id === currentPlayerId)!;
     const hasPerformedMainAction = currentPlayer.hasPerformedMainAction;
     
@@ -147,6 +149,7 @@ export const HandCard: React.FC<{
       }
     } else {
       if (isHighlighted) phaseClass += ' selected';
+      if (isPlayableFocus) phaseClass += ' seti-card-playable-focus';
     }
 
     const { canDiscard, reason: discardTooltip } = CardSystem.canDiscardFreeAction(game, currentPlayerId, card.freeAction);

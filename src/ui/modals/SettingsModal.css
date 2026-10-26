@@ -105,3 +105,14 @@
     border-top: 1px solid #444;
     padding-top: 15px;
 }
+
+.seti-settings-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  color: #bbb;
+  font-size: 0.85rem;
+  cursor: pointer;
+}

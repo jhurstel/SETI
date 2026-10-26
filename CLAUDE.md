@@ -14,11 +14,12 @@ npm run dev          # lance le jeu (serveur Vite, alias : dev:ui)
 npm run typecheck    # tsc --noEmit (0 erreur attendue)
 npm run lint         # ESLint (0 erreur attendue ; les warnings = dette connue)
 npm test             # Jest (test/*.test.ts, ts-jest)
+npm run test:e2e     # Playwright (e2e/*.spec.ts) : tour d'un joueur humain dans un vrai navigateur
 npm run check        # typecheck + lint + tests + build — à lancer avant chaque commit
 npm run build        # typecheck puis vite build (→ dist/)
 ```
 
-La CI (`.github/workflows/ci.yml`) exécute typecheck, lint, tests et build à chaque push sur `main`.
+La CI (`.github/workflows/ci.yml`) exécute typecheck, lint, tests et build à chaque push sur `main`, et les tests de bout en bout dans un job séparé (`e2e`). En local sous Windows, Playwright utilise le Chrome installé (`PW_CHANNEL` pour en choisir un autre ; Edge est bloqué sur certains postes).
 
 ## Arborescence
 
@@ -65,6 +66,7 @@ src/
     ├── components/          # HandCard, MissionCard, CardTooltip, PlayerComputer, PlanetIcon, SvgBonus, SectorDetails…
     ├── modals/              # NewGame, Settings, Pass, GameModals
     └── styles/celestialStyles.ts
+e2e/                         # Playwright : parties pilotées dans le navigateur (serveur Vite lancé par playwright.config.ts)
 test/                        # Jest : un fichier par module moteur + AITurn (parties complètes entre robots), helpers/gameFixture.ts
 docs/etat-des-lieux-cartes.md # Audit des cartes et des opérations des robots (corrigé / situationnel / limites)
 docs/archive/                # Documents de conception initiaux, obsolètes
@@ -100,7 +102,8 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
 - **Centauriens** : `player.centaurienMilestones` est une liste de `CentaurienMarker` (score, carte source éventuelle, `resolved` une fois atteint) qui restent affichés sur la piste de score. Palier du message de l'espèce : choix d'une tuile Message (`claimedBy` retient qui l'a prise). Palier d'une carte : effet « Réception » de la carte (`RECEPTION_REVENUE` ou `RECEPTION:<récompenses>` dans le CSV), sans choix (`SpeciesSystem.receiveCentaurienCard`).
 - **Fenêtres et infobulles** : toute fenêtre de choix utilise `ui/modals/ChoiceModal` (`ChoiceModal`, `ChoiceOption`, `ChoiceFooterButton`), qui inclut le bouton « Voir le plateau » ; une option indisponible explique pourquoi dans son infobulle. Pas d'attribut HTML `title` : utiliser `setActiveTooltip` ou `components/HoverTooltip` pour garder l'aspect des infobulles du jeu (classe `.seti-tooltip`).
 - **Historique** : le moteur rédige le message de chaque action (y compris orbite et atterrissage) puis ses conséquences avec le même `sequenceId` ; l'historique indente ces conséquences sous l'action.
-- **Persistance** : `GamePersistence` (pur) + `useAutosave` (`localStorage['seti_autosave']`) + export/import JSON dans `SettingsModal`.
+- **Persistance** : `GamePersistence` (pur) + `useAutosave` (`localStorage['seti_autosave']`) + export/import JSON dans `SettingsModal`. Les sauvegardes portent `saveVersion` : tout changement incompatible du modèle incrémente `SAVE_VERSION` et ajoute une migration dans `MIGRATIONS` (appliquée aussi aux états d'annulation du journal). Une sauvegarde plus récente que le jeu est refusée (`SaveVersionError`).
+- **Outils de débogage** : le `DebugPanel` n'est affiché que si la case « Outils de débogage » du menu Paramètres est cochée (`useDebugSetting`, `localStorage['seti_show_debug']`).
 - **Style** : TS `strict`, `noUnusedLocals/Parameters`, `.editorconfig` (2 espaces, LF). Identifiants en anglais, commentaires et messages en français. Les valeurs d'enum sont des libellés FR affichés (`SectorType.YELLOW = "Jaune"`) et utilisés au parsing CSV : ne pas les modifier à la légère.
 - **Tests** : Jest + ts-jest dans `test/`, type-checkés via `test/tsconfig.json` (inclus dans `npm run typecheck`).
   - `test/helpers/gameFixture.ts` : `createTestGame()` crée une **vraie** partie (fetch simulé qui sert `public/`, donc les vraies cartes), `makeCard()`, `getPlayer()`. À privilégier plutôt que des mocks d'état écrits à la main.

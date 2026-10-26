@@ -282,6 +282,16 @@ body {
   filter: grayscale(0.8);
 }
 
+/* Action « Jouer une carte » choisie : cartes jouables mises en avant */
+.seti-card-playable-focus {
+  border: 2px solid #4caf50;
+  animation: seti-card-playable-pulse 1.6s ease-in-out infinite;
+}
+@keyframes seti-card-playable-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(76, 175, 80, 0.5); }
+  50% { box-shadow: 0 0 14px rgba(76, 175, 80, 0.9); }
+}
+
 /* Infobulles du jeu (composant Tooltip) : même aspect que les panneaux */
 .seti-tooltip {
   position: fixed;

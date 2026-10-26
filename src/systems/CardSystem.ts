@@ -285,6 +285,15 @@ export class CardSystem {
     }
 
     /**
+     * Cartes de la main que le joueur peut jouer maintenant (coût et conditions compris)
+     */
+    static getPlayableCardIds(game: Game, playerId: string): string[] {
+        const player = game.players.find(p => p.id === playerId);
+        if (!player) return [];
+        return this.getHandCards(player).filter(card => this.canPlayCard(game, playerId, card).canPlay).map(card => card.id);
+    }
+
+    /**
      * Vérifie si un joueur peut jouer au moins une carte de sa main
      */
     static canPlayCards(

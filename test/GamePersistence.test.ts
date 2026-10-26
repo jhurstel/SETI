@@ -1,4 +1,4 @@
-import { serializeGame, deserializeGame } from '../src/core/GamePersistence';
+import { serializeGame, deserializeGame, SAVE_VERSION, SaveVersionError } from '../src/core/GamePersistence';
 import { cloneGame } from '../src/core/cloneGame';
 import { Game, HistoryEntry } from '../src/core/types';
 import { createTestGame } from './helpers/gameFixture';
@@ -46,6 +46,34 @@ describe('GamePersistence', () => {
     expect('history' in saved).toBe(false);
     expect('history' in saved.gameLog[0].previousState!).toBe(false);
     expect('gameLog' in saved.gameLog[0].previousState!).toBe(false);
+  });
+
+  test('la sauvegarde porte la version du format, absente de la partie relue', () => {
+    const saved = serializeGame(game, [entry('a')]);
+    expect(saved.saveVersion).toBe(SAVE_VERSION);
+    const { game: restored } = deserializeGame(JSON.stringify(saved));
+    expect('saveVersion' in restored).toBe(false);
+  });
+
+  test('migre une sauvegarde sans version (paliers Centauriens en scores), journal compris', () => {
+    const saved = serializeGame(game, [entry('a')]) as unknown as Record<string, unknown>;
+    delete saved.saveVersion;
+    const legacy = JSON.parse(JSON.stringify(saved));
+    legacy.players[0].centaurienMilestones = [12, 30];
+    legacy.gameLog[0].previousState.players[0].centaurienMilestones = [12];
+
+    const { game: restored, historyLog } = deserializeGame(JSON.stringify(legacy));
+    const id = restored.players[0].id;
+    expect(restored.players[0].centaurienMilestones).toEqual([
+      { id: `centaurien-${id}-0`, score: 12 },
+      { id: `centaurien-${id}-1`, score: 30 },
+    ]);
+    expect(historyLog[0].previousState!.players[0].centaurienMilestones).toEqual([{ id: `centaurien-${id}-0`, score: 12 }]);
+  });
+
+  test("refuse une sauvegarde d'un format plus récent", () => {
+    const saved = { ...serializeGame(game, []), saveVersion: SAVE_VERSION + 1 };
+    expect(() => deserializeGame(JSON.stringify(saved))).toThrow(SaveVersionError);
   });
 
   test('ne modifie pas la partie sauvegardée', () => {

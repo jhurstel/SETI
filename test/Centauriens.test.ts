@@ -105,7 +105,9 @@ describe('Centauriens', () => {
   test('anciennes sauvegardes : les paliers numériques deviennent des marqueurs', () => {
     const p = getPlayer(game, P1) as unknown as { centaurienMilestones: unknown[] };
     p.centaurienMilestones = [42];
-    const restored = deserializeGame(JSON.stringify(serializeGame(game, []))).game;
+    // Sauvegarde d'avant le numéro de version
+    const { saveVersion: _version, ...legacy } = serializeGame(game, []);
+    const restored = deserializeGame(JSON.stringify(legacy)).game;
     expect(getPlayer(restored, P1).centaurienMilestones).toEqual([{ id: `centaurien-${P1}-0`, score: 42 }]);
   });
 });

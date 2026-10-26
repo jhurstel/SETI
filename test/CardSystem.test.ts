@@ -170,6 +170,15 @@ describe('CardSystem', () => {
     });
   });
 
+  describe('getPlayableCardIds', () => {
+    test('ne garde que les cartes de la main que le joueur peut payer', () => {
+      const player = getPlayer(game, P1);
+      player.credits = 2;
+      player.cards = [makeCard('cheap', { cost: 1 }), makeCard('expensive', { cost: 5 })];
+      expect(CardSystem.getPlayableCardIds(game, P1)).toEqual(['cheap']);
+    });
+  });
+
   describe('playCard', () => {
     test.each([
       ['cards/main.csv', '75'],

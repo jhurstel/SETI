@@ -39,6 +39,23 @@ export class ProbeSystem {
     return probe ? { probe, planetName: planetDef.name } : null;
   }
 
+  /**
+   * Planètes (hors Terre) où le joueur peut mettre en orbite ou poser une de ses sondes,
+   * coût compris : l'interface les met en avant quand le joueur choisit l'action.
+   */
+  static getPlayablePlanets(game: Game, playerId: string, mode: 'orbit' | 'land', checkCost: boolean = true): string[] {
+    return getAllCelestialObjects(game.board.solarSystem.extraCelestialObjects || [])
+      .filter(o => o.type === 'planet' && o.id !== 'earth')
+      .filter(o => {
+        const found = this.findProbeAtPlanet(game, playerId, o.id);
+        if (!found) return false;
+        return mode === 'orbit'
+          ? this.canOrbit(game, playerId, found.probe.id, checkCost).canOrbit
+          : this.canLand(game, playerId, found.probe.id, checkCost).canLand;
+      })
+      .map(o => o.id);
+  }
+
   /** Bonus de l'emplacement d'orbite ou d'atterrissage visé (planète ou satellite). */
   static getSlotBonus(game: Game, planetId: string, mode: 'orbit' | 'land', slotIndex: number): Bonus | undefined {
     const planet = game.board.planets.find(p => p.id === planetId);

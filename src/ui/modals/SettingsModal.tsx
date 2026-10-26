@@ -3,7 +3,7 @@ import { AIDifficulty, Game, HistoryEntry, InteractionState } from '../../core/t
 import { GameFactory } from '../../core/GameFactory';
 import { GameEngine } from '../../core/Game';
 import { NewGameModal } from './NewGameModal';
-import { serializeGame, deserializeGame } from '../../core/GamePersistence';
+import { serializeGame, deserializeGame, SaveVersionError } from '../../core/GamePersistence';
 import { readAutosave } from '../hooks/useAutosave';
 import './SettingsModal.css';
 
@@ -26,6 +26,9 @@ interface SettingsModalProps {
   setInteractionState: (state: InteractionState) => void;
   setPendingInteractions: (interactions: InteractionState[]) => void;
   setToast: (toast: { message: string; visible: boolean } | null) => void;
+  /** Réglage « Outils de débogage » */
+  showDebug: boolean;
+  setShowDebug: (show: boolean) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -38,7 +41,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   setHistoryLog, 
   setInteractionState, 
   setPendingInteractions, 
-  setToast 
+  setToast,
+  showDebug,
+  setShowDebug
 }) => {
   const [newGameModalVisible, setNewGameModalVisible] = useState(false);
   const [hasAutosave, setHasAutosave] = useState(false);
@@ -187,7 +192,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }
               } catch (e) {
                   console.error(e);
-                  setToast({ message: "Erreur lors du chargement.", visible: true });
+                  setToast({ message: e instanceof SaveVersionError ? e.message : "Erreur lors du chargement.", visible: true });
               }
               document.body.removeChild(input);
           };
@@ -204,7 +209,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           }
       } catch (e) {
           console.error(e);
-          setToast({ message: "Erreur lors de la restauration.", visible: true });
+          setToast({ message: e instanceof SaveVersionError ? e.message : "Erreur lors de la restauration.", visible: true });
       }
   };
 
@@ -221,6 +226,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button onClick={handleLoadGame} className="seti-modal-btn">Restaurer Partie</button>
               {game && <button onClick={() => setVisible(false)} className="seti-modal-btn secondary">Fermer</button>}
             </div>
+            <label className="seti-settings-option">
+              <input type="checkbox" checked={showDebug} onChange={e => setShowDebug(e.target.checked)} />
+              Outils de débogage
+            </label>
           </div>
         </div>
       )}

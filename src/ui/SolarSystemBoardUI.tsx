@@ -23,9 +23,11 @@ interface SolarSystemBoardUIProps {
   onSectorClick: (sectorId: string) => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null) => void;
   onMascamiteClick: (planetId: string, tokenIndex: number) => void;
+  /** Action Orbite ou Atterrissage choisie : ouvre la fenêtre des planètes où elle est possible */
+  planetFocus?: 'orbit' | 'land' | null;
 }
 
-export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, onBackgroundClick, onSectorClick, setActiveTooltip, onMascamiteClick }) => {
+export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, onBackgroundClick, onSectorClick, setActiveTooltip, onMascamiteClick, planetFocus }) => {
 
   // État pour gérer la sonde sélectionnée et les cases accessibles
   const [selectedProbeId, setSelectedProbeId] = useState<string | null>(null);
@@ -1650,8 +1652,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           {/* Détails des secteurs sur le disque E (Noms + Slots) */}
           <SectorDetails game={game} interactionState={interactionState} highlightedSectorSlots={getHighlightedSectors()} onSectorClick={onSectorClick} setActiveTooltip={setActiveTooltip} />
 
-          {/* Tooltips persistants pour l'atterrissage (Dragonfly / Landing Interaction) */}
-          {interactionState.type === 'LANDING_PROBE' && (() => {
+          {/* Fenêtres persistantes des planètes : atterrissage bonus (Dragonfly…) ou action Orbite/Atterrissage choisie */}
+          {(interactionState.type === 'LANDING_PROBE' || (interactionState.type === 'IDLE' && !!planetFocus)) && (() => {
             const currentPlayer = game.players[game.currentPlayerIndex];
             // Trouver toutes les planètes où le joueur a une sonde
             const planetsWithProbes = new Set<string>();
@@ -1669,7 +1671,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               }
             });
 
-            return Array.from(planetsWithProbes).map(planetId => {
+            const planetIds = interactionState.type === 'IDLE' && planetFocus
+              ? ProbeSystem.getPlayablePlanets(game, currentPlayer.id, planetFocus)
+              : Array.from(planetsWithProbes);
+            return planetIds.map(planetId => {
               const el = planetRefs.current.get(planetId);
               if (!el) return null;
               const rect = el.getBoundingClientRect();

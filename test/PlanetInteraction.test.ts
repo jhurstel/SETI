@@ -39,6 +39,35 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
     });
   });
 
+  describe('ProbeSystem.getPlayablePlanets', () => {
+    const placeProbe = (probe: Probe) => {
+      getPlayer(game, P1).probes = [probe];
+      game.board.solarSystem.probes = [probe];
+    };
+
+    test('la planète où se trouve la sonde, si le joueur peut payer', () => {
+      placeProbe(probeAt('p1', 'B', 1, 2));
+      const player = getPlayer(game, P1);
+      player.credits = 5;
+      player.energy = 5;
+      expect(ProbeSystem.getPlayablePlanets(game, P1, 'orbit')).toEqual(['mars']);
+      expect(ProbeSystem.getPlayablePlanets(game, P1, 'land')).toEqual(['mars']);
+    });
+
+    test('sans énergie : rien à jouer, sauf si le coût est ignoré (bonus)', () => {
+      placeProbe(probeAt('p1', 'B', 1, 2));
+      getPlayer(game, P1).energy = 0;
+      expect(ProbeSystem.getPlayablePlanets(game, P1, 'land')).toEqual([]);
+      expect(ProbeSystem.getPlayablePlanets(game, P1, 'land', false)).toEqual(['mars']);
+    });
+
+    test("sonde hors d'une planète : aucune planète", () => {
+      placeProbe(probeAt('p1', 'B', 2, 2));
+      getPlayer(game, P1).energy = 5;
+      expect(ProbeSystem.getPlayablePlanets(game, P1, 'land')).toEqual([]);
+    });
+  });
+
   describe('ProbeSystem.getSlotBonus', () => {
     test('emplacements d\'orbite et d\'atterrissage d\'une planète', () => {
       const mars = game.board.planets.find(p => p.id === 'mars')!;

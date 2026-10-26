@@ -8,6 +8,8 @@ interface DebugPanelProps {
   onHistory: (msg: string, playerId?: string, previousState?: Game) => void;
   interactionState: InteractionState;
   setInteractionState?: (state: InteractionState) => void;
+  /** Ferme le panneau (désactive le réglage « Outils de débogage ») */
+  onClose: () => void;
 }
 
 export const DebugPanel: React.FC<DebugPanelProps> = ({ 
@@ -15,12 +17,12 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   setGame, 
   onHistory, 
   interactionState,
-  setInteractionState
+  setInteractionState,
+  onClose
 }) => {
   const [cardId, setCardId] = useState('');
   const [techId, setTechId] = useState('');
   const [amount, setAmount] = useState(1);
-  const [isVisible, setIsVisible] = useState(true);
   const [position, setPosition] = useState({ x: 20, y: 150 });
   const panelRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef({ x: 0, y: 0 });
@@ -121,9 +123,6 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
     return null;
   }
 
-  if (!isVisible) {
-    return createPortal(<button onClick={() => setIsVisible(true)} style={{position: 'fixed', top: '10px', left: '10px', zIndex: 10000, padding: '5px 10px'}}>Debug</button>, document.body);
-  }
 
   return createPortal(
     <div 
@@ -140,7 +139,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
         onMouseDown={handleMouseDown}
       >
         <strong>Debug Panel</strong>
-        <button onClick={() => setIsVisible(false)} style={{background: 'none', border: '1px solid #777', borderRadius: '4px', color: 'white', cursor: 'pointer', padding: '2px 6px'}}>X</button>
+        <button onClick={onClose} style={{background: 'none', border: '1px solid #777', borderRadius: '4px', color: 'white', cursor: 'pointer', padding: '2px 6px'}}>X</button>
       </div>
       
       <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>

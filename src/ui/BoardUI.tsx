@@ -27,6 +27,7 @@ import { ScoreManager } from '../core/ScoreManager';
 import { useAITurn } from './hooks/useAITurn';
 import { useAutosave } from './hooks/useAutosave';
 import { DebugPanel } from './DebugPanel';
+import { useDebugSetting } from './hooks/useDebugSetting';
 import { PassModal } from './modals/PassModal';
 import { findTurnUndoPoint } from '../core/TurnUndo';
 import { Tooltip } from './Tooltip';
@@ -58,7 +59,15 @@ export const BoardUI: React.FC = () => {
   // États pour l'UI
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
   const [historyLog, setHistoryLog] = useState<HistoryEntry[]>([]);
+  const [showDebug, setShowDebug] = useDebugSetting();
   const [interactionState, setInteractionState] = useState<InteractionState>({ type: 'IDLE' });
+  // Action Orbite / Atterrissage / Jouer une carte choisie : planètes ou cartes jouables mises en avant
+  const [actionFocus, setActionFocus] = useState<'orbit' | 'land' | 'card' | null>(null);
+  const focusPlayer = game?.players[game.currentPlayerIndex];
+  useEffect(() => {
+    // L'action effectuée, une interaction ou un changement de joueur referme la mise en avant
+    setActionFocus(null);
+  }, [focusPlayer?.id, focusPlayer?.hasPerformedMainAction, interactionState.type]);
   const [pendingInteractions, setPendingInteractions] = useState<InteractionState[]>([]);
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
   const [alienDiscoveryNotification, setAlienDiscoveryNotification] = useState<{ visible: boolean; message: string } | null>(null);
@@ -652,21 +661,21 @@ export const BoardUI: React.FC = () => {
      * ORBIT PROBE
      */
     else if (actionType === ActionType.ORBIT) {
-      // TODO: Ouvrir les tooltip des planetes ou une sonde du joueur est presente
+      setActionFocus('orbit');
       setToast({ message: "Veuillez sélectionner un emplacement d'orbite sur une planète.", visible: true });
     }
     /***
      * LAND PROBE
      */
     else if (actionType === ActionType.LAND) {
-      // TODO: Ouvrir les tooltip des planetes ou une sonde du joueur est presente
+      setActionFocus('land');
       setToast({ message: "Veuillez sélectionner un emplacement d'atterrissage sur une planète.", visible: true });
     }
     /***
      * PLAY CARD
      */
     else if (actionType === ActionType.PLAY_CARD) {
-      // TODO: Ouvrir les cartes qui peuvent être jouées
+      setActionFocus('card');
       setToast({ message: "Veuillez sélectionner une carte.", visible: true });
     }
     /***
@@ -1551,6 +1560,7 @@ export const BoardUI: React.FC = () => {
 
   // Gestionnaire pour le clic sur le background
   const handleBackgroundClick = () => {
+    setActionFocus(null);
     if (interactionState.type === 'MOVING_PROBE') {
       setInteractionState({ type: 'IDLE' });
     }
@@ -1577,6 +1587,8 @@ export const BoardUI: React.FC = () => {
           setInteractionState={setInteractionState}
           setPendingInteractions={setPendingInteractions}
           setToast={setToast}
+          showDebug={showDebug}
+          setShowDebug={setShowDebug}
         />
       </div>
     );
@@ -1596,16 +1608,19 @@ export const BoardUI: React.FC = () => {
             </p>
         </div>
       )}
-      {/* Panneau de débogage pour le développement */}
-      <DebugPanel
-        game={game}
-        setGame={(newGame) => {
-          setGame(newGame);
-          if (gameEngineRef.current) gameEngineRef.current.setState(newGame);
-        }}
-        onHistory={addToHistory}
-        interactionState={interactionState}
-      />
+      {/* Outils de débogage (réglage du menu Paramètres, masqués par défaut) */}
+      {showDebug && (
+        <DebugPanel
+          game={game}
+          setGame={(newGame) => {
+            setGame(newGame);
+            if (gameEngineRef.current) gameEngineRef.current.setState(newGame);
+          }}
+          onHistory={addToHistory}
+          interactionState={interactionState}
+          onClose={() => setShowDebug(false)}
+        />
+      )}
 
       {activeTooltip && (
         <Tooltip 
@@ -1720,6 +1735,8 @@ export const BoardUI: React.FC = () => {
         setInteractionState={setInteractionState}
         setPendingInteractions={setPendingInteractions}
         setToast={setToast}
+        showDebug={showDebug}
+        setShowDebug={setShowDebug}
       />
 
       {/* Ecran de fin de partie */}
@@ -1734,6 +1751,7 @@ export const BoardUI: React.FC = () => {
               interactionState={interactionState}
               onViewPlayer={setViewedPlayerId}
               onAction={handleAction}
+              highlightPlayableCards={actionFocus === 'card'}
               onCardClick={handleCardClick}
               onDiscardCardAction={handleDiscardCardAction}
               onConfirmDiscardForEndTurn={handleConfirmDiscard}
@@ -1768,6 +1786,7 @@ export const BoardUI: React.FC = () => {
             onBackgroundClick={handleBackgroundClick}
             setActiveTooltip={setActiveTooltip}
             onMascamiteClick={handleMascamiteClick}
+            planetFocus={actionFocus === 'orbit' || actionFocus === 'land' ? actionFocus : null}
           />
 
           {/* Toast Notification */}
