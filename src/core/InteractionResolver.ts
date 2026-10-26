@@ -156,13 +156,22 @@ export class InteractionResolver {
       ResourceSystem.accumulateBonus(bonus, bonuses);
     }
 
-    // Spécimen ramené à destination : la capsule quitte le plateau
+    // Récompense négative en Tokens (ET.23 : défaussez 2 Tokens) : payée ici, processBonuses ne gère que les gains
     let specimenLog = '';
+    if ((bonuses.token ?? 0) < 0) {
+      const cost = Math.abs(bonuses.token!);
+      if ((player.tokens || 0) < cost) return { updatedGame: game, historyEntries: [], newInteractions: [], error: 'Pas assez de Tokens.' };
+      player.tokens = (player.tokens || 0) - cost;
+      specimenLog += ` en défaussant ${cost} Token${cost > 1 ? 's' : ''}`;
+      delete bonuses.token;
+    }
+
+    // Spécimen ramené à destination : la capsule quitte le plateau
     if (requirement?.type === 'GAIN_IF_SPECIMEN' && requirement.target) {
       const capsule = ProbeSystem.findCapsuleOnPlanet(updatedGame, playerId, requirement.target);
       if (capsule) {
         ProbeSystem.removeCapsule(updatedGame, playerId, capsule.id);
-        specimenLog = requirement.target === 'mars' ? ' en ramenant un spécimen sur Mars' : ' en ramenant un spécimen sur Terre';
+        specimenLog += requirement.target === 'mars' ? ' en ramenant un spécimen sur Mars' : ' en ramenant un spécimen sur Terre';
       }
     }
 

@@ -55,7 +55,11 @@ export class ProbeSystem {
   static shouldCollectSpecimen(game: Game, planetId: string, sourceCardId?: string): boolean {
     const specimenPlanetId = this.specimenPlanetId(game, planetId);
     if (!sourceCardId || !specimenPlanetId) return false;
-    const allCards = [...game.decks.cards, ...(game.decks.discardPile || []), ...game.players.flatMap(p => p.cards), ...game.players.flatMap(p => p.playedCards || [])];
+    // Une carte mission jouée n'est plus qu'une mission du joueur : la chercher aussi là (Exploration en Rover…)
+    const allCards = [
+      ...game.decks.cards, ...(game.decks.discardPile || []),
+      ...game.players.flatMap(p => [...p.cards, ...(p.playedCards || []), ...p.missions.flatMap(m => m.originalCard ? [m.originalCard] : [])]),
+    ];
     const sourceCard = allCards.find(c => c.id === sourceCardId);
     const grantsSpecimen = !!sourceCard?.passiveEffects?.some(e => ['GAIN_LANDING_AND_SPECIMEN', 'GAIN_SATELLITE_LANDING_AND_SPECIMEN', 'GAIN_ORBIT_OR_LAND_AND_SPECIMEN'].includes(e.type));
     const planet = game.board.planets.find(p => p.id === specimenPlanetId);
@@ -897,7 +901,13 @@ export class ProbeSystem {
     }
   
     // Traitement des buffs permanents
-    const hasFulfillable = CardSystem.processMissionBuffs(updatedPlayer, buff => buff.type === 'GAIN_ON_LAND' || buff.type === 'GAIN_ON_ORBIT_OR_LAND');
+    const hasFulfillable = CardSystem.processMissionBuffs(updatedPlayer, buff => {
+      if (buff.type === 'GAIN_ON_ORBIT_OR_LAND') return true;
+      if (buff.type !== 'GAIN_ON_LAND') return false;
+      // GAIN_ON_LAND:<planète>:<ressource>:<valeur> : seulement en se posant sur cette planète
+      const parts = String(buff.value).split(':');
+      return parts.length !== 4 || parts[1] === planetId;
+    });
     if (hasFulfillable) {
       result.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId: currentSequenceId});
     }

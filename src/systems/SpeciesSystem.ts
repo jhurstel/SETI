@@ -81,9 +81,10 @@ export class SpeciesSystem {
      * Placement automatique d'une trace de vie (robots) : la piste d'espèce n'est utilisée
      * qu'une fois l'espèce découverte, sinon la trace serait refusée et perdue.
      */
-    static placeLifeTraceAuto(game: Game, requestedColor: LifeTraceType, playerId: string, sequenceId: string = '') {
+    static placeLifeTraceAuto(game: Game, requestedColor: LifeTraceType, playerId: string, sequenceId: string = '', boardIndices?: number[]) {
         // Premier emplacement accepté par le moteur, dans l'ordre de préférence de lifeTraceOptions
         for (const option of this.lifeTraceOptions(game, requestedColor)) {
+            if (boardIndices && !boardIndices.includes(option.boardIndex)) continue;
             const res = this.placeLifeTrace(game, option.boardIndex, option.color, playerId, sequenceId, option.location, option.slotIndex);
             if (res.updatedGame !== game) return res;
         }

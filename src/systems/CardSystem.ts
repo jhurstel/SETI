@@ -1,9 +1,13 @@
 import { effectNumber, effectString, effectAmount } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
-import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CelestialObject, CostType } from '../core/types';
+import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CelestialObject, CostType, AlienBoardType, LifeTraceLocation } from '../core/types';
 import { createRotationState, calculateAbsolutePosition, getCell, getAdjacentCells, getObjectPosition, getAllCelestialObjects, getAbsoluteSectorForProbe, calculateReachableCells } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { ProbeSystem } from './ProbeSystem';
+import { ScanSystem } from './ScanSystem';
+
+/** Carte 108 (SETI@home) : Médias nécessaires pour marquer la trace de vie */
+const LIFETRACE_MEDIA_THRESHOLD = 8;
 
 /**
  * Système de gestion des cartes et des missions.
@@ -281,9 +285,15 @@ export class CardSystem {
 
                     if (card.type === CardType.CONDITIONAL_MISSION) {
                         newMission.requirements.forEach(req => {
-                            if (req.type.startsWith('GAIN_IF_')) {
+                            // Le spécimen doit d'abord être prélevé grâce à cette carte : jamais rempli au moment de la jouer
+                            if (req.type.startsWith('GAIN_IF_') && req.type !== 'GAIN_IF_SPECIMEN') {
                                 const bonus = CardSystem.evaluateMission(updatedGame, player.id, effectString(req));
                                 if (bonus) {
+                                    // Coût en Tokens (ET.23) : payé ici, processBonuses ne gère que les gains
+                                    if ((bonus.token ?? 0) < 0) {
+                                        player.tokens = Math.max(0, (player.tokens || 0) + bonus.token!);
+                                        delete bonus.token;
+                                    }
                                     ResourceSystem.accumulateBonus(bonus, bonuses);
                                     newMission.completedRequirementIds.push(req.id!);
                                 }
@@ -300,6 +310,10 @@ export class CardSystem {
                 updatedGame.decks.discardPile.push(card);
             }
         }
+
+        // Interactions créées directement par un effet (ex: trace de vie limitée à certains plateaux)
+        const extraInteractions: InteractionState[] = [];
+        const takenRowCards: string[] = [];
 
         // Traitement des effets immédiats
         if (card.immediateEffects) {
@@ -411,6 +425,26 @@ export class CardSystem {
                         if (!bonuses.lifetraces) bonuses.lifetraces = [];
                         bonuses.lifetraces.push({ amount: effectNumber(effect), scope });
                     }
+                } else if (effect.type === 'GAIN_LIFETRACE_IF_ALREADY') {
+                    // Cartes 98 à 100 : une trace de cette couleur pour une espèce où le joueur en a déjà marqué une
+                    const color = this.lifeTraceColor(effect.target);
+                    const boardIndices = updatedGame.board.alienBoards
+                        .map((board, index) => board.lifeTraces.some(t => t.playerId === player.id && t.type === color) ? index : -1)
+                        .filter(index => index !== -1);
+                    if (boardIndices.length > 0) {
+                        for (let i = 0; i < effectNumber(effect); i++) extraInteractions.push({ type: 'PLACING_LIFE_TRACE', color, boardIndices });
+                    }
+                } else if (effect.type === 'GAIN_LIFETRACE_IF_MEDIA') {
+                    // Carte 108 (SETI@home) : trace de vie si le joueur a au moins 8 Médias
+                    if (player.mediaCoverage >= LIFETRACE_MEDIA_THRESHOLD) {
+                        if (!bonuses.lifetraces) bonuses.lifetraces = [];
+                        bonuses.lifetraces.push({ amount: effectNumber(effect), scope: this.lifeTraceColor(effect.target) });
+                    }
+                } else if (effect.type === 'TAKE_CARD_ROW') {
+                    // ET.16 : les cartes de la rangée vont dans la main (la rangée est ensuite complétée)
+                    const taken = updatedGame.decks.cardRow.splice(0);
+                    player.cards.push(...taken);
+                    if (taken.length > 0) takenRowCards.push(...taken.map(c => c.name));
                 } else if (effect.type === 'REVEAL_AND_TRIGGER_FREE_ACTION') {
                     bonuses.revealAndTriggerFreeAction = true;
                 } else if (effect.type === 'SCORE_PER_MEDIA') {
@@ -735,11 +769,25 @@ export class CardSystem {
         if (otherLogs.length > 0) {
             otherLogs.forEach(log => historyEntries.push({ message: log, playerId, sequenceId }));
         }
+        if (takenRowCards.length > 0) {
+            historyEntries.push({ message: `prend en main les cartes de la rangée : ${takenRowCards.map(n => `"${n}"`).join(', ')}`, playerId, sequenceId });
+        }
         if (hasFulfillable) {
             historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId});
         }
+        if (extraInteractions.length === 0 && card.passiveEffects?.some(e => e.type === 'GAIN_LIFETRACE_IF_ALREADY')) {
+            historyEntries.push({ message: "n'a encore marqué aucune trace de cette couleur : pas de trace de vie", playerId, sequenceId });
+        }
 
-        return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions };
+        return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions: [...newPendingInteractions, ...extraInteractions.map(i => ({ ...i, sequenceId }))] };
+    }
+
+    /** Couleur de trace de vie d'un paramètre de carte (red, yellow, blue ; sinon n'importe laquelle) */
+    private static lifeTraceColor(target?: string): LifeTraceType {
+        if (target === 'red') return LifeTraceType.RED;
+        if (target === 'yellow') return LifeTraceType.YELLOW;
+        if (target === 'blue') return LifeTraceType.BLUE;
+        return LifeTraceType.ANY;
     }
 
     static discardToHandSize(game: Game, playerId: string, cardIdsToKeep: string[]): Game {
@@ -983,6 +1031,9 @@ export class CardSystem {
             'GAIN_IF_3_LIFETRACES',
             'GAIN_IF_2_LIFETRACES',
             'GAIN_IF_SPECIMEN',
+            'GAIN_IF_LANDER',
+            'GAIN_IF_SIGNAL',
+            'GAIN_IF_LIFETRACES_ALL_COLORS',
             'GAIN_ON_VISIT',
             'GAIN_ON_TECH',
             'GAIN_ON_SIGNAL',
@@ -994,7 +1045,8 @@ export class CardSystem {
         let target: string | undefined;
         let bonusStartIndex = 1;
 
-        if (conditionsWithTarget.includes(conditionType)) {
+        // GAIN_ON_… à 4 éléments : <condition>:<cible>:<ressource>:<valeur> (ex: GAIN_ON_LAND:oumuamua:pv:3)
+        if (conditionsWithTarget.includes(conditionType) || (conditionType.startsWith('GAIN_ON_') && parts.length === 4)) {
             target = parts[1];
             bonusStartIndex = 2;
         }
@@ -1232,6 +1284,44 @@ export class CardSystem {
         if (conditionType === 'GAIN_IF_3_TECH_OBS') {
             const obsTechCount = player.technologies.filter(t => t.type === TechnologyCategory.OBSERVATION).length;
             if (obsTechCount >= 3) return rewards;
+        }
+
+        if (conditionType === 'GAIN_IF_LANDER') {
+            // ET.22 : un atterrisseur du joueur sur la planète (Oumuamua compris)
+            const planet = target === 'oumuamua'
+                ? game.species.find(s => s.name === AlienBoardType.OUMUAMUA)?.planet
+                : game.board.planets.find(p => p.id === target);
+            if (planet?.landers.some(l => l.ownerId === playerId)) return rewards;
+        }
+
+        if (conditionType === 'GAIN_IF_SIGNAL') {
+            // ET.27 : au moins un signal du joueur marqué dans ce secteur (ex: Oumuamua)
+            const sector = target ? ScanSystem.getSectorById(game, target) : undefined;
+            if (sector?.signals.some(s => s.marked && s.markedBy === playerId)) return rewards;
+        }
+
+        if (conditionType === 'GAIN_IF_3_TOKEN') {
+            // ET.23 : au moins 3 Tokens (la récompense en dépense 2)
+            if ((player.tokens || 0) >= 3) return rewards;
+        }
+
+        if (conditionType === 'GAIN_IF_PAY_FOR_LIFETRACE') {
+            // ET.21 : une trace de vie Oumuamua posée sur un emplacement payé en Tokens
+            const board = game.board.alienBoards.find(b => b.speciesId === AlienBoardType.OUMUAMUA);
+            const species = game.species.find(s => s.name === AlienBoardType.OUMUAMUA);
+            const paid = board && species && board.lifeTraces.some(t => {
+                if (t.playerId !== playerId || t.location !== LifeTraceLocation.SPECIES || t.slotIndex === undefined) return false;
+                const slots = t.type === LifeTraceType.RED ? species.fixedSlots.redlifetrace : t.type === LifeTraceType.YELLOW ? species.fixedSlots.yellowlifetrace : species.fixedSlots.bluelifetrace;
+                return (slots[t.slotIndex]?.token ?? 0) < 0;
+            });
+            if (paid) return rewards;
+        }
+
+        if (conditionType === 'GAIN_IF_LIFETRACES_ALL_COLORS') {
+            // ET.30 : une trace de chaque couleur pour cette espèce
+            const board = game.board.alienBoards.find(b => b.speciesId.toLowerCase() === target);
+            const colors = new Set(board?.lifeTraces.filter(t => t.playerId === playerId).map(t => t.type));
+            if ([LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE].every(c => colors.has(c))) return rewards;
         }
 
         if (conditionType === 'GAIN_IF_SPECIMEN') {

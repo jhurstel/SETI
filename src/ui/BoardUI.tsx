@@ -843,6 +843,7 @@ export const BoardUI: React.FC = () => {
     if (!game) return;
     if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
     if (interactionState.color !== color) return;
+    if (interactionState.boardIndices && !interactionState.boardIndices.includes(boardIndex)) return;
 
     // Create sequence id and player id
     const sequenceId = interactionState.sequenceId || `trace-${Date.now()}`;

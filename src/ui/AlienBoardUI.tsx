@@ -208,6 +208,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
     const side = boardIndex === 0 ? 'left' : 'right';
     const isMascamites = species?.name === AlienBoardType.MASCAMITES;
     const isPlacingTrace = interactionState.type === 'PLACING_LIFE_TRACE';
+    // Trace limitée à certains plateaux (ex: espèce où le joueur a déjà une trace de cette couleur)
+    const isBoardAllowed = interactionState.type !== 'PLACING_LIFE_TRACE' || !interactionState.boardIndices || interactionState.boardIndices.includes(boardIndex);
     const [isOpen, setIsOpen] = useState(isPlacingTrace || forceOpen);
     const hoverTimeoutRef = useRef<any>(null);
 
@@ -292,7 +294,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
     const renderBoardSlot = (type: LifeTraceType, index: number, bonus: Bonus, isInfinite: boolean, fixedSlotsLength: number, opacity: number = 1, isInfiniteBottom: boolean = false) => {
         const color = type === LifeTraceType.RED ? '#ff6b6b' : type === LifeTraceType.YELLOW ? '#ffd700' : '#4a9eff';
         const currentPlayer = game.players[game.currentPlayerIndex];
-        const isPlacing = interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === type;
+        const isPlacing = interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === type && isBoardAllowed;
 
         const trace = board.lifeTraces.find(t => t.location === LifeTraceLocation.SPECIES && t.type === type && t.slotIndex === index);
         const isFilled = !!trace;
@@ -557,7 +559,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                             <AlienTriangleSlot color="#ff6b6b"
                                 traces={board.lifeTraces.filter(t => t.type === LifeTraceType.RED && (t.location === LifeTraceLocation.TRIANGLE || t.location === undefined))}
                                 game={game}
-                                isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.RED}
+                                isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.RED && isBoardAllowed}
                                 onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.RED, LifeTraceLocation.TRIANGLE)}
                                 onMouseEnter={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
@@ -570,7 +572,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                             <AlienTriangleSlot color="#ffd700"
                                 traces={board.lifeTraces.filter(t => t.type === LifeTraceType.YELLOW && (t.location === LifeTraceLocation.TRIANGLE || t.location === undefined))}
                                 game={game}
-                                isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.YELLOW}
+                                isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.YELLOW && isBoardAllowed}
                                 onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.YELLOW, LifeTraceLocation.TRIANGLE)}
                                 onMouseEnter={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
@@ -583,7 +585,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                             <AlienTriangleSlot color="#4a9eff"
                                 traces={board.lifeTraces.filter(t => t.type === LifeTraceType.BLUE && (t.location === LifeTraceLocation.TRIANGLE || t.location === undefined))}
                                 game={game}
-                                isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE}
+                                isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && interactionState.color === LifeTraceType.BLUE && isBoardAllowed}
                                 onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.BLUE, LifeTraceLocation.TRIANGLE)}
                                 onMouseEnter={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();

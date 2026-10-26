@@ -670,7 +670,7 @@ export type InteractionState =
   /** Le joueur a lancé l'action "Analyser", principalement pour l'animation. */
   | { type: 'ANALYZING', sequenceId?: string }
   /** Le joueur doit placer une trace de vie sur le plateau Alien. */
-  | { type: 'PLACING_LIFE_TRACE', color: LifeTraceType, playerId?: string, sequenceId?: string }
+  | { type: 'PLACING_LIFE_TRACE', color: LifeTraceType, playerId?: string, sequenceId?: string, boardIndices?: number[] } // boardIndices : plateaux Alien autorisés (absent : tous)
   /** Le joueur a atteint un palier de score et doit placer un marqueur sur un objectif. */
   | { type: 'PLACING_OBJECTIVE_MARKER', milestone: number, sequenceId?: string }
   /** Le joueur scanne un secteur (2ème étape : choix de la carte). */

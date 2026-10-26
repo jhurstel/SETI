@@ -66,6 +66,7 @@ src/
     ├── modals/              # NewGame, Settings, Pass, GameModals
     └── styles/celestialStyles.ts
 test/                        # Jest : un fichier par module moteur + AITurn (parties complètes entre robots), helpers/gameFixture.ts
+docs/etat-des-lieux-cartes.md # Audit des cartes et des opérations des robots (corrigé / situationnel / limites)
 docs/archive/                # Documents de conception initiaux, obsolètes
 ```
 
@@ -101,6 +102,7 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
 - **Tests** : Jest + ts-jest dans `test/`, type-checkés via `test/tsconfig.json` (inclus dans `npm run typecheck`).
   - `test/helpers/gameFixture.ts` : `createTestGame()` crée une **vraie** partie (fetch simulé qui sert `public/`, donc les vraies cartes), `makeCard()`, `getPlayer()`. À privilégier plutôt que des mocks d'état écrits à la main.
   - Un bug connu et pas encore corrigé est documenté par un `test.failing(...)`. Retirer `.failing` quand il est corrigé.
+  - `CardCatalog.test.ts` vérifie toutes les cartes des CSV (effets lus et traités, jouées par un robot sans erreur) et que les robots gèrent toutes les interactions du moteur. Une nouvelle carte ou un nouvel effet doit le faire passer.
   - Couverture : SolarSystemPosition, ScanSystem, CardSystem, DataLoader (tous les CSV), TurnManager/PassAction, GameFactory, GameEngine (undo), GamePersistence, InteractionResolver, Exertiens, orbite/atterrissage, immutabilité, cardEffects, et des parties complètes entre robots (AITurn).
 
 ## Points d'attention

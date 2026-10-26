@@ -131,6 +131,8 @@ export class DataLoader {
         effects.push({ type: 'GAIN', target: 'ENERGY', value: amount });
       } else if (lower.includes('donnée') || lower.includes('data')) {
         effects.push({ type: 'GAIN', target: 'DATA', value: amount });
+      } else if (lower.includes('token')) {
+        effects.push({ type: 'GAIN', target: 'TOKEN', value: amount });
       } else if (lower.includes('signal') || lower.includes('signaux')) {
         let scope = SectorType.ANY;
         if (lower.includes('rangée') || lower.includes('rangee')) scope = SectorType.ROW;
@@ -408,6 +410,19 @@ export class DataLoader {
       }
 
       // Gestion du format GAIN_LANDING_AND_SPECIMEN
+      // Cartes Mascamites « … et prélevez un spécimen » (lune sans technologie, orbite ou atterrissage) et Étude de l'Écosystème
+      else if (passive === 'GAIN_SATELLITE_LANDING_AND_SPECIMEN' || passive === 'GAIN_ORBIT_OR_LAND_AND_SPECIMEN' || passive === 'GAIN_SPECIMEN_BONUS') {
+        effects.push({ type: passive, value: true });
+      }
+      // Trace de vie d'une couleur pour une espèce où le joueur en a déjà une (cartes 98 à 100)
+      else if (passive.startsWith('GAIN_LIFETRACE_IF_ALREADY:') || passive.startsWith('GAIN_LIFETRACE_IF_MEDIA:')) {
+        const parts = passive.split(':');
+        effects.push({ type: parts[0], target: parts[1], value: parseInt(parts[2], 10) || 1 });
+      }
+      // Prendre en main les cartes de la rangée (ET.16)
+      else if (passive === 'TAKE_CARD_ROW') {
+        effects.push({ type: 'TAKE_CARD_ROW', value: true });
+      }
       else if (passive === 'GAIN_LANDING_AND_SPECIMEN') {
         effects.push({ type: 'GAIN_LANDING_AND_SPECIMEN', value: true });
       }
@@ -510,9 +525,10 @@ export class DataLoader {
       }
 
       // Gestion du format GAIN_ON_LAND:target:value
+      // (GAIN_ON_LAND:<planète>:<ressource>:<valeur> : seulement en se posant sur cette planète, ex: ET.30)
       else if (permanent.startsWith('GAIN_ON_LAND:')) {
         const parts = permanent.split(':');
-        if (parts.length === 3) {
+        if (parts.length === 3 || parts.length === 4) {
           effects.push({ type: 'GAIN_ON_LAND', target: parts[1], value: permanent });
         }
       }

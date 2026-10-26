@@ -1,5 +1,5 @@
 import { cloneGame } from '../core/cloneGame';
-import { Game, InteractionState, RevenueType, TechnologyCategory, Player, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType, Probe } from '../core/types';
+import { Game, InteractionState, RevenueType, TechnologyCategory, Player, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -17,7 +17,7 @@ import { AIEvaluator } from './AIEvaluator';
 const RANDOM_CHOICE_INTERACTIONS: InteractionState['type'][] = [
     'SELECTING_SCAN_SECTOR', 'PLACING_OBJECTIVE_MARKER', 'RESERVING_CARD', 'ACQUIRING_CARD', 'MOVING_PROBE',
     'ACQUIRING_TECH', 'SELECTING_COMPUTER_SLOT', 'CHOOSING_OBS4_ACTION', 'ACQUIRING_ALIEN_CARD',
-    'CHOOSING_CENTAURIEN_REWARD', 'CHOOSING_MEDIA_OR_MOVE',
+    'CHOOSING_CENTAURIEN_REWARD', 'CHOOSING_MEDIA_OR_MOVE', 'DISCARDING_FOR_SIGNAL', 'CONSULTING_SPECIMEN',
 ];
 /** Nombre de tirages comparés par un robot stratégique */
 const STRATEGIC_SAMPLES = 4;
@@ -130,8 +130,7 @@ export class AIController {
                 break;
             }
             case 'PLACING_LIFE_TRACE': {
-                // Simple AI: always place on first board
-                const res = SpeciesSystem.placeLifeTraceAuto(updatedGame, interaction.color, player.id, sequenceId);
+                const res = SpeciesSystem.placeLifeTraceAuto(updatedGame, interaction.color, player.id, sequenceId, interaction.boardIndices);
                 historyEntries.push(...res.historyEntries);
                 if (res.updatedGame.isSpeciesDiscovered) {
                     addHistory("découvre une nouvelle espèce Alien !", player.id);
@@ -323,37 +322,48 @@ export class AIController {
             }
             case 'ORBITING_PROBE':
             case 'LANDING_PROBE': {
-                const probesOnPlanets = player.probes.map(probe => {
-                    const info = ProbeSystem.probeOnPlanetInfo(updatedGame, player.id);
-                    return info.hasProbe ? { probe, planetId: info.planetId } : null;
-                }).filter((p): p is { probe: Probe, planetId: string | undefined } => p !== null);
-
-                if (probesOnPlanets.length > 0) {
-                    const target = probesOnPlanets[0]!;
-                    if (interaction.type === 'ORBITING_PROBE') {
-                        const res = ProbeSystem.orbitProbe(updatedGame, player.id, target.probe.id, target.planetId!, sequenceId, true);
-                        updatedGame = res.updatedGame;
-                        historyEntries.push(...res.historyEntries);
-                        newPendingInteractions.push(...res.newPendingInteractions);
-                    } else { // LANDING_PROBE
-                        const res = ProbeSystem.landProbe(updatedGame, player.id, target.probe.id, target.planetId!, true, undefined, interaction.source, sequenceId);
-                        updatedGame = res.updatedGame;
-                        historyEntries.push(...res.historyEntries);
-                        newPendingInteractions.push(...res.newPendingInteractions);
+                // La sonde du robot posée sur une planète (hors Terre)
+                const info = ProbeSystem.probeOnPlanetInfo(updatedGame, player.id);
+                const found = info.hasProbe && info.planetId ? ProbeSystem.findProbeAtPlanet(updatedGame, player.id, info.planetId) : null;
+                if (found && info.planetId) {
+                    const planetId = info.planetId;
+                    const res = interaction.type === 'ORBITING_PROBE'
+                        ? ProbeSystem.orbitProbe(updatedGame, player.id, found.probe.id, planetId, sequenceId, true)
+                        : ProbeSystem.landProbe(updatedGame, player.id, found.probe.id, planetId, true, undefined, interaction.source, sequenceId);
+                    updatedGame = res.updatedGame;
+                    historyEntries.push(...res.historyEntries);
+                    newPendingInteractions.push(...res.newPendingInteractions);
+                    // Orbite bonus d'une carte « … et prélevez un spécimen » (ET.3) : même règle que pour le joueur humain
+                    if (interaction.type === 'ORBITING_PROBE' && ProbeSystem.shouldCollectSpecimen(updatedGame, planetId, interaction.source)) {
+                        newPendingInteractions.push({ type: 'COLLECTING_SPECIMEN', planetId: ProbeSystem.specimenPlanetId(updatedGame, planetId)!, sequenceId });
                     }
                 }
                 break;
             }
             case 'COLLECTING_SPECIMEN':
             case 'CONSULTING_SPECIMEN': {
-                // Simple AI : premier jeton disponible
                 const mode = interaction.type === 'CONSULTING_SPECIMEN' ? 'consult' : 'collect';
-                const res = interaction.planetId ? SpeciesSystem.takeMascamiteSpecimen(updatedGame, player.id, interaction.planetId, 0, mode, sequenceId) : null;
+                // Étude de l'Écosystème : planète (Jupiter ou Saturne) où le robot a une sonde
+                const planetId = interaction.planetId
+                    ?? ['jupiter', 'saturn'].find(id => ProbeSystem.findProbeAtPlanet(updatedGame, player.id, id) && updatedGame.board.planets.find(p => p.id === id)?.mascamiteTokens?.length);
+                const tokenCount = planetId ? updatedGame.board.planets.find(p => p.id === planetId)?.mascamiteTokens?.length || 0 : 0;
+                const res = planetId && tokenCount > 0 ? SpeciesSystem.takeMascamiteSpecimen(updatedGame, player.id, planetId, Math.floor(Math.random() * tokenCount), mode, sequenceId) : null;
                 if (res) {
                     updatedGame = res.updatedGame;
                     historyEntries.push(...res.historyEntries);
                     newPendingInteractions.push(...res.newPendingInteractions);
                 }
+                break;
+            }
+            case 'DISCARDING_FOR_SIGNAL': {
+                // Défausser des cartes de la main pour leurs signaux (le nombre est tiré au hasard ; un robot stratégique compare les tirages)
+                const p = updatedGame.players.find(p => p.id === player.id);
+                const hand = p ? [...CardSystem.getHandCards(p)].sort(() => 0.5 - Math.random()) : [];
+                const count = Math.floor(Math.random() * (Math.min(interaction.count, hand.length) + 1));
+                hand.slice(0, count).forEach(card => {
+                    newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, cardId: card.id, sequenceId });
+                });
+                if (count > 0) addHistory(`défausse ${count} carte${count > 1 ? 's' : ''} pour leurs signaux`, player.id, game);
                 break;
             }
             case 'CHOOSING_CENTAURIEN_REWARD': {
