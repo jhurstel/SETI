@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardType } from '../../core/types';
 import { CardTooltip } from '../../ui/components/CardTooltip';
 import { Tooltip } from '../Tooltip';
+import { ChoiceModal, ChoiceFooterButton } from './ChoiceModal';
 
 interface PassModalProps {
   visible: boolean;
@@ -21,22 +22,21 @@ export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm,
 
   if (!visible) return null;
 
+  const confirm = () => {
+    if (selectedCardId) {
+      onConfirm(selectedCardId);
+      setSelectedCardId(null);
+    }
+  };
+
   return (
-    <div className="seti-modal-overlay">
-      <div className="seti-modal-content">
-        <div className="seti-modal-title">
-          {title ?? `Fin de manche ${currentRound} : Choisissez une carte`}
-        </div>
-        {subtitle && <div style={{ color: '#ccc', fontSize: '0.9rem', marginBottom: '8px' }}>{subtitle}</div>}
-        <div style={{
-          display: 'flex',
-          gap: '15px',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          width: '100%',
-          overflowY: 'auto',
-          padding: '10px'
-        }}>
+    <>
+      <ChoiceModal
+        title={title ?? `Fin de manche ${currentRound} : choisissez une carte`}
+        subtitle={subtitle}
+        footer={<ChoiceFooterButton onClick={confirm} disabled={!selectedCardId}>{confirmLabel ?? 'Confirmer et passer'}</ChoiceFooterButton>}
+        wide
+      >
           {cards.map(card => {
             const isSelected = selectedCardId === card.id;
             return (
@@ -72,24 +72,10 @@ export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm,
               </div>
             )
           })}
-        </div>
-        <button
-          disabled={!selectedCardId}
-          onClick={() => {
-            if (selectedCardId) {
-              onConfirm(selectedCardId);
-              setSelectedCardId(null);
-            }
-          }}
-          className="seti-confirm-btn"
-          style={{ marginTop: '30px', padding: '10px 30px', fontSize: '1.1rem', width: 'auto' }}
-        >
-          {confirmLabel ?? 'Confirmer et Passer'}
-        </button>
-      </div>
+      </ChoiceModal>
       {activeTooltip && (
         <Tooltip content={activeTooltip.content} targetRect={activeTooltip.rect} />
       )}
-    </div>
+    </>
   );
 };

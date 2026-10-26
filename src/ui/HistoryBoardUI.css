@@ -114,3 +114,14 @@
     cursor: help;
     font-weight: bold;
 }
+
+/* Conséquences d'une action (gains, bonus) : indentées sous l'action */
+.seti-history-item.child {
+    padding-left: 20px;
+    background-color: rgba(255, 255, 255, 0.02);
+}
+.seti-history-item.child .seti-history-sequence-indicator {
+    color: #888;
+    font-family: inherit;
+    font-size: 0.95em;
+}

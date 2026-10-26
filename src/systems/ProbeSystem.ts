@@ -745,7 +745,15 @@ export class ProbeSystem {
     const speciesId = species?.id;
     const result = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'orbit', currentSequenceId, speciesId);
 
-    // Convertir les logs de bonus en entrées d'historique
+    // Message de l'action (joueur humain comme robot), puis les gains qui en découlent
+    const orbitName = planet?.name || planetId;
+    result.historyEntries.unshift({
+      message: free
+        ? `<strong>Met en orbite</strong> (bonus) une sonde autour de ${orbitName}`
+        : `paye ${ResourceSystem.formatResource(GAME_CONSTANTS.ORBIT_COST_CREDITS, 'CREDIT')} et ${ResourceSystem.formatResource(GAME_CONSTANTS.ORBIT_COST_ENERGY, 'ENERGY')} pour <strong>Mettre en orbite</strong> une sonde autour de ${orbitName}`,
+      playerId,
+      sequenceId: currentSequenceId,
+    });
     result.logs.forEach(log => {
         result.historyEntries.push({ message: log, playerId, sequenceId: currentSequenceId });
     });
@@ -918,7 +926,16 @@ export class ProbeSystem {
     const speciesId = species?.id;
     const result = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'land', currentSequenceId, speciesId);
 
-    // Convertir les logs de bonus en entrées d'historique
+    // Message de l'action (joueur humain comme robot), puis les gains qui en découlent
+    const landName = targetBody?.name || planetId;
+    const landCost = validation.energyCost || GAME_CONSTANTS.LAND_COST_ENERGY;
+    result.historyEntries.unshift({
+      message: free
+        ? `<strong>Pose une sonde</strong> (bonus) sur ${landName}`
+        : `paye ${ResourceSystem.formatResource(landCost, 'ENERGY')} pour <strong>Poser une sonde</strong> sur ${landName}`,
+      playerId,
+      sequenceId: currentSequenceId,
+    });
     result.logs.forEach(log => {
         result.historyEntries.push({ message: log, playerId, sequenceId: currentSequenceId });
     });

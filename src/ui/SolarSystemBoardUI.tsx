@@ -1314,8 +1314,11 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               setHighlightedPath([]);
             }
           }}
-          onMouseEnter={() => setHighlightedPath(data.path)}
-          onMouseLeave={() => setHighlightedPath([])}
+          onMouseEnter={(e) => {
+            setHighlightedPath(data.path);
+            setActiveTooltip({ content: `Accessible en ${data.movements} déplacement(s)${data.media > 0 ? ` (+${data.media} Média)` : ''}`, rect: e.currentTarget.getBoundingClientRect() });
+          }}
+          onMouseLeave={() => { setHighlightedPath([]); setActiveTooltip(null); }}
           style={{
             top: `calc(50% + ${y}%)`,
             left: `calc(50% + ${x}%)`,
@@ -1325,7 +1328,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             backgroundColor: isTarget ? 'rgba(255, 235, 59, 0.5)' : (isPathStep ? 'rgba(255, 235, 59, 0.3)' : 'rgba(0, 255, 0, 0.2)'),
             zIndex: isTarget ? 2002 : (isPathStep ? 2001 : 2000),
           }}
-          title={`Accessible en ${data.movements} déplacement(s)${data.media > 0 ? ` (+${data.media} Média)` : ''}`}
         >
           {isPathStep && (
             <span className="seti-reachable-cell-text">

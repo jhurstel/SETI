@@ -1,6 +1,6 @@
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
-import { DiskName, Game, Mission, Probe, ProbeState, SectorNumber } from '../src/core/types';
+import { DiskName, Game, Mission, Probe, ProbeState, SectorNumber, Technology } from '../src/core/types';
 import { InteractionResolver } from '../src/core/InteractionResolver';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
@@ -150,6 +150,29 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
       getPlayer(game, P1).missions = [missionReturning('GAIN_IF_SPECIMEN:earth:pv:3:data:3')];
       const res = InteractionResolver.resolve(game, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: 'm1', requirementId: 'r1', sequenceId: 'seq' });
       expect(res.error).toBe('Conditions non remplies.');
+    });
+  });
+
+  describe("historique de l'orbite et de l'atterrissage (rédigé par le moteur, pour les robots aussi)", () => {
+    test("l'atterrissage sur une lune nomme la lune et son coût, puis les gains", () => {
+      const jupiter = game.board.planets.find(p => p.id === 'jupiter')!;
+      const moon = jupiter.satellites![0];
+      getPlayer(game, P1).probes = [probeAt('p1', 'C', 5, 1)];
+      game.board.solarSystem.probes = structuredClone(getPlayer(game, P1).probes);
+      getPlayer(game, P1).energy = 5;
+      getPlayer(game, P1).technologies.push({ id: 'exploration-4-x', name: 'Exploration IV', type: 'Exploration', effects: [], bonus: {}, description: '', shorttext: '' } as unknown as Technology);
+
+      const res = ProbeSystem.landProbe(game, P1, 'p1', moon.id, true, undefined, undefined, 'seq');
+      expect(res.historyEntries[0]).toEqual({ message: `<strong>Pose une sonde</strong> (bonus) sur ${moon.name}`, playerId: P1, sequenceId: 'seq' });
+      expect(res.historyEntries.every(e => e.sequenceId === 'seq')).toBe(true);
+    });
+
+    test("la mise en orbite payante indique son coût", () => {
+      getPlayer(game, P1).probes = [probeAt('p1', 'B', 1, 2)];
+      game.board.solarSystem.probes = structuredClone(getPlayer(game, P1).probes);
+      Object.assign(getPlayer(game, P1), { credits: 5, energy: 5 });
+      const res = ProbeSystem.orbitProbe(game, P1, 'p1', 'mars', 'seq');
+      expect(res.historyEntries[0].message).toMatch(/^paye .+ pour <strong>Mettre en orbite<\/strong> une sonde autour de Mars$/);
     });
   });
 });

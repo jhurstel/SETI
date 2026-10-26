@@ -419,6 +419,13 @@ export class DataLoader {
         const parts = passive.split(':');
         effects.push({ type: parts[0], target: parts[1], value: parseInt(parts[2], 10) || 1 });
       }
+      // Réception d'une carte Centaurien (palier de message atteint) : revenus, ou récompense <ressource>:<valeur>...
+      else if (passive === 'RECEPTION_REVENUE') {
+        effects.push({ type: 'RECEPTION_REVENUE', value: true });
+      }
+      else if (passive.startsWith('RECEPTION:')) {
+        effects.push({ type: 'RECEPTION', value: passive.slice('RECEPTION:'.length) });
+      }
       // Prendre en main les cartes de la rangée (ET.16)
       else if (passive === 'TAKE_CARD_ROW') {
         effects.push({ type: 'TAKE_CARD_ROW', value: true });

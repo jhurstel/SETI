@@ -41,6 +41,11 @@ export function serializeGame(game: Game, historyLog: HistoryEntry[]): SavedGame
 export function deserializeGame(json: string): { game: Game; historyLog: HistoryEntry[] } {
   const saved = JSON.parse(json) as Partial<Game>;
   const game = { ...saved, history: saved.history ?? [] } as Game;
+  // Anciennes sauvegardes : paliers Centauriens enregistrés comme de simples scores
+  game.players?.forEach(p => {
+    p.centaurienMilestones = (p.centaurienMilestones || []).map((m, i) =>
+      typeof m === 'number' ? { id: `centaurien-${p.id}-${i}`, score: m } : m);
+  });
   const historyLog: HistoryEntry[] = (saved.gameLog ?? []).map(log => ({
     id: log.id,
     message: log.message,

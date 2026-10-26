@@ -1,6 +1,6 @@
 import { effectNumber } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
-import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode, LifeTraceLocation } from '../core/types';
+import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode, LifeTraceLocation, Player, CentaurienMarker } from '../core/types';
 import { ResourceSystem } from './ResourceSystem';
 import { getObjectPosition } from '../core/SolarSystemPosition';
 import { CardSystem } from './CardSystem';
@@ -223,9 +223,7 @@ export class SpeciesSystem {
                         }
 
                         if (board.speciesId === AlienBoardType.CENTAURIENS) {
-                            updatedGame.players.forEach(p => {
-                                p.centaurienMilestones.push(p.score + 15);
-                            });
+                            updatedGame.players.forEach(p => this.addCentaurienMarker(p));
                             distResult.logs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
                         }
 
@@ -394,9 +392,7 @@ export class SpeciesSystem {
             }
 
             if (board.speciesId === AlienBoardType.CENTAURIENS) {
-                updatedGame.players.forEach(p => {
-                    p.centaurienMilestones.push(p.score + 15);
-                });
+                updatedGame.players.forEach(p => this.addCentaurienMarker(p));
                 discoveryLogs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
             }
 
@@ -618,29 +614,96 @@ export class SpeciesSystem {
         return logs;
     }
 
-    static claimCentaurienReward(game: Game, playerId: string, tokenIndex: number): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
+    /** Place un palier de message Centaurien à +15 PV : message de l'espèce, ou réception d'une carte Centaurien */
+    static addCentaurienMarker(player: Player, card?: Card): void {
+        if (!player.centaurienMilestones) player.centaurienMilestones = [];
+        player.centaurienMilestones.push({
+            id: `centaurien-${player.id}-${player.centaurienMilestones.length}-${Date.now()}`,
+            score: player.score + 15,
+            cardId: card?.id,
+            cardName: card?.name,
+        });
+    }
+
+    /** Premier palier Centaurien atteint et pas encore résolu */
+    static reachedCentaurienMarker(player: Player): CentaurienMarker | undefined {
+        return [...(player.centaurienMilestones || [])].sort((a, b) => a.score - b.score).find(m => !m.resolved && player.score >= m.score);
+    }
+
+    /**
+     * Message de l'espèce décodé : le joueur choisit une tuile Message encore disponible.
+     * La tuile retient qui l'a choisie, et le palier garde la récompense obtenue (affichée sur la piste de score).
+     */
+    static claimCentaurienReward(game: Game, playerId: string, tokenIndex: number, markerId?: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
         const updatedGame = cloneGame(game);
         const player = updatedGame.players.find(p => p.id === playerId);
         const species = updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS);
+        const token = species?.message?.[tokenIndex];
+        if (!player || !token || !token.isAvailable) {
+            return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+        }
 
-        if (!player || !species || !species.message || !species.message[tokenIndex] || !species.message[tokenIndex].isAvailable) {
+        token.isAvailable = false;
+        token.claimedBy = playerId;
+        const label = (ResourceSystem.formatBonus(token.bonus) || []).join(', ');
+        const marker = markerId
+            ? player.centaurienMilestones.find(m => m.id === markerId)
+            : this.reachedCentaurienMarker(player);
+        if (marker) marker.resolved = `Message décodé : ${label}`;
+
+        const sequenceId = `centaurien-${Date.now()}`;
+        const res = ResourceSystem.processBonuses(token.bonus, updatedGame, playerId, 'centaurien_message', sequenceId);
+        const gains = res.logs.length > 0 ? ` : ${res.logs.join(', ')}` : '';
+        return {
+            updatedGame: res.updatedGame,
+            historyEntries: [{ message: `déchiffre un message Centaurien et choisit « ${label} »${gains}`, playerId, sequenceId }, ...res.historyEntries],
+            newPendingInteractions: res.newPendingInteractions || [],
+        };
+    }
+
+    /**
+     * Réception d'une carte Centaurien (son palier est atteint) : la carte est glissée sous le plateau pour
+     * augmenter les revenus (avec la ressource gagnée immédiatement, FAQ), ou sa récompense est appliquée.
+     */
+    static receiveCentaurienCard(game: Game, playerId: string, markerId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
+        let updatedGame = cloneGame(game);
+        const player = updatedGame.players.find(p => p.id === playerId);
+        const marker = player?.centaurienMilestones.find(m => m.id === markerId);
+        if (!player || !marker) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+
+        const card = player.playedCards.find(c => c.id === marker.cardId);
+        const sequenceId = `centaurien-${Date.now()}`;
+        const cardName = marker.cardName || card?.name || 'carte Centaurien';
+        if (!card) {
+            marker.resolved = `Réception (« ${cardName} ») : carte absente`;
             return { updatedGame, historyEntries: [], newPendingInteractions: [] };
         }
 
-        species.message[tokenIndex].isAvailable = false;
-        
-        // Retirer le palier atteint (le plus petit qui est <= au score actuel)
-        player.centaurienMilestones.sort((a, b) => a - b);
-        const reachedIndex = player.centaurienMilestones.findIndex(m => player.score >= m);
-        if (reachedIndex !== -1) {
-            player.centaurienMilestones.splice(reachedIndex, 1);
+        if (card.passiveEffects.some(e => e.type === 'RECEPTION_REVENUE')) {
+            // La carte passe des cartes jouées aux cartes réservées : son revenu augmente et la ressource est gagnée
+            player.playedCards = player.playedCards.filter(c => c.id !== card.id);
+            player.cards.push(card);
+            const reserved = CardSystem.reserveCards(updatedGame, playerId, [card.id], sequenceId);
+            updatedGame = reserved.updatedGame;
+            const label = ResourceSystem.formatResource(1, CardSystem.revenueResource(card.revenue));
+            updatedGame.players.find(p => p.id === playerId)!.centaurienMilestones.find(m => m.id === markerId)!.resolved = `Réception (« ${cardName} ») : revenu augmenté de ${label}`;
+            return {
+                updatedGame,
+                historyEntries: [{ message: `reçoit le message de la carte « ${cardName} » : augmente ses revenus de ${label} et gagne ${label}`, playerId, sequenceId }],
+                newPendingInteractions: [],
+            };
         }
 
-        const res = ResourceSystem.processBonuses(species.message[tokenIndex].bonus, updatedGame, playerId, 'centaurien_message', `centaurien-${Date.now()}`);
-        return { 
-            updatedGame: res.updatedGame, 
-            historyEntries: [{ message: `déchiffre un message Centaurien`, playerId }, ...res.historyEntries], 
-            newPendingInteractions: res.newPendingInteractions || [] 
+        const reception = card.passiveEffects.find(e => e.type === 'RECEPTION');
+        const bonus = reception ? CardSystem.parseRewards(String(reception.value).split(':')) : {};
+        const label = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'aucun effet';
+        marker.resolved = `Réception (« ${cardName} ») : ${label}`;
+        const res = ResourceSystem.processBonuses(bonus, updatedGame, playerId, 'centaurien_reception', sequenceId);
+        const gains = res.logs.length > 0 ? ` : ${res.logs.join(', ')}` : '';
+        return {
+            updatedGame: res.updatedGame,
+            historyEntries: [{ message: `reçoit le message de la carte « ${cardName} »${gains}`, playerId, sequenceId }, ...res.historyEntries],
+            newPendingInteractions: res.newPendingInteractions || [],
         };
     }
 }

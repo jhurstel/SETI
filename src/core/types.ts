@@ -289,7 +289,9 @@ export interface Player {
   visitedPlanetsThisTurn: string[]; // Planètes visitées ce tour-ci
   activeBuffs: CardEffect[]; // Effets passifs temporaires (ex: bonus de visite)
   permanentBuffs: CardEffect[]; // Effets passifs permanents (ex: carte mission)
-  centaurienMilestones: number[]; // Paliers de score pour les messages Centauriens
+  centaurienMilestones: CentaurienMarker[]; // Paliers de message Centaurien sur la piste de score (restent affichés une fois atteints)
+  revenueMedia?: number; // Revenus en Médias (cartes Centauriens « augmentez vos revenus »)
+  revenueData?: number; // Revenus en Données
   claimedExertienMilestones?: number[]; // Paliers Exertiens déjà utilisés par ce joueur (optionnel : anciennes sauvegardes)
 }
 
@@ -573,9 +575,23 @@ export interface AnomalieToken {
   tail: Bonus;
 }
 
+/** Palier de message Centaurien d'un joueur : message de l'espèce (choix d'une tuile) ou réception d'une carte */
+export interface CentaurienMarker {
+  id: string;
+  /** Score à atteindre */
+  score: number;
+  /** Carte Centaurien dont c'est la réception (absent : message de l'espèce) */
+  cardId?: string;
+  cardName?: string;
+  /** Une fois atteint : ce qui a été obtenu (affiché sur la piste de score) */
+  resolved?: string;
+}
+
 export interface CentaurienToken {
   bonus: Bonus;
   isAvailable: boolean;
+  /** Joueur qui a choisi cette tuile Message */
+  claimedBy?: string;
 }
 
 export interface MascamitesToken {
@@ -704,7 +720,7 @@ export type InteractionState =
   /** Le joueur acquiert une carte Alien (bonus) et doit la sélectionner dans la pioche ou la rangée de l'espèce. */
   | { type: 'ACQUIRING_ALIEN_CARD', count: number, speciesId: string, sequenceId?: string }
   /** Le joueur doit choisir une récompense Centaurien. */
-  | { type: 'CHOOSING_CENTAURIEN_REWARD', sequenceId?: string }
+  | { type: 'CHOOSING_CENTAURIEN_REWARD', markerId?: string, sequenceId?: string }
   /** Le joueur doit cliquer sur un token Mascamite pour le collecter. */
   | { type: 'COLLECTING_SPECIMEN', planetId: string, sequenceId?: string }
   /** Le joueur doit cliquer sur un token Mascamite pour le consulter (et gagner son bonus sans le retirer). */

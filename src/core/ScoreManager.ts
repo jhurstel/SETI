@@ -539,24 +539,33 @@ export class ScoreManager {
       }
     }
 
-    // 3. Centaurien Milestone
-    const reachedMilestone = player.centaurienMilestones.find(m => player.score >= m);
-    if (reachedMilestone !== undefined) {
-      const centaurienSpecies = updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS);
-      if (centaurienSpecies && centaurienSpecies.message && centaurienSpecies.message.some(m => m.isAvailable)) {
-        historyEntries.push({ message: `a atteint un palier centaurien et peut choisir une récompense.`, playerId });
-        return {
-          updatedGame,
-          newInteraction: { type: 'CHOOSING_CENTAURIEN_REWARD' },
-          historyEntries,
-          discoveryNotification,
-          shouldStop: true,
-        };
+    // 3. Paliers Centauriens atteints (ils restent sur la piste de score avec la récompense obtenue)
+    let marker = SpeciesSystem.reachedCentaurienMarker(player);
+    while (marker) {
+      if (marker.cardId) {
+        // Réception d'une carte : son effet est appliqué, sans choix de tuile Message
+        const reception = SpeciesSystem.receiveCentaurienCard(updatedGame, playerId, marker.id);
+        updatedGame = reception.updatedGame;
+        player = updatedGame.players.find(p => p.id === playerId)!;
+        historyEntries.push(...reception.historyEntries);
+        if (reception.newPendingInteractions.length > 0) {
+          return { updatedGame, newInteraction: reception.newPendingInteractions[0], historyEntries, discoveryNotification, shouldStop: true };
+        }
       } else {
-        // No more rewards or species not found, remove the milestone to avoid re-triggering
-        const idx = player.centaurienMilestones.indexOf(reachedMilestone);
-        if (idx !== -1) player.centaurienMilestones.splice(idx, 1);
+        const centaurienSpecies = updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS);
+        if (centaurienSpecies?.message?.some(m => m.isAvailable)) {
+          historyEntries.push({ message: `atteint son palier de message Centaurien et choisit une tuile Message.`, playerId });
+          return {
+            updatedGame,
+            newInteraction: { type: 'CHOOSING_CENTAURIEN_REWARD', markerId: marker.id },
+            historyEntries,
+            discoveryNotification,
+            shouldStop: true,
+          };
+        }
+        marker.resolved = 'Message décodé : plus aucune tuile Message disponible';
       }
+      marker = SpeciesSystem.reachedCentaurienMarker(player);
     }
 
     // 4. Exertien Milestone (chaque joueur utilise chaque palier une seule fois)

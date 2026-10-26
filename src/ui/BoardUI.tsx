@@ -66,7 +66,6 @@ export const BoardUI: React.FC = () => {
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null>(null);
   const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: Card[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
   const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
-  const [isPassModalMinimized, setIsPassModalMinimized] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(true); // Open at launch
 
   // Effet pour afficher un message toast si l'interaction en contient un
@@ -97,12 +96,6 @@ export const BoardUI: React.FC = () => {
   const reservingPlayer = game && interactionState.type === 'RESERVING_CARD' ? game.players[game.currentPlayerIndex] : undefined;
   const isReservationModalActive = !!reservingPlayer && reservingPlayer.type === 'human';
 
-  // Réinitialiser l'état minimisé lorsque la modale se ferme
-  useEffect(() => {
-    if (!passModalState.visible && !isReservationModalActive) {
-      setIsPassModalMinimized(false);
-    }
-  }, [passModalState.visible, isReservationModalActive]);
 
   const checkDataLimitAndProceed = (
     potentialDataGain: number,
@@ -769,7 +762,8 @@ export const BoardUI: React.FC = () => {
   const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType, slotType: LifeTraceLocation, slotIndex?: number) => {
     if (!game) return;
     if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
-    if (interactionState.color !== color) return;
+    // Trace « de n'importe quelle couleur » : le joueur choisit la couleur en cliquant
+    if (interactionState.color !== LifeTraceType.ANY && interactionState.color !== color) return;
     if (interactionState.boardIndices && !interactionState.boardIndices.includes(boardIndex)) return;
 
     // Create sequence id and player id
@@ -981,8 +975,7 @@ export const BoardUI: React.FC = () => {
   // Renvoie true si de nouvelles interactions ont été déclenchées (bonus à résoudre)
   const handlePlanetInteraction = (
     planetId: string,
-    actionFn: (game: Game, playerId: string, probeId: string, targetId: string, sequenceId: string) => { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[], completedMissions?: string[] },
-    historyMessagePrefix: string,
+    actionFn: (game: Game, playerId: string, probeId: string, targetId: string, sequenceId: string) => { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] },
     successMessage: string
   ): boolean => {
     if (!game) return false;
@@ -1007,13 +1000,8 @@ export const BoardUI: React.FC = () => {
       if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
       const interactionTriggered = handleNewInteractions(result.newPendingInteractions, sequenceId);
 
-      let message = `${historyMessagePrefix} ${found.planetName}`;
-      if (result.completedMissions && result.completedMissions.length > 0) {
-        message += ` et accomplit la mission "${result.completedMissions.join('", "')}"`;
-      }
-      // L'annulation restaure l'état d'avant l'action (bonus compris)
-      addToHistory(message, currentPlayer.id, game, undefined, sequenceId);
-      result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, updatedGame, undefined, sequenceId));
+      // Le moteur rédige le message de l'action puis ses gains ; l'annulation restaure l'état d'avant l'action
+      result.historyEntries.forEach((entry, i) => addToHistory(entry.message, entry.playerId, i === 0 ? game : updatedGame, undefined, sequenceId));
 
       if (!interactionTriggered) {
         setToast({ message: successMessage, visible: true });
@@ -1075,7 +1063,6 @@ export const BoardUI: React.FC = () => {
         continueBonusPlacement(handlePlanetInteraction(
           planetId,
           (g, pid, prid, targetId, seqId) => ProbeSystem.orbitProbe(g, pid, prid, targetId, seqId, true),
-          "<strong>Met en orbite</strong> (Bonus) une sonde autour de",
           "Sonde mise en orbite"
         ));
         return;
@@ -1091,7 +1078,6 @@ export const BoardUI: React.FC = () => {
       handlePlanetInteraction(
         planetId,
         (g, pid, prid, targetId, seqId) => ProbeSystem.orbitProbe(g, pid, prid, targetId, seqId),
-        "paye 1 Energie et 1 Crédit pour <strong>Mettre en orbite</strong> une sonde autour de",
         "Sonde mise en orbite"
       );
     };
@@ -1157,7 +1143,6 @@ export const BoardUI: React.FC = () => {
         continueBonusPlacement(handlePlanetInteraction(
           planetId,
           (g, pid, prid, targetId, seqId) => ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex, source, seqId),
-          "<strong>Pose une sonde</strong> (Bonus) sur",
           "Atterrissage réussi"
         ));
         return;
@@ -1170,12 +1155,10 @@ export const BoardUI: React.FC = () => {
         return;
       }
 
-      const { landCost } = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
       handlePlanetInteraction(
         planetId,
         // planetId est passé comme cible pour supporter l'atterrissage sur les satellites
         (g, pid, prid, targetId, seqId) => ProbeSystem.landProbe(g, pid, prid, targetId, false, slotIndex, undefined, seqId),
-        `paye ${landCost} énergie pour <strong>Poser une sonde</strong> sur`,
         "Atterrissage réussi"
       );
     };
@@ -1771,19 +1754,9 @@ export const BoardUI: React.FC = () => {
         />
       )}
 
-      {/* Bouton pour masquer/afficher la modale de fin de manche */}
-      {(passModalState.visible || isReservationModalActive) && (
-        <button
-            onClick={() => setIsPassModalMinimized(!isPassModalMinimized)}
-            className={`seti-minimize-modal-btn ${isPassModalMinimized ? 'minimized' : ''}`}
-        >
-            {isPassModalMinimized ? "Revenir au choix de carte" : "Voir le plateau"}
-        </button>
-      )}
-
       {/* Modale de sélection de carte de fin de manche */}
       <PassModal
-        visible={passModalState.visible && !isPassModalMinimized}
+        visible={passModalState.visible}
         cards={passModalState.cards}
         onConfirm={(selectedCardId) => {
           const currentPlayer = game.players[game.currentPlayerIndex];
@@ -1797,7 +1770,7 @@ export const BoardUI: React.FC = () => {
       {/* Modale de réservation de carte (mise en place et bonus de réservation) */}
       {isReservationModalActive && interactionState.type === 'RESERVING_CARD' && (
         <PassModal
-          visible={!isPassModalMinimized}
+          visible
           cards={CardSystem.getHandCards(reservingPlayer!)}
           onConfirm={(selectedCardId) => handleConfirmReservation([selectedCardId])}
           currentRound={game.currentRound}

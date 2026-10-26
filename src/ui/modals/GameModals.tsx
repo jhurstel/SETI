@@ -2,6 +2,8 @@ import { InteractionState, Game, AlienBoardType, FinalScore } from '../../core/t
 import { ScoreManager } from '../../core/ScoreManager';
 import { ResourceSystem } from '../../systems/ResourceSystem';
 import { CardSystem } from '../../systems/CardSystem';
+import { ChoiceModal, ChoiceOption, ChoiceFooterButton } from './ChoiceModal';
+import { HoverTooltip } from '../components/HoverTooltip';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {
   if (!visible) return null;
@@ -26,35 +28,24 @@ export const CentaurienRewardModal = ({ game, interactionState, onChoice }: { ga
   if (!species || !species.message) return null;
 
   return (
-    <div className="seti-modal-overlay">
-      <div className="seti-modal-content">
-        <h3>Message Centaurien Décodé !</h3>
-        <p>Choisissez une récompense parmi les messages disponibles :</p>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '20px' }}>
-          {species.message.map((token, index) => (
-            <button
-              key={index}
-              disabled={!token.isAvailable}
-              onClick={() => onChoice(index)}
-              className="seti-action-btn"
-              style={{
-                opacity: token.isAvailable ? 1 : 0.5,
-                backgroundColor: '#2a2a2a',
-                border: '1px solid #555',
-                padding: '15px',
-                minWidth: '120px',
-                cursor: token.isAvailable ? 'pointer' : 'not-allowed'
-              }}
-            >
-              <div style={{ fontSize: '2em', marginBottom: '10px' }}>📩</div>
-              <div style={{ color: '#ffd700' }}>
-                {(ResourceSystem.formatBonus(token.bonus) || []).join(', ')}
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
+    <ChoiceModal
+      title="Message Centaurien décodé"
+      subtitle="Choisissez une tuile Message encore disponible : sa récompense est gagnée immédiatement."
+    >
+      {species.message.map((token, index) => {
+        const owner = token.claimedBy ? game.players.find(p => p.id === token.claimedBy) : undefined;
+        return (
+          <ChoiceOption
+            key={index}
+            icon="📩"
+            label={(ResourceSystem.formatBonus(token.bonus) || []).join(', ')}
+            onClick={() => onChoice(index)}
+            disabled={!token.isAvailable}
+            disabledReason={owner ? <span>Déjà choisi par <strong style={{ color: owner.color }}>{owner.name}</strong></span> : 'Déjà choisi'}
+          />
+        );
+      })}
+    </ChoiceModal>
   );
 };
 
@@ -65,30 +56,21 @@ export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: 
   const cards = player.cards.filter(c => CardSystem.isExertienCard(c));
 
   return (
-    <div className="seti-modal-overlay">
-      <div className="seti-modal-content">
-        <h3>Palier Exertien atteint ({interactionState.milestone} PV)</h3>
-        <p>Vous pouvez jouer une de vos cartes Exertiens face cachée. Son DANGER s'ajoute au vôtre (actuellement {player.danger || 0}).</p>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '20px' }}>
-          {cards.map(card => (
-            <button
-              key={card.id}
-              onClick={() => onChoice(card.id)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #555', borderRadius: '6px', padding: '12px', width: '200px', cursor: 'pointer', textAlign: 'left' }}
-            >
-              <div style={{ fontWeight: 'bold', color: '#ffd700', marginBottom: '6px' }}>{card.name}</div>
-              <div style={{ fontSize: '0.85em', color: '#ff6b6b', marginBottom: '6px' }}>DANGER {card.danger || 0}</div>
-              <div style={{ fontSize: '0.8em', color: '#ccc' }}>{card.description.replace(/^DANGER \d+\.\s*/, '')}</div>
-            </button>
-          ))}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
-          <button onClick={() => onChoice(undefined)} style={{ padding: '8px 16px', backgroundColor: '#555', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-            Ne pas jouer de carte
-          </button>
-        </div>
-      </div>
-    </div>
+    <ChoiceModal
+      title={`Palier Exertien atteint (${interactionState.milestone} PV)`}
+      subtitle={`Vous pouvez jouer une de vos cartes Exertiens face cachée. Son DANGER s'ajoute au vôtre (actuellement ${player.danger || 0}).`}
+      footer={<ChoiceFooterButton secondary onClick={() => onChoice(undefined)}>Ne pas jouer de carte</ChoiceFooterButton>}
+      wide
+    >
+      {cards.map(card => (
+        <ChoiceOption
+          key={card.id}
+          label={card.name}
+          detail={<><span style={{ color: '#ff6b6b' }}>DANGER {card.danger || 0}</span><br />{card.description.replace(/^DANGER \d+\.\s*/, '')}</>}
+          onClick={() => onChoice(card.id)}
+        />
+      ))}
+    </ChoiceModal>
   );
 };
 
@@ -124,84 +106,48 @@ export const AlienDiscoveryModal =({ visible, message }: { visible: boolean, mes
 };
 
 export const MediaOrMoveModal = ({ onChoice }: { onChoice: (choice: 'MEDIA' | 'MOVE') => void }) => (
-  <div className="seti-modal-overlay">
-    <div className="seti-modal-content-small">
-      <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Faites un choix</h3>
-      <p style={{ marginBottom: '20px', color: '#ddd' }}>Choisissez votre bonus :</p>
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-        <button onClick={() => onChoice('MEDIA')} style={{ padding: '15px 20px', backgroundColor: '#ff6b6b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', minWidth: '100px' }}>
-          <span style={{ fontSize: '1.5em' }}>🎤</span><span>1 Média</span>
-        </button>
-        <button onClick={() => onChoice('MOVE')} style={{ padding: '15px 20px', backgroundColor: '#ffd700', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', minWidth: '100px' }}>
-          <span style={{ fontSize: '1.5em' }}>🚀</span><span>1 Déplacement</span>
-        </button>
-      </div>
-    </div>
-  </div>
+  <ChoiceModal title="Assistance gravitationnelle" subtitle="En arrivant sur cette planète, choisissez votre bonus.">
+    <ChoiceOption icon="🎤" label="1 Média" onClick={() => onChoice('MEDIA')} />
+    <ChoiceOption icon="🚀" label="1 Déplacement" detail="gratuit" onClick={() => onChoice('MOVE')} />
+  </ChoiceModal>
 );
 
 export const Observation2Modal = ({ onChoice }: { onChoice: (accepted: boolean) => void }) => (
-  <div className="seti-modal-overlay">
-    <div className="seti-modal-content-small">
-      <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Observation II</h3>
-      <p style={{ marginBottom: '20px', color: '#ddd' }}>Voulez-vous défausser un Média pour marquer un signal supplémentaire dans le secteur de Mercure ?</p>
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-        <button onClick={() => onChoice(true)} style={{ padding: '10px 20px', backgroundColor: '#4caf50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Oui (-1 Média)</button>
-        <button onClick={() => onChoice(false)} style={{ padding: '10px 20px', backgroundColor: '#555', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Non</button>
-      </div>
-    </div>
-  </div>
+  <ChoiceModal title="Observation II" subtitle="Défausser un Média pour marquer un signal supplémentaire dans le secteur de Mercure ?">
+    <ChoiceOption icon="📡" label="Oui" detail="−1 Média, +1 signal (Mercure)" onClick={() => onChoice(true)} />
+    <ChoiceOption icon="✋" label="Non" onClick={() => onChoice(false)} />
+  </ChoiceModal>
 );
 
 export const Observation3Modal = ({ onChoice }: { onChoice: (accepted: boolean) => void }) => (
-  <div className="seti-modal-overlay">
-    <div className="seti-modal-content-small">
-      <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Observation III</h3>
-      <p style={{ marginBottom: '20px', color: '#ddd' }}>Voulez-vous défausser une carte de votre main pour marquer un signal supplémentaire ?</p>
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-        <button onClick={() => onChoice(true)} style={{ padding: '10px 20px', backgroundColor: '#4caf50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Oui</button>
-        <button onClick={() => onChoice(false)} style={{ padding: '10px 20px', backgroundColor: '#555', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Non</button>
-      </div>
-    </div>
-  </div>
+  <ChoiceModal title="Observation III" subtitle="Défausser une carte de votre main pour marquer un signal supplémentaire ?">
+    <ChoiceOption icon="🃏" label="Oui" detail="une carte de la main pour son signal" onClick={() => onChoice(true)} />
+    <ChoiceOption icon="✋" label="Non" onClick={() => onChoice(false)} />
+  </ChoiceModal>
 );
 
 export const Observation4Modal = ({ onChoice, canLaunch, canMove }: { onChoice: (choice: 'PROBE' | 'MOVE') => void, canLaunch: boolean, canMove: boolean }) => (
-  <div className="seti-modal-overlay">
-    <div className="seti-modal-content-small">
-      <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Observation IV</h3>
-      <p style={{ marginBottom: '20px', color: '#ddd' }}>Choisissez votre bonus :</p>
-      <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-        <button onClick={() => onChoice('PROBE')} disabled={!canLaunch} style={{ padding: '10px 20px', backgroundColor: !canLaunch ? '#555' : '#4caf50', color: '#fff', border: 'none', borderRadius: '4px', cursor: !canLaunch ? 'not-allowed' : 'pointer', fontWeight: 'bold', opacity: !canLaunch ? 0.6 : 1 }}>Lancer une sonde (-1 Énergie)</button>
-        <button onClick={() => onChoice('MOVE')} disabled={!canMove} style={{ padding: '10px 20px', backgroundColor: !canMove ? '#555' : '#ffd700', color: !canMove ? '#fff' : '#000', border: 'none', borderRadius: '4px', cursor: !canMove ? 'not-allowed' : 'pointer', fontWeight: 'bold', opacity: !canMove ? 0.6 : 1 }}>+1 Déplacement</button>
-      </div>
-    </div>
-  </div>
+  <ChoiceModal title="Observation IV" subtitle="Choisissez votre bonus.">
+    <ChoiceOption icon="🛰️" label="Lancer une sonde" detail="−1 Énergie" onClick={() => onChoice('PROBE')} disabled={!canLaunch} disabledReason="Pas assez d'énergie ou limite de sondes atteinte" />
+    <ChoiceOption icon="🚀" label="1 Déplacement" onClick={() => onChoice('MOVE')} disabled={!canMove} disabledReason="Aucune sonde dans le système solaire" />
+  </ChoiceModal>
 );
 
 export const BonusChoiceModal = ({ interactionState, onChoice, onFinish }: { interactionState: InteractionState, onChoice: (idx: number) => void, onFinish: () => void }) => {
   if (interactionState.type !== 'CHOOSING_BONUS_ACTION') return null;
+  const allDone = interactionState.choices.every(c => c.done);
   return (
-    <div className="seti-modal-overlay">
-      <div className="seti-modal-content-small" style={{ maxWidth: '500px', textAlign: 'left' }}>
-        <h3 style={{ marginTop: 0, color: '#4a9eff' }}>Récompenses</h3>
-        <p style={{ fontSize: '1.1em', marginBottom: '20px', color: '#ddd' }}>{interactionState.bonusesSummary}</p>
-        <p style={{ fontSize: '0.9em', marginBottom: '10px', color: '#aaa' }}>Quelles actions voulez-vous effectuer ?</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {interactionState.choices.map((choice, idx) => (
-            <button key={choice.id} onClick={() => onChoice(idx)} disabled={choice.done} style={{ padding: '12px', backgroundColor: choice.done ? '#444' : '#4a9eff', color: choice.done ? '#888' : '#fff', border: 'none', borderRadius: '4px', cursor: choice.done ? 'default' : 'pointer', textAlign: 'left', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between', opacity: choice.done ? 0.6 : 1 }}>
-              <span>{choice.label}</span>
-              {choice.done && <span>✓</span>}
-            </button>
-          ))}
-        </div>
-        {interactionState.choices.every(c => c.done) && (
-          <button onClick={onFinish} style={{ marginTop: '20px', width: '100%', padding: '10px', backgroundColor: '#4caf50', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Terminer</button>
-        )}
-      </div>
-    </div>
+    <ChoiceModal
+      title="Récompenses"
+      subtitle={interactionState.bonusesSummary}
+      footer={allDone ? <ChoiceFooterButton onClick={onFinish}>Terminer</ChoiceFooterButton> : undefined}
+    >
+      {interactionState.choices.map((choice, idx) => (
+        <ChoiceOption key={choice.id} label={choice.label} onClick={() => onChoice(idx)} done={choice.done} />
+      ))}
+    </ChoiceModal>
   );
-}
+};
 
 /** Infobulle d'une case du décompte : une ligne par élément, puis le total */
 const detailTitle = (label: string, lines: string[] | undefined, total: number) =>
@@ -251,10 +197,10 @@ export const EndGameModal = ({ game }: { game: Game }) => {
           <div className="seti-endgame-row header">
             <div className="col-rank">#</div>
             <div className="col-player">Joueur</div>
-            <div className="col-score" title="Score avant le décompte final">Base</div>
-            <div className="col-score" title="Tuiles objectif">Obj.</div>
-            <div className="col-score" title="Cartes fin de partie">Fin</div>
-            <div className="col-score" title="Espèces : bonus d'espèces, cartes Exertiens, pénalité de danger">Espèces</div>
+            <div className="col-score"><HoverTooltip content="Score avant le décompte final">Base</HoverTooltip></div>
+            <div className="col-score"><HoverTooltip content="Tuiles Score dorées">Obj.</HoverTooltip></div>
+            <div className="col-score"><HoverTooltip content="Cartes Fin de partie">Fin</HoverTooltip></div>
+            <div className="col-score"><HoverTooltip content="Espèces : bonus d'espèces, cartes Exertiens, pénalité de danger">Espèces</HoverTooltip></div>
             <div className="col-total">Total</div>
           </div>
 
@@ -262,13 +208,13 @@ export const EndGameModal = ({ game }: { game: Game }) => {
             <div key={player.id} className="seti-endgame-row">
               <div className="col-rank">{index + 1}</div>
               <div className="col-player" style={{ color: player.color }}>{player.name}</div>
-              <div className="col-score" title="Score avant le décompte final">{score.baseScore}</div>
-              <div className="col-score" title={detailTitle('Tuiles objectif', score.details?.objectiveTiles, score.categories.objectiveTiles)}>{score.categories.objectiveTiles}</div>
-              <div className="col-score" title={detailTitle('Cartes fin de partie', score.details?.missionEndGame, score.categories.missionEndGame)}>{score.categories.missionEndGame}</div>
-              <div className="col-score" title={speciesTitle(score)} style={score.dangerPenalty > 0 ? { color: '#ff6b6b' } : undefined}>
-                {score.categories.speciesBonuses + score.categories.exertienCards - score.dangerPenalty}
+              <div className="col-score"><HoverTooltip content="Score avant le décompte final">{score.baseScore}</HoverTooltip></div>
+              <div className="col-score"><HoverTooltip content={detailTitle('Tuiles objectif', score.details?.objectiveTiles, score.categories.objectiveTiles)}>{score.categories.objectiveTiles}</HoverTooltip></div>
+              <div className="col-score"><HoverTooltip content={detailTitle('Cartes fin de partie', score.details?.missionEndGame, score.categories.missionEndGame)}>{score.categories.missionEndGame}</HoverTooltip></div>
+              <div className="col-score" style={score.dangerPenalty > 0 ? { color: '#ff6b6b' } : undefined}>
+                <HoverTooltip content={speciesTitle(score)}>{score.categories.speciesBonuses + score.categories.exertienCards - score.dangerPenalty}</HoverTooltip>
               </div>
-              <div className="col-total" title={`${score.baseScore} + ${score.categories.objectiveTiles} + ${score.categories.missionEndGame} + ${score.categories.speciesBonuses + score.categories.exertienCards}${score.dangerPenalty > 0 ? ` − ${score.dangerPenalty}` : ''} = ${score.finalScore} PV`}>{score.finalScore}</div>
+              <div className="col-total"><HoverTooltip content={`${score.baseScore} + ${score.categories.objectiveTiles} + ${score.categories.missionEndGame} + ${score.categories.speciesBonuses + score.categories.exertienCards}${score.dangerPenalty > 0 ? ` − ${score.dangerPenalty}` : ''} = ${score.finalScore} PV`}>{score.finalScore}</HoverTooltip></div>
             </div>
           ))}
         </div>

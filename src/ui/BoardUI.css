@@ -280,3 +280,117 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
 .seti-minimize-modal-btn.minimized {
   background-color: rgba(33, 150, 243, 0.9);
 }
+
+/* ---------------------------------------------------------------------------
+   Fenêtres de choix communes (ChoiceModal) : même aspect que les panneaux du jeu
+   --------------------------------------------------------------------------- */
+.seti-choice-modal {
+  background: rgba(20, 25, 40, 0.97);
+  border: 2px solid rgba(100, 150, 255, 0.6);
+  border-radius: 12px;
+  box-shadow: 0 0 40px rgba(74, 158, 255, 0.25);
+  padding: 24px 28px;
+  width: min(560px, 92vw);
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: #ddd;
+}
+.seti-choice-modal.wide {
+  width: min(900px, 94vw);
+}
+.seti-choice-modal-title {
+  font-size: 1.35rem;
+  font-weight: bold;
+  color: #fff;
+  text-align: center;
+}
+.seti-choice-modal-subtitle {
+  font-size: 0.9rem;
+  color: #bbb;
+  text-align: center;
+  line-height: 1.4;
+}
+.seti-choice-modal-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+.seti-choice-modal-footer {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.seti-choice-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 130px;
+  max-width: 220px;
+  padding: 14px 16px;
+  background: rgba(30, 36, 56, 0.95);
+  border: 1px solid rgba(100, 150, 255, 0.45);
+  border-radius: 8px;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+}
+.seti-choice-option:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: #4a9eff;
+  box-shadow: 0 0 12px rgba(74, 158, 255, 0.45);
+}
+.seti-choice-option.selected {
+  border-color: #4a9eff;
+  background: rgba(74, 158, 255, 0.2);
+}
+.seti-choice-option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  /* Un bouton désactivé n'émet pas d'événements de souris : l'enveloppe reçoit le survol (infobulle « Déjà choisi par ») */
+  pointer-events: none;
+}
+.seti-choice-option.done {
+  opacity: 0.6;
+}
+.seti-choice-option-icon {
+  font-size: 1.8em;
+}
+.seti-choice-option-label {
+  color: #ffd700;
+  text-align: center;
+}
+.seti-choice-option-detail {
+  font-size: 0.78em;
+  font-weight: normal;
+  color: #ccc;
+  text-align: center;
+}
+.seti-choice-option-check {
+  color: #7fff7f;
+}
+.seti-choice-footer-btn {
+  padding: 10px 26px;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #fff;
+  background: #4a9eff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.seti-choice-footer-btn.secondary {
+  background: #555;
+}
+.seti-choice-footer-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

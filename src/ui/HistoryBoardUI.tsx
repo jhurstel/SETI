@@ -213,13 +213,35 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
 
             for (const config of Object.values(ResourceSystem.RESOURCE_CONFIG)) {
                 if (new RegExp(`^${config.regex.source}$`).test(part)) {
-                    return <span key={index} title={config.label} className="seti-history-resource-icon" style={{ color: config.color }}>{config.icon}</span>;
+                    return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: config.label, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)} style={{ color: config.color }}>{config.icon}</span>;
                 }
             }
 
             return part;
         });
     };
+
+    // Une entrée est une conséquence (indentée) si elle appartient à la même séquence que l'action qui l'ouvre
+    // (gains, bonus, interactions résolues) ; childParents donne le joueur de cette action.
+    const childFlags: boolean[] = [];
+    const childParents: (string | undefined)[] = [];
+    let headSequence: string | undefined;
+    let headPlayer: string | undefined;
+    historyLog.forEach(entry => {
+        if (entry.message.startsWith('---')) {
+            headSequence = undefined;
+            childFlags.push(false);
+            childParents.push(undefined);
+            return;
+        }
+        const isChild = !!entry.sequenceId && entry.sequenceId === headSequence;
+        if (!isChild) {
+            headSequence = entry.sequenceId;
+            headPlayer = entry.playerId;
+        }
+        childFlags.push(isChild);
+        childParents.push(isChild ? headPlayer : undefined);
+    });
 
     const lastEntry = historyLog.length > 0 ? historyLog[historyLog.length - 1] : null;
     const canUndo = lastEntry && !lastEntry.message.startsWith('---') && (
@@ -236,16 +258,18 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                     {onUndoTurn && (
                         <button
                             className="panel-title seti-history-undo-btn"
-                            title="Revenir au début de mon dernier tour"
+                            onMouseEnter={(e) => setActiveTooltip({ content: 'Revenir au début de mon dernier tour', rect: e.currentTarget.getBoundingClientRect() })}
+                            onMouseLeave={() => setActiveTooltip(null)}
                             onClick={(e) => { e.stopPropagation(); onUndoTurn(); }}
                         >
-                            ⏪
+                            ↩↩
                         </button>
                     )}
                     {canUndo && (
                         <button
                             className="panel-title seti-history-undo-btn"
-                            title="Annuler la dernière action"
+                            onMouseEnter={(e) => setActiveTooltip({ content: 'Annuler la dernière action', rect: e.currentTarget.getBoundingClientRect() })}
+                            onMouseLeave={() => setActiveTooltip(null)}
                             onClick={(e) => { e.stopPropagation(); onUndo(); }}
                         >
                             ↩
@@ -266,9 +290,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                                 );
                             }
 
-                            const isSequence = !!entry.sequenceId;
-                            const prevEntry = index > 0 ? historyLog[index - 1] : null;
-                            const isSequenceChild = isSequence && prevEntry && prevEntry.sequenceId === entry.sequenceId;
+                            const isSequenceChild = childFlags[index];
 
                             let player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
                             if (!player) {
@@ -277,18 +299,18 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
 
                             const color = player ? (player.color || '#ccc') : '#ccc';
                             return (
-                                <div key={entry.id} className="seti-history-item" style={{
+                                <div key={entry.id} className={`seti-history-item ${isSequenceChild ? 'child' : ''}`} style={{
                                     borderLeft: `3px solid ${color}`,
-                                    backgroundColor: isSequenceChild ? 'rgba(255,255,255,0.02)' : 'transparent'
                                 }}>
                                     {isSequenceChild && (
-                                        <div className="seti-history-sequence-indicator">
-                                            └─
-                                        </div>
+                                        <div className="seti-history-sequence-indicator">↳</div>
                                     )}
                                     <div className="seti-history-message">
                                         <span className={`seti-history-text ${isSequenceChild ? 'child' : ''}`}>
-                                            {player ? (
+                                            {/* Conséquence d'une action du même joueur : son nom n'est pas répété */}
+                                            {isSequenceChild && player && entry.playerId === childParents[index] ? (
+                                                formatHistoryMessage(entry.message.startsWith(player.name) ? entry.message.substring(player.name.length).trimStart() : entry.message)
+                                            ) : player ? (
                                                 entry.message.startsWith(player.name) ? (
                                                     <>
                                                         <strong style={{ color: color }}>{player.name}</strong>

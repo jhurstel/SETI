@@ -1,4 +1,4 @@
-import { Game, GamePhase, Player, HistoryEntry, InteractionState } from './types';
+import { Game, GamePhase, Player, HistoryEntry, InteractionState, GAME_CONSTANTS } from './types';
 import { CardSystem } from '../systems/CardSystem';
 import { ScoreManager } from './ScoreManager';
 import { cloneGame } from './cloneGame';
@@ -170,6 +170,9 @@ export class TurnManager {
 
     updatedPlayer.credits += player.revenueCredits || 0;
     updatedPlayer.energy += player.revenueEnergy || 0;
+    // Revenus des cartes Centauriens
+    updatedPlayer.mediaCoverage = Math.min(player.mediaCoverage + (player.revenueMedia || 0), GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+    updatedPlayer.data = Math.min(player.data + (player.revenueData || 0), GAME_CONSTANTS.MAX_DATA);
 
     return updatedPlayer;
   }

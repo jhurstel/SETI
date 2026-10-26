@@ -348,7 +348,7 @@ export class AIController {
                     const availableTokens = species.message.map((token, index) => ({ token, index })).filter(item => item.token.isAvailable);
                     if (availableTokens.length > 0) {
                         const choice = availableTokens[Math.floor(Math.random() * availableTokens.length)];
-                        const res = SpeciesSystem.claimCentaurienReward(updatedGame, player.id, choice.index);
+                        const res = SpeciesSystem.claimCentaurienReward(updatedGame, player.id, choice.index, interaction.markerId);
                         updatedGame = res.updatedGame;
                         historyEntries.push(...res.historyEntries);
                         newPendingInteractions.push(...res.newPendingInteractions);

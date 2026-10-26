@@ -93,6 +93,12 @@ export class CardSystem {
         } else if (card.revenue === RevenueType.CARD) {
             player.revenueCards += 1;
             updatedGame = this.drawCards(updatedGame, playerId, 1);
+        } else if (card.revenue === RevenueType.MEDIA) {
+            player.revenueMedia = (player.revenueMedia || 0) + 1;
+            player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+        } else if (card.revenue === RevenueType.DATA) {
+            player.revenueData = (player.revenueData || 0) + 1;
+            player.data = Math.min(player.data + 1, GAME_CONSTANTS.MAX_DATA);
         }
 
         return updatedGame
@@ -116,7 +122,7 @@ export class CardSystem {
             updatedGame = next;
             reservedCount++;
 
-            let gain = ResourceSystem.formatResource(1, card.revenue === RevenueType.CREDIT ? 'CREDIT' : card.revenue === RevenueType.ENERGY ? 'ENERGY' : 'CARD');
+            let gain = ResourceSystem.formatResource(1, this.revenueResource(card.revenue));
             if (card.revenue === RevenueType.CARD) {
                 const drawn = updatedGame.players.find(p => p.id === playerId)!.cards.find(c => !handBefore.includes(c.id));
                 if (drawn) gain += ` "${drawn.name}"`;
@@ -389,7 +395,8 @@ export class CardSystem {
                     player.playedCards.push(card);
 
                     if (card.type === CardType.CENTAURIEN) {
-                        player.centaurienMilestones.push(player.score + 15);
+                        // Réception différée : palier de message à +15 PV
+                        SpeciesSystem.addCentaurienMarker(player, card);
                     }
                 }
             } else if (card.type === CardType.CONDITIONAL_MISSION || card.type === CardType.TRIGGERED_MISSION) {
@@ -912,6 +919,17 @@ export class CardSystem {
         return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions: [...rewardedInteractions, ...extraInteractions.map(i => ({ ...i, sequenceId }))] };
     }
 
+    /** Ressource gagnée par un revenu (pour formatResource) */
+    static revenueResource(revenue: RevenueType): string {
+        switch (revenue) {
+            case RevenueType.CREDIT: return 'CREDIT';
+            case RevenueType.ENERGY: return 'ENERGY';
+            case RevenueType.MEDIA: return 'MEDIA';
+            case RevenueType.DATA: return 'DATA';
+            default: return 'CARD';
+        }
+    }
+
     /** Plateaux Alien où le joueur a marqué une trace de chaque couleur */
     static boardsWithAllTraceColors(game: Game, playerId: string): number[] {
         return game.board.alienBoards
@@ -1202,9 +1220,14 @@ export class CardSystem {
             bonusStartIndex = 2;
         }
 
-        // Extraction des bonus (paires clé:valeur à partir de l'index 2)
+        const rewards = this.parseRewards(parts.slice(bonusStartIndex));
+        return this.checkMissionCondition(game, playerId, conditionType, target, rewards, parts, skipConditionCheck);
+    }
+
+    /** Récompenses écrites en paires <ressource>:<valeur> (ex: pv:3:data:1, redlifetrace:1) */
+    static parseRewards(parts: string[]): Bonus {
         const rewards: Bonus = {};
-        for (let i = bonusStartIndex; i < parts.length; i += 2) {
+        for (let i = 0; i < parts.length; i += 2) {
             if (i + 1 < parts.length) {
                 const bonusType = parts[i];
                 const bonusValue = parseInt(parts[i + 1], 10);
@@ -1252,6 +1275,10 @@ export class CardSystem {
                 }
             }
         }
+        return rewards;
+    }
+
+    private static checkMissionCondition(game: Game, playerId: string, conditionType: string, target: string | undefined, rewards: Bonus, parts: string[], skipConditionCheck: boolean): Bonus | null {
 
         // Vérification des conditions
         if (conditionType === 'GAIN_IF_ORBITER_OR_LANDER') {

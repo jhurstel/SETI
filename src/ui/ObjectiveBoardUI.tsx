@@ -25,7 +25,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
             <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
                 <span className="panel-icon">🏆</span>
                 <span className="panel-title">Objectifs</span>
-                <span className="seti-round-badge" title="Manche en cours">Manche {Math.min(game.currentRound, game.maxRounds)} / {game.maxRounds}</span>
+                <span className="seti-round-badge" onMouseEnter={(e) => setActiveTooltip({ content: 'Manche en cours', rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}>Manche {Math.min(game.currentRound, game.maxRounds)} / {game.maxRounds}</span>
             </div>
             <div className="seti-foldable-content">
                 {/* Statut des manches et des joueurs qui ont passé */}
@@ -33,7 +33,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                     {Array.from({ length: game.maxRounds }, (_, i) => i + 1).map(round => {
                         const status = round < game.currentRound || game.phase === GamePhase.FINAL_SCORING ? 'done' : round === game.currentRound ? 'current' : 'upcoming';
                         const label = status === 'done' ? 'terminée' : status === 'current' ? 'en cours' : 'à venir';
-                        return <span key={round} className={`seti-round-pill ${status}`} title={`Manche ${round} : ${label}`}>{round}</span>;
+                        return <span key={round} className={`seti-round-pill ${status}`} onMouseEnter={(e) => setActiveTooltip({ content: `Manche ${round} : ${label}`, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}>{round}</span>;
                     })}
                     <span className="seti-round-passed">
                         {game.players.filter(p => p.hasPassed).length > 0
@@ -77,13 +77,19 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                         ))}
                         {/* Paliers Centauriens */}
                         {game.players.map(p => {
-                            return p.centaurienMilestones.map((m, idx) => (
-                                <div key={`centaurien-${p.id}-${idx}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
-                                    onMouseEnter={(e) => setActiveTooltip({ content: <div>Message Centaurien ({p.name}): {m} PV</div>, rect: e.currentTarget.getBoundingClientRect() })}
+                            // Les paliers restent sur la piste une fois atteints, avec ce qu'ils ont rapporté
+                            return (p.centaurienMilestones || []).map(m => (
+                                <div key={m.id} style={{ position: 'absolute', left: `${getPosition(m.score)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help', opacity: m.resolved ? 0.6 : 1 }}
+                                    onMouseEnter={(e) => setActiveTooltip({ content: (
+                                        <div>
+                                            <div style={{ fontWeight: 'bold', color: p.color }}>{m.cardName ? `Réception « ${m.cardName} »` : 'Message Centaurien'} ({p.name}) : {m.score} PV</div>
+                                            <div style={{ color: m.resolved ? '#7fff7f' : '#ccc', marginTop: '2px' }}>{m.resolved ?? (m.cardName ? "Effet de réception de la carte à l'arrivée sur ce palier" : "Choix d'une tuile Message à l'arrivée sur ce palier")}</div>
+                                        </div>
+                                    ), rect: e.currentTarget.getBoundingClientRect() })}
                                     onMouseLeave={() => setActiveTooltip(null)}
                                 >
-                                    <span style={{ fontSize: '12px', filter: 'drop-shadow(0 0 2px #fff)' }}>📩</span>
-                                    <div style={{ position: 'absolute', top: '-20px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: '#aaa', background: 'rgba(30,30,30,0.8)', padding: '0 3px', borderRadius: '2px' }}>{m}</div>
+                                    <span style={{ fontSize: '12px', filter: `drop-shadow(0 0 2px ${p.color})` }}>{m.resolved ? '✉️' : '📩'}</span>
+                                    <div style={{ position: 'absolute', top: '-20px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: m.resolved ? '#7fff7f' : '#aaa', background: 'rgba(30,30,30,0.8)', padding: '0 3px', borderRadius: '2px' }}>{m.resolved ? '✓' : m.score}</div>
                                 </div>
                             ));
                         })}

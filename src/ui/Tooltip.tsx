@@ -113,22 +113,8 @@ export const Tooltip = ({ content, targetRect, pointerEvents = 'none', onMouseEn
   return createPortal(
     <div
       ref={tooltipRef}
-      style={{
-        position: 'fixed',
-        zIndex: 20000,
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        padding: '6px 10px',
-        borderRadius: '4px',
-        border: '1px solid #78a0ff',
-        color: '#fff',
-        textAlign: 'center',
-        minWidth: '120px',
-        whiteSpace: 'pre-line',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
-        transition: 'opacity 0.1s ease-in-out',
-        pointerEvents,
-        ...style
-      }}
+      className="seti-tooltip"
+      style={{ pointerEvents, ...style }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >

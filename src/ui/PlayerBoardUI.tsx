@@ -465,7 +465,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             onClick={onSettingsClick}
             className="seti-action-btn"
             style={{ marginLeft: 'auto', marginRight: '8px', fontSize: '1.2rem', padding: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', alignSelf: 'center' }}
-            title="Paramètres"
+            onMouseEnter={(e) => handleTooltipHover(e, 'Paramètres')}
+            onMouseLeave={handleTooltipLeave}
         >
             ⚙️
         </button>
