@@ -1,5 +1,6 @@
 import { InteractionResolver, isAutomaticInteraction } from '../src/core/InteractionResolver';
 import { AIController } from '../src/ai/AIController';
+import { ResourceSystem } from '../src/systems/ResourceSystem';
 import { Game, LifeTraceType, Mission, Sector } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 
@@ -85,6 +86,20 @@ describe('InteractionResolver', () => {
       const res = InteractionResolver.resolve(game, P1, { type: 'RESOLVING_SECTOR', sectorId: sector.id, sequenceId: 'seq' });
 
       expect(res.newInteractions).toContainEqual(expect.objectContaining({ type: 'PLACING_LIFE_TRACE', playerId: P2, sequenceId: 'seq' }));
+    });
+
+    test("gain d'une carte par le gagnant humain pendant le tour d'un autre joueur : l'interaction lui est adressée (régression)", () => {
+      sector.firstBonus = { anycard: 1 };
+      markSignals(sector, [P2, P2, P1]);
+      const res = InteractionResolver.resolve(game, P1, { type: 'RESOLVING_SECTOR', sectorId: sector.id, sequenceId: 'seq' });
+
+      expect(res.newInteractions).toContainEqual(expect.objectContaining({ type: 'ACQUIRING_CARD', playerId: P2 }));
+    });
+
+    test("bonus d'une trace de vie posée pendant le tour d'un autre joueur (carte Alien…) : interactions adressées au poseur", () => {
+      const res = ResourceSystem.processBonuses({ anycard: 1, revealAndTriggerFreeAction: true }, game, P2, 'lifetrace', 'seq');
+      expect(res.newPendingInteractions.length).toBeGreaterThan(0);
+      expect(res.newPendingInteractions.every(i => i.playerId === P2)).toBe(true);
     });
 
     test('gagnant robot : sa trace de vie est placée automatiquement', () => {

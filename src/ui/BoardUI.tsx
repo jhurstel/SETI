@@ -100,8 +100,12 @@ export const BoardUI: React.FC = () => {
     }
   }, [game, interactionState.type, game?.currentPlayerIndex]);
 
+  // Joueur qui résout l'interaction en cours : celui qu'elle désigne (gain reçu pendant le tour
+  // d'un autre joueur, ex. secteur couvert par un robot), sinon le joueur actif
+  const actingPlayer = (g: Game) => g.players.find(p => p.id === interactionState.playerId) ?? g.players[g.currentPlayerIndex];
+
   // Réservation d'une carte par le joueur humain : fenêtre centrale, comme le choix de fin de manche
-  const reservingPlayer = game && interactionState.type === 'RESERVING_CARD' ? game.players[game.currentPlayerIndex] : undefined;
+  const reservingPlayer = game && interactionState.type === 'RESERVING_CARD' ? actingPlayer(game) : undefined;
   const isReservationModalActive = !!reservingPlayer && reservingPlayer.type === 'human';
 
 
@@ -407,7 +411,7 @@ export const BoardUI: React.FC = () => {
         setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
       } else {
         // Vérifier qu'on ne sélectionne pas plus que nécessaire
-        const currentPlayer = game.players[game.currentPlayerIndex];
+        const currentPlayer = actingPlayer(game);
         const cardsToKeep = CardSystem.getHandCards(currentPlayer).length - (currentCards.length + 1);
         if (cardsToKeep >= GAME_CONSTANTS.HAND_SIZE_AFTER_PASS) {
           setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
@@ -517,7 +521,7 @@ export const BoardUI: React.FC = () => {
   const handleSectorClick = (sectorId: string) => {
     const performInteractiveScan = () => {
       if (!game || interactionState.type !== 'SELECTING_SCAN_SECTOR') return;
-      const currentPlayer = game.players[game.currentPlayerIndex];
+      const currentPlayer = actingPlayer(game);
 
       const sequenceId = interactionState.sequenceId || `scan-${Date.now()}`;
       const res = ScanSystem.resolveScanSectorSelection(game, currentPlayer.id, interactionState, sectorId, sequenceId);
@@ -848,7 +852,7 @@ export const BoardUI: React.FC = () => {
 
     // Create sequence id and player id
     const sequenceId = interactionState.sequenceId || `alien-card-${Date.now()}`;
-    const playerId = game.players[game.currentPlayerIndex].id;
+    const playerId = actingPlayer(game).id;
 
     const { updatedGame, drawnCard } = SpeciesSystem.acquireAlienCard(game, playerId, speciesId, cardId);
     
@@ -964,7 +968,7 @@ export const BoardUI: React.FC = () => {
 
     if (interactionState.type !== 'CHOOSING_MEDIA_OR_MOVE') return;
 
-    const currentPlayer = game.players[game.currentPlayerIndex];
+    const currentPlayer = actingPlayer(game);
     const sequenceId = interactionState.sequenceId;
     const res = ProbeSystem.chooseMediaOrMove(game, currentPlayer.id, choice, interactionState.remainingMoves || 0, sequenceId);
     res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, { type: 'IDLE' }, sequenceId));
@@ -990,7 +994,7 @@ export const BoardUI: React.FC = () => {
     successMessage: string
   ): boolean => {
     if (!game) return false;
-    const currentPlayer = game.players[game.currentPlayerIndex];
+    const currentPlayer = actingPlayer(game);
     const found = ProbeSystem.findProbeAtPlanet(game, currentPlayer.id, planetId);
     if (!found) return false;
 
@@ -1051,7 +1055,7 @@ export const BoardUI: React.FC = () => {
   // Gestionnaire pour la mise en orbite via la hover card
   const handleOrbit = (planetId: string, slotIndex?: number) => {
     if (!game) return;
-    const currentPlayer = game.players[game.currentPlayerIndex];
+    const currentPlayer = actingPlayer(game);
 
     // Carte 15 : retirer un orbiteur
     if (interactionState.type === 'REMOVING_ORBITER') {
@@ -1097,7 +1101,7 @@ export const BoardUI: React.FC = () => {
   const handleMascamiteClick = (planetId: string, tokenIndex: number) => {
     if (!game) return;
     if (interactionState.type !== 'COLLECTING_SPECIMEN' && interactionState.type !== 'CONSULTING_SPECIMEN') return;
-    const playerId = game.players[game.currentPlayerIndex].id;
+    const playerId = actingPlayer(game).id;
     const allowed = interactionState.type === 'COLLECTING_SPECIMEN'
       ? interactionState.planetId === planetId
       : SpeciesSystem.consultablePlanets(game, playerId, interactionState).includes(planetId);
@@ -1122,7 +1126,7 @@ export const BoardUI: React.FC = () => {
   // Gestionnaire pour l'atterrissage via la hover card
   const handleLand = (planetId: string, slotIndex?: number) => {
     if (!game) return;
-    const currentPlayer = game.players[game.currentPlayerIndex];
+    const currentPlayer = actingPlayer(game);
 
     // Carte 84 : retirer un atterrisseur
     if (interactionState.type === 'REMOVING_LANDER') {
@@ -1360,7 +1364,7 @@ export const BoardUI: React.FC = () => {
     
     // Cas 2: Sélection pour achat ou gain de carte (bonus)
     } else if (interactionState.type === 'ACQUIRING_CARD') {
-        const currentPlayer = game.players[game.currentPlayerIndex];
+        const currentPlayer = actingPlayer(game);
 
         const sequenceId = interactionState.sequenceId;
         const result = CardSystem.acquireCard(game, currentPlayer.id, cardId, { isFree: interactionState.isFree, triggerFreeAction: interactionState.triggerFreeAction }, sequenceId);
@@ -1440,7 +1444,7 @@ export const BoardUI: React.FC = () => {
     if (!game || !gameRef.current) return;
 
     const currentGame = baseGame || gameRef.current;
-    const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
+    const currentPlayer = actingPlayer(currentGame);
 
     // Mettre à jour GameEngine
     const result = TechnologySystem.acquireTechnology(currentGame, currentPlayer.id, tech, targetComputerCol, noTileBonus);
@@ -1511,7 +1515,7 @@ export const BoardUI: React.FC = () => {
     if (!game) return;
     if (interactionState.type !== 'SELECTING_COMPUTER_SLOT') return;
 
-    const check = ComputerSystem.canAssignTechnology(game.players[game.currentPlayerIndex], col);
+    const check = ComputerSystem.canAssignTechnology(actingPlayer(game), col);
     if (!check.canAssign) {
       if (ComputerSystem.TECH_COLUMNS.includes(col)) setToast({ message: check.reason!, visible: true });
       return;

@@ -662,7 +662,7 @@ export interface ValidationWarning {
  * L'état 'IDLE' est l'état par défaut où le joueur peut initier une action principale.
  * Tous les autres états représentent une interaction en cours qui bloque les actions principales.
  */
-export type InteractionState =
+type InteractionStateVariant =
   /** Le joueur est en attente, aucune interaction en cours. */
   | { type: 'IDLE', sequenceId?: string }
   /** Le joueur a un bonus de réservation et doit choisir une carte à glisser sous son plateau. */
@@ -729,6 +729,12 @@ export type InteractionState =
   | { type: 'CHOOSING_EXERTIEN_CARD', milestone: number, sequenceId?: string }
   /** Le joueur doit confirmer la validation d'une mission. */
   | { type: 'SELECTING_MISSION', missionId?: string, requirementId?: string, sequenceId?: string }; // Deprecated
+
+/**
+ * `playerId` : joueur qui résout l'interaction quand ce n'est pas le joueur actif
+ * (ex. gains du gagnant d'un secteur couvert pendant le tour d'un robot). Absent : le joueur actif.
+ */
+export type InteractionState = InteractionStateVariant & { playerId?: string };
 
   // Helper pour les libellés des interactions
 export const getInteractionLabel = (state: InteractionState): string => {

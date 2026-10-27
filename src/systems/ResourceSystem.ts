@@ -545,7 +545,9 @@ export class ResourceSystem {
       newPendingInteractions.push({ type: 'DISCARDING_FOR_SIGNAL', count: bonuses.gainSignalFromHand, selectedCards: [], sequenceId });
     }
     
-    return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };
+    // Chaque interaction désigne le joueur qui reçoit le bonus : il peut ne pas être le joueur actif
+    // (gagnant d'un secteur couvert par un autre joueur, trace de vie posée pendant le tour d'un robot)
+    return { updatedGame, newPendingInteractions: newPendingInteractions.map(i => ({ ...i, playerId })), logs, passiveGains, historyEntries };
   };
 
 }
