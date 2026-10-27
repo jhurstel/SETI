@@ -6,7 +6,7 @@ import { PassAction } from '../src/actions/PassAction';
 import { CardSystem } from '../src/systems/CardSystem';
 import { ScanSystem } from '../src/systems/ScanSystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
-import { AIEvaluator } from '../src/ai/AIEvaluator';
+import { AIEvaluator, DEFAULT_WEIGHTS } from '../src/ai/AIEvaluator';
 import { AIBehavior } from '../src/ai/AIBehavior';
 import { ScoreManager } from '../src/core/ScoreManager';
 import { createRotationState, getAbsoluteSectorForProbe } from '../src/core/SolarSystemPosition';
@@ -185,7 +185,7 @@ describe('AITurn (parties complètes entre robots)', () => {
     expect(AIEvaluator.evaluate(step.updatedGame, player.id)).toBeGreaterThan(before);
   });
 
-  test("un robot expert compte dans sa position une part des points du décompte final (60 % avant la dernière manche)", async () => {
+  test("un robot expert compte dans sa position une part des points du décompte final (partielle avant la dernière manche)", async () => {
     const game = await createRobotGame(['R1', 'R2'], ['EXPERT', 'MEDIUM']);
     const [expert, medium] = game.players;
     const finalSpy = jest.spyOn(ScoreManager, 'calculateFinalScore').mockReturnValue({ missionEndGame: 4, objectiveTiles: 6, speciesBonuses: 0, exertienCards: 0, total: 10 });
@@ -197,7 +197,7 @@ describe('AITurn (parties complètes entre robots)', () => {
     const calls = finalSpy.mock.calls.length;
     finalSpy.mockRestore();
 
-    expect(withProjection - withoutProjection).toBeCloseTo(6);
+    expect(withProjection - withoutProjection).toBeCloseTo(10 * DEFAULT_WEIGHTS.endGameBefore);
     expect(calls).toBe(1); // l'Intermédiaire n'anticipe pas le décompte final
     expect(mediumValue).toBeGreaterThan(0);
   });
