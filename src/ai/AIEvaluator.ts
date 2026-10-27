@@ -1,4 +1,4 @@
-import { Game, Player, ProbeState, DiskName, SectorNumber } from '../core/types';
+import { Game, Player, ProbeState, DiskName, SectorNumber, LifeTraceType, CardType } from '../core/types';
 import { ScoreManager } from '../core/ScoreManager';
 import { createRotationState, getAbsoluteSectorForProbe, getAllCells, calculateReachableCells, RotationState } from '../core/SolarSystemPosition';
 
@@ -35,6 +35,11 @@ export const DEFAULT_WEIGHTS = {
   openMission: 1.24,
   playedCard: 0.91,
   incomePerRound: 1.09,
+  // 1re trace d'une couleur sur une espèce non découverte : carte Alien reçue à la découverte,
+  // d'autant plus probable que les 3 couleurs sont déjà présentes
+  discoveryClaim: 2.5,
+  // Carte Alien en main : plus forte qu'une carte normale (en plus de la valeur d'une carte)
+  alienCard: 0.8,
   // Robot Expert : part des points du décompte final déjà acquis (tuiles objectif, cartes Fin de partie,
   // cartes Exertiens), partielle avant la dernière manche : ce n'est qu'une projection
   endGameBefore: 0.38,
@@ -97,6 +102,8 @@ export class AIEvaluator {
     value += signals * w.signal;
 
     value += player.lifeTraces.length * w.lifeTrace;
+    value += this.discoveryClaims(game, player.id) * w.discoveryClaim;
+    value += player.cards.filter(c => c.id.startsWith('ET.') && c.type !== CardType.EXERTIEN).length * w.alienCard;
     value += player.technologies.length * w.technology;
     value += player.missions.filter(m => !m.completed).length * w.openMission;
     value += player.playedCards.length * w.playedCard;
@@ -131,6 +138,21 @@ export class AIEvaluator {
     }
 
     return value;
+  }
+
+  /**
+   * Cartes Alien promises : pour chaque espèce non découverte, chaque couleur dont le joueur a posé la 1re trace,
+   * pondérée par l'avancement de la découverte (couleurs présentes / 3)
+   */
+  private static discoveryClaims(game: Game, playerId: string): number {
+    const colors = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE];
+    return game.board.alienBoards
+      .filter(board => !board.isDiscovered)
+      .reduce((sum, board) => {
+        const firsts = colors.map(c => board.lifeTraces.find(t => t.type === c));
+        const progress = firsts.filter(Boolean).length / colors.length;
+        return sum + firsts.filter(t => t?.playerId === playerId).length * progress;
+      }, 0);
   }
 
   /**

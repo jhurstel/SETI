@@ -111,8 +111,10 @@ export class SpeciesSystem {
 
     /**
      * Emplacements possibles pour une trace de vie, du plus intéressant au moins intéressant :
-     * piste d'une espèce découverte (récompenses fixes), puis triangle d'un plateau où la couleur manque
-     * (bonus de découverte, rapproche la découverte), puis les autres triangles.
+     * emplacement Découverte (triangle) d'une espèce non découverte où la couleur manque (rapproche la découverte,
+     * et la 1re trace d'une couleur rapporte une carte Alien à la découverte), puis tous les emplacements libres
+     * de la piste d'une espèce découverte (dans n'importe quel ordre : un emplacement trop cher en tokens
+     * n'empêche pas d'en prendre un autre), puis les emplacements excédentaires (autres triangles).
      * Une trace « de n'importe quelle couleur » envisage les trois couleurs.
      */
     static lifeTraceOptions(game: Game, requestedColor: LifeTraceType): { boardIndex: number; color: LifeTraceType; location: LifeTraceLocation; slotIndex?: number }[] {
@@ -124,24 +126,31 @@ export class SpeciesSystem {
         game.board.alienBoards.forEach((board, boardIndex) => {
             for (const color of colors) {
                 if (board.isDiscovered) {
-                    speciesSlots.push({ boardIndex, color, location: LifeTraceLocation.SPECIES, slotIndex: this.getNextSpeciesSlotIndex(game, boardIndex, color, LifeTraceLocation.SPECIES) });
+                    this.freeSpeciesSlotIndices(game, boardIndex, color)
+                        .forEach(slotIndex => speciesSlots.push({ boardIndex, color, location: LifeTraceLocation.SPECIES, slotIndex }));
                 }
                 const hasColor = board.lifeTraces.some(t => t.type === color);
-                (hasColor ? otherTriangles : missingColorTriangles).push({ boardIndex, color, location: LifeTraceLocation.TRIANGLE });
+                (hasColor || board.isDiscovered ? otherTriangles : missingColorTriangles).push({ boardIndex, color, location: LifeTraceLocation.TRIANGLE });
             }
         });
-        return [...speciesSlots, ...missingColorTriangles, ...otherTriangles];
+        return [...missingColorTriangles, ...speciesSlots, ...otherTriangles];
     }
 
     /**
-     * Premier emplacement libre d'une couleur sur une piste du plateau Alien
+     * Emplacements libres d'une couleur sur la piste d'une espèce découverte : chaque emplacement fixe libre,
+     * puis le prochain de l'emplacement infini (qui s'empile).
      */
-    static getNextSpeciesSlotIndex(game: Game, boardIndex: number, color: LifeTraceType, location: LifeTraceLocation): number {
+    static freeSpeciesSlotIndices(game: Game, boardIndex: number, color: LifeTraceType): number[] {
         const board = game.board.alienBoards[boardIndex];
-        const indices = new Set(board.lifeTraces.filter(t => t.type === color && t.location === location).map(t => t.slotIndex));
-        let slotIndex = 0;
-        while (indices.has(slotIndex)) slotIndex++;
-        return slotIndex;
+        const species = game.species.find(s => s.name === board.speciesId);
+        if (!species) return [];
+        const fixed = color === LifeTraceType.RED ? species.fixedSlots.redlifetrace
+            : color === LifeTraceType.YELLOW ? species.fixedSlots.yellowlifetrace : species.fixedSlots.bluelifetrace;
+        const taken = new Set(board.lifeTraces.filter(t => t.type === color && t.location === LifeTraceLocation.SPECIES).map(t => t.slotIndex));
+        const free = fixed.map((_, i) => i).filter(i => !taken.has(i));
+        let infiniteIndex = fixed.length;
+        while (taken.has(infiniteIndex)) infiniteIndex++;
+        return [...free, infiniteIndex];
     }
 
     /**

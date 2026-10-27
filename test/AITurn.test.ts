@@ -10,7 +10,7 @@ import { AIEvaluator, DEFAULT_WEIGHTS } from '../src/ai/AIEvaluator';
 import { AIBehavior } from '../src/ai/AIBehavior';
 import { ScoreManager } from '../src/core/ScoreManager';
 import { createRotationState, getAbsoluteSectorForProbe } from '../src/core/SolarSystemPosition';
-import { AIDifficulty, Game, GamePhase, LifeTraceType } from '../src/core/types';
+import { AIDifficulty, Game, GamePhase, LifeTraceLocation, LifeTraceType } from '../src/core/types';
 import { giveCard, makeCard, mockFetchFromPublic } from './helpers/gameFixture';
 
 /** Partie en phase SETUP dont tous les joueurs sont des robots. */
@@ -200,6 +200,23 @@ describe('AITurn (parties complètes entre robots)', () => {
     expect(withProjection - withoutProjection).toBeCloseTo(10 * DEFAULT_WEIGHTS.endGameBefore);
     expect(calls).toBe(1); // l'Intermédiaire n'anticipe pas le décompte final
     expect(mediumValue).toBeGreaterThan(0);
+  });
+
+  test("l'évaluation compte la carte Alien promise par la 1re trace d'une couleur, selon l'avancement de la découverte", async () => {
+    const game = await createRobotGame(['R1', 'R2'], ['MEDIUM', 'MEDIUM']);
+    const [p1, p2] = game.players;
+    const board = game.board.alienBoards[0];
+    const trace = (type: LifeTraceType, playerId: string) => ({ id: `${type}-${playerId}`, type, playerId, location: LifeTraceLocation.TRIANGLE });
+
+    board.lifeTraces = [trace(LifeTraceType.RED, p2.id), trace(LifeTraceType.YELLOW, p2.id)];
+    const withoutClaim = AIEvaluator.evaluate(game, p1.id);
+    board.lifeTraces = [trace(LifeTraceType.RED, p1.id), trace(LifeTraceType.YELLOW, p2.id)];
+    const withClaim = AIEvaluator.evaluate(game, p1.id);
+    // 1 couleur à soi, 2 couleurs sur 3 présentes ; la trace elle-même n'est pas dans player.lifeTraces ici
+    expect(withClaim - withoutClaim).toBeCloseTo(DEFAULT_WEIGHTS.discoveryClaim * 2 / 3);
+
+    board.isDiscovered = true;
+    expect(AIEvaluator.evaluate(game, p1.id)).toBeCloseTo(withoutClaim);
   });
 
   test('tirages comparés pour les choix aléatoires : 2 pour le débutant, 4 pour un robot stratégique', async () => {

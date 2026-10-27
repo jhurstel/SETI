@@ -293,7 +293,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
 
     const renderBoardSlot = (type: LifeTraceType, index: number, bonus: Bonus, isInfinite: boolean, fixedSlotsLength: number, opacity: number = 1, isInfiniteBottom: boolean = false) => {
         const color = type === LifeTraceType.RED ? '#ff6b6b' : type === LifeTraceType.YELLOW ? '#ffd700' : '#4a9eff';
-        const currentPlayer = game.players[game.currentPlayerIndex];
+        // Joueur qui pose la trace (il peut ne pas être le joueur actif : secteur couvert par un robot)
+        const currentPlayer = game.players.find(p => p.id === interactionState.playerId) ?? game.players[game.currentPlayerIndex];
         const isPlacing = interactionState.type === 'PLACING_LIFE_TRACE' && (interactionState.color === type || interactionState.color === LifeTraceType.ANY) && isBoardAllowed;
 
         const trace = board.lifeTraces.find(t => t.location === LifeTraceLocation.SPECIES && t.type === type && t.slotIndex === index);

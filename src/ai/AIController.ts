@@ -79,6 +79,30 @@ export class AIController {
         return best!.result;
     }
 
+    /**
+     * Robot stratégique : meilleur emplacement pour une trace de vie, en simulant chaque emplacement accepté
+     * par le moteur (triangle, piste d'espèce, emplacement excédentaire) avec ses suites, puis en évaluant la position.
+     */
+    private static bestLifeTracePlacement(game: Game, player: Player, interaction: Extract<InteractionState, { type: 'PLACING_LIFE_TRACE' }>, sequenceId: string): AIControllerResult | null {
+        let best: { result: AIControllerResult; value: number } | null = null;
+        for (const option of SpeciesSystem.lifeTraceOptions(game, interaction.color)) {
+            if (interaction.boardIndices && !interaction.boardIndices.includes(option.boardIndex)) continue;
+            const placed = SpeciesSystem.placeLifeTrace(game, option.boardIndex, option.color, player.id, sequenceId, option.location, option.slotIndex);
+            if (placed.updatedGame === game) continue;
+            const historyEntries: HistoryEntry[] = placed.historyEntries.map(e => ({ ...e, sequenceId }));
+            if (placed.updatedGame.isSpeciesDiscovered) {
+                historyEntries.push({ message: 'découvre une nouvelle espèce Alien !', playerId: player.id, sequenceId });
+                placed.updatedGame.isSpeciesDiscovered = false;
+            }
+            const followUp = this.processInteractionQueue(placed.updatedGame, placed.newPendingInteractions.map(i => ({ ...i, sequenceId })), sequenceId, player);
+            const value = AIEvaluator.evaluate(followUp.updatedGame, player.id);
+            if (!best || value > best.value) {
+                best = { value, result: { updatedGame: followUp.updatedGame, historyEntries: [...historyEntries, ...followUp.historyEntries], newPendingInteractions: followUp.newPendingInteractions } };
+            }
+        }
+        return best ? best.result : null;
+    }
+
     private static processSingleInteraction(
         game: Game,
         player: Player,
@@ -128,6 +152,11 @@ export class AIController {
                 break;
             }
             case 'PLACING_LIFE_TRACE': {
+                if (AIBehavior.isStrategic(player)) {
+                    // Chaque emplacement possible est simulé (récompenses et choix qui en découlent compris) et évalué
+                    const best = this.bestLifeTracePlacement(updatedGame, player, interaction, sequenceId);
+                    if (best) return best;
+                }
                 const res = SpeciesSystem.placeLifeTraceAuto(updatedGame, interaction.color, player.id, sequenceId, interaction.boardIndices);
                 historyEntries.push(...res.historyEntries);
                 if (res.updatedGame.isSpeciesDiscovered) {

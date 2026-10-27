@@ -260,13 +260,53 @@ describe('CardSystem', () => {
       }
     });
 
-    test("sur un plateau découvert, la trace va sur la piste d'espèce, quel que soit le plateau", () => {
+    test("sur un plateau découvert, la trace va sur la piste d'espèce quand elle ne fait pas avancer l'autre découverte", () => {
+      game.board.alienBoards[0].lifeTraces = [{ id: 't', type: LifeTraceType.RED, playerId: P2, location: LifeTraceLocation.TRIANGLE }];
       game.board.alienBoards[1].speciesId = AlienBoardType.MASCAMITES;
       game.board.alienBoards[1].isDiscovered = true;
       const res = SpeciesSystem.placeLifeTraceAuto(game, LifeTraceType.RED, P1, 'seq');
       const trace = res.updatedGame.board.alienBoards[1].lifeTraces.find(t => t.playerId === P1)!;
       expect(trace).toMatchObject({ type: LifeTraceType.RED, location: LifeTraceLocation.SPECIES, slotIndex: 0 });
       expect(res.updatedGame.board.alienBoards[0].lifeTraces.some(t => t.playerId === P1)).toBe(false);
+    });
+
+    test("la découverte d'abord : une couleur qui manque à l'autre espèce passe avant la piste d'une espèce découverte (régression)", () => {
+      game.board.alienBoards[1].speciesId = AlienBoardType.MASCAMITES;
+      game.board.alienBoards[1].isDiscovered = true;
+      const res = SpeciesSystem.placeLifeTraceAuto(game, LifeTraceType.RED, P1, 'seq');
+      expect(res.updatedGame.board.alienBoards[0].lifeTraces.find(t => t.playerId === P1)?.location).toBe(LifeTraceLocation.TRIANGLE);
+      expect(res.updatedGame.board.alienBoards[1].lifeTraces.some(t => t.playerId === P1)).toBe(false);
+    });
+
+    test("Oumuamua sans tokens : la trace prend un autre emplacement libre de la piste, pas le triangle (régression)", () => {
+      game.board.alienBoards[0].lifeTraces = [{ id: 't', type: LifeTraceType.RED, playerId: P2, location: LifeTraceLocation.TRIANGLE }];
+      game.board.alienBoards[1].speciesId = AlienBoardType.OUMUAMUA;
+      game.board.alienBoards[1].isDiscovered = true;
+      getPlayer(game, P1).tokens = 0;
+      const res = SpeciesSystem.placeLifeTraceAuto(game, LifeTraceType.RED, P1, 'seq');
+      const trace = res.updatedGame.board.alienBoards[1].lifeTraces.find(t => t.playerId === P1);
+      expect(trace).toMatchObject({ location: LifeTraceLocation.SPECIES, slotIndex: 1 });
+    });
+
+    test('tous les emplacements libres de la piste sont proposés, dans n\'importe quel ordre', () => {
+      const board = game.board.alienBoards[1];
+      board.speciesId = AlienBoardType.OUMUAMUA;
+      board.isDiscovered = true;
+      board.lifeTraces = [{ id: 't', type: LifeTraceType.RED, playerId: P2, location: LifeTraceLocation.SPECIES, slotIndex: 1 }];
+      // 4 emplacements fixes (le 1 est pris), puis l'emplacement infini
+      expect(SpeciesSystem.freeSpeciesSlotIndices(game, 1, LifeTraceType.RED)).toEqual([0, 2, 3, 4]);
+    });
+
+    test("robot stratégique : l'emplacement est choisi par évaluation, sans modifier la partie reçue", () => {
+      const medium = getPlayer(game, P1);
+      medium.type = 'robot';
+      medium.aiDifficulty = 'MEDIUM';
+      game.board.alienBoards[1].speciesId = AlienBoardType.MASCAMITES;
+      game.board.alienBoards[1].isDiscovered = true;
+      const snapshot = JSON.stringify(game);
+      const res = AIController.processInteractionQueue(game, [{ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.RED }], 'seq', medium);
+      expect(getPlayer(res.updatedGame, P1).lifeTraces).toHaveLength(1);
+      expect(JSON.stringify(game)).toBe(snapshot);
     });
 
     test("sans espèce découverte, la trace va sur un triangle où sa couleur manque", () => {
