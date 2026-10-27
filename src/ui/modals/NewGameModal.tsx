@@ -48,9 +48,9 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({ visible, onConfirm, 
                 <input type="radio" checked={difficulty === 'MEDIUM'} onChange={() => setDifficulty('MEDIUM')} /> 
                 Intermédiaire
             </label>
-            <label className="seti-radio-label disabled">
-                <input type="radio" checked={difficulty === 'EXPERT'} disabled /> 
-                Expert (Bientôt)
+            <label className={`seti-radio-label ${difficulty === 'EXPERT' ? 'selected' : ''}`}>
+                <input type="radio" checked={difficulty === 'EXPERT'} onChange={() => setDifficulty('EXPERT')} /> 
+                Expert
             </label>
           </div>
         </div>

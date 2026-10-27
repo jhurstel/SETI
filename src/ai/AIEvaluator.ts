@@ -1,4 +1,5 @@
 import { Game, Player, ProbeState, DiskName, SectorNumber } from '../core/types';
+import { ScoreManager } from '../core/ScoreManager';
 import { createRotationState, getAbsoluteSectorForProbe, getAllCells, calculateReachableCells, RotationState } from '../core/SolarSystemPosition';
 
 /** Nombre maximal de déplacements explorés pour estimer la distance d'une sonde à une planète */
@@ -35,6 +36,13 @@ const WEIGHTS = {
 };
 
 /**
+ * Robot Expert : part des points du décompte final déjà acquis (tuiles objectif, cartes Fin de partie,
+ * cartes Exertiens) comptée dans sa position. Pleine pendant la dernière manche, partielle avant :
+ * ce n'est qu'une projection, que l'adversaire peut encore faire évoluer.
+ */
+const EXPERT_END_GAME_WEIGHT = { lastRound: 1, before: 0.6 };
+
+/**
  * Évaluation heuristique d'une position du point de vue d'un joueur.
  * Pure et sans effet de bord : sert à comparer les états obtenus en simulant chaque choix possible.
  */
@@ -51,6 +59,12 @@ export class AIEvaluator {
     value += futureFactor * this.resourceValue(player);
     value += futureFactor * this.boardValue(game, player);
     value += remainingRounds * WEIGHTS.incomePerRound * (player.revenueCredits * WEIGHTS.credit + player.revenueEnergy * WEIGHTS.energy + player.revenueCards * WEIGHTS.card);
+
+    // Le décompte final se calcule une seule fois, en fin de partie : l'Expert l'anticipe
+    if (player.aiDifficulty === 'EXPERT' && !game.finalScores) {
+      const weight = remainingRounds >= 1 ? EXPERT_END_GAME_WEIGHT.before : EXPERT_END_GAME_WEIGHT.lastRound;
+      value += weight * ScoreManager.calculateFinalScore(game, playerId).total;
+    }
     return value;
   }
 

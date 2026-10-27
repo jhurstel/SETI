@@ -8,6 +8,7 @@ import { ScanSystem } from '../src/systems/ScanSystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { AIEvaluator } from '../src/ai/AIEvaluator';
 import { AIBehavior } from '../src/ai/AIBehavior';
+import { ScoreManager } from '../src/core/ScoreManager';
 import { createRotationState, getAbsoluteSectorForProbe } from '../src/core/SolarSystemPosition';
 import { AIDifficulty, Game, GamePhase, LifeTraceType } from '../src/core/types';
 import { giveCard, makeCard, mockFetchFromPublic } from './helpers/gameFixture';
@@ -182,6 +183,23 @@ describe('AITurn (parties complètes entre robots)', () => {
     if (step.kind !== 'UPDATED') return;
     expect(step.updatedGame.players.find(p => p.id === player.id)!.hasPerformedMainAction).toBe(true);
     expect(AIEvaluator.evaluate(step.updatedGame, player.id)).toBeGreaterThan(before);
+  });
+
+  test("un robot expert compte dans sa position une part des points du décompte final (60 % avant la dernière manche)", async () => {
+    const game = await createRobotGame(['R1', 'R2'], ['EXPERT', 'MEDIUM']);
+    const [expert, medium] = game.players;
+    const finalSpy = jest.spyOn(ScoreManager, 'calculateFinalScore').mockReturnValue({ missionEndGame: 4, objectiveTiles: 6, speciesBonuses: 0, exertienCards: 0, total: 10 });
+
+    const withProjection = AIEvaluator.evaluate(game, expert.id);
+    expert.aiDifficulty = 'MEDIUM';
+    const withoutProjection = AIEvaluator.evaluate(game, expert.id);
+    const mediumValue = AIEvaluator.evaluate(game, medium.id);
+    const calls = finalSpy.mock.calls.length;
+    finalSpy.mockRestore();
+
+    expect(withProjection - withoutProjection).toBeCloseTo(6);
+    expect(calls).toBe(1); // l'Intermédiaire n'anticipe pas le décompte final
+    expect(mediumValue).toBeGreaterThan(0);
   });
 
   test('tirages comparés pour les choix aléatoires : 2 pour le débutant, 4 pour un robot stratégique', async () => {
