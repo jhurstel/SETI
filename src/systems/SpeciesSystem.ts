@@ -1,6 +1,6 @@
 import { effectNumber } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
-import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode, LifeTraceLocation, Player, CentaurienMarker } from '../core/types';
+import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode, LifeTraceLocation, Player, CentaurienMarker, Species } from '../core/types';
 import { ResourceSystem } from './ResourceSystem';
 import { getObjectPosition } from '../core/SolarSystemPosition';
 import { CardSystem } from './CardSystem';
@@ -140,6 +140,17 @@ export class SpeciesSystem {
      * Emplacements libres d'une couleur sur la piste d'une espèce découverte : chaque emplacement fixe libre,
      * puis le prochain de l'emplacement infini (qui s'empile).
      */
+    /**
+     * L'espèce a-t-elle des emplacements infinis (au-delà des emplacements fixes) pour cette couleur ?
+     * Mascamites et Exertiens n'en ont pas (emplacement infini défini vide) : une fois la piste pleine,
+     * les traces vont sur les emplacements excédentaires du plateau.
+     */
+    static hasInfiniteSlot(species: Species, color: LifeTraceType): boolean {
+        const slot = color === LifeTraceType.RED ? species.infiniteSlots.redlifetrace
+            : color === LifeTraceType.YELLOW ? species.infiniteSlots.yellowlifetrace : species.infiniteSlots.bluelifetrace;
+        return Object.keys(slot).length > 0;
+    }
+
     static freeSpeciesSlotIndices(game: Game, boardIndex: number, color: LifeTraceType): number[] {
         const board = game.board.alienBoards[boardIndex];
         const species = game.species.find(s => s.name === board.speciesId);
@@ -148,6 +159,7 @@ export class SpeciesSystem {
             : color === LifeTraceType.YELLOW ? species.fixedSlots.yellowlifetrace : species.fixedSlots.bluelifetrace;
         const taken = new Set(board.lifeTraces.filter(t => t.type === color && t.location === LifeTraceLocation.SPECIES).map(t => t.slotIndex));
         const free = fixed.map((_, i) => i).filter(i => !taken.has(i));
+        if (!this.hasInfiniteSlot(species, color)) return free;
         let infiniteIndex = fixed.length;
         while (taken.has(infiniteIndex)) infiniteIndex++;
         return [...free, infiniteIndex];

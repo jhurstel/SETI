@@ -297,6 +297,25 @@ describe('CardSystem', () => {
       expect(SpeciesSystem.freeSpeciesSlotIndices(game, 1, LifeTraceType.RED)).toEqual([0, 2, 3, 4]);
     });
 
+    test("Exertiens : pas d'emplacement infini, une piste pleine envoie la trace sur un emplacement excédentaire", () => {
+      const board = game.board.alienBoards[1];
+      board.speciesId = AlienBoardType.EXERTIENS;
+      board.isDiscovered = true;
+      board.lifeTraces = [{ id: 't', type: LifeTraceType.RED, playerId: P2, location: LifeTraceLocation.SPECIES, slotIndex: 1 }];
+      expect(SpeciesSystem.freeSpeciesSlotIndices(game, 1, LifeTraceType.RED)).toEqual([0, 2, 3, 4]);
+
+      // Piste rouge pleine (5 emplacements fixes) : plus aucun emplacement d'espèce
+      board.lifeTraces = [0, 1, 2, 3, 4].map(i => ({ id: `t${i}`, type: LifeTraceType.RED, playerId: P2, location: LifeTraceLocation.SPECIES, slotIndex: i }));
+      expect(SpeciesSystem.freeSpeciesSlotIndices(game, 1, LifeTraceType.RED)).toEqual([]);
+      game.board.alienBoards[0].lifeTraces = [{ id: 'a', type: LifeTraceType.RED, playerId: P2, location: LifeTraceLocation.TRIANGLE }];
+      const before = JSON.stringify(game);
+      const res = SpeciesSystem.placeLifeTraceAuto(game, LifeTraceType.RED, P1, 'seq');
+      const placed = res.updatedGame.board.alienBoards.flatMap(b => b.lifeTraces).filter(t => t.playerId === P1);
+      expect(placed).toHaveLength(1);
+      expect(placed[0].location).not.toBe(LifeTraceLocation.SPECIES);
+      expect(JSON.stringify(game)).toBe(before);
+    });
+
     test.each(['EASY', 'MEDIUM'] as const)("robot %s : l'emplacement est choisi par évaluation, sans modifier la partie reçue", (level) => {
       const medium = getPlayer(game, P1);
       medium.type = 'robot';

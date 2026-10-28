@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType, LifeTrace } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
+import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
 import { Tooltip } from './Tooltip';
@@ -407,10 +408,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
             infiniteSlot = species.infiniteSlots.bluelifetrace;
         }
 
-        // Exertiens : les emplacements portent un danger, regroupés en zones (les emplacements excédentaires sont la zone 0)
-        const hasDangerZones = fixedSlots.some(slot => slot.danger !== undefined);
-
-        const infiniteSlots = !isMascamites && (
+        // Emplacements infinis au-dessus de la piste (pas pour les Mascamites ni les Exertiens)
+        const infiniteSlots = SpeciesSystem.hasInfiniteSlot(species, type) && (
                 <div className="alien-infinite-slot">
                     <div
                         className="alien-infinite-corridor-container"
@@ -431,12 +430,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
 
         return (
             <div className="alien-track-column">
-                {hasDangerZones ? (
-                    <div className="alien-danger-zone">
-                        {type === LifeTraceType.RED && <span className="alien-danger-zone-label">☣ 0</span>}
-                        {infiniteSlots}
-                    </div>
-                ) : infiniteSlots}
+                {infiniteSlots}
                 {isMascamites && type === LifeTraceType.BLUE && fixedSlots.length > MASCAMITE_BLUE_COLUMN ? (
                     <>
                         {/* Les jetons du haut en triangle (base à droite, pointe vers la gauche) pour garder la hauteur des autres plateaux */}
@@ -459,7 +453,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                         : (
                             // Exertiens : emplacements regroupés par zone de danger ; la première colonne dessine le trait
                             // pointillé au-dessus de la zone (de part et d'autre des slots) et le label de la zone
-                            <div key={`zone-${zoneIndex}`} className={`alien-danger-zone ${type === LifeTraceType.RED ? 'with-line' : ''}`}>
+                            <div key={`zone-${zoneIndex}`} className={`alien-danger-zone ${zoneIndex > 0 && type === LifeTraceType.RED ? 'with-line' : ''}`}>
                                 {type === LifeTraceType.RED && <span className="alien-danger-zone-label">☣ {zone.danger}</span>}
                                 {zone.indices.map(index => renderBoardSlot(type, index, fixedSlots[index], false, fixedSlots.length))}
                             </div>
