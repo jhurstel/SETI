@@ -38,8 +38,6 @@ export type AIStep =
 /** humanInteractions : interactions destinées à un joueur humain, à confier à l'interface. */
 type StepResult = { updatedGame: Game; historyEntries: HistoryEntry[]; humanInteractions?: InteractionState[] };
 
-/** Gain minimal (en équivalent PV) pour qu'un robot stratégique joue une action gratuite facultative */
-const FREE_ACTION_MIN_GAIN = 0.2;
 /** Gain minimal pour qu'un robot stratégique joue une action principale plutôt que de passer */
 const MAIN_ACTION_MIN_GAIN = 0;
 /** Le robot Débutant tire son action principale au hasard parmi ses meilleures options */
@@ -313,7 +311,7 @@ export class AITurn {
       ...this.buyCardOptions(game, player),
       ...this.discardForFreeActionOptions(game, player),
     ];
-    return this.pickBest(candidates, player.id, baseline + FREE_ACTION_MIN_GAIN);
+    return this.pickBest(candidates, player.id, baseline + AIEvaluator.weightsFor(player.id).freeActionMinGain);
   }
 
   /** Meilleur résultat dont l'évaluation dépasse le seuil, ou null */

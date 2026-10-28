@@ -11,45 +11,49 @@ const distanceCache = new Map<string, number>();
 /**
  * Poids de la fonction d'évaluation (en équivalent points de victoire).
  * Les ressources et le potentiel perdent leur valeur à mesure que la partie avance.
- * Réglés par parties entre robots Experts (SPSA, 12 itérations de 48 parties) : contre les poids
- * précédents, 57 victoires sur 96 et environ +10 PV en moyenne.
+ * Réglés ensemble par parties entre robots Experts (SPSA, 30 itérations de 48 parties à 2 et 3 joueurs) :
+ * contre les poids précédents, 60 victoires sur 96 et environ +9 PV en moyenne (± 3,9).
  */
 export const DEFAULT_WEIGHTS = {
-  credit: 0.86,
-  energy: 0.54,
-  media: 0.45,
-  data: 0.52,
-  card: 0.65,
+  credit: 0.96,
+  energy: 0.82,
+  media: 0.41,
+  data: 0.45,
+  card: 0.54,
   maxUsefulCards: 6,
-  computerSlot: 0.5,
-  signal: 0.5,
-  lifeTrace: 1.45,
-  technology: 2.31,
-  probeInSystem: 1.17,
-  probeOnPlanet: 4.33,
-  probeStep: 0.42,
-  capsule: 1.42,
-  capsuleAtDestination: 4.08,
-  capsuleStep: 0.49,
-  orbiter: 3.79,
-  lander: 4.95,
-  openMission: 1.24,
-  playedCard: 0.91,
-  incomePerRound: 1.09,
+  computerSlot: 0.44,
+  signal: 0.36,
+  lifeTrace: 1.93,
+  technology: 2.11,
+  probeInSystem: 1.48,
+  probeOnPlanet: 3.71,
+  probeStep: 0.72,
+  capsule: 1.86,
+  capsuleAtDestination: 2.8,
+  capsuleStep: 0.75,
+  orbiter: 3.75,
+  lander: 4.28,
+  openMission: 0.95,
+  playedCard: 0.67,
+  incomePerRound: 1.38,
   // 1re trace d'une couleur sur une espèce non découverte : carte Alien reçue à la découverte,
   // d'autant plus probable que les 3 couleurs sont déjà présentes
-  discoveryClaim: 2.5,
+  discoveryClaim: 3.2,
   // Carte Alien en main : plus forte qu'une carte normale (en plus de la valeur d'une carte)
-  alienCard: 0.8,
+  alienCard: 0.99,
   // Secteur où le joueur a la majorité : part du bonus de couverture (PV, traces de vie) comptée,
   // multipliée par le remplissage du secteur (un secteur presque plein sera bientôt couvert)
-  sectorLead: 0.6,
+  sectorLead: 0.64,
   // Valeur en PV d'une trace de vie gagnée en couvrant un secteur (pour estimer son bonus)
-  sectorLifeTraceValue: 4,
+  sectorLifeTraceValue: 2.66,
   // Robot Expert : part des points du décompte final déjà acquis (tuiles objectif, cartes Fin de partie,
   // cartes Exertiens), partielle avant la dernière manche : ce n'est qu'une projection
-  endGameBefore: 0.38,
+  endGameBefore: 0.19,
   endGameLastRound: 1,
+  // Pendant la dernière manche, les ressources et le potentiel ne valent plus que cette part
+  lastRoundFactor: 0.27,
+  // Gain minimal (en PV) pour qu'un robot stratégique joue une action gratuite facultative
+  freeActionMinGain: 0.22,
 };
 
 export type EvaluatorWeights = typeof DEFAULT_WEIGHTS;
@@ -65,14 +69,19 @@ export class AIEvaluator {
    */
   static weightOverrides = new Map<string, EvaluatorWeights>();
 
+  /** Poids utilisés pour un joueur : les siens s'il en a reçu (réglage), sinon DEFAULT_WEIGHTS */
+  static weightsFor(playerId: string): EvaluatorWeights {
+    return this.weightOverrides.get(playerId) ?? DEFAULT_WEIGHTS;
+  }
+
   static evaluate(game: Game, playerId: string): number {
     const player = game.players.find(p => p.id === playerId);
     if (!player) return 0;
-    const w = this.weightOverrides.get(playerId) ?? DEFAULT_WEIGHTS;
+    const w = this.weightsFor(playerId);
 
     // Valeur du potentiel : pleine jusqu'à l'avant-dernière manche, réduite pendant la dernière
     const remainingRounds = Math.max(0, game.maxRounds - game.currentRound);
-    const futureFactor = remainingRounds >= 1 ? 1 : 0.3;
+    const futureFactor = remainingRounds >= 1 ? 1 : w.lastRoundFactor;
 
     let value = player.score;
     value += futureFactor * this.resourceValue(player, w);
