@@ -95,15 +95,9 @@
 }
 
 /* Statut des manches */
-/* Panneau replié : seule l'icône trophée reste visible (le badge revient au survol, comme le titre) */
-.seti-icon-panel.collapsed .seti-round-badge { display: none; }
-.seti-icon-panel.collapsed:hover .seti-round-badge { display: inline; }
-.seti-round-badge {
-    margin-left: auto;
-    margin-right: 8px;
-    font-size: 0.75rem;
-    color: #ffd700;
-    white-space: nowrap;
+.seti-round-label {
+    color: #ccc;
+    font-weight: bold;
 }
 .seti-round-status {
     display: flex;

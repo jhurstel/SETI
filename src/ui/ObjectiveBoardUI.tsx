@@ -40,11 +40,11 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
             <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
                 <span className="panel-icon">🏆</span>
                 <span className="panel-title">Objectifs</span>
-                <span className="seti-round-badge">Manche {Math.min(game.currentRound, game.maxRounds)} / {game.maxRounds}</span>
             </div>
             <div className="seti-foldable-content">
                 {/* Statut des manches et des joueurs qui ont passé */}
                 <div className="seti-round-status">
+                    <span className="seti-round-label">Manche</span>
                     {Array.from({ length: game.maxRounds }, (_, i) => i + 1).map(round => {
                         const status = round < game.currentRound || game.phase === GamePhase.FINAL_SCORING ? 'done' : round === game.currentRound ? 'current' : 'upcoming';
                         return <span key={round} className={`seti-round-pill ${status}`}>{round}</span>;
