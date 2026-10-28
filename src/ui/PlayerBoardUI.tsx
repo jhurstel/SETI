@@ -477,11 +477,12 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   // Helper pour les boutons d'action (factorisé)
   const renderActionButton = React.useCallback((
     icon: string,
-    tooltip: string,
+    tooltip: React.ReactNode,
     onClick: (e: React.MouseEvent) => void,
     disabled: boolean,
     color: string = '#fff',
-    style: React.CSSProperties = {}
+    style: React.CSSProperties = {},
+    extraClassName: string = ''
   ) => {
     return (
       <button
@@ -489,7 +490,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
           e.stopPropagation();
           if (!disabled) onClick(e);
         }}
-        className="seti-action-btn"
+        className={`seti-action-btn ${extraClassName}`}
         aria-disabled={disabled}
         style={{
           color: !disabled ? color : '#555',
@@ -648,6 +649,11 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   <span>Média (<span style={{color: '#ff6b6b'}}>🎤</span>):</span>
                   <div className="seti-resource-badge-content">
                   {renderBuyCardButton('🛒', 'Acheter 1 carte de la pioche ou de la rangée principale (cout: 3 Médias)')}
+                  {/* Action principale « Rechercher une technologie » (payée en Médias), en surbrillance quand elle est possible */}
+                  {!isRobot && (() => {
+                    const canResearch = actionAvailability[ActionType.RESEARCH_TECH] && !isInteractiveMode;
+                    return renderActionButton('🔬', getActionTooltip(ActionType.RESEARCH_TECH, canResearch), () => onAction(ActionType.RESEARCH_TECH), !canResearch, '#4a9eff', { marginLeft: '4px' }, canResearch ? 'seti-flash-green' : '');
+                  })()}
                   <strong style={{ marginLeft: '6px' }}>{currentPlayer.mediaCoverage}</strong>
                   </div>
                 </div>
