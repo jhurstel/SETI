@@ -339,9 +339,10 @@
     width: calc(100% + 200cqw / 3 + 12px);
     border-top: 1px dashed rgba(255, 107, 107, 0.6);
 }
-/* Première zone, sous les emplacements excédentaires (écart de 8px dans la colonne) */
-.alien-danger-zone.with-line.below-infinite::before {
-    top: -4px;
+/* Emplacements excédentaires (zone 0) : même écart de 15px que entre deux emplacements fixes
+   (écart de colonne de 8px + 18px de marge sous le dernier emplacement excédentaire - 11px) */
+.alien-danger-zone + .alien-fixed-slots-container {
+    margin-top: -11px;
 }
 /* Label à gauche de la zone, centré dessus */
 .alien-danger-zone-label {

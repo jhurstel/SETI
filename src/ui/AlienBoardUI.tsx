@@ -459,7 +459,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                         : (
                             // Exertiens : emplacements regroupés par zone de danger ; la première colonne dessine le trait
                             // pointillé au-dessus de la zone (de part et d'autre des slots) et le label de la zone
-                            <div key={`zone-${zoneIndex}`} className={`alien-danger-zone ${type === LifeTraceType.RED ? 'with-line' : ''} ${zoneIndex === 0 ? 'below-infinite' : ''}`}>
+                            <div key={`zone-${zoneIndex}`} className={`alien-danger-zone ${type === LifeTraceType.RED ? 'with-line' : ''}`}>
                                 {type === LifeTraceType.RED && <span className="alien-danger-zone-label">☣ {zone.danger}</span>}
                                 {zone.indices.map(index => renderBoardSlot(type, index, fixedSlots[index], false, fixedSlots.length))}
                             </div>
