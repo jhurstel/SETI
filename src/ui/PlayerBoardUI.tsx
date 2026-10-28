@@ -118,7 +118,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
       <div className="obs-track-connector" />
       {renderSlot('☿️', stepTooltip('Signal dans le secteur de Mercure', 'Observation II', hasObs2, '1 Média'), false, undefined, true, hasObs2)}
       <div className="obs-track-connector" />
-      {renderSlot('🗑️', stepTooltip("Signal dans le secteur d'une carte de la main", 'Observation III', hasObs3, 'défausse de la carte'), false, undefined, true, hasObs3)}
+      {renderSlot('🗑️', stepTooltip("Signal dans le secteur d'une carte de la main", 'Observation III', hasObs3, '1 carte'), false, undefined, true, hasObs3)}
       <div className="obs-track-connector" />
       {renderSlot('?', stepTooltip('Lancer une sonde (coût : 1 Énergie) ou Gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, true, hasObs4)}
     </div>
