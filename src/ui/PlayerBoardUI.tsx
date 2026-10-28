@@ -98,7 +98,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
 
   // Étape du scan : disponible si la technologie requise est acquise (ou sans technologie) ; coût éventuel en fin de 3e ligne
   const stepTooltip = (bonus: string, requiredTech: string | null, acquired: boolean, cost?: string) => {
-    const costSuffix = cost ? ` (${cost})` : '';
+    const costSuffix = cost ? ` (coût : ${cost})` : '';
     return acquired
       ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} value={bonus} note={`${requiredTech ? 'Proposé à chaque scan' : 'Effectué à chaque scan'}${costSuffix}`} />
       : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} value={bonus} note={`Nécessite la technologie ${requiredTech}${costSuffix}`} />;
@@ -120,7 +120,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
       <div className="obs-track-connector" />
       {renderSlot('🗑️', stepTooltip("Signal dans le secteur d'une carte de la main", 'Observation III', hasObs3, 'défausse de la carte'), false, undefined, true, hasObs3)}
       <div className="obs-track-connector" />
-      {renderSlot('?', stepTooltip('Lancer une sonde (1 Énergie) ou Gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, true, hasObs4)}
+      {renderSlot('?', stepTooltip('Lancer une sonde (coût : 1 Énergie) ou Gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, true, hasObs4)}
     </div>
   );
 };
