@@ -968,21 +968,14 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             }}
           />
         )}
+        {/* Même anneau vert pulsé que les slots de signaux */}
         {canInteract && (
-          <>
-            <div className="seti-planet-interaction-base"
-              style={{
-                width: `${size + 12}px`,
-                height: `${size + 12}px`,
-              }}
-            />
-            <div className="seti-planet-interaction-glow"
-              style={{
-                width: `${size + 12}px`,
-                height: `${size + 12}px`,
-              }}
-            />
-          </>
+          <div className="seti-planet-interaction-ring seti-flash-green-ring"
+            style={{
+              width: `${size + 10}px`,
+              height: `${size + 10}px`,
+            }}
+          />
         )}
         {obj.id === 'oumuamua' ? (
           <div className="seti-planet-body"

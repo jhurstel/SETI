@@ -10,6 +10,10 @@
     justify-items: center;
 }
 
+.planet-icon-wrapper.seti-flash-green {
+    border-radius: 50%;
+}
+
 .planet-icon-wrapper {
     display: flex;
     flex-direction: column;

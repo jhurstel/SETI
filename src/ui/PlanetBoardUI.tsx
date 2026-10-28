@@ -294,6 +294,8 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
     const canOrbitOrLand = actingPlayer.type === 'human' && !actingPlayer.hasPerformedMainAction && interactionState.type === 'IDLE'
         && actingPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM
             && (ProbeSystem.canOrbit(game, actingPlayer.id, p.id).canOrbit || ProbeSystem.canLand(game, actingPlayer.id, p.id).canLand));
+    // Planète concernée (celle où se trouve la sonde), mise en surbrillance dans le panneau
+    const actionPlanetId = canOrbitOrLand ? ProbeSystem.probeOnPlanetInfo(game, actingPlayer.id).planetId : null;
 
     return (
         <div 
@@ -311,7 +313,7 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
                     {planets.map(planet => (
                         <div 
                             key={planet.id} 
-                            className="planet-icon-wrapper"
+                            className={`planet-icon-wrapper ${planet.id === actionPlanetId ? 'seti-flash-green' : ''}`}
                             onMouseEnter={(e) => handleMouseEnter(e, planet)}
                             onMouseLeave={handleMouseLeave}
                         >

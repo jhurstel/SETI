@@ -151,6 +151,17 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   animation: seti-flash-green-icon 1.6s ease-in-out infinite;
   display: inline-block;
 }
+/* Anneau HTML, identique à l'anneau SVG des slots (planètes du plateau) */
+@keyframes seti-flash-green-ring {
+  /* Épaisseurs équivalentes au trait SVG des slots (0,5 → 1,1 unité, soit environ 1,5 → 3,5 px) */
+  0%, 100% { border-width: 1.5px; border-color: rgba(76, 175, 80, 0.45); }
+  50% { border-width: 3.5px; border-color: rgba(76, 175, 80, 1); }
+}
+.seti-flash-green-ring {
+  border: 1px solid #4caf50;
+  box-sizing: border-box;
+  animation: seti-flash-green-ring 1.6s ease-in-out infinite;
+}
 /* Anneau SVG (slots de signaux) */
 @keyframes seti-flash-green-svg {
   0%, 100% { stroke-opacity: 0.45; stroke-width: 0.5px; }

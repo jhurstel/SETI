@@ -330,23 +330,38 @@
     align-items: center;
     gap: 15px; /* même écart que .alien-fixed-slots-container */
 }
-.alien-danger-zone:not(.first)::before {
+.alien-danger-zone.with-line::before {
     content: '';
     position: absolute;
     top: -8px;
-    left: -45px;
-    right: -45px;
+    left: 0;
+    /* du bord gauche du slot de la 1re colonne au bord droit du slot de la 3e (colonnes réparties en 1/6, 1/2, 5/6) */
+    width: calc(100% + 200cqw / 3);
     border-top: 1px dashed rgba(255, 107, 107, 0.6);
 }
+/* Label vertical, à gauche de la zone et centré dessus (évite de déborder du plateau) */
 .alien-danger-zone-label {
     position: absolute;
     top: 50%;
-    right: calc(100% + 4px);
-    transform: translateY(-50%);
+    right: calc(100% + 3px);
+    transform: translateY(-50%) rotate(180deg);
+    writing-mode: vertical-rl;
     font-size: 0.6rem;
     line-height: 1;
     color: #ff6b6b;
     white-space: nowrap;
+}
+
+/* Infobulle du danger : cartes réduites, non cliquables ; détail de la carte survolée sous la liste */
+.alien-danger-card {
+    zoom: 0.7;
+    cursor: help;
+}
+.alien-danger-card-detail {
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid #555;
+    max-width: 340px;
 }
 
 /* Cartes de la rangée d'une espèce : contenu des cartes des joueurs (120 × 160) réduit à 100 × 133 */
@@ -407,4 +422,10 @@
     display: flex;
     flex-direction: column;
     gap: 15px; /* même écart que .alien-fixed-slots-container */
+}
+
+/* Icônes d'information de l'espèce (danger Exertien, tokens Oumuamua) : infobulle seulement */
+.alien-exertien-danger,
+.alien-oumuamua-token {
+    cursor: help;
 }

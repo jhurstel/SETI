@@ -4,8 +4,6 @@ import { ResourceSystem } from '../systems/ResourceSystem';
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
 import './AlienBoardUI.css';
-import { HandCard } from './components/HandCard';
-import { Tooltip } from './Tooltip';
 
 interface AlienBoardUIProps {
     game: Game;
@@ -128,31 +126,16 @@ const SpeciesCardArea: React.FC<{
     );
 };
 
-// Nouveau composant pour le contenu de l'infobulle afin de gérer ses propres infobulles imbriquées
+// Contenu de l'infobulle du danger Exertien : cartes de chaque joueur sur une ligne, détail de la carte survolée dans le même cadre
 const ExertienDangerTooltip: React.FC<{
     game: Game;
     onEnter: () => void;
     onLeave: () => void;
 }> = ({ game, onEnter, onLeave }) => {
-    const [cardTooltip, setCardTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
-    const cardHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    const handleCardHover = (e: React.MouseEvent, content: React.ReactNode) => {
-        if (cardHoverTimeoutRef.current) {
-            clearTimeout(cardHoverTimeoutRef.current);
-        }
-        const rect = e.currentTarget.getBoundingClientRect();
-        setCardTooltip({ content, rect });
-    };
-
-    const handleCardLeave = () => {
-        cardHoverTimeoutRef.current = setTimeout(() => {
-            setCardTooltip(null);
-        }, 100);
-    };
+    const [hoveredCard, setHoveredCard] = useState<Card | null>(null);
 
     return (
-        <div 
+        <div
             className="seti-tooltip-wide"
             style={{ textAlign: 'left', minWidth: '250px' }}
             onMouseEnter={onEnter}
@@ -170,7 +153,12 @@ const ExertienDangerTooltip: React.FC<{
                         {exertienCards.length > 0 ? (
                             <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '5px', marginTop: '8px' }}>
                                 {exertienCards.map(card => (
-                                    <HandCard key={card.id} card={card} game={game} currentPlayerId={p.id} interactionState={{ type: 'IDLE' }} highlightedCardId={null} setHighlightedCardId={() => {}} onCardClick={() => {}} onPlayCard={() => {}} onDiscardCardAction={() => {}} handleTooltipHover={handleCardHover} handleTooltipLeave={handleCardLeave} renderActionButton={() => null} disableGrayOut={true} />
+                                    <div key={card.id} className="seti-common-card alien-danger-card"
+                                        onMouseEnter={() => setHoveredCard(card)}
+                                        onMouseLeave={() => setHoveredCard(null)}
+                                    >
+                                        <CardContent card={card} highlightedAttribute="freeAction" />
+                                    </div>
                                 ))}
                             </div>
                         ) : (
@@ -179,15 +167,7 @@ const ExertienDangerTooltip: React.FC<{
                     </div>
                 );
             })}
-            {cardTooltip && (
-                <Tooltip 
-                    content={cardTooltip.content} 
-                    targetRect={cardTooltip.rect}
-                    pointerEvents="auto"
-                    onMouseEnter={() => { if (cardHoverTimeoutRef.current) clearTimeout(cardHoverTimeoutRef.current); }}
-                    onMouseLeave={handleCardLeave}
-                />
-            )}
+            {hoveredCard && <div className="alien-danger-card-detail"><CardTooltip card={hoveredCard} /></div>}
         </div>
     );
 };
@@ -465,9 +445,9 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                     {dangerZones(fixedSlots).map((zone, zoneIndex) => zone.danger === undefined
                         ? zone.indices.map(index => renderBoardSlot(type, index, fixedSlots[index], false, fixedSlots.length))
                         : (
-                            // Exertiens : emplacements regroupés par zone de danger, séparées par un trait pointillé ;
-                            // le label de la zone est à gauche de la première colonne
-                            <div key={`zone-${zoneIndex}`} className={`alien-danger-zone ${zoneIndex === 0 ? 'first' : ''}`}>
+                            // Exertiens : emplacements regroupés par zone de danger ; la première colonne dessine le trait
+                            // pointillé (du slot de gauche au slot de droite) et le label vertical de la zone
+                            <div key={`zone-${zoneIndex}`} className={`alien-danger-zone ${zoneIndex > 0 && type === LifeTraceType.RED ? 'with-line' : ''}`}>
                                 {type === LifeTraceType.RED && <span className="alien-danger-zone-label">☣ {zone.danger}</span>}
                                 {zone.indices.map(index => renderBoardSlot(type, index, fixedSlots[index], false, fixedSlots.length))}
                             </div>

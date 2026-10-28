@@ -51,13 +51,21 @@ export const CardTooltip: React.FC<{ card: Card, hideIntro?: boolean, hideStats?
         <CardDescription description={card.description} type={card.type} hideIntro={hideIntro} />
       </div>
       {!hideStats && (
-        <div className="seti-card-tooltip-stats">
-          <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ' ₢'}</span></div>
-          <div>Type: {card.type} ({card.id})</div>
-          <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
-          <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
-          <div>Scan: <span style={{ color: `${SECTOR_STYLES[card.scanSector]?.color || '#fff'}` }}>{card.scanSector}</span></div>
-        </div>
+        card.type === CardType.EXERTIEN ? (
+          // Carte Exertien : ni coût, ni action, ni revenu, ni scan ; seul son danger compte
+          <div className="seti-card-tooltip-stats">
+            <div>Danger: <span style={{ color: '#ff6b6b', fontWeight: 'bold' }}>{card.danger ?? 0}</span></div>
+            <div>Type: {card.type} ({card.id})</div>
+          </div>
+        ) : (
+          <div className="seti-card-tooltip-stats">
+            <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ' ₢'}</span></div>
+            <div>Type: {card.type} ({card.id})</div>
+            <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
+            <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
+            <div>Scan: <span style={{ color: `${SECTOR_STYLES[card.scanSector]?.color || '#fff'}` }}>{card.scanSector}</span></div>
+          </div>
+        )
       )}
     </div>
   );
