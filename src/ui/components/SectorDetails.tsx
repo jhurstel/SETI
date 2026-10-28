@@ -1,7 +1,7 @@
 import React from 'react';
 import { SlotTooltip } from './SlotTooltip';
 import { SLOT_COLORS } from '../styles/slotColors';
-import { Game, InteractionState, SignalType, GAME_CONSTANTS } from '../../core/types';
+import { Game, InteractionState, SignalType, GAME_CONSTANTS, Sector, Player } from '../../core/types';
 import { describeArc, polarToCartesian } from '../../core/SolarSystemPosition';
 import { ResourceSystem } from '../../systems/ResourceSystem';
 import { SvgBonus } from './SvgBonus';
@@ -14,6 +14,30 @@ interface SectorDetailsProps {
   onSectorClick: (sectorId: string) => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
+
+/**
+ * Infobulle d'un secteur, au format des emplacements (centrée) : nom à la couleur du secteur, gains de couverture
+ * en doré, puis les joueurs qui l'ont couvert.
+ */
+export const SectorTooltip: React.FC<{ sector: Sector, color: string, coveredBy: Player[], presenceGain: string }> = ({ sector, color, coveredBy, presenceGain }) => {
+  const first = (ResourceSystem.formatBonus(sector.firstBonus) || []).join(', ') || 'Aucun';
+  const next = (ResourceSystem.formatBonus(sector.nextBonus) || []).join(', ') || 'Aucun';
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <div style={{ fontWeight: 'bold', marginBottom: '4px', color }}>{sector.name}</div>
+      <div style={{ fontSize: '0.9em', color: '#ccc' }}>
+        {first === next ? <>Bonus de couverture : <span style={{ color: SLOT_COLORS.bonus }}>{first}</span></>
+          : <>1re couverture : <span style={{ color: SLOT_COLORS.bonus }}>{first}</span><br />Suivantes : <span style={{ color: SLOT_COLORS.bonus }}>{next}</span></>}
+      </div>
+      <div style={{ fontSize: '0.9em', color: '#ccc' }}>Présence : <span style={{ color: SLOT_COLORS.bonus }}>{presenceGain} par joueur</span></div>
+      <div style={{ fontSize: '0.8em', marginTop: '4px', fontStyle: 'italic', color: SLOT_COLORS.neutral }}>
+        {coveredBy.length > 0
+          ? <>Couvert par {coveredBy.map((p, i) => <React.Fragment key={p.id}>{i > 0 && ', '}<span style={{ color: p.color, fontWeight: 'bold' }}>{p.name}</span></React.Fragment>)}</>
+          : 'Pas encore couvert'}
+      </div>
+    </div>
+  );
+};
 
 export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionState, highlightedSectorSlots, onSectorClick, setActiveTooltip }) => {
   if (!game.board.sectors) return null;
@@ -53,39 +77,7 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
 
         const coveredByPlayers = (sector.coveredBy || []).map((pid: string) => game.players.find(p => p.id === pid)).filter(p => !!p);
 
-        // Préparation du tooltip Secteur
-        const mediaBonusText = "1 Média pour chaque joueur présent";
-        const firstBonusStr = (ResourceSystem.formatBonus(sector.firstBonus) || []).join(', ') || 'Aucun';
-        const nextBonusStr = (ResourceSystem.formatBonus(sector.nextBonus) || []).join(', ') || 'Aucun';
-
-        let bonusDisplay;
-        if (firstBonusStr === nextBonusStr) {
-          bonusDisplay = <div style={{ fontSize: '0.9em', color: '#ffd700' }}>Bonus de couverture : {firstBonusStr}</div>;
-        } else {
-          bonusDisplay = (
-            <div style={{ fontSize: '0.9em', color: '#ffd700' }}>
-              <div>1ère couverture : {firstBonusStr}</div>
-              <div>Suivantes : {nextBonusStr}</div>
-            </div>
-          );
-        }
-
-        const sectorTooltipContent = (
-          <div style={{ textAlign: 'left' }}>
-            <div style={{ fontWeight: 'bold', borderBottom: '1px solid #ccc', marginBottom: '4px', color: color }}>{sector.name.toUpperCase()}</div>
-            <div style={{ fontSize: '0.9em', marginBottom: '4px' }}>Gains à la couverture :</div>
-            <div style={{ fontSize: '0.9em', color: '#ff6b6b' }}>• {mediaBonusText}</div>
-            {bonusDisplay}
-            {coveredByPlayers.length > 0 && (
-              <div style={{ marginTop: '6px', paddingTop: '4px', borderTop: '1px solid #555' }}>
-                <div style={{ fontSize: '0.8em', color: '#aaa' }}>Couvert par :</div>
-                {coveredByPlayers.map(p => (
-                  <div key={p.id} style={{ color: p.color, fontWeight: 'bold', fontSize: '0.9em' }}>{p.name}</div>
-                ))}
-              </div>
-            )}
-          </div>
-        );
+        const sectorTooltipContent = <SectorTooltip sector={sector} color={color} coveredBy={coveredByPlayers} presenceGain="1 Média" />;
 
         // Couloir des slots (toujours sens horaire pour le dessin)
         const slotCount = sector.signals.length;

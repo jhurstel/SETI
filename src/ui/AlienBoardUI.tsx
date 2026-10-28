@@ -5,6 +5,7 @@ import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
 import { Tooltip } from './Tooltip';
+import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import './AlienBoardUI.css';
 
 interface AlienBoardUIProps {
@@ -205,6 +206,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     // L'infobulle du danger Exertien est hors du plateau : le plateau reste ouvert tant qu'elle est affichée
     const [isDangerTooltipOpen, setIsDangerTooltipOpen] = useState(false);
+    const panelRef = useRef<HTMLDivElement>(null);
+    useCloseOnOutsideClick(panelRef, !!isOpen, () => setIsOpen(false), !isPlacingTrace && !forceOpen);
 
     useEffect(() => {
         if (isPlacingTrace || forceOpen) {
@@ -466,7 +469,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
 
     return (
         <div className={`alien-board-container ${side}`}>
-            <div className={`seti-foldable-container seti-icon-panel alien-foldable-container ${isOpen || isDangerTooltipOpen ? 'open' : 'collapsed'}`}>
+            <div ref={panelRef} className={`seti-foldable-container seti-icon-panel alien-foldable-container ${isOpen || isDangerTooltipOpen ? 'open' : 'collapsed'}`}>
                 <div className="seti-foldable-content alien-foldable-content">
                     {board.isDiscovered && (
                         <div className="alien-species-header">

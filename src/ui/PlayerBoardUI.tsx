@@ -522,13 +522,26 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   }, [handleTooltipHover, handleTooltipLeave]);
 
   // Helper pour le bouton d'achat de carte
-  const renderBuyCardButton = (icon: string, tooltip: string) => {
+  // Infobulle d'un échange ou d'un achat (actions gratuites) : coût, puis gain ou raison du blocage
+  const CARD_GAIN = '1 carte (de la rangée ou de la pioche)';
+  const tradeTooltip = (cost: string, gain: string, canDo: boolean, lacking: string) => {
+    if (canDo) return <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} label="Coût" value={cost} note={`Cliquez pour gagner ${gain}`} />;
+    const reason = !isCurrentTurn ? "Ce n'est pas votre tour" : isInteractiveMode ? "Terminez d'abord l'action en cours" : lacking;
+    return <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} label="Coût" value={cost} note={reason} />;
+  };
+  const RESOURCE_LABELS: Record<string, { cost: string, gain: string, have: () => number, unit: string }> = {
+    credit: { cost: '2 Crédits', gain: '1 Crédit', have: () => currentPlayer.credits, unit: 'crédit(s)' },
+    energy: { cost: '2 Énergies', gain: '1 Énergie', have: () => currentPlayer.energy, unit: 'énergie(s)' },
+    card: { cost: '2 Cartes', gain: CARD_GAIN, have: () => handCards.length, unit: 'carte(s) en main' },
+  };
+
+  const renderBuyCardButton = (icon: string) => {
     if (isRobot) return null;
     const canBuy = isCurrentTurn && !isInteractiveMode && currentPlayer.mediaCoverage >= 3;
     
     return renderActionButton(
         icon,
-        tooltip,
+        tradeTooltip('3 Médias', CARD_GAIN, canBuy, `Vous avez ${currentPlayer.mediaCoverage} média(s)`),
         () => onBuyCardAction && onBuyCardAction(),
         !canBuy,
         canBuy ? '#ffd700' : '#555',
@@ -537,13 +550,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   };
 
   // Helper pour les boutons d'échange rapide
-  const renderDirectTradeButton = (spendType: string, gainType: string, icon: string, tooltip: string, canSpend: boolean) => {
+  const renderDirectTradeButton = (spendType: string, gainType: string, icon: string, canSpend: boolean) => {
     if (isRobot) return null;
     const canTrade = isCurrentTurn && !isInteractiveMode && canSpend;
+    const spend = RESOURCE_LABELS[spendType];
     
     return renderActionButton(
         icon, 
-        tooltip, 
+        tradeTooltip(spend.cost, RESOURCE_LABELS[gainType].gain, canTrade, `Vous avez ${spend.have()} ${spend.unit}`), 
         () => onDirectTradeAction && onDirectTradeAction(spendType, gainType), 
         !canTrade, 
         canTrade ? '#ffd700' : '#555',
@@ -552,13 +566,13 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   };
 
   // Helper pour les boutons d'échange de cartes (initie la sélection)
-  const renderCardTradeButton = (gainType: string, icon: string, tooltip: string, style?: React.CSSProperties) => {
+  const renderCardTradeButton = (gainType: string, icon: string, style?: React.CSSProperties) => {
     if (isRobot) return null;
     const canTrade = isCurrentTurn && !isInteractiveMode && handCards.length >= 2;
     
     return renderActionButton(
         icon,
-        tooltip,
+        tradeTooltip('2 Cartes', RESOURCE_LABELS[gainType].gain, canTrade, `Vous avez ${handCards.length} carte(s) en main`),
         () => onTradeCardAction && onTradeCardAction(gainType),
         !canTrade,
         canTrade ? '#ffd700' : '#555',
@@ -647,8 +661,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 >
                   <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span>
                   <div className="seti-resource-badge-content">
-                    {renderDirectTradeButton('credit', 'energy', '⚡', 'Echanger 2 Crédits contre 1 Énergie', currentPlayer.credits >= 2)}
-                    {renderDirectTradeButton('credit', 'card', '🃏', 'Echanger 2 Crédits contre 1 Carte', currentPlayer.credits >= 2)}
+                    {renderDirectTradeButton('credit', 'energy', '⚡', currentPlayer.credits >= 2)}
+                    {renderDirectTradeButton('credit', 'card', '🃏', currentPlayer.credits >= 2)}
                     <strong style={{ marginLeft: '6px' }}>{currentPlayer.credits}</strong>
                   </div>
                 </div>
@@ -658,8 +672,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 >
                   <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span>
                   <div className="seti-resource-badge-content">
-                    {renderDirectTradeButton('energy', 'credit', '₢', 'Echanger 2 Énergies contre 1 Crédit', currentPlayer.energy >= 2)}
-                    {renderDirectTradeButton('energy', 'card', '🃏', 'Echanger 2 Énergies contre 1 Carte', currentPlayer.energy >= 2)}
+                    {renderDirectTradeButton('energy', 'credit', '₢', currentPlayer.energy >= 2)}
+                    {renderDirectTradeButton('energy', 'card', '🃏', currentPlayer.energy >= 2)}
                     <strong style={{ marginLeft: '6px' }}>{currentPlayer.energy}</strong>
                   </div>
                 </div>
@@ -669,12 +683,13 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 >
                   <span>Média (<span style={{color: '#ff6b6b'}}>🎤</span>):</span>
                   <div className="seti-resource-badge-content">
-                  {renderBuyCardButton('🛒', 'Acheter 1 carte de la pioche ou de la rangée principale (cout: 3 Médias)')}
                   {/* Action principale « Rechercher une technologie » (payée en Médias), en surbrillance quand elle est possible */}
                   {!isRobot && (() => {
                     const canResearch = actionAvailability[ActionType.RESEARCH_TECH] && !isInteractiveMode;
                     return renderActionButton('🔬', getActionTooltip(ActionType.RESEARCH_TECH, canResearch), () => onAction(ActionType.RESEARCH_TECH), !canResearch, '#4a9eff', { marginLeft: '4px' }, canResearch ? 'seti-flash-green' : '');
                   })()}
+                  {/* Achat d'une carte (action gratuite, 3 Médias) */}
+                  {renderBuyCardButton('🃏')}
                   <strong style={{ marginLeft: '6px' }}>{currentPlayer.mediaCoverage}</strong>
                   </div>
                 </div>
@@ -739,10 +754,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             />
           </div>
 
-          {/* Ordinateur */}
+          {/* Informatique (ordinateur de données) */}
           <div className="seti-player-section">
             <div className="seti-player-section-title seti-computer-header">
-              <span>Ordinateur</span>
+              <span>Informatique</span>
               <span 
                 key={dataFlash ? `data-${dataFlash.id}` : 'data-static'}
                 className={`seti-computer-data-badge ${dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
@@ -782,8 +797,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                         const canPlay = actionAvailability[ActionType.PLAY_CARD] && !isInteractiveMode;
                         return renderActionButton('▶️', getActionTooltip(ActionType.PLAY_CARD, canPlay), () => onAction(ActionType.PLAY_CARD), !canPlay, '#4a9eff', { marginLeft: '10px' }, canPlay ? 'seti-flash-green' : '', ActionType.PLAY_CARD);
                       })()}
-                      {renderCardTradeButton('credit', '₢', 'Echanger 2 Cartes contre 1 Crédit', { marginLeft: '10px' })}
-                      {renderCardTradeButton('energy', '⚡', 'Echanger 2 Cartes contre 1 Énergie')}
+                      {renderCardTradeButton('credit', '₢', { marginLeft: '10px' })}
+                      {renderCardTradeButton('energy', '⚡')}
                     </>
                 )}
               </span>

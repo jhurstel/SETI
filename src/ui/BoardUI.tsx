@@ -1335,6 +1335,21 @@ export const BoardUI: React.FC = () => {
 
     const currentPlayer = game.players[game.currentPlayerIndex];
 
+    // Carte : à choisir dans la rangée ou à piocher (le coût est payé, puis la rangée s'ouvre)
+    if (gainType === 'card' && (spendType === 'credit' || spendType === 'energy')) {
+      const trade = ResourceSystem.tradeForCard(game, currentPlayer.id, spendType);
+      if (trade.error) {
+        setToast({ message: trade.error, visible: true });
+        return;
+      }
+      setGame(trade.updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(trade.updatedGame);
+      const sequenceId = `trade-${Date.now()}`;
+      trade.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
+      handleNewInteractions(trade.newPendingInteractions, sequenceId);
+      return;
+    }
+
     const result = ResourceSystem.tradeResources(game, currentPlayer.id, spendType, gainType);
     if (result.error) {
       setToast({ message: result.error, visible: true });

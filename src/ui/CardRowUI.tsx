@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { Game, InteractionState } from '../core/types';
 import { HandCard } from './components/HandCard';
 import './CardRowUI.css';
@@ -18,6 +19,8 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
     useEffect(() => {
         setIsOpen(isInitiallyOpen);
     }, [isInitiallyOpen]);
+    const panelRef = useRef<HTMLDivElement>(null);
+    useCloseOnOutsideClick(panelRef, isOpen, () => setIsOpen(false), !isActive);
 
     const currentPlayer = game.players[game.currentPlayerIndex];
 
@@ -31,7 +34,7 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
     };
 
     return (
-        <div className={`seti-foldable-container seti-icon-panel seti-card-row-container ${isOpen ? 'open' : 'collapsed'} ${isActive ? 'active' : ''}`}
+        <div ref={panelRef} className={`seti-foldable-container seti-icon-panel seti-card-row-container ${isOpen ? 'open' : 'collapsed'} ${isActive ? 'active' : ''}`}
         >
             <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
                 <span className="panel-icon">🃏</span>

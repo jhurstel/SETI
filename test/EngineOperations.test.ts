@@ -212,6 +212,29 @@ describe('Opérations du moteur utilisées par l\'interface', () => {
   });
 });
 
+describe('ResourceSystem.tradeForCard', () => {
+  const P1 = 'player_0';
+
+  test("2 crédits contre 1 carte : coût payé, puis choix de la carte dans la rangée ou la pioche", async () => {
+    const game = await createTestGame(['Alice', 'Bob']);
+    getPlayer(game, P1).credits = 4;
+    const before = JSON.stringify(game);
+    const res = ResourceSystem.tradeForCard(game, P1, 'credit');
+    expect(res.error).toBeUndefined();
+    expect(getPlayer(res.updatedGame, P1).credits).toBe(2);
+    expect(res.newPendingInteractions).toEqual([{ type: 'ACQUIRING_CARD', count: 1, isFree: true, playerId: P1 }]);
+    expect(JSON.stringify(game)).toBe(before);
+  });
+
+  test("refusé sans 2 énergies", async () => {
+    const game = await createTestGame(['Alice', 'Bob']);
+    getPlayer(game, P1).energy = 1;
+    const res = ResourceSystem.tradeForCard(game, P1, 'energy');
+    expect(res.error).toBeDefined();
+    expect(res.newPendingInteractions).toEqual([]);
+  });
+});
+
 describe('ResourceSystem.formatBonus', () => {
   test('accorde les traces de vie en genre et en nombre', () => {
     const text = ResourceSystem.formatBonus({ lifetraces: [{ amount: 1, scope: LifeTraceType.BLUE }, { amount: 2, scope: LifeTraceType.YELLOW }, { amount: 2, scope: LifeTraceType.BLUE }] });

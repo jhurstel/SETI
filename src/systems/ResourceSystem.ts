@@ -206,6 +206,28 @@ export class ResourceSystem {
   }
 
   /**
+   * Échange de 2 crédits ou 2 énergies contre 1 carte, à prendre dans la rangée ou à piocher (règles, p. 19) :
+   * paie le coût et renvoie le choix de la carte (ACQUIRING_CARD gratuit, comme l'achat avec 3 Médias).
+   */
+  static tradeForCard(game: Game, playerId: string, spendType: 'credit' | 'energy'): { updatedGame: Game, error?: string, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
+    const updatedGame = cloneGame(game);
+    const player = updatedGame.players.find(p => p.id === playerId);
+    if (!player) return { updatedGame: game, error: "Joueur non trouvé", historyEntries: [], newPendingInteractions: [] };
+    if (spendType === 'credit') {
+      if (player.credits < 2) return { updatedGame: game, error: "Pas assez de crédits", historyEntries: [], newPendingInteractions: [] };
+      player.credits -= 2;
+    } else {
+      if (player.energy < 2) return { updatedGame: game, error: "Pas assez d'énergie", historyEntries: [], newPendingInteractions: [] };
+      player.energy -= 2;
+    }
+    return {
+      updatedGame,
+      historyEntries: [{ message: `échange ${ResourceSystem.formatResource(2, spendType)} contre 1 carte`, playerId }],
+      newPendingInteractions: [{ type: 'ACQUIRING_CARD', count: 1, isFree: true, playerId }],
+    };
+  }
+
+  /**
    * Gain annoncé qui serait perdu (données ou médias au maximum, rien à réserver, aucune sonde à déplacer…) :
    * message d'avertissement à confirmer par le joueur, ou null si tout le gain est utilisable.
    */

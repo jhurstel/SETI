@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
 import { Game, InteractionState, Planet, ProbeState, AlienBoardType, Player, Satellite, Bonus, Probe } from '../core/types';
@@ -23,6 +24,8 @@ const PLANET_IDS = ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', '
 // Main component for the planet panel
 export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionState, onOrbit, onLand, setActiveTooltip }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const panelRef = useRef<HTMLDivElement>(null);
+    useCloseOnOutsideClick(panelRef, isOpen, () => setIsOpen(false));
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const panelHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [removingItem, setRemovingItem] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number } | null>(null);
@@ -299,6 +302,7 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
 
     return (
         <div 
+            ref={panelRef}
             className={`seti-foldable-container seti-icon-panel seti-planet-board ${isOpen ? 'open' : 'collapsed'} ${canOrbitOrLand && !isOpen ? 'seti-flash-green' : ''}`}
             onMouseEnter={handlePanelMouseEnter}
             onMouseLeave={handlePanelMouseLeave}

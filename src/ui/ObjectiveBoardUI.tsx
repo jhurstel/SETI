@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { Game, GamePhase, InteractionState, GOLDEN_MILESTONES, NEUTRAL_MILESTONES } from '../core/types';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
@@ -18,6 +19,8 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
     useEffect(() => {
         setIsObjectivesOpen(isInitiallyOpen);
     }, [isInitiallyOpen]);
+    const panelRef = useRef<HTMLDivElement>(null);
+    useCloseOnOutsideClick(panelRef, isObjectivesOpen, () => setIsObjectivesOpen(false), !isInitiallyOpen);
 
     const maxScore = Math.max(...game.players.map(p => p.score));
     const trackMax = maxScore > 100 ? Math.ceil(maxScore / 100) * 100 : 100;
@@ -36,7 +39,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
     };
 
     return (
-        <div className={`seti-foldable-container seti-icon-panel seti-objective-container ${isObjectivesOpen ? 'open' : 'collapsed'}`}>
+        <div ref={panelRef} className={`seti-foldable-container seti-icon-panel seti-objective-container ${isObjectivesOpen ? 'open' : 'collapsed'}`}>
             <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
                 <span className="panel-icon">🏆</span>
                 <span className="panel-title">Objectifs</span>

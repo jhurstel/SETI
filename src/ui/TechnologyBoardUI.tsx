@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
 import { TECHNOLOGY_STYLES } from './styles/celestialStyles';
 import './TechnologyBoardUI.css';
@@ -24,6 +25,8 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
   useEffect(() => {
     setIsOpen(isAcquiringTech);
   }, [isAcquiringTech]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useCloseOnOutsideClick(panelRef, isOpen, () => setIsOpen(false), !isAcquiringTech);
 
   // Calculer les technologies partagées si nécessaire
   const sharedBaseIds = React.useMemo(() => {
@@ -79,7 +82,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
   };
 
   return (
-    <div className={`seti-foldable-container seti-icon-panel ${isOpen ? 'open' : 'collapsed'} ${canResearch && !isOpen ? 'seti-flash-green' : ''}`}
+    <div ref={panelRef} className={`seti-foldable-container seti-icon-panel ${isOpen ? 'open' : 'collapsed'} ${canResearch && !isOpen ? 'seti-flash-green' : ''}`}
       style={{
         pointerEvents: 'auto',
         ...(isAcquiringTech ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})

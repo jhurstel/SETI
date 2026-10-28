@@ -8,7 +8,7 @@ import { Tooltip } from './Tooltip';
 import { PLANET_STYLES, PLANET_SIZES } from './styles/celestialStyles';
 import { PlanetIcon } from './components/PlanetIcon';
 import { RotationDiskSector } from './components/RotationDiskSector';
-import { SectorDetails } from './components/SectorDetails';
+import { SectorDetails, SectorTooltip } from './components/SectorDetails';
 import { SvgBonus } from './components/SvgBonus';
 import { PlanetGlobe, CometSvg, AsteroidFieldSvg, SunSvg, ProbeSvg, CapsuleSvg } from './components/CelestialBodies';
 import { SectorStars } from './components/SectorStars';
@@ -745,38 +745,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const shouldFlashSlot = highlightedSectorSlots.includes('oumuamua');
 
     const coveredByPlayers = (sector.coveredBy || []).map((pid: string) => game.players.find(p => p.id === pid)).filter(p => !!p);
-    const mediaBonusText = "1 Token pour chaque joueur présent";
-    const firstBonusStr = (ResourceSystem.formatBonus(sector.firstBonus) || []).join(', ') || 'Aucun';
-    const nextBonusStr = (ResourceSystem.formatBonus(sector.nextBonus) || []).join(', ') || 'Aucun';
-
-    let bonusDisplay;
-    if (firstBonusStr === nextBonusStr) {
-      bonusDisplay = <div style={{ fontSize: '0.9em', color: '#ffd700' }}>Bonus de couverture : {firstBonusStr}</div>;
-    } else {
-      bonusDisplay = (
-        <div style={{ fontSize: '0.9em', color: '#ffd700' }}>
-          <div>1ère couverture : {firstBonusStr}</div>
-          <div>Suivantes : {nextBonusStr}</div>
-        </div>
-      );
-    }
-
-    const sectorTooltipContent = (
-      <div style={{ textAlign: 'left' }}>
-        <div style={{ fontWeight: 'bold', borderBottom: '1px solid #ccc', marginBottom: '4px', color: '#fff' }}>{sector.name.toUpperCase()}</div>
-        <div style={{ fontSize: '0.9em', marginBottom: '4px' }}>Gains à la couverture :</div>
-        <div style={{ fontSize: '0.9em', color: '#ff6b6b' }}>• {mediaBonusText}</div>
-        {bonusDisplay}
-        {coveredByPlayers.length > 0 && (
-          <div style={{ marginTop: '6px', paddingTop: '4px', borderTop: '1px solid #555' }}>
-            <div style={{ fontSize: '0.8em', color: '#aaa' }}>Couvert par :</div>
-            {coveredByPlayers.map(p => (
-              <div key={p.id} style={{ color: p.color, fontWeight: 'bold', fontSize: '0.9em' }}>{p.name}</div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
+    // Même infobulle que les autres secteurs ; la présence rapporte un token Oumuamua
+    const sectorTooltipContent = <SectorTooltip sector={sector} color="#ffffff" coveredBy={coveredByPlayers} presenceGain="1 Token" />;
 
     return (
       <g key="oumuamua-signals" style={{ pointerEvents: 'auto' }}>

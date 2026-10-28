@@ -42,8 +42,10 @@
 .seti-objective-track {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-top: 8px;
+    /* Emplacements resserrés et centrés (la ligne ne va que du premier au dernier) */
+    gap: 14px;
+    width: fit-content;
+    margin: 8px auto 0;
     position: relative;
     padding: 0 5px;
 }
