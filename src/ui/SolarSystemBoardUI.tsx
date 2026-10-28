@@ -390,6 +390,25 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     setHighlightedPath([]);
   }, [game.currentPlayerIndex]);
 
+  // Clic hors du plateau (et hors des infobulles) : annule la sélection de sonde et ferme les fenêtres de planète
+  // ouvertes par « Mettre en orbite » / « Poser une sonde ». Le fond du plateau est géré par ses propres calques.
+  const boardInnerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedProbeId && !planetFocus) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target as Element | null;
+      if (!target || boardInnerRef.current?.contains(target) || target.closest('.seti-tooltip')) return;
+      if (selectedProbeId) {
+        setSelectedProbeId(null);
+        setReachableCells(new Map());
+        setHighlightedPath([]);
+      }
+      if (planetFocus) onBackgroundClick();
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [selectedProbeId, planetFocus, onBackgroundClick]);
+
   // Effet pour calculer les cases accessibles quand une sonde est sélectionnée
   useEffect(() => {
     if (selectedProbeId) {
@@ -1271,6 +1290,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         >
           {/* Conteneur interne pour positionner les éléments */}
           <div
+            ref={boardInnerRef}
             className="seti-board-inner"
             style={{
               width: boardSize ? `${boardSize}px` : '0px',
