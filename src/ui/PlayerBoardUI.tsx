@@ -38,6 +38,90 @@ interface PlayerBoardUIProps {
   highlightPlayableCards?: boolean;
 }
 
+/** Emplacement d'une piste du plateau joueur (exploration, observation) ; dans un cadre s'il reçoit une technologie */
+const TrackSlot: React.FC<{
+  icon: string;
+  tooltip: React.ReactNode;
+  clickable?: boolean;
+  onClick?: () => void;
+  /** Étape débloquée par une technologie (grisée tant qu'elle n'est pas acquise) */
+  tech?: { acquired: boolean };
+  /** Emplacement de technologie : cadre TechSpot */
+  techFrame?: { acquired: boolean };
+  flash?: boolean;
+  onHover: (e: React.MouseEvent, content: React.ReactNode) => void;
+  onLeave: () => void;
+}> = ({ icon, tooltip, clickable, onClick, tech, techFrame, flash, onHover, onLeave }) => {
+  let className = 'obs-track-slot';
+  if (tech) className += tech.acquired ? ' tech-acquired' : ' tech-locked';
+  if (clickable) className += ' clickable';
+  if (flash) className += ' seti-flash-green';
+  const slot = (
+    <div
+      className={className}
+      onClick={() => clickable && onClick ? onClick() : null}
+      onMouseEnter={(e) => onHover(e, tooltip)}
+      onMouseLeave={onLeave}
+    >
+      {icon}
+    </div>
+  );
+  return techFrame ? <TechSpot acquired={techFrame.acquired}>{slot}</TechSpot> : slot;
+};
+
+interface ExplorationTrackProps {
+  game: Game;
+  playerId: string;
+  onAction: (actionType: ActionType) => void;
+  /** Action principale possible maintenant (mêmes règles que les boutons d'action) */
+  isActionAvailable: (actionType: ActionType) => boolean;
+  /** Infobulle de l'action (mêmes textes que les boutons d'action) */
+  actionTooltip: (actionType: ActionType) => React.ReactNode;
+  handleTooltipHover: (e: React.MouseEvent, content: React.ReactNode) => void;
+  handleTooltipLeave: () => void;
+}
+
+/** Piste Exploration : lancement, mise en orbite et atterrissage, puis les emplacements des technologies Exploration I à IV */
+const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, onAction, isActionAvailable, actionTooltip, handleTooltipHover, handleTooltipLeave }) => {
+  const player = game.players.find(p => p.id === playerId);
+  if (!player) return null;
+
+  const hasTech = (level: number) => player.technologies.some(t => t.id.startsWith(`exploration-${level}`));
+  const techTooltip = (bonus: string, level: string, acquired: boolean) => acquired
+    ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} value={bonus} note="Effet permanent" />
+    : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} value={bonus} note={`Nécessite la technologie Exploration ${level}`} />;
+  const techSlot = (icon: string, bonus: string, level: number, roman: string) => (
+    <TrackSlot icon={icon} tooltip={techTooltip(bonus, roman, hasTech(level))} tech={{ acquired: hasTech(level) }} techFrame={{ acquired: hasTech(level) }}
+      onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
+  );
+  const actionSlot = (icon: string, actionType: ActionType) => {
+    const available = isActionAvailable(actionType);
+    return (
+      <TrackSlot icon={icon} tooltip={actionTooltip(actionType)} clickable={available} flash={available} onClick={() => onAction(actionType)}
+        onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
+    );
+  };
+
+  // Les lignes entrent dans les cadres de technologie (into-left / into-right) jusqu'aux emplacements
+  return (
+    <div className="obs-track-container">
+      {actionSlot('🚀', ActionType.LAUNCH_PROBE)}
+      <div className="obs-track-connector" />
+      {actionSlot('🛰️', ActionType.ORBIT)}
+      <div className="obs-track-connector" />
+      {actionSlot('🛬', ActionType.LAND)}
+      <div className="obs-track-connector into-right" />
+      {techSlot('🛸', "Jusqu'à 2 sondes dans le système solaire", 1, 'I')}
+      <div className="obs-track-connector into-left into-right" />
+      {techSlot('🪨', "+1 Média en visitant un champ d'astéroïdes, qu'on quitte pour 1 déplacement", 2, 'II')}
+      <div className="obs-track-connector into-left into-right" />
+      {techSlot('🔋', 'Atterrissage : 1 Énergie de moins', 3, 'III')}
+      <div className="obs-track-connector into-left into-right" />
+      {techSlot('🌙', 'Atterrissage sur les lunes', 4, 'IV')}
+    </div>
+  );
+};
+
 interface ObservationTrackProps {
   game: Game;
   playerId: string;
@@ -74,32 +158,11 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
     isTech: boolean = false,
     techAcquired: boolean = false,
     isAvailableForAction: boolean = false,
-    /** Emplacement de technologie Observation (cadre rectangulaire, comme sur la piste ordinateur) */
     techFrame?: { acquired: boolean }
-  ) => {
-    let className = 'obs-track-slot';
-    if (isTech) {
-      className += techAcquired ? ' tech-acquired' : ' tech-locked';
-    }
-    if (isClickable) {
-      className += ' clickable';
-    }
-    if (isAvailableForAction) {
-      className += ' seti-flash-green';
-    }
-
-    const slot = (
-      <div
-        className={className}
-        onClick={() => isClickable && onClick ? onClick() : null}
-        onMouseEnter={(e) => handleTooltipHover(e, tooltip)}
-        onMouseLeave={handleTooltipLeave}
-      >
-        {icon}
-      </div>
-    );
-    return techFrame ? <TechSpot acquired={techFrame.acquired}>{slot}</TechSpot> : slot;
-  };
+  ) => (
+    <TrackSlot icon={icon} tooltip={tooltip} clickable={isClickable} onClick={onClick} tech={isTech ? { acquired: techAcquired } : undefined}
+      techFrame={techFrame} flash={isAvailableForAction} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
+  );
 
   // Étape du scan : disponible si la technologie requise est acquise (ou sans technologie) ; coût éventuel en fin de 3e ligne
   const stepTooltip = (bonus: string, requiredTech: string | null, acquired: boolean, cost?: string) => {
@@ -696,6 +759,20 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 <div className="seti-player-list-empty">Aucune technologie</div>
               )}
             </div>
+          </div>
+
+          {/* Piste Exploration */}
+          <div className="seti-player-section">
+            <div className="seti-player-section-title">Exploration</div>
+            <ExplorationTrack
+              game={game}
+              playerId={currentPlayer.id}
+              onAction={onAction}
+              isActionAvailable={(actionType) => actionAvailability[actionType] && !isInteractiveMode}
+              actionTooltip={(actionType) => getActionTooltip(actionType, actionAvailability[actionType] && !isInteractiveMode)}
+              handleTooltipHover={handleTooltipHover}
+              handleTooltipLeave={handleTooltipLeave}
+            />
           </div>
 
           {/* Observation Track */}
