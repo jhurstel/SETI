@@ -25,7 +25,9 @@
 
 .seti-deck-card.active {
     cursor: pointer;
-    border-color: #4a9eff;
+    /* Même bord que les cartes de la rangée à choisir */
+    border-color: #ffd700;
+    transition: all 0.2s ease;
 }
 
 .seti-deck-label {
