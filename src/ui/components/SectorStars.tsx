@@ -49,8 +49,11 @@ const STAR_LOOKS: Record<string, StarLook> = {
   },
 };
 
-/** Rayon (repère 0..200) où sont placées les étoiles, au-delà de l'anneau E (rayon 88) */
-const STAR_RADIUS = 95;
+/** Rayon (repère 0..200) des étoiles : juste derrière le bord extérieur de la piste de slots (rayon 83),
+ *  d'où elles dépassent assez pour être reconnues */
+const STAR_RADIUS = 89;
+/** Agrandissement de l'étoile et de ses détails */
+const STAR_SCALE = 1.6;
 
 export const SectorStars: React.FC<{ sectors: Sector[] }> = ({ sectors }) => (
   <svg className="seti-sector-stars-svg" viewBox="0 0 200 200">
@@ -60,9 +63,9 @@ export const SectorStars: React.FC<{ sectors: Sector[] }> = ({ sectors }) => (
         if (!look) return null;
         return (
           <radialGradient key={sector.id} id={`sector-star-halo-${i}`}>
-            <stop offset="0%" stopColor={look.color} stopOpacity={0.5} />
-            <stop offset="18%" stopColor={look.color} stopOpacity={0.18} />
-            <stop offset="55%" stopColor={look.color} stopOpacity={0.05} />
+            <stop offset="0%" stopColor={look.color} stopOpacity={0.35} />
+            <stop offset="18%" stopColor={look.color} stopOpacity={0.12} />
+            <stop offset="55%" stopColor={look.color} stopOpacity={0.03} />
             <stop offset="100%" stopColor={look.color} stopOpacity={0} />
           </radialGradient>
         );
@@ -75,8 +78,9 @@ export const SectorStars: React.FC<{ sectors: Sector[] }> = ({ sectors }) => (
       const midAngle = -(360 / 8) * i - 90 - (360 / 16);
       const { x, y } = polarToCartesian(100, 100, STAR_RADIUS, midAngle);
       return (
-        <g key={sector.id} transform={`translate(${x} ${y})`} opacity={0.85}>
-          <circle r={look.halo} fill={`url(#sector-star-halo-${i})`} />
+        // Discrète pour laisser les slots bien nets ; le halo garde sa taille d'origine malgré l'agrandissement
+        <g key={sector.id} transform={`translate(${x} ${y}) scale(${STAR_SCALE})`} opacity={0.5}>
+          <circle r={look.halo / STAR_SCALE} fill={`url(#sector-star-halo-${i})`} />
           {look.extra?.(look.color)}
           <circle r={look.core * 1.8} fill={look.color} opacity={0.25} />
           <circle r={look.core} fill={look.color} />
