@@ -67,21 +67,14 @@
     align-items: center;
     position: relative;
     z-index: 1;
-    border: 1px solid transparent;
-    border-radius: 8px;
     padding: 4px;
     transition: all 0.2s;
   }
   
-  .computer-column.has-bottom {
-    border-color: #555;
-    padding: 4px 12px;
-  }
-  
-  .computer-column.selectable {
-    border-color: #00ff00;
-    cursor: pointer;
-    background-color: rgba(0, 255, 0, 0.1);
+  /* Colonne d'un seul emplacement : même encombrement qu'un cadre de technologie, sans bord */
+  .computer-column:not(.seti-tech-spot) {
+    border: 1px solid transparent;
+    border-radius: 8px;
   }
   
   .computer-column-connector {

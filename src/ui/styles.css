@@ -132,6 +132,31 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
 .seti-icon-panel.collapsed:hover .seti-foldable-header::after {
   display: block;
 }
+/* Emplacement d'une tuile Technologie (composant TechSpot) : même taille sur toutes les pistes */
+.seti-tech-spot {
+  box-sizing: border-box;
+  width: 58px;
+  height: 82px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  border: 1px solid #555;
+  border-radius: 8px;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+.seti-tech-spot.acquired {
+  border-color: rgba(255, 215, 0, 0.7);
+}
+.seti-tech-spot.selectable {
+  border-color: #00ff00;
+  background-color: rgba(0, 255, 0, 0.1);
+  cursor: pointer;
+}
+
 /* Clignotement vert commun : un élément sur lequel le joueur peut agir maintenant.
    Même couleur et même rythme partout (panneaux, ordinateur, observation, missions). Sur le plateau du système solaire,
    planètes et slots de signaux ont leur propre anneau qui s'agrandit (SolarSystemBoardUI.css). */

@@ -8,6 +8,7 @@ import { PlayerComputer } from './components/PlayerComputer';
 import { HandCard } from './components/HandCard';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
+import { TechSpot } from './components/TechSpot';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
 import './PlayerBoardUI.css';
@@ -77,9 +78,6 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
     techFrame?: { acquired: boolean }
   ) => {
     let className = 'obs-track-slot';
-    if (techFrame) {
-      className += techFrame.acquired ? ' obs-tech-frame acquired' : ' obs-tech-frame';
-    }
     if (isTech) {
       className += techAcquired ? ' tech-acquired' : ' tech-locked';
     }
@@ -90,7 +88,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
       className += ' seti-flash-green';
     }
 
-    return (
+    const slot = (
       <div
         className={className}
         onClick={() => isClickable && onClick ? onClick() : null}
@@ -100,6 +98,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
         {icon}
       </div>
     );
+    return techFrame ? <TechSpot acquired={techFrame.acquired}>{slot}</TechSpot> : slot;
   };
 
   // Étape du scan : disponible si la technologie requise est acquise (ou sans technologie) ; coût éventuel en fin de 3e ligne

@@ -2,6 +2,7 @@ import React from 'react';
 import { Player, GAME_CONSTANTS, ComputerSlot } from '../../core/types';
 import { ComputerSystem } from '../../systems/ComputerSystem';
 import { PlayerComputerSlot } from './PlayerComputerSlot';
+import { TechSpot } from './TechSpot';
 import { SlotTooltip } from './SlotTooltip';
 import { SLOT_COLORS } from '../styles/slotColors';
 import './PlayerComputer.css';
@@ -74,10 +75,8 @@ export const PlayerComputer = ({
 
         return (
           <React.Fragment key={col}>
-            <div 
-              onClick={() => isSelectableColumn && onColumnSelect && onColumnSelect(col)}
-              className={`computer-column ${hasBottom ? 'has-bottom' : ''} ${isSelectableColumn ? 'selectable' : ''}`}
-            >
+            {(() => {
+              const columnContent = <>
               {/* Ligne verticale reliant haut et bas */}
               {hasBottom && (
                 <div className="computer-column-connector" />
@@ -95,7 +94,17 @@ export const PlayerComputer = ({
                   isPreviousFilled={slotIndex > 0 ? colSlots[slotIndex - 1].filled : true}
                 />
               ))}
-            </div>
+              </>;
+              // Colonne à deux emplacements : emplacement d'une technologie informatique
+              return hasBottom ? (
+                <TechSpot className="computer-column" acquired={hasTech} selectable={isSelectableColumn}
+                  onClick={() => isSelectableColumn && onColumnSelect && onColumnSelect(col)}>
+                  {columnContent}
+                </TechSpot>
+              ) : (
+                <div className="computer-column">{columnContent}</div>
+              );
+            })()}
             {index < columns.length - 1 && (
               <div style={{ flex: 1, position: 'relative', alignSelf: 'flex-start' }}>
                 <div 
