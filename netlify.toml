@@ -1,0 +1,8 @@
+# Déploiement Netlify : prime sur les réglages de l'interface Netlify
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Vite 7 demande Node >= 20.19 (voir "engines" dans package.json)
+  NODE_VERSION = "22"

@@ -31,6 +31,8 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
 
         // Rayons pour le disque E (36% à 44% -> 72px à 88px)
         const textRadius = 75;
+        // Hauteur des capitales du nom de secteur (police de 2,5)
+        const SECTOR_NAME_CAP_HEIGHT = 1.8;
         const slotRadius = 83;
 
         // Déterminer si le texte doit être inversé (pour les secteurs du bas : 3, 4, 5, 6)
@@ -42,8 +44,10 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
         const shouldFlashSlot = highlightedSectorSlots.includes(sector.id);
         const isSectorClickable = !!onSectorClick && shouldFlashSlot;
 
-        // Inverser la direction du chemin pour le bas pour que le texte soit lisible
-        const textArc = describeArc(100, 100, textRadius, startAngle, endAngle, isBottom);
+        // Inverser la direction du chemin pour le bas pour que le texte soit lisible. Les lettres partent
+        // alors de l'arc vers le centre (et non vers l'extérieur) : on éloigne l'arc d'une hauteur de capitale
+        // pour que le texte occupe la même couronne qu'en haut.
+        const textArc = describeArc(100, 100, isBottom ? textRadius + SECTOR_NAME_CAP_HEIGHT : textRadius, startAngle, endAngle, isBottom);
 
         const color = SECTOR_STYLES[sector.color]?.color || '#fff';
 
