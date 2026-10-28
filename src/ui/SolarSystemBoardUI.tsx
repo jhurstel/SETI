@@ -11,6 +11,7 @@ import { RotationDiskSector } from './components/RotationDiskSector';
 import { SectorDetails } from './components/SectorDetails';
 import { SvgBonus } from './components/SvgBonus';
 import { PlanetGlobe, CometSvg, AsteroidFieldSvg } from './components/CelestialBodies';
+import { SectorStars } from './components/SectorStars';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
 import './SolarSystemBoardUI.css'
@@ -1313,6 +1314,9 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
               className="seti-background-click-area"
               onClick={() => { if (onBackgroundClick && !selectedProbeId) onBackgroundClick(); }}
             />
+
+            {/* Étoiles qui donnent leur nom aux secteurs, en fond */}
+            {game.board.sectors && <SectorStars sectors={game.board.sectors} />}
 
             {/* Plateau fixe */}
             <div className="seti-fixed-plateau">
