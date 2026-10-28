@@ -447,6 +447,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) reason = `Vous avez ${currentPlayer.mediaCoverage} média(s)`;
         break;
 
+      case ActionType.PASS:
+        action = 'Cliquez pour passer : vous ne jouerez plus avant la prochaine manche';
+        break;
+
       case ActionType.PLAY_CARD: {
         action = 'Cliquez pour jouer une carte de votre main';
         // Coût variable : fourchette des coûts des cartes en main, par ressource
@@ -482,10 +486,12 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     disabled: boolean,
     color: string = '#fff',
     style: React.CSSProperties = {},
-    extraClassName: string = ''
+    extraClassName: string = '',
+    ariaLabel?: string
   ) => {
     return (
       <button
+        aria-label={ariaLabel}
         onClick={(e) => {
           e.stopPropagation();
           if (!disabled) onClick(e);
@@ -599,17 +605,23 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV 🏆
           </span>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            {!isRobot && (
-            <button
-              onClick={onNextPlayer}
-              disabled={!isCurrentTurn || !hasPerformedMainAction || isInteractiveMode}
-              className={`seti-next-player-btn ${(isCurrentTurn && hasPerformedMainAction && !isInteractiveMode) ? 'enabled' : 'disabled'}`}
-              onMouseEnter={(e) => handleTooltipHover(e, hasPerformedMainAction ? "Terminer le tour" : "Effectuez une action principale d'abord")}
-              onMouseLeave={handleTooltipLeave}
-            >
-              Prochain joueur
-            </button>
-            )}
+            {!isRobot && (() => {
+              // Fin du tour (après l'action principale) et passe définitive, au format des boutons d'échange
+              const canEndTurn = isCurrentTurn && hasPerformedMainAction && !isInteractiveMode;
+              let endTurnReason = "Terminez d'abord l'action en cours";
+              if (!isCurrentTurn) endTurnReason = "Ce n'est pas votre tour";
+              else if (!hasPerformedMainAction) endTurnReason = "Effectuez d'abord une action principale";
+              const endTurnTooltip = canEndTurn
+                ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} note="Cliquez pour terminer votre tour" />
+                : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} note={endTurnReason} />;
+              const canPass = actionAvailability[ActionType.PASS] && !isInteractiveMode;
+              return (
+                <>
+                  {renderActionButton('⏭️', endTurnTooltip, () => onNextPlayer && onNextPlayer(), !canEndTurn, '#fff', {}, canEndTurn ? 'seti-flash-green' : '', 'Prochain joueur')}
+                  {renderActionButton('🏁', getActionTooltip(ActionType.PASS, canPass), () => onAction(ActionType.PASS), !canPass, '#fff', {}, '', 'Passer définitivement')}
+                </>
+              );
+            })()}
           </div>
         </div>
         

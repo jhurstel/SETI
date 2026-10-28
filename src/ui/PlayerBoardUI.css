@@ -193,28 +193,6 @@
   position: relative;
 }
 
-.seti-next-player-btn {
-  position: absolute;
-  right: 10px;
-  border: none;
-  border-radius: 4px;
-  padding: 4px 8px;
-  font-size: 0.8rem;
-  font-weight: bold;
-}
-
-.seti-next-player-btn.enabled {
-  background-color: #4caf50;
-  color: white;
-  cursor: pointer;
-}
-
-.seti-next-player-btn.disabled {
-  background-color: #555;
-  color: #aaa;
-  cursor: not-allowed;
-}
-
 .seti-player-layout-container {
   display: flex;
   flex-direction: column;
