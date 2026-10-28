@@ -50,9 +50,6 @@
     width: 100%;
     flex: 1;
     min-height: 0;
-    /* Place réservée en bas au toast : le plateau (carré inscrit dans la zone de contenu) remonte d'autant */
-    padding-bottom: 46px;
-    box-sizing: border-box;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -61,6 +58,8 @@
 
 .seti-board-inner {
     position: relative;
+    /* Remonté de la marge vide entre l'anneau extérieur (88 % du plateau) et son bord : laisse la place du toast en bas */
+    transform: translateY(-6%);
     transition: opacity 0.2s;
     flex-shrink: 0;
 }
