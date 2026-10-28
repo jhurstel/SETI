@@ -157,8 +157,8 @@ export const PlayerComputer = ({
                       else if (!hasEnergy) reason = `Énergie insuffisante (${cost})`;
 
                       onHover(e, reason
-                          ? <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} value="1 Trace de vie bleue" note={reason} />
-                          : <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} value="1 Trace de vie bleue" note={`Cliquez pour analyser les données (${cost})`} />);
+                          ? <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} value="1 Trace Bleue" note={reason} />
+                          : <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} value="1 Trace Bleue" note={`Cliquez pour analyser les données (${cost})`} />);
                   }}
                   onMouseLeave={onLeave}
                 >

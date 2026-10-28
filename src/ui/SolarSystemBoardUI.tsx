@@ -238,7 +238,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         if (removalType === 'orbiter') {
             removalBonusText = '3 PV, 1 Donnée, 1 Carte';
         } else if (removalType === 'lander') {
-            removalBonusText = '1 Trace de Vie Jaune';
+            removalBonusText = '1 Trace Jaune';
         }
     }
 

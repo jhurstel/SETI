@@ -1,5 +1,5 @@
 import { getObjectPosition, performRotation } from '../core/SolarSystemPosition';
-import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, HistoryEntry, ProbeState } from '../core/types';
+import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, HistoryEntry, ProbeState, LifeTraceType } from '../core/types';
 import { cloneGame } from '../core/cloneGame';
 import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
@@ -93,7 +93,8 @@ export class ResourceSystem {
 
     if (bonus.lifetraces) {
       bonus.lifetraces.forEach(l => {
-        items.push(`${l.amount} Trace ${l.scope}`);
+        // Accord au féminin (« Trace Bleue ») ; la valeur de l'énumération reste celle du CSV
+        items.push(`${l.amount} Trace ${l.scope === LifeTraceType.BLUE ? 'Bleue' : l.scope}`);
       });
     }
 
