@@ -10,8 +10,9 @@
     justify-items: center;
 }
 
+/* Planète jouable : clignotement vert habituel, cadre carré aux coins arrondis */
 .planet-icon-wrapper.seti-flash-green {
-    border-radius: 50%;
+    border: 1px solid #4caf50;
 }
 
 .planet-icon-wrapper {
