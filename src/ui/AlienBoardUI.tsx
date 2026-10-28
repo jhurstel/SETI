@@ -102,7 +102,7 @@ const SpeciesCardArea: React.FC<{
         <div className="seti-card-row-content alien-species-card-area">
             {/* Deck */}
             <div 
-                className={`seti-common-card seti-deck-card alien-small-card ${isAcquiring ? 'acquiring' : 'default'}`}
+                className={`seti-common-card seti-deck-card alien-small-card ${isAcquiring ? 'acquiring active' : 'default'}`}
                 onClick={(e) => { e.stopPropagation(); onCardClick(species.id, 'deck'); }}
                 onMouseEnter={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();

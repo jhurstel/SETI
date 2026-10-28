@@ -145,7 +145,8 @@
     translate: 0 -3px;
 }
 .alien-small-card.default {
-    cursor: default;
+    /* Hors prise d'une carte : infobulle seulement (comme la rangée principale) */
+    cursor: help;
 }
 .alien-deck-label {
     font-size: 1em;
