@@ -26,17 +26,61 @@ const LOOKS: Record<string, PlanetLook> = {
   neptune: { light: '#9fd0ff', base: '#2f74e0', dark: '#0b2a6a', atmosphere: '#86b8ff' },
 };
 
+/** Dégradés des cratères (identiques partout : les doublons d'identifiant entre planètes sont sans effet) */
+const CraterDefs = () => (
+  <defs>
+    {/* Fond : ombre en haut à gauche, paroi éclairée en bas à droite */}
+    <linearGradient id="seti-crater-floor" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stopColor="#1e1914" stopOpacity={0.7} />
+      <stop offset="55%" stopColor="#5a5046" stopOpacity={0.35} />
+      <stop offset="100%" stopColor="#ece2d2" stopOpacity={0.55} />
+    </linearGradient>
+    {/* Rebord : éclairé en haut à gauche, dans l'ombre en bas à droite */}
+    <linearGradient id="seti-crater-rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stopColor="#f2eadc" stopOpacity={0.7} />
+      <stop offset="60%" stopColor="#f2eadc" stopOpacity={0} />
+      <stop offset="100%" stopColor="#1e1914" stopOpacity={0.45} />
+    </linearGradient>
+  </defs>
+);
+
+/** Cratère éclairé depuis le haut à gauche, avec un pic central pour les plus grands */
+const Crater: React.FC<{ x: number; y: number; r: number }> = ({ x, y, r }) => (
+  <g>
+    <circle cx={x} cy={y} r={r} fill="url(#seti-crater-floor)" />
+    <circle cx={x} cy={y} r={r} fill="none" stroke="url(#seti-crater-rim)" strokeWidth={Math.max(0.6, r * 0.14)} />
+    {r > 6 && <circle cx={x + r * 0.05} cy={y + r * 0.05} r={r * 0.14} fill="rgba(230, 220, 205, 0.5)" />}
+  </g>
+);
+
 /** Détails de surface propres à chaque planète (dessinés dans le disque, avant l'ombrage) */
 const surface = (id: string): React.ReactNode => {
   switch (id) {
     case 'mercury':
-      // Cratères : creux sombre et rebord éclairé
-      return [[-18, -16, 9], [14, -22, 6], [20, 10, 11], [-14, 20, 7], [-30, 2, 5], [4, 2, 4], [30, -6, 4], [-2, 32, 5]].map(([x, y, r], i) => (
-        <g key={i}>
-          <circle cx={x} cy={y} r={r} fill="rgba(40, 34, 28, 0.35)" />
-          <circle cx={x - r * 0.2} cy={y - r * 0.2} r={r * 0.85} fill="none" stroke="rgba(235, 225, 210, 0.35)" strokeWidth={1.2} />
+      return (
+        <g>
+          {/* Plaines plus sombres */}
+          <path d="M-40 -8 C-30 -20 -12 -14 -6 -4 C0 6 -14 12 -26 10 C-36 8 -46 4 -40 -8 Z" fill="rgba(60, 54, 48, 0.25)" />
+          <path d="M8 18 C18 12 34 16 36 28 C30 38 14 38 8 30 Z" fill="rgba(60, 54, 48, 0.2)" />
+          <CraterDefs />
+          {/* Rayons d'éjecta des grands cratères récents */}
+          {[[20, 10, 11], [-18, -16, 9]].map(([x, y, r], i) => (
+            <g key={`ray-${i}`} stroke="rgba(235, 228, 215, 0.12)" strokeWidth={0.8} strokeLinecap="round">
+              {[0, 50, 105, 160, 215, 270, 320].map(a => {
+                const rad = (a * Math.PI) / 180;
+                return <line key={a} x1={x + Math.cos(rad) * r * 1.1} y1={y + Math.sin(rad) * r * 1.1} x2={x + Math.cos(rad) * r * 2.3} y2={y + Math.sin(rad) * r * 2.3} />;
+              })}
+            </g>
+          ))}
+          {[[-18, -16, 9], [14, -24, 6], [20, 10, 11], [-14, 22, 7], [-32, 4, 5], [4, 2, 4], [32, -8, 4.5], [-2, 34, 5], [-6, -34, 3.5], [34, 14, 3], [-26, -30, 3], [8, -8, 2.5]].map(([x, y, r], i) => (
+            <Crater key={i} x={x} y={y} r={r} />
+          ))}
+          {/* Petits impacts */}
+          {[[-8, 10], [26, -22], [-36, 18], [12, 26], [-20, 4], [28, 28], [0, -18], [-28, -14]].map(([x, y], i) => (
+            <circle key={`p-${i}`} cx={x} cy={y} r={1.1} fill="rgba(40, 34, 28, 0.45)" />
+          ))}
         </g>
-      ));
+      );
     case 'venus':
       // Voile nuageux en chevrons
       return [-26, -10, 6, 22].map((y, i) => (
