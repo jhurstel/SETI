@@ -266,33 +266,6 @@
   padding: 4px 6px;
 }
 
-.seti-tech-list-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: help;
-}
-
-.seti-tech-icon {
-  font-size: 1.1em;
-}
-
-.seti-tech-name {
-  font-weight: bold;
-  color: #fff;
-  white-space: nowrap;
-}
-
-.seti-tech-desc {
-  font-size: 0.75em;
-  color: #ccc;
-  font-style: italic;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-}
-
 .seti-computer-header {
   display: flex;
   align-items: baseline;
@@ -516,7 +489,6 @@
   right: 5px;
   z-index: 10;
 }
-
 
 .obs-track-container {
   display: flex;

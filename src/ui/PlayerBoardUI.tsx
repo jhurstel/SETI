@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, TechnologyCategory, MAIN_ACTION_TYPES, CardType, CostType } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, MAIN_ACTION_TYPES, CardType, CostType } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
@@ -326,13 +326,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     }
 
     executeFillSlot();
-  };
-
-  const getTechIcon = (techId: string) => {
-    if (techId.startsWith('exploration')) return '🚀';
-    if (techId.startsWith('observation')) return '🔭';
-    if (techId.startsWith('computing')) return '💻';
-    return '⚙️';
   };
 
   // Hook personnalisé pour gérer les flashs de ressources
@@ -718,49 +711,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             </div>
           </div>
           )}
-
-          {/* Technologies */}
-          <div className="seti-player-section">
-            <div className="seti-player-section-title">Technologie</div>
-            <div className="seti-player-list">
-              {currentPlayer.technologies.length > 0 ? (
-                currentPlayer.technologies.map((tech) => (
-                  <div 
-                    key={tech.id} 
-                    className="seti-player-list-item seti-tech-list-item"
-                    onMouseEnter={(e) => {
-                      let categoryColor = '#fff';
-                      if (tech.type === TechnologyCategory.EXPLORATION) categoryColor = '#ffeb3b';
-                      if (tech.type === TechnologyCategory.OBSERVATION) categoryColor = '#ff6b6b';
-                      if (tech.type === TechnologyCategory.COMPUTING) categoryColor = '#4a9eff';
-
-                      const tooltipContent = (
-                        <div className="seti-tech-tooltip-content">
-                          <div className="seti-tech-tooltip-header">
-                            <span className="seti-tech-tooltip-name">{tech.name}</span>
-                            <span className="seti-tech-tooltip-category" style={{ color: categoryColor, borderColor: categoryColor }}>{tech.type}</span>
-                          </div>
-                          <div className="seti-tech-tooltip-desc">{tech.description}</div>
-                        </div>
-                      );
-                      handleTooltipHover(e, tooltipContent);
-                    }}
-                    onMouseLeave={handleTooltipLeave}
-                  >
-                    <div className="seti-tech-icon">{getTechIcon(tech.id)}</div>
-                    <div className="seti-tech-name">{tech.name}</div>
-                    {tech.description && (
-                      <div className="seti-tech-desc">
-                        {tech.description}
-                      </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="seti-player-list-empty">Aucune technologie</div>
-              )}
-            </div>
-          </div>
 
           {/* Piste Exploration */}
           <div className="seti-player-section">
