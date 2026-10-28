@@ -2,6 +2,8 @@ import React from 'react';
 import { Player, GAME_CONSTANTS, ComputerSlot } from '../../core/types';
 import { ComputerSystem } from '../../systems/ComputerSystem';
 import { PlayerComputerSlot } from './PlayerComputerSlot';
+import { SlotTooltip } from './SlotTooltip';
+import { SLOT_COLORS } from '../styles/slotColors';
 import './PlayerComputer.css';
 
 export const PlayerComputer = ({ 
@@ -149,35 +151,14 @@ export const PlayerComputer = ({
                   }}
                   onClick={() => { if (isClickable && onAnalyzeClick) onAnalyzeClick(); }}
                   onMouseEnter={(e) => {
-                      let statusText = "Indisponible";
-                      let statusColor = "#ff6b6b";
-                      let actionText = "Nécessite de remplir la ligne précédente";
+                      const cost = `coût : ${GAME_CONSTANTS.ANALYZE_COST_ENERGY} Énergie`;
+                      let reason: string | null = null;
+                      if (!is6aFilled) reason = 'Nécessite de remplir la ligne du haut';
+                      else if (!hasEnergy) reason = `Énergie insuffisante (${cost})`;
 
-                      if (is6aFilled) {
-                          if (hasEnergy) {
-                              statusText = "Analyse disponible";
-                              statusColor = "#4a9eff";
-                              actionText = `Cliquez pour lancer l'analyse des données (Coût: ${GAME_CONSTANTS.ANALYZE_COST_ENERGY} Énergie)`;
-                          } else {
-                              statusText = "Énergie insuffisante";
-                              actionText = `Nécessite ${GAME_CONSTANTS.ANALYZE_COST_ENERGY} Énergie`;
-                          }
-                      }
-
-                      const content = (
-                          <div className="computer-tooltip-container">
-                              <div className={`computer-tooltip-title`} style={{ color: statusColor }}>
-                                  {statusText}
-                              </div>
-                              <div className="computer-tooltip-bonus">
-                                  <>Bonus : <span style={{ color: '#8affc0', fontWeight: 'normal' }}>1 Trace de Vie Bleu</span></>
-                              </div>
-                              <div className="computer-tooltip-action normal">
-                                  {actionText}
-                              </div>
-                          </div>
-                      );
-                      onHover(e, content);
+                      onHover(e, reason
+                          ? <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} value="1 Trace de vie bleue" note={reason} />
+                          : <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} value="1 Trace de vie bleue" note={`Cliquez pour analyser les données (${cost})`} />);
                   }}
                   onMouseLeave={onLeave}
                 >

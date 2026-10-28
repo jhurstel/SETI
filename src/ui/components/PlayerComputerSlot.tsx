@@ -1,5 +1,7 @@
 import React from 'react';
 import { ComputerSlot } from '../../core/types';
+import { SlotTooltip } from './SlotTooltip';
+import { SLOT_COLORS } from '../styles/slotColors';
 
 export const PlayerComputerSlot = ({ 
     slot, 
@@ -23,60 +25,31 @@ export const PlayerComputerSlot = ({
     const isFilled = slot.filled;
     
     let bonusText = '';
-    let bonusColor = '#fff';
-    let mediaAmount = 1;
-    
-    if (slot.bonus === 'media') { 
-      if (slot.technologyId && slot.technologyId.startsWith('computing-4')) mediaAmount = 2;
-      bonusText = `${mediaAmount} Média${mediaAmount > 1 ? 's' : ''}`; 
-      bonusColor = '#ff6b6b'; 
+    const mediaAmount = slot.technologyId && slot.technologyId.startsWith('computing-4') ? 2 : 1;
+    if (slot.bonus === 'media') {
+      bonusText = `${mediaAmount} Média${mediaAmount > 1 ? 's' : ''}`;
     }
-    else if (slot.bonus === 'reservation') { bonusText = '1 Réservation'; bonusColor = '#fff'; }
-    else if (slot.bonus === '2pv') { bonusText = '2 PV'; bonusColor = '#8affc0'; }
-    else if (slot.bonus === 'credit') { bonusText = '1 Crédit'; bonusColor = '#ffd700'; }
-    else if (slot.bonus === 'energy') { bonusText = '1 Énergie'; bonusColor = '#4caf50'; }
-    else if (slot.bonus === 'card') { bonusText = '1 Carte'; bonusColor = '#aaffaa'; }
+    else if (slot.bonus === 'reservation') bonusText = '1 Réservation';
+    else if (slot.bonus === '2pv') bonusText = '2 PV';
+    else if (slot.bonus === 'credit') bonusText = '1 Crédit';
+    else if (slot.bonus === 'energy') bonusText = '1 Énergie';
+    else if (slot.bonus === 'card') bonusText = '1 Carte';
   
     let state: 'occupied' | 'clickable' | 'unavailable' = 'unavailable';
     if (isFilled) state = 'occupied';
     else if (canFill) state = 'clickable';
   
-    let titleLine = null;
-    let actionLine = null;
-  
-    const bonusLine = (
-      <div className="computer-tooltip-bonus">
-        {bonusText ? (
-          <>Bonus : <span style={{ color: bonusColor, fontWeight: 'normal' }}>{bonusText}</span></>
-        ) : (
-          'Aucun bonus'
-        )}
-      </div>
-    );
-  
+    let tooltipContent: React.ReactNode;
     if (state === 'occupied') {
-      titleLine = <div className="computer-tooltip-title occupied">Donnée stockée</div>
+      tooltipContent = <SlotTooltip status="Donnée stockée" statusColor={SLOT_COLORS.neutral} value={bonusText} />;
     } else if (state === 'clickable') {
-      titleLine = <div className="computer-tooltip-title available">Disponible</div>
-      actionLine = <div className="computer-tooltip-action normal">Cliquez pour transférer une donnée</div>;
+      tooltipContent = <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} value={bonusText} note="Cliquez pour transférer une donnée" />;
     } else {
-      titleLine = <div className="computer-tooltip-title unavailable">Indisponible</div>
-      if (isPreviousFilled && slot.type !== 'top' && !slot.bonus) {
-        actionLine = <div className="computer-tooltip-action normal">Nécessite une technologie informatique</div>;
-      } else if (!hasData) {
-        actionLine = <div className="computer-tooltip-action error">Nécessite 1 donnée</div>;
-      } else {
-        actionLine = <div className="computer-tooltip-action normal">Nécessite le slot précédent</div>;
-      }
+      let reason = "Nécessite l'emplacement précédent";
+      if (isPreviousFilled && slot.type !== 'top' && !slot.bonus) reason = 'Nécessite une technologie informatique';
+      else if (!hasData) reason = 'Nécessite 1 donnée';
+      tooltipContent = <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} value={bonusText} note={reason} />;
     }
-    
-    const tooltipContent = (
-        <div className="computer-tooltip-container">
-            {titleLine}
-            {bonusLine}
-            {actionLine}
-        </div>
-    );
   
     return (
       <div
