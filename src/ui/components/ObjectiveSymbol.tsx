@@ -179,27 +179,49 @@ const OrbiterOrLander = () => (
 /** Séparateur « / » entre deux possibilités */
 const Slash = () => <line x1={23} y1={10} x2={17} y2={30} stroke="#8a6d1d" strokeWidth={3} strokeLinecap="round" />;
 
-// Largeur commune à tous les symboles (3 pictogrammes et le symbole revenu de Revenus A)
-const VIEW_WIDTH = 132;
+// Cadre commun : 3 pictogrammes et le symbole revenu du coin
+const VIEW_WIDTH = 136;
+const VIEW_HEIGHT = 44;
 const ITEM_WIDTH = 40;
-const MARK_WIDTH = 12;
+const VIEW_MARGIN = 3;
+const PANEL_CORNER = 7;
+const SEPARATOR_WIDTH = 16;
 
-const symbolItems = (tile: ObjectiveTile): React.ReactNode[] => {
+/** Creux gravé de la tuile : rectangle à coins coupés qui regroupe une série */
+const Panel: React.FC<{ width: number }> = ({ width }) => {
+  const c = PANEL_CORNER, h = 38, y = 1;
+  return (
+    <path
+      d={`M${c} ${y} H${width - c} L${width} ${y + c} V${y + h - c} L${width - c} ${y + h} H${c} L0 ${y + h - c} V${y + c} Z`}
+      fill="rgba(70, 50, 0, 0.18)" stroke="rgba(60, 40, 0, 0.6)" strokeWidth={1.2}
+    />
+  );
+};
+
+interface SymbolLayout {
+  /** Séries de pictogrammes, chacune dans son creux */
+  groups: React.ReactNode[][];
+  /** Symbole revenu sur le coin bas droit de chaque creux */
+  revenue?: boolean;
+}
+
+const symbolLayout = (tile: ObjectiveTile): SymbolLayout => {
   const uid = `${tile.id}-${tile.side}`;
   switch (tile.id) {
     case 'obj_tech':
       return tile.side === 'A'
-        ? [<Chip fill={COLORS.exploration}><Rocket /></Chip>, <Chip fill={COLORS.observation}><Dish /></Chip>, <Chip fill={COLORS.computing}><Server /></Chip>]
-        : [<AnyTech id={`${uid}-1`} />, <AnyTech id={`${uid}-2`} />];
+        ? { groups: [[<Chip fill={COLORS.exploration}><Rocket /></Chip>, <Chip fill={COLORS.observation}><Dish /></Chip>, <Chip fill={COLORS.computing}><Server /></Chip>]] }
+        : { groups: [[<AnyTech id={`${uid}-1`} />, <AnyTech id={`${uid}-2`} />]] };
     case 'obj_mission':
-      return tile.side === 'A' ? [<MissionCard />] : [<MissionOrEndCard />, <MissionOrEndCard />];
+      return { groups: [tile.side === 'A' ? [<MissionCard />] : [<MissionOrEndCard />, <MissionOrEndCard />]] };
     case 'obj_revenue':
+      // A : une série des 3 types dans un seul creux ; B : chaque type compte seul (deux creux séparés par « / »)
       return tile.side === 'A'
-        ? [<Tag fill={COLORS.credit}><CreditGlyph /></Tag>, <Tag fill={COLORS.energy}><EnergyGlyph /></Tag>, <Tag fill={COLORS.card}><CardGlyph /></Tag>, <RevenueMark x={3} y={33} />]
-        : [<g><Tag fill={COLORS.credit}><CreditGlyph /></Tag><RevenueMark x={34} y={33} /></g>, <Slash />, <g><Tag fill={COLORS.energy}><EnergyGlyph /></Tag><RevenueMark x={34} y={33} /></g>];
+        ? { groups: [[<Tag fill={COLORS.credit}><CreditGlyph /></Tag>, <Tag fill={COLORS.energy}><EnergyGlyph /></Tag>, <Tag fill={COLORS.card}><CardGlyph /></Tag>]], revenue: true }
+        : { groups: [[<Tag fill={COLORS.credit}><CreditGlyph /></Tag>], [<Tag fill={COLORS.energy}><EnergyGlyph /></Tag>]], revenue: true };
     case 'obj_other':
       return tile.side === 'A'
-        ? [
+        ? { groups: [[
           // Molécule : grosse sphère reliée à deux petites en haut et une moyenne en bas
           <LifeTrace fill={COLORS.lifeRed}>
             <path d="M11.5 10.5 L20 16.5 L28.5 10.5 M20 16.5 V25" fill="none" stroke="#fff" strokeWidth={2.4} />
@@ -215,26 +237,40 @@ const symbolItems = (tile: ObjectiveTile): React.ReactNode[] => {
             <path d="M15.5 9.5 Q11.5 11.5 14.5 14.5 Q17.5 17.5 13.5 20.5 M23 9 Q28 9.5 25.5 13.5 Q23 17.5 26.5 19.5 Q29 22 24.5 24.5" fill="none" stroke="#fff" strokeWidth={3.4} strokeLinecap="round" />
             <circle cx={30.5} cy={10} r={0.9} fill="#fff" /><circle cx={19.5} cy={19} r={0.9} fill="#fff" /><circle cx={28.5} cy={25} r={0.9} fill="#fff" /><circle cx={10} cy={13} r={0.9} fill="#fff" />
           </LifeTrace>,
-        ]
-        : [<CoveredSector />, <OrbiterOrLander />];
+        ]] }
+        : { groups: [[<CoveredSector />, <OrbiterOrLander />]] };
     default:
-      return [];
+      return { groups: [] };
   }
 };
 
 /** Symbole d'une tuile Score dorée (face A ou B) */
-export const ObjectiveSymbol: React.FC<{ tile: ObjectiveTile; height?: number }> = ({ tile, height = 30 }) => {
-  const items = symbolItems(tile);
-  // Le symbole revenu seul (Revenus A) n'occupe qu'une petite place à droite
-  const widths = items.map(item => React.isValidElement(item) && item.type === RevenueMark ? MARK_WIDTH : ITEM_WIDTH);
-  let x = (VIEW_WIDTH - widths.reduce((a, b) => a + b, 0)) / 2;
+export const ObjectiveSymbol: React.FC<{ tile: ObjectiveTile; height?: number }> = ({ tile, height = 32 }) => {
+  const { groups, revenue } = symbolLayout(tile);
+  // Les creux occupent toute la largeur, comme sur la tuile ; plusieurs creux se la partagent
+  const separators = SEPARATOR_WIDTH * Math.max(0, groups.length - 1);
+  const groupWidths = groups.map(() => (VIEW_WIDTH - 2 * VIEW_MARGIN - separators) / groups.length);
+  const total = groupWidths.reduce((a, b) => a + b, 0) + SEPARATOR_WIDTH * Math.max(0, groups.length - 1);
+  let x = (VIEW_WIDTH - total) / 2;
+  const parts: React.ReactNode[] = [];
+  groups.forEach((items, g) => {
+    if (g > 0) {
+      parts.push(<g key={`sep-${g}`} transform={`translate(${x + SEPARATOR_WIDTH / 2 - 20} 0)`}><Slash /></g>);
+      x += SEPARATOR_WIDTH;
+    }
+    const w = groupWidths[g];
+    parts.push(
+      <g key={g} transform={`translate(${x} 0)`}>
+        <Panel width={w} />
+        {items.map((item, i) => <g key={i} transform={`translate(${(w - items.length * ITEM_WIDTH) / 2 + i * ITEM_WIDTH} 0)`}>{item}</g>)}
+        {revenue && <RevenueMark x={w - PANEL_CORNER / 2} y={39 - PANEL_CORNER / 2} />}
+      </g>
+    );
+    x += w;
+  });
   return (
-    <svg viewBox={`0 0 ${VIEW_WIDTH} 40`} height={height} width={(height * VIEW_WIDTH) / 40} role="img" aria-label={tile.name}>
-      {items.map((item, i) => {
-        const g = <g key={i} transform={`translate(${x} 0)`}>{item}</g>;
-        x += widths[i];
-        return g;
-      })}
+    <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} height={height} width={(height * VIEW_WIDTH) / VIEW_HEIGHT} role="img" aria-label={tile.name}>
+      {parts}
     </svg>
   );
 };
