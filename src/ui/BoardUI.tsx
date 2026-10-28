@@ -1659,6 +1659,7 @@ export const BoardUI: React.FC = () => {
           title={`Réservez ${interactionState.count > 1 ? `${interactionState.count} cartes` : 'une carte'}`}
           subtitle="La carte réservée est glissée sous votre plateau : vous gagnez aussitôt son revenu, puis à chaque manche."
           confirmLabel="Réserver"
+          highlightedAttribute="revenue"
         />
       )}
 

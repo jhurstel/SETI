@@ -4,7 +4,11 @@ import { CardSystem } from '../../systems/CardSystem';
 import { CardTooltip } from './CardTooltip';
 import { FREE_ACTION_STYLES, SECTOR_STYLES, REVENUE_STYLES } from '../styles/celestialStyles';
 
-const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue' | 'scan' | 'freeAction' }> = ({ card, highlightedAttribute }) => {
+/**
+ * Contenu d'une carte (main, rangée, fenêtres de choix) : l'attribut utile au choix en cours est mis en surbrillance.
+ * hideRevenue : la rangée principale n'affiche pas le revenu (il ne sert qu'à la réservation, depuis la main).
+ */
+export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue' | 'scan' | 'freeAction', hideRevenue?: boolean }> = ({ card, highlightedAttribute, hideRevenue = false }) => {
   let bottomLabel = '';
   let bottomValue = '';
   let bottomStyle = { color: '#fff', borderColor: '#fff', bgColor: 'rgba(255, 255, 255, 0.1)' };
@@ -27,7 +31,7 @@ const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue' | 'sca
     details = (
       <>
         {card.freeAction && <div>Act: {card.freeAction}</div>}
-        {card.revenue && <div>Rev: {card.revenue}</div>}
+        {card.revenue && !hideRevenue && <div>Rev: {card.revenue}</div>}
       </>
     );
   } else {
@@ -186,9 +190,9 @@ export const HandCard: React.FC<{
         {isReserving ? (
           <CardContent card={card} highlightedAttribute="revenue" />
         ) : (isDiscardingForSignal || isSelectingScanCard) ? (
-          <CardContent card={card} highlightedAttribute="scan" />
+          <CardContent card={card} highlightedAttribute="scan" hideRevenue={cardOrigin === 'row'} />
         ) : (
-          <CardContent card={card} highlightedAttribute={defaultAttribute} />
+          <CardContent card={card} highlightedAttribute={defaultAttribute} hideRevenue={cardOrigin === 'row'} />
         )}
       </div>
     );

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Card, CardType } from '../../core/types';
+import { Card } from '../../core/types';
 import { CardTooltip } from '../../ui/components/CardTooltip';
+import { CardContent } from '../components/HandCard';
 import { Tooltip } from '../Tooltip';
 import { ChoiceModal, ChoiceFooterButton } from './ChoiceModal';
 
@@ -13,10 +14,12 @@ interface PassModalProps {
   title?: string;
   subtitle?: string;
   confirmLabel?: string;
+  /** Attribut mis en surbrillance, comme sur le plateau joueur (revenu pour une réservation) */
+  highlightedAttribute?: 'revenue' | 'scan' | 'freeAction';
 }
 
 /** Choix d'une carte dans une fenêtre centrale (fin de manche, réservation) */
-export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm, currentRound, title, subtitle, confirmLabel }) => {
+export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm, currentRound, title, subtitle, confirmLabel, highlightedAttribute = 'freeAction' }) => {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
 
@@ -65,10 +68,7 @@ export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm,
                   position: 'relative'
                 }}
               >
-                <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden', fontWeight: 'bold', color: '#fff' }}><span>{card.name}</span></div>
-                <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}><span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: '#ffd700' }}>{card.cost}</span></span><span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span></div>
-                {card.description && <div className="seti-card-description" style={{ flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis', fontSize: '0.7em', color: '#ccc' }}>{card.description}</div>}
-                <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px' }}><div className="seti-card-detail" style={{ display: 'flex', justifyContent: 'space-between' }}>{card.freeAction && <span>Act: {card.freeAction}</span>}{card.scanSector && <span>Scan: {card.scanSector}</span>}</div><div className="seti-card-detail">{card.revenue && <span>Rev: {card.revenue}</span>}</div></div>
+                <CardContent card={card} highlightedAttribute={highlightedAttribute} />
               </div>
             )
           })}
