@@ -29,6 +29,7 @@ import { useAutosave } from './hooks/useAutosave';
 import { DebugPanel } from './DebugPanel';
 import { useDebugSetting } from './hooks/useDebugSetting';
 import { PassModal } from './modals/PassModal';
+import { CardPickModal } from './modals/CardPickModal';
 import { findTurnUndoPoint } from '../core/TurnUndo';
 import { Tooltip } from './Tooltip';
 import { ObjectiveBoardUI } from './ObjectiveBoardUI';
@@ -1663,6 +1664,42 @@ export const BoardUI: React.FC = () => {
         />
       )}
 
+      {/* Défausse de fin de manche (garder 4 cartes) : action gratuite en surbrillance */}
+      {interactionState.type === 'DISCARDING_CARD' && actingPlayer(game).type === 'human' && (() => {
+        const hand = CardSystem.getHandCards(actingPlayer(game));
+        const toDiscard = Math.max(0, hand.length - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS);
+        return (
+          <CardPickModal
+            title={`Défaussez ${toDiscard} carte${toDiscard > 1 ? 's' : ''}`}
+            subtitle={`Vous ne gardez que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} cartes en main pour la manche suivante.`}
+            cards={hand}
+            selectedIds={interactionState.selectedCards}
+            onToggle={handleCardClick}
+            highlightedAttribute="freeAction"
+            status={`Sélectionnées : ${interactionState.selectedCards.length} / ${toDiscard}`}
+            confirmLabel="Défausser"
+            canConfirm={interactionState.selectedCards.length === toDiscard}
+            onConfirm={handleConfirmDiscard}
+          />
+        );
+      })()}
+
+      {/* Défausse pour marquer des signaux : signal en surbrillance */}
+      {interactionState.type === 'DISCARDING_FOR_SIGNAL' && actingPlayer(game).type === 'human' && (
+        <CardPickModal
+          title={`Défaussez jusqu'à ${interactionState.count} carte${interactionState.count > 1 ? 's' : ''}`}
+          subtitle="Chaque carte défaussée marque un signal dans un secteur de sa couleur."
+          cards={CardSystem.getHandCards(actingPlayer(game))}
+          selectedIds={interactionState.selectedCards}
+          onToggle={handleCardClick}
+          highlightedAttribute="scan"
+          status={`Sélectionnées : ${interactionState.selectedCards.length} / ${interactionState.count}`}
+          confirmLabel="Défausser"
+          canConfirm
+          onConfirm={handleConfirmDiscard}
+        />
+      )}
+
       {/* Modale de choix Média ou Déplacement (Carte 19) */}
       {interactionState.type === 'CHOOSING_MEDIA_OR_MOVE' && (
         <MediaOrMoveModal onChoice={handleMediaOrMoveChoice} />
@@ -1759,7 +1796,6 @@ export const BoardUI: React.FC = () => {
               highlightPlayableCards={actionFocus === 'card'}
               onCardClick={handleCardClick}
               onDiscardCardAction={handleDiscardCardAction}
-              onConfirmDiscardForEndTurn={handleConfirmDiscard}
               onTradeCardAction={handleTradeCardAction}
               onConfirmTrade={handleConfirmTrade}
               onConfirmReserve={() => handleConfirmReservation()}
@@ -1771,7 +1807,6 @@ export const BoardUI: React.FC = () => {
               onNextPlayer={handleNextPlayer}
               onHistory={(message, sequenceId) => addToHistory(message, game.players[game.currentPlayerIndex].id, game, undefined, sequenceId)}
               onComputerBonus={handleComputerBonus}
-              onConfirmDiscardForSignal={handleConfirmDiscard}
               setActiveTooltip={setActiveTooltip}
               onSettingsClick={() => setSettingsVisible(true)}
               onMissionClick={handleMissionClick}

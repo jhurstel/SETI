@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { Card } from '../../core/types';
-import { CardTooltip } from '../../ui/components/CardTooltip';
-import { CardContent } from '../components/HandCard';
 import { Tooltip } from '../Tooltip';
+import { ChoiceCardTile } from './CardPickModal';
 import { ChoiceModal, ChoiceFooterButton } from './ChoiceModal';
 
 interface PassModalProps {
@@ -40,38 +39,16 @@ export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm,
         footer={<ChoiceFooterButton onClick={confirm} disabled={!selectedCardId}>{confirmLabel ?? 'Confirmer et passer'}</ChoiceFooterButton>}
         wide
       >
-          {cards.map(card => {
-            const isSelected = selectedCardId === card.id;
-            return (
-              <div
-                key={card.id}
-                onClick={() => setSelectedCardId(card.id)}
-                onMouseEnter={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  setActiveTooltip({ content: <CardTooltip card={card} />, rect });
-                }}
-                onMouseLeave={() => setActiveTooltip(null)}
-                className={`seti-common-card seti-card-wrapper ${isSelected ? 'selected' : ''}`}
-                style={{
-                  width: '140px',
-                  height: '200px',
-                  padding: '6px',
-                  backgroundColor: isSelected ? 'rgba(74, 158, 255, 0.2)' : 'rgba(30, 30, 40, 0.9)',
-                  border: isSelected ? '2px solid #4a9eff' : '1px solid #555',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  transform: isSelected ? 'scale(1.05)' : 'scale(1)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '2px',
-                  position: 'relative'
-                }}
-              >
-                <CardContent card={card} highlightedAttribute={highlightedAttribute} />
-              </div>
-            )
-          })}
+          {cards.map(card => (
+            <ChoiceCardTile
+              key={card.id}
+              card={card}
+              selected={selectedCardId === card.id}
+              highlightedAttribute={highlightedAttribute}
+              onClick={() => setSelectedCardId(card.id)}
+              onHover={setActiveTooltip}
+            />
+          ))}
       </ChoiceModal>
       {activeTooltip && (
         <Tooltip content={activeTooltip.content} targetRect={activeTooltip.rect} />

@@ -17,7 +17,6 @@ interface PlayerBoardUIProps {
   onViewPlayer: (playerId: string) => void;
   onAction: (actionType: ActionType) => void;
   onCardClick: (cardId: string) => void;
-  onConfirmDiscardForEndTurn: () => void;
   onDiscardCardAction: (cardId: string) => void;
   onPlayCard: (cardId: string) => void;
   onBuyCardAction: () => void;
@@ -30,7 +29,6 @@ interface PlayerBoardUIProps {
   onComputerBonus: (type: string, amount: number, sequenceId?: string) => void;
   onConfirmReserve: () => void;
   onDirectTradeAction: (spendType: string, gainType: string) => void;
-  onConfirmDiscardForSignal: () => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
   onSettingsClick: () => void;
   onMissionClick: (missionId: string, requirementId: string) => void;
@@ -111,7 +109,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onConfirmDiscardForEndTurn, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, onConfirmDiscardForSignal, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction, highlightPlayableCards = false }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction, highlightPlayableCards = false }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -133,7 +131,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   const selectedCardIds = (isDiscarding || isTrading || isReserving || isDiscardingForSignal) ? interactionState.selectedCards : [];
 
   const reservationCount = isReserving ? interactionState.count : 0;
-  const discardForSignalCount = isDiscardingForSignal ? interactionState.count : 0;
 
   const handCards = currentPlayer.cards.filter(c => c.type !== CardType.EXERTIEN);
   const playableCardIds = highlightPlayableCards ? CardSystem.getPlayableCardIds(game, currentPlayer.id) : [];
@@ -707,21 +704,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 )}
               </span>
             </div>
-            {isDiscarding && !isRobot && (
-              <div className="seti-cards-warning">
-                Veuillez défausser des cartes pour n'en garder que {GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}.
-                <br />
-                Sélectionnées : {selectedCardIds.length} / {Math.max(0, handCards.length - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS)}
-                {handCards.length - selectedCardIds.length === GAME_CONSTANTS.HAND_SIZE_AFTER_PASS && (
-                  <button 
-                    onClick={onConfirmDiscardForEndTurn}
-                    className="seti-confirm-btn"
-                  >
-                    Confirmer
-                  </button>
-                )}
-              </div>
-            )}
             {isTrading && !isRobot && (
               <div className="seti-cards-warning">
                 Veuillez sélectionner 2 cartes à échanger.
@@ -750,19 +732,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                       Confirmer
                     </button>
                 )}
-              </div>
-            )}
-            {isDiscardingForSignal && !isRobot && (
-              <div className="seti-cards-warning">
-                Veuillez sélectionner jusqu'à {discardForSignalCount} carte(s) à défausser pour gagner des signaux.
-                <br />
-                Sélectionnées : {selectedCardIds.length}
-                <button 
-                  onClick={onConfirmDiscardForSignal}
-                  className="seti-confirm-btn"
-                >
-                  Confirmer
-                </button>
               </div>
             )}
             <div className="seti-player-list seti-cards-list" ref={cardsListRef}>
