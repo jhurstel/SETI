@@ -363,7 +363,17 @@ export const BoardUI: React.FC = () => {
   };
 
   // Gestionnaire pour passer au joueur suivant (fin de tour simple)
+  // Bouton « Prochain joueur » : le tour ne se termine pas tant qu'une interaction obligatoire est en cours ou en attente
   const handleNextPlayer = () => {
+    if (TurnManager.blocksEndOfTurn(interactionState) || pendingInteractions.length > 0) {
+      setToast({ message: "Terminez d'abord l'action en cours avant de finir votre tour.", visible: true });
+      return;
+    }
+    continueEndOfTurn();
+  };
+
+  // Fin de tour (paliers, puis joueur suivant) ; aussi reprise après le choix demandé par un palier
+  const continueEndOfTurn = () => {
     if (!gameEngineRef.current || !game) return;
 
     // Vérifier les paliers de score avant de passer au joueur suivant
@@ -821,7 +831,7 @@ export const BoardUI: React.FC = () => {
     if (!handleNewInteractions(newPendingInteractions, sequenceId)) setInteractionState({ type: 'IDLE' });
 
     // Continuer la fin de tour
-    handleNextPlayer();
+    continueEndOfTurn();
   };
 
   // Gestionnaire pour le choix d'une carte Exertien à un palier (cardId absent = renoncer)
@@ -842,7 +852,7 @@ export const BoardUI: React.FC = () => {
     setInteractionState({ type: 'IDLE' });
 
     // Continuer la fin de tour
-    handleNextPlayer();
+    continueEndOfTurn();
   };
 
   // Gestionnaire pour le clic sur une carte Alien
@@ -1560,7 +1570,7 @@ export const BoardUI: React.FC = () => {
     setInteractionState({ type: 'IDLE' });
 
     // Continuer la fin de tour
-    handleNextPlayer();
+    continueEndOfTurn();
   };
 
   // Gestionnaire pour le clic sur le background

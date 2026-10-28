@@ -4,6 +4,7 @@ import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
 import { ScanSystem } from '../systems/ScanSystem';
+import { TurnManager } from '../core/TurnManager';
 import { PlayerComputer } from './components/PlayerComputer';
 import { HandCard } from './components/HandCard';
 import { MissionCard } from './components/MissionCard';
@@ -607,14 +608,16 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
           <div className="seti-player-turn-buttons">
             {!isRobot && (() => {
               // Fin du tour (après l'action principale) et passe définitive, au format des boutons d'échange
-              const canEndTurn = isCurrentTurn && hasPerformedMainAction && !isInteractiveMode;
+              // Une interaction obligatoire en cours (ex : technologie à choisir) empêche de finir le tour ou de passer
+              const interactionBlocks = isInteractiveMode || TurnManager.blocksEndOfTurn(interactionState);
+              const canEndTurn = isCurrentTurn && hasPerformedMainAction && !interactionBlocks;
               let endTurnReason = "Terminez d'abord l'action en cours";
               if (!isCurrentTurn) endTurnReason = "Ce n'est pas votre tour";
               else if (!hasPerformedMainAction) endTurnReason = "Effectuez d'abord une action principale";
               const endTurnTooltip = canEndTurn
                 ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} note="Cliquez pour terminer votre tour" />
                 : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} note={endTurnReason} />;
-              const canPass = actionAvailability[ActionType.PASS] && !isInteractiveMode;
+              const canPass = actionAvailability[ActionType.PASS] && !interactionBlocks;
               return (
                 <>
                   {renderActionButton('⏭️', endTurnTooltip, () => onNextPlayer && onNextPlayer(), !canEndTurn, '#fff', {}, canEndTurn ? 'seti-flash-green' : '', 'Prochain joueur')}

@@ -168,6 +168,19 @@ describe('TurnManager', () => {
   });
 });
 
+describe('TurnManager.blocksEndOfTurn', () => {
+  test("une technologie à choisir (ou toute interaction obligatoire) empêche de finir son tour", () => {
+    expect(TurnManager.blocksEndOfTurn({ type: 'ACQUIRING_TECH', isBonus: false })).toBe(true);
+    expect(TurnManager.blocksEndOfTurn({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.RED })).toBe(true);
+  });
+
+  test('on peut finir son tour sans interaction, avec des déplacements restants ou pendant un échange', () => {
+    expect(TurnManager.blocksEndOfTurn({ type: 'IDLE' })).toBe(false);
+    expect(TurnManager.blocksEndOfTurn({ type: 'MOVING_PROBE', count: 2 })).toBe(false);
+    expect(TurnManager.blocksEndOfTurn({ type: 'TRADING_CARD', count: 2, targetGain: 'credit', selectedCards: [] })).toBe(false);
+  });
+});
+
 describe('PassAction', () => {
   let game: Game;
 

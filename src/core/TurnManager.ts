@@ -45,6 +45,15 @@ export class TurnManager {
   }
 
   /**
+   * L'interaction en cours empêche-t-elle de finir son tour ? Toute interaction doit être menée à terme
+   * (ex : choisir la technologie payée par « Rechercher une technologie »), sauf les déplacements gratuits
+   * restants (perdus en fin de tour) et l'échange de cartes, facultatif.
+   */
+  static blocksEndOfTurn(interaction: InteractionState): boolean {
+    return !['IDLE', 'MOVING_PROBE', 'TRADING_CARD'].includes(interaction.type);
+  }
+
+  /**
    * Fin de tour du joueur courant : vérifie les paliers de score puis passe au joueur suivant.
    * Si un palier exige un choix (marqueur d'objectif, récompense centaurienne…), le tour
    * n'est pas terminé : `pendingInteraction` est renvoyée et `turnEnded` vaut false.
