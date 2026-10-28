@@ -25,7 +25,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
 
     // Infobulle d'un palier ou d'une tuile : nom en gras, effet en italique (même format que les astéroïdes et comètes)
     const showInfoTooltip = (e: React.MouseEvent, title: string, effect: string) => setActiveTooltip({
-        content: <><div style={{ fontWeight: 'bold' }}>{title}</div><div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>{effect}</div></>,
+        content: <div style={{ maxWidth: '240px', textAlign: 'center' }}><div style={{ fontWeight: 'bold' }}>{title}</div><div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>{effect}</div></div>,
         rect: e.currentTarget.getBoundingClientRect()
     });
     const neutralEffect = (m: number) => {
