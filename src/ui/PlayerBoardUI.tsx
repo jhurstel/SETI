@@ -102,21 +102,22 @@ const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, onA
     );
   };
 
-  // Les lignes entrent dans les cadres de technologie (into-left / into-right) jusqu'aux emplacements
+  // Trois actions indépendantes : lancer (Exploration I et II), mettre en orbite, poser (Exploration III et IV) ; les groupes sont séparés
+  // par un espace sans ligne. Les lignes entrent dans les cadres (into-left / into-right) jusqu'aux emplacements.
   return (
     <div className="obs-track-container">
       {actionSlot('🚀', ActionType.LAUNCH_PROBE)}
-      <div className="obs-track-connector" />
-      {actionSlot('🛰️', ActionType.ORBIT)}
-      <div className="obs-track-connector" />
-      {actionSlot('🛬', ActionType.LAND)}
       <div className="obs-track-connector into-right" />
       {techSlot('🛸', "Jusqu'à 2 sondes dans le système solaire", 1, 'I')}
-      <div className="obs-track-connector into-left into-right" />
+      <div className="obs-track-connector into-left into-right between-frames" />
       {techSlot('🪨', "+1 Média en visitant un champ d'astéroïdes, qu'on quitte pour 1 déplacement", 2, 'II')}
-      <div className="obs-track-connector into-left into-right" />
+      <div className="obs-track-gap" />
+      {actionSlot('🛰️', ActionType.ORBIT)}
+      <div className="obs-track-gap" />
+      {actionSlot('🛬', ActionType.LAND)}
+      <div className="obs-track-connector into-right" />
       {techSlot('🔋', 'Atterrissage : 1 Énergie de moins', 3, 'III')}
-      <div className="obs-track-connector into-left into-right" />
+      <div className="obs-track-connector into-left into-right between-frames" />
       {techSlot('🌙', 'Atterrissage sur les lunes', 4, 'IV')}
     </div>
   );

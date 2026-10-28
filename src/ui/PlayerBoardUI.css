@@ -521,7 +521,7 @@
 .obs-track-container {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
+  padding: 8px;
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 6px;
   margin-top: 8px;
@@ -581,3 +581,13 @@
 /* Voisin dans un cadre de technologie (58px pour un emplacement de 32px) : la ligne va jusqu'à l'emplacement */
 .obs-track-connector.into-left { margin-left: -15px; }
 .obs-track-connector.into-right { margin-right: -15px; }
+/* Entre un emplacement et un cadre : au moins 4px d'écart (21px - 2px - 15px) */
+.obs-track-connector.into-left,
+.obs-track-connector.into-right { min-width: 21px; }
+/* Entre deux cadres voisins : 4px d'écart (34px - 2 × 15px), sans rétrécir */
+.obs-track-connector.between-frames { flex: 0 0 34px; }
+/* Séparation entre deux groupes indépendants d'une piste (sans ligne) */
+.obs-track-gap {
+  flex-grow: 1;
+  min-width: 8px;
+}
