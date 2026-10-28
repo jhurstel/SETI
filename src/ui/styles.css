@@ -144,6 +144,9 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   justify-content: center;
   gap: 8px;
   position: relative;
+  /* Au-dessus des lignes des pistes, qui s'arrêtent au bord du cadre (fond opaque de la couleur des pistes) */
+  z-index: 2;
+  background-color: #141a27;
   border: 1px solid #555;
   border-radius: 8px;
   transition: border-color 0.2s, background-color 0.2s;
@@ -153,7 +156,7 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
 }
 .seti-tech-spot.selectable {
   border-color: #00ff00;
-  background-color: rgba(0, 255, 0, 0.1);
+  background-color: #14301f;
   cursor: pointer;
 }
 
