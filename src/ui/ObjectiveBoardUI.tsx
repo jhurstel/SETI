@@ -24,8 +24,8 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
     const getPosition = (val: number) => (val / trackMax) * 100;
 
     // Infobulle d'un palier ou d'une tuile : nom en gras, effet en italique (même format que les astéroïdes et comètes)
-    const showInfoTooltip = (e: React.MouseEvent, title: string, effect: string) => setActiveTooltip({
-        content: <div style={{ maxWidth: '240px', textAlign: 'center' }}><div style={{ fontWeight: 'bold' }}>{title}</div><div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>{effect}</div></div>,
+    const showInfoTooltip = (e: React.MouseEvent, title: string, effect: string, titleColor?: string, effectColor = '#aaa') => setActiveTooltip({
+        content: <div style={{ maxWidth: '240px', textAlign: 'center' }}><div style={{ fontWeight: 'bold', color: titleColor }}>{title}</div><div style={{ fontSize: '0.8em', marginTop: '4px', color: effectColor, fontStyle: 'italic' }}>{effect}</div></div>,
         rect: e.currentTarget.getBoundingClientRect()
     });
     const neutralEffect = (m: number) => {
@@ -94,12 +94,10 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                             // Les paliers restent sur la piste une fois atteints, avec ce qu'ils ont rapporté
                             return (p.centaurienMilestones || []).map(m => (
                                 <div key={m.id} style={{ position: 'absolute', left: `${getPosition(m.score)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help', opacity: m.resolved ? 0.6 : 1 }}
-                                    onMouseEnter={(e) => setActiveTooltip({ content: (
-                                        <div>
-                                            <div style={{ fontWeight: 'bold', color: p.color }}>{m.cardName ? `Réception « ${m.cardName} »` : 'Message Centaurien'} ({p.name}) : {m.score} PV</div>
-                                            <div style={{ color: m.resolved ? '#7fff7f' : '#ccc', marginTop: '2px' }}>{m.resolved ?? (m.cardName ? "Effet de réception de la carte à l'arrivée sur ce palier" : "Choix d'une tuile Message à l'arrivée sur ce palier")}</div>
-                                        </div>
-                                    ), rect: e.currentTarget.getBoundingClientRect() })}
+                                    // Même format que les autres paliers, titre à la couleur du joueur ; une fois atteint, ce qu'il a rapporté (en vert)
+                                    onMouseEnter={(e) => showInfoTooltip(e, `Palier Centaurien (${p.name}) : ${m.score} PV`,
+                                        m.resolved ?? (m.cardName ? `Effet de réception de « ${m.cardName} » à l'arrivée sur ce palier` : "Choix d'une tuile Message à l'arrivée sur ce palier"),
+                                        p.color, m.resolved ? '#7fff7f' : '#aaa')}
                                     onMouseLeave={() => setActiveTooltip(null)}
                                 >
                                     <span style={{ fontSize: '12px', filter: `drop-shadow(0 0 2px ${p.color})` }}>{m.resolved ? '✉️' : '📩'}</span>

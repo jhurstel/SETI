@@ -321,6 +321,12 @@
     align-items: center;
 }
 
+/* Sous les emplacements infinis : même écart de 15px qu'entre deux emplacements fixes
+   (écart de colonne de 8px + 18px de marge sous le dernier emplacement infini - 11px) */
+.alien-infinite-slot + .alien-fixed-slots-container {
+    margin-top: -11px;
+}
+
 /* Exertiens : zone de danger (emplacements de même danger) ; le trait pointillé au-dessus de la zone
    traverse les trois colonnes, le label est à gauche, centré sur la zone */
 .alien-danger-zone {
