@@ -291,3 +291,86 @@ export const SunSvg: React.FC = () => {
     </svg>
   );
 };
+
+/**
+ * Sonde (type Voyager) vue de trois quarts : grande antenne parabolique, corps à la couleur du joueur
+ * habillé de feuille d'or, bras des générateurs (RTG) et long bras du magnétomètre.
+ */
+export const ProbeSvg: React.FC<{ color: string }> = ({ color }) => {
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  return (
+    <svg width="100%" height="100%" viewBox="-12 -12 24 24" style={{ overflow: 'visible', display: 'block' }}>
+      <defs>
+        <radialGradient id={`dish-${uid}`} cx="40%" cy="35%" r="70%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="60%" stopColor="#d6dbe2" />
+          <stop offset="100%" stopColor="#8a929c" />
+        </radialGradient>
+        <linearGradient id={`bus-${uid}`} x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stopColor="#fff" stopOpacity={0.45} />
+          <stop offset="45%" stopColor="#fff" stopOpacity={0} />
+          <stop offset="100%" stopColor="#000" stopOpacity={0.35} />
+        </linearGradient>
+      </defs>
+      {/* Bras du magnétomètre (long et fin) */}
+      <line x1={3} y1={3} x2={11.5} y2={7} stroke="#b9c0c8" strokeWidth={0.45} />
+      <circle cx={11.5} cy={7} r={0.6} fill="#d6dbe2" />
+      {/* Bras des générateurs : trois cylindres */}
+      <line x1={-3} y1={3} x2={-8.5} y2={6} stroke="#7d848c" strokeWidth={0.6} />
+      {[0, 1, 2].map(i => (
+        <rect key={i} x={-6.4 - i * 1.4} y={3.6 + i * 0.75} width={1.2} height={1.8} rx={0.3} fill="#4a4f55" stroke="#9aa1a8" strokeWidth={0.2} transform={`rotate(-28 ${-5.8 - i * 1.4} ${4.5 + i * 0.75})`} />
+      ))}
+      {/* Corps décagonal à la couleur du joueur, feuille d'or */}
+      <path d="M-4.4 0.8 L-2.6 -0.6 H2.6 L4.4 0.8 V4.8 L2.6 6.2 H-2.6 L-4.4 4.8 Z" fill={color} stroke="rgba(0, 0, 0, 0.5)" strokeWidth={0.3} />
+      <path d="M-4.4 0.8 L-2.6 -0.6 H2.6 L4.4 0.8 V4.8 L2.6 6.2 H-2.6 L-4.4 4.8 Z" fill={`url(#bus-${uid})`} />
+      <rect x={-1.8} y={1.6} width={3.6} height={2.6} rx={0.3} fill="#e8b84a" opacity={0.85} stroke="#a77a1e" strokeWidth={0.2} />
+      {/* Antenne parabolique (haut gain), vue légèrement de face */}
+      {/* bordée de la couleur du joueur pour reconnaître la sonde même petite */}
+      <ellipse cx={0} cy={-3.6} rx={7.2} ry={3.6} fill={`url(#dish-${uid})`} stroke={color} strokeWidth={0.8} />
+      <ellipse cx={0} cy={-3.6} rx={4.6} ry={2.2} fill="none" stroke="rgba(90, 98, 108, 0.35)" strokeWidth={0.3} />
+      {/* Support et sous-réflecteur */}
+      <line x1={0} y1={-3.6} x2={0} y2={-7.6} stroke="#6b7279" strokeWidth={0.35} />
+      <circle cx={0} cy={-7.8} r={0.7} fill="#c9ced4" stroke="#6b7279" strokeWidth={0.2} />
+    </svg>
+  );
+};
+
+/**
+ * Capsule Mascamite : capsule de retour (bouclier thermique en bas), bande à la couleur du joueur,
+ * hublot où brille le spécimen vert.
+ */
+export const CapsuleSvg: React.FC<{ color: string }> = ({ color }) => {
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  return (
+    <svg width="100%" height="100%" viewBox="-12 -12 24 24" style={{ overflow: 'visible', display: 'block' }}>
+      <defs>
+        <linearGradient id={`hull-${uid}`} x1="0" x2="1">
+          <stop offset="0%" stopColor="#f1f3f5" />
+          <stop offset="55%" stopColor="#c3c9cf" />
+          <stop offset="100%" stopColor="#7c848c" />
+        </linearGradient>
+        <radialGradient id={`specimen-${uid}`}>
+          <stop offset="0%" stopColor="#eaffd9" />
+          <stop offset="45%" stopColor="#8dff6e" />
+          <stop offset="100%" stopColor="#2e8f2a" />
+        </radialGradient>
+        <radialGradient id={`glow-${uid}`}>
+          <stop offset="0%" stopColor="#8dff6e" stopOpacity={0.55} />
+          <stop offset="100%" stopColor="#8dff6e" stopOpacity={0} />
+        </radialGradient>
+      </defs>
+      <circle r={11} fill={`url(#glow-${uid})`} />
+      {/* Coque conique */}
+      <path d="M-3 -8 H3 L7.5 4 H-7.5 Z" fill={`url(#hull-${uid})`} stroke="#5e656d" strokeWidth={0.35} strokeLinejoin="round" />
+      {/* Bande du joueur */}
+      <path d="M-5.2 -2 H5.2 L6.1 0.4 H-6.1 Z" fill={color} stroke="rgba(0, 0, 0, 0.45)" strokeWidth={0.25} />
+      {/* Hublot et spécimen */}
+      <circle cx={0} cy={-4.6} r={1.9} fill={`url(#specimen-${uid})`} stroke="#4a5158" strokeWidth={0.45} />
+      {/* Bouclier thermique */}
+      <path d="M-8 4 Q0 8.2 8 4 Z" fill="#5a3a22" stroke="#2f1d10" strokeWidth={0.3} />
+      <path d="M-7 4.6 Q0 7.4 7 4.6" fill="none" stroke="#8a5a32" strokeWidth={0.4} opacity={0.7} />
+      {/* Nez */}
+      <rect x={-1.4} y={-9.2} width={2.8} height={1.4} rx={0.4} fill="#9aa1a8" />
+    </svg>
+  );
+};

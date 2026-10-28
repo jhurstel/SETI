@@ -10,7 +10,7 @@ import { PlanetIcon } from './components/PlanetIcon';
 import { RotationDiskSector } from './components/RotationDiskSector';
 import { SectorDetails } from './components/SectorDetails';
 import { SvgBonus } from './components/SvgBonus';
-import { PlanetGlobe, CometSvg, AsteroidFieldSvg, SunSvg } from './components/CelestialBodies';
+import { PlanetGlobe, CometSvg, AsteroidFieldSvg, SunSvg, ProbeSvg, CapsuleSvg } from './components/CelestialBodies';
 import { SectorStars } from './components/SectorStars';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
@@ -1179,37 +1179,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         {/* Ombre portée au sol */}
         <div className="seti-probe-shadow" />
 
-        {isCapsule ? (
-          /* Capsule : marqueur du joueur posé sur le spécimen */
-          <div className="seti-capsule" style={{ borderColor: playerColor, filter: isSelected ? 'drop-shadow(0 0 3px #00ff00)' : 'none' }}>
-            <div className="seti-capsule-marker" style={{ backgroundColor: playerColor }} />
-          </div>
-        ) : (
-        /* Structure de la sonde (Type Cassini/Voyager) */
-        <div className="seti-probe-body"
-          style={{
-            filter: isSelected ? 'drop-shadow(0 0 3px #00ff00)' : 'none',
-          }}
-        >
-          {/* Antenne parabolique (Dish) - Partie supérieure */}
-          <div className="seti-probe-dish">
-            <div className="seti-probe-dish-center" />
-          </div>
-
-          {/* Corps principal (Couleur du joueur) */}
-          <div className="seti-probe-core"
-            style={{
-              backgroundColor: playerColor,
-            }}>
-            <div className="seti-probe-gold" />
-          </div>
-
-          {/* Bras / Instruments (Booms) */}
-          <div className="seti-probe-arm-left" />
-          <div className="seti-probe-arm-right" />
-          <div className="seti-probe-antenna-bottom" />
+        <div className="seti-probe-body" style={{ filter: isSelected ? 'drop-shadow(0 0 3px #00ff00)' : 'none' }}>
+          {/* Capsule Mascamite (spécimen) ou sonde, à la couleur du joueur */}
+          {isCapsule ? <CapsuleSvg color={playerColor} /> : <ProbeSvg color={playerColor} />}
         </div>
-        )}
       </div>
     );
   };

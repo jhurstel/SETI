@@ -353,81 +353,6 @@
     justify-content: center;
 }
 
-.seti-probe-dish {
-    width: 22px;
-    height: 8px;
-    background: linear-gradient(to bottom, #e0e0e0, #999);
-    border-radius: 50% 50% 0 0 / 100% 100% 0 0;
-    border: 1px solid #666;
-    border-bottom: none;
-    position: relative;
-    z-index: 3;
-}
-
-.seti-probe-dish-center {
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 6px;
-    height: 3px;
-    background-color: #444;
-    border-radius: 50% 50% 0 0;
-}
-
-.seti-probe-core {
-    width: 14px;
-    height: 14px;
-    border: 1px solid rgba(255,255,255,0.4);
-    border-radius: 2px;
-    position: relative;
-    z-index: 4;
-    box-shadow: inset -2px -2px 4px rgba(0,0,0,0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.seti-probe-gold {
-    width: 80%;
-    height: 60%;
-    background-color: rgba(255, 215, 0, 0.3);
-    border: 1px solid rgba(255, 215, 0, 0.6);
-    border-radius: 1px;
-}
-
-.seti-probe-arm-left {
-    position: absolute;
-    top: 60%;
-    left: -4px;
-    width: 6px;
-    height: 4px;
-    background-color: #333;
-    border-radius: 2px;
-    z-index: 2;
-}
-
-.seti-probe-arm-right {
-    position: absolute;
-    top: 60%;
-    right: -8px;
-    width: 10px;
-    height: 1px;
-    background-color: #888;
-    z-index: 2;
-}
-
-.seti-probe-antenna-bottom {
-    position: absolute;
-    bottom: -2px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 2px;
-    height: 4px;
-    background-color: #666;
-    z-index: 1;
-}
-
 .seti-rotation-indicator {
     position: absolute;
     transform: translate(-50%, -50%);
@@ -501,25 +426,3 @@
     z-index: 1;
 }
 
-/* Capsule Mascamite : spécimen (vert) surmonté du marqueur du joueur */
-.seti-capsule {
-    position: relative;
-    width: 20px;
-    height: 14px;
-    margin: auto;
-    top: 50%;
-    transform: translateY(-50%);
-    border: 2px solid;
-    border-radius: 8px;
-    background: radial-gradient(circle at 35% 40%, #b6ff9e, #3f9e3a 70%);
-    box-shadow: 0 0 6px rgba(127, 255, 127, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.seti-capsule-marker {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    border: 1px solid rgba(0, 0, 0, 0.6);
-}
