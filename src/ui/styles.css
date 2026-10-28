@@ -133,7 +133,8 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   display: block;
 }
 /* Clignotement vert commun : un élément sur lequel le joueur peut agir maintenant.
-   Même couleur et même rythme partout (slots de signaux, panneaux, ordinateur, observation, missions). */
+   Même couleur et même rythme partout (panneaux, ordinateur, observation, missions). Sur le plateau du système solaire,
+   planètes et slots de signaux ont leur propre anneau qui s'agrandit (SolarSystemBoardUI.css). */
 @keyframes seti-flash-green {
   0%, 100% { box-shadow: 0 0 2px 1px rgba(76, 175, 80, 0.45); border-color: #4caf50; }
   50% { box-shadow: 0 0 12px 4px rgba(76, 175, 80, 0.95); border-color: #81c784; }
@@ -150,28 +151,6 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
 .seti-flash-green-icon {
   animation: seti-flash-green-icon 1.6s ease-in-out infinite;
   display: inline-block;
-}
-/* Anneau HTML, identique à l'anneau SVG des slots (planètes du plateau) */
-@keyframes seti-flash-green-ring {
-  /* Épaisseurs équivalentes au trait SVG des slots (0,5 → 1,1 unité, soit environ 1,5 → 3,5 px) */
-  0%, 100% { border-width: 1.5px; border-color: rgba(76, 175, 80, 0.45); }
-  50% { border-width: 3.5px; border-color: rgba(76, 175, 80, 1); }
-}
-.seti-flash-green-ring {
-  border: 1px solid #4caf50;
-  box-sizing: border-box;
-  animation: seti-flash-green-ring 1.6s ease-in-out infinite;
-}
-/* Anneau SVG (slots de signaux) */
-@keyframes seti-flash-green-svg {
-  0%, 100% { stroke-opacity: 0.45; stroke-width: 0.5px; }
-  50% { stroke-opacity: 1; stroke-width: 1.1px; }
-}
-.seti-flash-green-svg {
-  fill: none;
-  stroke: #4caf50;
-  animation: seti-flash-green-svg 1.6s ease-in-out infinite;
-  pointer-events: none;
 }
 
 /* Layout principal */

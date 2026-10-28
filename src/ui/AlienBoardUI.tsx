@@ -3,6 +3,7 @@ import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, B
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
+import { Tooltip } from './Tooltip';
 import './AlienBoardUI.css';
 
 interface AlienBoardUIProps {
@@ -126,13 +127,14 @@ const SpeciesCardArea: React.FC<{
     );
 };
 
-// Contenu de l'infobulle du danger Exertien : cartes de chaque joueur sur une ligne, détail de la carte survolée dans le même cadre
+// Contenu de l'infobulle du danger Exertien : cartes de chaque joueur sur une ligne ; le détail de la carte survolée
+// s'affiche dans sa propre infobulle, qui peut recouvrir celle-ci
 const ExertienDangerTooltip: React.FC<{
     game: Game;
     onEnter: () => void;
     onLeave: () => void;
 }> = ({ game, onEnter, onLeave }) => {
-    const [hoveredCard, setHoveredCard] = useState<Card | null>(null);
+    const [hoveredCard, setHoveredCard] = useState<{ card: Card, rect: DOMRect } | null>(null);
 
     return (
         <div
@@ -154,7 +156,7 @@ const ExertienDangerTooltip: React.FC<{
                             <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '5px', marginTop: '8px' }}>
                                 {exertienCards.map(card => (
                                     <div key={card.id} className="seti-common-card alien-danger-card"
-                                        onMouseEnter={() => setHoveredCard(card)}
+                                        onMouseEnter={(e) => setHoveredCard({ card, rect: e.currentTarget.getBoundingClientRect() })}
                                         onMouseLeave={() => setHoveredCard(null)}
                                     >
                                         <CardContent card={card} highlightedAttribute="freeAction" />
@@ -167,7 +169,7 @@ const ExertienDangerTooltip: React.FC<{
                     </div>
                 );
             })}
-            {hoveredCard && <div className="alien-danger-card-detail"><CardTooltip card={hoveredCard} /></div>}
+            {hoveredCard && <Tooltip content={<CardTooltip card={hoveredCard.card} />} targetRect={hoveredCard.rect} disableCollision />}
         </div>
     );
 };
@@ -405,9 +407,10 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
             infiniteSlot = species.infiniteSlots.bluelifetrace;
         }
 
-        return (
-            <div className="alien-track-column">
-                {!isMascamites && (
+        // Exertiens : les emplacements portent un danger, regroupés en zones (les emplacements excédentaires sont la zone 0)
+        const hasDangerZones = fixedSlots.some(slot => slot.danger !== undefined);
+
+        const infiniteSlots = !isMascamites && (
                 <div className="alien-infinite-slot">
                     <div
                         className="alien-infinite-corridor-container"
@@ -424,7 +427,16 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                         })}
                     </div>
                 </div>
-                )}
+        );
+
+        return (
+            <div className="alien-track-column">
+                {hasDangerZones ? (
+                    <div className="alien-danger-zone">
+                        {type === LifeTraceType.RED && <span className="alien-danger-zone-label">☣ 0</span>}
+                        {infiniteSlots}
+                    </div>
+                ) : infiniteSlots}
                 {isMascamites && type === LifeTraceType.BLUE && fixedSlots.length > MASCAMITE_BLUE_COLUMN ? (
                     <>
                         {/* Les jetons du haut en triangle (base à droite, pointe vers la gauche) pour garder la hauteur des autres plateaux */}
@@ -446,8 +458,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                         ? zone.indices.map(index => renderBoardSlot(type, index, fixedSlots[index], false, fixedSlots.length))
                         : (
                             // Exertiens : emplacements regroupés par zone de danger ; la première colonne dessine le trait
-                            // pointillé (du slot de gauche au slot de droite) et le label vertical de la zone
-                            <div key={`zone-${zoneIndex}`} className={`alien-danger-zone ${zoneIndex > 0 && type === LifeTraceType.RED ? 'with-line' : ''}`}>
+                            // pointillé au-dessus de la zone (de part et d'autre des slots) et le label de la zone
+                            <div key={`zone-${zoneIndex}`} className={`alien-danger-zone ${type === LifeTraceType.RED ? 'with-line' : ''} ${zoneIndex === 0 ? 'below-infinite' : ''}`}>
                                 {type === LifeTraceType.RED && <span className="alien-danger-zone-label">☣ {zone.danger}</span>}
                                 {zone.indices.map(index => renderBoardSlot(type, index, fixedSlots[index], false, fixedSlots.length))}
                             </div>

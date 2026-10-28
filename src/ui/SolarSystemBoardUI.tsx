@@ -815,7 +815,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             >
               {isFlashing && (
                 ((canAffordScan && interactionState.type === 'IDLE') || interactionState.type === 'SELECTING_SCAN_SECTOR') && (
-                  <circle className="seti-flash-green-svg" r="3.8" />
+                  <>
+                    <circle r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" />
+                    <circle className="seti-pulse-green-svg" r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" />
+                  </>
                 )
               )}
               <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" />
@@ -968,14 +971,12 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             }}
           />
         )}
-        {/* Même anneau vert pulsé que les slots de signaux */}
+        {/* Anneau fixe et anneau qui s'agrandit, comme pour les slots de signaux */}
         {canInteract && (
-          <div className="seti-planet-interaction-ring seti-flash-green-ring"
-            style={{
-              width: `${size + 10}px`,
-              height: `${size + 10}px`,
-            }}
-          />
+          <>
+            <div className="seti-planet-interaction-ring" style={{ width: `${size + 10}px`, height: `${size + 10}px` }} />
+            <div className="seti-planet-interaction-ring seti-pulse-green" style={{ width: `${size + 10}px`, height: `${size + 10}px` }} />
+          </>
         )}
         {obj.id === 'oumuamua' ? (
           <div className="seti-planet-body"

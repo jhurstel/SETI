@@ -333,35 +333,32 @@
 .alien-danger-zone.with-line::before {
     content: '';
     position: absolute;
-    top: -8px;
-    left: 0;
-    /* du bord gauche du slot de la 1re colonne au bord droit du slot de la 3e (colonnes réparties en 1/6, 1/2, 5/6) */
-    width: calc(100% + 200cqw / 3);
+    top: -8px; /* milieu de l'écart de 15px entre deux emplacements */
+    /* du slot de la 1re colonne à celui de la 3e (colonnes réparties en 1/6, 1/2, 5/6), en dépassant de 6px */
+    left: -6px;
+    width: calc(100% + 200cqw / 3 + 12px);
     border-top: 1px dashed rgba(255, 107, 107, 0.6);
 }
-/* Label vertical, à gauche de la zone et centré dessus (évite de déborder du plateau) */
+/* Première zone, sous les emplacements excédentaires (écart de 8px dans la colonne) */
+.alien-danger-zone.with-line.below-infinite::before {
+    top: -4px;
+}
+/* Label à gauche de la zone, centré dessus */
 .alien-danger-zone-label {
     position: absolute;
     top: 50%;
-    right: calc(100% + 3px);
-    transform: translateY(-50%) rotate(180deg);
-    writing-mode: vertical-rl;
+    right: calc(100% + 4px);
+    transform: translateY(-50%);
     font-size: 0.6rem;
     line-height: 1;
     color: #ff6b6b;
     white-space: nowrap;
 }
 
-/* Infobulle du danger : cartes réduites, non cliquables ; détail de la carte survolée sous la liste */
+/* Infobulle du danger : cartes réduites, non cliquables */
 .alien-danger-card {
     zoom: 0.7;
     cursor: help;
-}
-.alien-danger-card-detail {
-    margin-top: 4px;
-    padding-top: 6px;
-    border-top: 1px solid #555;
-    max-width: 340px;
 }
 
 /* Cartes de la rangée d'une espèce : contenu des cartes des joueurs (120 × 160) réduit à 100 × 133 */
@@ -428,4 +425,10 @@
 .alien-exertien-danger,
 .alien-oumuamua-token {
     cursor: help;
+}
+
+/* Plateau ouvert : toute la hauteur disponible (la limite commune de 80vh faisait défiler le plateau Exertiens) */
+.seti-foldable-container.alien-foldable-container.open,
+.seti-foldable-container.alien-foldable-container:hover {
+    max-height: calc(100vh - 50px);
 }
