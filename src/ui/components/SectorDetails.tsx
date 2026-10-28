@@ -203,8 +203,9 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
             </text>
 
             {/* Fond du couloir */}
-            {/* Fond opaque de la piste : les slots passent devant l'étoile du secteur, qui ne dépasse qu'autour */}
-            <path d={corridorPath} fill="none" stroke="#0a0e1a" strokeWidth="7" strokeLinecap="round" />
+            {/* Fond presque opaque de la piste : les slots passent devant l'étoile du secteur, qui ne dépasse qu'autour
+                et transparaît à peine */}
+            <path d={corridorPath} fill="none" stroke="#0a0e1a" strokeWidth="7" strokeLinecap="round" opacity="0.8" />
             <path d={corridorPath} fill="none" stroke={color} strokeWidth="7" opacity="0.15" strokeLinecap="round" style={{ pointerEvents: 'auto', cursor: 'default' }} />
 
             {/* Slots */}
