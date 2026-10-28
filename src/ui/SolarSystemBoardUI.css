@@ -50,6 +50,9 @@
     width: 100%;
     flex: 1;
     min-height: 0;
+    /* Place réservée en bas au toast : le plateau (carré inscrit dans la zone de contenu) remonte d'autant */
+    padding-bottom: 46px;
+    box-sizing: border-box;
     display: flex;
     justify-content: center;
     align-items: center;
