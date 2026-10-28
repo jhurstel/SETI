@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType, LifeTrace } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { CardTooltip } from './components/CardTooltip';
+import { CardContent } from './components/HandCard';
 import './AlienBoardUI.css';
 import { HandCard } from './components/HandCard';
 import { Tooltip } from './Tooltip';
@@ -63,6 +64,18 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
   </div>
 );
 
+/** Emplacements fixes d'une piste, du haut vers le bas, regroupés par niveau de danger consécutif (Exertiens) */
+const dangerZones = (fixedSlots: Bonus[]): { danger?: number, indices: number[] }[] => {
+    const zones: { danger?: number, indices: number[] }[] = [];
+    for (let index = fixedSlots.length - 1; index >= 0; index--) {
+        const danger = fixedSlots[index].danger;
+        const last = zones[zones.length - 1];
+        if (last && last.danger === danger) last.indices.push(index);
+        else zones.push({ danger, indices: [index] });
+    }
+    return zones;
+};
+
 // Species Card Area component
 const SpeciesCardArea: React.FC<{
     species: Species;
@@ -107,23 +120,8 @@ const SpeciesCardArea: React.FC<{
                     onMouseLeave={() => setActiveTooltip(null)}
                     className={`seti-common-card seti-row-card alien-small-card ${isAcquiring ? 'acquiring' : 'default'}`}
                 >
-                    <div className="seti-row-card-name alien-card-name">{card.name}</div>
-                    {card.type === CardType.EXERTIEN ? (
-                        <>
-                            {card.description && <div className="seti-row-card-desc alien-card-desc">{card.description}</div>}
-                            <div className="seti-row-card-details alien-card-details alien-card-danger">Danger {card.danger ?? 0}</div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="seti-row-card-cost alien-card-cost">Coût: <span>{card.cost}</span></div>
-                            {card.description && <div className="seti-row-card-desc alien-card-desc">{card.description}</div>}
-                            <div className="seti-row-card-details alien-card-details">
-                                {card.freeAction && <div>Act: {card.freeAction}</div>}
-                                {card.revenue && <div>Rev: {card.revenue}</div>}
-                                {card.scanSector && <div>Scan: {card.scanSector}</div>}
-                            </div>
-                        </>
-                    )}
+                    {/* Même contenu que les cartes des joueurs, réduit à la taille des petites cartes */}
+                    <div className="alien-card-content"><CardContent card={card} highlightedAttribute="freeAction" /></div>
                 </div>
             ))}
         </div>
@@ -222,6 +220,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
     const isBoardAllowed = interactionState.type !== 'PLACING_LIFE_TRACE' || !interactionState.boardIndices || interactionState.boardIndices.includes(boardIndex);
     const [isOpen, setIsOpen] = useState(isPlacingTrace || forceOpen);
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // L'infobulle du danger Exertien est hors du plateau : le plateau reste ouvert tant qu'elle est affichée
+    const [isDangerTooltipOpen, setIsDangerTooltipOpen] = useState(false);
 
     useEffect(() => {
         if (isPlacingTrace || forceOpen) {
@@ -232,6 +232,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
     const handleMouseLeaveWithDelay = () => {
         hoverTimeoutRef.current = setTimeout(() => {
             setActiveTooltip(null);
+            setIsDangerTooltipOpen(false);
         }, 200);
     };
 
@@ -461,22 +462,16 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                     </>
                 ) : (
                 <div className="alien-fixed-slots-container">
-                    {[...fixedSlots].reverse().map((bonus, reverseIndex) => {
-                        const index = fixedSlots.length - 1 - reverseIndex;
-                        // Exertiens : un trait pointillé et un label marquent le début de chaque zone de danger
-                        const above = reverseIndex > 0 ? fixedSlots[index + 1] : undefined;
-                        const startsDangerZone = bonus.danger !== undefined && above?.danger !== bonus.danger;
-                        return (
-                            <React.Fragment key={index}>
-                                {startsDangerZone && (
-                                    <div className={`alien-danger-zone ${reverseIndex === 0 ? 'first' : ''}`}>
-                                        <span>☣ {bonus.danger}</span>
-                                    </div>
-                                )}
-                                {renderBoardSlot(type, index, bonus, false, fixedSlots.length)}
-                            </React.Fragment>
-                        );
-                    })}
+                    {dangerZones(fixedSlots).map((zone, zoneIndex) => zone.danger === undefined
+                        ? zone.indices.map(index => renderBoardSlot(type, index, fixedSlots[index], false, fixedSlots.length))
+                        : (
+                            // Exertiens : emplacements regroupés par zone de danger, séparées par un trait pointillé ;
+                            // le label de la zone est à gauche de la première colonne
+                            <div key={`zone-${zoneIndex}`} className={`alien-danger-zone ${zoneIndex === 0 ? 'first' : ''}`}>
+                                {type === LifeTraceType.RED && <span className="alien-danger-zone-label">☣ {zone.danger}</span>}
+                                {zone.indices.map(index => renderBoardSlot(type, index, fixedSlots[index], false, fixedSlots.length))}
+                            </div>
+                        ))}
                 </div>
                 )}
             </div>
@@ -485,7 +480,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
 
     return (
         <div className={`alien-board-container ${side}`}>
-            <div className={`seti-foldable-container seti-icon-panel alien-foldable-container ${isOpen ? 'open' : 'collapsed'}`}>
+            <div className={`seti-foldable-container seti-icon-panel alien-foldable-container ${isOpen || isDangerTooltipOpen ? 'open' : 'collapsed'}`}>
                 <div className="seti-foldable-content alien-foldable-content">
                     {board.isDiscovered && (
                         <div className="alien-species-header">
@@ -538,6 +533,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                     <div className="alien-exertien-danger"
                                         onMouseEnter={(e) => {
                                             handleMouseEnterClearDelay();
+                                            setIsDangerTooltipOpen(true);
                                             const rect = e.currentTarget.getBoundingClientRect();
                                             const content = (
                                                 <ExertienDangerTooltip

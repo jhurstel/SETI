@@ -142,23 +142,6 @@
 .alien-small-card.default {
     cursor: default;
 }
-.alien-card-name {
-    font-size: 1em;
-    margin-bottom: 2px;
-    line-height: 1.1;
-}
-.alien-card-cost {
-    font-size: 0.9em;
-}
-.alien-card-desc {
-    font-size: 0.9em;
-    line-height: 1.1;
-    margin: 2px 0;
-}
-.alien-card-details {
-    font-size: 0.85em;
-    gap: 2px;
-}
 .alien-deck-label {
     font-size: 1em;
 }
@@ -338,36 +321,43 @@
     align-items: center;
 }
 
-/* Exertiens : limite entre deux zones de danger (le trait n'ajoute pas d'espace entre les emplacements) */
+/* Exertiens : zone de danger (emplacements de même danger) ; le trait pointillé au-dessus de la zone
+   traverse les trois colonnes, le label est à gauche, centré sur la zone */
 .alien-danger-zone {
     position: relative;
-    align-self: stretch;
-    min-width: 40px;
-    height: 0;
-    margin: -8px 0 -7px;
-    border-top: 1px dashed rgba(255, 107, 107, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px; /* même écart que .alien-fixed-slots-container */
 }
-.alien-danger-zone.first {
-    border-top-color: transparent;
-}
-.alien-danger-zone span {
+.alien-danger-zone:not(.first)::before {
+    content: '';
     position: absolute;
-    left: 50%;
-    top: 0;
-    transform: translate(-50%, -50%);
-    padding: 0 3px;
+    top: -8px;
+    left: -45px;
+    right: -45px;
+    border-top: 1px dashed rgba(255, 107, 107, 0.6);
+}
+.alien-danger-zone-label {
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 4px);
+    transform: translateY(-50%);
     font-size: 0.6rem;
     line-height: 1;
     color: #ff6b6b;
-    background: rgba(20, 25, 40, 0.95);
-    border-radius: 3px;
     white-space: nowrap;
 }
 
-.alien-card-danger {
-    justify-content: center;
-    color: #ff6b6b;
-    font-weight: bold;
+/* Cartes de la rangée d'une espèce : contenu des cartes des joueurs (120 × 160) réduit à 100 × 133 */
+.alien-card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 113px;
+    height: 152px;
+    font-size: 0.7rem;
+    zoom: 0.833;
 }
 
 /* Slot styles */
