@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Game, GamePhase, InteractionState, GOLDEN_MILESTONES, NEUTRAL_MILESTONES } from '../core/types';
-import { SlotTooltip, SLOT_COLORS } from './components/SlotTooltip';
+import { SlotTooltip } from './components/SlotTooltip';
+import { SLOT_COLORS } from './styles/slotColors';
+import { ObjectiveSymbol } from './components/ObjectiveSymbol';
 import './ObjectiveBoardUI.css';
 
 interface ObjectiveBoardUIProps {
@@ -21,8 +23,8 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
     const trackMax = maxScore > 100 ? Math.ceil(maxScore / 100) * 100 : 100;
     const getPosition = (val: number) => (val / trackMax) * 100;
 
-    // Infobulle d'un palier : nom en gras, effet en italique (même format que les astéroïdes et comètes)
-    const showMilestoneTooltip = (e: React.MouseEvent, title: string, effect: string) => setActiveTooltip({
+    // Infobulle d'un palier ou d'une tuile : nom en gras, effet en italique (même format que les astéroïdes et comètes)
+    const showInfoTooltip = (e: React.MouseEvent, title: string, effect: string) => setActiveTooltip({
         content: <><div style={{ fontWeight: 'bold' }}>{title}</div><div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>{effect}</div></>,
         rect: e.currentTarget.getBoundingClientRect()
     });
@@ -70,7 +72,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                         {/* Paliers Neutres */}
                         {game.players.length < 4 && NEUTRAL_MILESTONES.map(m => (
                             <div key={`neutral-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
-                                onMouseEnter={(e) => showMilestoneTooltip(e, `Palier neutre : ${m} PV`, neutralEffect(m))}
+                                onMouseEnter={(e) => showInfoTooltip(e, `Palier neutre : ${m} PV`, neutralEffect(m))}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
                                 <svg width="14" height="14" viewBox="0 0 24 24" style={{ fill: '#aaa', filter: 'drop-shadow(0 0 2px #555)' }}><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg>
@@ -80,7 +82,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                         {/* Paliers Objectifs */}
                         {GOLDEN_MILESTONES.map(m => (
                             <div key={`golden-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
-                                onMouseEnter={(e) => showMilestoneTooltip(e, `Palier objectif : ${m} PV`, "Chaque joueur qui l'atteint place, à la fin de son tour, un marqueur sur une tuile objectif où il n'en a pas encore : ses PV sont comptés en fin de partie")}
+                                onMouseEnter={(e) => showInfoTooltip(e, `Palier objectif : ${m} PV`, "Chaque joueur qui l'atteint place, à la fin de son tour, un marqueur sur une tuile objectif où il n'en a pas encore : ses PV sont comptés en fin de partie")}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
                                 <svg width="16" height="16" viewBox="0 0 24 24" style={{ fill: '#ffd700', filter: 'drop-shadow(0 0 3px #ffd700)' }}><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
@@ -108,7 +110,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                         {/* Paliers Exertiens */}
                         {game.exertienMilestones?.map(m => (
                             <div key={`exertien-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
-                                onMouseEnter={(e) => showMilestoneTooltip(e, `Palier Exertien : ${m} PV`, "Chaque joueur qui l'atteint peut jouer une de ses cartes Exertien")}
+                                onMouseEnter={(e) => showInfoTooltip(e, `Palier Exertien : ${m} PV`, "Chaque joueur qui l'atteint peut jouer une de ses cartes Exertien")}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
                                 <span style={{ fontSize: '12px', filter: 'drop-shadow(0 0 2px #fff)' }}>☣️</span>
@@ -150,7 +152,13 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                             onClick={() => onObjectiveClick(tile.id)}
                             className={`seti-objective-tile ${interactionState.type === 'PLACING_OBJECTIVE_MARKER' ? 'active' : ''}`}
                         >
-                            <div className="seti-objective-desc">{tile.description}</div>
+                            {/* Symbole de la tuile, description en infobulle */}
+                            <div className="seti-objective-symbol"
+                                onMouseEnter={(e) => showInfoTooltip(e, tile.name, tile.description)}
+                                onMouseLeave={() => setActiveTooltip(null)}
+                            >
+                                <ObjectiveSymbol tile={tile} />
+                            </div>
 
                             {/* Piste de score avec 4 cercles */}
                             <div className="seti-objective-track">

@@ -1,12 +1,5 @@
 import React from 'react';
-
-/** Code couleur commun des infobulles d'emplacement */
-export const SLOT_COLORS = {
-  available: '#4a9eff',
-  unavailable: '#ff6b6b',
-  neutral: '#aaa',
-  bonus: '#ffd700',
-};
+import { SLOT_COLORS } from '../styles/slotColors';
 
 interface SlotTooltipProps {
   /** 1re ligne : état (Disponible, Indisponible, Occupé par…) */

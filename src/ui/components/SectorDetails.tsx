@@ -1,5 +1,6 @@
 import React from 'react';
-import { SlotTooltip, SLOT_COLORS } from './SlotTooltip';
+import { SlotTooltip } from './SlotTooltip';
+import { SLOT_COLORS } from '../styles/slotColors';
 import { Game, InteractionState, SignalType, GAME_CONSTANTS } from '../../core/types';
 import { describeArc, polarToCartesian } from '../../core/SolarSystemPosition';
 import { ResourceSystem } from '../../systems/ResourceSystem';

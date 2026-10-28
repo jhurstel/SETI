@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { SlotTooltip, SLOT_COLORS } from './components/SlotTooltip';
+import { SlotTooltip } from './components/SlotTooltip';
+import { SLOT_COLORS } from './styles/slotColors';
 import { Game, InteractionState, Planet, ProbeState, AlienBoardType, Player, Satellite, Bonus, Probe } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { PlanetIcon } from './components/PlanetIcon';

@@ -10,7 +10,8 @@ import { PlanetIcon } from './components/PlanetIcon';
 import { RotationDiskSector } from './components/RotationDiskSector';
 import { SectorDetails } from './components/SectorDetails';
 import { SvgBonus } from './components/SvgBonus';
-import { SlotTooltip, SLOT_COLORS } from './components/SlotTooltip';
+import { SlotTooltip } from './components/SlotTooltip';
+import { SLOT_COLORS } from './styles/slotColors';
 import './SolarSystemBoardUI.css'
 
 interface SolarSystemBoardUIProps {

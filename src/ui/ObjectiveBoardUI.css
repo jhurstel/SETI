@@ -27,11 +27,16 @@
     box-shadow: 0 0 10px rgba(74, 158, 255, 0.3);
 }
 
-.seti-objective-desc {
-    font-size: 0.7em;
-    color: #ccc;
-    font-style: italic;
-    margin-bottom: auto;
+.seti-objective-symbol {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 2px auto auto;
+    padding: 3px 8px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #c9a640, #8f7424);
+    box-shadow: inset 0 0 0 1px rgba(255, 230, 150, 0.5);
+    cursor: help;
 }
 
 .seti-objective-track {

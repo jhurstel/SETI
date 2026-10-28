@@ -8,7 +8,8 @@ import { PlayerComputer } from './components/PlayerComputer';
 import { HandCard } from './components/HandCard';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
-import { SlotTooltip, SLOT_COLORS } from './components/SlotTooltip';
+import { SlotTooltip } from './components/SlotTooltip';
+import { SLOT_COLORS } from './styles/slotColors';
 import './PlayerBoardUI.css';
 
 interface PlayerBoardUIProps {
