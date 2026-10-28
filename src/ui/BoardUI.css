@@ -5,7 +5,11 @@
   transform: translateX(-50%);
   background-color: rgba(0, 0, 0, 0.85);
   color: #4a9eff;
-  padding: 12px 24px;
+  padding: 10px 20px;
+  /* Sur une ligne tant que le texte tient dans le panneau, sinon retour à la ligne */
+  width: max-content;
+  max-width: calc(100% - 20px);
+  text-align: center;
   border-radius: 8px;
   z-index: 9999;
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);

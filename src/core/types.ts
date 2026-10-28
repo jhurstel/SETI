@@ -739,7 +739,7 @@ export type InteractionState = InteractionStateVariant & { playerId?: string };
   // Helper pour les libellés des interactions
 export const getInteractionLabel = (state: InteractionState): string => {
   switch (state.type) {
-    case 'RESERVING_CARD': return `Veuillez réservez ${state.count} carte${state.count > 1 ? 's' : ''}.`;
+    case 'RESERVING_CARD': return `Veuillez réserver ${state.count} carte${state.count > 1 ? 's' : ''}.`;
     case 'DISCARDING_CARD': return `Veuillez défausser ${state.count} carte${state.count > 1 ? 's' : ''}.`;
     case 'TRADING_CARD': return `Veuillez échanger ${state.count} carte${state.count > 1 ? 's' : ''} pour gagner ${state.targetGain}.`;
     case 'ACQUIRING_CARD': return state.isFree ? `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''}.` : `Veuillez acheter ${state.count} carte${state.count > 1 ? 's' : ''}.`;

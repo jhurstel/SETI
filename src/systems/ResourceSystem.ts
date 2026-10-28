@@ -93,8 +93,10 @@ export class ResourceSystem {
 
     if (bonus.lifetraces) {
       bonus.lifetraces.forEach(l => {
-        // Accord au féminin (« Trace Bleue ») ; la valeur de l'énumération reste celle du CSV
-        items.push(`${l.amount} Trace ${l.scope === LifeTraceType.BLUE ? 'Bleue' : l.scope}`);
+        // Accord en genre et en nombre (« 1 Trace Bleue », « 2 Traces Jaunes ») ; la valeur de l'énumération reste celle du CSV
+        const plural = l.amount > 1 ? 's' : '';
+        const color = l.scope === LifeTraceType.BLUE ? 'Bleue' : l.scope;
+        items.push(`${l.amount} Trace${plural} ${color}${plural}`);
       });
     }
 

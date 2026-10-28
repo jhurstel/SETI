@@ -213,8 +213,8 @@ describe('Opérations du moteur utilisées par l\'interface', () => {
 });
 
 describe('ResourceSystem.formatBonus', () => {
-  test('accorde la couleur des traces de vie au féminin', () => {
-    const text = ResourceSystem.formatBonus({ lifetraces: [{ amount: 1, scope: LifeTraceType.BLUE }, { amount: 2, scope: LifeTraceType.YELLOW }] });
-    expect(text).toEqual(['1 Trace Bleue', '2 Trace Jaune']);
+  test('accorde les traces de vie en genre et en nombre', () => {
+    const text = ResourceSystem.formatBonus({ lifetraces: [{ amount: 1, scope: LifeTraceType.BLUE }, { amount: 2, scope: LifeTraceType.YELLOW }, { amount: 2, scope: LifeTraceType.BLUE }] });
+    expect(text).toEqual(['1 Trace Bleue', '2 Traces Jaunes', '2 Traces Bleues']);
   });
 });
