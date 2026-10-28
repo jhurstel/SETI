@@ -1798,7 +1798,6 @@ export const BoardUI: React.FC = () => {
               onDiscardCardAction={handleDiscardCardAction}
               onTradeCardAction={handleTradeCardAction}
               onConfirmTrade={handleConfirmTrade}
-              onConfirmReserve={() => handleConfirmReservation()}
               onBuyCardAction={handleBuyCardAction}
               onDirectTradeAction={handleDirectTrade}
               onPlayCard={handlePlayCardRequest}

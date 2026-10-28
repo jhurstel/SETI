@@ -27,7 +27,6 @@ interface PlayerBoardUIProps {
   onNextPlayer: () => void;
   onHistory: (message: string, sequenceId?: string) => void;
   onComputerBonus: (type: string, amount: number, sequenceId?: string) => void;
-  onConfirmReserve: () => void;
   onDirectTradeAction: (spendType: string, gainType: string) => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
   onSettingsClick: () => void;
@@ -109,7 +108,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onConfirmReserve, onDirectTradeAction, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction, highlightPlayableCards = false }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onDirectTradeAction, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction, highlightPlayableCards = false }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -130,7 +129,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
   const selectedCardIds = (isDiscarding || isTrading || isReserving || isDiscardingForSignal) ? interactionState.selectedCards : [];
 
-  const reservationCount = isReserving ? interactionState.count : 0;
 
   const handCards = currentPlayer.cards.filter(c => c.type !== CardType.EXERTIEN);
   const playableCardIds = highlightPlayableCards ? CardSystem.getPlayableCardIds(game, currentPlayer.id) : [];
@@ -716,21 +714,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   >
                     Confirmer
                   </button>
-                )}
-              </div>
-            )}
-            {isReserving && !isRobot && (
-              <div className="seti-cards-warning">
-                Veuillez réserver {reservationCount} carte{reservationCount > 1 ? 's' : ''} .
-                <br />
-                Sélectionnées: {selectedCardIds.length} / {reservationCount}
-                {selectedCardIds.length === reservationCount && (
-                  <button 
-                      onClick={onConfirmReserve}
-                      className="seti-confirm-btn"
-                    >
-                      Confirmer
-                    </button>
                 )}
               </div>
             )}
