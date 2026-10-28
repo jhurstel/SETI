@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, MAIN_ACTION_TYPES, CardType, CostType } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, CardType, CostType } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
@@ -50,9 +50,11 @@ const TrackSlot: React.FC<{
   /** Emplacement de technologie : cadre TechSpot */
   techFrame?: { acquired: boolean };
   flash?: boolean;
+  /** Nom accessible (emplacement d'action) */
+  label?: string;
   onHover: (e: React.MouseEvent, content: React.ReactNode) => void;
   onLeave: () => void;
-}> = ({ icon, tooltip, clickable, onClick, tech, techFrame, flash, onHover, onLeave }) => {
+}> = ({ icon, tooltip, clickable, onClick, tech, techFrame, flash, label, onHover, onLeave }) => {
   let className = 'obs-track-slot';
   if (tech) className += tech.acquired ? ' tech-acquired' : ' tech-locked';
   if (clickable) className += ' clickable';
@@ -60,6 +62,9 @@ const TrackSlot: React.FC<{
   const slot = (
     <div
       className={className}
+      role={label ? 'button' : undefined}
+      aria-label={label}
+      aria-disabled={label ? !clickable : undefined}
       onClick={() => clickable && onClick ? onClick() : null}
       onMouseEnter={(e) => onHover(e, tooltip)}
       onMouseLeave={onLeave}
@@ -98,7 +103,7 @@ const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, onA
   const actionSlot = (icon: string, actionType: ActionType) => {
     const available = isActionAvailable(actionType);
     return (
-      <TrackSlot icon={icon} tooltip={actionTooltip(actionType)} clickable={available} flash={available} onClick={() => onAction(actionType)}
+      <TrackSlot icon={icon} label={actionType} tooltip={actionTooltip(actionType)} clickable={available} flash={available} onClick={() => onAction(actionType)}
         onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
     );
   };
@@ -160,9 +165,10 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
     isTech: boolean = false,
     techAcquired: boolean = false,
     isAvailableForAction: boolean = false,
-    techFrame?: { acquired: boolean }
+    techFrame?: { acquired: boolean },
+    label?: string
   ) => (
-    <TrackSlot icon={icon} tooltip={tooltip} clickable={isClickable} onClick={onClick} tech={isTech ? { acquired: techAcquired } : undefined}
+    <TrackSlot icon={icon} label={label} tooltip={tooltip} clickable={isClickable} onClick={onClick} tech={isTech ? { acquired: techAcquired } : undefined}
       techFrame={techFrame} flash={isAvailableForAction} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
   );
 
@@ -181,7 +187,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   // Les lignes entrent dans les cadres de technologie (into-left / into-right) jusqu'aux emplacements
   return (
     <div className="obs-track-container">
-      {renderSlot('🔭', scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled)}
+      {renderSlot('🔭', scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled, undefined, ActionType.SCAN_SECTOR)}
       <div className="obs-track-connector into-right" />
       {renderSlot('🌍', stepTooltip(hasObs1 ? 'Signal dans le secteur de la Terre ou un secteur adjacent' : 'Signal dans le secteur de la Terre', null, true), false, undefined, false, false, false, { acquired: hasObs1 })}
       <div className="obs-track-connector into-left" />
@@ -704,35 +710,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             </div>
           </div>
 
-          {/* Actions */}
-          {!isRobot && (
-          <div className="seti-player-section">
-            <div className="seti-player-section-title">Action principale</div>
-            <div className="seti-player-actions seti-actions-grid">
-              {MAIN_ACTION_TYPES.map(action => {
-                const actionType = action as ActionType;
-                const available = actionAvailability[actionType] && !isInteractiveMode;
-                const tooltip = getActionTooltip(actionType, available);
-                return (
-                    <div
-                      key={action}
-                      className={available ? 'seti-player-action-available' : 'seti-player-action-unavailable'}
-                      onClick={() => {
-                        if (available && onAction) {
-                          onAction(actionType);
-                        }
-                      }}
-                      onMouseEnter={(e) => handleTooltipHover(e, tooltip)}
-                      onMouseLeave={handleTooltipLeave}
-                    >
-                      {actionType}
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-          )}
-
           {/* Piste Exploration */}
           <div className="seti-player-section">
             <div className="seti-player-section-title">Exploration</div>
@@ -800,6 +777,11 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 <strong style={{ color: '#fff', marginLeft: '6px' }}>{handCards.length}</strong>
                 {!isRobot && (
                     <>
+                      {/* Action principale « Jouer une carte » : met en avant les cartes jouables de la main */}
+                      {(() => {
+                        const canPlay = actionAvailability[ActionType.PLAY_CARD] && !isInteractiveMode;
+                        return renderActionButton('▶️', getActionTooltip(ActionType.PLAY_CARD, canPlay), () => onAction(ActionType.PLAY_CARD), !canPlay, '#4a9eff', { marginLeft: '10px' }, canPlay ? 'seti-flash-green' : '', ActionType.PLAY_CARD);
+                      })()}
                       {renderCardTradeButton('credit', '₢', 'Echanger 2 Cartes contre 1 Crédit', { marginLeft: '10px' })}
                       {renderCardTradeButton('energy', '⚡', 'Echanger 2 Cartes contre 1 Énergie')}
                     </>

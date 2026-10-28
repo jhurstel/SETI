@@ -1,8 +1,10 @@
 import { test, expect, Page } from '@playwright/test';
 
-/** Bouton d'action principale disponible pour le joueur humain. */
+/** Emplacement d'action principale disponible sur une piste du plateau joueur (exploration, observation). */
 const availableAction = (page: Page, label: string) =>
-  page.locator('div.seti-player-action-available', { hasText: new RegExp(`^${label}$`) });
+  page.locator(`.obs-track-slot.clickable[aria-label="${label}"]`);
+/** N'importe quel emplacement d'action principale disponible. */
+const anyAvailableAction = (page: Page) => page.locator('.obs-track-slot.clickable[aria-label]');
 
 test('tour complet du joueur humain : lancer une sonde, passer la main au robot, la récupérer', async ({ page }) => {
   await page.goto('/');
@@ -29,8 +31,8 @@ test('tour complet du joueur humain : lancer une sonde, passer la main au robot,
 
   // Fin du tour : le robot joue, puis la main revient au joueur humain
   await page.getByRole('button', { name: 'Prochain joueur' }).click();
-  await expect(page.locator('div.seti-player-action-available')).toHaveCount(0);
-  await expect(page.locator('div.seti-player-action-available').first()).toBeVisible({ timeout: 90_000 });
+  await expect(anyAvailableAction(page)).toHaveCount(0);
+  await expect(anyAvailableAction(page).first()).toBeVisible({ timeout: 90_000 });
 
   // La partie est sauvegardée automatiquement, au format versionné
   const autosave = await page.evaluate(() => localStorage.getItem('seti_autosave'));
