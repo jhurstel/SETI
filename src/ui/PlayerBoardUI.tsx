@@ -96,14 +96,17 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
     );
   };
 
-  // Étape du scan : disponible si la technologie requise est acquise (ou sans technologie)
-  const stepTooltip = (bonus: string, requiredTech: string | null, acquired: boolean) => acquired
-    ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} value={bonus} note={requiredTech ? 'Proposé à chaque scan' : 'Effectué à chaque scan'} />
-    : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} value={bonus} note={`Nécessite la technologie ${requiredTech}`} />;
+  // Étape du scan : disponible si la technologie requise est acquise (ou sans technologie) ; coût éventuel en fin de 3e ligne
+  const stepTooltip = (bonus: string, requiredTech: string | null, acquired: boolean, cost?: string) => {
+    const costSuffix = cost ? ` (${cost})` : '';
+    return acquired
+      ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} value={bonus} note={`${requiredTech ? 'Proposé à chaque scan' : 'Effectué à chaque scan'}${costSuffix}`} />
+      : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} value={bonus} note={`Nécessite la technologie ${requiredTech}${costSuffix}`} />;
+  };
 
   const scanTooltip = scanDisabled
     ? <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} label="Coût" value="1 Crédit, 2 Énergies" note={scanReason} />
-    : <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} label="Coût" value="1 Crédit, 2 Énergies" note="Cliquez pour scanner un secteur" />;
+    : <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} label="Coût" value="1 Crédit, 2 Énergies" note="Cliquez pour scanner" />;
 
   return (
     <div className="obs-track-container">
@@ -113,11 +116,11 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
       <div className="obs-track-connector" />
       {renderSlot('🃏', stepTooltip("Signal dans le secteur d'une carte de la rangée", null, true), false)}
       <div className="obs-track-connector" />
-      {renderSlot('☿️', stepTooltip('Payer 1 Média pour un signal dans le secteur de Mercure', 'Observation II', hasObs2), false, undefined, true, hasObs2)}
+      {renderSlot('☿️', stepTooltip('Signal dans le secteur de Mercure', 'Observation II', hasObs2, '1 Média'), false, undefined, true, hasObs2)}
       <div className="obs-track-connector" />
-      {renderSlot('🗑️', stepTooltip('Défausser une carte pour un signal dans son secteur', 'Observation III', hasObs3), false, undefined, true, hasObs3)}
+      {renderSlot('🗑️', stepTooltip("Signal dans le secteur d'une carte de la main", 'Observation III', hasObs3, 'défausse de la carte'), false, undefined, true, hasObs3)}
       <div className="obs-track-connector" />
-      {renderSlot('?', stepTooltip('Payer 1 Énergie pour lancer une sonde ou gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, true, hasObs4)}
+      {renderSlot('?', stepTooltip('Lancer une sonde (1 Énergie) ou Gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, true, hasObs4)}
     </div>
   );
 };
@@ -364,7 +367,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
       case ActionType.SCAN_SECTOR:
         cost = `${GAME_CONSTANTS.SCAN_COST_CREDITS} Crédit, ${GAME_CONSTANTS.SCAN_COST_ENERGY} Énergies`;
-        action = 'Cliquez pour scanner un secteur';
+        action = 'Cliquez pour scanner';
         if (currentPlayer.credits < GAME_CONSTANTS.SCAN_COST_CREDITS || currentPlayer.energy < GAME_CONSTANTS.SCAN_COST_ENERGY) reason = `Vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s)`;
         break;
 
