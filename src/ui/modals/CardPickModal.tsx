@@ -53,10 +53,12 @@ interface CardPickModalProps {
   confirmLabel: string;
   canConfirm: boolean;
   onConfirm: () => void;
+  /** Bouton Annuler (choix facultatif, ex : échange) */
+  onCancel?: () => void;
 }
 
-/** Choix de plusieurs cartes de la main dans une fenêtre centrale (défausses) */
-export const CardPickModal: React.FC<CardPickModalProps> = ({ title, subtitle, cards, selectedIds, onToggle, highlightedAttribute, status, confirmLabel, canConfirm, onConfirm }) => {
+/** Choix de plusieurs cartes de la main dans une fenêtre centrale (défausses, échange) */
+export const CardPickModal: React.FC<CardPickModalProps> = ({ title, subtitle, cards, selectedIds, onToggle, highlightedAttribute, status, confirmLabel, canConfirm, onConfirm, onCancel }) => {
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
 
   return (
@@ -67,6 +69,7 @@ export const CardPickModal: React.FC<CardPickModalProps> = ({ title, subtitle, c
         footer={
           <>
             <div className="seti-choice-modal-subtitle">{status}</div>
+            {onCancel && <ChoiceFooterButton onClick={onCancel} secondary>Annuler</ChoiceFooterButton>}
             <ChoiceFooterButton onClick={onConfirm} disabled={!canConfirm}>{confirmLabel}</ChoiceFooterButton>
           </>
         }

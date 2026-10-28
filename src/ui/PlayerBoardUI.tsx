@@ -21,7 +21,6 @@ interface PlayerBoardUIProps {
   onPlayCard: (cardId: string) => void;
   onBuyCardAction: () => void;
   onTradeCardAction: (targetGain?: string) => void;
-  onConfirmTrade: () => void;
   onGameUpdate: (game: Game) => void;
   onComputerSlotSelect: (col: number) => void;
   onNextPlayer: () => void;
@@ -108,7 +107,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onConfirmTrade, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onDirectTradeAction, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction, highlightPlayableCards = false }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onDirectTradeAction, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction, highlightPlayableCards = false }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -127,7 +126,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   const isPlacingLifeTrace = interactionState.type === 'PLACING_LIFE_TRACE';
   const isSelectingSector = interactionState.type === 'SELECTING_SCAN_SECTOR' || interactionState.type === 'SELECTING_SCAN_CARD';
 
-  const selectedCardIds = (isDiscarding || isTrading || isReserving || isDiscardingForSignal) ? interactionState.selectedCards : [];
 
 
   const handCards = currentPlayer.cards.filter(c => c.type !== CardType.EXERTIEN);
@@ -702,21 +700,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 )}
               </span>
             </div>
-            {isTrading && !isRobot && (
-              <div className="seti-cards-warning">
-                Veuillez sélectionner 2 cartes à échanger.
-                <br />
-                Sélectionnées : {selectedCardIds.length} / 2
-                {selectedCardIds.length === 2 && (
-                  <button 
-                    onClick={onConfirmTrade}
-                    className="seti-confirm-btn"
-                  >
-                    Confirmer
-                  </button>
-                )}
-              </div>
-            )}
             <div className="seti-player-list seti-cards-list" ref={cardsListRef}>
               {!isRobot ? (
                 handCards.length > 0 ? (

@@ -1657,7 +1657,7 @@ export const BoardUI: React.FC = () => {
           cards={CardSystem.getHandCards(reservingPlayer!)}
           onConfirm={(selectedCardId) => handleConfirmReservation([selectedCardId])}
           currentRound={game.currentRound}
-          title={`Réservez ${interactionState.count > 1 ? `${interactionState.count} cartes` : 'une carte'}`}
+          title={`Réservez une carte${interactionState.count > 1 ? ` (${interactionState.count} réservations restantes)` : ''}`}
           subtitle="La carte réservée est glissée sous votre plateau : vous gagnez aussitôt son revenu, puis à chaque manche."
           confirmLabel="Réserver"
           highlightedAttribute="revenue"
@@ -1683,6 +1683,23 @@ export const BoardUI: React.FC = () => {
           />
         );
       })()}
+
+      {/* Échange de 2 cartes de la main contre une ressource */}
+      {interactionState.type === 'TRADING_CARD' && actingPlayer(game).type === 'human' && (
+        <CardPickModal
+          title={`Échangez ${interactionState.count} cartes contre ${ResourceSystem.formatResource(1, interactionState.targetGain)}`}
+          subtitle="Les cartes échangées sont défaussées."
+          cards={CardSystem.getHandCards(actingPlayer(game))}
+          selectedIds={interactionState.selectedCards}
+          onToggle={handleCardClick}
+          highlightedAttribute="freeAction"
+          status={`Sélectionnées : ${interactionState.selectedCards.length} / ${interactionState.count}`}
+          confirmLabel="Échanger"
+          canConfirm={interactionState.selectedCards.length === interactionState.count}
+          onConfirm={handleConfirmTrade}
+          onCancel={() => setInteractionState({ type: 'IDLE' })}
+        />
+      )}
 
       {/* Défausse pour marquer des signaux : signal en surbrillance */}
       {interactionState.type === 'DISCARDING_FOR_SIGNAL' && actingPlayer(game).type === 'human' && (
@@ -1797,7 +1814,6 @@ export const BoardUI: React.FC = () => {
               onCardClick={handleCardClick}
               onDiscardCardAction={handleDiscardCardAction}
               onTradeCardAction={handleTradeCardAction}
-              onConfirmTrade={handleConfirmTrade}
               onBuyCardAction={handleBuyCardAction}
               onDirectTradeAction={handleDirectTrade}
               onPlayCard={handlePlayCardRequest}
