@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { SlotTooltip, SLOT_COLORS } from './components/SlotTooltip';
 import { Game, InteractionState, Planet, ProbeState, AlienBoardType, Player, Satellite, Bonus, Probe } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { PlanetIcon } from './components/PlanetIcon';
@@ -41,12 +42,12 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
 
     const renderTooltipContent = (isOccupied: boolean, isClickable: boolean, player: Player | null, bonusText: string, reason: string, actionTextSuccess: string, isRemovingMode: boolean, removalType?: 'orbiter' | 'lander') => {
         let statusText = isOccupied && player ? `Occupé par ${player.name}` : (isClickable ? "Disponible" : "Indisponible");
-        let statusColor = isOccupied && player ? (player.color || "#ccc") : (isClickable ? "#4a9eff" : "#ff6b6b");
+        let statusColor = isOccupied && player ? (player.color || "#ccc") : (isClickable ? SLOT_COLORS.available : SLOT_COLORS.unavailable);
         let actionText: string | null = isClickable ? actionTextSuccess : reason;
 
         if (isOccupied && isClickable && isRemovingMode) {
             statusText = "Cliquez pour retirer";
-            statusColor = "#ff6b6b";
+            statusColor = SLOT_COLORS.unavailable;
             actionText = null;
         }
 
@@ -60,11 +61,14 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
         }
 
         return (
-            <div style={{ textAlign: 'center' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>{statusText}</div>
-                <div style={{ fontSize: '0.9em', color: '#ccc' }}>{isRemovingMode && isClickable ? <>Gain retrait : <span style={{ color: '#ffd700' }}>{removalBonusText}</span></> : <>Bonus : <span style={{ color: '#ffd700' }}>{bonusText}</span></>}</div>
-                {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
-            </div>
+            <SlotTooltip
+              status={statusText}
+              statusColor={statusColor}
+              label={isRemovingMode && isClickable ? 'Bonus du retrait' : 'Bonus'}
+              value={isRemovingMode && isClickable ? removalBonusText : bonusText}
+              note={actionText}
+              noteColor={isClickable ? SLOT_COLORS.available : SLOT_COLORS.unavailable}
+            />
         );
     };
 

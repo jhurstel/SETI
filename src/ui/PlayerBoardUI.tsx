@@ -8,6 +8,7 @@ import { PlayerComputer } from './components/PlayerComputer';
 import { HandCard } from './components/HandCard';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
+import { SlotTooltip, SLOT_COLORS } from './components/SlotTooltip';
 import './PlayerBoardUI.css';
 
 interface PlayerBoardUIProps {
@@ -55,12 +56,17 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   const hasObs3 = player.technologies.some(t => t.id.startsWith('observation-3'));
   const hasObs4 = player.technologies.some(t => t.id.startsWith('observation-4'));
 
-  const canScan = isCurrentTurn && !hasPerformedMainAction && ScanSystem.canScanSector(game, playerId).canScan;
-  const scanDisabled = !canScan || isInteractiveMode;
+  const scanCheck = ScanSystem.canScanSector(game, playerId);
+  let scanReason: string | null = null;
+  if (!isCurrentTurn) scanReason = "Ce n'est pas votre tour";
+  else if (hasPerformedMainAction) scanReason = 'Action principale déjà effectuée';
+  else if (!scanCheck.canScan) scanReason = scanCheck.reason || 'Impossible de scanner';
+  else if (isInteractiveMode) scanReason = "Terminez d'abord l'action en cours";
+  const scanDisabled = scanReason !== null;
 
   const renderSlot = (
     icon: string,
-    tooltip: string,
+    tooltip: React.ReactNode,
     isClickable: boolean,
     onClick?: () => void,
     isTech: boolean = false,
@@ -90,19 +96,28 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
     );
   };
 
+  // Étape du scan : disponible si la technologie requise est acquise (ou sans technologie)
+  const stepTooltip = (bonus: string, requiredTech: string | null, acquired: boolean) => acquired
+    ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} value={bonus} note={requiredTech ? 'Proposé à chaque scan' : 'Effectué à chaque scan'} />
+    : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} value={bonus} note={`Nécessite la technologie ${requiredTech}`} />;
+
+  const scanTooltip = scanDisabled
+    ? <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} label="Coût" value="1 Crédit, 2 Énergies" note={scanReason} />
+    : <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} label="Coût" value="1 Crédit, 2 Énergies" note="Cliquez pour scanner un secteur" />;
+
   return (
     <div className="obs-track-container">
-      {renderSlot('🔭', `Scanner un secteur (coût: 1 crédit, 2 énergies)`, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled)}
+      {renderSlot('🔭', scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled)}
       <div className="obs-track-connector" />
-      {renderSlot('🌍', hasObs1 ? 'Scanner le secteur de la Terre ou un secteur adjacent' : 'Scanner le secteur de la Terre', false)}
+      {renderSlot('🌍', stepTooltip(hasObs1 ? 'Signal dans le secteur de la Terre ou un secteur adjacent' : 'Signal dans le secteur de la Terre', null, true), false)}
       <div className="obs-track-connector" />
-      {renderSlot('🃏', 'Scanner le secteur d\'une carte de la rangée', false)}
+      {renderSlot('🃏', stepTooltip("Signal dans le secteur d'une carte de la rangée", null, true), false)}
       <div className="obs-track-connector" />
-      {renderSlot('☿️', 'Payer 1 Média pour scanner le secteur de Mercure (Nécessite Observation II)', false, undefined, true, hasObs2)}
+      {renderSlot('☿️', stepTooltip('Payer 1 Média pour un signal dans le secteur de Mercure', 'Observation II', hasObs2), false, undefined, true, hasObs2)}
       <div className="obs-track-connector" />
-      {renderSlot('🗑️', 'Défausser une carte pour scanner son secteur (Nécessite Observation III)', false, undefined, true, hasObs3)}
+      {renderSlot('🗑️', stepTooltip('Défausser une carte pour un signal dans son secteur', 'Observation III', hasObs3), false, undefined, true, hasObs3)}
       <div className="obs-track-connector" />
-      {renderSlot('?', 'Payer 1 Énergie pour lancer une sonde OU gagner 1 déplacement (Nécessite Observation IV)', false, undefined, true, hasObs4)}
+      {renderSlot('?', stepTooltip('Payer 1 Énergie pour lancer une sonde ou gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, true, hasObs4)}
     </div>
   );
 };
@@ -303,58 +318,81 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     [ActionType.TRADE_RESOURCES]: false,
   };
 
-  // Fonction helper pour générer le tooltip basé sur l'état du jeu (Interaction Engine -> UI)
-  const getActionTooltip = (actionType: ActionType): string => {
-    const hasProbeOnPlanetInfo = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id)
-
-    if (isRobot) return "Tour du robot";
-    if (hasPerformedMainAction) return "Action principale déjà effectuée";
+  // Infobulle d'une action principale : coût, puis action possible ou raison de l'indisponibilité
+  const getActionTooltip = (actionType: ActionType, available: boolean): React.ReactNode => {
+    const hasProbeOnPlanetInfo = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
+    let cost: string | undefined;
+    let action = '';
+    let reason: string | undefined;
 
     switch (actionType) {
       case ActionType.LAUNCH_PROBE: {
+        cost = `${GAME_CONSTANTS.PROBE_LAUNCH_COST} Crédits`;
+        action = 'Cliquez pour lancer une sonde depuis la Terre';
         const launchCheck = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
-        if (!launchCheck.canLaunch) return launchCheck.reason || "Impossible de lancer une sonde";
-        return `Lancer une sonde depuis la Terre (coût: ${GAME_CONSTANTS.PROBE_LAUNCH_COST} crédits)`;
+        if (!launchCheck.canLaunch) reason = launchCheck.reason || 'Impossible de lancer une sonde';
+        break;
       }
 
       case ActionType.ORBIT: {
+        cost = `${GAME_CONSTANTS.ORBIT_COST_CREDITS} Crédit, ${GAME_CONSTANTS.ORBIT_COST_ENERGY} Énergie`;
+        action = 'Cliquez pour mettre une sonde en orbite';
         const orbitProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
-        if (!orbitProbe) return 'Nécessite une sonde dans le système solaire';
-        const orbitCheck = ProbeSystem.canOrbit(game, currentPlayer.id, orbitProbe.id);
-        if (!orbitCheck.canOrbit) return orbitCheck.reason || "Impossible";
-        return `Mettre une sonde en orbite (coût: ${GAME_CONSTANTS.ORBIT_COST_CREDITS} crédit, ${GAME_CONSTANTS.ORBIT_COST_ENERGY} énergie)`;
+        if (!orbitProbe) reason = 'Nécessite une sonde dans le système solaire';
+        else {
+          const orbitCheck = ProbeSystem.canOrbit(game, currentPlayer.id, orbitProbe.id);
+          if (!orbitCheck.canOrbit) reason = orbitCheck.reason || 'Impossible';
+        }
+        break;
       }
 
       case ActionType.LAND: {
+        action = 'Cliquez pour poser une sonde sur une planète';
         const landProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
-        if (!landProbe) return 'Nécessite une sonde dans le système solaire';
-        const landCheck = ProbeSystem.canLand(game, currentPlayer.id, landProbe.id);
-        if (!landCheck.canLand) return landCheck.reason || "Impossible";
-        return `Poser une sonde sur une planète (coût: ${landCheck.energyCost} énergie${hasProbeOnPlanetInfo.hasOrbiter ? ', orbiteur présent' : ''}${hasProbeOnPlanetInfo.hasExploration3 ? ', réduction exploration 3' : ''})`;
+        if (!landProbe) reason = 'Nécessite une sonde dans le système solaire';
+        else {
+          const landCheck = ProbeSystem.canLand(game, currentPlayer.id, landProbe.id);
+          cost = `${landCheck.energyCost} Énergie${hasProbeOnPlanetInfo.hasOrbiter ? ' (orbiteur présent)' : ''}${hasProbeOnPlanetInfo.hasExploration3 ? ' (réduction Exploration III)' : ''}`;
+          if (!landCheck.canLand) reason = landCheck.reason || 'Impossible';
+        }
+        break;
       }
 
       case ActionType.SCAN_SECTOR:
-        if (currentPlayer.credits < 1 || currentPlayer.energy < 2) return `Nécessite 1 crédit et 2 énergies (vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s))`;
-        return 'Scanner un secteur (coût: 1 crédit, 2 énergies)';
+        cost = `${GAME_CONSTANTS.SCAN_COST_CREDITS} Crédit, ${GAME_CONSTANTS.SCAN_COST_ENERGY} Énergies`;
+        action = 'Cliquez pour scanner un secteur';
+        if (currentPlayer.credits < GAME_CONSTANTS.SCAN_COST_CREDITS || currentPlayer.energy < GAME_CONSTANTS.SCAN_COST_ENERGY) reason = `Vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s)`;
+        break;
 
       case ActionType.ANALYZE_DATA:
-        if (!currentPlayer.dataComputer.canAnalyze) return 'Nécessite des données à analyser dans l\'ordinateur de données';
-        if (currentPlayer.energy < 1) return `Nécessite 1 énergie (vous avez ${currentPlayer.energy})`;
-        return 'Analyser des données (coût: 1 énergie)';
+        cost = '1 Énergie';
+        action = 'Cliquez pour analyser les données';
+        if (!currentPlayer.dataComputer.canAnalyze) reason = "Nécessite des données à analyser dans l'ordinateur de données";
+        else if (currentPlayer.energy < 1) reason = `Vous avez ${currentPlayer.energy} énergie`;
+        break;
 
       case ActionType.RESEARCH_TECH:
-        if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) return `Nécessite ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} points de couverture médiatique (vous avez ${currentPlayer.mediaCoverage})`;
-        return `Rechercher une technologie (coût: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} couverture médiatique)`;
+        cost = `${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} Médias`;
+        action = 'Cliquez pour rechercher une technologie';
+        if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) reason = `Vous avez ${currentPlayer.mediaCoverage} média(s)`;
+        break;
 
       case ActionType.PLAY_CARD: {
+        action = 'Cliquez pour jouer une carte de votre main';
         const cardCheck = CardSystem.canPlayCards(game, currentPlayer.id);
-        if (!cardCheck.canPlay) return cardCheck.reason || "Impossible";
-        return `Jouer une carte de votre main`;
+        if (!cardCheck.canPlay) reason = cardCheck.reason || 'Impossible';
+        break;
       }
-        
-      default:
-        return '';
     }
+
+    // Les raisons générales passent avant celles propres à l'action
+    if (!isCurrentTurn) reason = "Ce n'est pas votre tour";
+    else if (hasPerformedMainAction) reason = 'Action principale déjà effectuée';
+    else if (!reason && !available) reason = "Terminez d'abord l'action en cours";
+
+    return available
+      ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} label="Coût" value={cost} note={action} />
+      : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} label="Coût" value={cost} note={reason} />;
   };
 
   // Helper pour les boutons d'action (factorisé)
@@ -574,7 +612,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
               {MAIN_ACTION_TYPES.map(action => {
                 const actionType = action as ActionType;
                 const available = actionAvailability[actionType] && !isInteractiveMode;
-                const tooltip = getActionTooltip(actionType);
+                const tooltip = getActionTooltip(actionType, available);
                 return (
                     <div
                       key={action}
@@ -584,10 +622,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                           onAction(actionType);
                         }
                       }}
-                      style={{
-                        cursor: available ? 'pointer' : 'not-allowed',
-                      }}
-                      onMouseEnter={(e) => { if (tooltip) handleTooltipHover(e, tooltip); }}
+                      onMouseEnter={(e) => handleTooltipHover(e, tooltip)}
                       onMouseLeave={handleTooltipLeave}
                     >
                       {actionType}

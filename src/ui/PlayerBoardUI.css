@@ -120,7 +120,7 @@
   text-align: center;
   font-size: 0.75rem;
   color: #555;
-  cursor: not-allowed;
+  cursor: help; /* infobulle : raison de l'indisponibilité */
 }
 
 .seti-player-list {
@@ -253,10 +253,17 @@
   gap: 4px;
 }
 
+/* Boutons à la largeur de leur libellé, sur une seule ligne */
 .seti-actions-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 5px;
+}
+
+.seti-actions-grid > div {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  padding: 4px 6px;
 }
 
 .seti-tech-list-item {

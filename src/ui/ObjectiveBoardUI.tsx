@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Game, GamePhase, InteractionState, GOLDEN_MILESTONES, NEUTRAL_MILESTONES } from '../core/types';
+import { SlotTooltip, SLOT_COLORS } from './components/SlotTooltip';
 import './ObjectiveBoardUI.css';
 
 interface ObjectiveBoardUIProps {
@@ -155,44 +156,39 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                                     const hasMarkerOnTile = tile.markers.includes(currentPlayer.id);
                                     const isNextAvailable = isPlacingMarker && !hasMarkerOnTile && idx === tile.markers.length;
 
-                                    let statusText = "";
-                                    let statusColor = "";
-                                    let actionText: string | null = null;
-                                    let milestoneText: string | null = null;
+                                    let statusText: string;
+                                    let statusColor: string;
+                                    let note: string | null = null;
 
                                     if (player) {
                                         statusText = `Atteint par ${player.name}`;
                                         statusColor = player.color || "#ccc";
                                     } else if (isNextAvailable) {
                                         statusText = "Disponible";
-                                        statusColor = "#4a9eff";
-                                        actionText = "Cliquez pour placer un marqueur";
+                                        statusColor = SLOT_COLORS.available;
+                                        note = "Cliquez pour placer un marqueur";
                                     } else if (hasMarkerOnTile) {
                                         statusText = "Déjà validé";
-                                        statusColor = "#aaa";
+                                        statusColor = SLOT_COLORS.neutral;
+                                    } else if (idx === tile.markers.length) {
+                                        // Premier emplacement libre : il se prend au prochain palier de score
+                                        const nextMilestone = GOLDEN_MILESTONES.find(m => !currentPlayer.claimedGoldenMilestones.includes(m));
+                                        if (nextMilestone) {
+                                            statusText = "Disponible";
+                                            statusColor = SLOT_COLORS.available;
+                                            note = `Atteindre ${nextMilestone} PV pour placer un marqueur`;
+                                        } else {
+                                            statusText = "Indisponible";
+                                            statusColor = SLOT_COLORS.unavailable;
+                                            note = "Tous les paliers sont atteints";
+                                        }
                                     } else {
                                         statusText = "Indisponible";
-                                        statusColor = "#ff6b6b";
-                                        if (idx === tile.markers.length) {
-                                            const nextMilestone = GOLDEN_MILESTONES.find(m => !currentPlayer.claimedGoldenMilestones.includes(m));
-                                            if (nextMilestone) {
-                                                milestoneText = `Atteindre ${nextMilestone} PVs pour sélectionner l'objectif`;
-                                            } else {
-                                                actionText = "Tous les paliers atteints";
-                                            }
-                                        } else {
-                                            actionText = "Nécessite le palier précédent";
-                                        }
+                                        statusColor = SLOT_COLORS.unavailable;
+                                        note = "Nécessite l'emplacement précédent";
                                     }
 
-                                    const tooltipContent = (
-                                        <div style={{ textAlign: 'center' }}>
-                                            <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>{statusText}</div>
-                                            <div style={{ fontSize: '0.9em', color: '#ccc' }}>Gain : <span style={{ color: '#ffd700' }}>{pv} PV</span></div>
-                                            {milestoneText && <div style={{ fontSize: '0.8em', color: '#4a9eff', marginTop: '4px', fontStyle: 'italic' }}>{milestoneText}</div>}
-                                            {actionText && <div style={{ fontSize: '0.8em', color: '#aaa', marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
-                                        </div>
-                                    );
+                                    const tooltipContent = <SlotTooltip status={statusText} statusColor={statusColor} value={`${pv} PV`} note={note} />;
 
                                     let markerClass = 'seti-objective-marker';
                                     if (player) markerClass += ' occupied';

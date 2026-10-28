@@ -1,4 +1,5 @@
 import React from 'react';
+import { SlotTooltip, SLOT_COLORS } from './SlotTooltip';
 import { Game, InteractionState, SignalType, GAME_CONSTANTS } from '../../core/types';
 import { describeArc, polarToCartesian } from '../../core/SolarSystemPosition';
 import { ResourceSystem } from '../../systems/ResourceSystem';
@@ -119,7 +120,7 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
           const gains = [...baseGain, ...(bonusGain || [])];
 
           let stateText = "Disponible";
-          let stateColor = "#4a9eff";
+          let stateColor = SLOT_COLORS.available;
           let actionText = null;
 
           if (signal.marked) {
@@ -128,27 +129,17 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
             stateColor = markerPlayer?.color || "#ccc";
           } else if (isDisabled) {
             stateText = "Indisponible";
-            stateColor = "#ff6b6b";
+            stateColor = SLOT_COLORS.unavailable;
             actionText = "Nécessite le signal précédent";
           } else if (isSectorClickable && !canAffordScan) {
             stateText = "Ressources insuffisantes";
-            stateColor = "#ff6b6b";
+            stateColor = SLOT_COLORS.unavailable;
             actionText = `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit et ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergies (vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s))`;
           } else {
             actionText = "Scannez pour récupérer le bonus (coût: 1 Crédit et 2 Energie)";
           }
 
-          const slotTooltipContent = (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontWeight: 'bold', color: stateColor, marginBottom: '4px' }}>{stateText}</div>
-              {gains.length > 0 ? (
-                <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : <span style={{ color: '#ffd700' }}>{gains.join(', ')}</span></div>
-              ) : (
-                <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>
-              )}
-              {actionText && <div style={{ fontSize: '0.8em', color: stateColor, marginTop: '4px', fontStyle: 'italic' }}>{actionText}</div>}
-            </div>
-          );
+          const slotTooltipContent = <SlotTooltip status={stateText} statusColor={stateColor} value={gains.join(', ')} note={actionText} />;
 
           const cursorStyle = isSectorClickable && !isDisabled ? 'pointer' : 'help';
 
