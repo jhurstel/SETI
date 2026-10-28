@@ -124,16 +124,23 @@ const CardGlyph = () => (
   </g>
 );
 
-/** Petit symbole « revenu » (graphique montant) */
-const RevenueMark: React.FC<{ x: number; y: number }> = ({ x, y }) => (
-  <g transform={`translate(${x} ${y})`}>
-    <circle r={6} fill="#fff" stroke="#333" strokeWidth={1} />
-    <rect x={-3.5} y={0} width={1.8} height={3} fill={COLORS.energy} />
-    <rect x={-1} y={-1.5} width={1.8} height={4.5} fill="#333" />
-    <rect x={1.5} y={-3} width={1.8} height={6} fill="#333" />
-    <path d="M-4 -1 L0 -3.5 L3.5 -5" fill="none" stroke="#333" strokeWidth={0.9} />
-  </g>
-);
+/** Symbole « revenu » : rosette blanche, barres montantes et flèche en zigzag */
+const RevenueMark: React.FC<{ x: number; y: number }> = ({ x, y }) => {
+  const bumps = Array.from({ length: 10 }, (_, i) => (i * Math.PI) / 5);
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <g fill="#fff" stroke="rgba(60, 40, 0, 0.45)" strokeWidth={0.6}>
+        <circle r={6.2} />
+        {bumps.map(a => <circle key={a} cx={6 * Math.cos(a)} cy={6 * Math.sin(a)} r={1.6} />)}
+      </g>
+      <circle r={6.4} fill="#fff" />
+      <rect x={-2.6} y={2.2} width={2} height={2} fill={COLORS.energy} />
+      <rect x={1.2} y={-0.6} width={1.9} height={4.8} rx={0.4} fill="#d6a21c" />
+      <path d="M-4.4 1.6 L-1.8 -1.2 L-0.6 0.2 L2.9 -3.6" fill="none" stroke="#1d1d1d" strokeWidth={1.3} strokeLinejoin="round" />
+      <path d="M1.2 -4.4 L3.9 -4.6 L3.6 -1.9 Z" fill="#1d1d1d" />
+    </g>
+  );
+};
 
 /** Trace de vie : triangle pointe en bas */
 const LifeTrace: React.FC<{ fill: string; children: React.ReactNode }> = ({ fill, children }) => (
@@ -187,6 +194,11 @@ const VIEW_MARGIN = 3;
 const PANEL_CORNER = 7;
 const SEPARATOR_WIDTH = 16;
 
+/** Réduit un pictogramme autour du centre de sa case (les broches des puces dépasseraient du creux) */
+const Shrink: React.FC<{ children: React.ReactNode; scale?: number }> = ({ children, scale = 0.82 }) => (
+  <g transform={`translate(20 20) scale(${scale}) translate(-20 -20)`}>{children}</g>
+);
+
 /** Creux gravé de la tuile : rectangle à coins coupés qui regroupe une série */
 const Panel: React.FC<{ width: number }> = ({ width }) => {
   const c = PANEL_CORNER, h = 38, y = 1;
@@ -210,8 +222,8 @@ const symbolLayout = (tile: ObjectiveTile): SymbolLayout => {
   switch (tile.id) {
     case 'obj_tech':
       return tile.side === 'A'
-        ? { groups: [[<Chip fill={COLORS.exploration}><Rocket /></Chip>, <Chip fill={COLORS.observation}><Dish /></Chip>, <Chip fill={COLORS.computing}><Server /></Chip>]] }
-        : { groups: [[<AnyTech id={`${uid}-1`} />, <AnyTech id={`${uid}-2`} />]] };
+        ? { groups: [[<Shrink><Chip fill={COLORS.exploration}><Rocket /></Chip></Shrink>, <Shrink><Chip fill={COLORS.observation}><Dish /></Chip></Shrink>, <Shrink><Chip fill={COLORS.computing}><Server /></Chip></Shrink>]] }
+        : { groups: [[<Shrink><AnyTech id={`${uid}-1`} /></Shrink>, <Shrink><AnyTech id={`${uid}-2`} /></Shrink>]] };
     case 'obj_mission':
       return { groups: [tile.side === 'A' ? [<MissionCard />] : [<MissionOrEndCard />, <MissionOrEndCard />]] };
     case 'obj_revenue':
