@@ -1549,10 +1549,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
             {/* Surbrillance des cases accessibles */}
             {renderReachableCells()}
-          </div>
 
-          {/* Détails des secteurs sur le disque E (Noms + Slots) */}
-          <SectorDetails game={game} interactionState={interactionState} highlightedSectorSlots={getHighlightedSectors()} onSectorClick={onSectorClick} setActiveTooltip={setActiveTooltip} />
+            {/* Détails des secteurs sur le disque E (Noms + Slots) : dans le carré du plateau pour le suivre */}
+            <SectorDetails game={game} interactionState={interactionState} highlightedSectorSlots={getHighlightedSectors()} onSectorClick={onSectorClick} setActiveTooltip={setActiveTooltip} />
+          </div>
 
           {/* Fenêtres persistantes des planètes : atterrissage bonus (Dragonfly…) ou action Orbite/Atterrissage choisie */}
           {(interactionState.type === 'LANDING_PROBE' || (interactionState.type === 'IDLE' && !!planetFocus)) && (() => {
