@@ -486,7 +486,7 @@
   background-color: #222;
   color: #555;
   border: 1px solid #333;
-  cursor: default;
+  cursor: help; /* infobulle : échange ou achat indisponible */
   box-shadow: none;
 }
 .seti-action-btn:not([aria-disabled="true"]):hover {
