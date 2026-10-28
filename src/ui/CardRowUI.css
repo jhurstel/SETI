@@ -23,6 +23,11 @@
     border-color: #555;
 }
 
+/* Légère surbrillance au survol hors choix de carte, comme les cartes de la rangée */
+.seti-deck-card:not(.active):hover {
+    border-color: #777;
+}
+
 .seti-deck-card.active {
     cursor: pointer;
     /* Même bord que les cartes de la rangée à choisir */
