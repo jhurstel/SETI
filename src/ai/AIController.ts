@@ -80,7 +80,7 @@ export class AIController {
     }
 
     /**
-     * Robot stratégique : meilleur emplacement pour une trace de vie, en simulant chaque emplacement accepté
+     * Robot (tous niveaux) : meilleur emplacement pour une trace de vie, en simulant chaque emplacement accepté
      * par le moteur (triangle, piste d'espèce, emplacement excédentaire) avec ses suites, puis en évaluant la position.
      */
     private static bestLifeTracePlacement(game: Game, player: Player, interaction: Extract<InteractionState, { type: 'PLACING_LIFE_TRACE' }>, sequenceId: string): AIControllerResult | null {
@@ -152,7 +152,7 @@ export class AIController {
                 break;
             }
             case 'PLACING_LIFE_TRACE': {
-                if (AIBehavior.isStrategic(player)) {
+                if (AIBehavior.getDifficulty(player) !== 'PASS') {
                     // Chaque emplacement possible est simulé (récompenses et choix qui en découlent compris) et évalué
                     const best = this.bestLifeTracePlacement(updatedGame, player, interaction, sequenceId);
                     if (best) return best;

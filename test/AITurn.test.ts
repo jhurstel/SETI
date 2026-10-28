@@ -219,6 +219,27 @@ describe('AITurn (parties complètes entre robots)', () => {
     expect(AIEvaluator.evaluate(game, p1.id)).toBeCloseTo(withoutClaim);
   });
 
+  test("l'évaluation compte la majorité d'un secteur selon son remplissage et son bonus de couverture", async () => {
+    const game = await createRobotGame(['R1', 'R2'], ['MEDIUM', 'MEDIUM']);
+    const [p1, p2] = game.players;
+    const sector = game.board.sectors.find(s => !s.isCovered)!;
+    sector.firstBonus = { pv: 3, lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] };
+    const mark = (owners: string[]) => sector.signals.forEach((s, i) => {
+      s.marked = i < owners.length;
+      s.markedBy = owners[i];
+    });
+
+    mark([p1.id, p2.id, p2.id]);
+    const behind = AIEvaluator.evaluate(game, p1.id);
+    mark([p1.id, p1.id, p2.id]);
+    const ahead = AIEvaluator.evaluate(game, p1.id);
+
+    // Un signal de plus, et la majorité : part du bonus (3 PV + 1 trace) selon le remplissage
+    const fill = 3 / sector.signals.length;
+    const w = DEFAULT_WEIGHTS;
+    expect(ahead - behind).toBeCloseTo(w.signal + fill * w.sectorLead * (3 + w.sectorLifeTraceValue));
+  });
+
   test('tirages comparés pour les choix aléatoires : 2 pour le débutant, 4 pour un robot stratégique', async () => {
     const game = await createRobotGame(['R1', 'R2', 'R3'], ['EASY', 'MEDIUM', 'PASS']);
     expect(game.players.map(p => AIBehavior.choiceSamples(p))).toEqual([2, 4, 1]);

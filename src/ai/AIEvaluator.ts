@@ -1,5 +1,6 @@
 import { Game, Player, ProbeState, DiskName, SectorNumber, LifeTraceType, CardType } from '../core/types';
 import { ScoreManager } from '../core/ScoreManager';
+import { ScanSystem } from '../systems/ScanSystem';
 import { createRotationState, getAbsoluteSectorForProbe, getAllCells, calculateReachableCells, RotationState } from '../core/SolarSystemPosition';
 
 /** Nombre maximal de déplacements explorés pour estimer la distance d'une sonde à une planète */
@@ -40,6 +41,11 @@ export const DEFAULT_WEIGHTS = {
   discoveryClaim: 2.5,
   // Carte Alien en main : plus forte qu'une carte normale (en plus de la valeur d'une carte)
   alienCard: 0.8,
+  // Secteur où le joueur a la majorité : part du bonus de couverture (PV, traces de vie) comptée,
+  // multipliée par le remplissage du secteur (un secteur presque plein sera bientôt couvert)
+  sectorLead: 0.6,
+  // Valeur en PV d'une trace de vie gagnée en couvrant un secteur (pour estimer son bonus)
+  sectorLifeTraceValue: 4,
   // Robot Expert : part des points du décompte final déjà acquis (tuiles objectif, cartes Fin de partie,
   // cartes Exertiens), partielle avant la dernière manche : ce n'est qu'une projection
   endGameBefore: 0.38,
@@ -96,10 +102,11 @@ export class AIEvaluator {
     const filledSlots = Object.values(player.dataComputer.slots).filter(s => s.filled).length;
     value += filledSlots * w.computerSlot;
 
+    // Signaux posés (un secteur couvert se remplit à nouveau : ses signaux comptent aussi)
     const signals = game.board.sectors
-      .filter(s => !s.isCovered)
       .reduce((count, s) => count + s.signals.filter(sig => sig.marked && sig.markedBy === player.id).length, 0);
     value += signals * w.signal;
+    value += this.sectorProspects(game, player.id, w);
 
     value += player.lifeTraces.length * w.lifeTrace;
     value += this.discoveryClaims(game, player.id) * w.discoveryClaim;
@@ -137,6 +144,26 @@ export class AIEvaluator {
       }
     }
 
+    return value;
+  }
+
+  /**
+   * Secteurs en cours de remplissage : le joueur présent gagnera 1 Média à la couverture, et le joueur
+   * majoritaire le bonus du secteur (PV, traces de vie). Valeur proportionnelle au remplissage du secteur.
+   */
+  private static sectorProspects(game: Game, playerId: string, w: EvaluatorWeights): number {
+    let value = 0;
+    for (const sector of game.board.sectors) {
+      const marked = sector.signals.filter(s => s.marked).length;
+      if (marked === 0 || !sector.signals.some(s => s.markedBy === playerId)) continue;
+      const fill = marked / sector.signals.length;
+      value += fill * w.media;
+      if (ScanSystem.calculateMajorities(sector)[0]?.playerId === playerId) {
+        const bonus = sector.isCovered ? sector.nextBonus : sector.firstBonus;
+        const lifeTraces = (bonus.lifetraces || []).reduce((n, t) => n + t.amount, 0);
+        value += fill * w.sectorLead * ((bonus.pv || 0) + lifeTraces * w.sectorLifeTraceValue);
+      }
+    }
     return value;
   }
 

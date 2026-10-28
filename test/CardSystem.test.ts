@@ -297,10 +297,10 @@ describe('CardSystem', () => {
       expect(SpeciesSystem.freeSpeciesSlotIndices(game, 1, LifeTraceType.RED)).toEqual([0, 2, 3, 4]);
     });
 
-    test("robot stratégique : l'emplacement est choisi par évaluation, sans modifier la partie reçue", () => {
+    test.each(['EASY', 'MEDIUM'] as const)("robot %s : l'emplacement est choisi par évaluation, sans modifier la partie reçue", (level) => {
       const medium = getPlayer(game, P1);
       medium.type = 'robot';
-      medium.aiDifficulty = 'MEDIUM';
+      medium.aiDifficulty = level;
       game.board.alienBoards[1].speciesId = AlienBoardType.MASCAMITES;
       game.board.alienBoards[1].isDiscovered = true;
       const snapshot = JSON.stringify(game);
