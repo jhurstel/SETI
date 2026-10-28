@@ -72,9 +72,14 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
     onClick?: () => void,
     isTech: boolean = false,
     techAcquired: boolean = false,
-    isAvailableForAction: boolean = false
+    isAvailableForAction: boolean = false,
+    /** Emplacement de technologie Observation (cadre rectangulaire, comme sur la piste ordinateur) */
+    techFrame?: { acquired: boolean }
   ) => {
     let className = 'obs-track-slot';
+    if (techFrame) {
+      className += techFrame.acquired ? ' obs-tech-frame acquired' : ' obs-tech-frame';
+    }
     if (isTech) {
       className += techAcquired ? ' tech-acquired' : ' tech-locked';
     }
@@ -113,15 +118,15 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
     <div className="obs-track-container">
       {renderSlot('🔭', scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled)}
       <div className="obs-track-connector" />
-      {renderSlot('🌍', stepTooltip(hasObs1 ? 'Signal dans le secteur de la Terre ou un secteur adjacent' : 'Signal dans le secteur de la Terre', null, true), false)}
+      {renderSlot('🌍', stepTooltip(hasObs1 ? 'Signal dans le secteur de la Terre ou un secteur adjacent' : 'Signal dans le secteur de la Terre', null, true), false, undefined, false, false, false, { acquired: hasObs1 })}
       <div className="obs-track-connector" />
       {renderSlot('🃏', stepTooltip("Signal dans le secteur d'une carte de la rangée", null, true), false)}
       <div className="obs-track-connector" />
-      {renderSlot('☿️', stepTooltip('Signal dans le secteur de Mercure', 'Observation II', hasObs2, '1 Média'), false, undefined, true, hasObs2)}
+      {renderSlot('☿️', stepTooltip('Signal dans le secteur de Mercure', 'Observation II', hasObs2, '1 Média'), false, undefined, true, hasObs2, false, { acquired: hasObs2 })}
       <div className="obs-track-connector" />
-      {renderSlot('🗑️', stepTooltip("Signal dans le secteur d'une carte de la main", 'Observation III', hasObs3, '1 carte'), false, undefined, true, hasObs3)}
+      {renderSlot('🗑️', stepTooltip("Signal dans le secteur d'une carte de la main", 'Observation III', hasObs3, '1 carte'), false, undefined, true, hasObs3, false, { acquired: hasObs3 })}
       <div className="obs-track-connector" />
-      {renderSlot('?', stepTooltip('Lancer une sonde (coût : 1 Énergie) ou Gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, true, hasObs4)}
+      {renderSlot('?', stepTooltip('Lancer une sonde (coût : 1 Énergie) ou Gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, true, hasObs4, false, { acquired: hasObs4 })}
     </div>
   );
 };
