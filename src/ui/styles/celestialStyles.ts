@@ -108,8 +108,8 @@ export const TECHNOLOGY_STYLES: Record<string, { color: string, borderColor: str
   }
 };
 
-/** Apparence d'une planète : styles CSS, plus des indicateurs de rendu (anneaux…) */
-export type PlanetStyle = CSSProperties & { hasRings?: boolean; hasBands?: boolean; hasContinents?: boolean };
+/** Apparence simplifiée d'une planète (Oumuamua, valeurs de repli) ; les planètes sont dessinées par PlanetGlobe */
+export type PlanetStyle = CSSProperties;
 
 export const PLANET_STYLES: Record<string, PlanetStyle> = {
     'neptune': {
@@ -126,13 +126,11 @@ export const PLANET_STYLES: Record<string, PlanetStyle> = {
       background: 'radial-gradient(circle, #fad5a5, #d4a574)',
       border: '2px solid #e8c99a',
       boxShadow: '0 0 3px rgba(250, 213, 165, 0.8)',
-      hasRings: true,
     },
     'jupiter': {
       background: 'radial-gradient(circle, #d8ca9d, #b89d6a)',
       border: '2px solid #c4b082',
       boxShadow: '0 0 3px rgba(216, 202, 157, 0.8)',
-      hasBands: true,
     },
     'mars': {
       background: 'radial-gradient(circle, #cd5c5c, #8b3a3a)',
@@ -143,7 +141,6 @@ export const PLANET_STYLES: Record<string, PlanetStyle> = {
       background: 'radial-gradient(circle, #4a90e2, #2c5282)',
       border: '2px solid #63b3ed',
       boxShadow: '0 0 3px rgba(74, 144, 226, 0.8)',
-      hasContinents: true,
     },
     'venus': {
       background: 'radial-gradient(circle, #ffd700, #b8860b)',

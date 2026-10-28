@@ -222,42 +222,28 @@
     overflow: hidden;
 }
 
+.seti-planet-globe {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+/* Repère de la comète : point d'ancrage au centre de l'objet, tourné dans le sens de la queue */
+.seti-comet-anchor {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
 .seti-celestial-object {
     position: absolute;
     transform: translate(-50%, -50%);
     cursor: help;
-}
-
-.seti-comet-tail {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    height: 10px;
-    background: linear-gradient(to left, rgba(200, 220, 255, 0.9), rgba(200, 220, 255, 0.6), rgba(200, 220, 255, 0.3), transparent);
-    border-radius: 2px;
-    pointer-events: none;
-}
-
-.seti-comet-nucleus {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: radial-gradient(circle, #e0e0e0, #888);
-    border: 1px solid #aaa;
-    box-shadow: 0 0 6px rgba(255, 255, 255, 0.4);
-}
-
-.seti-asteroid-particle {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    border-radius: 20%;
-    background: radial-gradient(circle, #888, #555);
-    border: 1px solid #666;
-    box-shadow: 0 0 2px rgba(136, 136, 136, 0.5);
 }
 
 .seti-probe {
@@ -454,98 +440,6 @@
     border-radius: 50%;
     overflow: hidden;
     z-index: 1;
-}
-
-.seti-planet-icon-band {
-    position: absolute;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-20deg);
-    width: 150%;
-    border-radius: 2px;
-}
-
-.seti-planet-icon-continents {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 60%;
-    height: 50%;
-    background: rgba(34, 139, 34, 0.7);
-    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-    clip-path: ellipse(60% 50% at 50% 50%);
-}
-
-.seti-planet-icon-ring-outer {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(15deg);
-    border-radius: 50%;
-    border: 2px solid rgba(200, 180, 150, 0.8);
-    box-shadow: 0 0 4px rgba(200, 180, 150, 0.4);
-}
-
-.seti-planet-icon-ring-inner {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(15deg);
-    border-radius: 50%;
-    border: 1px solid rgba(180, 160, 130, 0.6);
-}
-
-.seti-planet-icon-rings-front {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 2;
-    pointer-events: none;
-}
-
-.seti-planet-band {
-    position: absolute;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-20deg);
-    width: 150%;
-    border-radius: 2px;
-    pointer-events: none;
-}
-
-.seti-planet-continents {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 60%;
-    height: 50%;
-    background: rgba(34, 139, 34, 0.7);
-    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-    pointer-events: none;
-    clip-path: ellipse(60% 50% at 50% 50%);
-}
-
-.seti-planet-ring-outer {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(15deg);
-    border-radius: 50%;
-    border: 2px solid rgba(200, 180, 150, 0.8);
-    box-shadow: 0 0 4px rgba(200, 180, 150, 0.4);
-    pointer-events: none;
-}
-
-.seti-planet-ring-inner {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(15deg);
-    border-radius: 50%;
-    border: 1px solid rgba(180, 160, 130, 0.6);
-    pointer-events: none;
 }
 
 .seti-planet-interaction-base {

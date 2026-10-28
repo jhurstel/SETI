@@ -10,6 +10,7 @@ import { PlanetIcon } from './components/PlanetIcon';
 import { RotationDiskSector } from './components/RotationDiskSector';
 import { SectorDetails } from './components/SectorDetails';
 import { SvgBonus } from './components/SvgBonus';
+import { PlanetGlobe, CometSvg, AsteroidFieldSvg } from './components/CelestialBodies';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
 import './SolarSystemBoardUI.css'
@@ -987,51 +988,22 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             />
           </>
         )}
-        <div className="seti-planet-body"
-          style={{
-            width: `${size - 4}px`,
-            height: `${size - 4}px`,
-            background: style.background,
-            border: style.border,
-            boxShadow: style.boxShadow,
-            borderRadius: style.borderRadius || '50%',
-            transform: bodyTransform,
-          }}
-        >
-          {style.hasBands && (
-            <>
-              {[30, 45, 60, 75].map((top, i) => (
-                <div
-                  key={i}
-                  className="seti-planet-band"
-                  style={{
-                    top: `${top}%`,
-                    height: i % 2 === 0 ? '3px' : '2px',
-                    background: `rgba(${150 - i * 5}, ${120 - i * 5}, ${80 - i * 5}, ${0.8 - i * 0.1})`,
-                  }}
-                />
-              ))}
-            </>
-          )}
-          {style.hasContinents && (
-            <div className="seti-planet-continents" />
-          )}
-        </div>
-        {style.hasRings && (
-          <>
-            <div className="seti-planet-ring-outer"
-              style={{
-                width: `${size + 12}px`,
-                height: `${size / 2}px`,
-              }}
-            />
-            <div className="seti-planet-ring-inner"
-              style={{
-                width: `${size + 8}px`,
-                height: `${(size - 2) / 2}px`,
-              }}
-            />
-          </>
+        {obj.id === 'oumuamua' ? (
+          <div className="seti-planet-body"
+            style={{
+              width: `${size - 4}px`,
+              height: `${size - 4}px`,
+              background: style.background,
+              border: style.border,
+              boxShadow: style.boxShadow,
+              borderRadius: style.borderRadius || '50%',
+              transform: bodyTransform,
+            }}
+          />
+        ) : (
+          <div className="seti-planet-globe">
+            <PlanetGlobe id={obj.id} size={size - 4} />
+          </div>
         )}
 
         {/* Mascamite Tokens */}
@@ -1096,7 +1068,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     // Direction tangentielle dans le sens horaire (croissant 1→8) : angle - 90°
     const tailAngle = sectorCenterAngle - 90;
     const tailLength = obj.position.disk === 'A' ? 30 : obj.position.disk === 'B' ? 50 : 70;
-    const nucleusOffset = obj.position.disk === 'A' ? 15 : obj.position.disk === 'B' ? 25 : 35;
 
     return (
       <div
@@ -1113,19 +1084,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
-        <div
-          className="seti-comet-tail"
-          style={{
-            transform: `translate(-50%, -50%) rotate(${tailAngle}deg)`,
-            width: `${tailLength}px`,
-          }}
-        />
-        <div
-          className="seti-comet-nucleus"
-          style={{
-            transform: `translate(-50%, -50%) rotate(${tailAngle}deg) translateX(${nucleusOffset}px)`
-          }}
-        />
+        {/* Repère centré sur l'objet et tourné dans le sens de la queue ; le noyau est à l'avant */}
+        <div className="seti-comet-anchor" style={{ transform: `rotate(${tailAngle}deg)` }}>
+          <CometSvg length={tailLength} />
+        </div>
       </div>
     );
   };
@@ -1139,7 +1101,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   // Fonction helper pour rendre un nuage d'astéroïdes
   const renderAsteroid = (obj: CelestialObject, zIndex: number = 30) => {
     const { x, y } = calculateObjectPosition(obj.position.disk, obj.position.sector);
-    const asteroidCount = obj.position.disk === 'A' ? 4 : obj.position.disk === 'B' ? 5 : 6;
+    const asteroidCount = obj.position.disk === 'A' ? 6 : obj.position.disk === 'B' ? 8 : 10;
     const spread = obj.position.disk === 'A' ? 10 : obj.position.disk === 'B' ? 15 : 20;
     // Utiliser l'ID comme seed pour avoir un pattern cohérent
     const seed = obj.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -1159,28 +1121,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
-        {Array.from({ length: asteroidCount }).map((_, i) => {
-          const angle = (360 / asteroidCount) * i;
-          const random1 = seededRandom(seed + i + 10);
-          const random2 = seededRandom(seed + i + 100);
-          const distance = 5 + spread * (random1 * 0.8);
-          const { x: asteroidX, y: asteroidY } = polarToCartesian(0, 0, distance, angle);
-          const size = 4 + random2 * 5;
-
-          return (
-            <div
-              key={i}
-              className="seti-asteroid-particle"
-              style={{
-                transform: `translate(calc(-50% + ${asteroidX}px), calc(-50% + ${asteroidY}px))`,
-                width: `${size}px`,
-                height: `${size}px`,
-                boxShadow: '0 0 2px rgba(0,0,0,0.8)',
-                border: '1px solid rgba(255,255,255,0.15)',
-              }}
-            />
-          );
-        })}
+        <AsteroidFieldSvg width={spread * 3} height={spread * 2} count={asteroidCount} seed={seed} />
       </div>
     );
   };

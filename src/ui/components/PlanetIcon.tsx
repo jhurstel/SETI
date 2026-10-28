@@ -3,6 +3,7 @@ import { Game, Planet, ProbeState, InteractionState } from '../../core/types';
 import { ProbeSystem } from '../../systems/ProbeSystem';
 import { polarToCartesian, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../../core/SolarSystemPosition';
 import { PLANET_STYLES, SATELLITE_STYLES } from '../styles/celestialStyles';
+import { PlanetGlobe } from './CelestialBodies';
 import { SvgBonus } from './SvgBonus';
 
 interface PlanetIconProps {
@@ -27,7 +28,6 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
     boxShadow: '0 0 3px rgba(136, 136, 136, 0.8)',
   };
 
-  const scale = size / 30;
 
   // Custom transform for Oumuamua in tooltip
   let customTransform = style.transform;
@@ -67,27 +67,6 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
   }
 
   const hasExploration4 = currentPlayer.technologies.some(t => t.id.startsWith('exploration-4'));
-
-  const renderRings = (isFront: boolean) => (
-    <>
-      <div
-        className="seti-planet-icon-ring-outer"
-        style={{
-          width: `${size * 1.4}px`,
-          height: `${size * 0.5}px`,
-          clipPath: isFront ? 'inset(50% 0 0 0)' : undefined,
-        }}
-      />
-      <div
-        className="seti-planet-icon-ring-inner"
-        style={{
-          width: `${size * 1.25}px`,
-          height: `${size * 0.4}px`,
-          clipPath: isFront ? 'inset(50% 0 0 0)' : undefined,
-        }}
-      />
-    </>
-  );
 
   const renderSatellites = () => {
     if (!planetData || !planetData.satellites || planetData.satellites.length === 0) return null;
@@ -182,41 +161,22 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
   const svgMultiplier = id === 'oumuamua' ? 4 : 3;
   return (
     <div style={{ width: `${size}px`, height: `${size}px`, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      {style.hasRings && renderRings(false)}
-      <div
-        className="seti-planet-icon-body"
-        style={{
-          width: `${size - 4}px`,
-          height: `${size - 4}px`,
-          background: style.background,
-          border: style.border,
-          boxShadow: style.boxShadow,
-          borderRadius: style.borderRadius || '50%',
-          transform: customTransform,
-        }}
-      >
-        {style.hasBands && (
-          <>
-            {[30, 45, 60, 75].map((top, i) => (
-              <div
-                key={i}
-                className="seti-planet-icon-band"
-                style={{
-                  top: `${top}%`,
-                  height: i % 2 === 0 ? `${3 * scale}px` : `${2 * scale}px`,
-                  background: `rgba(${150 - i * 5}, ${120 - i * 5}, ${80 - i * 5}, ${0.8 - i * 0.1})`,
-                }}
-              />
-            ))}
-          </>
-        )}
-        {style.hasContinents && (
-          <div className="seti-planet-icon-continents" />
-        )}
-      </div>
-      {style.hasRings && (
-        <div className="seti-planet-icon-rings-front">
-          {renderRings(true)}
+      {id === 'oumuamua' ? (
+        <div
+          className="seti-planet-icon-body"
+          style={{
+            width: `${size - 4}px`,
+            height: `${size - 4}px`,
+            background: style.background,
+            border: style.border,
+            boxShadow: style.boxShadow,
+            borderRadius: style.borderRadius || '50%',
+            transform: customTransform,
+          }}
+        />
+      ) : (
+        <div className="seti-planet-icon-body" style={{ width: `${size - 4}px`, height: `${size - 4}px`, overflow: 'visible', borderRadius: 0 }}>
+          <PlanetGlobe id={id} size={size - 4} />
         </div>
       )}
 
