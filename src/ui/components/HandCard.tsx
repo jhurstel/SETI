@@ -95,52 +95,14 @@ export const HandCard: React.FC<{
     const isAcquiring = interactionState.type === 'ACQUIRING_CARD';
     const isSelectingScanCard = interactionState.type === 'SELECTING_SCAN_CARD';
     
-    const selectedCardIds = (isDiscarding || isTrading || isReserving || isDiscardingForSignal) ? interactionState.selectedCards : [];
-    const reservationCount = isReserving ? interactionState.count : 0;
-    const discardForSignalCount = isDiscardingForSignal ? interactionState.count : 0;
-
-    const isSelected = selectedCardIds.includes(card.id);
     const isHighlighted = highlightedCardId === card.id;
 
     let phaseClass = 'seti-card-idle';
     let isClickable = defaultClickable;
 
-    if (isReserving) {
-      phaseClass = 'seti-card-interact-mode';
-      isClickable = true;
-      if (isSelected) {
-        phaseClass += ' selected';
-      } else if (selectedCardIds.length === reservationCount) {
-        phaseClass += ' disabled';
-        isClickable = false;
-      }
-    } else if (isDiscarding) {
-      phaseClass = 'seti-card-interact-mode';
-      isClickable = true;
-      if (isSelected) {
-        phaseClass += ' selected';
-      } else if (currentPlayer.cards.length - selectedCardIds.length === 4) {
-        phaseClass += ' disabled';
-        isClickable = false;
-      }
-    } else if (isTrading) {
-      phaseClass = 'seti-card-interact-mode';
-      isClickable = true;
-      if (isSelected) {
-        phaseClass += ' selected';
-      } else if (selectedCardIds.length >= 2) {
-        phaseClass += ' disabled';
-        isClickable = false;
-      }
-    } else if (isDiscardingForSignal) {
-      phaseClass = 'seti-card-interact-mode';
-      isClickable = true;
-      if (isSelected) {
-        phaseClass += ' selected';
-      } else if (selectedCardIds.length >= (discardForSignalCount || 0) && !isSelected) {
-        phaseClass += ' disabled';
-        isClickable = false;
-      }
+    // Réservation, défausses et échange se choisissent dans une fenêtre centrale : la main reste en affichage normal
+    if (isReserving || isDiscarding || isTrading || isDiscardingForSignal) {
+      isClickable = false;
     } else if (isAcquiring || isSelectingScanCard) {
       if (cardOrigin === 'row') {
         phaseClass = 'seti-card-interact-mode';
@@ -173,7 +135,6 @@ export const HandCard: React.FC<{
         onMouseLeave={handleTooltipLeave}
         onClick={_e => {
           if (!isClickable) return;
-          if (isReserving || isTrading || isDiscarding || isDiscardingForSignal) { onCardClick(card.id); return; }
           if (isInteractiveMode) { onCardClick(card.id); return; }
           setHighlightedCardId(isHighlighted ? null : card.id);
         }}
@@ -184,13 +145,7 @@ export const HandCard: React.FC<{
           {renderActionButton('🗑️', discardTooltip, () => { if (canDiscard) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canDiscard, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 } as React.CSSProperties)}
           </>
         )}
-        {isReserving ? (
-          <CardContent card={card} highlightedAttribute="revenue" />
-        ) : (isDiscardingForSignal || isSelectingScanCard) ? (
-          <CardContent card={card} highlightedAttribute="scan" />
-        ) : (
-          <CardContent card={card} highlightedAttribute={defaultAttribute} />
-        )}
+        <CardContent card={card} highlightedAttribute={defaultAttribute} />
       </div>
     );
 };
