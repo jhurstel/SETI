@@ -108,13 +108,22 @@ const SpeciesCardArea: React.FC<{
                     className={`seti-common-card seti-row-card alien-small-card ${isAcquiring ? 'acquiring' : 'default'}`}
                 >
                     <div className="seti-row-card-name alien-card-name">{card.name}</div>
-                    <div className="seti-row-card-cost alien-card-cost">Coût: <span>{card.cost}</span></div>
-                    {card.description && <div className="seti-row-card-desc alien-card-desc">{card.description}</div>}
-                    <div className="seti-row-card-details alien-card-details">
-                        {card.freeAction && <div>Act: {card.freeAction}</div>}
-                        {card.revenue && <div>Rev: {card.revenue}</div>}
-                        {card.scanSector && <div>Scan: {card.scanSector}</div>}
-                    </div>
+                    {card.type === CardType.EXERTIEN ? (
+                        <>
+                            {card.description && <div className="seti-row-card-desc alien-card-desc">{card.description}</div>}
+                            <div className="seti-row-card-details alien-card-details alien-card-danger">Danger {card.danger ?? 0}</div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="seti-row-card-cost alien-card-cost">Coût: <span>{card.cost}</span></div>
+                            {card.description && <div className="seti-row-card-desc alien-card-desc">{card.description}</div>}
+                            <div className="seti-row-card-details alien-card-details">
+                                {card.freeAction && <div>Act: {card.freeAction}</div>}
+                                {card.revenue && <div>Rev: {card.revenue}</div>}
+                                {card.scanSector && <div>Scan: {card.scanSector}</div>}
+                            </div>
+                        </>
+                    )}
                 </div>
             ))}
         </div>
@@ -146,7 +155,8 @@ const ExertienDangerTooltip: React.FC<{
 
     return (
         <div 
-            style={{ textAlign: 'left', minWidth: '250px', maxWidth: '500px' }}
+            className="seti-tooltip-wide"
+            style={{ textAlign: 'left', minWidth: '250px' }}
             onMouseEnter={onEnter}
             onMouseLeave={onLeave}
         >
@@ -160,7 +170,7 @@ const ExertienDangerTooltip: React.FC<{
                             <span style={{ backgroundColor: '#333', padding: '0 6px', borderRadius: '4px' }}>{p.danger || 0}</span>
                         </div>
                         {exertienCards.length > 0 ? (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' }}>
+                            <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '5px', marginTop: '8px' }}>
                                 {exertienCards.map(card => (
                                     <HandCard key={card.id} card={card} game={game} currentPlayerId={p.id} interactionState={{ type: 'IDLE' }} highlightedCardId={null} setHighlightedCardId={() => {}} onCardClick={() => {}} onPlayCard={() => {}} onDiscardCardAction={() => {}} handleTooltipHover={handleCardHover} handleTooltipLeave={handleCardLeave} renderActionButton={() => null} disableGrayOut={true} />
                                 ))}
@@ -453,7 +463,19 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 <div className="alien-fixed-slots-container">
                     {[...fixedSlots].reverse().map((bonus, reverseIndex) => {
                         const index = fixedSlots.length - 1 - reverseIndex;
-                        return renderBoardSlot(type, index, bonus, false, fixedSlots.length);
+                        // Exertiens : un trait pointillé et un label marquent le début de chaque zone de danger
+                        const above = reverseIndex > 0 ? fixedSlots[index + 1] : undefined;
+                        const startsDangerZone = bonus.danger !== undefined && above?.danger !== bonus.danger;
+                        return (
+                            <React.Fragment key={index}>
+                                {startsDangerZone && (
+                                    <div className={`alien-danger-zone ${reverseIndex === 0 ? 'first' : ''}`}>
+                                        <span>☣ {bonus.danger}</span>
+                                    </div>
+                                )}
+                                {renderBoardSlot(type, index, bonus, false, fixedSlots.length)}
+                            </React.Fragment>
+                        );
                     })}
                 </div>
                 )}

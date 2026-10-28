@@ -289,15 +289,21 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
         hoverTimeoutRef.current = setTimeout(() => setActiveTooltip(null), 300);
     };
 
+    // Une sonde du joueur humain peut se mettre en orbite ou se poser : le panneau clignote
+    const actingPlayer = game.players[game.currentPlayerIndex];
+    const canOrbitOrLand = actingPlayer.type === 'human' && !actingPlayer.hasPerformedMainAction && interactionState.type === 'IDLE'
+        && actingPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM
+            && (ProbeSystem.canOrbit(game, actingPlayer.id, p.id).canOrbit || ProbeSystem.canLand(game, actingPlayer.id, p.id).canLand));
+
     return (
         <div 
-            className={`seti-foldable-container seti-icon-panel seti-planet-board ${isOpen ? 'open' : 'collapsed'}`}
+            className={`seti-foldable-container seti-icon-panel seti-planet-board ${isOpen ? 'open' : 'collapsed'} ${canOrbitOrLand && !isOpen ? 'seti-flash-green' : ''}`}
             onMouseEnter={handlePanelMouseEnter}
             onMouseLeave={handlePanelMouseLeave}
             style={{ pointerEvents: 'auto' }}
         >
             <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
-                <span className="panel-icon">🪐</span>
+                <span className={`panel-icon ${canOrbitOrLand ? 'seti-flash-green-icon' : ''}`}>🪐</span>
                 <span className="panel-title">Planètes</span>
             </div>
             <div className="seti-foldable-content">

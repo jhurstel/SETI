@@ -338,6 +338,38 @@
     align-items: center;
 }
 
+/* Exertiens : limite entre deux zones de danger (le trait n'ajoute pas d'espace entre les emplacements) */
+.alien-danger-zone {
+    position: relative;
+    align-self: stretch;
+    min-width: 40px;
+    height: 0;
+    margin: -8px 0 -7px;
+    border-top: 1px dashed rgba(255, 107, 107, 0.7);
+}
+.alien-danger-zone.first {
+    border-top-color: transparent;
+}
+.alien-danger-zone span {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translate(-50%, -50%);
+    padding: 0 3px;
+    font-size: 0.6rem;
+    line-height: 1;
+    color: #ff6b6b;
+    background: rgba(20, 25, 40, 0.95);
+    border-radius: 3px;
+    white-space: nowrap;
+}
+
+.alien-card-danger {
+    justify-content: center;
+    color: #ff6b6b;
+    font-weight: bold;
+}
+
 /* Slot styles */
 .alien-slot-tooltip-container {
     text-align: center;

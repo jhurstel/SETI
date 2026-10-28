@@ -163,13 +163,8 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
             >
               <circle r="4" fill="transparent" stroke="none" />
               {isFlashing && (
-                canAffordScan && interactionState.type === 'IDLE' ? (
-                  <>
-                    <circle r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" opacity="1" />
-                    <circle className="seti-pulse-green-svg" r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" />
-                  </>
-                ) : interactionState.type === 'SELECTING_SCAN_SECTOR' && (
-                  <circle r="4" fill="none" stroke="#4caf50" strokeWidth="0.5" opacity="1" />
+                ((canAffordScan && interactionState.type === 'IDLE') || interactionState.type === 'SELECTING_SCAN_SECTOR') && (
+                  <circle className="seti-flash-green-svg" r="3.8" />
                 )
               )}
               <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" strokeDasharray={isLastSlot ? "1 1" : undefined} />

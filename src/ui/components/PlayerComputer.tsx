@@ -141,7 +141,7 @@ export const PlayerComputer = ({
               </div>
               <div className="computer-column">
                 <div
-                  className={`computer-slot ${isAvailable ? 'can-fill' : ''} ${isClickable ? 'flash-green' : ''}`}
+                  className={`computer-slot ${isAvailable ? 'can-fill' : ''} ${isClickable ? 'seti-flash-green' : ''}`}
                   style={{ 
                       cursor: isClickable ? 'pointer' : 'help',
                       borderColor: isClickable ? undefined : (isAvailable ? '#00ffff' : '#444'),

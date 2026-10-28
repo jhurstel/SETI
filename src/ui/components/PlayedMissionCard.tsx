@@ -50,7 +50,7 @@ export const PlayedMissionCard: React.FC<PlayedMissionCardProps> = ({ card, isCu
       {isCentaurien && (
         <div className="seti-mission-requirements-row" style={{ display: 'flex', width: '100%', padding: '4px 0', marginTop: 'auto', justifyContent: 'center' }}>
             <div
-              className="seti-mission-requirement-indicator"
+              className={`seti-mission-requirement-indicator ${canClick ? 'seti-flash-green-icon' : ''}`}
               style={{
                 fontSize: '14px',
                 color: isCompleted ? '#ffd700' : '#555',

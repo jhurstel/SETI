@@ -132,22 +132,35 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
 .seti-icon-panel.collapsed:hover .seti-foldable-header::after {
   display: block;
 }
-@keyframes icon-text-flash {
-  0% { text-shadow: 0 0 0 rgba(76, 175, 80, 0); transform: scale(1); }
-  50% { text-shadow: 0 0 15px rgba(76, 175, 80, 1); transform: scale(1.2); color: #4caf50; }
-  100% { text-shadow: 0 0 0 rgba(76, 175, 80, 0); transform: scale(1); }
+/* Clignotement vert commun : un élément sur lequel le joueur peut agir maintenant.
+   Même couleur et même rythme partout (slots de signaux, panneaux, ordinateur, observation, missions). */
+@keyframes seti-flash-green {
+  0%, 100% { box-shadow: 0 0 2px 1px rgba(76, 175, 80, 0.45); border-color: #4caf50; }
+  50% { box-shadow: 0 0 12px 4px rgba(76, 175, 80, 0.95); border-color: #81c784; }
 }
-@keyframes container-glow-flash {
-  0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); border-color: #555; }
-  50% { box-shadow: 0 0 10px 5px rgba(76, 175, 80, 0.6); border-color: #4caf50; }
-  100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); border-color: #555; }
+.seti-flash-green {
+  animation: seti-flash-green 1.6s ease-in-out infinite;
+  border-color: #4caf50;
 }
-.icon-flash {
-  animation: icon-text-flash 2s ease-in-out infinite;
+/* Icône d'un panneau replié */
+@keyframes seti-flash-green-icon {
+  0%, 100% { text-shadow: 0 0 2px rgba(76, 175, 80, 0.45); transform: scale(1); }
+  50% { text-shadow: 0 0 14px rgba(76, 175, 80, 1); transform: scale(1.15); }
+}
+.seti-flash-green-icon {
+  animation: seti-flash-green-icon 1.6s ease-in-out infinite;
   display: inline-block;
 }
-.container-flash {
-  animation: container-glow-flash 2s ease-in-out infinite;
+/* Anneau SVG (slots de signaux) */
+@keyframes seti-flash-green-svg {
+  0%, 100% { stroke-opacity: 0.45; stroke-width: 0.5px; }
+  50% { stroke-opacity: 1; stroke-width: 1.1px; }
+}
+.seti-flash-green-svg {
+  fill: none;
+  stroke: #4caf50;
+  animation: seti-flash-green-svg 1.6s ease-in-out infinite;
+  pointer-events: none;
 }
 
 /* Layout principal */
@@ -297,6 +310,11 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
 @keyframes seti-card-playable-pulse {
   0%, 100% { box-shadow: 0 0 4px rgba(76, 175, 80, 0.5); }
   50% { box-shadow: 0 0 14px rgba(76, 175, 80, 0.9); }
+}
+
+/* Infobulle large (ex : cartes Exertiens des joueurs sur une ligne) : pas de largeur maximale */
+.seti-tooltip:has(> .seti-tooltip-wide) {
+  max-width: 95vw;
 }
 
 /* Infobulles du jeu (composant Tooltip) : même aspect que les panneaux */

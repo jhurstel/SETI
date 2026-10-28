@@ -79,14 +79,14 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
   };
 
   return (
-    <div className={`seti-foldable-container seti-icon-panel ${isOpen ? 'open' : 'collapsed'} ${canResearch && !isOpen ? 'container-flash' : ''}`}
+    <div className={`seti-foldable-container seti-icon-panel ${isOpen ? 'open' : 'collapsed'} ${canResearch && !isOpen ? 'seti-flash-green' : ''}`}
       style={{
         pointerEvents: 'auto',
         ...(isAcquiringTech ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
       }}
     >
       <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
-        <span className={`panel-icon ${canResearch ? 'icon-flash' : ''}`}>🔬</span>
+        <span className={`panel-icon ${canResearch ? 'seti-flash-green-icon' : ''}`}>🔬</span>
         <span className="panel-title">Technologies</span>
       </div>
       <div className="seti-foldable-content">

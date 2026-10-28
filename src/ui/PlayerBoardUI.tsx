@@ -82,7 +82,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
       className += ' clickable';
     }
     if (isAvailableForAction) {
-      className += ' available-flash';
+      className += ' seti-flash-green';
     }
 
     return (

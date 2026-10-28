@@ -243,7 +243,7 @@ export const AsteroidFieldSvg: React.FC<{ width: number; height: number; count: 
   );
 };
 
-/** Soleil : photosphère granuleuse assombrie au bord, quelques taches, protubérances et couronne diffuse */
+/** Soleil : photosphère granuleuse assombrie au bord, facules, protubérances et couronne diffuse */
 export const SunSvg: React.FC = () => {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   // Granulation : petites cellules claires réparties de façon stable
@@ -284,11 +284,9 @@ export const SunSvg: React.FC = () => {
       <circle r={46} fill={`url(#sun-disk-${uid})`} />
       <g clipPath={`url(#sun-clip-${uid})`}>
         {grains.map((g, i) => <circle key={i} cx={g.x} cy={g.y} r={g.r} fill="#fff4c2" opacity={0.18} filter={`url(#sun-blur-${uid})`} />)}
-        {/* Facules et taches solaires */}
+        {/* Facules */}
         <ellipse cx={-16} cy={14} rx={9} ry={4} fill="#fff6d0" opacity={0.35} filter={`url(#sun-blur-${uid})`} />
-        <ellipse cx={14} cy={-10} rx={3.6} ry={2.6} fill="#8a4a12" opacity={0.75} />
-        <ellipse cx={14} cy={-10} rx={1.8} ry={1.3} fill="#4a2208" />
-        <ellipse cx={20} cy={-6} rx={1.8} ry={1.3} fill="#8a4a12" opacity={0.7} />
+        <ellipse cx={15} cy={-12} rx={7} ry={3} fill="#fff6d0" opacity={0.25} filter={`url(#sun-blur-${uid})`} />
       </g>
     </svg>
   );

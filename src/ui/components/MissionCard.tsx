@@ -111,7 +111,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
           return (
             <div
               key={index}
-              className="seti-mission-requirement-indicator"
+              className={`seti-mission-requirement-indicator ${canClick ? 'seti-flash-green' : ''}`}
               style={{
                 width: '12px',
                 height: '12px',
@@ -121,7 +121,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
                 cursor: canClick ? 'pointer' : 'help',
                 zIndex: canClick ? 20 : 10,
                 opacity: isHighlighted ? 1 : 0.3,
-                boxShadow: canClick ? `0 0 8px ${currentPlayerColor}, 0 0 12px #fff` : (isCompleted ? `0 0 5px ${currentPlayerColor}` : 'none'),
+                boxShadow: isCompleted ? `0 0 5px ${currentPlayerColor}` : undefined,
                 transform: canClick ? 'scale(1.3)' : 'scale(1)',
                 transition: 'all 0.3s ease'
               }}
