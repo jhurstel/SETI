@@ -31,6 +31,11 @@ interface SolarSystemBoardUIProps {
   planetFocus?: 'orbit' | 'land' | null;
 }
 
+/** Place réservée en bas du panneau pour le toast (hauteur du toast et écart), en px */
+const TOAST_SPACE = 51;
+/** Diamètre de l'anneau extérieur (E) rapporté au côté du plateau */
+const OUTER_RING_RATIO = 0.88;
+
 export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, onBackgroundClick, onSectorClick, setActiveTooltip, onMascamiteClick, planetFocus }) => {
 
   // État pour gérer la sonde sélectionnée et les cases accessibles
@@ -589,7 +594,9 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
-        setBoardSize(Math.min(width, height));
+        // L'anneau extérieur (88 % du plateau) occupe toute la hauteur au-dessus de la place du toast ;
+        // les marges vides du carré peuvent déborder du conteneur
+        setBoardSize(Math.min(width, (height - TOAST_SPACE) / OUTER_RING_RATIO));
       }
     });
 
@@ -1268,6 +1275,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             style={{
               width: boardSize ? `${boardSize}px` : '0px',
               height: boardSize ? `${boardSize}px` : '0px',
+              // Centré sur la hauteur disponible au-dessus du toast
+              top: boardSize ? `${-TOAST_SPACE / 2}px` : 0,
               opacity: boardSize ? 1 : 0,
               pointerEvents: removingItem ? 'none' : 'auto',
             }}>
