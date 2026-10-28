@@ -148,6 +148,10 @@
     /* Hors prise d'une carte : infobulle seulement (comme la rangée principale) */
     cursor: help;
 }
+/* Légère surbrillance au survol, comme les cartes de la rangée principale hors choix */
+.alien-small-card.default:hover {
+    border-color: #777;
+}
 .alien-deck-label {
     font-size: 1em;
 }
