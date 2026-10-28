@@ -92,11 +92,12 @@
 .seti-tech-card.acquired {
   opacity: 0.5;
   border: none !important;
-  cursor: default;
+  cursor: help;
 }
 
+/* Technologie non sélectionnable : curseur d'aide (son infobulle reste consultable) */
 .seti-tech-card.default {
-  cursor: default;
+  cursor: help;
 }
 
 .seti-tech-card.stacked {
