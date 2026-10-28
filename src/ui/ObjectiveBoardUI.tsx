@@ -154,7 +154,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                         >
                             {/* Symbole de la tuile, description en infobulle */}
                             <div className="seti-objective-symbol"
-                                onMouseEnter={(e) => showInfoTooltip(e, tile.name, tile.description)}
+                                onMouseEnter={(e) => showInfoTooltip(e, `${tile.name} (face ${tile.side})`, tile.description)}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
                                 <ObjectiveSymbol tile={tile} />

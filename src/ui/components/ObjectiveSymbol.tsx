@@ -71,8 +71,8 @@ const AnyTech: React.FC<{ id: string }> = ({ id }) => (
     </defs>
     <Chip fill={COLORS.observation} />
     <g clipPath={`url(#${id})`}>
-      <path d="M0 0 H27 L0 27 Z" fill={COLORS.exploration} />
-      <path d="M40 13 V40 H13 Z" fill={COLORS.computing} />
+      <path d="M0 0 H31 L0 31 Z" fill={COLORS.exploration} />
+      <path d="M40 9 V40 H9 Z" fill={COLORS.computing} />
     </g>
   </g>
 );
@@ -109,11 +109,11 @@ const Tag: React.FC<{ fill: string; children: React.ReactNode }> = ({ fill, chil
   </g>
 );
 
-// « C » barré du crédit
+// Crédit : « C » anguleux traversé de deux barres, comme sur le matériel
 const CreditGlyph = () => (
-  <g fill="none" stroke="#fff" strokeLinecap="round">
-    <path d="M24 14.5 A7 7 0 1 0 24 25.5" strokeWidth={3.2} />
-    <line x1={19} y1={10} x2={19} y2={30} strokeWidth={2} />
+  <g fill="none" stroke="#fff">
+    <path d="M25 13.5 H19.5 L14 20 L19.5 26.5 H25" strokeWidth={3.4} strokeLinejoin="miter" />
+    <path d="M19 10.5 V15 M23 10.5 V15 M19 25 V29.5 M23 25 V29.5" strokeWidth={1.8} />
   </g>
 );
 const EnergyGlyph = () => <path d="M21 11 L14 22 H19 L17 30 L25 18 H20 Z" fill="#fff" />;
@@ -138,7 +138,7 @@ const RevenueMark: React.FC<{ x: number; y: number }> = ({ x, y }) => (
 /** Trace de vie : triangle pointe en bas */
 const LifeTrace: React.FC<{ fill: string; children: React.ReactNode }> = ({ fill, children }) => (
   <g>
-    <path d="M6 8 Q4 6 7 6 H33 Q36 6 34 8 L22 33 Q20 36 18 33 Z" fill={fill} />
+    <path d="M8 6 H32 Q38 6 35.5 11 L23.5 33 Q20 38.5 16.5 33 L4.5 11 Q2 6 8 6 Z" fill={fill} />
     {children}
   </g>
 );
@@ -179,9 +179,10 @@ const OrbiterOrLander = () => (
 /** Séparateur « / » entre deux possibilités */
 const Slash = () => <line x1={23} y1={10} x2={17} y2={30} stroke="#8a6d1d" strokeWidth={3} strokeLinecap="round" />;
 
-const row = (items: React.ReactNode[], width = 40) => items.map((item, i) => (
-  <g key={i} transform={`translate(${i * width} 0)`}>{item}</g>
-));
+// Largeur commune à tous les symboles (3 pictogrammes et le symbole revenu de Revenus A)
+const VIEW_WIDTH = 132;
+const ITEM_WIDTH = 40;
+const MARK_WIDTH = 12;
 
 const symbolItems = (tile: ObjectiveTile): React.ReactNode[] => {
   const uid = `${tile.id}-${tile.side}`;
@@ -194,14 +195,26 @@ const symbolItems = (tile: ObjectiveTile): React.ReactNode[] => {
       return tile.side === 'A' ? [<MissionCard />] : [<MissionOrEndCard />, <MissionOrEndCard />];
     case 'obj_revenue':
       return tile.side === 'A'
-        ? [<Tag fill={COLORS.credit}><CreditGlyph /></Tag>, <Tag fill={COLORS.energy}><EnergyGlyph /></Tag>, <g><Tag fill={COLORS.card}><CardGlyph /></Tag><RevenueMark x={34} y={33} /></g>]
+        ? [<Tag fill={COLORS.credit}><CreditGlyph /></Tag>, <Tag fill={COLORS.energy}><EnergyGlyph /></Tag>, <Tag fill={COLORS.card}><CardGlyph /></Tag>, <RevenueMark x={3} y={33} />]
         : [<g><Tag fill={COLORS.credit}><CreditGlyph /></Tag><RevenueMark x={34} y={33} /></g>, <Slash />, <g><Tag fill={COLORS.energy}><EnergyGlyph /></Tag><RevenueMark x={34} y={33} /></g>];
     case 'obj_other':
       return tile.side === 'A'
         ? [
-          <LifeTrace fill={COLORS.lifeRed}><circle cx={20} cy={16} r={4} fill="#fff" /><circle cx={13} cy={12} r={2} fill="#fff" /><circle cx={27} cy={12} r={2} fill="#fff" /><circle cx={20} cy={24} r={2.4} fill="#fff" /></LifeTrace>,
-          <LifeTrace fill={COLORS.lifeYellow}><path d="M14 11 L22 9 L27 14 L24 22 L17 22 L13 16 Z M19 12 L18 17 L22 16" fill="#fff" stroke={COLORS.lifeYellow} strokeWidth={1} /></LifeTrace>,
-          <LifeTrace fill={COLORS.lifeBlue}><path d="M12 13 C15 9 19 15 22 11 C25 8 28 12 26 15 C24 18 20 15 18 19 C16 23 21 24 19 27" fill="none" stroke="#fff" strokeWidth={2.6} strokeLinecap="round" /></LifeTrace>,
+          // Molécule : grosse sphère reliée à deux petites en haut et une moyenne en bas
+          <LifeTrace fill={COLORS.lifeRed}>
+            <path d="M11.5 10.5 L20 16.5 L28.5 10.5 M20 16.5 V25" fill="none" stroke="#fff" strokeWidth={2.4} />
+            <circle cx={20} cy={16.5} r={5.2} fill="#fff" /><circle cx={11.5} cy={10.5} r={2.6} fill="#fff" /><circle cx={28.5} cy={10.5} r={2.6} fill="#fff" /><circle cx={20} cy={25.5} r={3.4} fill="#fff" />
+          </LifeTrace>,
+          // Roche fendue
+          <LifeTrace fill={COLORS.lifeYellow}>
+            <path d="M12.5 13 L17 8.5 L24.5 9 L28.5 14 L27 20.5 L20.5 26 L14.5 23 Z" fill="#fff" />
+            <path d="M15.5 11 L16.5 18 L19.5 15.5 L20 22 M22 9.5 L21.5 14 L25 13" fill="none" stroke={COLORS.lifeYellow} strokeWidth={1.6} strokeLinejoin="round" />
+          </LifeTrace>,
+          // Micro-organismes : deux filaments et quelques points
+          <LifeTrace fill={COLORS.lifeBlue}>
+            <path d="M15.5 9.5 Q11.5 11.5 14.5 14.5 Q17.5 17.5 13.5 20.5 M23 9 Q28 9.5 25.5 13.5 Q23 17.5 26.5 19.5 Q29 22 24.5 24.5" fill="none" stroke="#fff" strokeWidth={3.4} strokeLinecap="round" />
+            <circle cx={30.5} cy={10} r={0.9} fill="#fff" /><circle cx={19.5} cy={19} r={0.9} fill="#fff" /><circle cx={28.5} cy={25} r={0.9} fill="#fff" /><circle cx={10} cy={13} r={0.9} fill="#fff" />
+          </LifeTrace>,
         ]
         : [<CoveredSector />, <OrbiterOrLander />];
     default:
@@ -212,10 +225,16 @@ const symbolItems = (tile: ObjectiveTile): React.ReactNode[] => {
 /** Symbole d'une tuile Score dorée (face A ou B) */
 export const ObjectiveSymbol: React.FC<{ tile: ObjectiveTile; height?: number }> = ({ tile, height = 30 }) => {
   const items = symbolItems(tile);
-  const width = Math.max(1, items.length) * 40;
+  // Le symbole revenu seul (Revenus A) n'occupe qu'une petite place à droite
+  const widths = items.map(item => React.isValidElement(item) && item.type === RevenueMark ? MARK_WIDTH : ITEM_WIDTH);
+  let x = (VIEW_WIDTH - widths.reduce((a, b) => a + b, 0)) / 2;
   return (
-    <svg viewBox={`0 0 ${width} 40`} height={height} width={(height * width) / 40} role="img" aria-label={tile.name}>
-      {row(items)}
+    <svg viewBox={`0 0 ${VIEW_WIDTH} 40`} height={height} width={(height * VIEW_WIDTH) / 40} role="img" aria-label={tile.name}>
+      {items.map((item, i) => {
+        const g = <g key={i} transform={`translate(${x} 0)`}>{item}</g>;
+        x += widths[i];
+        return g;
+      })}
     </svg>
   );
 };
