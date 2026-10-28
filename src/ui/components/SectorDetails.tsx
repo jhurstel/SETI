@@ -16,24 +16,45 @@ interface SectorDetailsProps {
 }
 
 /**
- * Infobulle d'un secteur, au format des emplacements (centrée) : nom à la couleur du secteur, gains de couverture
- * en doré, puis les joueurs qui l'ont couvert.
+ * Infobulle d'un secteur, au format de celle des traces de vie (classes alien-tooltip-*) : nom à la couleur du secteur,
+ * joueurs qui l'ont couvert, puis gains (présence, couverture).
  */
 export const SectorTooltip: React.FC<{ sector: Sector, color: string, coveredBy: Player[], presenceGain: string }> = ({ sector, color, coveredBy, presenceGain }) => {
   const first = (ResourceSystem.formatBonus(sector.firstBonus) || []).join(', ') || 'Aucun';
   const next = (ResourceSystem.formatBonus(sector.nextBonus) || []).join(', ') || 'Aucun';
   return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontWeight: 'bold', marginBottom: '4px', color }}>{sector.name}</div>
-      <div style={{ fontSize: '0.9em', color: '#ccc' }}>
-        {first === next ? <>Bonus de couverture : <span style={{ color: SLOT_COLORS.bonus }}>{first}</span></>
-          : <>1re couverture : <span style={{ color: SLOT_COLORS.bonus }}>{first}</span><br />Suivantes : <span style={{ color: SLOT_COLORS.bonus }}>{next}</span></>}
-      </div>
-      <div style={{ fontSize: '0.9em', color: '#ccc' }}>Présence : <span style={{ color: SLOT_COLORS.bonus }}>{presenceGain} par joueur</span></div>
-      <div style={{ fontSize: '0.8em', marginTop: '4px', fontStyle: 'italic', color: SLOT_COLORS.neutral }}>
-        {coveredBy.length > 0
-          ? <>Couvert par {coveredBy.map((p, i) => <React.Fragment key={p.id}>{i > 0 && ', '}<span style={{ color: p.color, fontWeight: 'bold' }}>{p.name}</span></React.Fragment>)}</>
-          : 'Pas encore couvert'}
+    <div className="alien-tooltip-container">
+      <div className="alien-tooltip-header" style={{ color }}>{sector.name}</div>
+      {coveredBy.length > 0 ? (
+        <div className="alien-tooltip-players">
+          <div style={{ fontSize: '0.8em', color: '#aaa', marginBottom: '2px' }}>Couvert par :</div>
+          {coveredBy.map((p, i) => <div key={`${p.id}-${i}`} className="alien-tooltip-player-row" style={{ color: p.color }}>{p.name}</div>)}
+        </div>
+      ) : (
+        <div className="alien-tooltip-empty">Pas encore couvert</div>
+      )}
+      <div className="alien-tooltip-bonuses">
+        <div className="alien-tooltip-bonus-row mb">
+          <span>Présence :</span>
+          <span className="alien-tooltip-bonus-value">{presenceGain} par joueur</span>
+        </div>
+        {first === next ? (
+          <div className="alien-tooltip-bonus-row">
+            <span>Couverture :</span>
+            <span className="alien-tooltip-bonus-value">{first}</span>
+          </div>
+        ) : (
+          <>
+            <div className="alien-tooltip-bonus-row mb">
+              <span>1re couverture :</span>
+              <span className="alien-tooltip-bonus-value">{first}</span>
+            </div>
+            <div className="alien-tooltip-bonus-row">
+              <span>Suivantes :</span>
+              <span className="alien-tooltip-bonus-value">{next}</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
