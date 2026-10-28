@@ -21,20 +21,31 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
     const trackMax = maxScore > 100 ? Math.ceil(maxScore / 100) * 100 : 100;
     const getPosition = (val: number) => (val / trackMax) * 100;
 
+    // Infobulle d'un palier : nom en gras, effet en italique (même format que les astéroïdes et comètes)
+    const showMilestoneTooltip = (e: React.MouseEvent, title: string, effect: string) => setActiveTooltip({
+        content: <><div style={{ fontWeight: 'bold' }}>{title}</div><div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>{effect}</div></>,
+        rect: e.currentTarget.getBoundingClientRect()
+    });
+    const neutralEffect = (m: number) => {
+        const left = game.neutralMilestonesAvailable?.[m] ?? 0;
+        return left > 0
+            ? `Chaque joueur qui l'atteint place une trace de vie neutre sur un emplacement libre des plateaux Alien (${left} restante${left > 1 ? 's' : ''})`
+            : 'Plus aucune trace de vie neutre à placer';
+    };
+
     return (
         <div className={`seti-foldable-container seti-icon-panel seti-objective-container ${isObjectivesOpen ? 'open' : 'collapsed'}`}>
             <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
                 <span className="panel-icon">🏆</span>
                 <span className="panel-title">Objectifs</span>
-                <span className="seti-round-badge" onMouseEnter={(e) => setActiveTooltip({ content: 'Manche en cours', rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}>Manche {Math.min(game.currentRound, game.maxRounds)} / {game.maxRounds}</span>
+                <span className="seti-round-badge">Manche {Math.min(game.currentRound, game.maxRounds)} / {game.maxRounds}</span>
             </div>
             <div className="seti-foldable-content">
                 {/* Statut des manches et des joueurs qui ont passé */}
                 <div className="seti-round-status">
                     {Array.from({ length: game.maxRounds }, (_, i) => i + 1).map(round => {
                         const status = round < game.currentRound || game.phase === GamePhase.FINAL_SCORING ? 'done' : round === game.currentRound ? 'current' : 'upcoming';
-                        const label = status === 'done' ? 'terminée' : status === 'current' ? 'en cours' : 'à venir';
-                        return <span key={round} className={`seti-round-pill ${status}`} onMouseEnter={(e) => setActiveTooltip({ content: `Manche ${round} : ${label}`, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}>{round}</span>;
+                        return <span key={round} className={`seti-round-pill ${status}`}>{round}</span>;
                     })}
                     <span className="seti-round-passed">
                         {game.players.filter(p => p.hasPassed).length > 0
@@ -59,7 +70,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                         {/* Paliers Neutres */}
                         {game.players.length < 4 && NEUTRAL_MILESTONES.map(m => (
                             <div key={`neutral-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
-                                onMouseEnter={(e) => setActiveTooltip({ content: <div>Palier Neutre: {m} PV</div>, rect: e.currentTarget.getBoundingClientRect() })}
+                                onMouseEnter={(e) => showMilestoneTooltip(e, `Palier neutre : ${m} PV`, neutralEffect(m))}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
                                 <svg width="14" height="14" viewBox="0 0 24 24" style={{ fill: '#aaa', filter: 'drop-shadow(0 0 2px #555)' }}><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg>
@@ -69,7 +80,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                         {/* Paliers Objectifs */}
                         {GOLDEN_MILESTONES.map(m => (
                             <div key={`golden-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
-                                onMouseEnter={(e) => setActiveTooltip({ content: <div>Palier Objectif: {m} PV</div>, rect: e.currentTarget.getBoundingClientRect() })}
+                                onMouseEnter={(e) => showMilestoneTooltip(e, `Palier objectif : ${m} PV`, "Chaque joueur qui l'atteint place, à la fin de son tour, un marqueur sur une tuile objectif où il n'en a pas encore : ses PV sont comptés en fin de partie")}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
                                 <svg width="16" height="16" viewBox="0 0 24 24" style={{ fill: '#ffd700', filter: 'drop-shadow(0 0 3px #ffd700)' }}><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
@@ -97,7 +108,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                         {/* Paliers Exertiens */}
                         {game.exertienMilestones?.map(m => (
                             <div key={`exertien-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
-                                onMouseEnter={(e) => setActiveTooltip({ content: <div>Palier Exertien: {m} PV</div>, rect: e.currentTarget.getBoundingClientRect() })}
+                                onMouseEnter={(e) => showMilestoneTooltip(e, `Palier Exertien : ${m} PV`, "Chaque joueur qui l'atteint peut jouer une de ses cartes Exertien")}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
                                 <span style={{ fontSize: '12px', filter: 'drop-shadow(0 0 2px #fff)' }}>☣️</span>

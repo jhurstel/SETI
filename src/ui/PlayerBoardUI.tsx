@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, TechnologyCategory, MAIN_ACTION_TYPES, CardType } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, TechnologyCategory, MAIN_ACTION_TYPES, CardType, CostType } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
@@ -348,11 +348,15 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
       case ActionType.LAND: {
         action = 'Cliquez pour poser une sonde sur une planète';
+        // Coût courant : celui de la planète où se trouve la sonde, sinon le coût de base (réduit par Exploration III)
+        const hasExploration3 = currentPlayer.technologies.some(t => t.id.startsWith('exploration-3'));
+        const landCost = hasProbeOnPlanetInfo.landCost ?? (hasExploration3 ? GAME_CONSTANTS.LAND_COST_ENERGY_WITH_TECHNOLOGY : GAME_CONSTANTS.LAND_COST_ENERGY);
+        const reductions = [hasProbeOnPlanetInfo.hasOrbiter && 'orbiteur présent', hasExploration3 && 'Exploration III'].filter(Boolean);
+        cost = `${landCost} Énergie${landCost > 1 ? 's' : ''}${reductions.length > 0 ? ` (${reductions.join(', ')})` : ''}`;
         const landProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
         if (!landProbe) reason = 'Nécessite une sonde dans le système solaire';
         else {
           const landCheck = ProbeSystem.canLand(game, currentPlayer.id, landProbe.id);
-          cost = `${landCheck.energyCost} Énergie${hasProbeOnPlanetInfo.hasOrbiter ? ' (orbiteur présent)' : ''}${hasProbeOnPlanetInfo.hasExploration3 ? ' (réduction Exploration III)' : ''}`;
           if (!landCheck.canLand) reason = landCheck.reason || 'Impossible';
         }
         break;
@@ -379,6 +383,15 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
       case ActionType.PLAY_CARD: {
         action = 'Cliquez pour jouer une carte de votre main';
+        // Coût variable : fourchette des coûts des cartes en main, par ressource
+        const costRange = (costType: CostType, unit: string) => {
+          const costs = handCards.filter(c => (c.costType === CostType.ENERGY) === (costType === CostType.ENERGY)).map(c => c.cost);
+          if (costs.length === 0) return null;
+          const min = Math.min(...costs), max = Math.max(...costs);
+          return `${min === max ? min : `${min} à ${max}`} ${unit}${max > 1 ? 's' : ''}`;
+        };
+        const ranges = [costRange(CostType.CREDIT, 'Crédit'), costRange(CostType.ENERGY, 'Énergie')].filter(Boolean);
+        if (ranges.length > 0) cost = `${ranges.join(', ')} selon la carte`;
         const cardCheck = CardSystem.canPlayCards(game, currentPlayer.id);
         if (!cardCheck.canPlay) reason = cardCheck.reason || 'Impossible';
         break;

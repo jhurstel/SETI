@@ -99,7 +99,6 @@
     font-size: 0.75rem;
     color: #ffd700;
     white-space: nowrap;
-    cursor: help;
 }
 .seti-round-status {
     display: flex;
@@ -119,7 +118,7 @@
     justify-content: center;
     border: 1px solid #555;
     color: #888;
-    cursor: help;
+    cursor: default;
 }
 .seti-round-pill.done {
     background: #2e3a4f;
