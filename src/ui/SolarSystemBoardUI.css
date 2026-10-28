@@ -22,15 +22,8 @@
     overflow: hidden;
 }
 
-.seti-board-container {
-    position: relative;
-    width: 100%;
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
+/* Le fond couvre tout le panneau, titre compris (prime sur le fond de .seti-panel) */
+.seti-panel.seti-solar-system-container {
     /* Fond d'espace étoilé discret : trois couches d'étoiles répétées à des pas différents,
        pour éviter un motif visible, et une légère nébuleuse */
     background-color: #070a14;
@@ -52,6 +45,17 @@
         307px 271px, 307px 271px, 307px 271px, 307px 271px,
         397px 349px, 397px 349px,
         100% 100%, 100% 100%;
+}
+
+.seti-board-container {
+    position: relative;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
 }
 
 .seti-board-inner {
