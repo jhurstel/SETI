@@ -67,7 +67,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
   return (
     <div
       className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`}
-      style={{ cursor: 'default' }}
+      style={{ cursor: 'help' }}
       onMouseEnter={e => { handleTooltipHover(e, renderTooltipContent()); }}
       onMouseLeave={handleTooltipLeave}
     >

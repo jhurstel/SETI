@@ -14,6 +14,13 @@ body {
   background: #0a0e1a;
   color: #e0e0e0;
   overflow-x: hidden;
+  /* Curseur flèche partout (pas de curseur de saisie sur les textes du jeu) */
+  cursor: default;
+}
+
+/* Champs de saisie : curseur de saisie */
+input:not([type]), input[type="text"], input[type="number"], textarea {
+  cursor: text;
 }
 
 /* Generic button style for debug panel */

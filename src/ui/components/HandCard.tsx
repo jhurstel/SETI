@@ -130,7 +130,8 @@ export const HandCard: React.FC<{
     return (
       <div 
         className={`seti-common-card seti-card-wrapper ${phaseClass}`}
-        style={shouldGrayOut ? { opacity: 0.7, filter: 'grayscale(0.8)', cursor: 'default'} : { cursor: isClickable ? 'pointer' : 'default'}}
+        // Carte non sélectionnable : curseur d'aide (son infobulle reste consultable)
+        style={shouldGrayOut ? { opacity: 0.7, filter: 'grayscale(0.8)', cursor: 'help'} : { cursor: isClickable ? 'pointer' : 'help'}}
         onMouseEnter={e => handleTooltipHover(e, <CardTooltip card={card} />)}
         onMouseLeave={handleTooltipLeave}
         onClick={_e => {
