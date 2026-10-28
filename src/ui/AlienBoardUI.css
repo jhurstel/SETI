@@ -139,6 +139,11 @@
     border: 2px solid #ffd700;
     box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
 }
+/* Carte Alien à prendre : la carte survolée ressort, comme dans les autres choix de cartes */
+.alien-small-card.acquiring:hover {
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.9);
+    translate: 0 -3px;
+}
 .alien-small-card.default {
     cursor: default;
 }
