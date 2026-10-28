@@ -193,6 +193,15 @@
   position: relative;
 }
 
+/* Prochain joueur / Passer : calés à droite du titre, qui reste centré */
+.seti-player-turn-buttons {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
 .seti-player-layout-container {
   display: flex;
   flex-direction: column;

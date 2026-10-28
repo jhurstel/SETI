@@ -604,7 +604,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
           <span>
             {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV 🏆
           </span>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div className="seti-player-turn-buttons">
             {!isRobot && (() => {
               // Fin du tour (après l'action principale) et passe définitive, au format des boutons d'échange
               const canEndTurn = isCurrentTurn && hasPerformedMainAction && !isInteractiveMode;
