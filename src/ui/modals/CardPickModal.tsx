@@ -19,7 +19,7 @@ export const ChoiceCardTile: React.FC<{
     onClick={onClick}
     onMouseEnter={(e) => onHover({ content: <CardTooltip card={card} />, rect: e.currentTarget.getBoundingClientRect() })}
     onMouseLeave={() => onHover(null)}
-    className={`seti-common-card seti-card-wrapper ${selected ? 'selected' : ''}`}
+    className={`seti-common-card seti-card-wrapper seti-choice-card-tile ${selected ? 'selected' : ''}`}
     style={{
       width: '140px',
       height: '200px',

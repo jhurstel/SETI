@@ -305,6 +305,14 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
 .seti-card-interact-mode {
   border: 1px solid #ffd700;
 }
+/* Fenêtres de choix de cartes (échange, défausses, réservation) : la carte survolée ressort
+   (!important : la tuile porte son bord en style en ligne ; translate ne touche pas au scale de la sélection) */
+.seti-choice-card-tile:hover {
+  border-color: #ffd700 !important;
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.75);
+  translate: 0 -3px;
+}
+
 /* Choix d'une carte (rangée, pioche) : la carte survolée ressort */
 .seti-card-interact-mode:not(.disabled):hover,
 .seti-deck-card.active:hover {
