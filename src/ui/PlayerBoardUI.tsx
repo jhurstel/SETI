@@ -113,18 +113,19 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
     ? <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} label="Coût" value="1 Crédit, 2 Énergies" note={scanReason} />
     : <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} label="Coût" value="1 Crédit, 2 Énergies" note="Cliquez pour scanner" />;
 
+  // Les lignes entrent dans les cadres de technologie (into-left / into-right) jusqu'aux emplacements
   return (
     <div className="obs-track-container">
       {renderSlot('🔭', scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled)}
-      <div className="obs-track-connector" />
+      <div className="obs-track-connector into-right" />
       {renderSlot('🌍', stepTooltip(hasObs1 ? 'Signal dans le secteur de la Terre ou un secteur adjacent' : 'Signal dans le secteur de la Terre', null, true), false, undefined, false, false, false, { acquired: hasObs1 })}
-      <div className="obs-track-connector" />
+      <div className="obs-track-connector into-left" />
       {renderSlot('🃏', stepTooltip("Signal dans le secteur d'une carte de la rangée", null, true), false)}
-      <div className="obs-track-connector" />
+      <div className="obs-track-connector into-right" />
       {renderSlot('☿️', stepTooltip('Signal dans le secteur de Mercure', 'Observation II', hasObs2, '1 Média'), false, undefined, true, hasObs2, false, { acquired: hasObs2 })}
-      <div className="obs-track-connector" />
+      <div className="obs-track-connector into-left into-right" />
       {renderSlot('🗑️', stepTooltip("Signal dans le secteur d'une carte de la main", 'Observation III', hasObs3, '1 carte'), false, undefined, true, hasObs3, false, { acquired: hasObs3 })}
-      <div className="obs-track-connector" />
+      <div className="obs-track-connector into-left into-right" />
       {renderSlot('?', stepTooltip('Lancer une sonde (coût : 1 Énergie) ou Gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, true, hasObs4, false, { acquired: hasObs4 })}
     </div>
   );

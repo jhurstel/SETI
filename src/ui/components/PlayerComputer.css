@@ -92,7 +92,8 @@
     background-color: #555;
     margin-top: 20px;
     min-width: 10px;
-    z-index: 0;
+    /* Les lignes passent par-dessus les cadres de technologie jusqu'aux emplacements */
+    z-index: 3;
     position: relative;
   }
 

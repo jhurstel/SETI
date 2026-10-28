@@ -528,6 +528,9 @@
 }
 
 .obs-track-slot {
+  /* Au-dessus des lignes, qui s'arrêtent au bord de l'emplacement */
+  position: relative;
+  z-index: 4;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -571,4 +574,10 @@
   height: 2px;
   background-color: #444;
   margin: 0 -2px; /* Overlap with slots */
+  /* Par-dessus les cadres de technologie */
+  position: relative;
+  z-index: 3;
 }
+/* Voisin dans un cadre de technologie (58px pour un emplacement de 32px) : la ligne va jusqu'à l'emplacement */
+.obs-track-connector.into-left { margin-left: -15px; }
+.obs-track-connector.into-right { margin-right: -15px; }
