@@ -242,3 +242,54 @@ export const AsteroidFieldSvg: React.FC<{ width: number; height: number; count: 
     </svg>
   );
 };
+
+/** Soleil : photosphère granuleuse assombrie au bord, quelques taches, protubérances et couronne diffuse */
+export const SunSvg: React.FC = () => {
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  // Granulation : petites cellules claires réparties de façon stable
+  const grains = Array.from({ length: 70 }, (_, i) => {
+    const a = seeded(i + 1) * Math.PI * 2;
+    const d = Math.sqrt(seeded(i + 101)) * 44;
+    return { x: Math.cos(a) * d, y: Math.sin(a) * d, r: 1.6 + seeded(i + 201) * 2.4 };
+  });
+  // Protubérances : arcs lumineux au bord du disque
+  const prominences = [20, 140, 255];
+  return (
+    <svg width="100%" height="100%" viewBox="-50 -50 100 100" style={{ overflow: 'visible', display: 'block' }}>
+      <defs>
+        <radialGradient id={`sun-corona-${uid}`} r="50%">
+          <stop offset="45%" stopColor="#ffcf5a" stopOpacity={0.55} />
+          <stop offset="65%" stopColor="#ff9f2e" stopOpacity={0.18} />
+          <stop offset="100%" stopColor="#ff7a1a" stopOpacity={0} />
+        </radialGradient>
+        {/* Assombrissement centre-bord */}
+        <radialGradient id={`sun-disk-${uid}`} cx="48%" cy="46%" r="55%">
+          <stop offset="0%" stopColor="#fff8d6" />
+          <stop offset="45%" stopColor="#ffd75a" />
+          <stop offset="80%" stopColor="#f5a623" />
+          <stop offset="100%" stopColor="#d9661a" />
+        </radialGradient>
+        <filter id={`sun-blur-${uid}`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation={1.4} />
+        </filter>
+        <clipPath id={`sun-clip-${uid}`}><circle r={46} /></clipPath>
+      </defs>
+      {/* Couronne */}
+      <circle r={96} fill={`url(#sun-corona-${uid})`} />
+      {prominences.map(deg => (
+        <g key={deg} transform={`rotate(${deg})`}>
+          <path d="M-6 -45 Q0 -60 6 -45" fill="none" stroke="#ff8a3d" strokeWidth={2.5} opacity={0.75} filter={`url(#sun-blur-${uid})`} />
+        </g>
+      ))}
+      <circle r={46} fill={`url(#sun-disk-${uid})`} />
+      <g clipPath={`url(#sun-clip-${uid})`}>
+        {grains.map((g, i) => <circle key={i} cx={g.x} cy={g.y} r={g.r} fill="#fff4c2" opacity={0.18} filter={`url(#sun-blur-${uid})`} />)}
+        {/* Facules et taches solaires */}
+        <ellipse cx={-16} cy={14} rx={9} ry={4} fill="#fff6d0" opacity={0.35} filter={`url(#sun-blur-${uid})`} />
+        <ellipse cx={14} cy={-10} rx={3.6} ry={2.6} fill="#8a4a12" opacity={0.75} />
+        <ellipse cx={14} cy={-10} rx={1.8} ry={1.3} fill="#4a2208" />
+        <ellipse cx={20} cy={-6} rx={1.8} ry={1.3} fill="#8a4a12" opacity={0.7} />
+      </g>
+    </svg>
+  );
+};

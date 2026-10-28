@@ -10,7 +10,7 @@ import { PlanetIcon } from './components/PlanetIcon';
 import { RotationDiskSector } from './components/RotationDiskSector';
 import { SectorDetails } from './components/SectorDetails';
 import { SvgBonus } from './components/SvgBonus';
-import { PlanetGlobe, CometSvg, AsteroidFieldSvg } from './components/CelestialBodies';
+import { PlanetGlobe, CometSvg, AsteroidFieldSvg, SunSvg } from './components/CelestialBodies';
 import { SectorStars } from './components/SectorStars';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
@@ -1321,7 +1321,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             {/* Plateau fixe */}
             <div className="seti-fixed-plateau">
               {/* Soleil au centre */}
-              <div className="seti-sun"></div>
+              <div className="seti-sun"><SunSvg /></div>
 
               {/* Traits de délimitation et labels des 8 secteurs radiaux */}
               {Array.from({ length: 8 }).map((_, sectorIndex) => {

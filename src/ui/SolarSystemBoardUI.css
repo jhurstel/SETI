@@ -6,9 +6,7 @@
   transform: translate(-50%, -50%);
   width: 8%; /* Diamètre du soleil (rayon 4% * 2) - correspond aux calculs */
   height: 8%;
-  border-radius: 50%;
-  background: radial-gradient(circle, #ffdd66, #cc9933);
-  box-shadow: 0 0 20px rgba(255, 221, 102, 0.6);
+  /* Dessiné par SunSvg (photosphère, couronne qui déborde du disque) */
   z-index: 10;
   aspect-ratio: 1; /* Force un cercle parfait */
   pointer-events: auto;

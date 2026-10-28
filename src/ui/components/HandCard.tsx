@@ -11,7 +11,12 @@ export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue'
   let bottomStyle = { color: '#fff', borderColor: '#fff', bgColor: 'rgba(255, 255, 255, 0.1)' };
   let details: React.ReactNode = null;
 
-  if (highlightedAttribute === 'revenue') {
+  if (card.type === CardType.EXERTIEN) {
+    // Carte Exertien : ni réservée, ni défaussée, ni jouée normalement ; seul son danger compte
+    bottomLabel = 'Danger';
+    bottomValue = String(card.danger ?? 0);
+    bottomStyle = { color: '#ff6b6b', borderColor: '#b33a3a', bgColor: 'rgba(179, 58, 58, 0.18)' };
+  } else if (highlightedAttribute === 'revenue') {
     bottomLabel = 'Réservation';
     bottomValue = card.revenue;
     if (card.revenue && REVENUE_STYLES[card.revenue]) bottomStyle = REVENUE_STYLES[card.revenue];
@@ -49,13 +54,16 @@ export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue'
     <>
       <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
       <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}>
-        <span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: card.costType === CostType.ENERGY ? '#4caf50' : '#ffd700' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ' ₢'}</span></span>
-        <span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : (card.type === CardType.END_GAME ? 'FIN' : 'MIS')}</span>
+        {/* Une carte Exertien se joue gratuitement à un palier : pas de coût */}
+        {card.type === CardType.EXERTIEN ? <span /> : <span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: card.costType === CostType.ENERGY ? '#4caf50' : '#ffd700' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ' ₢'}</span></span>}
+        <span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : card.type === CardType.END_GAME ? 'FIN' : card.type === CardType.EXERTIEN ? 'EXE' : 'MIS'}</span>
       </div>
       {card.description && <div className="seti-card-description" style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', lineHeight: '1.2', flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
-      <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px', justifyContent: 'space-between' }}>
-        {details}
-      </div>
+      {details && (
+        <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px', justifyContent: 'space-between' }}>
+          {details}
+        </div>
+      )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `2px solid ${borderColor}`, borderRadius: '8px', backgroundColor: bgColor, margin: '4px 0', padding: '4px' }}>
         <div style={{ fontSize: '0.7em', textTransform: 'uppercase', color: (highlightedAttribute === 'revenue' && card.revenue === RevenueType.CARD) ? '#333' : '#ddd', marginBottom: '2px' }}>{bottomLabel}</div>
