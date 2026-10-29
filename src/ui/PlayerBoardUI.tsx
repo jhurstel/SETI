@@ -669,7 +669,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   <span className="seti-res-label">Crédit <ResourceIcon kind="credit" size={15} /> :</span>
                   <div className="seti-resource-badge-content">
                     {renderDirectTradeButton('credit', 'energy', <ResourceIcon kind="energy" size={15} />, currentPlayer.credits >= 2)}
-                    {renderDirectTradeButton('credit', 'card', '🃏', currentPlayer.credits >= 2)}
+                    {renderDirectTradeButton('credit', 'card', <ResourceIcon kind="card" size={15} />, currentPlayer.credits >= 2)}
                     <strong style={{ marginLeft: '6px' }}>{currentPlayer.credits}</strong>
                   </div>
                 </div>
@@ -680,7 +680,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   <span className="seti-res-label">Énergie <ResourceIcon kind="energy" size={15} /> :</span>
                   <div className="seti-resource-badge-content">
                     {renderDirectTradeButton('energy', 'credit', <ResourceIcon kind="credit" size={15} />, currentPlayer.energy >= 2)}
-                    {renderDirectTradeButton('energy', 'card', '🃏', currentPlayer.energy >= 2)}
+                    {renderDirectTradeButton('energy', 'card', <ResourceIcon kind="card" size={15} />, currentPlayer.energy >= 2)}
                     <strong style={{ marginLeft: '6px' }}>{currentPlayer.energy}</strong>
                   </div>
                 </div>
@@ -696,7 +696,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                     return renderActionButton(<ActionHexIcon kind="research" size={18} />, getActionTooltip(ActionType.RESEARCH_TECH, canResearch), () => onAction(ActionType.RESEARCH_TECH), !canResearch, '#4a9eff', { marginLeft: '4px' }, canResearch ? 'seti-flash-green' : '');
                   })()}
                   {/* Achat d'une carte (action gratuite, 3 Médias) */}
-                  {renderBuyCardButton('🃏')}
+                  {renderBuyCardButton(<ResourceIcon kind="card" size={15} />)}
                   <strong style={{ marginLeft: '6px' }}>{currentPlayer.mediaCoverage}</strong>
                   </div>
                 </div>
@@ -725,7 +725,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   key={revenueCardFlash ? `rev-card-${revenueCardFlash.id}` : 'rev-card-static'}
                   className={`seti-res-badge ${revenueCardFlash ? (revenueCardFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
-                  <span className="seti-res-label">Carte <span style={{color: '#aaffaa'}}>🃏</span> :</span>
+                  <span className="seti-res-label">Carte <ResourceIcon kind="card" size={15} /> :</span>
                   <strong>{currentPlayer.revenueCards} <span style={{fontSize: '0.8em', fontWeight: 'normal', color: '#aaa'}}>({currentPlayer.revenueCards - GAME_CONSTANTS.INITIAL_REVENUE_CARDS})</span></strong>
                 </div>
               </div>
@@ -795,7 +795,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 key={cardsFlash ? `cards-${cardsFlash.id}` : 'cards-static'}
                 className={`seti-cards-badge ${cardsFlash ? (cardsFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
               >
-                <span className="seti-res-label">Carte <span style={{color: '#aaffaa'}}>🃏</span> :</span>
+                <span className="seti-res-label">Carte <ResourceIcon kind="card" size={15} /> :</span>
                 <strong style={{ color: '#fff', marginLeft: '6px' }}>{handCards.length}</strong>
                 {!isRobot && (
                     <>

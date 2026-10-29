@@ -339,16 +339,19 @@ export const TechTileIcon: React.FC<{ techId: string; width?: number; height?: n
 /* Ressources (livret p. 6, 14, 23, 28) : pastilles du matériel   */
 /* ------------------------------------------------------------- */
 
-export type ResourceIconKind = 'credit' | 'energy' | 'media' | 'data' | 'movement' | 'revenue';
+export type ResourceIconKind = 'credit' | 'energy' | 'media' | 'card' | 'data' | 'movement' | 'revenue';
+/** Pastilles fléchées du matériel */
+type ArrowKind = 'credit' | 'energy' | 'media' | 'card';
 
-const RESOURCE_COLORS: Record<'credit' | 'energy' | 'media', string> = {
+const RESOURCE_COLORS: Record<ArrowKind, string> = {
   credit: '#b8901c',
   energy: '#3daa3a',
   media: '#e8452a',
+  card: '#2b2b2b',
 };
 
 /** Pictogramme blanc d'une pastille fléchée, centré sur (0, 0) */
-const resourceGlyph = (kind: 'credit' | 'energy' | 'media'): React.ReactNode => {
+const resourceGlyph = (kind: ArrowKind): React.ReactNode => {
   switch (kind) {
     case 'credit':
       // « C » anguleux traversé de deux barres
@@ -360,6 +363,14 @@ const resourceGlyph = (kind: 'credit' | 'energy' | 'media'): React.ReactNode => 
       );
     case 'energy':
       return <path d="M2 -12 L-6 2 H0 L-3 12 L6 -3 H0 Z" fill="#fff" />;
+    case 'card':
+      // Carte blanche inclinée marquée « ? » (livret p. 11) : carte tirée au hasard
+      return (
+        <g transform="rotate(8)">
+          <rect x={-7} y={-11} width={14} height={21} rx={2} fill="#fff" />
+          <text y={6} textAnchor="middle" fontSize={16} fontWeight={900} fill="#2b2b2b" fontFamily="Arial Black, Arial, sans-serif">?</text>
+        </g>
+      );
     case 'media':
       // Micro sur son pied
       return (
@@ -374,11 +385,12 @@ const resourceGlyph = (kind: 'credit' | 'energy' | 'media'): React.ReactNode => 
 };
 
 /** Pastille fléchée (crédit, énergie, média), avec le nombre en blanc détouré à gauche */
-const ArrowResource: React.FC<{ kind: 'credit' | 'energy' | 'media'; amount?: number | string }> = ({ kind, amount }) => {
+const ArrowResource: React.FC<{ kind: ArrowKind; amount?: number | string }> = ({ kind, amount }) => {
   const color = RESOURCE_COLORS[kind];
   return (
     <>
-      <path d="M-10 -16 H12 L24 0 L12 16 H-10 Q-14 16 -14 12 V-12 Q-14 -16 -10 -16 Z" fill={color} />
+      <path d="M-10 -16 H12 L24 0 L12 16 H-10 Q-14 16 -14 12 V-12 Q-14 -16 -10 -16 Z" fill={color}
+        stroke={kind === 'card' ? '#e8e8e8' : undefined} strokeWidth={kind === 'card' ? 2.5 : undefined} strokeLinejoin="round" />
       <g transform={amount !== undefined ? 'translate(6 0)' : 'translate(2 0)'}>{resourceGlyph(kind)}</g>
       {amount !== undefined && (
         <text x={-12} y={10} textAnchor="middle" fontSize={30} fontWeight={900} fill="#fff" stroke={color} strokeWidth={3} paintOrder="stroke" fontFamily="Arial Black, Arial, sans-serif">{amount}</text>
@@ -438,7 +450,7 @@ const Revenue = () => {
 
 /** Icône de ressource du matériel ; `amount` affiche le nombre comme sur les cartes */
 export const ResourceIcon: React.FC<{ kind: ResourceIconKind; amount?: number; size?: number }> = ({ kind, amount, size = 24 }) => {
-  const wide = (kind === 'credit' || kind === 'energy' || kind === 'media' || kind === 'movement') && amount !== undefined;
+  const wide = (kind === 'credit' || kind === 'energy' || kind === 'media' || kind === 'card' || kind === 'movement') && amount !== undefined;
   return (
     <svg width={wide ? size * 1.5 : size} height={size} viewBox={wide ? '-36 -24 72 48' : '-24 -24 48 48'} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
       {kind === 'data' ? <DataToken /> : kind === 'movement' ? <Movement amount={amount} /> : kind === 'revenue' ? <Revenue /> : <ArrowResource kind={kind} amount={amount} />}

@@ -9,7 +9,7 @@ import { ReservationIcon } from './components/ObjectiveSymbol';
 import { BonusIcons } from './components/BonusIcons';
 
 // Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
-const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', DATA: 'data' };
+const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', CARD: 'card', DATA: 'data' };
 // Traces de vie d'une couleur (« 2 Traces Jaunes », « 1 trace de vie rouge »)
 const LIFE_TRACE_PATTERN = /[Tt]races? (?:de vie )?(?:[Rr]ouges?|[Jj]aunes?|[Bb]leues?)/;
 const lifeTraceColor = (text: string): LifeTraceColor => /rouge/i.test(text) ? 'red' : /jaune/i.test(text) ? 'yellow' : 'blue';

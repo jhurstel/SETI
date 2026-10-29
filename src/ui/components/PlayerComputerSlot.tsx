@@ -70,7 +70,7 @@ export const PlayerComputerSlot = ({
         {!isFilled && slot.bonus === '2pv' && <span className="computer-slot-bonus pv"><VictoryPointsIcon amount={2} size={22} /></span>}
         {!isFilled && slot.bonus === 'credit' && <span className="computer-slot-bonus credit"><ResourceIcon kind="credit" size={20} /></span>}
         {!isFilled && slot.bonus === 'energy' && <span className="computer-slot-bonus energy"><ResourceIcon kind="energy" size={20} /></span>}
-        {!isFilled && slot.bonus === 'card' && <span className="computer-slot-bonus card">🃏</span>}
+        {!isFilled && slot.bonus === 'card' && <span className="computer-slot-bonus card"><ResourceIcon kind="card" size={20} /></span>}
       </div>
     );
   };
