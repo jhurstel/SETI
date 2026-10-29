@@ -292,7 +292,7 @@ const tileGlyph = (techId: string): React.ReactNode => {
     // Signal sur la Terre ou un secteur adjacent (arc)
     return (
       <>
-        <path d="M14 36 A16 16 0 0 1 44 36" fill="none" stroke="#fff" strokeWidth={3} strokeDasharray="7 3" />
+        <path d="M14 36 A16 16 0 0 1 44 36" fill="none" stroke="#fff" strokeWidth={3} pathLength={30} strokeDasharray="8 3" />
         <SmallSignal x={29} y={46} badge="earth" />
       </>
     );
@@ -508,7 +508,7 @@ export const VictoryPointsIcon: React.FC<{ amount?: number; size?: number }> = (
           })}
         </g>
       ))}
-      <text y={text.length > 1 ? 5.5 : 7} textAnchor="middle" fontSize={text.length > 1 ? 15 : 20} fontWeight={900} fill="#fff" fontFamily="Arial Black, Arial, sans-serif">{text}</text>
+      <text y={text.length > 2 ? 4 : text.length > 1 ? 5.5 : 7} textAnchor="middle" fontSize={text.length > 2 ? 11 : text.length > 1 ? 15 : 20} fontWeight={900} fill="#fff" fontFamily="Arial Black, Arial, sans-serif">{text}</text>
     </svg>
   );
 };

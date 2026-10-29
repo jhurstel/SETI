@@ -138,7 +138,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
 
         const renderBonus = (bonus: Bonus) => {
             const elements = [];
-            if (bonus.pv) elements.push(<span key="pv" style={{ color: '#8affc0', fontWeight: 'bold' }}>{bonus.pv} PV</span>);
+            if (bonus.pv) elements.push(<VictoryPointsIcon key="pv" amount={bonus.pv} size={18} />);
             if (bonus.media) elements.push(<span key="media" style={{ color: '#ff6b6b' }}>{bonus.media} Média</span>);
             if (bonus.energy) elements.push(<span key="energy" style={{ color: '#4caf50' }}>{bonus.energy} Énergie</span>);
             if (bonus.card) elements.push(<span key="card" style={{ color: '#fff' }}>{bonus.card} Carte</span>);
@@ -167,7 +167,14 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${LIFE_TRACE_PATTERN.source}|${resourcePattern}|"[^"]+")`, 'g');
 
         const parts = message.split(splitRegex);
+        // « 2 PV » : le nombre est retiré du texte et dessiné dans le laurier
+        const pvAmounts: (number | undefined)[] = parts.map((part, index) => {
+            const amount = index > 0 && /^\bPV\b$/.test(part) ? parts[index - 1].match(/(\d+)\s*$/) : null;
+            return amount ? Number(amount[1]) : undefined;
+        });
+        const precedesPv = (index: number) => pvAmounts[index + 1] !== undefined;
         return parts.map((part, index) => {
+            if (precedesPv(index)) part = part.replace(/\d+\s*$/, '');
             if (part.startsWith('"') && part.endsWith('"')) {
                 const name = part.slice(1, -1);
                 if (!name) return part;
@@ -222,7 +229,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
             }
 
             // Une ressource devient une icône seulement après une quantité (« 2 Crédits ») : « la carte » reste en toutes lettres
-            const afterAmount = index > 0 && /\d\s*$/.test(parts[index - 1]);
+            const afterAmount = index > 0 && (/\d\s*$/.test(parts[index - 1]) || pvAmounts[index] !== undefined);
             if (afterAmount && new RegExp(`^${LIFE_TRACE_PATTERN.source}$`).test(part)) {
                 return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: part, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}><LifeTraceIcon color={lifeTraceColor(part)} size={15} /></span>;
             }
@@ -231,7 +238,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                     const kind = RESOURCE_ICON_KINDS[key];
                     const icon = kind ? <ResourceIcon kind={kind} size={14} />
                         : key === 'RESERVATION' ? <ReservationIcon size={14} />
-                        : key === 'PV' ? <VictoryPointsIcon size={15} />
+                        : key === 'PV' ? <VictoryPointsIcon amount={pvAmounts[index]} size={17} />
                         : config.icon;
                     return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: config.label, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)} style={{ color: config.color }}>{icon}</span>;
                 }

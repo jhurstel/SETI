@@ -29,10 +29,10 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
     onClick={(e) => { e.stopPropagation(); if (isClickable && onClick) { onClick(); } }}
   >
     <svg width="60" height="50" viewBox="2 4 36 30" preserveAspectRatio="xMidYMid meet" className="alien-triangle-svg"
-      style={{ opacity: isClickable || traces.length > 0 ? 1 : 0.55, transition: 'all 0.3s ease', filter: isClickable ? `drop-shadow(0 0 4px ${LIFE_TRACE_COLORS[color]})` : 'none' }}>
+      style={{ opacity: isClickable ? 0.75 : 0.4, transition: 'all 0.3s ease', filter: isClickable ? `drop-shadow(0 0 4px ${LIFE_TRACE_COLORS[color]})` : 'none' }}>
       <LifeTraceShape color={color} />
       {isClickable && (
-        <animate attributeName="opacity" values="1;0.7;1" dur="1.5s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="1;0.6;1" dur="1.5s" repeatCount="indefinite" />
       )}
     </svg>
     <div className="alien-triangle-content">

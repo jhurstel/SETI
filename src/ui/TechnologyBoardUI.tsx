@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
-import { TechTileIcon } from './components/GameIcons';
+import { TechTileIcon, VictoryPointsIcon } from './components/GameIcons';
 import { Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
 import { TECHNOLOGY_STYLES } from './styles/celestialStyles';
 import './TechnologyBoardUI.css';
@@ -72,7 +72,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
     let pv = bonus.pv || 0;
     if (excludeExtraPv) pv -= 2;
 
-    if (pv > 0) elements.push(<span key="pv" style={{ color: '#8affc0', fontWeight: 'bold' }}>{pv} PV</span>);
+    if (pv > 0) elements.push(<VictoryPointsIcon key="pv" amount={pv} size={18} />);
     if (bonus.media) elements.push(<span key="media" style={{ color: '#ff6b6b' }}>{bonus.media} Média</span>);
     if (bonus.energy) elements.push(<span key="energy" style={{ color: '#4caf50' }}>{bonus.energy} Énergie</span>);
     if (bonus.card) elements.push(<span key="card" style={{ color: '#fff' }}>{bonus.card} Carte</span>);

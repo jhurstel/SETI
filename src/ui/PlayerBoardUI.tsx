@@ -196,7 +196,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
     <div className="obs-track-container">
       {renderSlot(<ActionHexIcon kind="scan" size={44} />, scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled, undefined, ActionType.SCAN_SECTOR, true)}
       <div className="obs-track-connector into-right" />
-      {renderSlot(<SignalIcon badge="earth" size={30} />, stepTooltip(hasObs1 ? 'Signal dans le secteur de la Terre ou un secteur adjacent' : 'Signal dans le secteur de la Terre', null, true), false, undefined, false, false, false, { acquired: hasObs1, tile: 'observation-1' })}
+      {renderSlot(hasObs1 ? null : <SignalIcon badge="earth" size={30} />, stepTooltip(hasObs1 ? 'Signal dans le secteur de la Terre ou un secteur adjacent' : 'Signal dans le secteur de la Terre', null, true), false, undefined, false, false, false, { acquired: hasObs1, tile: 'observation-1' })}
       <div className="obs-track-connector into-left" />
       {renderSlot(<SignalIcon badge="card" size={30} />, stepTooltip("Signal dans le secteur d'une carte de la rangée", null, true), false)}
       <div className="obs-track-connector into-right" />
@@ -630,7 +630,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         {/* Titre */}
         <div className="seti-player-panel-title seti-player-panel-title-container">
           <span>
-            {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV <VictoryPointsIcon size={20} />
+            {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: <VictoryPointsIcon amount={currentPlayer.score} size={24} />
           </span>
           <div className="seti-player-turn-buttons">
             {!isRobot && (() => {
