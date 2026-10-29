@@ -11,6 +11,7 @@ import { PlanetIcon } from './components/PlanetIcon';
 import { RotationDiskSector } from './components/RotationDiskSector';
 import { SectorDetails, SectorTooltip } from './components/SectorDetails';
 import { SvgBonus } from './components/SvgBonus';
+import { VictoryPointsIcon } from './components/GameIcons';
 import { PlanetGlobe, CometSvg, AsteroidFieldSvg, SunSvg, ProbeSvg, CapsuleSvg } from './components/CelestialBodies';
 import { SectorStars } from './components/SectorStars';
 import { SlotTooltip } from './components/SlotTooltip';
@@ -872,9 +873,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
-        <div style={{ transform: 'scale(0.5)' }}>
-          <SvgBonus bonus={obj.anomalyData.bonus} />
-        </div>
+        {!!obj.anomalyData.bonus?.pv && <VictoryPointsIcon amount={obj.anomalyData.bonus.pv} size={12} />}
       </div>
     );
   };

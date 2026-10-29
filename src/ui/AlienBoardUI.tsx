@@ -6,7 +6,7 @@ import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
 import { Tooltip } from './Tooltip';
-import { LifeTraceShape } from './components/GameIcons';
+import { LifeTraceShape, VictoryPointsIcon } from './components/GameIcons';
 import { LIFE_TRACE_COLORS, LifeTraceColor } from './styles/lifeTraceColors';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import './AlienBoardUI.css';
@@ -381,7 +381,9 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 }}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={() => setActiveTooltip(null)}
-            />
+            >
+                {!isFilled && !!bonus.pv && (!isInfinite || isInfiniteBottom) && <VictoryPointsIcon amount={bonus.pv} size={22} />}
+            </div>
         );
     };
 

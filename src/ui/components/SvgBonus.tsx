@@ -1,24 +1,13 @@
 import React from 'react';
 import { Bonus } from '../../core/types';
+import { VictoryPointsIcon } from './GameIcons';
 
+/** Gain d'un emplacement dessiné dans un SVG (centré sur l'origine, cercle de rayon 10) : laurier PV chiffré */
 export const SvgBonus: React.FC<{ bonus: Bonus }> = ({ bonus }) => {
-  if (!bonus) return null;
-  const hasPv = !!bonus.pv;
+  if (!bonus?.pv) return null;
   return (
-    <>
-      {hasPv && (
-        <text
-          x="0"
-          y="1"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill="#fff"
-          fontSize="10"
-          fontWeight="bold"
-        >
-          {bonus.pv}
-        </text>
-      )}
-    </>
+    <g transform="translate(-9 -9)" style={{ pointerEvents: 'none' }}>
+      <VictoryPointsIcon amount={bonus.pv} size={18} />
+    </g>
   );
 };

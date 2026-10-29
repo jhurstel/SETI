@@ -6,7 +6,7 @@ import { ResourceSystem } from '../systems/ResourceSystem';
 import { ResourceIcon, ResourceIconKind, LifeTraceIcon, VictoryPointsIcon } from './components/GameIcons';
 import { LifeTraceColor } from './styles/lifeTraceColors';
 import { ReservationIcon } from './components/ObjectiveSymbol';
-import { BonusIcons } from './components/BonusIcons';
+import { BonusIcons, Repeated } from './components/BonusIcons';
 
 // Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
 const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', CARD: 'card', DATA: 'data' };
@@ -160,10 +160,12 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${LIFE_TRACE_PATTERN.source}|${resourcePattern}|"[^"]+")`, 'g');
 
         const parts = message.split(splitRegex);
-        // « 2 PV », « 3 Crédits » : le nombre est retiré du texte et dessiné dans l'icône (laurier, pastille, jeton)
-        const iconKeys = ['PV', ...Object.keys(RESOURCE_ICON_KINDS)];
+        // « 2 PV », « 3 Crédits » : le nombre est retiré du texte et dessiné dans l'icône (laurier, pastille, jeton) ;
+        // « 2 Traces rouges », « 2 Réservations » : l'icône est répétée
+        const iconKeys = ['PV', 'RESERVATION', ...Object.keys(RESOURCE_ICON_KINDS)];
         const amounts: (number | undefined)[] = parts.map((part, index) => {
-            const takesAmount = index > 0 && iconKeys.some(key => new RegExp(`^${ResourceSystem.RESOURCE_CONFIG[key].regex.source}$`).test(part));
+            const takesAmount = index > 0 && (new RegExp(`^${LIFE_TRACE_PATTERN.source}$`).test(part)
+                || iconKeys.some(key => new RegExp(`^${ResourceSystem.RESOURCE_CONFIG[key].regex.source}$`).test(part)));
             const amount = takesAmount ? parts[index - 1].match(/(\d+)\s*$/) : null;
             return amount ? Number(amount[1]) : undefined;
         });
@@ -225,13 +227,13 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
             // Une ressource devient une icône seulement après une quantité (« 2 Crédits ») : « la carte » reste en toutes lettres
             const afterAmount = index > 0 && (/\d\s*$/.test(parts[index - 1]) || amounts[index] !== undefined);
             if (afterAmount && new RegExp(`^${LIFE_TRACE_PATTERN.source}$`).test(part)) {
-                return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: part, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}><LifeTraceIcon color={lifeTraceColor(part)} size={15} /></span>;
+                return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: part, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}><Repeated amount={amounts[index] ?? 1}><LifeTraceIcon color={lifeTraceColor(part)} size={15} /></Repeated></span>;
             }
             for (const [key, config] of Object.entries(ResourceSystem.RESOURCE_CONFIG)) {
                 if (afterAmount && new RegExp(`^${config.regex.source}$`).test(part)) {
                     const kind = RESOURCE_ICON_KINDS[key];
                     const icon = kind ? <ResourceIcon kind={kind} amount={amounts[index]} size={15} />
-                        : key === 'RESERVATION' ? <ReservationIcon size={14} />
+                        : key === 'RESERVATION' ? <Repeated amount={amounts[index] ?? 1}><ReservationIcon size={14} /></Repeated>
                         : key === 'PV' ? <VictoryPointsIcon amount={amounts[index]} size={17} />
                         : config.icon;
                     return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: config.label, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)} style={{ color: config.color }}>{icon}</span>;
