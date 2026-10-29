@@ -148,6 +148,17 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   border-radius: 8px;
   transition: border-color 0.2s, background-color 0.2s;
 }
+.seti-tech-spot-tile {
+  position: absolute;
+  inset: 0;
+  opacity: 0.22;
+  filter: grayscale(0.6);
+  pointer-events: none;
+}
+.seti-tech-spot-tile.acquired {
+  opacity: 1;
+  filter: none;
+}
 .seti-tech-spot.acquired {
   border-color: rgba(255, 215, 0, 0.7);
 }

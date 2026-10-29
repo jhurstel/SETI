@@ -142,6 +142,13 @@ const RevenueMark: React.FC<{ x: number; y: number }> = ({ x, y }) => {
   );
 };
 
+/** Symbole « réservation » (revenu) seul, pour les emplacements qui en donnent une */
+export const ReservationIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="-9 -9 18 18" style={{ display: 'block' }}>
+    <RevenueMark x={0} y={0} />
+  </svg>
+);
+
 /** Trace de vie : triangle pointe en bas */
 const LifeTrace: React.FC<{ fill: string; children: React.ReactNode }> = ({ fill, children }) => (
   <g>

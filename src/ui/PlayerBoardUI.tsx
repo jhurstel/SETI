@@ -10,6 +10,7 @@ import { HandCard } from './components/HandCard';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
+import { ActionHexIcon, ActionIconKind, SignalIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
 import './PlayerBoardUI.css';
@@ -41,21 +42,26 @@ interface PlayerBoardUIProps {
 
 /** Emplacement d'une piste du plateau joueur (exploration, observation) ; dans un cadre s'il reçoit une technologie */
 const TrackSlot: React.FC<{
-  icon: string;
+  /** Pictogramme (null : emplacement de technologie sans pastille, la tuile du cadre suffit) */
+  icon: React.ReactNode;
   tooltip: React.ReactNode;
   clickable?: boolean;
   onClick?: () => void;
   /** Étape débloquée par une technologie (grisée tant qu'elle n'est pas acquise) */
   tech?: { acquired: boolean };
-  /** Emplacement de technologie : cadre TechSpot */
-  techFrame?: { acquired: boolean };
+  /** Emplacement de technologie : cadre TechSpot, avec la tuile de la technologie en fond */
+  techFrame?: { acquired: boolean, tile?: string };
+  /** Hexagone d'action principale : pas de pastille ronde derrière */
+  hex?: boolean;
   flash?: boolean;
   /** Nom accessible (emplacement d'action) */
   label?: string;
   onHover: (e: React.MouseEvent, content: React.ReactNode) => void;
   onLeave: () => void;
-}> = ({ icon, tooltip, clickable, onClick, tech, techFrame, flash, label, onHover, onLeave }) => {
+}> = ({ icon, tooltip, clickable, onClick, tech, techFrame, flash, label, hex, onHover, onLeave }) => {
   let className = 'obs-track-slot';
+  if (hex) className += ' hex';
+  if (icon === null) className += ' ghost';
   if (tech) className += tech.acquired ? ' tech-acquired' : ' tech-locked';
   if (clickable) className += ' clickable';
   if (flash) className += ' seti-flash-green';
@@ -72,7 +78,7 @@ const TrackSlot: React.FC<{
       {icon}
     </div>
   );
-  return techFrame ? <TechSpot acquired={techFrame.acquired}>{slot}</TechSpot> : slot;
+  return techFrame ? <TechSpot acquired={techFrame.acquired} tile={techFrame.tile}>{slot}</TechSpot> : slot;
 };
 
 interface ExplorationTrackProps {
@@ -96,14 +102,14 @@ const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, onA
   const techTooltip = (bonus: string, level: string, acquired: boolean) => acquired
     ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} value={bonus} note="Effet permanent" />
     : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} value={bonus} note={`Nécessite la technologie Exploration ${level}`} />;
-  const techSlot = (icon: string, bonus: string, level: number, roman: string) => (
-    <TrackSlot icon={icon} tooltip={techTooltip(bonus, roman, hasTech(level))} tech={{ acquired: hasTech(level) }} techFrame={{ acquired: hasTech(level) }}
+  const techSlot = (bonus: string, level: number, roman: string) => (
+    <TrackSlot icon={null} tooltip={techTooltip(bonus, roman, hasTech(level))} techFrame={{ acquired: hasTech(level), tile: `exploration-${level}` }}
       onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
   );
-  const actionSlot = (icon: string, actionType: ActionType) => {
+  const actionSlot = (kind: ActionIconKind, actionType: ActionType) => {
     const available = isActionAvailable(actionType);
     return (
-      <TrackSlot icon={icon} label={actionType} tooltip={actionTooltip(actionType)} clickable={available} flash={available} onClick={() => onAction(actionType)}
+      <TrackSlot icon={<ActionHexIcon kind={kind} size={32} />} hex label={actionType} tooltip={actionTooltip(actionType)} clickable={available} flash={available} onClick={() => onAction(actionType)}
         onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
     );
   };
@@ -112,19 +118,19 @@ const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, onA
   // par un espace sans ligne. Les lignes entrent dans les cadres (into-left / into-right) jusqu'aux emplacements.
   return (
     <div className="obs-track-container">
-      {actionSlot('🚀', ActionType.LAUNCH_PROBE)}
+      {actionSlot('launch', ActionType.LAUNCH_PROBE)}
       <div className="obs-track-connector into-right" />
-      {techSlot('🛸', "Jusqu'à 2 sondes dans le système solaire", 1, 'I')}
+      {techSlot("Jusqu'à 2 sondes dans le système solaire", 1, 'I')}
       <div className="obs-track-connector into-left into-right between-frames" />
-      {techSlot('🪨', "+1 Média en visitant un champ d'astéroïdes, qu'on quitte pour 1 déplacement", 2, 'II')}
+      {techSlot("+1 Média en visitant un champ d'astéroïdes, qu'on quitte pour 1 déplacement", 2, 'II')}
       <div className="obs-track-gap" />
-      {actionSlot('🛰️', ActionType.ORBIT)}
+      {actionSlot('orbit', ActionType.ORBIT)}
       <div className="obs-track-gap" />
-      {actionSlot('🛬', ActionType.LAND)}
+      {actionSlot('land', ActionType.LAND)}
       <div className="obs-track-connector into-right" />
-      {techSlot('🔋', 'Atterrissage : 1 Énergie de moins', 3, 'III')}
+      {techSlot('Atterrissage : 1 Énergie de moins', 3, 'III')}
       <div className="obs-track-connector into-left into-right between-frames" />
-      {techSlot('🌙', 'Atterrissage sur les lunes', 4, 'IV')}
+      {techSlot('Atterrissage sur les lunes', 4, 'IV')}
     </div>
   );
 };
@@ -158,17 +164,18 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   const scanDisabled = scanReason !== null;
 
   const renderSlot = (
-    icon: string,
+    icon: React.ReactNode,
     tooltip: React.ReactNode,
     isClickable: boolean,
     onClick?: () => void,
     isTech: boolean = false,
     techAcquired: boolean = false,
     isAvailableForAction: boolean = false,
-    techFrame?: { acquired: boolean },
-    label?: string
+    techFrame?: { acquired: boolean, tile?: string },
+    label?: string,
+    hex?: boolean
   ) => (
-    <TrackSlot icon={icon} label={label} tooltip={tooltip} clickable={isClickable} onClick={onClick} tech={isTech ? { acquired: techAcquired } : undefined}
+    <TrackSlot icon={icon} label={label} hex={hex} tooltip={tooltip} clickable={isClickable} onClick={onClick} tech={isTech ? { acquired: techAcquired } : undefined}
       techFrame={techFrame} flash={isAvailableForAction} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
   );
 
@@ -187,17 +194,17 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   // Les lignes entrent dans les cadres de technologie (into-left / into-right) jusqu'aux emplacements
   return (
     <div className="obs-track-container">
-      {renderSlot('🔭', scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled, undefined, ActionType.SCAN_SECTOR)}
+      {renderSlot(<ActionHexIcon kind="scan" size={32} />, scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled, undefined, ActionType.SCAN_SECTOR, true)}
       <div className="obs-track-connector into-right" />
-      {renderSlot('🌍', stepTooltip(hasObs1 ? 'Signal dans le secteur de la Terre ou un secteur adjacent' : 'Signal dans le secteur de la Terre', null, true), false, undefined, false, false, false, { acquired: hasObs1 })}
+      {renderSlot(<SignalIcon badge="earth" size={30} />, stepTooltip(hasObs1 ? 'Signal dans le secteur de la Terre ou un secteur adjacent' : 'Signal dans le secteur de la Terre', null, true), false, undefined, false, false, false, { acquired: hasObs1, tile: 'observation-1' })}
       <div className="obs-track-connector into-left" />
-      {renderSlot('🃏', stepTooltip("Signal dans le secteur d'une carte de la rangée", null, true), false)}
+      {renderSlot(<SignalIcon badge="card" size={30} />, stepTooltip("Signal dans le secteur d'une carte de la rangée", null, true), false)}
       <div className="obs-track-connector into-right" />
-      {renderSlot('☿️', stepTooltip('Signal dans le secteur de Mercure', 'Observation II', hasObs2, '1 Média'), false, undefined, true, hasObs2, false, { acquired: hasObs2 })}
+      {renderSlot(<SignalIcon badge="mercury" size={30} />, stepTooltip('Signal dans le secteur de Mercure', 'Observation II', hasObs2, '1 Média'), false, undefined, true, hasObs2, false, { acquired: hasObs2, tile: 'observation-2' })}
       <div className="obs-track-connector into-left into-right" />
-      {renderSlot('🗑️', stepTooltip("Signal dans le secteur d'une carte de la main", 'Observation III', hasObs3, '1 carte'), false, undefined, true, hasObs3, false, { acquired: hasObs3 })}
+      {renderSlot(<SignalIcon badge="discard" size={30} />, stepTooltip("Signal dans le secteur d'une carte de la main", 'Observation III', hasObs3, '1 carte'), false, undefined, true, hasObs3, false, { acquired: hasObs3, tile: 'observation-3' })}
       <div className="obs-track-connector into-left into-right" />
-      {renderSlot('?', stepTooltip('Lancer une sonde (coût : 1 Énergie) ou Gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, true, hasObs4, false, { acquired: hasObs4 })}
+      {renderSlot(<ActionHexIcon kind="launch" size={26} />, stepTooltip('Lancer une sonde (coût : 1 Énergie) ou Gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, true, hasObs4, false, { acquired: hasObs4, tile: 'observation-4' })}
     </div>
   );
 };

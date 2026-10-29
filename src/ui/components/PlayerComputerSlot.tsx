@@ -1,6 +1,7 @@
 import React from 'react';
 import { ComputerSlot } from '../../core/types';
 import { SlotTooltip } from './SlotTooltip';
+import { ReservationIcon } from './ObjectiveSymbol';
 import { SLOT_COLORS } from '../styles/slotColors';
 
 export const PlayerComputerSlot = ({ 
@@ -64,7 +65,7 @@ export const PlayerComputerSlot = ({
       >
         {isFilled && <div className="computer-slot-dot" />}
         {!isFilled && slot.bonus === 'media' && <span className="computer-slot-bonus media">{mediaAmount > 1 ? '2' : ''}🎤</span>}
-        {!isFilled && slot.bonus === 'reservation' && <span className="computer-slot-bonus reservation">📥</span>}
+        {!isFilled && slot.bonus === 'reservation' && <span className="computer-slot-bonus reservation"><ReservationIcon size={20} /></span>}
         {!isFilled && slot.bonus === '2pv' && <span className="computer-slot-bonus pv">2🏆</span>}
         {!isFilled && slot.bonus === 'credit' && <span className="computer-slot-bonus credit">₢</span>}
         {!isFilled && slot.bonus === 'energy' && <span className="computer-slot-bonus energy">⚡</span>}

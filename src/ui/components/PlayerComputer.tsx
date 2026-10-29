@@ -3,6 +3,7 @@ import { Player, GAME_CONSTANTS, ComputerSlot } from '../../core/types';
 import { ComputerSystem } from '../../systems/ComputerSystem';
 import { PlayerComputerSlot } from './PlayerComputerSlot';
 import { TechSpot } from './TechSpot';
+import { ActionHexIcon } from './GameIcons';
 import { SlotTooltip } from './SlotTooltip';
 import { SLOT_COLORS } from '../styles/slotColors';
 import './PlayerComputer.css';
@@ -171,7 +172,7 @@ export const PlayerComputer = ({
                   }}
                   onMouseLeave={onLeave}
                 >
-                  👁️
+                  <ActionHexIcon kind="analyze" size={26} />
                 </div>
               </div>
             </>

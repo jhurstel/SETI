@@ -470,6 +470,19 @@
   background-color: #3c4148;
 }
 
+.obs-track-slot.hex {
+  background: transparent;
+  border-color: transparent;
+}
+/* Emplacement de technologie sans pastille : la tuile du cadre en tient lieu (zone de survol seulement) */
+.obs-track-slot.ghost {
+  width: 56px;
+  height: 80px;
+  border-radius: 8px;
+  background: transparent;
+  border-color: transparent;
+}
+
 .obs-track-slot.tech-locked {
   background-color: #222;
   border-color: #444;
