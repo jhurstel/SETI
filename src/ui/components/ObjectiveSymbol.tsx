@@ -1,5 +1,5 @@
 import React from 'react';
-import { ObjectiveTile } from '../../core/types';
+import { ObjectiveTile, TechnologyCategory } from '../../core/types';
 import { LifeTraceShape } from './GameIcons';
 
 // Symboles des tuiles Score dorées, redessinés d'après le livret de règles (p. 21).
@@ -185,6 +185,26 @@ const OrbiterOrLander = () => (
     </g>
   </g>
 );
+
+/** Technologie d'une catégorie (Exploration, Observation, Informatique, l'une des deux premières ou quelconque) */
+export const TechCategoryIcon: React.FC<{ category: TechnologyCategory; size?: number }> = ({ category, size = 22 }) => {
+  const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      {category === TechnologyCategory.EXPLORATION && <Chip fill={COLORS.exploration}><Rocket /></Chip>}
+      {category === TechnologyCategory.OBSERVATION && <Chip fill={COLORS.observation}><Dish /></Chip>}
+      {category === TechnologyCategory.COMPUTING && <Chip fill={COLORS.computing}><Server /></Chip>}
+      {category === TechnologyCategory.EXPLORATION_OR_OBSERVATION && (
+        <g>
+          <defs><clipPath id={`techeo-${uid}`}><path d="M12 5 H28 L35 12 V28 L28 35 H12 L5 28 V12 Z" /></clipPath></defs>
+          <Chip fill={COLORS.observation} />
+          <path d="M0 0 H40 L0 40 Z" fill={COLORS.exploration} clipPath={`url(#techeo-${uid})`} />
+        </g>
+      )}
+      {category === TechnologyCategory.ANY && <AnyTech id={`anytech-${uid}`} />}
+    </svg>
+  );
+};
 
 /** Orbiteur ou atterrisseur seul (icône du panneau des planètes) */
 export const OrbiterOrLanderIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (

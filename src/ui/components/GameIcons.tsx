@@ -149,7 +149,16 @@ export const ActionHexIcon: React.FC<{ kind: ActionIconKind; size?: number }> = 
 /* Signal (livret p. 12) : disque gris à barres sonores */
 /* ---------------------------------------------------- */
 
-export type SignalBadge = 'earth' | 'card' | 'mercury' | 'discard';
+export type SignalBadge = 'earth' | 'card' | 'mercury' | 'discard' | 'deck' | 'probe' | 'venus' | 'mars' | 'jupiter' | 'saturn';
+
+/** Planète simple (badge de signal) : disque coloré, bandes pour Jupiter, anneau pour Saturne */
+const PlanetBadge: React.FC<{ fill: string; bands?: boolean; ring?: boolean }> = ({ fill, bands, ring }) => (
+  <g transform="translate(20 20)">
+    {ring && <ellipse rx={19} ry={5} fill="none" stroke="#e8d6a0" strokeWidth={3} transform="rotate(-20)" />}
+    <circle r={12} fill={fill} stroke="#0b0f1e" strokeWidth={1.5} />
+    {bands && <g stroke="#a86a3a" strokeWidth={2}><line x1={-11} y1={-4} x2={11} y2={-4} /><line x1={-11} y1={3} x2={11} y2={3} /></g>}
+  </g>
+);
 
 const SignalBars: React.FC<{ color?: string }> = ({ color = '#ffffff' }) => (
   <g fill={color}>
@@ -183,6 +192,30 @@ const signalBadge = (badge: SignalBadge): React.ReactNode => {
           <circle cx={-4} cy={-3} r={3} fill="#a8468a" /><circle cx={5} cy={4} r={2.2} fill="#a8468a" /><circle cx={2} cy={-7} r={1.5} fill="#a8468a" />
         </g>
       );
+    case 'deck':
+      // Carte de la pioche : dos de carte sombre marqué « ? »
+      return (
+        <g transform="translate(20 18)">
+          <rect x={-10} y={-14} width={20} height={28} rx={2.5} fill="#2b2b2b" stroke="#e8e8e8" strokeWidth={2} />
+          <text y={7} textAnchor="middle" fontSize={20} fontWeight={900} fill="#fff" fontFamily="Arial Black, Arial, sans-serif">?</text>
+        </g>
+      );
+    case 'probe':
+      // Sonde : pastille orange de lancement, fusée blanche
+      return (
+        <g transform="translate(20 20)">
+          <circle r={14} fill="#f28c1e" stroke="#0b0f1e" strokeWidth={1.5} />
+          <path d="M0 -10 C3 -7 4 -3 4 2 V6 L6.5 9 H-6.5 L-4 6 V2 C-4 -3 -3 -7 0 -10 Z" fill="#fff" />
+        </g>
+      );
+    case 'venus':
+      return <PlanetBadge fill="#e8c27a" />;
+    case 'mars':
+      return <PlanetBadge fill="#c8502c" />;
+    case 'jupiter':
+      return <PlanetBadge fill="#e0b080" bands />;
+    case 'saturn':
+      return <PlanetBadge fill="#e0c06a" ring />;
     case 'discard':
       // Carte défaussée : carte barrée d'une croix rouge
       return (
@@ -194,7 +227,6 @@ const signalBadge = (badge: SignalBadge): React.ReactNode => {
   }
 };
 
-/** Symbole « signal », avec un badge précisant le secteur (Terre, carte de la rangée, Mercure, carte défaussée) */
 /** Carte de la rangée seule (carte blanche au coin haut droit noir), comme sur la piste d'observation */
 export const RowCardIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
   <svg width={size} height={size} viewBox="4 2 32 32" style={{ display: 'block' }}>
@@ -202,9 +234,19 @@ export const RowCardIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
   </svg>
 );
 
+/** Symbole « signal », avec un badge précisant le secteur (Terre, carte de la rangée, Mercure, carte défaussée) */
 export const SignalIcon: React.FC<{ badge?: SignalBadge; size?: number }> = ({ badge, size = 28 }) => (
   <svg width={size} height={size} viewBox="-30 -30 60 60" style={{ display: 'block', overflow: 'visible' }}>
     <circle r={24} fill="#b8b8b8" />
+    <SignalBars />
+    {badge && <g transform="scale(0.8)">{signalBadge(badge)}</g>}
+  </svg>
+);
+
+/** Signal gagné : disque à la couleur du secteur (gris pour un secteur quelconque) et badge éventuel, sans débordement */
+export const SignalGainIcon: React.FC<{ color?: string; badge?: SignalBadge; size?: number }> = ({ color = '#b8b8b8', badge, size = 20 }) => (
+  <svg width={size} height={size} viewBox={badge ? '-25 -25 58 58' : '-25 -25 50 50'} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+    <circle r={24} fill={color} />
     <SignalBars />
     {badge && <g transform="scale(0.8)">{signalBadge(badge)}</g>}
   </svg>
@@ -504,6 +546,22 @@ export const LifeTraceShape: React.FC<{ color: LifeTraceColor }> = ({ color }) =
         </g>
       )}
     </g>
+  );
+};
+
+/** Trace de vie de couleur quelconque : triangle aux trois couleurs */
+export const AnyLifeTraceIcon: React.FC<{ size?: number }> = ({ size = 20 }) => {
+  const uid = useUid();
+  const shape = 'M8 6 H32 Q38 6 35.5 11 L23.5 33 Q20 38.5 16.5 33 L4.5 11 Q2 6 8 6 Z';
+  return (
+    <svg width={size} height={size} viewBox="2 4 36 36" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <defs><clipPath id={`anytrace-${uid}`}><path d={shape} /></clipPath></defs>
+      <g clipPath={`url(#anytrace-${uid})`}>
+        <rect x={0} y={0} width={14.5} height={40} fill={LIFE_TRACE_COLORS.red} />
+        <rect x={14.5} y={0} width={11} height={40} fill={LIFE_TRACE_COLORS.yellow} />
+        <rect x={25.5} y={0} width={15} height={40} fill={LIFE_TRACE_COLORS.blue} />
+      </g>
+    </svg>
   );
 };
 
