@@ -318,3 +318,102 @@ export const TechTileIcon: React.FC<{ techId: string; width?: number; height?: n
     </svg>
   );
 };
+
+/* ------------------------------------------------------------- */
+/* Ressources (livret p. 6, 14, 23, 28) : pastilles du matériel   */
+/* ------------------------------------------------------------- */
+
+export type ResourceIconKind = 'credit' | 'energy' | 'media' | 'data' | 'movement' | 'revenue';
+
+const RESOURCE_COLORS: Record<'credit' | 'energy' | 'media', string> = {
+  credit: '#b8901c',
+  energy: '#3daa3a',
+  media: '#e8452a',
+};
+
+/** Pictogramme blanc d'une pastille fléchée, centré sur (0, 0) */
+const resourceGlyph = (kind: 'credit' | 'energy' | 'media'): React.ReactNode => {
+  switch (kind) {
+    case 'credit':
+      // « C » anguleux traversé de deux barres
+      return (
+        <g fill="none" stroke="#fff">
+          <path d="M6 -7 H0 L-6 0 L0 7 H6" strokeWidth={3.6} />
+          <path d="M-0.5 -11 V-6 M3.5 -11 V-6 M-0.5 6 V11 M3.5 6 V11" strokeWidth={2} />
+        </g>
+      );
+    case 'energy':
+      return <path d="M2 -12 L-6 2 H0 L-3 12 L6 -3 H0 Z" fill="#fff" />;
+    case 'media':
+      // Micro sur son pied
+      return (
+        <g fill="none" stroke="#fff" strokeWidth={2.2} strokeLinecap="round">
+          <rect x={-3.5} y={-12} width={7} height={13} rx={3.5} fill="#fff" />
+          <path d="M-7 -2 Q-7 6 0 6 Q7 6 7 -2" />
+          <line x1={0} y1={6} x2={0} y2={11} />
+          <line x1={-4} y1={11} x2={4} y2={11} />
+        </g>
+      );
+  }
+};
+
+/** Pastille fléchée (crédit, énergie, média), avec le nombre en blanc détouré à gauche */
+const ArrowResource: React.FC<{ kind: 'credit' | 'energy' | 'media'; amount?: number }> = ({ kind, amount }) => {
+  const color = RESOURCE_COLORS[kind];
+  return (
+    <>
+      <path d="M-10 -16 H12 L24 0 L12 16 H-10 Q-14 16 -14 12 V-12 Q-14 -16 -10 -16 Z" fill={color} />
+      <g transform={amount !== undefined ? 'translate(6 0)' : 'translate(2 0)'}>{resourceGlyph(kind)}</g>
+      {amount !== undefined && (
+        <text x={-12} y={10} textAnchor="middle" fontSize={30} fontWeight={900} fill="#fff" stroke={color} strokeWidth={3} paintOrder="stroke" fontFamily="Arial Black, Arial, sans-serif">{amount}</text>
+      )}
+    </>
+  );
+};
+
+/** Jeton Donnée : losange bleu, disque de chiffres binaires */
+const DataToken = () => (
+  <g>
+    <rect x={-17} y={-17} width={34} height={34} rx={5} transform="rotate(45)" fill="#4a7fd0" />
+    <circle r={13} fill="none" stroke="#dce8ff" strokeWidth={1.6} />
+    <g fill="#dce8ff" fontSize={6.5} fontWeight="bold" fontFamily="Consolas, monospace" textAnchor="middle">
+      <text y={-3}>0100</text><text y={3.5}>0011</text><text y={10}>0100</text>
+    </g>
+  </g>
+);
+
+/** Déplacement : pointe de flèche orange vers le haut, nombre en blanc */
+const Movement: React.FC<{ amount?: number }> = ({ amount }) => (
+  <g>
+    <path d="M0 -22 L20 18 L0 10 L-20 18 Z" fill="#f28c2e" strokeLinejoin="round" stroke="#f28c2e" strokeWidth={3} />
+    {amount !== undefined && <text y={12} textAnchor="middle" fontSize={20} fontWeight={900} fill="#fff" fontFamily="Arial Black, Arial, sans-serif">{amount}</text>}
+  </g>
+);
+
+/** Revenu : rosette blanche, barres et flèche montante en zigzag */
+const Revenue = () => {
+  const bumps = Array.from({ length: 10 }, (_, i) => (i * Math.PI) / 5);
+  return (
+    <g>
+      <g fill="#fff" stroke="rgba(60, 60, 80, 0.5)" strokeWidth={1}>
+        <circle r={16} />
+        {bumps.map(a => <circle key={a} cx={15.5 * Math.cos(a)} cy={15.5 * Math.sin(a)} r={4} />)}
+      </g>
+      <circle r={16.5} fill="#fff" />
+      <rect x={-7} y={5} width={5} height={5} fill="#3daa3a" />
+      <rect x={3} y={-2} width={5} height={12} rx={1} fill="#c9a23a" />
+      <path d="M-12 4 L-5 -3 L-2 1 L8 -9" fill="none" stroke="#222" strokeWidth={3} strokeLinejoin="round" />
+      <path d="M3 -12 L11 -12 L10 -4 Z" fill="#222" />
+    </g>
+  );
+};
+
+/** Icône de ressource du matériel ; `amount` affiche le nombre comme sur les cartes */
+export const ResourceIcon: React.FC<{ kind: ResourceIconKind; amount?: number; size?: number }> = ({ kind, amount, size = 24 }) => {
+  const wide = (kind === 'credit' || kind === 'energy' || kind === 'media') && amount !== undefined;
+  return (
+    <svg width={wide ? size * 1.5 : size} height={size} viewBox={wide ? '-36 -24 72 48' : '-24 -24 48 48'} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      {kind === 'data' ? <DataToken /> : kind === 'movement' ? <Movement amount={amount} /> : kind === 'revenue' ? <Revenue /> : <ArrowResource kind={kind} amount={amount} />}
+    </svg>
+  );
+};
