@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType, LifeTrace } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
+import { BonusIcons } from './components/BonusIcons';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
@@ -263,11 +264,11 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 <div className="alien-tooltip-bonuses">
                     <div className="alien-tooltip-bonus-row mb">
                         <span>Bonus découverte :</span>
-                        <span className="alien-tooltip-bonus-value">{ResourceSystem.formatBonus(board.firstBonus)?.join(', ')}</span>
+                        <span className="alien-tooltip-bonus-value"><BonusIcons bonus={board.firstBonus} /></span>
                     </div>
                     <div className="alien-tooltip-bonus-row">
                         <span>Bonus suivants :</span>
-                        <span className="alien-tooltip-bonus-value">{ResourceSystem.formatBonus(board.nextBonus)?.join(', ')}</span>
+                        <span className="alien-tooltip-bonus-value"><BonusIcons bonus={board.nextBonus} /></span>
                     </div>
                 </div>
             </div>
@@ -292,8 +293,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
         const isClickable = isInfinite ? isPlacing && !isFilled && isNext && canAfford : isPlacing && !isFilled && canAfford; // Note: Fixed slots logic simplified for Mascamites specific placement if needed, but standard logic applies
 
         const handleMouseEnter = (e: React.MouseEvent) => {
-            const parts = ResourceSystem.formatBonus(bonus) || [];
-            const bonusText = parts.length > 0 ? parts.join(', ') : 'Aucun';
+            const bonusText = <BonusIcons bonus={{ ...bonus, token: bonus.token && bonus.token > 0 ? bonus.token : undefined }} />;
 
             let costText = null;
             if (bonus.token && bonus.token < 0) {
@@ -312,7 +312,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 statusText = "Indisponible";
                 statusColor = "#ff6b6b";
                 actiontext = "Nécessite d'avoir suffisamment de tokens";
-            } else if (parts.length <= 0) {
+            } else if ((ResourceSystem.formatBonus(bonus) || []).length <= 0) {
                 statusText = "Indisponible";
                 statusColor = "#ff6b6b";
                 actiontext = "Nécessite un jeton";

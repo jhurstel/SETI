@@ -2,11 +2,11 @@ import React, { useState, useRef } from 'react';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
-import { Game, InteractionState, Planet, ProbeState, AlienBoardType, Player, Satellite, Bonus, Probe } from '../core/types';
+import { Game, InteractionState, Planet, ProbeState, AlienBoardType, Player, Satellite, Bonus, Probe, LifeTraceType } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { PlanetIcon } from './components/PlanetIcon';
 import { Tooltip } from './Tooltip';
-import { ResourceSystem } from '../systems/ResourceSystem';
+import { BonusIcons } from './components/BonusIcons';
 import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../core/SolarSystemPosition';
 import './PlanetBoardUI.css';
 
@@ -44,7 +44,7 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
         return planet;
     };
 
-    const renderTooltipContent = (isOccupied: boolean, isClickable: boolean, player: Player | null, bonusText: string, reason: string, actionTextSuccess: string, isRemovingMode: boolean, removalType?: 'orbiter' | 'lander') => {
+    const renderTooltipContent = (isOccupied: boolean, isClickable: boolean, player: Player | null, bonusText: React.ReactNode, reason: string, actionTextSuccess: string, isRemovingMode: boolean, removalType?: 'orbiter' | 'lander') => {
         let statusText = isOccupied && player ? `Occupé par ${player.name}` : (isClickable ? "Disponible" : "Indisponible");
         let statusColor = isOccupied && player ? (player.color || "#ccc") : (isClickable ? SLOT_COLORS.available : SLOT_COLORS.unavailable);
         let actionText: string | null = isClickable ? actionTextSuccess : reason;
@@ -55,12 +55,12 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
             actionText = null;
         }
 
-        let removalBonusText = '';
+        let removalBonusText: React.ReactNode = '';
         if (isRemovingMode && isClickable) {
             if (removalType === 'orbiter') {
-                removalBonusText = '3 PV, 1 Donnée, 1 Carte';
+                removalBonusText = <BonusIcons bonus={{ pv: 3, data: 1, anycard: 1 }} />;
             } else if (removalType === 'lander') {
-                removalBonusText = '1 Trace Jaune';
+                removalBonusText = <BonusIcons bonus={{ lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] }} />;
             }
         }
 
@@ -119,7 +119,7 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
             const bonus = orbitSlots[index];
             const probe = planetData!.orbiters[index];
             const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-            const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
+            const bonusText = <BonusIcons bonus={bonus} />;
 
             const isOccupied = !!player;
             const isNextAvailable = index === planetData!.orbiters.length;
@@ -166,7 +166,7 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
             const probesOnSlot = landers.filter(p => p.planetSlotIndex === index);
             const probe = probesOnSlot.length > 0 ? probesOnSlot[probesOnSlot.length - 1] : undefined;
             const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-            const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
+            const bonusText = <BonusIcons bonus={bonus} />;
 
             const isOccupied = !!player;
             const isPrevSlotOccupied = index === 0 || landers.some(p => p.planetSlotIndex === index - 1);

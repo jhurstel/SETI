@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
-import { TechTileIcon, VictoryPointsIcon } from './components/GameIcons';
+import { TechTileIcon } from './components/GameIcons';
+import { BonusIcons } from './components/BonusIcons';
 import { Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
 import { TECHNOLOGY_STYLES } from './styles/celestialStyles';
 import './TechnologyBoardUI.css';
@@ -68,18 +69,9 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
   };
 
   const renderBonus = (bonus: Bonus, excludeExtraPv: boolean) => {
-    const elements = [];
     let pv = bonus.pv || 0;
     if (excludeExtraPv) pv -= 2;
-
-    if (pv > 0) elements.push(<VictoryPointsIcon key="pv" amount={pv} size={18} />);
-    if (bonus.media) elements.push(<span key="media" style={{ color: '#ff6b6b' }}>{bonus.media} Média</span>);
-    if (bonus.energy) elements.push(<span key="energy" style={{ color: '#4caf50' }}>{bonus.energy} Énergie</span>);
-    if (bonus.card) elements.push(<span key="card" style={{ color: '#fff' }}>{bonus.card} Carte</span>);
-    if (bonus.probe) elements.push(<span key="probe" style={{ color: '#fff', border: '1px solid #fff', padding: '0 2px', borderRadius: '2px' }}>{bonus.probe} Sonde</span>);
-    if (bonus.data) elements.push(<span key="data" style={{ color: '#fff', border: '1px solid #aaa', padding: '0 2px', borderRadius: '2px', backgroundColor: '#333' }}>{bonus.data} Data</span>);
-    
-    return <div className="seti-tech-bonus-container">{elements}</div>;
+    return <div className="seti-tech-bonus-container"><BonusIcons bonus={{ ...bonus, pv: pv > 0 ? pv : undefined }} size={15} empty={null} /></div>;
   };
 
   return (

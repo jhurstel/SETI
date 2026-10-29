@@ -6,6 +6,7 @@ import { ResourceSystem } from '../systems/ResourceSystem';
 import { ResourceIcon, ResourceIconKind, LifeTraceIcon, VictoryPointsIcon } from './components/GameIcons';
 import { LifeTraceColor } from './styles/lifeTraceColors';
 import { ReservationIcon } from './components/ObjectiveSymbol';
+import { BonusIcons } from './components/BonusIcons';
 
 // Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
 const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', DATA: 'data' };
@@ -137,15 +138,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         const displayName = level ? `${tech.type} ${level}` : tech.name;
 
         const renderBonus = (bonus: Bonus) => {
-            const elements = [];
-            if (bonus.pv) elements.push(<VictoryPointsIcon key="pv" amount={bonus.pv} size={18} />);
-            if (bonus.media) elements.push(<span key="media" style={{ color: '#ff6b6b' }}>{bonus.media} Média</span>);
-            if (bonus.energy) elements.push(<span key="energy" style={{ color: '#4caf50' }}>{bonus.energy} Énergie</span>);
-            if (bonus.card) elements.push(<span key="card" style={{ color: '#fff' }}>{bonus.card} Carte</span>);
-            if (bonus.probe) elements.push(<span key="probe" style={{ color: '#fff', border: '1px solid #fff', padding: '0 2px', borderRadius: '2px' }}>{bonus.probe} Sonde</span>);
-            if (bonus.data) elements.push(<span key="data" style={{ color: '#fff', border: '1px solid #aaa', padding: '0 2px', borderRadius: '2px', backgroundColor: '#333' }}>{bonus.data} Data</span>);
-            if (bonus.token) elements.push(<span key="token" style={{ color: '#fff', border: '1px solid #fff', padding: '0 2px', borderRadius: '50%', backgroundColor: '#555' }}>{bonus.token} Token</span>);
-            return <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>{elements}</div>;
+            return <div style={{ display: 'flex', justifyContent: 'center' }}><BonusIcons bonus={bonus} size={15} /></div>;
         };
 
         return (

@@ -2,6 +2,8 @@ import React from 'react';
 import { Card, CardType, CostType } from '../../core/types';
 import { SECTOR_STYLES } from '../styles/celestialStyles';
 import { ResourceIcon } from './GameIcons';
+import { BonusIcons } from './BonusIcons';
+import { freeActionBonus, revenueBonus } from './cardBonus';
 
 export const CardDescription: React.FC<{ description: string, type?: CardType, hideIntro?: boolean }> = ({ description, type, hideIntro }) => {
     if (!description) return null;
@@ -62,8 +64,8 @@ export const CardTooltip: React.FC<{ card: Card, hideIntro?: boolean, hideStats?
           <div className="seti-card-tooltip-stats">
             <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '3px', verticalAlign: 'middle' }}>{card.cost} <ResourceIcon kind={card.costType === CostType.ENERGY ? 'energy' : 'credit'} size={14} /></span></div>
             <div>Type: {card.type} ({card.id})</div>
-            <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
-            <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>Act: <BonusIcons bonus={freeActionBonus(card.freeAction)} size={14} empty={<span style={{ color: '#aaffaa' }}>{card.freeAction}</span>} /></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>Rev: <BonusIcons bonus={revenueBonus(card.revenue)} size={14} empty={<span style={{ color: '#aaffaa' }}>{card.revenue}</span>} /></div>
             <div>Scan: <span style={{ color: `${SECTOR_STYLES[card.scanSector]?.color || '#fff'}` }}>{card.scanSector}</span></div>
           </div>
         )

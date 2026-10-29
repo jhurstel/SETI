@@ -3,6 +3,8 @@ import { Card, Game, InteractionState, CostType, CardType, RevenueType } from '.
 import { CardSystem } from '../../systems/CardSystem';
 import { CardTooltip } from './CardTooltip';
 import { ResourceIcon } from './GameIcons';
+import { BonusIcons } from './BonusIcons';
+import { freeActionBonus, revenueBonus } from './cardBonus';
 import { FREE_ACTION_STYLES, SECTOR_STYLES, REVENUE_STYLES } from '../styles/celestialStyles';
 
 /** Contenu d'une carte (main, rangée, fenêtres de choix) : l'attribut utile au choix en cours est mis en surbrillance. */
@@ -23,7 +25,7 @@ export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue'
     if (card.revenue && REVENUE_STYLES[card.revenue]) bottomStyle = REVENUE_STYLES[card.revenue];
     details = (
       <>
-        {card.freeAction && <div>Act: {card.freeAction}</div>}
+        {card.freeAction && <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>Act: <BonusIcons bonus={freeActionBonus(card.freeAction)} size={12} empty={card.freeAction} /></div>}
         {card.scanSector && <div>Scan: {card.scanSector}</div>}
       </>
     );
@@ -33,8 +35,8 @@ export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue'
     if (card.scanSector && SECTOR_STYLES[card.scanSector]) bottomStyle = SECTOR_STYLES[card.scanSector];
     details = (
       <>
-        {card.freeAction && <div>Act: {card.freeAction}</div>}
-        {card.revenue && <div>Rev: {card.revenue}</div>}
+        {card.freeAction && <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>Act: <BonusIcons bonus={freeActionBonus(card.freeAction)} size={12} empty={card.freeAction} /></div>}
+        {card.revenue && <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>Rev: <BonusIcons bonus={revenueBonus(card.revenue)} size={12} empty={card.revenue} /></div>}
       </>
     );
   } else {
@@ -43,7 +45,7 @@ export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue'
     if (card.freeAction && FREE_ACTION_STYLES[card.freeAction]) bottomStyle = FREE_ACTION_STYLES[card.freeAction];
     details = (
       <>
-        {card.revenue && <div>Rev: {card.revenue}</div>}
+        {card.revenue && <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>Rev: <BonusIcons bonus={revenueBonus(card.revenue)} size={12} empty={card.revenue} /></div>}
         {card.scanSector && <div>Scan: {card.scanSector}</div>}
       </>
     );

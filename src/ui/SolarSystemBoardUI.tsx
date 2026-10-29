@@ -3,6 +3,7 @@ import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, ProbeSta
 import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getObjectPosition, getAbsoluteSectorForProbe, polarToCartesian, describeArc, sectorToIndex, calculateObjectPosition, SolarSystemCell } from '../core/SolarSystemPosition';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
+import { BonusIcons } from './components/BonusIcons';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { Tooltip } from './Tooltip';
 import { PLANET_STYLES, PLANET_SIZES } from './styles/celestialStyles';
@@ -132,7 +133,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       const bonus = orbitSlots[index];
       const probe = planetData!.orbiters[index];
       const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-      const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
+      const bonusText = <BonusIcons bonus={bonus} />;
 
       const isOccupied = !!player;
       const isNextAvailable = index === planetData!.orbiters.length;
@@ -179,7 +180,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       const probesOnSlot = landers.filter(p => p.planetSlotIndex === index);
       const probe = probesOnSlot.length > 0 ? probesOnSlot[probesOnSlot.length - 1] : undefined;
       const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
-      const bonusText = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'Aucun';
+      const bonusText = <BonusIcons bonus={bonus} />;
 
       const isOccupied = !!player;
       const isPrevSlotOccupied = index === 0 || landers.some(p => p.planetSlotIndex === index - 1);
@@ -228,7 +229,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     return null;
   };
 
-  const renderTooltipContent = (isOccupied: boolean, isClickable: boolean, player: Player | null, bonusText: string, reason: string, actionTextSuccess: string, isRemovingMode: boolean, removalType?: 'orbiter' | 'lander') => {
+  const renderTooltipContent = (isOccupied: boolean, isClickable: boolean, player: Player | null, bonusText: React.ReactNode, reason: string, actionTextSuccess: string, isRemovingMode: boolean, removalType?: 'orbiter' | 'lander') => {
     let statusText = isOccupied && player ? `Occupé par ${player.name}` : (isClickable ? "Disponible" : "Indisponible");
     let statusColor = isOccupied && player ? (player.color || "#ccc") : (isClickable ? SLOT_COLORS.available : SLOT_COLORS.unavailable);
     let actionText: string | null = isClickable ? actionTextSuccess : reason;
@@ -239,12 +240,12 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       actionText = null;
     }
 
-    let removalBonusText = '';
+    let removalBonusText: React.ReactNode = '';
     if (isRemovingMode && isClickable) {
         if (removalType === 'orbiter') {
-            removalBonusText = '3 PV, 1 Donnée, 1 Carte';
+            removalBonusText = <BonusIcons bonus={{ pv: 3, data: 1, anycard: 1 }} />;
         } else if (removalType === 'lander') {
-            removalBonusText = '1 Trace Jaune';
+            removalBonusText = <BonusIcons bonus={{ lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] }} />;
         }
     }
 
@@ -576,7 +577,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         break;
       }
       case 'anomaly': {
-        const bonusText = obj.anomalyData ? (ResourceSystem.formatBonus(obj.anomalyData.bonus) || []).join(', ') : 'Inconnu';
+        const bonusText = obj.anomalyData ? <BonusIcons bonus={obj.anomalyData.bonus} /> : 'Inconnu';
         content = (
           <div>
             <div style={{ fontWeight: 'bold', color: obj.anomalyData?.color === LifeTraceType.YELLOW ? '#ffd700' : obj.anomalyData?.color === LifeTraceType.RED ? '#ff6b6b' : '#4a9eff' }}>{obj.name}</div>
@@ -746,7 +747,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
     const coveredByPlayers = (sector.coveredBy || []).map((pid: string) => game.players.find(p => p.id === pid)).filter(p => !!p);
     // Même infobulle que les autres secteurs ; la présence rapporte un token Oumuamua
-    const sectorTooltipContent = <SectorTooltip sector={sector} color="#ffffff" coveredBy={coveredByPlayers} presenceGain="1 Token" />;
+    const sectorTooltipContent = <SectorTooltip sector={sector} color="#ffffff" coveredBy={coveredByPlayers} presenceGain={<BonusIcons bonus={{ token: 1 }} />} />;
 
     return (
       <g key="oumuamua-signals" style={{ pointerEvents: 'auto' }}>
@@ -777,9 +778,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           const currentPlayer = game.players[game.currentPlayerIndex];
           const canAffordScan = currentPlayer.credits >= GAME_CONSTANTS.SCAN_COST_CREDITS && currentPlayer.energy >= GAME_CONSTANTS.SCAN_COST_ENERGY;
 
-          const baseGain = ["1 Donnée"];
-          const bonusGain = signal.bonus ? ResourceSystem.formatBonus(signal.bonus) : null;
-          const gains = [...baseGain, ...(bonusGain || [])];
+          // 1 Donnée par signal, plus le bonus imprimé sur l'emplacement
+          const gains = <BonusIcons bonus={{ ...signal.bonus, data: (signal.bonus?.data || 0) + 1 }} />;
 
           let stateText = "Disponible";
           let stateColor = SLOT_COLORS.available;
@@ -801,7 +801,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             actionText = "Cliquez pour marquer le signal";
           }
 
-          const slotTooltipContent = <SlotTooltip status={stateText} statusColor={stateColor} value={gains.join(', ')} note={actionText} />;
+          const slotTooltipContent = <SlotTooltip status={stateText} statusColor={stateColor} value={gains} note={actionText} />;
 
           return (
             <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`} style={{ opacity, cursor: isClickable ? 'pointer' : 'help' }}

@@ -4,6 +4,7 @@ import { SLOT_COLORS } from '../styles/slotColors';
 import { Game, InteractionState, SignalType, GAME_CONSTANTS, Sector, Player } from '../../core/types';
 import { describeArc, polarToCartesian } from '../../core/SolarSystemPosition';
 import { ResourceSystem } from '../../systems/ResourceSystem';
+import { BonusIcons } from './BonusIcons';
 import { SvgBonus } from './SvgBonus';
 import { SECTOR_STYLES } from '../styles/celestialStyles';
 
@@ -19,7 +20,7 @@ interface SectorDetailsProps {
  * Infobulle d'un secteur, au format de celle des traces de vie (classes alien-tooltip-*) : nom à la couleur du secteur,
  * joueurs qui l'ont couvert, puis gains (présence, couverture).
  */
-export const SectorTooltip: React.FC<{ sector: Sector, color: string, coveredBy: Player[], presenceGain: string }> = ({ sector, color, coveredBy, presenceGain }) => {
+export const SectorTooltip: React.FC<{ sector: Sector, color: string, coveredBy: Player[], presenceGain: React.ReactNode }> = ({ sector, color, coveredBy, presenceGain }) => {
   const first = (ResourceSystem.formatBonus(sector.firstBonus) || []).join(', ') || 'Aucun';
   const next = (ResourceSystem.formatBonus(sector.nextBonus) || []).join(', ') || 'Aucun';
   return (
@@ -41,17 +42,17 @@ export const SectorTooltip: React.FC<{ sector: Sector, color: string, coveredBy:
         {first === next ? (
           <div className="alien-tooltip-bonus-row">
             <span>Couverture :</span>
-            <span className="alien-tooltip-bonus-value">{first}</span>
+            <span className="alien-tooltip-bonus-value"><BonusIcons bonus={sector.firstBonus} /></span>
           </div>
         ) : (
           <>
             <div className="alien-tooltip-bonus-row mb">
               <span>1re couverture :</span>
-              <span className="alien-tooltip-bonus-value">{first}</span>
+              <span className="alien-tooltip-bonus-value"><BonusIcons bonus={sector.firstBonus} /></span>
             </div>
             <div className="alien-tooltip-bonus-row">
               <span>Suivantes :</span>
-              <span className="alien-tooltip-bonus-value">{next}</span>
+              <span className="alien-tooltip-bonus-value"><BonusIcons bonus={sector.nextBonus} /></span>
             </div>
           </>
         )}
@@ -98,7 +99,7 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
 
         const coveredByPlayers = (sector.coveredBy || []).map((pid: string) => game.players.find(p => p.id === pid)).filter(p => !!p);
 
-        const sectorTooltipContent = <SectorTooltip sector={sector} color={color} coveredBy={coveredByPlayers} presenceGain="1 Média" />;
+        const sectorTooltipContent = <SectorTooltip sector={sector} color={color} coveredBy={coveredByPlayers} presenceGain={<BonusIcons bonus={{ media: 1 }} />} />;
 
         // Couloir des slots (toujours sens horaire pour le dessin)
         const slotCount = sector.signals.length;
@@ -133,9 +134,8 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
           const isLastSlot = idx === sector.signals.length - 1;
 
           // Préparation du tooltip Slot
-          const baseGain = isWhiteSlot ? [] : ["1 Donnée"];
-          const bonusGain = signal.bonus ? ResourceSystem.formatBonus(signal.bonus) : null;
-          const gains = [...baseGain, ...(bonusGain || [])];
+          // 1 Donnée par signal (sauf emplacement blanc), plus le bonus imprimé sur l'emplacement
+          const gains = <BonusIcons bonus={{ ...signal.bonus, data: (signal.bonus?.data || 0) + (isWhiteSlot ? 0 : 1) }} />;
 
           let stateText = "Disponible";
           let stateColor = SLOT_COLORS.available;
@@ -157,7 +157,7 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
             actionText = "Scannez pour récupérer le bonus (coût: 1 Crédit et 2 Energie)";
           }
 
-          const slotTooltipContent = <SlotTooltip status={stateText} statusColor={stateColor} value={gains.join(', ')} note={actionText} />;
+          const slotTooltipContent = <SlotTooltip status={stateText} statusColor={stateColor} value={gains} note={actionText} />;
 
           const cursorStyle = isSectorClickable && !isDisabled ? 'pointer' : 'help';
 
