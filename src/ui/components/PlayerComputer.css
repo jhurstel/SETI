@@ -21,7 +21,13 @@
     opacity: 1;
   }
   
-  .computer-slot.can-fill {
+  /* Œil d'analyse : hexagone d'action, sans pastille ronde */
+.computer-slot.hex-slot {
+  border-color: transparent !important;
+  background: transparent !important;
+}
+
+.computer-slot.can-fill {
     cursor: pointer;
     opacity: 1;
   }

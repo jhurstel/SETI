@@ -395,6 +395,18 @@
   box-shadow: 0 2px 4px rgba(0,0,0,0.3);
   cursor: pointer;
 }
+/* Icônes SVG des boutons : grisées quand le bouton est indisponible */
+.seti-action-btn[aria-disabled="true"] svg {
+  opacity: 0.45;
+  filter: grayscale(0.8);
+}
+/* Libellé d'une ressource avec son icône */
+.seti-res-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
 .seti-action-btn[aria-disabled="true"] {
   background-color: #222;
   color: #555;

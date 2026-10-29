@@ -10,7 +10,7 @@ import { HandCard } from './components/HandCard';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
-import { ActionHexIcon, ActionIconKind, SignalIcon } from './components/GameIcons';
+import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
 import './PlayerBoardUI.css';
@@ -494,7 +494,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
   // Helper pour les boutons d'action (factorisé)
   const renderActionButton = React.useCallback((
-    icon: string,
+    icon: React.ReactNode,
     tooltip: React.ReactNode,
     onClick: (e: React.MouseEvent) => void,
     disabled: boolean,
@@ -542,7 +542,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     card: { cost: '2 Cartes', gain: CARD_GAIN, have: () => handCards.length, unit: 'carte(s) en main' },
   };
 
-  const renderBuyCardButton = (icon: string) => {
+  const renderBuyCardButton = (icon: React.ReactNode) => {
     if (isRobot) return null;
     const canBuy = isCurrentTurn && !isInteractiveMode && currentPlayer.mediaCoverage >= 3;
     
@@ -557,7 +557,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   };
 
   // Helper pour les boutons d'échange rapide
-  const renderDirectTradeButton = (spendType: string, gainType: string, icon: string, canSpend: boolean) => {
+  const renderDirectTradeButton = (spendType: string, gainType: string, icon: React.ReactNode, canSpend: boolean) => {
     if (isRobot) return null;
     const canTrade = isCurrentTurn && !isInteractiveMode && canSpend;
     const spend = RESOURCE_LABELS[spendType];
@@ -573,7 +573,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   };
 
   // Helper pour les boutons d'échange de cartes (initie la sélection)
-  const renderCardTradeButton = (gainType: string, icon: string, style?: React.CSSProperties) => {
+  const renderCardTradeButton = (gainType: string, icon: React.ReactNode, style?: React.CSSProperties) => {
     if (isRobot) return null;
     const canTrade = isCurrentTurn && !isInteractiveMode && handCards.length >= 2;
     
@@ -648,7 +648,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
               return (
                 <>
                   {renderActionButton('⏭️', endTurnTooltip, () => onNextPlayer && onNextPlayer(), !canEndTurn, '#fff', {}, canEndTurn ? 'seti-flash-green' : '', 'Prochain joueur')}
-                  {renderActionButton('🏁', getActionTooltip(ActionType.PASS, canPass), () => onAction(ActionType.PASS), !canPass, '#fff', {}, '', 'Passer définitivement')}
+                  {renderActionButton(<ActionHexIcon kind="pass" size={18} />, getActionTooltip(ActionType.PASS, canPass), () => onAction(ActionType.PASS), !canPass, '#fff', {}, '', 'Passer définitivement')}
                 </>
               );
             })()}
@@ -666,9 +666,9 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   key={creditFlash ? `credit-${creditFlash.id}` : 'credit-static'}
                   className={`seti-res-badge ${creditFlash ? (creditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
-                  <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span>
+                  <span className="seti-res-label">Crédit <ResourceIcon kind="credit" size={15} /> :</span>
                   <div className="seti-resource-badge-content">
-                    {renderDirectTradeButton('credit', 'energy', '⚡', currentPlayer.credits >= 2)}
+                    {renderDirectTradeButton('credit', 'energy', <ResourceIcon kind="energy" size={15} />, currentPlayer.credits >= 2)}
                     {renderDirectTradeButton('credit', 'card', '🃏', currentPlayer.credits >= 2)}
                     <strong style={{ marginLeft: '6px' }}>{currentPlayer.credits}</strong>
                   </div>
@@ -677,9 +677,9 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   key={energyFlash ? `energy-${energyFlash.id}` : 'energy-static'}
                   className={`seti-res-badge ${energyFlash ? (energyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
-                  <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span>
+                  <span className="seti-res-label">Énergie <ResourceIcon kind="energy" size={15} /> :</span>
                   <div className="seti-resource-badge-content">
-                    {renderDirectTradeButton('energy', 'credit', '₢', currentPlayer.energy >= 2)}
+                    {renderDirectTradeButton('energy', 'credit', <ResourceIcon kind="credit" size={15} />, currentPlayer.energy >= 2)}
                     {renderDirectTradeButton('energy', 'card', '🃏', currentPlayer.energy >= 2)}
                     <strong style={{ marginLeft: '6px' }}>{currentPlayer.energy}</strong>
                   </div>
@@ -688,12 +688,12 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   key={mediaFlash ? `media-${mediaFlash.id}` : 'media-static'}
                   className={`seti-res-badge ${mediaFlash ? (mediaFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
-                  <span>Média (<span style={{color: '#ff6b6b'}}>🎤</span>):</span>
+                  <span className="seti-res-label">Média <ResourceIcon kind="media" size={15} /> :</span>
                   <div className="seti-resource-badge-content">
                   {/* Action principale « Rechercher une technologie » (payée en Médias), en surbrillance quand elle est possible */}
                   {!isRobot && (() => {
                     const canResearch = actionAvailability[ActionType.RESEARCH_TECH] && !isInteractiveMode;
-                    return renderActionButton('🔬', getActionTooltip(ActionType.RESEARCH_TECH, canResearch), () => onAction(ActionType.RESEARCH_TECH), !canResearch, '#4a9eff', { marginLeft: '4px' }, canResearch ? 'seti-flash-green' : '');
+                    return renderActionButton(<ActionHexIcon kind="research" size={18} />, getActionTooltip(ActionType.RESEARCH_TECH, canResearch), () => onAction(ActionType.RESEARCH_TECH), !canResearch, '#4a9eff', { marginLeft: '4px' }, canResearch ? 'seti-flash-green' : '');
                   })()}
                   {/* Achat d'une carte (action gratuite, 3 Médias) */}
                   {renderBuyCardButton('🃏')}
@@ -711,14 +711,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   key={revenueCreditFlash ? `rev-credit-${revenueCreditFlash.id}` : 'rev-credit-static'}
                   className={`seti-res-badge ${revenueCreditFlash ? (revenueCreditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
-                  <span>Crédit (<span style={{color: '#ffd700'}}>₢</span>):</span>
+                  <span className="seti-res-label">Crédit <ResourceIcon kind="credit" size={15} /> :</span>
                   <strong>{currentPlayer.revenueCredits} <span style={{fontSize: '0.8em', fontWeight: 'normal', color: '#aaa'}}>({currentPlayer.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS})</span></strong>
                 </div>
                 <div 
                   key={revenueEnergyFlash ? `rev-energy-${revenueEnergyFlash.id}` : 'rev-energy-static'}
                   className={`seti-res-badge ${revenueEnergyFlash ? (revenueEnergyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
-                  <span>Énergie (<span style={{color: '#4caf50'}}>⚡</span>):</span>
+                  <span className="seti-res-label">Énergie <ResourceIcon kind="energy" size={15} /> :</span>
                   <strong>{currentPlayer.revenueEnergy} <span style={{fontSize: '0.8em', fontWeight: 'normal', color: '#aaa'}}>({currentPlayer.revenueEnergy - GAME_CONSTANTS.INITIAL_REVENUE_ENERGY})</span></strong>
                 </div>
                 <div 
@@ -769,7 +769,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 key={dataFlash ? `data-${dataFlash.id}` : 'data-static'}
                 className={`seti-computer-data-badge ${dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
               >
-                Donnée (<span style={{color: '#03a9f4'}}>💾</span>): <strong style={{ color: '#fff' }}>{currentPlayer.data || 0}</strong>
+                <span className="seti-res-label">Donnée <ResourceIcon kind="data" size={15} /> :</span> <strong style={{ color: '#fff' }}>{currentPlayer.data || 0}</strong>
               </span>
             </div>
             <div className="seti-player-list seti-computer-list">
@@ -802,10 +802,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                       {/* Action principale « Jouer une carte » : met en avant les cartes jouables de la main */}
                       {(() => {
                         const canPlay = actionAvailability[ActionType.PLAY_CARD] && !isInteractiveMode;
-                        return renderActionButton('▶️', getActionTooltip(ActionType.PLAY_CARD, canPlay), () => onAction(ActionType.PLAY_CARD), !canPlay, '#4a9eff', { marginLeft: '10px' }, canPlay ? 'seti-flash-green' : '', ActionType.PLAY_CARD);
+                        return renderActionButton(<ActionHexIcon kind="card" size={18} />, getActionTooltip(ActionType.PLAY_CARD, canPlay), () => onAction(ActionType.PLAY_CARD), !canPlay, '#4a9eff', { marginLeft: '10px' }, canPlay ? 'seti-flash-green' : '', ActionType.PLAY_CARD);
                       })()}
-                      {renderCardTradeButton('credit', '₢', { marginLeft: '10px' })}
-                      {renderCardTradeButton('energy', '⚡')}
+                      {renderCardTradeButton('credit', <ResourceIcon kind="credit" size={15} />, { marginLeft: '10px' })}
+                      {renderCardTradeButton('energy', <ResourceIcon kind="energy" size={15} />)}
                     </>
                 )}
               </span>
