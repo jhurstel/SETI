@@ -1,9 +1,12 @@
+import React, { useState } from 'react';
 import { InteractionState, Game, AlienBoardType, FinalScore } from '../../core/types';
 import { ScoreManager } from '../../core/ScoreManager';
 import { ResourceSystem } from '../../systems/ResourceSystem';
 import { CardSystem } from '../../systems/CardSystem';
 import { ChoiceModal, ChoiceOption, ChoiceFooterButton } from './ChoiceModal';
 import { HoverTooltip } from '../components/HoverTooltip';
+import { ChoiceCardTile } from './CardPickModal';
+import { Tooltip } from '../Tooltip';
 import { ResourceIcon } from '../components/GameIcons';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {
@@ -51,27 +54,40 @@ export const CentaurienRewardModal = ({ game, interactionState, onChoice }: { ga
 };
 
 export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: Game, interactionState: InteractionState, onChoice: (cardId?: string) => void }) => {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
   if (interactionState.type !== 'CHOOSING_EXERTIEN_CARD') return null;
 
   const player = game.players[game.currentPlayerIndex];
   const cards = player.cards.filter(c => CardSystem.isExertienCard(c));
+  const choose = (cardId?: string) => { setSelectedId(null); setActiveTooltip(null); onChoice(cardId); };
 
   return (
-    <ChoiceModal
-      title={`Palier Exertien atteint (${interactionState.milestone} PV)`}
-      subtitle={`Vous pouvez jouer une de vos cartes Exertiens face cachée. Son DANGER s'ajoute au vôtre (actuellement ${player.danger || 0}).`}
-      footer={<ChoiceFooterButton secondary onClick={() => onChoice(undefined)}>Ne pas jouer de carte</ChoiceFooterButton>}
-      wide
-    >
-      {cards.map(card => (
-        <ChoiceOption
-          key={card.id}
-          label={card.name}
-          detail={<><span style={{ color: '#ff6b6b' }}>DANGER {card.danger || 0}</span><br />{card.description.replace(/^DANGER \d+\.\s*/, '')}</>}
-          onClick={() => onChoice(card.id)}
-        />
-      ))}
-    </ChoiceModal>
+    <>
+      <ChoiceModal
+        title={`Palier Exertien atteint (${interactionState.milestone} PV)`}
+        subtitle={`Vous pouvez jouer une de vos cartes Exertiens face cachée. Son DANGER s'ajoute au vôtre (actuellement ${player.danger || 0}).`}
+        footer={
+          <>
+            <ChoiceFooterButton secondary onClick={() => choose(undefined)}>Ne pas jouer de carte</ChoiceFooterButton>
+            <ChoiceFooterButton onClick={() => selectedId && choose(selectedId)} disabled={!selectedId}>Jouer la carte</ChoiceFooterButton>
+          </>
+        }
+        wide
+      >
+        {cards.map(card => (
+          <ChoiceCardTile
+            key={card.id}
+            card={card}
+            selected={selectedId === card.id}
+            highlightedAttribute="freeAction"
+            onClick={() => setSelectedId(selectedId === card.id ? null : card.id)}
+            onHover={setActiveTooltip}
+          />
+        ))}
+      </ChoiceModal>
+      {activeTooltip && <Tooltip content={activeTooltip.content} targetRect={activeTooltip.rect} />}
+    </>
   );
 };
 
