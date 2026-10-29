@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { RowCardIcon } from './components/GameIcons';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { Game, InteractionState } from '../core/types';
 import { HandCard } from './components/HandCard';
@@ -37,7 +38,7 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
         <div ref={panelRef} className={`seti-foldable-container seti-icon-panel seti-card-row-container ${isOpen ? 'open' : 'collapsed'} ${isActive ? 'active' : ''}`}
         >
             <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
-                <span className="panel-icon">🃏</span>
+                <span className="panel-icon"><RowCardIcon size={24} /></span>
                 <span className="panel-title">Rangée Principale</span>
             </div>
             <div className="seti-foldable-content">

@@ -195,6 +195,13 @@ const signalBadge = (badge: SignalBadge): React.ReactNode => {
 };
 
 /** Symbole « signal », avec un badge précisant le secteur (Terre, carte de la rangée, Mercure, carte défaussée) */
+/** Carte de la rangée seule (carte blanche au coin haut droit noir), comme sur la piste d'observation */
+export const RowCardIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="4 2 32 32" style={{ display: 'block' }}>
+    {signalBadge('card')}
+  </svg>
+);
+
 export const SignalIcon: React.FC<{ badge?: SignalBadge; size?: number }> = ({ badge, size = 28 }) => (
   <svg width={size} height={size} viewBox="-30 -30 60 60" style={{ display: 'block', overflow: 'visible' }}>
     <circle r={24} fill="#b8b8b8" />

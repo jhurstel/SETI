@@ -162,26 +162,46 @@ const CoveredSector = () => (
   </g>
 );
 
-/** Orbiteur ou atterrisseur : disque coupé en diagonale */
+/** Orbiteur ou atterrisseur : disque coupé en diagonale, satellite (vert) en haut à gauche, atterrisseur (jaune) en bas à droite */
 const OrbiterOrLander = () => (
   <g>
-    <circle cx={20} cy={20} r={16} fill={COLORS.lifeYellow} />
-    <path d="M8.7 31.3 A16 16 0 0 1 31.3 8.7 Z" fill={COLORS.energy} />
-    {/* satellite */}
-    <g transform="translate(15 15) rotate(-45)" fill="#fff">
-      <rect x={-2} y={-2.5} width={4} height={5} />
-      <rect x={-8} y={-1.5} width={5} height={3} />
-      <rect x={3} y={-1.5} width={5} height={3} />
+    <circle cx={20} cy={20} r={17} fill={COLORS.lifeYellow} />
+    <path d="M7.98 32.02 A17 17 0 0 1 32.02 7.98 Z" fill={COLORS.energy} />
+    <line x1={7.98} y1={32.02} x2={32.02} y2={7.98} stroke="#fff" strokeWidth={1.2} />
+    {/* satellite : corps et deux panneaux solaires */}
+    <g transform="translate(14 14) rotate(-45)" fill="#fff">
+      <rect x={-2.6} y={-3.2} width={5.2} height={6.4} rx={0.8} />
+      <rect x={-9.5} y={-2} width={6} height={4} rx={0.5} />
+      <rect x={3.5} y={-2} width={6} height={4} rx={0.5} />
+      <line x1={0} y1={3.2} x2={0} y2={5.5} stroke="#fff" strokeWidth={1.2} />
     </g>
-    {/* atterrisseur */}
-    <g fill="#fff" transform="translate(26 24)">
-      <rect x={-4} y={-3} width={8} height={4} rx={1} />
-      <circle cx={-3.5} cy={3.5} r={1.4} />
-      <circle cx={0} cy={3.5} r={1.4} />
-      <circle cx={3.5} cy={3.5} r={1.4} />
+    {/* atterrisseur : caisse, antenne et trois roues */}
+    <g fill="#fff" transform="translate(26.5 25.5)">
+      <rect x={-5} y={-4} width={10} height={4.5} rx={1} />
+      <line x1={2.5} y1={-4} x2={4} y2={-7.5} stroke="#fff" strokeWidth={1.2} />
+      <circle cx={-4} cy={2.6} r={1.7} />
+      <circle cx={0} cy={2.6} r={1.7} />
+      <circle cx={4} cy={2.6} r={1.7} />
     </g>
   </g>
 );
+
+/** Orbiteur ou atterrisseur seul (icône du panneau des planètes) */
+export const OrbiterOrLanderIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="2 2 36 36" style={{ display: 'block' }}>
+    <OrbiterOrLander />
+  </svg>
+);
+
+/** Technologie quelconque seule (icône du panneau des technologies) */
+export const AnyTechIcon: React.FC<{ size?: number }> = ({ size = 22 }) => {
+  const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" style={{ display: 'block' }}>
+      <AnyTech id={`anytech-${uid}`} />
+    </svg>
+  );
+};
 
 /** Séparateur « / » entre deux possibilités */
 const Slash = () => <line x1={23} y1={10} x2={17} y2={30} stroke="#8a6d1d" strokeWidth={3} strokeLinecap="round" />;

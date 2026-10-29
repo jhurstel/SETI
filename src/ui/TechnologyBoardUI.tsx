@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { TechTileIcon } from './components/GameIcons';
 import { BonusIcons } from './components/BonusIcons';
+import { AnyTechIcon } from './components/ObjectiveSymbol';
 import { Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
 import { TECHNOLOGY_STYLES } from './styles/celestialStyles';
 import './TechnologyBoardUI.css';
@@ -82,7 +83,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
       }}
     >
       <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
-        <span className={`panel-icon ${canResearch ? 'seti-flash-green-icon' : ''}`}>🔬</span>
+        <span className={`panel-icon ${canResearch ? 'seti-flash-green-icon' : ''}`}><AnyTechIcon size={24} /></span>
         <span className="panel-title">Technologies</span>
       </div>
       <div className="seti-foldable-content">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { VictoryPointsIcon } from './components/GameIcons';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { Game, GamePhase, InteractionState, GOLDEN_MILESTONES, NEUTRAL_MILESTONES } from '../core/types';
 import { SlotTooltip } from './components/SlotTooltip';
@@ -41,7 +42,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
     return (
         <div ref={panelRef} className={`seti-foldable-container seti-icon-panel seti-objective-container ${isObjectivesOpen ? 'open' : 'collapsed'}`}>
             <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
-                <span className="panel-icon">🏆</span>
+                <span className="panel-icon"><VictoryPointsIcon size={24} /></span>
                 <span className="panel-title">Objectifs</span>
             </div>
             <div className="seti-foldable-content">

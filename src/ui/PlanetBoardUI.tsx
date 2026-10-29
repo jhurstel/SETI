@@ -7,6 +7,7 @@ import { ProbeSystem } from '../systems/ProbeSystem';
 import { PlanetIcon } from './components/PlanetIcon';
 import { Tooltip } from './Tooltip';
 import { BonusIcons } from './components/BonusIcons';
+import { OrbiterOrLanderIcon } from './components/ObjectiveSymbol';
 import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../core/SolarSystemPosition';
 import './PlanetBoardUI.css';
 
@@ -309,7 +310,7 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
             style={{ pointerEvents: 'auto' }}
         >
             <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
-                <span className={`panel-icon ${canOrbitOrLand ? 'seti-flash-green-icon' : ''}`}>🪐</span>
+                <span className={`panel-icon ${canOrbitOrLand ? 'seti-flash-green-icon' : ''}`}><OrbiterOrLanderIcon size={24} /></span>
                 <span className="panel-title">Planètes</span>
             </div>
             <div className="seti-foldable-content">
