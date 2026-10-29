@@ -50,6 +50,8 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
     if (bonus.energy) items.push(<ResourceIcon key="energy" kind="energy" amount={bonus.energy} size={size} />);
     if (bonus.media) items.push(<ResourceIcon key="media" kind="media" amount={bonus.media} size={size} />);
     if (bonus.card || bonus.anycard) items.push(<ResourceIcon key="card" kind="card" amount={(bonus.card || 0) + (bonus.anycard || 0)} size={size} />);
+    if (bonus.speciesCard) items.push(<ResourceIcon key="speciesCard" kind="alienCard" amount={bonus.speciesCard} size={size} />);
+    if (bonus.token && bonus.token > 0) items.push(<ResourceIcon key="token" kind="token" amount={bonus.token} size={size} />);
     if (bonus.data) items.push(<ResourceIcon key="data" kind="data" amount={bonus.data} size={size} />);
     if (bonus.movements) items.push(<ResourceIcon key="movements" kind="movement" amount={bonus.movements} size={size} />);
     if (bonus.revenue) items.push(<Repeated key="revenue" amount={bonus.revenue}><ReservationIcon size={size} /></Repeated>);
@@ -64,6 +66,7 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
       if (signal) items.push(<Repeated key={`signal-${i}`} amount={s.amount}><SignalGainIcon color={signal.color} badge={signal.badge} size={size + 2} /></Repeated>);
     });
     rest.signals = otherSignals.length > 0 ? otherSignals : undefined;
+    delete rest.speciesCard; delete rest.token;
     delete rest.probe; delete rest.orbiting; delete rest.landing; delete rest.scan; delete rest.technologies;
     delete rest.pv; delete rest.credits; delete rest.energy; delete rest.media; delete rest.data; delete rest.movements; delete rest.revenue; delete rest.card; delete rest.anycard;
     (bonus.lifetraces || []).forEach((l, i) => {

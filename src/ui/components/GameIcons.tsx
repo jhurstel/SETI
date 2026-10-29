@@ -388,15 +388,16 @@ export const TechTileIcon: React.FC<{ techId: string; width?: number; height?: n
 /* Ressources (livret p. 6, 14, 23, 28) : pastilles du matériel   */
 /* ------------------------------------------------------------- */
 
-export type ResourceIconKind = 'credit' | 'energy' | 'media' | 'card' | 'data' | 'movement' | 'revenue';
+export type ResourceIconKind = 'credit' | 'energy' | 'media' | 'card' | 'alienCard' | 'data' | 'token' | 'movement' | 'revenue';
 /** Pastilles fléchées du matériel */
-type ArrowKind = 'credit' | 'energy' | 'media' | 'card';
+type ArrowKind = 'credit' | 'energy' | 'media' | 'card' | 'alienCard';
 
 const RESOURCE_COLORS: Record<ArrowKind, string> = {
   credit: '#b8901c',
   energy: '#3daa3a',
   media: '#e8452a',
   card: '#2b2b2b',
+  alienCard: '#6b3fa0',
 };
 
 /** Pictogramme blanc d'une pastille fléchée, centré sur (0, 0) */
@@ -412,6 +413,16 @@ const resourceGlyph = (kind: ArrowKind): React.ReactNode => {
       );
     case 'energy':
       return <path d="M2 -12 L-6 2 H0 L-3 12 L6 -3 H0 Z" fill="#fff" />;
+    case 'alienCard':
+      // Carte Alien : carte blanche inclinée marquée d'une tête d'extraterrestre (pas de symbole dans le livret)
+      return (
+        <g transform="rotate(8)">
+          <rect x={-7} y={-11} width={14} height={21} rx={2} fill="#fff" />
+          <path d="M0 -7 C5 -7 6 -3 5 0 C4 3 2 6 0 6 C-2 6 -4 3 -5 0 C-6 -3 -5 -7 0 -7 Z" fill="#4fbf5a" />
+          <ellipse cx={-2.3} cy={-1} rx={1.9} ry={1.1} transform="rotate(25 -2.3 -1)" fill="#1d1d1d" />
+          <ellipse cx={2.3} cy={-1} rx={1.9} ry={1.1} transform="rotate(-25 2.3 -1)" fill="#1d1d1d" />
+        </g>
+      );
     case 'card':
       // Carte blanche inclinée marquée « ? » (livret p. 11) : carte tirée au hasard
       return (
@@ -447,6 +458,20 @@ const ArrowResource: React.FC<{ kind: ArrowKind; amount?: number | string }> = (
     </>
   );
 };
+
+/** Token d'Oumuamua (exofossile) : jeton rond sarcelle et fossile spiralé (pas de symbole dans le livret) */
+const OumuamuaToken: React.FC<{ amount?: number | string }> = ({ amount }) => (
+  <g>
+    <g transform={amount !== undefined ? 'translate(8 0)' : undefined}>
+      <circle r={18} fill="#1f7f7a" stroke="#bff3ee" strokeWidth={2} />
+      <path d="M0 0 C2 -1 2 -4 0 -4 C-4 -4 -5 1 -2 3.5 C2 6.5 8 3 8 -2 C8 -8 1 -11 -4 -9.5 C-10 -7.5 -12 0 -9 6 C-6 11 2 12.5 7 9.5"
+        fill="none" stroke="#fff" strokeWidth={2.6} strokeLinecap="round" />
+    </g>
+    {amount !== undefined && (
+      <text x={-14} y={10} textAnchor="middle" fontSize={30} fontWeight={900} fill="#fff" stroke="#1f7f7a" strokeWidth={3} paintOrder="stroke" fontFamily="Arial Black, Arial, sans-serif">{amount}</text>
+    )}
+  </g>
+);
 
 /** Jeton Donnée : losange bleu, disque de chiffres binaires */
 const DataToken: React.FC<{ amount?: number | string }> = ({ amount }) => (
@@ -508,7 +533,7 @@ export const ResourceIcon: React.FC<{ kind: ResourceIconKind; amount?: number; s
   const wide = kind !== 'revenue' && amount !== undefined;
   return (
     <svg width={wide ? size * 1.5 : size} height={size} viewBox={wide ? '-36 -24 72 48' : '-24 -24 48 48'} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-      {kind === 'data' ? <DataToken amount={amount} /> : kind === 'movement' ? <Movement amount={amount} /> : kind === 'revenue' ? <Revenue /> : <ArrowResource kind={kind} amount={amount} />}
+      {kind === 'data' ? <DataToken amount={amount} /> : kind === 'token' ? <OumuamuaToken amount={amount} /> : kind === 'movement' ? <Movement amount={amount} /> : kind === 'revenue' ? <Revenue /> : <ArrowResource kind={kind} amount={amount} />}
     </svg>
   );
 };
@@ -549,7 +574,7 @@ export const LifeTraceShape: React.FC<{ color: LifeTraceColor }> = ({ color }) =
   );
 };
 
-/** Trace de vie de couleur quelconque : triangle aux trois couleurs */
+/** Trace de vie de couleur quelconque : triangle en trois bandes diagonales (livret p. 20) */
 export const AnyLifeTraceIcon: React.FC<{ size?: number }> = ({ size = 20 }) => {
   const uid = useUid();
   const shape = 'M8 6 H32 Q38 6 35.5 11 L23.5 33 Q20 38.5 16.5 33 L4.5 11 Q2 6 8 6 Z';
@@ -557,9 +582,10 @@ export const AnyLifeTraceIcon: React.FC<{ size?: number }> = ({ size = 20 }) => 
     <svg width={size} height={size} viewBox="2 4 36 36" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
       <defs><clipPath id={`anytrace-${uid}`}><path d={shape} /></clipPath></defs>
       <g clipPath={`url(#anytrace-${uid})`}>
-        <rect x={0} y={0} width={14.5} height={40} fill={LIFE_TRACE_COLORS.red} />
-        <rect x={14.5} y={0} width={11} height={40} fill={LIFE_TRACE_COLORS.yellow} />
-        <rect x={25.5} y={0} width={15} height={40} fill={LIFE_TRACE_COLORS.blue} />
+        <rect x={0} y={0} width={40} height={40} fill={LIFE_TRACE_COLORS.yellow} />
+        <path d="M0 0 H17 L5 40 H0 Z" fill={LIFE_TRACE_COLORS.red} />
+        <path d="M29 0 H40 V40 H17 Z" fill={LIFE_TRACE_COLORS.blue} />
+        <path d="M17 0 L5 40 M29 0 L17 40" stroke="#fff" strokeWidth={1.4} />
       </g>
     </svg>
   );

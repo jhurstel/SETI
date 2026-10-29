@@ -218,8 +218,7 @@
 
 .alien-oumuamua-token {
     cursor: help;
-    font-size: 1.2em;
-    filter: hue-rotate(150deg);
+    display: flex;
 }
 
 .alien-tracks-container {
