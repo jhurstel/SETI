@@ -1,4 +1,5 @@
 import React, { useId } from 'react';
+import { LIFE_TRACE_COLORS, LifeTraceColor } from '../styles/lifeTraceColors';
 
 // Icônes du matériel redessinées d'après le livret de règles : actions principales (hexagones, p. 7),
 // symbole « signal » (p. 12) et tuiles Technologie (p. 17).
@@ -441,6 +442,73 @@ export const ResourceIcon: React.FC<{ kind: ResourceIconKind; amount?: number; s
   return (
     <svg width={wide ? size * 1.5 : size} height={size} viewBox={wide ? '-36 -24 72 48' : '-24 -24 48 48'} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
       {kind === 'data' ? <DataToken /> : kind === 'movement' ? <Movement amount={amount} /> : kind === 'revenue' ? <Revenue /> : <ArrowResource kind={kind} amount={amount} />}
+    </svg>
+  );
+};
+
+/* ------------------------------------------------------- */
+/* Points de victoire (livret p. 10) et traces de vie (p. 11) */
+/* ------------------------------------------------------- */
+
+
+/** Trace de vie dans une case de 40 × 40 : triangle arrondi pointe en bas et pictogramme blanc */
+export const LifeTraceShape: React.FC<{ color: LifeTraceColor }> = ({ color }) => {
+  const fill = LIFE_TRACE_COLORS[color];
+  return (
+    <g>
+      <path d="M8 6 H32 Q38 6 35.5 11 L23.5 33 Q20 38.5 16.5 33 L4.5 11 Q2 6 8 6 Z" fill={fill} />
+      {color === 'red' && (
+        // Molécule : grosse sphère reliée à deux petites en haut et une moyenne en bas
+        <g fill="#fff">
+          <path d="M11.5 10.5 L20 16.5 L28.5 10.5 M20 16.5 V25" fill="none" stroke="#fff" strokeWidth={2.4} />
+          <circle cx={20} cy={16.5} r={5.2} /><circle cx={11.5} cy={10.5} r={2.6} /><circle cx={28.5} cy={10.5} r={2.6} /><circle cx={20} cy={25.5} r={3.4} />
+        </g>
+      )}
+      {color === 'yellow' && (
+        // Roche fendue
+        <g>
+          <path d="M12.5 13 L17 8.5 L24.5 9 L28.5 14 L27 20.5 L20.5 26 L14.5 23 Z" fill="#fff" />
+          <path d="M15.5 11 L16.5 18 L19.5 15.5 L20 22 M22 9.5 L21.5 14 L25 13" fill="none" stroke={fill} strokeWidth={1.6} strokeLinejoin="round" />
+        </g>
+      )}
+      {color === 'blue' && (
+        // Micro-organismes : deux filaments et quelques points
+        <g fill="#fff">
+          <path d="M15.5 9.5 Q11.5 11.5 14.5 14.5 Q17.5 17.5 13.5 20.5 M23 9 Q28 9.5 25.5 13.5 Q23 17.5 26.5 19.5 Q29 22 24.5 24.5" fill="none" stroke="#fff" strokeWidth={3.4} strokeLinecap="round" />
+          <circle cx={30.5} cy={10} r={0.9} /><circle cx={19.5} cy={19} r={0.9} /><circle cx={28.5} cy={25} r={0.9} /><circle cx={10} cy={13} r={0.9} />
+        </g>
+      )}
+    </g>
+  );
+};
+
+/** Trace de vie seule, à la taille voulue */
+export const LifeTraceIcon: React.FC<{ color: LifeTraceColor; size?: number }> = ({ color, size = 20 }) => (
+  <svg width={size} height={size} viewBox="2 4 36 36" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+    <LifeTraceShape color={color} />
+  </svg>
+);
+
+/** Points de victoire : écusson vert, couronne de laurier claire et nombre blanc */
+export const VictoryPointsIcon: React.FC<{ amount?: number; size?: number }> = ({ amount, size = 20 }) => {
+  const leaves = [0, 1, 2, 3, 4];
+  const text = amount === undefined ? 'PV' : String(amount);
+  return (
+    <svg width={size} height={size} viewBox="-20 -20 40 40" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <path d="M0 -19 C11 -19 19 -12 19 -1 C19 10 10 17 0 19.5 C-10 17 -19 10 -19 -1 C-19 -12 -11 -19 0 -19 Z" fill="#14705c" />
+      {/* Laurier : feuilles le long de deux arcs, de la base vers le haut */}
+      {[-1, 1].map(side => (
+        <g key={side} fill="#6fd8bf" transform={`scale(${side} 1)`}>
+          <path d="M3 16 Q-12 12 -13 -8" fill="none" stroke="#6fd8bf" strokeWidth={1.4} />
+          {leaves.map(i => {
+            const t = (i + 0.5) / leaves.length;
+            const x = -3 - 11 * Math.sin(t * Math.PI * 0.62) - 1;
+            const y = 15 - 25 * t;
+            return <ellipse key={i} cx={x - 2.2} cy={y} rx={3.4} ry={1.6} transform={`rotate(${-35 - 40 * t} ${x - 2.2} ${y})`} />;
+          })}
+        </g>
+      ))}
+      <text y={text.length > 1 ? 5.5 : 7} textAnchor="middle" fontSize={text.length > 1 ? 15 : 20} fontWeight={900} fill="#fff" fontFamily="Arial Black, Arial, sans-serif">{text}</text>
     </svg>
   );
 };

@@ -5,6 +5,8 @@ import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
 import { Tooltip } from './Tooltip';
+import { LifeTraceShape } from './components/GameIcons';
+import { LIFE_TRACE_COLORS, LifeTraceColor } from './styles/lifeTraceColors';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import './AlienBoardUI.css';
 
@@ -18,7 +20,7 @@ interface AlienBoardUIProps {
     forceOpen?: boolean;
 }
 
-const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseEnter, onMouseLeave }: { color: string, traces: LifeTrace[], game: Game, onClick?: () => void, isClickable?: boolean, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
+const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseEnter, onMouseLeave }: { color: LifeTraceColor, traces: LifeTrace[], game: Game, onClick?: () => void, isClickable?: boolean, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
   <div
     className={`alien-triangle-slot ${isClickable ? 'clickable' : 'help'}`}
     style={{ pointerEvents: 'auto' }}
@@ -26,20 +28,9 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
     onMouseLeave={onMouseLeave}
     onClick={(e) => { e.stopPropagation(); if (isClickable && onClick) { onClick(); } }}
   >
-    <svg width="60" height="50" viewBox="0 0 60 50" className="alien-triangle-svg">
-      <path
-        d="M10 5
-           Q30 -5 50 5
-           Q60 10 55 15
-           L35 45
-           Q30 50 25 45
-           L5 15
-           Q0 10 10 5 Z"
-        fill={isClickable ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.5)"}
-        stroke={color}
-        strokeWidth={isClickable ? "3" : "2"}
-        style={{ transition: 'all 0.3s ease', filter: isClickable ? `drop-shadow(0 0 5px ${color})` : 'none' }}
-      />
+    <svg width="60" height="50" viewBox="2 4 36 30" preserveAspectRatio="xMidYMid meet" className="alien-triangle-svg"
+      style={{ opacity: isClickable || traces.length > 0 ? 1 : 0.55, transition: 'all 0.3s ease', filter: isClickable ? `drop-shadow(0 0 4px ${LIFE_TRACE_COLORS[color]})` : 'none' }}>
+      <LifeTraceShape color={color} />
       {isClickable && (
         <animate attributeName="opacity" values="1;0.7;1" dur="1.5s" repeatCount="indefinite" />
       )}
@@ -564,7 +555,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                     )}
                     <div className="alien-triangles-container">
                         <div className="alien-track-column-wrapper">
-                            <AlienTriangleSlot color="#ff6b6b"
+                            <AlienTriangleSlot color="red"
                                 traces={board.lifeTraces.filter(t => t.type === LifeTraceType.RED && (t.location === LifeTraceLocation.TRIANGLE || t.location === undefined))}
                                 game={game}
                                 isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && (interactionState.color === LifeTraceType.RED || interactionState.color === LifeTraceType.ANY) && isBoardAllowed}
@@ -577,7 +568,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                             />
                         </div>
                         <div className="alien-track-column-wrapper">
-                            <AlienTriangleSlot color="#ffd700"
+                            <AlienTriangleSlot color="yellow"
                                 traces={board.lifeTraces.filter(t => t.type === LifeTraceType.YELLOW && (t.location === LifeTraceLocation.TRIANGLE || t.location === undefined))}
                                 game={game}
                                 isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && (interactionState.color === LifeTraceType.YELLOW || interactionState.color === LifeTraceType.ANY) && isBoardAllowed}
@@ -590,7 +581,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                             />
                         </div>
                         <div className="alien-track-column-wrapper">
-                            <AlienTriangleSlot color="#4a9eff"
+                            <AlienTriangleSlot color="blue"
                                 traces={board.lifeTraces.filter(t => t.type === LifeTraceType.BLUE && (t.location === LifeTraceLocation.TRIANGLE || t.location === undefined))}
                                 game={game}
                                 isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && (interactionState.color === LifeTraceType.BLUE || interactionState.color === LifeTraceType.ANY) && isBoardAllowed}

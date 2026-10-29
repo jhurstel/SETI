@@ -10,7 +10,7 @@ import { HandCard } from './components/HandCard';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
-import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon } from './components/GameIcons';
+import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
 import './PlayerBoardUI.css';
@@ -630,7 +630,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         {/* Titre */}
         <div className="seti-player-panel-title seti-player-panel-title-container">
           <span>
-            {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV 🏆
+            {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: {currentPlayer.score} PV <VictoryPointsIcon size={20} />
           </span>
           <div className="seti-player-turn-buttons">
             {!isRobot && (() => {

@@ -3,11 +3,15 @@ import { Card, Game, Technology, TechnologyCategory, CardType, Bonus, HistoryEnt
 import { CardTooltip } from '../ui/components/CardTooltip';
 import './HistoryBoardUI.css';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { ResourceIcon, ResourceIconKind } from './components/GameIcons';
+import { ResourceIcon, ResourceIconKind, LifeTraceIcon, VictoryPointsIcon } from './components/GameIcons';
+import { LifeTraceColor } from './styles/lifeTraceColors';
 import { ReservationIcon } from './components/ObjectiveSymbol';
 
 // Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
 const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', DATA: 'data' };
+// Traces de vie d'une couleur (« 2 Traces Jaunes », « 1 trace de vie rouge »)
+const LIFE_TRACE_PATTERN = /[Tt]races? (?:de vie )?(?:[Rr]ouges?|[Jj]aunes?|[Bb]leues?)/;
+const lifeTraceColor = (text: string): LifeTraceColor => /rouge/i.test(text) ? 'red' : /jaune/i.test(text) ? 'yellow' : 'blue';
 
 interface HistoryBoardUIProps {
     historyLog: HistoryEntry[];
@@ -160,7 +164,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
 
     const formatHistoryMessage = (message: string) => {
         const resourcePattern = Object.values(ResourceSystem.RESOURCE_CONFIG).map(c => c.regex.source).join('|');
-        const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${resourcePattern}|"[^"]+")`, 'g');
+        const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${LIFE_TRACE_PATTERN.source}|${resourcePattern}|"[^"]+")`, 'g');
 
         const parts = message.split(splitRegex);
         return parts.map((part, index) => {
@@ -219,10 +223,16 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
 
             // Une ressource devient une icône seulement après une quantité (« 2 Crédits ») : « la carte » reste en toutes lettres
             const afterAmount = index > 0 && /\d\s*$/.test(parts[index - 1]);
+            if (afterAmount && new RegExp(`^${LIFE_TRACE_PATTERN.source}$`).test(part)) {
+                return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: part, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}><LifeTraceIcon color={lifeTraceColor(part)} size={15} /></span>;
+            }
             for (const [key, config] of Object.entries(ResourceSystem.RESOURCE_CONFIG)) {
                 if (afterAmount && new RegExp(`^${config.regex.source}$`).test(part)) {
                     const kind = RESOURCE_ICON_KINDS[key];
-                    const icon = kind ? <ResourceIcon kind={kind} size={14} /> : key === 'RESERVATION' ? <ReservationIcon size={14} /> : config.icon;
+                    const icon = kind ? <ResourceIcon kind={kind} size={14} />
+                        : key === 'RESERVATION' ? <ReservationIcon size={14} />
+                        : key === 'PV' ? <VictoryPointsIcon size={15} />
+                        : config.icon;
                     return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: config.label, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)} style={{ color: config.color }}>{icon}</span>;
                 }
             }

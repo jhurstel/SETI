@@ -1,5 +1,6 @@
 import React from 'react';
 import { ObjectiveTile } from '../../core/types';
+import { LifeTraceShape } from './GameIcons';
 
 // Symboles des tuiles Score dorées, redessinés d'après le livret de règles (p. 21).
 // Chaque pictogramme est dessiné dans une case de 40 × 40, puis placé côte à côte.
@@ -149,14 +150,6 @@ export const ReservationIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
   </svg>
 );
 
-/** Trace de vie : triangle pointe en bas */
-const LifeTrace: React.FC<{ fill: string; children: React.ReactNode }> = ({ fill, children }) => (
-  <g>
-    <path d="M8 6 H32 Q38 6 35.5 11 L23.5 33 Q20 38.5 16.5 33 L4.5 11 Q2 6 8 6 Z" fill={fill} />
-    {children}
-  </g>
-);
-
 /** Secteur couvert : bande de secteur avec signal, et coche */
 const CoveredSector = () => (
   <g>
@@ -241,21 +234,9 @@ const symbolLayout = (tile: ObjectiveTile): SymbolLayout => {
     case 'obj_other':
       return tile.side === 'A'
         ? { groups: [[
-          // Molécule : grosse sphère reliée à deux petites en haut et une moyenne en bas
-          <LifeTrace fill={COLORS.lifeRed}>
-            <path d="M11.5 10.5 L20 16.5 L28.5 10.5 M20 16.5 V25" fill="none" stroke="#fff" strokeWidth={2.4} />
-            <circle cx={20} cy={16.5} r={5.2} fill="#fff" /><circle cx={11.5} cy={10.5} r={2.6} fill="#fff" /><circle cx={28.5} cy={10.5} r={2.6} fill="#fff" /><circle cx={20} cy={25.5} r={3.4} fill="#fff" />
-          </LifeTrace>,
-          // Roche fendue
-          <LifeTrace fill={COLORS.lifeYellow}>
-            <path d="M12.5 13 L17 8.5 L24.5 9 L28.5 14 L27 20.5 L20.5 26 L14.5 23 Z" fill="#fff" />
-            <path d="M15.5 11 L16.5 18 L19.5 15.5 L20 22 M22 9.5 L21.5 14 L25 13" fill="none" stroke={COLORS.lifeYellow} strokeWidth={1.6} strokeLinejoin="round" />
-          </LifeTrace>,
-          // Micro-organismes : deux filaments et quelques points
-          <LifeTrace fill={COLORS.lifeBlue}>
-            <path d="M15.5 9.5 Q11.5 11.5 14.5 14.5 Q17.5 17.5 13.5 20.5 M23 9 Q28 9.5 25.5 13.5 Q23 17.5 26.5 19.5 Q29 22 24.5 24.5" fill="none" stroke="#fff" strokeWidth={3.4} strokeLinecap="round" />
-            <circle cx={30.5} cy={10} r={0.9} fill="#fff" /><circle cx={19.5} cy={19} r={0.9} fill="#fff" /><circle cx={28.5} cy={25} r={0.9} fill="#fff" /><circle cx={10} cy={13} r={0.9} fill="#fff" />
-          </LifeTrace>,
+          <LifeTraceShape color="red" />,
+          <LifeTraceShape color="yellow" />,
+          <LifeTraceShape color="blue" />,
         ]] }
         : { groups: [[<CoveredSector />, <OrbiterOrLander />]] };
     default:
