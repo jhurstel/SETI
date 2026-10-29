@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
+import { TechTileIcon } from './components/GameIcons';
 import { Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
 import { TECHNOLOGY_STYLES } from './styles/celestialStyles';
 import './TechnologyBoardUI.css';
@@ -178,8 +179,10 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                       )}
                       
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.9em' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                          {/* Tuile du matériel (livret p. 17) */}
+                          <TechTileIcon techId={baseId} width={22} height={31} />
+                          <span style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.9em', flex: 1 }}>
                             {topCard.name}
                           </span>
                           <span style={{ 
