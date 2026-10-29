@@ -99,7 +99,7 @@ export const PlayerComputer = ({
               // Colonne à deux emplacements : emplacement d'une technologie informatique
               return hasBottom ? (
                 <TechSpot className="computer-column" acquired={hasTech} selectable={isSelectableColumn}
-                  tile={(hasTech && topSlot?.technologyId) || 'computing'}
+                  tile="computing"
                   onClick={() => isSelectableColumn && onColumnSelect && onColumnSelect(col)}>
                   {columnContent}
                 </TechSpot>
@@ -173,7 +173,7 @@ export const PlayerComputer = ({
                   }}
                   onMouseLeave={onLeave}
                 >
-                  <ActionHexIcon kind="analyze" size={26} />
+                  <ActionHexIcon kind="analyze" size={38} />
                 </div>
               </div>
             </>

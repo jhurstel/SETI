@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { ResourceSystem } from '../systems/ResourceSystem';
 import { Game, Card, InteractionState, Technology, TechnologyCategory } from '../core/types';
 
 interface DebugPanelProps {
@@ -55,7 +56,8 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
     const player = updatedGame.players[updatedGame.currentPlayerIndex];
     player[resourceType] = (player[resourceType] || 0) + amount;
     setGame(updatedGame);
-    onHistory(`DEBUG: Added ${amount} ${resourceType} to ${player.name}`, player.id, game);
+    const resourceKey = { credits: 'CREDIT', energy: 'ENERGY', mediaCoverage: 'MEDIA', data: 'DATA' }[resourceType];
+    onHistory(`DEBUG : ${player.name} reçoit ${ResourceSystem.formatResource(amount, resourceKey)}`, player.id, game);
   };
 
   const handleAddCard = () => {

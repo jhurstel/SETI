@@ -25,6 +25,9 @@
 .computer-slot.hex-slot {
   border-color: transparent !important;
   background: transparent !important;
+  width: 40px;
+  height: 40px;
+  margin-top: -4px;
 }
 
 .computer-slot.can-fill {
@@ -109,3 +112,9 @@
     position: relative;
   }
 
+
+/* Fond bleu d'une colonne à technologie : grisé tant qu'aucune technologie n'y est posée */
+.computer-column .seti-tech-spot-tile:not(.acquired) {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+}

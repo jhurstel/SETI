@@ -224,6 +224,13 @@ const MiniHex: React.FC<{ kind: ActionIconKind; x: number; y: number; r?: number
   );
 };
 
+/** Pastille Déplacement réduite pour une tuile, avec un nombre éventuel */
+const MiniMovement: React.FC<{ x: number; y: number; label?: string }> = ({ x, y, label }) => (
+  <g transform={`translate(${x} ${y}) scale(${label ? 0.42 : 0.36})`}>
+    <Movement amount={label} />
+  </g>
+);
+
 /** Pastille de ressource du matériel (flèche colorée, symbole et nombre), réduite pour une tuile */
 const MiniResource: React.FC<{ kind: 'credit' | 'energy' | 'media'; x: number; y: number; label: string }> = ({ kind, x, y, label }) => {
   // Le signe (+ / −) se place devant la pastille, le chiffre dessus comme sur le matériel
@@ -260,7 +267,9 @@ const tileGlyph = (techId: string): React.ReactNode => {
       <>
         <path d="M14 46 L22 34 L36 33 L44 42 L40 54 L26 58 L16 54 Z" fill="#2b2b2b" stroke="#fff" strokeWidth={1} />
         <circle cx={26} cy={44} r={2} fill="#555" /><circle cx={36} cy={48} r={1.5} fill="#555" />
-        <MiniResource kind="media" x={38} y={24} label="+1" />
+        <MiniResource kind="media" x={38} y={22} label="+1" />
+        {/* Quitter le champ d'astéroïdes ne coûte plus de déplacement supplémentaire */}
+        <MiniMovement x={38} y={68} label="1" />
       </>
     );
   }
@@ -291,8 +300,10 @@ const tileGlyph = (techId: string): React.ReactNode => {
   if (techId.startsWith('observation-3')) return <SmallSignal x={29} y={42} badge="discard" />;
   if (techId.startsWith('observation-4')) {
     // 1 Énergie : lancer une sonde ou se déplacer
-    return <><MiniResource kind="energy" x={21} y={28} label="1" /><MiniHex kind="launch" x={22} y={52} r={10} /><line x1={38} y1={22} x2={38} y2={62} stroke="#2b2b2b" strokeWidth={2} /><text x={46} y={46} textAnchor="middle" fontSize={11} fontWeight="bold" fill="#fff" fontFamily="Arial, sans-serif">↔</text></>;
+    return <><MiniResource kind="energy" x={21} y={28} label="1" /><MiniHex kind="launch" x={22} y={52} r={10} /><line x1={36} y1={22} x2={36} y2={62} stroke="#2b2b2b" strokeWidth={2} /><MiniMovement x={47} y={42} /></>;
   }
+  // Fond d'un emplacement de l'Informatique : tuile unie, les emplacements de la piste portent déjà les bonus
+  if (techId === 'computing') return null;
   // Informatique : 2 PV et le bonus de la case recouverte
   return (
     <>
@@ -387,7 +398,7 @@ const DataToken = () => (
 );
 
 /** Déplacement (livret p. 9) : disque bleu nuit cerclé de blanc, sonde blanche et flèche lavande vers la droite */
-const Movement: React.FC<{ amount?: number }> = ({ amount }) => (
+const Movement: React.FC<{ amount?: number | string }> = ({ amount }) => (
   <g>
     <g transform={amount !== undefined ? 'translate(6 0)' : undefined}>
       <circle r={17} fill="#1d2133" stroke="#e6e8f2" strokeWidth={1.8} />

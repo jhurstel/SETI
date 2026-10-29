@@ -162,7 +162,8 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         const resourcePattern = Object.values(ResourceSystem.RESOURCE_CONFIG).map(c => c.regex.source).join('|');
         const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${resourcePattern}|"[^"]+")`, 'g');
 
-        return message.split(splitRegex).map((part, index) => {
+        const parts = message.split(splitRegex);
+        return parts.map((part, index) => {
             if (part.startsWith('"') && part.endsWith('"')) {
                 const name = part.slice(1, -1);
                 if (!name) return part;
@@ -216,8 +217,10 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                 );
             }
 
+            // Une ressource devient une icône seulement après une quantité (« 2 Crédits ») : « la carte » reste en toutes lettres
+            const afterAmount = index > 0 && /\d\s*$/.test(parts[index - 1]);
             for (const [key, config] of Object.entries(ResourceSystem.RESOURCE_CONFIG)) {
-                if (new RegExp(`^${config.regex.source}$`).test(part)) {
+                if (afterAmount && new RegExp(`^${config.regex.source}$`).test(part)) {
                     const kind = RESOURCE_ICON_KINDS[key];
                     const icon = kind ? <ResourceIcon kind={kind} size={14} /> : key === 'RESERVATION' ? <ReservationIcon size={14} /> : config.icon;
                     return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: config.label, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)} style={{ color: config.color }}>{icon}</span>;

@@ -109,7 +109,7 @@ const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, onA
   const actionSlot = (kind: ActionIconKind, actionType: ActionType) => {
     const available = isActionAvailable(actionType);
     return (
-      <TrackSlot icon={<ActionHexIcon kind={kind} size={32} />} hex label={actionType} tooltip={actionTooltip(actionType)} clickable={available} flash={available} onClick={() => onAction(actionType)}
+      <TrackSlot icon={<ActionHexIcon kind={kind} size={44} />} hex label={actionType} tooltip={actionTooltip(actionType)} clickable={available} flash={available} onClick={() => onAction(actionType)}
         onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
     );
   };
@@ -194,7 +194,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   // Les lignes s'arrêtent au bord des cadres de technologie ; les technologies II à IV n'ont que leur tuile
   return (
     <div className="obs-track-container">
-      {renderSlot(<ActionHexIcon kind="scan" size={32} />, scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled, undefined, ActionType.SCAN_SECTOR, true)}
+      {renderSlot(<ActionHexIcon kind="scan" size={44} />, scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled, undefined, ActionType.SCAN_SECTOR, true)}
       <div className="obs-track-connector into-right" />
       {renderSlot(<SignalIcon badge="earth" size={30} />, stepTooltip(hasObs1 ? 'Signal dans le secteur de la Terre ou un secteur adjacent' : 'Signal dans le secteur de la Terre', null, true), false, undefined, false, false, false, { acquired: hasObs1, tile: 'observation-1' })}
       <div className="obs-track-connector into-left" />

@@ -485,6 +485,8 @@
 .obs-track-slot.hex {
   background: transparent;
   border-color: transparent;
+  width: 46px;
+  height: 46px;
 }
 /* Emplacement de technologie sans pastille : la tuile du cadre en tient lieu (zone de survol seulement) */
 .obs-track-slot.ghost {
