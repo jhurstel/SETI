@@ -407,13 +407,19 @@ const ArrowResource: React.FC<{ kind: ArrowKind; amount?: number | string }> = (
 };
 
 /** Jeton Donnée : losange bleu, disque de chiffres binaires */
-const DataToken = () => (
+const DataToken: React.FC<{ amount?: number | string }> = ({ amount }) => (
   <g>
-    <rect x={-17} y={-17} width={34} height={34} rx={5} transform="rotate(45)" fill="#4a7fd0" />
-    <circle r={13} fill="none" stroke="#dce8ff" strokeWidth={1.6} />
-    <g fill="#dce8ff" fontSize={6.5} fontWeight="bold" fontFamily="Consolas, monospace" textAnchor="middle">
-      <text y={-3}>0100</text><text y={3.5}>0011</text><text y={10}>0100</text>
+    <g transform={amount !== undefined ? 'translate(8 0)' : undefined}>
+      <rect x={-17} y={-17} width={34} height={34} rx={5} transform="rotate(45)" fill="#4a7fd0" />
+      <circle r={13} fill="none" stroke="#dce8ff" strokeWidth={1.6} />
+      <g fill="#dce8ff" fontSize={6.5} fontWeight="bold" fontFamily="Consolas, monospace" textAnchor="middle">
+        <text y={-3}>0100</text><text y={3.5}>0011</text><text y={10}>0100</text>
+      </g>
     </g>
+    {/* Nombre blanc détouré de bleu, devant le losange (livret p. 10) */}
+    {amount !== undefined && (
+      <text x={-14} y={10} textAnchor="middle" fontSize={30} fontWeight={900} fill="#fff" stroke="#2c5aa8" strokeWidth={3} paintOrder="stroke" fontFamily="Arial Black, Arial, sans-serif">{amount}</text>
+    )}
   </g>
 );
 
@@ -457,10 +463,10 @@ const Revenue = () => {
 
 /** Icône de ressource du matériel ; `amount` affiche le nombre comme sur les cartes */
 export const ResourceIcon: React.FC<{ kind: ResourceIconKind; amount?: number; size?: number }> = ({ kind, amount, size = 24 }) => {
-  const wide = (kind === 'credit' || kind === 'energy' || kind === 'media' || kind === 'card' || kind === 'movement') && amount !== undefined;
+  const wide = kind !== 'revenue' && amount !== undefined;
   return (
     <svg width={wide ? size * 1.5 : size} height={size} viewBox={wide ? '-36 -24 72 48' : '-24 -24 48 48'} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-      {kind === 'data' ? <DataToken /> : kind === 'movement' ? <Movement amount={amount} /> : kind === 'revenue' ? <Revenue /> : <ArrowResource kind={kind} amount={amount} />}
+      {kind === 'data' ? <DataToken amount={amount} /> : kind === 'movement' ? <Movement amount={amount} /> : kind === 'revenue' ? <Revenue /> : <ArrowResource kind={kind} amount={amount} />}
     </svg>
   );
 };

@@ -11,7 +11,7 @@ const LIFE_TRACE_ICON: Partial<Record<LifeTraceType, LifeTraceColor>> = {
   [LifeTraceType.BLUE]: 'blue',
 };
 
-/** Quantité écrite devant une icône qui n'a pas d'emplacement pour un nombre (donnée, trace, réservation) */
+/** Quantité écrite devant une icône qui n'a pas d'emplacement pour un nombre (trace, réservation) */
 const Counted: React.FC<{ amount: number; children: React.ReactNode }> = ({ amount, children }) => (
   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '1px', fontWeight: 'bold' }}>{amount}{children}</span>
 );
@@ -29,7 +29,7 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
     if (bonus.energy) items.push(<ResourceIcon key="energy" kind="energy" amount={bonus.energy} size={size} />);
     if (bonus.media) items.push(<ResourceIcon key="media" kind="media" amount={bonus.media} size={size} />);
     if (bonus.card || bonus.anycard) items.push(<ResourceIcon key="card" kind="card" amount={(bonus.card || 0) + (bonus.anycard || 0)} size={size} />);
-    if (bonus.data) items.push(<Counted key="data" amount={bonus.data}><ResourceIcon kind="data" size={size} /></Counted>);
+    if (bonus.data) items.push(<ResourceIcon key="data" kind="data" amount={bonus.data} size={size} />);
     if (bonus.movements) items.push(<ResourceIcon key="movements" kind="movement" amount={bonus.movements} size={size} />);
     if (bonus.revenue) items.push(<Counted key="revenue" amount={bonus.revenue}><ReservationIcon size={size} /></Counted>);
     delete rest.pv; delete rest.credits; delete rest.energy; delete rest.media; delete rest.data; delete rest.movements; delete rest.revenue; delete rest.card; delete rest.anycard;
