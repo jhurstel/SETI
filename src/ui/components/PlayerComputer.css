@@ -43,6 +43,12 @@
   .computer-slot-bonus {
     font-size: 12px;
     font-weight: bold;
+    display: flex;
+  }
+
+  /* Ligne du bas : emplacements ouverts par une technologie informatique */
+  .computer-slot.bottom:not(.filled) {
+    border-style: dashed;
   }
   
   .computer-slot-bonus.media { color: #ffeb3b; }

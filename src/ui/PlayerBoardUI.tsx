@@ -115,7 +115,7 @@ const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, onA
   };
 
   // Trois actions indépendantes : lancer (Exploration I et II), mettre en orbite, poser (Exploration III et IV) ; les groupes sont séparés
-  // par un espace sans ligne. Les lignes entrent dans les cadres (into-left / into-right) jusqu'aux emplacements.
+  // par un espace sans ligne. Les lignes s'arrêtent au bord des cadres.
   return (
     <div className="obs-track-container">
       {actionSlot('launch', ActionType.LAUNCH_PROBE)}
@@ -191,7 +191,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
     ? <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} label="Coût" value="1 Crédit, 2 Énergies" note={scanReason} />
     : <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} label="Coût" value="1 Crédit, 2 Énergies" note="Cliquez pour scanner" />;
 
-  // Les lignes entrent dans les cadres de technologie (into-left / into-right) jusqu'aux emplacements
+  // Les lignes s'arrêtent au bord des cadres de technologie ; les technologies II à IV n'ont que leur tuile
   return (
     <div className="obs-track-container">
       {renderSlot(<ActionHexIcon kind="scan" size={32} />, scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled, undefined, ActionType.SCAN_SECTOR, true)}
@@ -200,11 +200,11 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
       <div className="obs-track-connector into-left" />
       {renderSlot(<SignalIcon badge="card" size={30} />, stepTooltip("Signal dans le secteur d'une carte de la rangée", null, true), false)}
       <div className="obs-track-connector into-right" />
-      {renderSlot(<SignalIcon badge="mercury" size={30} />, stepTooltip('Signal dans le secteur de Mercure', 'Observation II', hasObs2, '1 Média'), false, undefined, true, hasObs2, false, { acquired: hasObs2, tile: 'observation-2' })}
-      <div className="obs-track-connector into-left into-right" />
-      {renderSlot(<SignalIcon badge="discard" size={30} />, stepTooltip("Signal dans le secteur d'une carte de la main", 'Observation III', hasObs3, '1 carte'), false, undefined, true, hasObs3, false, { acquired: hasObs3, tile: 'observation-3' })}
-      <div className="obs-track-connector into-left into-right" />
-      {renderSlot(<ActionHexIcon kind="launch" size={26} />, stepTooltip('Lancer une sonde (coût : 1 Énergie) ou Gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, true, hasObs4, false, { acquired: hasObs4, tile: 'observation-4' })}
+      {renderSlot(null, stepTooltip('Signal dans le secteur de Mercure', 'Observation II', hasObs2, '1 Média'), false, undefined, false, false, false, { acquired: hasObs2, tile: 'observation-2' })}
+      <div className="obs-track-connector into-left into-right between-frames" />
+      {renderSlot(null, stepTooltip("Signal dans le secteur d'une carte de la main", 'Observation III', hasObs3, '1 carte'), false, undefined, false, false, false, { acquired: hasObs3, tile: 'observation-3' })}
+      <div className="obs-track-connector into-left into-right between-frames" />
+      {renderSlot(null, stepTooltip('Lancer une sonde (coût : 1 Énergie) ou Gagner 1 déplacement', 'Observation IV', hasObs4), false, undefined, false, false, false, { acquired: hasObs4, tile: 'observation-4' })}
     </div>
   );
 };
@@ -725,7 +725,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   key={revenueCardFlash ? `rev-card-${revenueCardFlash.id}` : 'rev-card-static'}
                   className={`seti-res-badge ${revenueCardFlash ? (revenueCardFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
                 >
-                  <span>Carte (<span style={{color: '#aaffaa'}}>🃏</span>):</span>
+                  <span className="seti-res-label">Carte <span style={{color: '#aaffaa'}}>🃏</span> :</span>
                   <strong>{currentPlayer.revenueCards} <span style={{fontSize: '0.8em', fontWeight: 'normal', color: '#aaa'}}>({currentPlayer.revenueCards - GAME_CONSTANTS.INITIAL_REVENUE_CARDS})</span></strong>
                 </div>
               </div>
@@ -795,7 +795,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 key={cardsFlash ? `cards-${cardsFlash.id}` : 'cards-static'}
                 className={`seti-cards-badge ${cardsFlash ? (cardsFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
               >
-                <span>Carte (<span style={{color: '#aaffaa'}}>🃏</span>):</span>
+                <span className="seti-res-label">Carte <span style={{color: '#aaffaa'}}>🃏</span> :</span>
                 <strong style={{ color: '#fff', marginLeft: '6px' }}>{handCards.length}</strong>
                 {!isRobot && (
                     <>

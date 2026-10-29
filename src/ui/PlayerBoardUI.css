@@ -516,13 +516,13 @@
   z-index: 3;
 }
 /* Voisin dans un cadre de technologie (58px pour un emplacement de 32px) : la ligne va jusqu'à l'emplacement */
-.obs-track-connector.into-left { margin-left: -15px; }
-.obs-track-connector.into-right { margin-right: -15px; }
-/* Entre un emplacement et un cadre : au moins 4px d'écart (21px - 2px - 15px) */
+.obs-track-connector.into-left { margin-left: 0; }
+.obs-track-connector.into-right { margin-right: 0; }
+/* Entre un emplacement et un cadre : au moins 4px de trait, qui s'arrête au bord du cadre */
 .obs-track-connector.into-left,
-.obs-track-connector.into-right { min-width: 21px; }
-/* Entre deux cadres voisins : 4px d'écart (34px - 2 × 15px), sans rétrécir */
-.obs-track-connector.between-frames { flex: 0 0 34px; }
+.obs-track-connector.into-right { min-width: 4px; }
+/* Entre deux cadres voisins : 4px d'écart, sans rétrécir */
+.obs-track-connector.between-frames { flex: 0 0 4px; }
 /* Séparation entre deux groupes indépendants d'une piste (sans ligne) */
 .obs-track-gap {
   flex-grow: 1;

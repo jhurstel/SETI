@@ -3,6 +3,11 @@ import { Card, Game, Technology, TechnologyCategory, CardType, Bonus, HistoryEnt
 import { CardTooltip } from '../ui/components/CardTooltip';
 import './HistoryBoardUI.css';
 import { ResourceSystem } from '../systems/ResourceSystem';
+import { ResourceIcon, ResourceIconKind } from './components/GameIcons';
+import { ReservationIcon } from './components/ObjectiveSymbol';
+
+// Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
+const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', DATA: 'data' };
 
 interface HistoryBoardUIProps {
     historyLog: HistoryEntry[];
@@ -211,9 +216,11 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                 );
             }
 
-            for (const config of Object.values(ResourceSystem.RESOURCE_CONFIG)) {
+            for (const [key, config] of Object.entries(ResourceSystem.RESOURCE_CONFIG)) {
                 if (new RegExp(`^${config.regex.source}$`).test(part)) {
-                    return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: config.label, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)} style={{ color: config.color }}>{config.icon}</span>;
+                    const kind = RESOURCE_ICON_KINDS[key];
+                    const icon = kind ? <ResourceIcon kind={kind} size={14} /> : key === 'RESERVATION' ? <ReservationIcon size={14} /> : config.icon;
+                    return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: config.label, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)} style={{ color: config.color }}>{icon}</span>;
                 }
             }
 

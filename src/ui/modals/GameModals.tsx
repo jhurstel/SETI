@@ -4,6 +4,7 @@ import { ResourceSystem } from '../../systems/ResourceSystem';
 import { CardSystem } from '../../systems/CardSystem';
 import { ChoiceModal, ChoiceOption, ChoiceFooterButton } from './ChoiceModal';
 import { HoverTooltip } from '../components/HoverTooltip';
+import { ResourceIcon } from '../components/GameIcons';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {
   if (!visible) return null;
@@ -107,8 +108,8 @@ export const AlienDiscoveryModal =({ visible, message }: { visible: boolean, mes
 
 export const MediaOrMoveModal = ({ onChoice }: { onChoice: (choice: 'MEDIA' | 'MOVE') => void }) => (
   <ChoiceModal title="Assistance gravitationnelle" subtitle="En arrivant sur cette planète, choisissez votre bonus.">
-    <ChoiceOption icon="🎤" label="1 Média" onClick={() => onChoice('MEDIA')} />
-    <ChoiceOption icon="🚀" label="1 Déplacement" detail="gratuit" onClick={() => onChoice('MOVE')} />
+    <ChoiceOption icon={<ResourceIcon kind="media" size={22} />} label="1 Média" onClick={() => onChoice('MEDIA')} />
+    <ChoiceOption icon={<ResourceIcon kind="movement" size={22} />} label="1 Déplacement" detail="gratuit" onClick={() => onChoice('MOVE')} />
   </ChoiceModal>
 );
 

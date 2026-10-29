@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, Game, InteractionState, CostType, CardType, RevenueType } from '../../core/types';
 import { CardSystem } from '../../systems/CardSystem';
 import { CardTooltip } from './CardTooltip';
+import { ResourceIcon } from './GameIcons';
 import { FREE_ACTION_STYLES, SECTOR_STYLES, REVENUE_STYLES } from '../styles/celestialStyles';
 
 /** Contenu d'une carte (main, rangée, fenêtres de choix) : l'attribut utile au choix en cours est mis en surbrillance. */
@@ -55,7 +56,7 @@ export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue'
       <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
       <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}>
         {/* Une carte Exertien se joue gratuitement à un palier : pas de coût */}
-        {card.type === CardType.EXERTIEN ? <span /> : <span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: card.costType === CostType.ENERGY ? '#4caf50' : '#ffd700' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ' ₢'}</span></span>}
+        {card.type === CardType.EXERTIEN ? <span /> : <span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: card.costType === CostType.ENERGY ? '#4caf50' : '#ffd700', display: 'inline-flex', alignItems: 'center', gap: '2px', verticalAlign: 'middle' }}>{card.cost} <ResourceIcon kind={card.costType === CostType.ENERGY ? 'energy' : 'credit'} size={12} /></span></span>}
         <span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : card.type === CardType.END_GAME ? 'FIN' : card.type === CardType.EXERTIEN ? 'EXE' : 'MIS'}</span>
       </div>
       {card.description && <div className="seti-card-description" style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', lineHeight: '1.2', flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}

@@ -115,6 +115,8 @@
 .seti-history-resource-icon {
     cursor: help;
     font-weight: bold;
+    display: inline-flex;
+    vertical-align: -2px;
 }
 
 /* Conséquences d'une action (gains, bonus) : indentées sous l'action */

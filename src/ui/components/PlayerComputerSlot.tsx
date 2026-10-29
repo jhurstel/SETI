@@ -2,6 +2,7 @@ import React from 'react';
 import { ComputerSlot } from '../../core/types';
 import { SlotTooltip } from './SlotTooltip';
 import { ReservationIcon } from './ObjectiveSymbol';
+import { ResourceIcon } from './GameIcons';
 import { SLOT_COLORS } from '../styles/slotColors';
 
 export const PlayerComputerSlot = ({ 
@@ -55,7 +56,7 @@ export const PlayerComputerSlot = ({
     return (
       <div
         onClick={canFill && !isFilled ? onClick : undefined}
-        className={`computer-slot ${isFilled ? 'filled' : ''} ${canFill && !isFilled ? 'can-fill' : ''}`}
+        className={`computer-slot ${slot.type === 'top' ? '' : 'bottom'} ${isFilled ? 'filled' : ''} ${canFill && !isFilled ? 'can-fill' : ''}`}
         onMouseEnter={(e) => onHover(e, tooltipContent)}
         onMouseLeave={onLeave}
         style={{
@@ -64,11 +65,11 @@ export const PlayerComputerSlot = ({
         }}
       >
         {isFilled && <div className="computer-slot-dot" />}
-        {!isFilled && slot.bonus === 'media' && <span className="computer-slot-bonus media">{mediaAmount > 1 ? '2' : ''}🎤</span>}
+        {!isFilled && slot.bonus === 'media' && <span className="computer-slot-bonus media"><ResourceIcon kind="media" size={20} amount={mediaAmount > 1 ? mediaAmount : undefined} /></span>}
         {!isFilled && slot.bonus === 'reservation' && <span className="computer-slot-bonus reservation"><ReservationIcon size={20} /></span>}
         {!isFilled && slot.bonus === '2pv' && <span className="computer-slot-bonus pv">2🏆</span>}
-        {!isFilled && slot.bonus === 'credit' && <span className="computer-slot-bonus credit">₢</span>}
-        {!isFilled && slot.bonus === 'energy' && <span className="computer-slot-bonus energy">⚡</span>}
+        {!isFilled && slot.bonus === 'credit' && <span className="computer-slot-bonus credit"><ResourceIcon kind="credit" size={20} /></span>}
+        {!isFilled && slot.bonus === 'energy' && <span className="computer-slot-bonus energy"><ResourceIcon kind="energy" size={20} /></span>}
         {!isFilled && slot.bonus === 'card' && <span className="computer-slot-bonus card">🃏</span>}
       </div>
     );

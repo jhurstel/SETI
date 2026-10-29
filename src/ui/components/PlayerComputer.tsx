@@ -99,6 +99,7 @@ export const PlayerComputer = ({
               // Colonne à deux emplacements : emplacement d'une technologie informatique
               return hasBottom ? (
                 <TechSpot className="computer-column" acquired={hasTech} selectable={isSelectableColumn}
+                  tile={(hasTech && topSlot?.technologyId) || 'computing'}
                   onClick={() => isSelectableColumn && onColumnSelect && onColumnSelect(col)}>
                   {columnContent}
                 </TechSpot>

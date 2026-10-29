@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, CardType, CostType } from '../../core/types';
 import { SECTOR_STYLES } from '../styles/celestialStyles';
+import { ResourceIcon } from './GameIcons';
 
 export const CardDescription: React.FC<{ description: string, type?: CardType, hideIntro?: boolean }> = ({ description, type, hideIntro }) => {
     if (!description) return null;
@@ -59,7 +60,7 @@ export const CardTooltip: React.FC<{ card: Card, hideIntro?: boolean, hideStats?
           </div>
         ) : (
           <div className="seti-card-tooltip-stats">
-            <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold' }}>{card.cost}{card.costType === CostType.ENERGY ? '⚡' : ' ₢'}</span></div>
+            <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '3px', verticalAlign: 'middle' }}>{card.cost} <ResourceIcon kind={card.costType === CostType.ENERGY ? 'energy' : 'credit'} size={14} /></span></div>
             <div>Type: {card.type} ({card.id})</div>
             <div>Act: <span style={{ color: '#aaffaa' }}>{card.freeAction}</span></div>
             <div>Rev: <span style={{ color: '#aaffaa' }}>{card.revenue}</span></div>

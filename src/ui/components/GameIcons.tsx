@@ -224,13 +224,17 @@ const MiniHex: React.FC<{ kind: ActionIconKind; x: number; y: number; r?: number
   );
 };
 
-/** Pastille de ressource (flèche colorée) : « 1 » + symbole */
-const ResourceBadge: React.FC<{ x: number; y: number; color: string; label: string }> = ({ x, y, color, label }) => (
-  <g transform={`translate(${x} ${y})`}>
-    <path d="M-9 -6 H5 L10 0 L5 6 H-9 Z" fill={color} stroke="#fff" strokeWidth={1} />
-    <text x={-2} y={3.5} textAnchor="middle" fontSize={9} fontWeight="bold" fill="#fff" fontFamily="Arial, sans-serif">{label}</text>
-  </g>
-);
+/** Pastille de ressource du matériel (flèche colorée, symbole et nombre), réduite pour une tuile */
+const MiniResource: React.FC<{ kind: 'credit' | 'energy' | 'media'; x: number; y: number; label: string }> = ({ kind, x, y, label }) => {
+  // Le signe (+ / −) se place devant la pastille, le chiffre dessus comme sur le matériel
+  const sign = label[0] === '+' || label[0] === '-' ? label[0] : '';
+  return (
+    <g transform={`translate(${x} ${y}) scale(0.42)`}>
+      {sign && <text x={-22} y={9} textAnchor="end" fontSize={30} fontWeight={900} fill="#fff" stroke="#2b2b2b" strokeWidth={3} paintOrder="stroke" fontFamily="Arial Black, Arial, sans-serif">{sign === '-' ? '−' : '+'}</text>}
+      <ArrowResource kind={kind} amount={label.slice(sign.length)} />
+    </g>
+  );
+};
 
 const SmallSignal: React.FC<{ x: number; y: number; badge?: SignalBadge }> = ({ x, y, badge }) => (
   <g transform={`translate(${x} ${y}) scale(0.5)`}>
@@ -256,13 +260,13 @@ const tileGlyph = (techId: string): React.ReactNode => {
       <>
         <path d="M14 46 L22 34 L36 33 L44 42 L40 54 L26 58 L16 54 Z" fill="#2b2b2b" stroke="#fff" strokeWidth={1} />
         <circle cx={26} cy={44} r={2} fill="#555" /><circle cx={36} cy={48} r={1.5} fill="#555" />
-        <ResourceBadge x={40} y={26} color="#e8402a" label="+1" />
+        <MiniResource kind="media" x={38} y={24} label="+1" />
       </>
     );
   }
   if (techId.startsWith('exploration-3')) {
-    // Atterrissage moins cher
-    return <><MiniHex kind="land" x={29} y={34} r={12} /><ResourceBadge x={30} y={58} color="#3daa4a" label="-1" /></>;
+    // Atterrissage : 1 Énergie de moins
+    return <><MiniHex kind="land" x={29} y={32} r={12} /><MiniResource kind="energy" x={31} y={60} label="-1" /></>;
   }
   if (techId.startsWith('exploration-4')) {
     // Lunes
@@ -283,11 +287,11 @@ const tileGlyph = (techId: string): React.ReactNode => {
       </>
     );
   }
-  if (techId.startsWith('observation-2')) return <><ResourceBadge x={29} y={26} color="#e8402a" label="1" /><SmallSignal x={29} y={50} badge="mercury" /></>;
+  if (techId.startsWith('observation-2')) return <><MiniResource kind="media" x={27} y={24} label="1" /><SmallSignal x={29} y={52} badge="mercury" /></>;
   if (techId.startsWith('observation-3')) return <SmallSignal x={29} y={42} badge="discard" />;
   if (techId.startsWith('observation-4')) {
     // 1 Énergie : lancer une sonde ou se déplacer
-    return <><ResourceBadge x={22} y={28} color="#3daa4a" label="1" /><MiniHex kind="launch" x={22} y={52} r={10} /><line x1={38} y1={22} x2={38} y2={62} stroke="#2b2b2b" strokeWidth={2} /><text x={46} y={46} textAnchor="middle" fontSize={11} fontWeight="bold" fill="#fff" fontFamily="Arial, sans-serif">↔</text></>;
+    return <><MiniResource kind="energy" x={21} y={28} label="1" /><MiniHex kind="launch" x={22} y={52} r={10} /><line x1={38} y1={22} x2={38} y2={62} stroke="#2b2b2b" strokeWidth={2} /><text x={46} y={46} textAnchor="middle" fontSize={11} fontWeight="bold" fill="#fff" fontFamily="Arial, sans-serif">↔</text></>;
   }
   // Informatique : 2 PV et le bonus de la case recouverte
   return (
@@ -358,7 +362,7 @@ const resourceGlyph = (kind: 'credit' | 'energy' | 'media'): React.ReactNode => 
 };
 
 /** Pastille fléchée (crédit, énergie, média), avec le nombre en blanc détouré à gauche */
-const ArrowResource: React.FC<{ kind: 'credit' | 'energy' | 'media'; amount?: number }> = ({ kind, amount }) => {
+const ArrowResource: React.FC<{ kind: 'credit' | 'energy' | 'media'; amount?: number | string }> = ({ kind, amount }) => {
   const color = RESOURCE_COLORS[kind];
   return (
     <>
@@ -382,11 +386,23 @@ const DataToken = () => (
   </g>
 );
 
-/** Déplacement : pointe de flèche orange vers le haut, nombre en blanc */
+/** Déplacement (livret p. 9) : disque bleu nuit cerclé de blanc, sonde blanche et flèche lavande vers la droite */
 const Movement: React.FC<{ amount?: number }> = ({ amount }) => (
   <g>
-    <path d="M0 -22 L20 18 L0 10 L-20 18 Z" fill="#f28c2e" strokeLinejoin="round" stroke="#f28c2e" strokeWidth={3} />
-    {amount !== undefined && <text y={12} textAnchor="middle" fontSize={20} fontWeight={900} fill="#fff" fontFamily="Arial Black, Arial, sans-serif">{amount}</text>}
+    <g transform={amount !== undefined ? 'translate(6 0)' : undefined}>
+      <circle r={17} fill="#1d2133" stroke="#e6e8f2" strokeWidth={1.8} />
+      {/* Flèche */}
+      <path d="M-1 -11 H8 L18 0 L8 11 H-1 L4 0 Z" fill="#c9cbe6" />
+      {/* Sonde : antenne et corps */}
+      <g fill="#fff" transform="rotate(-25)">
+        <rect x={-9} y={-15} width={6} height={10} rx={1} />
+        <path d="M-12 -3 L-2 -6 L1 3 L-9 6 Z" />
+        <path d="M-14 3 L-11 9 M-4 5 L-3 11" stroke="#fff" strokeWidth={1.6} />
+      </g>
+    </g>
+    {amount !== undefined && (
+      <text x={-12} y={10} textAnchor="middle" fontSize={30} fontWeight={900} fill="#fff" stroke="#1d2133" strokeWidth={3} paintOrder="stroke" fontFamily="Arial Black, Arial, sans-serif">{amount}</text>
+    )}
   </g>
 );
 
@@ -410,7 +426,7 @@ const Revenue = () => {
 
 /** Icône de ressource du matériel ; `amount` affiche le nombre comme sur les cartes */
 export const ResourceIcon: React.FC<{ kind: ResourceIconKind; amount?: number; size?: number }> = ({ kind, amount, size = 24 }) => {
-  const wide = (kind === 'credit' || kind === 'energy' || kind === 'media') && amount !== undefined;
+  const wide = (kind === 'credit' || kind === 'energy' || kind === 'media' || kind === 'movement') && amount !== undefined;
   return (
     <svg width={wide ? size * 1.5 : size} height={size} viewBox={wide ? '-36 -24 72 48' : '-24 -24 48 48'} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
       {kind === 'data' ? <DataToken /> : kind === 'movement' ? <Movement amount={amount} /> : kind === 'revenue' ? <Revenue /> : <ArrowResource kind={kind} amount={amount} />}
