@@ -89,6 +89,12 @@
   border: 2px solid #00ff00 !important;
 }
 
+/* Pile épuisée : emplacement vide, les autres piles gardent leur place */
+.seti-tech-card.empty {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
 .seti-tech-card.acquired {
   opacity: 0.5;
   border: none !important;

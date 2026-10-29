@@ -99,9 +99,14 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                 {slot.category}
               </div>
               <div className="seti-tech-slots">
+                {[1, 2, 3, 4].filter(column => !stacks.some(stack => stack.length > 0 && Number(stack[0].id.split('-')[1]) === column)).map(column => (
+                  <div key={`empty-${column}`} className="seti-tech-card empty" style={{ gridColumn: column, gridRow: 1 }} />
+                ))}
                 {stacks.map(stack => {
                   if (stack.length === 0) return null;
                   const topCard = stack[0];
+                  // Chaque pile garde sa colonne (numéro de la technologie) : une pile épuisée laisse un emplacement vide
+                  const column = Number(topCard.id.split('-')[1]) || undefined;
                   const count = stack.length;
                   
                   const lastDashIndex = topCard.id.lastIndexOf('-');
@@ -160,6 +165,8 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
                       style={{
+                        gridColumn: column,
+                        gridRow: 1,
                         border: (!hasTech && !isClickable)
                           ? (isAcquiringTech ? '1px solid #555' : techStyle.border)
                           : undefined
