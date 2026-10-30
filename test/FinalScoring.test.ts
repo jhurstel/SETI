@@ -129,7 +129,7 @@ describe('Décompte final', () => {
 
       expect(s1.details?.speciesBonuses.some(l => l.startsWith('Exertiens — '))).toBe(true);
       expect(s1.details?.danger).toEqual(expect.arrayContaining([expect.stringMatching(/^Carte .+ : danger 9$/), expect.stringMatching(/^Plus exposé au danger : −10 %/)]));
-      expect(s1.details?.objectiveTiles).toEqual([expect.stringContaining(`${tile.name} (1er marqueur)`)]);
+      expect(s1.details?.objectiveTiles).toEqual([expect.stringContaining(`${tile.name} ${tile.side} : `)]);
     });
 
     test('la pénalité est calculée après tous les PV, y compris ceux des cartes Exertiens', () => {

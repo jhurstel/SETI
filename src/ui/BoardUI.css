@@ -180,33 +180,6 @@ border-bottom: 2px solid rgba(255, 255, 255, 0.2);
 .col-score { color: #ccc; }
 .col-total { color: #ffd700; font-weight: bold; font-size: 1.1rem; }
 
-.seti-endgame-exertiens {
-text-align: left;
-background: rgba(0, 0, 0, 0.3);
-border-radius: 8px;
-padding: 10px 14px;
-margin-bottom: 20px;
-font-size: 0.85rem;
-color: #ccc;
-}
-
-.seti-endgame-exertiens-title {
-font-weight: bold;
-color: #ffd700;
-margin-bottom: 6px;
-}
-
-.seti-endgame-exertiens-row {
-margin-bottom: 4px;
-}
-
-.seti-endgame-exertiens-note {
-margin-top: 6px;
-font-size: 0.75rem;
-color: #888;
-font-style: italic;
-}
-
 .seti-endgame-btn {
 background: linear-gradient(to bottom, #4a9eff, #2c5282);
 border: 1px solid #63b3ed;
@@ -414,6 +387,10 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
 .seti-score-table td {
   padding: 2px 6px 2px 0;
   white-space: nowrap;
+}
+.seti-score-table thead tr.columns td {
+  color: #888;
+  font-size: 0.85em;
 }
 .seti-score-table td.detail {
   color: #aaa;

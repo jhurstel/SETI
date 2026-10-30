@@ -183,23 +183,30 @@ const parseDetail = (line: string): ScoreRow => {
   return { label, detail: eq < 0 ? undefined : rest.slice(0, eq), value, negative: value.startsWith('−') };
 };
 
-/** Tableau d'une infobulle de l'écran de fin, avec une ligne Total */
-const ScoreTable = ({ title, rows, total, empty = 'Aucun' }: { title: string; rows: ScoreRow[]; total?: string; empty?: string }) => (
-  <table className="seti-score-table">
-    <thead><tr><th colSpan={3}>{title}</th></tr></thead>
-    <tbody>
-      {rows.length === 0 && <tr><td colSpan={3} className="empty">{empty}</td></tr>}
-      {rows.map((row, i) => (
-        <tr key={i}>
-          <td>{row.label}</td>
-          <td className="detail">{row.detail}</td>
-          <td className={`value ${row.negative ? 'negative' : ''}`}>{row.value}</td>
-        </tr>
-      ))}
-    </tbody>
-    {total !== undefined && <tfoot><tr><td colSpan={2}>Total</td><td className="value">{total}</td></tr></tfoot>}
-  </table>
-);
+/** Tableau d'une infobulle de l'écran de fin, avec une ligne Total (colonne de calcul seulement si utile) */
+const ScoreTable = ({ title, rows, total, empty = 'Aucun', firstColumn }: { title: string; rows: ScoreRow[]; total?: string; empty?: string; firstColumn?: string }) => {
+  const withDetail = rows.some(row => row.detail);
+  const columns = 2 + (withDetail ? 1 : 0);
+  return (
+    <table className="seti-score-table">
+      <thead>
+        <tr><th colSpan={columns}>{title}</th></tr>
+        {firstColumn && rows.length > 0 && <tr className="columns"><td>{firstColumn}</td><td colSpan={columns - 1}>Carte</td></tr>}
+      </thead>
+      <tbody>
+        {rows.length === 0 && <tr><td colSpan={columns} className="empty">{empty}</td></tr>}
+        {rows.map((row, i) => (
+          <tr key={i}>
+            <td className={firstColumn ? 'detail' : undefined}>{row.label}</td>
+            {withDetail && <td className={firstColumn ? undefined : 'detail'}>{row.detail}</td>}
+            <td className={`value ${row.negative ? 'negative' : ''}`}>{row.value}</td>
+          </tr>
+        ))}
+      </tbody>
+      {total !== undefined && <tfoot><tr><td colSpan={columns - 1}>Total</td><td className="value">{total}</td></tr></tfoot>}
+    </table>
+  );
+};
 
 const pv = (n: number) => `${n} PV`;
 
@@ -208,17 +215,22 @@ const categoryTooltip = (title: string, lines: string[] | undefined, total: numb
   <ScoreTable title={title} rows={(lines || []).map(parseDetail)} total={pv(total)} />
 );
 
-/** Infobulle de la colonne Espèces : bonus d'espèces, cartes Exertiens, pénalité de danger ; puis le danger */
+/** Infobulle de la colonne Espèces : le danger d'abord, puis les cartes d'espèces (espèce, carte, PV) et la pénalité */
 const speciesTooltip = (score: FinalScore) => {
-  const rows = (score.details?.speciesBonuses || []).map(parseDetail);
-  if (score.dangerPenalty > 0) rows.push({ label: 'Pénalité de danger', detail: '−10 %', value: `−${pv(score.dangerPenalty)}`, negative: true });
-  const dangerRows = (score.details?.danger || []).map(parseDetail).filter(r => !r.negative);
+  // « Exertiens — Navette des Confins : 14 PV » : espèce, carte, PV (une condition non remplie vaut 0 PV)
+  const cardRows: ScoreRow[] = (score.details?.speciesBonuses || []).map(line => {
+    const row = parseDetail(line);
+    const [species, card] = row.label.includes(' — ') ? row.label.split(' — ') : ['', row.label];
+    return { label: species, detail: card, value: row.value };
+  });
+  if (score.dangerPenalty > 0) cardRows.push({ label: '', detail: 'Pénalité −10 %', value: `−${pv(score.dangerPenalty)}`, negative: true });
+  const dangerRows = (score.details?.danger || []).map(parseDetail).filter(r => !r.negative).map(r => ({ label: r.label, value: r.value }));
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <ScoreTable title="Espèces" rows={rows} total={pv(score.categories.speciesBonuses + score.categories.exertienCards - score.dangerPenalty)} />
       {(dangerRows.length > 0 || score.danger > 0) && (
         <ScoreTable title="Danger Exertien" rows={dangerRows} total={`danger ${score.danger}`} />
       )}
+      <ScoreTable title="Cartes espèces" rows={cardRows} firstColumn="Espèce" total={pv(score.categories.speciesBonuses + score.categories.exertienCards - score.dangerPenalty)} />
     </div>
   );
 };
@@ -231,7 +243,7 @@ const totalTooltip = (score: FinalScore) => {
     { label: 'Cartes fin de partie', value: pv(score.categories.missionEndGame) },
     { label: 'Espèces', value: pv(score.categories.speciesBonuses + score.categories.exertienCards) },
   ];
-  if (score.dangerPenalty > 0) rows.push({ label: 'Pénalité de danger', value: `−${pv(score.dangerPenalty)}`, negative: true });
+  if (score.dangerPenalty > 0) rows.push({ label: 'Pénalité −10 %', value: `−${pv(score.dangerPenalty)}`, negative: true });
   return <ScoreTable title="Score final" rows={rows} total={pv(score.finalScore)} />;
 };
 
@@ -247,7 +259,6 @@ export const EndGameModal = ({ game }: { game: Game }) => {
     .sort((a, b) => b.score.finalScore - a.score.finalScore);
 
   const winners = ScoreManager.determineWinner(finalScores).map(id => game.players.find(p => p.id === id)!);
-  const withExertienCards = rows.filter(r => r.score.revealedExertienCards.length > 0);
 
   return (
     <div className="seti-endgame-overlay">
@@ -269,7 +280,7 @@ export const EndGameModal = ({ game }: { game: Game }) => {
             <div className="col-score"><HoverTooltip content="Score avant le décompte final">Base</HoverTooltip></div>
             <div className="col-score"><HoverTooltip content="Tuiles Score dorées">Obj.</HoverTooltip></div>
             <div className="col-score"><HoverTooltip content="Cartes Fin de partie">Fin</HoverTooltip></div>
-            <div className="col-score"><HoverTooltip content="Espèces : bonus d'espèces, cartes Exertiens, pénalité de danger">Espèces</HoverTooltip></div>
+            <div className="col-score"><HoverTooltip content="Espèces : cartes Exertiens et pénalité de danger">Esp.</HoverTooltip></div>
             <div className="col-total">Total</div>
           </div>
 
@@ -287,21 +298,6 @@ export const EndGameModal = ({ game }: { game: Game }) => {
             </div>
           ))}
         </div>
-
-        {withExertienCards.length > 0 && (
-          <div className="seti-endgame-exertiens">
-            <div className="seti-endgame-exertiens-title">Cartes Exertiens révélées</div>
-            {withExertienCards.map(({ score, player }) => (
-              <div key={player.id} className="seti-endgame-exertiens-row">
-                <span style={{ color: player.color, fontWeight: 'bold' }}>{player.name} :</span>{' '}
-                {score.revealedExertienCards.map(c => `${c.name} (danger ${c.danger}, ${c.conditionMet ? `+${c.points} PV` : 'non remplie'})`).join(' · ')}
-              </div>
-            ))}
-            <div className="seti-endgame-exertiens-note">
-              Le joueur le plus exposé au danger perd 10 % de son total (arrondi à l'inférieur) ; en cas d'égalité, tous les ex aequo.
-            </div>
-          </div>
-        )}
 
         <button className="seti-endgame-btn" onClick={() => window.location.reload()}>
           Nouvelle Partie

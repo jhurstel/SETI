@@ -290,8 +290,7 @@ export class ScoreManager {
         const count = this.objectiveTileSeries(player, board, tile);
 
         total += count * rewardValue;
-        const rank = index === 0 ? '1er' : index === 1 ? '2e' : `${index + 1}e`;
-        details?.push(`${tile.name} (${rank} marqueur) : ${count} × ${rewardValue} PV = ${count * rewardValue} PV`);
+        details?.push(`${tile.name} ${tile.side} : ${count} × ${rewardValue} PV = ${count * rewardValue} PV`);
       }
     });
     return total;
@@ -318,11 +317,21 @@ export class ScoreManager {
     return (player.playedCards || [])
       .filter(card => card.type === CardType.EXERTIEN)
       .map(card => {
-        const condition = card.passiveEffects.find(e => e.type === 'END_CONDITION');
-        const [param, threshold, pv] = condition ? effectString(condition).split(':') : [];
-        const conditionMet = !!condition && this.exertienConditionValue(game, player, condition.target || '', param) >= parseInt(threshold, 10);
-        return { name: card.name, danger: card.danger || 0, points: conditionMet ? parseInt(pv, 10) : 0, conditionMet };
+        const progress = this.exertienCardProgress(game, player, card);
+        const conditionMet = !!progress && progress.value >= progress.threshold;
+        return { name: card.name, danger: card.danger || 0, points: conditionMet ? progress.points : 0, conditionMet };
       });
+  }
+
+  /**
+   * Avancement de la condition de fin de partie d'une carte Exertien (jouée ou non) :
+   * valeur actuelle, seuil à atteindre et PV promis ; null si la carte n'a pas de condition.
+   */
+  static exertienCardProgress(game: Game, player: Player, card: Card): { value: number; threshold: number; points: number } | null {
+    const condition = card.passiveEffects.find(e => e.type === 'END_CONDITION');
+    if (!condition) return null;
+    const [param, threshold, pv] = effectString(condition).split(':');
+    return { value: this.exertienConditionValue(game, player, condition.target || '', param), threshold: parseInt(threshold, 10), points: parseInt(pv, 10) };
   }
 
   /** Valeur mesurée pour une condition de carte Exertien (comparée ensuite au seuil). */
