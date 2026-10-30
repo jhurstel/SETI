@@ -7,16 +7,34 @@ import { CardSystem } from './CardSystem';
 
 export class TechnologySystem {
 
-  static getAvailableTechs(game: Game): Technology[] {
-    const availableTechs: Technology[] = [];
-    if (game.board.technologyBoard.categorySlots) {
-      game.board.technologyBoard.categorySlots.forEach(slot => {
-        if (slot.technologies.length > 0) {
-          availableTechs.push(slot.technologies[0]);
-        }
+  /** Pile d'une technologie : son identifiant sans le numéro d'exemplaire (« exploration-2-3 » → « exploration-2 ») */
+  static stackId(tech: Technology): string {
+    return tech.id.substring(0, tech.id.lastIndexOf('-'));
+  }
+
+  /**
+   * Technologies que le joueur peut prendre : le dessus de chaque pile non vide, dans les catégories
+   * autorisées, dont il n'a pas déjà un exemplaire, et (sharedOnly) qu'un adversaire possède déjà.
+   * Même liste pour le joueur humain (plateau des technologies) et pour les robots.
+   */
+  static acquirableTechs(game: Game, playerId: string, options: { categories?: TechnologyCategory[]; sharedOnly?: boolean } = {}): Technology[] {
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return [];
+    const owned = new Set(player.technologies.map(t => this.stackId(t)));
+    const shared = new Set(game.players.filter(p => p.id !== playerId).flatMap(p => p.technologies.map(t => this.stackId(t))));
+    const result: Technology[] = [];
+    (game.board.technologyBoard?.categorySlots || []).forEach(slot => {
+      if (options.categories && !options.categories.includes(slot.category)) return;
+      const seen = new Set<string>();
+      slot.technologies.forEach(tech => {
+        const stack = this.stackId(tech);
+        if (seen.has(stack)) return;
+        seen.add(stack);
+        if (owned.has(stack) || (options.sharedOnly && !shared.has(stack))) return;
+        result.push(tech);
       });
-    }
-    return availableTechs;
+    });
+    return result;
   }
 
   static canResearchTech(game: Game, playerId: string): { canResearch: boolean, reason?: string } {
@@ -30,38 +48,9 @@ export class TechnologySystem {
     return { canResearch: true };
   }
 
+  /** Au moins une technologie disponible pour ce gain (sinon le gain est perdu) */
   public static canAcquireTech(game: Game, playerId: string, categories?: TechnologyCategory[]): boolean {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) return false;
-
-    const techBoard = game.board.technologyBoard;
-    if (!techBoard || !techBoard.categorySlots) return false;
-
-    for (const slot of techBoard.categorySlots) {
-      if (categories && !categories.includes(slot.category)) continue;
-
-      // Group by baseId
-      const stacks = new Map<string, Technology[]>();
-      slot.technologies.forEach(tech => {
-        const lastDashIndex = tech.id.lastIndexOf('-');
-        const baseId = tech.id.substring(0, lastDashIndex);
-        if (!stacks.has(baseId)) stacks.set(baseId, []);
-        stacks.get(baseId)!.push(tech);
-      });
-
-      for (const [baseId, stack] of stacks) {
-        if (stack.length > 0) {
-          // Check if player has this tech
-          const hasTech = player.technologies.some(t => {
-            const tLastDash = t.id.lastIndexOf('-');
-            return t.id.substring(0, tLastDash) === baseId;
-          });
-
-          if (!hasTech) return true;
-        }
-      }
-    }
-    return false;
+    return this.acquirableTechs(game, playerId, { categories }).length > 0;
   }
 
   static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[], historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {

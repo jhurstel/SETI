@@ -23,14 +23,17 @@ export class PassAction extends BaseAction {
       return { valid: false, errors: [{ code: 'INVALID_PLAYER', message: 'Joueur non trouvé' }], warnings: [] };
     }
 
-    // Vérifier le nombre de cartes à garder
-    if (this.cardIdsToKeep.length > 4) {
-      return { valid: false, errors: [{ code: 'INVALID_CARDS', message: 'Cartes à garder trop nombreuses' }], warnings: [] };
+    // Cartes gardées : des cartes de la main (pas les cartes Exertiens), exactement autant que la main
+    // ramenée à 4 cartes (ni plus, ni moins : on ne défausse que l'excédent)
+    const hand = CardSystem.getHandCards(player);
+    const expected = hand.length - CardSystem.cardsToDiscardAtPass(player);
+    if (new Set(this.cardIdsToKeep).size !== this.cardIdsToKeep.length || this.cardIdsToKeep.length !== expected) {
+      return { valid: false, errors: [{ code: 'INVALID_CARDS', message: `Gardez exactement ${expected} carte${expected > 1 ? 's' : ''} de votre main` }], warnings: [] };
     }
 
     // Vérifier que les cartes existent
     const invalidCards = this.cardIdsToKeep.filter(
-      cardId => !player.cards.some(c => c.id === cardId)
+      cardId => !hand.some(c => c.id === cardId)
     );
     if (invalidCards.length > 0) {
       return { valid: false, errors: [{ code: 'INVALID_CARDS', message: 'Cartes à garder invalides' }], warnings: [] };

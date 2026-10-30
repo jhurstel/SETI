@@ -16,7 +16,7 @@ import { ResearchTechAction } from '../actions/ResearchTechAction';
 import { ScanSectorAction } from '../actions/ScanSectorAction';
 import { GameEngine } from '../core/Game';
 import { cloneGame } from '../core/cloneGame';
-import { InteractionChoices } from '../core/InteractionChoices';
+import { InteractionChoices, ChoiceResult } from '../core/InteractionChoices';
 import { TurnManager } from '../core/TurnManager';
 import { InteractionResolver, isAutomaticInteraction } from '../core/InteractionResolver';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -423,10 +423,8 @@ export const BoardUI: React.FC = () => {
       if (currentCards.includes(cardId)) {
         setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
       } else {
-        // Vérifier qu'on ne sélectionne pas plus que nécessaire
-        const currentPlayer = actingPlayer(game);
-        const cardsToKeep = CardSystem.getHandCards(currentPlayer).length - (currentCards.length + 1);
-        if (cardsToKeep >= GAME_CONSTANTS.HAND_SIZE_AFTER_PASS) {
+        // Pas plus de cartes que l'excédent de la main (règle du moteur, vérifiée aussi par PassAction)
+        if (currentCards.length < CardSystem.cardsToDiscardAtPass(actingPlayer(game))) {
           setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
         }
       }
@@ -553,15 +551,7 @@ export const BoardUI: React.FC = () => {
       let currentPending = [...pendingInteractions];
 
       // Propager la sonde utilisée aux interactions suivantes de la même séquence
-      if (usedProbeId) {
-          const newUsedProbeIds = [...(interactionState.usedProbeIds || []), usedProbeId];
-          currentPending = currentPending.map(i => {
-              if (i.type === 'SELECTING_SCAN_SECTOR' && i.sequenceId === interactionState.sequenceId) {
-                  return { ...i, usedProbeIds: newUsedProbeIds };
-              }
-              return i;
-          });
-      }
+      if (usedProbeId) currentPending = InteractionChoices.markProbeUsed(currentPending, interactionState, usedProbeId);
 
       const resolutions = allNewInteractions.filter(i => i.type === 'RESOLVING_SECTOR');
       const others = allNewInteractions.filter(i => i.type !== 'RESOLVING_SECTOR');
@@ -750,7 +740,7 @@ export const BoardUI: React.FC = () => {
     else if (actionType === ActionType.PASS) {
       // 1. Vérifier la taille de la main
       const handSize = CardSystem.getHandCards(currentPlayer).length;
-      const toDiscard = handSize - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS;
+      const toDiscard = CardSystem.cardsToDiscardAtPass(currentPlayer);
       if (toDiscard > 0) {
         // Avertir avant de passer : le joueur ne jouera plus de la manche et perdra des cartes
         setConfirmModalState({
@@ -807,15 +797,16 @@ export const BoardUI: React.FC = () => {
     if (!game) return;
     if (interactionState.type !== 'CHOOSING_CENTAURIEN_REWARD') return;
 
-    // Create sequence id and player id
     const sequenceId = interactionState.sequenceId || `trace-${uniqueId()}`;
     const playerId = game.players[game.currentPlayerIndex].id;
 
-    // Appel métier
-    const result = SpeciesSystem.claimCentaurienReward(game, playerId, tokenIndex);
-    const updatedGame = result.updatedGame;
-    const historyEntries = result.historyEntries;
-    const newPendingInteractions = result.newPendingInteractions;
+    // Appel métier : la tuile résout le palier qui a déclenché le choix (markerId)
+    const result = InteractionChoices.claimCentaurienReward(game, playerId, interactionState, tokenIndex);
+    if (result.error) {
+      setToast({ message: result.error, visible: true });
+      return;
+    }
+    const { updatedGame, historyEntries, newPendingInteractions } = result;
 
     // End transaction
     setGame(updatedGame);
@@ -871,26 +862,14 @@ export const BoardUI: React.FC = () => {
   const handleMenuChoice = (choiceIndex: number) => {
     if (interactionState.type !== 'CHOOSING_BONUS_ACTION') return;
 
-    const choice = interactionState.choices[choiceIndex];
-    if (choice.done) return;
+    const chosen = InteractionChoices.chooseBonusAction(interactionState, choiceIndex);
+    if (!chosen) return;
 
-    // Créer un nouvel état de menu avec ce choix marqué comme fait
-    const updatedChoices = [...interactionState.choices];
-    updatedChoices[choiceIndex] = { ...choice, done: true };
-
-    const nextMenuState: InteractionState = {
-      ...interactionState,
-      choices: updatedChoices
-    };
-
-    // Définir l'interaction choisie comme active
-    setInteractionState(choice.state);
-
-    // Ajouter le menu mis à jour en tête de la file d'attente pour y revenir après l'action
-    // Exception : Pour les missions, on ne force pas la résolution de toutes les conditions d'un coup
-    const isMissionClaim = choice.state.type === 'CLAIMING_MISSION_REQUIREMENT';
-    if (!isMissionClaim && updatedChoices.some(c => !c.done)) {
-      setPendingInteractions(prev => [nextMenuState, ...prev]);
+    // L'action choisie devient active ; le menu mis à jour revient ensuite en tête de file
+    setInteractionState(chosen.next);
+    if (chosen.menu) {
+      const menu = chosen.menu;
+      setPendingInteractions(prev => [menu, ...prev]);
     }
   };
 
@@ -1020,16 +999,27 @@ export const BoardUI: React.FC = () => {
     }
   };
 
-  // Après une orbite/un atterrissage bonus : décrémente le compteur ou termine l'interaction
-  const continueBonusPlacement = (interactionTriggered: boolean) => {
-    if (interactionState.type !== 'ORBITING_PROBE' && interactionState.type !== 'LANDING_PROBE') return;
-    const remaining = interactionState.count - 1;
-    if (interactionTriggered) {
-      // Des bonus sont à résoudre d'abord : les placements restants sont mis en file d'attente
-      if (remaining > 0) setPendingInteractions(prev => [...prev, { ...interactionState, count: remaining }]);
+  // Orbite/atterrissage bonus (gratuit) : même règle que pour les robots (InteractionChoices.placeBonusProbe)
+  const placeBonusProbe = (planetId: string, slotIndex: number | undefined, successMessage: string) => {
+    if (!game || (interactionState.type !== 'ORBITING_PROBE' && interactionState.type !== 'LANDING_PROBE')) return;
+    const sequenceId = interactionState.sequenceId || `seq-${uniqueId()}`;
+    const result = InteractionChoices.placeBonusProbe(game, actingPlayer(game).id, { ...interactionState, sequenceId }, planetId, slotIndex);
+    if (result.error) {
+      setToast({ message: result.error, visible: true });
       return;
     }
-    setInteractionState(remaining > 0 ? { ...interactionState, count: remaining } : { type: 'IDLE' });
+    const { updatedGame, nextInteraction } = result;
+    setGame(updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+    result.historyEntries.forEach((entry, i) => addToHistory(entry.message, entry.playerId, i === 0 ? game : updatedGame, undefined, sequenceId));
+
+    // Des bonus sont à résoudre d'abord : les placements restants sont mis en file d'attente
+    if (handleNewInteractions(result.newPendingInteractions, sequenceId)) {
+      if (nextInteraction) setPendingInteractions(prev => [...prev, nextInteraction]);
+      return;
+    }
+    setToast({ message: successMessage, visible: true });
+    setInteractionState(nextInteraction ?? { type: 'IDLE' });
   };
 
   // Retrait d'un orbiteur (carte 15) ou d'un atterrisseur (carte 84)
@@ -1067,12 +1057,7 @@ export const BoardUI: React.FC = () => {
     const executeOrbit = () => {
       // Orbite bonus (gratuite)
       if (interactionState.type === 'ORBITING_PROBE') {
-        const source = interactionState.source;
-        continueBonusPlacement(handlePlanetInteraction(
-          planetId,
-          (g, pid, prid, targetId, seqId) => ProbeSystem.orbitProbe(g, pid, prid, targetId, seqId, true, source),
-          "Sonde mise en orbite"
-        ));
+        placeBonusProbe(planetId, undefined, "Sonde mise en orbite");
         return;
       }
 
@@ -1138,12 +1123,7 @@ export const BoardUI: React.FC = () => {
     const executeLand = () => {
       // Atterrissage bonus (gratuit)
       if (interactionState.type === 'LANDING_PROBE') {
-        const source = interactionState.source;
-        continueBonusPlacement(handlePlanetInteraction(
-          planetId,
-          (g, pid, prid, targetId, seqId) => ProbeSystem.landProbe(g, pid, prid, targetId, true, slotIndex, source, seqId),
-          "Atterrissage réussi"
-        ));
+        placeBonusProbe(planetId, slotIndex, "Atterrissage réussi");
         return;
       }
 
@@ -1184,8 +1164,7 @@ export const BoardUI: React.FC = () => {
       const sector = parseInt(cellKey.substring(1)) as SectorNumber;
 
       // Utiliser l'action pour effectuer le mouvement
-      const cost = ProbeSystem.getMovementCost(currentGame, currentPlayerId, probeId);
-      const usedFree = Math.min(cost, freeMovements);
+      const usedFree = ProbeSystem.freeMovementsUsed(currentGame, currentPlayerId, probeId, freeMovements);
       if (!currentSequenceId) currentSequenceId = `move-${uniqueId()}`;
       const action = new MoveProbeAction(currentPlayerId, probeId, { disk, sector }, freeMovements, currentSequenceId);
       const result = gameEngineRef.current.executeAction(action);
@@ -1479,15 +1458,8 @@ export const BoardUI: React.FC = () => {
 
     // Cas 1: Mode recherche actif ou bonus
     if (interactionState.type === 'ACQUIRING_TECH') {
-      if (tech.type === TechnologyCategory.COMPUTING) {
-        // Sélection du slot
-        const { sequenceId } = interactionState;
-        setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId });
-      } else {
-        // Finaliser l'achat
-        const { noTileBonus } = interactionState;
-        processTechPurchase(tech, undefined, noTileBonus);
-      }
+      // Même règle que pour les robots : technologie autorisée, puis colonne d'ordinateur pour une Informatique
+      applyTechChoice(InteractionChoices.acquireTech(game, actingPlayer(game).id, interactionState, tech));
     } else if (interactionState.type === 'IDLE') {
       // Cas 2: Clic direct depuis IDLE (Raccourci Action Recherche)
       const playerId = game.players[game.currentPlayerIndex].id;
@@ -1526,14 +1498,30 @@ export const BoardUI: React.FC = () => {
     if (!game) return;
     if (interactionState.type !== 'SELECTING_COMPUTER_SLOT') return;
 
-    const check = ComputerSystem.canAssignTechnology(actingPlayer(game), col);
-    if (!check.canAssign) {
-      if (ComputerSystem.TECH_COLUMNS.includes(col)) setToast({ message: check.reason!, visible: true });
+    // Clic hors des colonnes prévues pour une technologie : ignoré sans message
+    if (!ComputerSystem.TECH_COLUMNS.includes(col)) return;
+
+    // Finaliser l'achat (le renoncement au bonus de tuile suit l'interaction)
+    const currentGame = gameRef.current ?? game;
+    applyTechChoice(InteractionChoices.acquireTech(currentGame, actingPlayer(currentGame).id, interactionState, interactionState.tech, col), currentGame);
+  };
+
+  /** Applique le résultat d'un choix de technologie (ou ouvre le choix de la colonne d'ordinateur) */
+  const applyTechChoice = (result: ChoiceResult, baseGame: Game | null = game) => {
+    if (!baseGame) return;
+    if (result.error) {
+      setToast({ message: result.error, visible: true });
       return;
     }
-
-    // Finaliser l'achat
-    processTechPurchase(interactionState.tech, col, false);
+    const sequenceId = interactionState.sequenceId;
+    if (result.updatedGame === baseGame) {
+      setInteractionState(result.newPendingInteractions[0] ?? { type: 'IDLE' });
+      return;
+    }
+    setGame(result.updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
+    result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, baseGame, undefined, entry.sequenceId || sequenceId));
+    if (!handleNewInteractions(result.newPendingInteractions, sequenceId)) setInteractionState({ type: 'IDLE' });
   };
 
   // Gestionnaire pour les bonus ordinateur (déclenché depuis PlayerBoardUI)

@@ -87,7 +87,7 @@ describe('GameEngine : état de la partie', () => {
   });
 
   test('une exception pendant l\'action est renvoyée comme erreur', () => {
-    const action = new PassAction(P1, []);
+    const action = new PassAction(P1, getPlayer(game, P1).cards.slice(0, 4).map(c => c.id));
     jest.spyOn(action, 'execute').mockImplementation(() => { throw new Error('boum'); });
 
     expect(new GameEngine(game).executeAction(action)).toEqual({ success: false, error: 'boum' });

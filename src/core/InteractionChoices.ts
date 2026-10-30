@@ -1,5 +1,8 @@
-import { Game, HistoryEntry, InteractionState, LifeTraceLocation, LifeTraceType } from './types';
+import { Game, HistoryEntry, InteractionState, LifeTraceLocation, LifeTraceType, Technology, TechnologyCategory } from './types';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
+import { TechnologySystem } from '../systems/TechnologySystem';
+import { ComputerSystem } from '../systems/ComputerSystem';
+import { ProbeSystem } from '../systems/ProbeSystem';
 import { ScoreManager } from './ScoreManager';
 import { uniqueId } from './ids';
 
@@ -10,10 +13,14 @@ export interface ChoiceResult {
   newPendingInteractions: InteractionState[];
   /** Le choix a fait découvrir une espèce (l'interface affiche une notification) */
   discoveredSpecies?: boolean;
+  /** Même interaction à poursuivre (placements ou déplacements restants), après les interactions déclenchées */
+  nextInteraction?: InteractionState;
   error?: string;
 }
 
 type Interaction<T extends InteractionState['type']> = Extract<InteractionState, { type: T }>;
+
+const refused = (game: Game, error: string): ChoiceResult => ({ updatedGame: game, historyEntries: [], newPendingInteractions: [], error });
 
 /**
  * Application d'un choix sur une interaction en attente : même implémentation pour le joueur humain
@@ -92,5 +99,97 @@ export class InteractionChoices {
       historyEntries: result.logMessage ? [{ message: result.logMessage, playerId, sequenceId }] : [],
       newPendingInteractions: [],
     };
+  }
+
+  /**
+   * Technologie choisie pour un gain (ACQUIRING_TECH) ou après le choix de la colonne d'ordinateur
+   * (SELECTING_COMPUTER_SLOT). La technologie doit faire partie de TechnologySystem.acquirableTechs ;
+   * une technologie Informatique demande d'abord une colonne (interaction SELECTING_COMPUTER_SLOT renvoyée)
+   * si le joueur en a une de libre. Le renoncement au bonus de tuile (noTileBonus) suit l'interaction.
+   */
+  static acquireTech(
+    game: Game,
+    playerId: string,
+    interaction: Interaction<'ACQUIRING_TECH'> | Interaction<'SELECTING_COMPUTER_SLOT'>,
+    tech: Technology,
+    computerCol?: number,
+  ): ChoiceResult {
+    const sequenceId = interaction.sequenceId || `tech-${uniqueId()}`;
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return refused(game, 'Joueur introuvable');
+    const freeColumns = ComputerSystem.TECH_COLUMNS.filter(col => ComputerSystem.canAssignTechnology(player, col).canAssign);
+
+    if (interaction.type === 'ACQUIRING_TECH') {
+      const allowed = TechnologySystem.acquirableTechs(game, playerId, { categories: interaction.categories, sharedOnly: interaction.sharedOnly });
+      if (!allowed.some(t => t.id === tech.id)) return refused(game, 'Cette technologie ne peut pas être prise pour ce gain');
+      if (tech.type === TechnologyCategory.COMPUTING && computerCol === undefined && freeColumns.length > 0) {
+        return { updatedGame: game, historyEntries: [], newPendingInteractions: [{ type: 'SELECTING_COMPUTER_SLOT', tech, noTileBonus: interaction.noTileBonus, sequenceId }] };
+      }
+    }
+    if (tech.type === TechnologyCategory.COMPUTING && computerCol !== undefined) {
+      const check = ComputerSystem.canAssignTechnology(player, computerCol);
+      if (!check.canAssign) return refused(game, check.reason || 'Colonne indisponible');
+    } else if (tech.type === TechnologyCategory.COMPUTING && freeColumns.length > 0) {
+      return refused(game, "Choisissez une colonne de l'ordinateur");
+    }
+
+    const res = TechnologySystem.acquireTechnology(game, playerId, tech, computerCol, interaction.noTileBonus ?? false);
+    return {
+      updatedGame: res.updatedGame,
+      historyEntries: res.historyEntries.map(e => ({ ...e, sequenceId: e.sequenceId || sequenceId })),
+      newPendingInteractions: (res.newPendingInteractions || []).map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId })),
+    };
+  }
+
+  /** Tuile Message Centaurienne choisie : elle résout le palier qui a déclenché l'interaction (markerId). */
+  static claimCentaurienReward(game: Game, playerId: string, interaction: Interaction<'CHOOSING_CENTAURIEN_REWARD'>, tokenIndex: number): ChoiceResult {
+    const res = SpeciesSystem.claimCentaurienReward(game, playerId, tokenIndex, interaction.markerId);
+    if (res.updatedGame === game) return refused(game, 'Tuile Message indisponible');
+    return { updatedGame: res.updatedGame, historyEntries: res.historyEntries, newPendingInteractions: res.newPendingInteractions };
+  }
+
+  /**
+   * Choix dans le menu des actions bonus : l'action choisie devient active ; le menu, mis à jour, revient
+   * ensuite tant qu'il reste des actions (sauf pour une mission : ses conditions ne sont pas imposées
+   * toutes d'un coup).
+   */
+  static chooseBonusAction(interaction: Interaction<'CHOOSING_BONUS_ACTION'>, choiceIndex: number): { next: InteractionState; menu?: InteractionState } | null {
+    const choice = interaction.choices[choiceIndex];
+    if (!choice || choice.done) return null;
+    const choices = interaction.choices.map((c, i) => i === choiceIndex ? { ...c, done: true } : c);
+    const keepMenu = choice.state.type !== 'CLAIMING_MISSION_REQUIREMENT' && choices.some(c => !c.done);
+    return { next: choice.state, menu: keepMenu ? { ...interaction, choices } : undefined };
+  }
+
+  /**
+   * Orbite ou atterrissage gratuit (gain d'une carte ou d'un bonus) avec la sonde du joueur sur la planète.
+   * S'il reste des placements (count > 1), la même interaction est à poursuivre (nextInteraction).
+   */
+  static placeBonusProbe(game: Game, playerId: string, interaction: Interaction<'ORBITING_PROBE'> | Interaction<'LANDING_PROBE'>, planetId: string, slotIndex?: number): ChoiceResult {
+    const found = ProbeSystem.findProbeAtPlanet(game, playerId, planetId);
+    if (!found) return refused(game, 'Aucune de vos sondes sur cette planète');
+    const sequenceId = interaction.sequenceId || `seq-${uniqueId()}`;
+    try {
+      const res = interaction.type === 'ORBITING_PROBE'
+        ? ProbeSystem.orbitProbe(game, playerId, found.probe.id, planetId, sequenceId, true, interaction.source)
+        : ProbeSystem.landProbe(game, playerId, found.probe.id, planetId, true, slotIndex, interaction.source, sequenceId);
+      return {
+        updatedGame: res.updatedGame,
+        historyEntries: res.historyEntries,
+        newPendingInteractions: res.newPendingInteractions,
+        nextInteraction: interaction.count > 1 ? { ...interaction, count: interaction.count - 1, sequenceId } : undefined,
+      };
+    } catch (error) {
+      return refused(game, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
+   * Une sonde ne sert qu'une fois pour les signaux « secteur d'une sonde » d'une même action :
+   * après un scan qui l'a utilisée, les scans suivants de la séquence la notent comme prise.
+   */
+  static markProbeUsed(queue: InteractionState[], scan: Interaction<'SELECTING_SCAN_SECTOR'>, probeId: string): InteractionState[] {
+    const usedProbeIds = [...(scan.usedProbeIds || []), probeId];
+    return queue.map(i => i.type === 'SELECTING_SCAN_SECTOR' && i.sequenceId === scan.sequenceId ? { ...i, usedProbeIds } : i);
   }
 }

@@ -66,12 +66,8 @@ export class AIBehavior {
         }
 
         if (TechnologySystem.canResearchTech(game, player.id).canResearch) {
-            // Une seule technologie par pile : on ne propose que les piles que le joueur n'a pas encore
-            TechnologySystem.getAvailableTechs(game)
-                .filter(tech => {
-                    const baseId = tech.id.substring(0, tech.id.lastIndexOf('-'));
-                    return !player.technologies.some(t => t.id.startsWith(baseId));
-                })
+            // Mêmes technologies que pour le joueur humain : le dessus de chaque pile qu'il n'a pas encore
+            TechnologySystem.acquirableTechs(game, player.id)
                 .forEach(tech => actions.push({ action: ActionType.RESEARCH_TECH, data: { tech } }));
         }
 

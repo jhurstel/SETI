@@ -5,6 +5,7 @@ import { BonusIcons } from './components/BonusIcons';
 import { AnyTechIcon } from './components/ObjectiveSymbol';
 import { Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
 import { TECHNOLOGY_STYLES } from './styles/celestialStyles';
+import { TechnologySystem } from '../systems/TechnologySystem';
 import './TechnologyBoardUI.css';
 
 interface TechnologyBoardUIProps {
@@ -31,19 +32,11 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
   const panelRef = useRef<HTMLDivElement>(null);
   useCloseOnOutsideClick(panelRef, isOpen, () => setIsOpen(false), !isAcquiringTech);
 
-  // Calculer les technologies partagées si nécessaire
-  const sharedBaseIds = React.useMemo(() => {
-    if (!sharedTechOnly) return new Set<string>();
-    const ids = new Set<string>();
-    game.players.forEach(p => {
-      if (p.id === currentPlayer.id) return;
-      p.technologies.forEach(t => {
-        const baseId = t.id.substring(0, t.id.lastIndexOf('-'));
-        ids.add(baseId);
-      });
-    });
-    return ids;
-  }, [game.players, currentPlayer.id, sharedTechOnly]);
+  // Technologies que le joueur peut prendre : même liste que pour les robots (catégories, piles déjà prises, partagées)
+  const acquirableIds = React.useMemo(
+    () => new Set(TechnologySystem.acquirableTechs(game, currentPlayer.id, { categories: researchCategories, sharedOnly: sharedTechOnly }).map(t => t.id)),
+    [game, currentPlayer.id, researchCategories, sharedTechOnly]
+  );
 
   // Fonction pour regrouper les technologies par pile (même ID de base)
   const getStacks = (technologies: Technology[]) => {
@@ -117,10 +110,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                     return t.id.substring(0, tLastDash) === baseId;
                   });
 
-                  const isClickable = (isAcquiringTech || canResearch) 
-                    && (!researchCategories || researchCategories.includes(slot.category))
-                    && (!sharedTechOnly || sharedBaseIds.has(baseId))
-                    && !hasTech;
+                  const isClickable = (isAcquiringTech || canResearch) && acquirableIds.has(topCard.id);
 
                   // Détection du bonus supplémentaire de 2 PV (logique basée sur les valeurs initiales)
                   const hasExtraPv = (topCard.bonus.pv === 5) || (topCard.bonus.pv === 2 && !!(topCard.bonus.media || topCard.bonus.card || topCard.bonus.energy));

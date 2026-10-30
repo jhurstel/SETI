@@ -39,6 +39,11 @@ export class CardSystem {
         return player.cards.filter(c => !this.isExertienCard(c));
     }
 
+    /** Cartes à défausser en passant : la main est ramenée à GAME_CONSTANTS.HAND_SIZE_AFTER_PASS cartes */
+    static cardsToDiscardAtPass(player: Player): number {
+        return Math.max(0, this.getHandCards(player).length - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS);
+    }
+
     /**
      * Pioche des cartes pour un joueur
      */

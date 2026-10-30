@@ -340,6 +340,11 @@ export class ProbeSystem {
   /**
    * Calcule le coût du déplacement pour une sonde donnée (1 ou 2 si astéroïde)
    */
+  /** Déplacements gratuits consommés par le prochain pas de la sonde (le reste est payé en énergie) */
+  static freeMovementsUsed(game: Game, playerId: string, probeId: string, availableFreeMovements: number): number {
+    return Math.min(this.getMovementCost(game, playerId, probeId), Math.max(0, availableFreeMovements));
+  }
+
   static getMovementCost(game: Game, playerId: string, probeId: string): number {
     const player = game.players.find(p => p.id === playerId);
     const probe = player?.probes.find(p => p.id === probeId);

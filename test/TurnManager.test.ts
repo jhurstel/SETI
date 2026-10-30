@@ -1,9 +1,9 @@
 import { TurnManager } from '../src/core/TurnManager';
 import { GameEngine } from '../src/core/Game';
 import { PassAction } from '../src/actions/PassAction';
-import { Game, GamePhase, LifeTraceType } from '../src/core/types';
+import { CardType, Game, GamePhase, LifeTraceType } from '../src/core/types';
 import { ScoreManager } from '../src/core/ScoreManager';
-import { createTestGame, getPlayer } from './helpers/gameFixture';
+import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
@@ -197,7 +197,29 @@ describe('PassAction', () => {
     test('refuse de garder plus de 4 cartes', () => {
       getPlayer(game, P1).cards.push(...game.decks.cards.slice(0, 2));
       const action = new PassAction(P1, keepFirst(game, P1, 5));
-      expect(action.validate(game).errors[0].message).toBe('Cartes à garder trop nombreuses');
+      expect(action.validate(game).errors[0].message).toBe('Gardez exactement 4 cartes de votre main');
+    });
+
+    test('refuse de défausser plus que l\'excédent de la main (régression : seule l\'interface le vérifiait)', () => {
+      getPlayer(game, P1).cards.push(...game.decks.cards.slice(0, 2));
+      expect(new PassAction(P1, keepFirst(game, P1, 3)).validate(game).valid).toBe(false);
+      expect(new PassAction(P1, keepFirst(game, P1, 4)).validate(game).valid).toBe(true);
+    });
+
+    test('main de 4 cartes ou moins : toutes sont gardées', () => {
+      const hand = getPlayer(game, P1).cards;
+      hand.splice(3);
+      expect(new PassAction(P1, []).validate(game).valid).toBe(false);
+      expect(new PassAction(P1, hand.map(c => c.id)).validate(game).valid).toBe(true);
+    });
+
+    test('une carte Exertien ne compte pas comme carte gardée en main', () => {
+      const hand = getPlayer(game, P1).cards;
+      hand.splice(4);
+      const exertien = makeCard('ET.X', { type: CardType.EXERTIEN });
+      hand.push(exertien);
+      expect(new PassAction(P1, [...keepFirst(game, P1, 3), exertien.id]).validate(game).valid).toBe(false);
+      expect(new PassAction(P1, keepFirst(game, P1, 4)).validate(game).valid).toBe(true);
     });
 
     test('refuse des cartes qui ne sont pas en main', () => {
@@ -205,7 +227,7 @@ describe('PassAction', () => {
     });
 
     test('refuse une carte de fin de manche absente du paquet', () => {
-      expect(new PassAction(P1, [], 'inconnue').validate(game).valid).toBe(false);
+      expect(new PassAction(P1, keepFirst(game, P1, 4), 'inconnue').validate(game).valid).toBe(false);
     });
 
     test('accepte une sélection valide', () => {

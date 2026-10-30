@@ -1,5 +1,5 @@
 import { cloneGame } from '../core/cloneGame';
-import { Game, InteractionState, TechnologyCategory, Player, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType } from '../core/types';
+import { Game, InteractionState, Player, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -25,6 +25,8 @@ interface AIControllerResult {
     historyEntries: HistoryEntry[];
     /** Interactions destinées à un joueur humain (ex: gagnant d'un secteur couvert par le robot), à confier à l'interface. */
     newPendingInteractions: InteractionState[];
+    /** Sonde utilisée par un scan « secteur d'une sonde » : elle ne sert plus pour la suite de la séquence */
+    usedProbeId?: string;
 }
 
 export class AIController {
@@ -54,6 +56,11 @@ export class AIController {
 
             game = result.updatedGame;
             historyEntries.push(...result.historyEntries);
+
+            // Comme pour le joueur humain : la sonde utilisée ne sert plus pour les scans suivants de la séquence
+            if (interaction.type === 'SELECTING_SCAN_SECTOR' && result.usedProbeId) {
+                queue.splice(0, queue.length, ...InteractionChoices.markProbeUsed(queue, interaction, result.usedProbeId));
+            }
 
             // Add new interactions to the front of the queue to be processed immediately
             queue.unshift(...result.newPendingInteractions);
@@ -122,6 +129,7 @@ export class AIController {
         let updatedGame = cloneGame(game);
         const historyEntries: HistoryEntry[] = [];
         const newPendingInteractions: InteractionState[] = [];
+        let usedProbeId: string | undefined;
 
         const addHistory = (message: string, playerId: string, previousState?: Game) => {
             historyEntries.push({ message, playerId, previousState, sequenceId });
@@ -139,6 +147,7 @@ export class AIController {
                     updatedGame = res.updatedGame;
                     historyEntries.push(...res.historyEntries);
                     newPendingInteractions.push(...res.newPendingInteractions);
+                    usedProbeId = res.usedProbeId;
                 }
                 break;
             }
@@ -212,55 +221,52 @@ export class AIController {
                         const probe = probes[Math.floor(random() * probes.length)];
                         const rotationState = createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0);
                         const absPos = getAbsoluteSectorForProbe(probe.solarPosition!, rotationState);
-                        const reachable = calculateReachableCellsWithEnergy(probe.solarPosition!.disk, absPos, 1, p.energy, rotationState, false, undefined, updatedGame.board.solarSystem.extraCelestialObjects);
-                        const destinations = Array.from(reachable.keys()).filter(k => k !== `${probe.solarPosition!.disk}${absPos}`);
+                        // Une case voisine, payée avec les déplacements gratuits restants puis l'énergie (comme le joueur humain)
+                        const reachable = calculateReachableCellsWithEnergy(probe.solarPosition!.disk, absPos, interaction.count, p.energy, rotationState, false, undefined, updatedGame.board.solarSystem.extraCelestialObjects);
+                        const destinations = Array.from(reachable.entries()).filter(([, cell]) => cell.path.length === 2).map(([key]) => key);
                         if (destinations.length > 0) {
                             const destKey = destinations[Math.floor(random() * destinations.length)];
                             const disk = destKey[0] as DiskName;
                             const sector = parseInt(destKey.substring(1)) as SectorNumber;
-                            const moveRes = ProbeSystem.moveProbe(updatedGame, p.id, probe.id, disk, sector, 1, sequenceId);
-                            updatedGame = moveRes.updatedGame;
-                            historyEntries.push(...moveRes.historyEntries);
-                            newPendingInteractions.push(...moveRes.newPendingInteractions);
+                            const usedFree = ProbeSystem.freeMovementsUsed(updatedGame, p.id, probe.id, interaction.count);
+                            try {
+                                const moveRes = ProbeSystem.moveProbe(updatedGame, p.id, probe.id, disk, sector, interaction.count, sequenceId);
+                                updatedGame = moveRes.updatedGame;
+                                historyEntries.push(...moveRes.historyEntries);
+                                newPendingInteractions.push(...moveRes.newPendingInteractions);
+                                if (interaction.count - usedFree > 0) newPendingInteractions.push({ ...interaction, count: interaction.count - usedFree });
+                            } catch {
+                                // Déplacement refusé par le moteur : le robot renonce aux déplacements restants
+                            }
                         }
                     }
-                }
-                if (interaction.count > 1) {
-                    newPendingInteractions.push({ ...interaction, count: interaction.count - 1 });
                 }
                 break;
             }
             case 'ACQUIRING_TECH': {
-                const availableTechs = TechnologySystem.getAvailableTechs(updatedGame);
-                const p = updatedGame.players.find(p => p.id === player.id);
-                let validTechs = availableTechs;
-                if (p) {
-                    validTechs = validTechs.filter(tech => !p.technologies.some(t => t.id.startsWith(tech.id.substring(0, tech.id.lastIndexOf('-')))));
-                }
-                if (interaction.categories) {
-                    validTechs = validTechs.filter(t => interaction.categories!.includes(t.type));
-                }
+                // Mêmes technologies que pour le joueur humain (catégories, piles déjà prises, technologie partagée)
+                const validTechs = TechnologySystem.acquirableTechs(updatedGame, player.id, { categories: interaction.categories, sharedOnly: interaction.sharedOnly });
                 if (validTechs.length > 0) {
                     const tech = validTechs[Math.floor(random() * validTechs.length)];
-                    let targetCol: number | undefined = undefined;
-                    if (tech.type === TechnologyCategory.COMPUTING) {
-                        targetCol = [1, 3, 5, 6][Math.floor(random() * 4)];
+                    // Une technologie Informatique renvoie le choix de la colonne (SELECTING_COMPUTER_SLOT)
+                    const res = InteractionChoices.acquireTech(updatedGame, player.id, { ...interaction, sequenceId }, tech);
+                    if (!res.error) {
+                        updatedGame = res.updatedGame;
+                        historyEntries.push(...res.historyEntries);
+                        newPendingInteractions.push(...res.newPendingInteractions);
                     }
-                    const res = TechnologySystem.acquireTechnology(updatedGame, player.id, tech, targetCol, interaction.noTileBonus);
-                    updatedGame = res.updatedGame;
-                    historyEntries.push(...(res.historyEntries || []));
-                    newPendingInteractions.push(...(res.newPendingInteractions || []).map(i => ({ ...i, sequenceId })));
                 }
                 break;
             }
             case 'SELECTING_COMPUTER_SLOT': {
-                const tech = interaction.tech;
                 const p = updatedGame.players.find(p => p.id === player.id);
                 const columns = p ? ComputerSystem.TECH_COLUMNS.filter(col => ComputerSystem.canAssignTechnology(p, col).canAssign) : [];
-                if (p && columns.length > 0) {
-                    const targetCol = columns[Math.floor(random() * columns.length)];
-                    ComputerSystem.assignTechnology(p, tech, targetCol);
-                    addHistory(`assigne technologie "${tech.name}" au slot ${targetCol}`, player.id, game);
+                const targetCol = columns.length > 0 ? columns[Math.floor(random() * columns.length)] : undefined;
+                const res = InteractionChoices.acquireTech(updatedGame, player.id, { ...interaction, sequenceId }, interaction.tech, targetCol);
+                if (!res.error) {
+                    updatedGame = res.updatedGame;
+                    historyEntries.push(...res.historyEntries);
+                    newPendingInteractions.push(...res.newPendingInteractions);
                 }
                 break;
             }
@@ -302,14 +308,11 @@ export class AIController {
                 break;
             }
             case 'CHOOSING_BONUS_ACTION': {
-                const firstChoice = interaction.choices.find(c => !c.done);
-                if (firstChoice) {
-                    const updatedChoices = interaction.choices.map(c => c.id === firstChoice.id ? { ...c, done: true } : c);
-                    const remainingChoices = updatedChoices.filter(c => !c.done);
-                    newPendingInteractions.push(firstChoice.state);
-                    if (remainingChoices.length > 0) {
-                        newPendingInteractions.push({ ...interaction, choices: updatedChoices });
-                    }
+                // Première action restante, puis le menu revient (sauf après une mission), comme pour le joueur humain
+                const chosen = InteractionChoices.chooseBonusAction(interaction, interaction.choices.findIndex(c => !c.done));
+                if (chosen) {
+                    newPendingInteractions.push(chosen.next);
+                    if (chosen.menu) newPendingInteractions.push(chosen.menu);
                 }
                 break;
             }
@@ -336,15 +339,15 @@ export class AIController {
             case 'LANDING_PROBE': {
                 // La sonde du robot posée sur une planète (hors Terre)
                 const info = ProbeSystem.probeOnPlanetInfo(updatedGame, player.id);
-                const found = info.hasProbe && info.planetId ? ProbeSystem.findProbeAtPlanet(updatedGame, player.id, info.planetId) : null;
-                if (found && info.planetId) {
-                    const planetId = info.planetId;
-                    const res = interaction.type === 'ORBITING_PROBE'
-                        ? ProbeSystem.orbitProbe(updatedGame, player.id, found.probe.id, planetId, sequenceId, true, interaction.source)
-                        : ProbeSystem.landProbe(updatedGame, player.id, found.probe.id, planetId, true, undefined, interaction.source, sequenceId);
-                    updatedGame = res.updatedGame;
-                    historyEntries.push(...res.historyEntries);
-                    newPendingInteractions.push(...res.newPendingInteractions);
+                if (info.hasProbe && info.planetId) {
+                    // Placements restants (count > 1) : la même interaction suit les bonus déclenchés
+                    const res = InteractionChoices.placeBonusProbe(updatedGame, player.id, { ...interaction, sequenceId }, info.planetId);
+                    if (!res.error) {
+                        updatedGame = res.updatedGame;
+                        historyEntries.push(...res.historyEntries);
+                        newPendingInteractions.push(...res.newPendingInteractions);
+                        if (res.nextInteraction) newPendingInteractions.push(res.nextInteraction);
+                    }
                 }
                 break;
             }
@@ -379,7 +382,7 @@ export class AIController {
                     const availableTokens = species.message.map((token, index) => ({ token, index })).filter(item => item.token.isAvailable);
                     if (availableTokens.length > 0) {
                         const choice = availableTokens[Math.floor(random() * availableTokens.length)];
-                        const res = SpeciesSystem.claimCentaurienReward(updatedGame, player.id, choice.index, interaction.markerId);
+                        const res = InteractionChoices.claimCentaurienReward(updatedGame, player.id, interaction, choice.index);
                         updatedGame = res.updatedGame;
                         historyEntries.push(...res.historyEntries);
                         newPendingInteractions.push(...res.newPendingInteractions);
@@ -433,6 +436,6 @@ export class AIController {
                 break;
         }
 
-        return { updatedGame, historyEntries, newPendingInteractions };
+        return { updatedGame, historyEntries, newPendingInteractions, usedProbeId };
     }
 }

@@ -678,7 +678,7 @@ type InteractionStateVariant =
   /** Le joueur acquiert une technologie (en payant ou en bonus) et doit la sélectionner. */
   | { type: 'ACQUIRING_TECH', isBonus?: boolean, categories?: TechnologyCategory[], sharedOnly?: boolean, noTileBonus?: boolean, sequenceId?: string }
   /** Le joueur a choisi une technologie "Informatique" et doit sélectionner une colonne sur son ordinateur. */
-  | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, sequenceId?: string }
+  | { type: 'SELECTING_COMPUTER_SLOT', tech: Technology, noTileBonus?: boolean, sequenceId?: string }
   /** Le joueur a lancé l'action "Analyser", principalement pour l'animation. */
   | { type: 'ANALYZING', sequenceId?: string }
   /** Le joueur doit placer une trace de vie sur le plateau Alien. */
