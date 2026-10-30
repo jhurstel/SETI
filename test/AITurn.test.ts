@@ -1,4 +1,5 @@
 import { AITurn } from '../src/ai/AITurn';
+import * as randomModule from '../src/core/random';
 import { GameEngine } from '../src/core/Game';
 import { GameFactory } from '../src/core/GameFactory';
 import { TurnManager } from '../src/core/TurnManager';
@@ -11,13 +12,13 @@ import { AIBehavior } from '../src/ai/AIBehavior';
 import { ScoreManager } from '../src/core/ScoreManager';
 import { createRotationState, getAbsoluteSectorForProbe } from '../src/core/SolarSystemPosition';
 import { AIDifficulty, Game, GamePhase, LifeTraceLocation, LifeTraceType } from '../src/core/types';
-import { giveCard, makeCard, mockFetchFromPublic } from './helpers/gameFixture';
+import { giveCard, makeCard, mockFetchFromPublic, TEST_SEED } from './helpers/gameFixture';
 
-/** Partie en phase SETUP dont tous les joueurs sont des robots. */
-async function createRobotGame(names: string[], levels: AIDifficulty[] = []): Promise<Game> {
+/** Partie en phase SETUP dont tous les joueurs sont des robots (graine fixe : même partie à chaque exécution). */
+async function createRobotGame(names: string[], levels: AIDifficulty[] = [], seed: number = TEST_SEED): Promise<Game> {
   const fetchSpy = mockFetchFromPublic();
   try {
-    const game = await GameFactory.createGame(names);
+    const game = await GameFactory.createGame(names, true, seed);
     game.players.forEach((p, i) => {
       p.type = 'robot';
       p.aiDifficulty = levels[i];
@@ -175,7 +176,7 @@ describe('AITurn (parties complètes entre robots)', () => {
     const before = AIEvaluator.evaluate(started, player.id);
 
     // Tirage haut : aucune action gratuite au hasard, et la 3e meilleure action principale
-    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.99);
+    const randomSpy = jest.spyOn(randomModule, 'random').mockReturnValue(0.99);
     const step = AITurn.playStep(started);
     randomSpy.mockRestore();
 

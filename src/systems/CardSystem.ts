@@ -1,15 +1,13 @@
 import { effectNumber, effectString, effectAmount } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
-import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CelestialObject, CostType, AlienBoardType, LifeTraceLocation } from '../core/types';
-import { createRotationState, calculateAbsolutePosition, getCell, getAdjacentCells, getObjectPosition, getAllCelestialObjects, getAbsoluteSectorForProbe, calculateReachableCells } from '../core/SolarSystemPosition';
+import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CostType, AlienBoardType, LifeTraceLocation } from '../core/types';
+import { createRotationState, getCell, getAdjacentCells, getObjectPosition, getAbsoluteSectorForProbe, calculateReachableCells } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';
 import { SpeciesSystem } from './SpeciesSystem';
 import { uniqueId } from '../core/ids';
-
-/** Carte 108 (SETI@home) : Médias nécessaires pour marquer la trace de vie */
-const LIFETRACE_MEDIA_THRESHOLD = 8;
+import { addImmediateEffects, applyPassiveEffect, lifeTraceColor, PlayCardContext } from './PlayCardEffects';
 
 /**
  * Système de gestion des cartes et des missions.
@@ -355,7 +353,7 @@ export class CardSystem {
      * Joue une carte de la main du joueur
      */
     static playCard(game: Game, playerId: string, cardId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
-        let updatedGame = cloneGame(game);
+        const updatedGame = cloneGame(game);
         const player = updatedGame.players.find(p => p.id === playerId);
 
         if (!player) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
@@ -462,415 +460,10 @@ export class CardSystem {
         const extraInteractions: InteractionState[] = [];
         const takenRowCards: string[] = [];
 
-        // Traitement des effets immédiats
-        if (card.immediateEffects) {
-            card.immediateEffects.forEach(effect => {
-                if (effect.type === 'GAIN') {
-                    switch (effect.target) {
-                        case 'CREDIT':
-                            bonuses.credits = (bonuses.credits || 0) + effectNumber(effect);
-                            break;
-                        case 'ENERGY':
-                            bonuses.energy = (bonuses.energy || 0) + effectNumber(effect);
-                            break;
-                        case 'DATA':
-                            bonuses.data = Math.min((bonuses.data || 0) + effectNumber(effect), GAME_CONSTANTS.MAX_DATA);
-                            break;
-                        case 'MEDIA':
-                            bonuses.media = Math.min((bonuses.media || 0) + effectNumber(effect), GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-                            break;
-                        case 'CARD':
-                            bonuses.card = (bonuses.card || 0) + effectNumber(effect);
-                            break;
-                        case 'PROBE':
-                            bonuses.probe = (bonuses.probe || 0) + effectNumber(effect);
-                            break;
-                        case 'TOKEN':
-                            bonuses.token = (bonuses.token || 0) + effectNumber(effect);
-                            break;
-                    }
-                } else if (effect.type === 'ACTION') {
-                    switch (effect.target) {
-                        case 'ANYCARD':
-                            bonuses.anycard = (bonuses.anycard || 0) + effectNumber(effect);
-                            break;
-                        case 'ROTATION':
-                            bonuses.rotation = (bonuses.rotation || 0) + effectNumber(effect);
-                            break;
-                        case 'ORBIT':
-                            bonuses.orbiting = (bonuses.orbiting || 0) + effectNumber(effect);
-                            break;
-                        case 'LAND':
-                        bonuses.landing = (bonuses.landing || 0) + effectNumber(effect);
-                        break;
-                        case 'MOVEMENT':
-                            bonuses.movements = (bonuses.movements || 0) + effectNumber(effect);
-                            break;
-                        case 'TECH':
-                            bonuses.technologies = (bonuses.technologies || []);
-                            bonuses.technologies.push(effectAmount<TechnologyCategory>(effect));
-                            break;
-                        case 'SCAN':
-                            bonuses.scan = (bonuses.scan || 0) + effectNumber(effect);
-                            break;
-                        case 'SIGNAL':
-                            bonuses.signals = (bonuses.signals || []);
-                            bonuses.signals.push(effectAmount<SectorType>(effect));
-                            break;
-                        case 'LIFETRACE':
-                            bonuses.lifetraces = (bonuses.lifetraces || []);
-                            bonuses.lifetraces.push(effectAmount<LifeTraceType>(effect));
-                            break;
-                    }
-                }
-            });
-        }
-
-        // Traitement des effets passifs temporaires (Buffs de tour)
-        if (card.passiveEffects) {
-            card.passiveEffects.forEach(effect => {
-                if (effect.type === 'VISIT_BONUS' && effect.target) {
-                    // Si la planète a DÉJÀ été visitée ce tour-ci, on applique le bonus immédiatement
-                    if (player.visitedPlanetsThisTurn.includes(effect.target)) {
-                        player.score += effectNumber(effect);
-                        if (!bonuses.pv) bonuses.pv = 0;
-                        bonuses.pv += effectNumber(effect);
-                    } else {
-                        // Sinon on ajoute le buff pour le reste du tour
-                        player.activeBuffs.push({ ...effect, source: card.name });
-                    }
-                } else if (effect.type === 'VISIT_UNIQUE') {
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'ASTEROID_EXIT_COST') {
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'VISIT_ASTEROID') {
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'VISIT_COMET') {
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'SAME_DISK_MOVE') {
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'GAIN_LIFETRACE_IF_ASTEROID') {
-                    const rotationState = createRotationState(
-                        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-                        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-                        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-                    );
-
-                    const hasProbeOnAsteroid = player.probes.some(p => {
-                        if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-                        const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
-                        const cell = getCell(p.solarPosition.disk, absSector, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
-                        return cell?.hasAsteroid;
-                    });
-
-                    if (hasProbeOnAsteroid) {
-                        let scope: LifeTraceType = LifeTraceType.ANY;
-                        if (effect.target === 'yellow') scope = LifeTraceType.YELLOW;
-                        else if (effect.target === 'red') scope = LifeTraceType.RED;
-                        else if (effect.target === 'blue') scope = LifeTraceType.BLUE;
-
-                        if (!bonuses.lifetraces) bonuses.lifetraces = [];
-                        bonuses.lifetraces.push({ amount: effectNumber(effect), scope });
-                    }
-                } else if (effect.type === 'GAIN_LIFETRACE_IF_ALREADY') {
-                    // Cartes 98 à 100 : une trace de cette couleur pour une espèce où le joueur en a déjà marqué une
-                    const color = this.lifeTraceColor(effect.target);
-                    const boardIndices = updatedGame.board.alienBoards
-                        .map((board, index) => board.lifeTraces.some(t => t.playerId === player.id && t.type === color) ? index : -1)
-                        .filter(index => index !== -1);
-                    if (boardIndices.length > 0) {
-                        for (let i = 0; i < effectNumber(effect); i++) extraInteractions.push({ type: 'PLACING_LIFE_TRACE', color, boardIndices });
-                    }
-                } else if (effect.type === 'GAIN_LIFETRACE_IF_MEDIA') {
-                    // Carte 108 (SETI@home) : trace de vie si le joueur a au moins 8 Médias
-                    if (player.mediaCoverage >= LIFETRACE_MEDIA_THRESHOLD) {
-                        if (!bonuses.lifetraces) bonuses.lifetraces = [];
-                        bonuses.lifetraces.push({ amount: effectNumber(effect), scope: this.lifeTraceColor(effect.target) });
-                    }
-                } else if (effect.type === 'TAKE_CARD_ROW') {
-                    // ET.16 : les cartes de la rangée vont dans la main (la rangée est ensuite complétée)
-                    const taken = updatedGame.decks.cardRow.splice(0);
-                    player.cards.push(...taken);
-                    if (taken.length > 0) takenRowCards.push(...taken.map(c => c.name));
-                } else if (effect.type === 'REVEAL_AND_TRIGGER_FREE_ACTION') {
-                    bonuses.revealAndTriggerFreeAction = true;
-                } else if (effect.type === 'SCORE_PER_MEDIA') {
-                    bonuses.scorePerMedia = effectNumber(effect);
-                } else if (effect.type === 'SCORE_PER_TECH_TYPE') {
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'MEDIA_IF_SHARED_TECH') {
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'SHARED_TECH_ONLY_NO_BONUS') {
-                    bonuses.sharedOnly = true;
-                    bonuses.noTileBonus = true;
-                } else if (effect.type === 'GAIN_ENERGY_PER_ENERGY_REVENUE') {
-                    let energyCardsCount = 0;
-                    player.cards.forEach(c => {
-                        if (c.revenue === RevenueType.ENERGY) {
-                            c.isRevealed = true;
-                            energyCardsCount++;
-                        }
-                    });
-                    if (energyCardsCount > 0) {
-                        bonuses.energy = (bonuses.energy || 0) + energyCardsCount;
-                    }
-                } else if (effect.type === 'REVEAL_MOVEMENT_CARDS_FOR_BONUS') {
-                    let movementCardsCount = 0;
-                    player.cards.forEach(c => {
-                        if (c.freeAction === FreeActionType.MOVEMENT) {
-                            c.isRevealed = true;
-                            movementCardsCount++;
-                        }
-                    });
-                    if (movementCardsCount > 0) {
-                        bonuses.movements = (bonuses.movements || 0) + movementCardsCount;
-                    }
-                } else if (effect.type === 'GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE') {
-                    const energyRevCards = player.revenueEnergy - GAME_CONSTANTS.INITIAL_REVENUE_ENERGY;
-                    if (energyRevCards > 0) {
-                        bonuses.energy = (bonuses.energy || 0) + energyRevCards;
-                    }
-                    // Reserve self (Energy)
-                    player.revenueEnergy += 1;
-                    bonuses.energy = (bonuses.energy || 0) + 1;
-                } else if (effect.type === 'GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE') {
-                    const cardRevCards = player.revenueCards - GAME_CONSTANTS.INITIAL_REVENUE_CARDS;
-                    if (cardRevCards > 0) {
-                        bonuses.media = (bonuses.media || 0) + cardRevCards;
-                    }
-                    // Reserve self (Card)
-                    player.revenueCards += 1;
-                    // Immediate gain from reservation (Draw 1 card)
-                    updatedGame = CardSystem.drawCards(updatedGame, playerId, 1);
-                    bonuses.card = (bonuses.card || 0) + 1;
-                } else if (effect.type === 'GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE') {
-                    const creditRevCards = player.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS;
-                    if (creditRevCards > 0) {
-                        bonuses.pv = (bonuses.pv || 0) + creditRevCards * 3;
-                    }
-                    // Reserve self (Credit)
-                    player.revenueCredits += 1;
-                    bonuses.credits = (bonuses.credits || 0) + 1;
-                } else if (effect.type === 'OPTIMAL_LAUNCH_WINDOW') {
-                    const rotationState = createRotationState(
-                        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-                        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-                        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-                    );
-
-                    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, updatedGame.board.solarSystem.extraCelestialObjects);
-                    if (earthPos) {
-                        let movementBonus = 0;
-                        const allObjects = getAllCelestialObjects(updatedGame.board.solarSystem.extraCelestialObjects);
-
-                        allObjects.forEach(obj => {
-                            if (obj.id === 'earth') return;
-                            if (obj.type !== 'planet' && obj.type !== 'comet') return;
-
-                            const objPos = calculateAbsolutePosition(obj, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
-                            if (objPos.isVisible && objPos.absoluteSector === earthPos.absoluteSector) {
-                                movementBonus++;
-                            }
-                        });
-
-                        if (movementBonus > 0) {
-                            bonuses.movements = (bonuses.movements || 0) + movementBonus;
-                        }
-                    }
-                } else if (effect.type === 'IGNORE_PROBE_LIMIT') {
-                    bonuses.ignoreProbeLimit = true;
-                } else if (effect.type === 'CHOICE_MEDIA_OR_MOVE') {
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'OSIRIS_REX_BONUS') {
-                    let maxDataBonus = 0;
-                    const rotationState = createRotationState(
-                        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-                        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-                        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-                    );
-
-                    player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition).forEach(probe => {
-                        let currentProbeBonus = 0;
-
-                        // Get absolute position of the probe
-                        const tempObj: CelestialObject = {
-                            id: probe.id,
-                            type: 'empty', // type doesn't matter for position calculation
-                            name: 'probe',
-                            position: {
-                                disk: probe.solarPosition!.disk,
-                                sector: probe.solarPosition!.sector,
-                                x: 0, y: 0
-                            },
-                            level: (probe.solarPosition!.level || 0) as 0 | 1 | 2 | 3
-                        };
-                        const absPos = calculateAbsolutePosition(tempObj, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
-
-                        // Check current cell: +2 data if on an asteroid field
-                        const currentCell = getCell(absPos.disk, absPos.absoluteSector, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
-                        if (currentCell && currentCell.hasAsteroid) {
-                            currentProbeBonus += 2;
-                        }
-
-                        // Check adjacent cells: +1 data for each adjacent asteroid field
-                        const adjacentCellsInfo = getAdjacentCells(absPos.disk, absPos.absoluteSector);
-                        adjacentCellsInfo.forEach(adj => {
-                            const adjCell = getCell(adj.disk, adj.sector, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
-                            if (adjCell && adjCell.hasAsteroid) {
-                                currentProbeBonus += 1;
-                            }
-                        });
-
-                        if (currentProbeBonus > maxDataBonus) {
-                            maxDataBonus = currentProbeBonus;
-                        }
-                    });
-
-                    if (maxDataBonus > 0) {
-                        bonuses.data = (bonuses.data || 0) + maxDataBonus;
-                    }
-                } else if (effect.type === 'DISCARD_ROW_FOR_FREE_ACTIONS') {
-                    // Appliquer les actions gratuites de toutes les cartes de la rangée
-                    updatedGame.decks.cardRow.forEach(rowCard => {
-                        if (rowCard.freeAction === FreeActionType.MOVEMENT) {
-                            bonuses.movements = (bonuses.movements || 0) + 1;
-                        } else if (rowCard.freeAction === FreeActionType.DATA) {
-                            bonuses.data = (bonuses.data || 0) + 1;
-                        } else if (rowCard.freeAction === FreeActionType.MEDIA) {
-                            bonuses.media = (bonuses.media || 0) + 1;
-                        }
-                    });
-                    updatedGame.decks.cardRow = [];
-                } else if (effect.type === 'ATMOSPHERIC_ENTRY') {
-                    bonuses.atmosphericEntry = true;
-                } else if (effect.type === 'SAMPLE_RETURN') {
-                    bonuses.sampleReturn = true;
-                } else if (effect.type === 'GAIN_SIGNAL_FROM_HAND') {
-                    bonuses.gainSignalFromHand = effectNumber(effect);
-                } else if (effect.type === 'BONUS_IF_COVERED') {
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'SCORE_IF_UNIQUE') {
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'SCORE_PER_SECTOR') {
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'KEEP_CARD_IF_ONLY') {
-                    bonuses.keepCardIfOnly = true;
-                } else if (effect.type === 'NO_DATA') {
-                    bonuses.noData = true;
-                } else if (effect.type === 'ANY_PROBE') {
-                    bonuses.anyProbe = true;
-                } else if (effect.type === 'GAIN_SIGNAL_ADJACENTS') {
-                    bonuses.gainSignalAdjacents = true;
-                } else if (effect.type === 'IGNORE_SATELLITE_LIMIT') {
-                    bonuses.ignoreSatelliteLimit = true;
-                } else if (effect.type === 'GAIN_LANDING_AND_SPECIMEN') {
-                    bonuses.landing = (bonuses.landing || 0) + 1;
-                    bonuses.collectSpecimen = true;
-                } else if (effect.type === 'GAIN_SATELLITE_LANDING_AND_SPECIMEN') {
-                    bonuses.landing = (bonuses.landing || 0) + 1;
-                    bonuses.ignoreSatelliteLimit = true;
-                    bonuses.collectSpecimen = true;
-                } else if (effect.type === 'GAIN_ORBIT_OR_LAND_AND_SPECIMEN') {
-                    bonuses.orbitOrLandAndSpecimen = true;
-                    bonuses.collectSpecimen = true;
-                } else if (effect.type === 'GAIN_SPECIMEN_BONUS') {
-                    bonuses.consultSpecimen = true;
-                } else if (effect.type === 'SCORE_PER_LIFETRACE') {
-                    let scope: LifeTraceType = LifeTraceType.ANY;
-                    if (effect.target === 'red') scope = LifeTraceType.RED;
-                    else if (effect.target === 'yellow') scope = LifeTraceType.YELLOW;
-                    else if (effect.target === 'blue') scope = LifeTraceType.BLUE;
-
-                    const count = player.lifeTraces.filter(t => scope === LifeTraceType.ANY || t.type === scope).length;
-                    if (count > 0) {
-                        bonuses.pv = (bonuses.pv || 0) + (count * effectNumber(effect));
-                    }
-                } else if (effect.type === 'NO_MEDIA') {
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'SCORE_PER_TRACE') {
-                    // Carte 75 : les PV dépendent de la couleur de la trace gagnée, appliqués au placement (SpeciesSystem.placeLifeTrace)
-                    player.activeBuffs.push({ ...effect, source: card.name });
-                } else if (effect.type === 'GAIN_MOVE_IF_ANOMALY') {
-                    // Vérifier si la Terre est dans un secteur avec une anomalie
-                    const rotationState = createRotationState(
-                        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-                        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-                        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-                    );
-                    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, updatedGame.board.solarSystem.extraCelestialObjects);
-                    
-                    if (earthPos) {
-                        const anomalies = (updatedGame.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly');
-                        // Les anomalies sont fixes (Level 0) ou sur un disque. On compare le secteur absolu.
-                        // Note: Les anomalies sont stockées avec leur position disque/secteur.
-                        // Si elles sont fixes (Level 0), leur secteur absolu est leur secteur.
-                        const hasAnomaly = anomalies.some(a => {
-                            const aPos = calculateAbsolutePosition(a, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
-                            return aPos.absoluteSector === earthPos.absoluteSector;
-                        });
-
-                        if (hasAnomaly) {
-                            bonuses.movements = (bonuses.movements || 0) + 1;
-                        }
-                    }
-                } else if (effect.type.startsWith('SCORE_PER_ANOMALY')) {
-                    if (typeof effect.value === 'number' && !isNaN(effect.value)) {
-                        const rotationState = createRotationState(
-                            updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-                            updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-                            updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-                        );
-                        const anomalies = (updatedGame.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly');
-                        const anomalySectors = new Set<number>();
-                        anomalies.forEach(a => {
-                            const aPos = calculateAbsolutePosition(a, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
-                            anomalySectors.add(aPos.absoluteSector);
-                        });
-
-                        let signalCount = 0;
-                        updatedGame.board.sectors.forEach(sector => {
-                            const sectorNum = parseInt(sector.id.replace('sector_', ''));
-                            if (anomalySectors.has(sectorNum)) {
-                                signalCount += sector.signals.filter(s => s.markedBy === playerId).length;
-                            }
-                        });
-
-                        if (signalCount > 0) {
-                            bonuses.pv = (bonuses.pv || 0) + (signalCount * effectNumber(effect));
-                        }
-                    }
-                } else if (effect.type === 'GAIN_REWARD_NEXT_ANOMALY') {
-                    const rotationState = createRotationState(
-                        updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-                        updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-                        updatedGame.board.solarSystem.rotationAngleLevel3 || 0
-                    );
-                    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, updatedGame.board.solarSystem.extraCelestialObjects);
-                    const anomalies = (updatedGame.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly');
-
-                    if (earthPos && anomalies.length > 0) {
-                        // Trouver l'anomalie la plus proche dans le sens anti-horaire (sens des secteurs 1->8)
-                        // On calcule la distance (AnomalySector - EarthSector + 8) % 8
-                        // Celle avec la plus petite distance > 0 est la prochaine.
-                        const sortedAnomalies = anomalies.map(a => {
-                            const aPos = calculateAbsolutePosition(a, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
-                            let dist = (aPos.absoluteSector - earthPos.absoluteSector + 8) % 8;
-                            if (dist === 0) dist = 8; // Si sur le même secteur, on considère que c'est le plus loin (tour complet) ou le plus proche (0)? 
-                            // Interprétation: "Prochaine" implique futur. Si on est dessus, c'est "Actuelle". 
-                            // Prenons la plus petite distance non nulle.
-                            return { anomaly: a, dist };
-                        }).sort((a, b) => a.dist - b.dist);
-
-                        if (sortedAnomalies.length > 0) {
-                            const nextAnomaly = sortedAnomalies[0].anomaly;
-                            if (nextAnomaly.anomalyData?.bonus) {
-                                ResourceSystem.accumulateBonus(nextAnomaly.anomalyData.bonus, bonuses);
-                            }
-                        }
-                    }
-                }
-        });
-        }
+        // Effets immédiats (gains) et passifs (buffs, gains conditionnels) : systems/PlayCardEffects
+        addImmediateEffects(card.immediateEffects, bonuses);
+        const effectContext: PlayCardContext = { game: updatedGame, player, card, bonuses, extraInteractions, takenRowCards };
+        (card.passiveEffects || []).forEach(effect => applyPassiveEffect(effectContext, effect));
 
         // Traitement des effets permanents (Missions déclenchables)
         if (card.permanentEffects) {
@@ -968,14 +561,6 @@ export class CardSystem {
             return result.map(i => i.type === 'PLACING_LIFE_TRACE' ? { ...i, boardIndices } : i);
         }
         return result;
-    }
-
-    /** Couleur de trace de vie d'un paramètre de carte (red, yellow, blue ; sinon n'importe laquelle) */
-    private static lifeTraceColor(target?: string): LifeTraceType {
-        if (target === 'red') return LifeTraceType.RED;
-        if (target === 'yellow') return LifeTraceType.YELLOW;
-        if (target === 'blue') return LifeTraceType.BLUE;
-        return LifeTraceType.ANY;
     }
 
     static discardToHandSize(game: Game, playerId: string, cardIdsToKeep: string[]): Game {
@@ -1388,7 +973,7 @@ export class CardSystem {
 
         if (conditionType === 'GAIN_IF_2_LIFETRACES') {
             // ET.8 à ET.10 (cartes Mascamites) : 2 traces de la couleur « pour cette espèce »
-            const type = this.lifeTraceColor(target);
+            const type = lifeTraceColor(target);
             const count = SpeciesSystem.playerTracesForSpecies(game, playerId, AlienBoardType.MASCAMITES).filter(t => t.type === type).length;
             if (count >= 2) return rewards;
         }
