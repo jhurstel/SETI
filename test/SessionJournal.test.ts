@@ -40,16 +40,19 @@ describe('SessionJournal', () => {
     expect(SessionJournal.undoLast(log)!.game).toEqual(state(2));
   });
 
-  test('les états antérieurs au dernier tour de chaque humain sont oubliés', () => {
-    let log = SessionJournal.append([], [entry('--- Tour de Humain ---')], state(1), [H]);
-    log = SessionJournal.append(log, [entry('action tour 1', H, 's1')], state(2), [H]);
-    log = SessionJournal.append(log, [entry('--- Tour de Robot ---', R)], state(3), [H]);
-    log = SessionJournal.append(log, [entry('--- Tour de Humain ---')], state(4), [H]);
-    log = SessionJournal.append(log, [entry('action tour 2', H, 's2')], state(5), [H]);
+  test('les états antérieurs à l\'avant-dernier tour de chaque humain sont oubliés', () => {
+    let log: HistoryEntry[] = [];
+    [1, 2, 3].forEach(turn => {
+      log = SessionJournal.append(log, [entry('--- Tour de Humain ---')], state(turn * 10), [H]);
+      log = SessionJournal.append(log, [entry(`action tour ${turn}`, H, `s${turn}`)], state(turn * 10 + 1), [H]);
+      log = SessionJournal.append(log, [entry('--- Tour de Robot ---', R)], state(turn * 10 + 2), [H]);
+    });
 
-    expect(log.filter(e => e.previousState).map(e => e.message)).toEqual(['--- Tour de Humain ---', 'action tour 2']);
-    expect(SessionJournal.undoTurn(log, H)!.log.map(e => e.message)).toEqual(log.slice(0, 4).map(e => e.message));
-    expect(SessionJournal.undoTurn(log, H)!.game).toEqual(state(5));
+    // Tours 2 et 3 gardés, tour 1 oublié
+    expect(log.filter(e => e.previousState).map(e => e.message)).toEqual([
+      '--- Tour de Humain ---', 'action tour 2', '--- Tour de Robot ---', '--- Tour de Humain ---', 'action tour 3', '--- Tour de Robot ---',
+    ]);
+    expect(SessionJournal.undoTurn(log, H)!.game).toEqual(state(31));
   });
 
   test('sans tour d\'humain encore commencé : tout est gardé', () => {

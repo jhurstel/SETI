@@ -5,8 +5,9 @@ import { uniqueId } from '../core/ids';
 /**
  * Journal d'une session : l'historique affiché et les états d'annulation.
  * La première entrée de chaque commande garde l'état d'avant (file d'interactions comprise, elle est dans la partie).
- * Seuls les états depuis le début du dernier tour de chaque joueur humain sont gardés : l'annulation ne remonte
- * pas plus loin, et la mémoire reste bornée (un état complet par commande pèse environ 120 Ko).
+ * Seuls les états depuis le début de l'avant-dernier tour de chaque joueur humain sont gardés : on peut encore
+ * revenir au début du tour qu'on vient de finir (robots compris) avant de rejouer, mais pas plus loin,
+ * et la mémoire reste bornée (un état complet par commande pèse environ 120 Ko).
  */
 export class SessionJournal {
   /** Ajoute les entrées d'une commande (ou d'une étape de robot) jouée depuis l'état `before` */
@@ -22,13 +23,14 @@ export class SessionJournal {
     return this.prune([...log, ...added], humanIds);
   }
 
-  /** Retire les états d'annulation antérieurs au début du dernier tour de chaque joueur humain */
+  /** Retire les états d'annulation antérieurs au début de l'avant-dernier tour de chaque joueur humain */
   static prune(log: HistoryEntry[], humanIds: string[]): HistoryEntry[] {
     const turnStarts = humanIds.map(id => {
-      for (let i = log.length - 1; i >= 0; i--) {
-        if (log[i].playerId === id && log[i].message.startsWith('--- Tour de')) return i;
+      const starts: number[] = [];
+      for (let i = log.length - 1; i >= 0 && starts.length < 2; i--) {
+        if (log[i].playerId === id && log[i].message.startsWith('--- Tour de')) starts.push(i);
       }
-      return 0;
+      return starts.length === 2 ? starts[1] : 0;
     });
     const cutoff = Math.min(...turnStarts, log.length);
     if (cutoff === 0 || !log.slice(0, cutoff).some(e => e.previousState)) return log;
