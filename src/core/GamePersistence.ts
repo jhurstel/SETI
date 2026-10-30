@@ -1,5 +1,4 @@
 import { Game, GameLogEntry, HistoryEntry } from './types';
-import { getRandomState } from './random';
 
 /**
  * Version du format de sauvegarde. À incrémenter à chaque changement incompatible du modèle,
@@ -10,7 +9,7 @@ import { getRandomState } from './random';
 export const SAVE_VERSION = 2;
 
 /** Partie sérialisée : le journal est stocké dans gameLog. */
-export type SavedGame = Omit<Game, 'gameLog'> & { gameLog: GameLogEntry[]; saveVersion: number; rngState?: number };
+export type SavedGame = Omit<Game, 'gameLog'> & { gameLog: GameLogEntry[]; saveVersion: number };
 
 /** Sauvegarde illisible par cette version du jeu (format plus récent ou inconnu). */
 export class SaveVersionError extends Error {}
@@ -57,8 +56,6 @@ export function serializeGame(game: Game, historyLog: HistoryEntry[]): SavedGame
   return {
     ...stripForSave(game),
     saveVersion: SAVE_VERSION,
-    // État du générateur aléatoire : une partie rechargée reprend la même suite de tirages
-    rngState: getRandomState(),
     gameLog: historyLog.map((entry, index) => {
       const isLast = index === historyLog.length - 1;
       const inLastSequence = !!lastSequenceId && entry.sequenceId === lastSequenceId;
@@ -76,7 +73,7 @@ export function serializeGame(game: Game, historyLog: HistoryEntry[]): SavedGame
 }
 
 /** Relit une sauvegarde (JSON) : renvoie la partie prête pour le moteur et le journal pour l'interface. */
-export function deserializeGame(json: string): { game: Game; historyLog: HistoryEntry[]; rngState?: number } {
+export function deserializeGame(json: string): { game: Game; historyLog: HistoryEntry[] } {
   const raw = JSON.parse(json) as RawState;
   const version = typeof raw.saveVersion === 'number' ? raw.saveVersion : 1;
   if (version > SAVE_VERSION) {
@@ -87,8 +84,6 @@ export function deserializeGame(json: string): { game: Game; historyLog: History
     if (log.previousState) migrateState(log.previousState as unknown as RawState, version);
   });
   delete raw.saveVersion;
-  const rngState = typeof raw.rngState === 'number' ? raw.rngState : undefined;
-  delete raw.rngState;
   // Parties enregistrées avant sa suppression : historique d'annulation du moteur, inutilisé
   delete raw.history;
 
@@ -104,5 +99,5 @@ export function deserializeGame(json: string): { game: Game; historyLog: History
     sequenceId: log.sequenceId,
     previousState: log.previousState,
   }));
-  return { game, historyLog, rngState };
+  return { game, historyLog };
 }

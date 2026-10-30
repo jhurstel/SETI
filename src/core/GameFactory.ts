@@ -6,7 +6,7 @@ import { DataLoader } from './DataLoader';
 import { cloneGame } from './cloneGame';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { uniqueId } from './ids';
-import { random, newSeed, seedRandom } from './random';
+import { random, newSeed, seedRandom, getRandomState } from './random';
 
 export class GameFactory {
   /**
@@ -197,6 +197,8 @@ export class GameFactory {
 
     Logger.log(updatedGame, "--- PHASE DE RÉSERVATION ---");
 
+    // Le générateur de la partie reprend ici à chaque commande (session/GameSession)
+    updatedGame.rngState = getRandomState();
     return updatedGame;
   }
 

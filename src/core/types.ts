@@ -252,6 +252,13 @@ export interface Game {
   /** Décompte final, renseigné quand la partie passe en FINAL_SCORING */
   finalScores?: FinalScore[];
   isSpeciesDiscovered: boolean;
+  /** Session (session/GameSession) : interaction en cours (absente : aucune) et file des suivantes */
+  interaction?: InteractionState;
+  pendingInteractions?: InteractionState[];
+  /** Fin de tour commencée (paliers à résoudre) : elle reprend quand la file d'interactions est vide */
+  endingTurn?: boolean;
+  /** État du générateur aléatoire de la partie (core/random.ts), rétabli avant chaque commande */
+  rngState?: number;
 }
 
 export interface Player {

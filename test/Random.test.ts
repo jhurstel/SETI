@@ -85,15 +85,22 @@ describe('Générateur aléatoire à graine', () => {
     expect(b.finalScores).toEqual(a.finalScores);
   }, 120000);
 
-  test('la sauvegarde enregistre l\'état du générateur et le rend à la relecture', async () => {
+  test('la partie porte l\'état de son générateur, conservé par la sauvegarde', async () => {
     const game = await createTestGame();
-    seedRandom(5);
-    random();
-    const state = getRandomState();
+    expect(typeof game.rngState).toBe('number');
 
-    const { rngState, game: restored } = deserializeGame(JSON.stringify(serializeGame(game, [])));
+    const { game: restored } = deserializeGame(JSON.stringify(serializeGame(game, [])));
 
-    expect(rngState).toBe(state);
-    expect('rngState' in restored).toBe(false);
+    expect(restored.rngState).toBe(game.rngState);
+  });
+
+  test('ancienne sauvegarde (générateur à part) : l\'état passe dans la partie', async () => {
+    const game = await createTestGame();
+    // Format précédent : l'état du générateur était écrit à côté de la partie, au même niveau
+    const legacy = { ...serializeGame({ ...game, rngState: undefined }, []), rngState: 1234 };
+
+    const { game: restored } = deserializeGame(JSON.stringify(legacy));
+
+    expect(restored.rngState).toBe(1234);
   });
 });
