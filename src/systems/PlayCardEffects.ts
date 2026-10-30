@@ -105,9 +105,9 @@ const FLAG_EFFECTS: Record<string, (bonuses: Bonus, effect: CardEffect) => void>
 const PASSIVE_HANDLERS: Record<string, PassiveHandler> = {
   'VISIT_BONUS': ({ player, card, bonuses }, effect) => {
     if (!effect.target) return;
-    // Si la planète a DÉJÀ été visitée ce tour-ci, le bonus s'applique immédiatement, sinon pour le reste du tour
+    // Si la planète a DÉJÀ été visitée ce tour-ci, le bonus s'applique immédiatement (PV ajoutés par
+    // processBonuses), sinon pour le reste du tour
     if (player.visitedPlanetsThisTurn.includes(effect.target)) {
-      player.score += effectNumber(effect);
       add(bonuses, 'pv', effectNumber(effect));
     } else {
       player.activeBuffs.push({ ...effect, source: card.name });

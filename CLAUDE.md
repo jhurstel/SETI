@@ -14,6 +14,7 @@ npm run dev          # lance le jeu (serveur Vite, alias : dev:ui)
 npm run typecheck    # tsc --noEmit (0 erreur attendue)
 npm run lint         # ESLint (0 erreur attendue ; les warnings = dette connue)
 npm test             # Jest (test/*.test.ts, ts-jest)
+npm run test:coverage # Jest + couverture du moteur (hors ui/, rapport HTML dans coverage/)
 npm run test:e2e     # Playwright (e2e/*.spec.ts) : tour d'un joueur humain dans un vrai navigateur
 npm run check        # typecheck + lint + tests + build — à lancer avant chaque commit
 npm run build        # typecheck puis vite build (→ dist/)
@@ -106,7 +107,7 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
 - **Persistance** : `GamePersistence` (pur) + `useAutosave` (`localStorage['seti_autosave']`, écriture différée de 500 ms, immédiate si la page est quittée) + export/import JSON dans `SettingsModal`. Les sauvegardes portent `saveVersion` : tout changement incompatible du modèle incrémente `SAVE_VERSION` et ajoute une migration dans `MIGRATIONS` (appliquée aussi aux états d'annulation du journal). Une sauvegarde plus récente que le jeu est refusée (`SaveVersionError`). Elle enregistre aussi l'état du générateur aléatoire (`rngState`), rétabli au chargement.
 - **Hasard** : jamais de `Math.random()` dans le moteur ni dans `ai/`, toujours `random()` de `core/random.ts` (générateur à graine). `GameFactory.createGame(noms, humainPremier, graine)` part de la graine (tirée au hasard si absente) et la note dans `game.seed` : même graine et mêmes choix = même partie. L'UI garde `Math.random` pour ce qui n'est pas du jeu (infobulles, noms des robots). Identifiants : `uniqueId()` de `core/ids.ts`, pas `Date.now()` seul.
 - **Outils de débogage** : le `DebugPanel` n'est affiché que si la case « Outils de débogage » du menu Paramètres est cochée (`useDebugSetting`, `localStorage['seti_show_debug']`).
-- **Style** : TS `strict`, `noUnusedLocals/Parameters`, `.editorconfig` (2 espaces, LF). Identifiants en anglais, commentaires et messages en français. Les valeurs d'enum sont des libellés FR affichés (`SectorType.YELLOW = "Jaune"`) et utilisés au parsing CSV : ne pas les modifier à la légère.
+- **Style** : TS `strict`, `noUnusedLocals/Parameters`, `isolatedModules` (module ES, résolution `bundler` pour Vite ; `test/tsconfig.json` repasse en CommonJS pour Jest), `.editorconfig` (2 espaces, LF). Identifiants en anglais, commentaires et messages en français. Les valeurs d'enum sont des libellés FR affichés (`SectorType.YELLOW = "Jaune"`) et utilisés au parsing CSV : ne pas les modifier à la légère.
 - **Tests** : Jest + ts-jest dans `test/`, type-checkés via `test/tsconfig.json` (inclus dans `npm run typecheck`).
   - `test/helpers/gameFixture.ts` : `createTestGame()` crée une **vraie** partie (fetch simulé qui sert `public/`, donc les vraies cartes ; graine fixe `TEST_SEED`, donc la même partie à chaque exécution), `makeCard()`, `getPlayer()`. À privilégier plutôt que des mocks d'état écrits à la main.
   - Un bug connu et pas encore corrigé est documenté par un `test.failing(...)`. Retirer `.failing` quand il est corrigé.
