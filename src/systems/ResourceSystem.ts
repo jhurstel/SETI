@@ -6,6 +6,7 @@ import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';
 import { TechnologySystem } from './TechnologySystem';
 import { random } from '../core/random';
+import { privateText } from '../core/historyText';
 
 export class ResourceSystem {
 
@@ -198,7 +199,7 @@ export class ResourceSystem {
       const handBefore = player.cards.map(c => c.id);
       updatedGame = CardSystem.drawCards(updatedGame, playerId, 1);
       const drawn = updatedGame.players.find(p => p.id === playerId)!.cards.find(c => !handBefore.includes(c.id));
-      if (drawn) gainedText += ` "${drawn.name}"`;
+      if (drawn) gainedText += ` ${privateText(playerId, `"${drawn.name}"`)}`;
     } else {
       return { updatedGame: game, error: "Type de ressource à recevoir invalide", historyEntries: [] };
     }
@@ -346,7 +347,7 @@ export class ResourceSystem {
         const actualDrawn = updatedPlayer.cards.length - countBefore;
         if (actualDrawn > 0) {
           const drawnCards = updatedPlayer.cards.slice(-actualDrawn);
-          cardDetails = ` "${drawnCards.map(c => c.name).join('", "')}"`;
+          cardDetails = ` ${privateText(playerId, `"${drawnCards.map(c => c.name).join('", "')}"`)}`;
         }
       }
 

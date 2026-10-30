@@ -289,6 +289,7 @@ valeur = PV
 - `InteractionQueue` : file d'interactions dans l'état (`game.interaction`, `game.pendingInteractions`).
 - `SessionJournal` : historique et annulation.
 - `viewFor(partie, joueur)` (`session/PlayerView.ts`) : ce qu'un joueur a le droit de voir. Elle masque la pioche, les mains adverses (sauf les cartes révélées), les cartes Exertiens adverses jusqu'au décompte, les spécimens, les espèces non découvertes, la graine et le détail des interactions d'un autre joueur. Les nombres restent visibles.
+- Historique : un passage qu'un seul joueur peut lire (nom d'une carte piochée face cachée) est marqué par le moteur (`privateText` dans `core/historyText.ts`). Le jeu local affiche tout ; `viewEntries(entrées, joueur)` retire les passages des autres joueurs et les états d'annulation.
 
 ### 6.3 Principes
 
@@ -323,8 +324,8 @@ npm run tune:ai        # banc de réglage des robots
 | Étape | Contenu | État |
 |---|---|---|
 | 0 | Session autonome, commandes validées, file d'interactions dans l'état, fin de tour dans le moteur, hasard par partie, annulation bornée | Fait |
-| 1 | Vue par joueur `viewFor` | Fait (pas encore utilisée par le jeu local) |
+| 1 | Vue par joueur `viewFor` et historique filtré `viewEntries` | Fait (pas utilisés par le jeu local) |
 | 2 | Serveur Node avec le même moteur et des WebSockets : salles, sièges, reconnexion, robots côté serveur, persistance | À faire |
 | 3 | Client réseau : l'interface envoie ses commandes au serveur et affiche la vue reçue | À faire |
 
-Il restera aussi à filtrer l'historique envoyé à chaque joueur (les cartes piochées par un adversaire y sont nommées).
+Le jeu solo n'est pas concerné : il garde la session dans le navigateur, sans serveur. Le mode en ligne s'ajoutera à côté, derrière la même interface (`useGameSession`).

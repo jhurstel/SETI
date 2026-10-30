@@ -8,6 +8,7 @@ import { ScanSystem } from './ScanSystem';
 import { SpeciesSystem } from './SpeciesSystem';
 import { uniqueId } from '../core/ids';
 import { addImmediateEffects, applyPassiveEffect, lifeTraceColor, PlayCardContext } from './PlayCardEffects';
+import { privateText } from '../core/historyText';
 
 /**
  * Système de gestion des cartes et des missions.
@@ -129,7 +130,7 @@ export class CardSystem {
             let gain = ResourceSystem.formatResource(1, this.revenueResource(card.revenue));
             if (card.revenue === RevenueType.CARD) {
                 const drawn = updatedGame.players.find(p => p.id === playerId)!.cards.find(c => !handBefore.includes(c.id));
-                if (drawn) gain += ` "${drawn.name}"`;
+                if (drawn) gain += ` ${privateText(playerId, `"${drawn.name}"`)}`;
             }
             historyEntries.push({ message: `réserve carte "${card.name}" et gagne ${gain}`, playerId, sequenceId });
         }
@@ -154,8 +155,8 @@ export class CardSystem {
         const newPendingInteractions: InteractionState[] = [];
 
         let message = options.isFree
-            ? (cardId ? `choisit carte "${cardName}"` : `pioche carte "${cardName}"`)
-            : `paye 3 médias pour acheter carte "${cardName}" depuis ${cardId ? 'la rangée' : 'la pioche'}`;
+            ? (cardId ? `choisit carte "${cardName}"` : `pioche carte ${privateText(playerId, `"${cardName}"`)}`)
+            : `paye 3 médias pour acheter carte ${cardId ? `"${cardName}" depuis la rangée` : `${privateText(playerId, `"${cardName}"`)} depuis la pioche`}`;
 
         if (options.triggerFreeAction && card) {
             card.isRevealed = true;

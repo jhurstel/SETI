@@ -1,4 +1,5 @@
-import { AlienBoardType, Card, CardType, CostType, FreeActionType, Game, GamePhase, InteractionState, RevenueType, SectorType } from '../core/types';
+import { AlienBoardType, Card, CardType, CostType, FreeActionType, Game, GamePhase, HistoryEntry, InteractionState, RevenueType, SectorType } from '../core/types';
+import { textFor } from '../core/historyText';
 import { cloneGame } from '../core/cloneGame';
 import { InteractionQueue } from './InteractionQueue';
 
@@ -76,4 +77,15 @@ export function viewFor(game: Game, viewerId: string): Game {
   if (view.pendingInteractions) view.pendingInteractions = view.pendingInteractions.map(mask);
 
   return view;
+}
+
+/**
+ * Historique tel qu'un joueur peut le lire : les passages privés des autres joueurs (cartes qu'ils ont piochées
+ * face cachée) sont retirés, et les états d'annulation ne sont pas transmis.
+ */
+export function viewEntries(entries: HistoryEntry[], viewerId: string): HistoryEntry[] {
+  return entries.map(({ previousState: _state, previousInteractionState: _interaction, previousPendingInteractions: _pending, ...entry }) => ({
+    ...entry,
+    message: textFor(entry.message, viewerId),
+  }));
 }

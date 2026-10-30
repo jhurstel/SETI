@@ -7,6 +7,7 @@ import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { uniqueId } from '../core/ids';
 import { random } from '../core/random';
+import { privateText } from '../core/historyText';
 
 export class SpeciesSystem {
     /**
@@ -565,7 +566,7 @@ export class SpeciesSystem {
                 }
                 if (drawnCount > 0) {
                     const cardsStr = drawnCardNames.map(name => `"${name}"`).join(', ');
-                    logs.push(`${player.name} pioche ${drawnCount} carte${drawnCount > 1 ? 's' : ''} Alien ${cardsStr} (Découverte)`);
+                    logs.push(`${player.name} pioche ${drawnCount} carte${drawnCount > 1 ? 's' : ''} Alien ${privateText(player.id, cardsStr)} (Découverte)`);
                 }
             }
         }

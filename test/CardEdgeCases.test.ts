@@ -3,6 +3,7 @@ import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { ScoreManager } from '../src/core/ScoreManager';
 import { AlienBoardType, CardType, CostType, FreeActionType, Game, LifeTraceType, Mission, ProbeState, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
+import { revealText, textFor } from '../src/core/historyText';
 
 const P1 = 'player_0';
 
@@ -25,7 +26,11 @@ describe('Cartes : cas limites et refus', () => {
     test('achat dans la pioche : message dédié', () => {
       getPlayer(game, P1).mediaCoverage = 5;
       const res = CardSystem.acquireCard(game, P1, undefined, {}, 's');
-      expect(res.historyEntries[0].message).toMatch(/^paye 3 médias pour acheter carte ".+" depuis la pioche$/);
+      const message = res.historyEntries[0].message;
+      expect(revealText(message)).toMatch(/^paye 3 médias pour acheter carte ".+" depuis la pioche$/);
+      // La carte piochée n'est lisible que par celui qui l'a achetée
+      expect(textFor(message, P1)).toBe(revealText(message));
+      expect(textFor(message, 'player_1')).toBe('paye 3 médias pour acheter carte depuis la pioche');
       expect(getPlayer(res.updatedGame, P1).mediaCoverage).toBe(2);
     });
 

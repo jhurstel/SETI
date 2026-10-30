@@ -7,6 +7,7 @@ import { CardSystem } from '../systems/CardSystem';
 import { ScanSystem } from '../systems/ScanSystem';
 import { ScoreManager } from './ScoreManager';
 import { uniqueId } from './ids';
+import { privateText } from './historyText';
 
 /** Résultat d'un choix fait sur une interaction en attente. */
 export interface ChoiceResult {
@@ -80,10 +81,10 @@ export class InteractionChoices {
     if (!drawnCard) {
       return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: 'Aucune carte Alien disponible' };
     }
-    const source = cardId === 'deck' ? 'de la pioche' : 'de la rangée';
+    const name = cardId === 'deck' ? privateText(playerId, `"${drawnCard.name}"`) : `"${drawnCard.name}"`;
     return {
       updatedGame,
-      historyEntries: [{ message: `acquiert la carte Alien "${drawnCard.name}" ${source}`, playerId, sequenceId }],
+      historyEntries: [{ message: `acquiert la carte Alien ${name} ${cardId === 'deck' ? 'de la pioche' : 'de la rangée'}`, playerId, sequenceId }],
       // Plusieurs cartes à prendre : la même interaction reste en attente pour les suivantes
       newPendingInteractions: interaction.count > 1 ? [{ ...interaction, count: interaction.count - 1, sequenceId }] : [],
     };

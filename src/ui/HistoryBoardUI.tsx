@@ -7,6 +7,7 @@ import { ResourceIcon, ResourceIconKind, LifeTraceIcon, VictoryPointsIcon } from
 import { LifeTraceColor } from './styles/lifeTraceColors';
 import { ReservationIcon } from './components/ObjectiveSymbol';
 import { BonusIcons, Repeated } from './components/BonusIcons';
+import { revealText } from '../core/historyText';
 
 // Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
 const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', CARD: 'card', DATA: 'data' };
@@ -155,7 +156,9 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         );
     };
 
-    const formatHistoryMessage = (message: string) => {
+    const formatHistoryMessage = (raw: string) => {
+        // Jeu local : les passages privés (cartes piochées) sont lisibles par le joueur humain
+        const message = revealText(raw);
         const resourcePattern = Object.values(ResourceSystem.RESOURCE_CONFIG).map(c => c.regex.source).join('|');
         const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${LIFE_TRACE_PATTERN.source}|${resourcePattern}|"[^"]+")`, 'g');
 
