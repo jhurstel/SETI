@@ -26,6 +26,7 @@ import { HistoryBoardUI } from './HistoryBoardUI';
 import { CardRowUI } from './CardRowUI';
 import { AlienBoardUI } from './AlienBoardUI';
 import { SettingsModal } from './modals/SettingsModal';
+import { DocumentationModal } from './modals/DocumentationModal';
 import { PlanetBoardUI } from './PlanetBoardUI';
 import './BoardUI.css';
 
@@ -53,6 +54,7 @@ export const BoardUI: React.FC = () => {
   const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: Card[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
   const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
   const [settingsVisible, setSettingsVisible] = useState(true); // Ouvert au lancement
+  const [docVisible, setDocVisible] = useState(false);
 
   // Interaction affichée : le mode local s'il y en a un, sinon celle de la partie (avec la sélection de cartes en cours)
   const sessionInteraction = game?.interaction;
@@ -684,6 +686,8 @@ export const BoardUI: React.FC = () => {
         setShowDebug={setShowDebug}
       />
 
+      <DocumentationModal visible={docVisible} onClose={() => setDocVisible(false)} />
+
       {/* Ecran de fin de partie */}
       {game.phase === GamePhase.FINAL_SCORING && <EndGameModal game={game} />}
 
@@ -708,6 +712,7 @@ export const BoardUI: React.FC = () => {
               onNextPlayer={handleNextPlayer}
               setActiveTooltip={setActiveTooltip}
               onSettingsClick={() => setSettingsVisible(true)}
+              onDocumentationClick={() => setDocVisible(true)}
               onMissionClick={handleMissionClick}
               onConfirmAction={(message, onConfirm) => setConfirmModalState({ visible: true, cardId: null, message, onConfirm })}
             />

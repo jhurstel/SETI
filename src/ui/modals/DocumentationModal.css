@@ -1,0 +1,126 @@
+.seti-doc-modal {
+    width: min(1100px, 94vw);
+    height: 88vh;
+    display: flex;
+    flex-direction: column;
+    background: rgba(20, 22, 32, 0.98);
+    border: 1px solid #78a0ff;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.8);
+    color: #ddd;
+    border-radius: 8px;
+    padding: 16px 20px;
+    box-sizing: border-box;
+}
+
+.seti-doc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    border-bottom: 1px solid #444;
+    padding-bottom: 10px;
+}
+
+.seti-doc-header .seti-modal-title {
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+.seti-doc-links {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.seti-doc-links .seti-modal-btn {
+    padding: 6px 12px;
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.seti-doc-columns {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.seti-doc-toc {
+    width: 240px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-color: #444 transparent;
+    border-right: 1px solid #333;
+    padding-right: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.seti-doc-modal .seti-doc-toc-item {
+    background: none;
+    border: none;
+    box-shadow: none;
+    width: 100%;
+    margin: 0;
+    color: #aac;
+    text-align: left;
+    cursor: pointer;
+    padding: 3px 4px;
+    font-size: 0.85rem;
+    border-radius: 3px;
+}
+
+.seti-doc-modal .seti-doc-toc-item:hover {
+    background: #2a2f45;
+    color: #fff;
+}
+
+.seti-doc-modal .seti-doc-toc-item.level-2 {
+    font-weight: bold;
+    color: #78a0ff;
+    margin-top: 6px;
+}
+
+.seti-doc-modal .seti-doc-toc-item.level-3 {
+    padding-left: 14px;
+}
+
+.seti-doc-modal .seti-doc-toc-item.level-4 {
+    padding-left: 26px;
+    font-size: 0.8rem;
+}
+
+.seti-doc-body {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 8px;
+    text-align: left;
+    line-height: 1.5;
+    font-size: 0.92rem;
+    scrollbar-color: #444 transparent;
+}
+
+.seti-doc-body ul { list-style: disc; padding-left: 22px; margin: 6px 0; }
+.seti-doc-body li { margin: 2px 0; }
+.seti-doc-body p { margin: 6px 0; }
+
+.seti-doc-body h1 { color: #78a0ff; margin-top: 0; font-size: 1.5rem; }
+.seti-doc-body h2 { color: #78a0ff; border-bottom: 1px solid #333; padding-bottom: 4px; margin-top: 28px; }
+.seti-doc-body h3 { color: #9fb8ff; margin-top: 20px; }
+.seti-doc-body h4 { color: #bbc; margin-top: 14px; }
+.seti-doc-body a { color: #8fd0ff; }
+.seti-doc-body code { background: #2a2d3a; padding: 1px 4px; border-radius: 3px; font-size: 0.85em; color: #ffd27f; }
+.seti-doc-body pre { background: #15171f; border: 1px solid #333; padding: 10px; border-radius: 4px; overflow-x: auto; }
+.seti-doc-body pre code { background: none; padding: 0; color: #cfe; }
+.seti-doc-body table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 0.85rem; }
+.seti-doc-body th, .seti-doc-body td { border: 1px solid #3a3d4a; padding: 5px 8px; vertical-align: top; }
+.seti-doc-body th { background: #252838; color: #cdf; }
+.seti-doc-body tr:nth-child(even) td { background: rgba(255, 255, 255, 0.02); }
+
+@media (max-width: 700px) {
+    .seti-doc-toc { display: none; }
+}

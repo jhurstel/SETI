@@ -3,7 +3,8 @@
 Adaptation numérique du jeu de société **SETI** (Iello) en TypeScript + React (Vite). Projet solo, code et commentaires en **français**.
 
 - Dépôt GitHub : https://github.com/jhurstel/SETI (remote `origin`, **public**), branche unique `main`. **Toujours faire `git pull` avant d'analyser ou de modifier le code** (le travail se fait sur plusieurs machines).
-- Règles officielles : `seti-rules-fr.pdf`, FAQ : `SETI-FAQ-FR.pdf` (référence pour toute question de règle).
+- Règles officielles : `public/docs/seti-rules-fr.pdf`, FAQ : `public/docs/SETI-FAQ-FR.pdf` (référence pour toute question de règle ; accessibles dans le jeu par le bouton Documentation).
+- Documentation du jeu : `public/docs/documentation.md` (affichée par le bouton 📖 à côté des paramètres) : la tenir à jour quand une règle, une action, une interaction ou un poids des robots change.
 - `gh` CLI n'est pas installé sur la machine ; Git utilise HTTPS.
 
 ## Commandes
@@ -61,7 +62,8 @@ src/
 │   ├── GameSession.ts       # dispatch(game, joueur, commande) : validation, règle, file d'interactions, fin de tour, étapes des robots
 │   ├── commands.ts          # Command / Choice : tout ce qu'un joueur peut demander (sérialisable)
 │   ├── InteractionQueue.ts  # File d'interactions dans l'état (game.interaction, game.pendingInteractions), ordre de résolution
-│   └── SessionJournal.ts    # Historique et annulation (états gardés depuis le début du dernier tour de chaque humain)
+│   ├── SessionJournal.ts    # Historique et annulation (états gardés depuis le début de l'avant-dernier tour de chaque humain)
+│   └── PlayerView.ts        # viewFor(game, joueur) : ce qu'un joueur a le droit de voir (pioches, mains adverses… masquées) ; pour le futur serveur
 ├── ai/
 │   ├── AIBehavior.ts        # Actions possibles, choix aléatoire (EASY), cartes gardées, réservation, paliers
 │   ├── AIEvaluator.ts       # Évaluation heuristique d'une position (robots MEDIUM/EXPERT)
@@ -72,7 +74,7 @@ src/
     ├── hooks/               # useGameSession (partie + journal, dispatch), useAITurn (cadence des robots, calcul dans le Web Worker via aiWorkerClient), useAutosave (localStorage, écriture différée)
     ├── SolarSystemBoardUI.tsx (~1700), PlayerBoardUI, PlanetBoardUI, AlienBoardUI, TechnologyBoardUI, ObjectiveBoardUI, CardRowUI, HistoryBoardUI
     ├── components/          # HandCard, MissionCard, CardTooltip, PlayerComputer, PlanetIcon, SvgBonus, SectorDetails…
-    ├── modals/              # NewGame, Settings, Pass, GameModals
+    ├── modals/              # NewGame, Settings, Documentation (public/docs/documentation.md + PDF), Pass, GameModals
     └── styles/celestialStyles.ts
 e2e/                         # Playwright : parties pilotées dans le navigateur (serveur Vite lancé par playwright.config.ts)
 test/                        # Jest : un fichier par module moteur + AITurn (parties complètes entre robots), helpers/gameFixture.ts
@@ -93,7 +95,7 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
 
 - **Moteur indépendant de l'UI** : `core/`, `systems/`, `actions/` et `session/` sont du TS pur. **Toute modification de la partie passe par `GameSession.dispatch(game, playerId, command)`** (dans l'UI : `useGameSession().dispatch`, via `run(command)` dans `BoardUI`) : la session vérifie qui joue et ce qui est permis (tour, interaction en cours et son joueur, règles des actions gratuites), applique la règle, résout les interactions automatiques et celles des robots, termine les tours (paliers compris, `game.endingTurn`) et renvoie les entrées d'historique et les annonces. Les robots passent par `GameSession.applyRobotStep`. L'UI garde seulement ses modes de sélection (défausse de fin de manche, échange de cartes, cartes cochées), les fenêtres de confirmation et les animations ; elle peut lire les systems pour afficher (coûts, cases jouables), jamais pour modifier la partie.
 - **État immuable** : les systems prennent un `Game` et renvoient `{ updatedGame, historyEntries, ... }` **sans jamais modifier la partie reçue**. Dans le moteur, toute fonction qui modifie l'état commence par `cloneGame(game)` (`src/core/cloneGame.ts`, copie profonde ; à utiliser aussi dans l'UI plutôt que `structuredClone`). Pour la performance (la copie fait l'essentiel du temps des robots), les effets des cartes et les effets et bonus des technologies sont **figés et partagés** entre les copies : ne jamais les modifier (une modification lève une `TypeError`) ; les champs variables d'une carte (`ownerId`, `isRevealed`, `completed`…) restent copiés. Pas de copie superficielle `{ ...game }` suivie de mutations : c'était la source de bugs d'undo. `test/Immutability.test.ts` vérifie cette règle.
-- **Historique** : `HistoryEntry { message, playerId, sequenceId, previousState }`. `sequenceId` regroupe les entrées d'une même action et sert à l'undo. Le journal est tenu par `SessionJournal` : la première entrée de chaque commande garde l'état d'avant (file d'interactions comprise), seulement depuis le début du dernier tour de chaque joueur humain ; `undoLast` revient au début de la séquence, `undoTurn` au début du tour. Le moteur ne garde pas d'instantanés (l'ancien `game.history`, jamais utilisé, faisait passer l'état de 170 Ko à plus de 10 Mo en fin de partie). Les messages sont en français et affichés au joueur.
+- **Historique** : `HistoryEntry { message, playerId, sequenceId, previousState }`. `sequenceId` regroupe les entrées d'une même action et sert à l'undo. Le journal est tenu par `SessionJournal` : la première entrée de chaque commande garde l'état d'avant (file d'interactions comprise), seulement depuis le début de l'avant-dernier tour de chaque joueur humain (on peut encore revenir au tour qu'on vient de finir, robots compris) ; `undoLast` revient au début de la séquence, `undoTurn` au début du tour. Le moteur ne garde pas d'instantanés (l'ancien `game.history`, jamais utilisé, faisait passer l'état de 170 Ko à plus de 10 Mo en fin de partie). Les messages sont en français et affichés au joueur.
 - **Interactions multi-étapes** : union discriminée `InteractionState` (`types.ts`). L'interaction en cours et la file sont dans la partie (`game.interaction`, `game.pendingInteractions`, gérées par `InteractionQueue` : plusieurs gains à choix forment un menu, les résolutions de secteur passent en dernier). Pour en ajouter une : variant dans `InteractionState`, libellé dans `getInteractionLabel`, fonction dans `InteractionChoices`, genre de `Choice` (`session/commands.ts`) et cas dans `GameSession.choose`, cas dans `AIController.processSingleInteraction` pour les robots, puis le clic dans l'UI (`choose(...)`).
 - **Cartes** : CSV `;` avec les colonnes `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte`. `Gain` et `Contrainte` encodent les effets (`1 Sonde + 1 Média`, `GAIN_ON_VISIT:jupiter:data:1`, `VISIT_PLANET:mars:4`…), parsés dans `DataLoader`. Modifier une carte = modifier le CSV dans `public/cards/`.
 - **Effets de carte** : `CardEffect.value` est de type `CardEffectValue` (nombre, booléen, chaîne de mission, `EffectAmount` ou `Bonus`). Le lire avec les accesseurs de `core/cardEffects.ts` (`effectNumber(effect)` pour un calcul, `effectString` pour une mission `GAIN_IF_…`, `effectAmount<Scope>` pour quantité + portée, `effectBonus` pour des gains multiples), jamais avec `effect.value` brut dans une opération.

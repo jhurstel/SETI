@@ -2,7 +2,7 @@
 
 Adaptation numérique du jeu de société **SETI** (Iello) en TypeScript et React : partie solo contre 1 à 3 robots, dans le navigateur.
 
-Règles de référence : [`seti-rules-fr.pdf`](./seti-rules-fr.pdf) et [`SETI-FAQ-FR.pdf`](./SETI-FAQ-FR.pdf).
+Règles de référence : [`seti-rules-fr.pdf`](./public/docs/seti-rules-fr.pdf) et [`SETI-FAQ-FR.pdf`](./public/docs/SETI-FAQ-FR.pdf) ; documentation du jeu : [`documentation.md`](./public/docs/documentation.md).
 
 ## Démarrage
 

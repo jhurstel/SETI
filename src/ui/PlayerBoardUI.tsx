@@ -33,6 +33,7 @@ interface PlayerBoardUIProps {
   onDirectTradeAction: (spendType: string, gainType: string) => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
   onSettingsClick: () => void;
+  onDocumentationClick: () => void;
   onMissionClick: (missionId: string, requirementId: string) => void;
   onConfirmAction: (message: string, onConfirm: () => void) => void;
   /** Action « Jouer une carte » choisie : met en avant les cartes jouables de la main */
@@ -208,7 +209,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onTransferData, onComputerSlotSelect, onNextPlayer, onDirectTradeAction, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction, highlightPlayableCards = false }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onTransferData, onComputerSlotSelect, onNextPlayer, onDirectTradeAction, setActiveTooltip, onSettingsClick, onDocumentationClick, onMissionClick, onConfirmAction, highlightPlayableCards = false }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -581,9 +582,18 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
            );
         })}
         <button
+            onClick={onDocumentationClick}
+            className="seti-action-btn"
+            style={{ marginLeft: 'auto', marginRight: '2px', fontSize: '1.2rem', padding: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', alignSelf: 'center' }}
+            onMouseEnter={(e) => handleTooltipHover(e, 'Documentation')}
+            onMouseLeave={handleTooltipLeave}
+        >
+            📖
+        </button>
+        <button
             onClick={onSettingsClick}
             className="seti-action-btn"
-            style={{ marginLeft: 'auto', marginRight: '8px', fontSize: '1.2rem', padding: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', alignSelf: 'center' }}
+            style={{ marginRight: '8px', fontSize: '1.2rem', padding: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', alignSelf: 'center' }}
             onMouseEnter={(e) => handleTooltipHover(e, 'Paramètres')}
             onMouseLeave={handleTooltipLeave}
         >
