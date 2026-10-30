@@ -5,6 +5,7 @@ import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';
 import { TechnologySystem } from './TechnologySystem';
+import { random } from '../core/random';
 
 export class ResourceSystem {
 
@@ -122,7 +123,7 @@ export class ResourceSystem {
   static shuffle<T>(array: T[]): T[] {
     const newArray = [...array];
     for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(random() * (i + 1));
       [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
     }
     return newArray;

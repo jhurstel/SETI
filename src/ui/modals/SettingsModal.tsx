@@ -4,6 +4,7 @@ import { GameFactory } from '../../core/GameFactory';
 import { GameEngine } from '../../core/Game';
 import { NewGameModal } from './NewGameModal';
 import { serializeGame, deserializeGame, SaveVersionError } from '../../core/GamePersistence';
+import { setRandomState } from '../../core/random';
 import { readAutosave } from '../hooks/useAutosave';
 import './SettingsModal.css';
 
@@ -55,7 +56,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   // Restaure une partie sauvegardée (fichier ou sauvegarde automatique)
   const applySavedGame = (json: string) => {
-      const { game: loadedGame, historyLog: loadedLog } = deserializeGame(json);
+      const { game: loadedGame, historyLog: loadedLog, rngState } = deserializeGame(json);
+      if (rngState !== undefined) setRandomState(rngState);
       setGame(loadedGame);
       if (gameEngineRef.current) {
           gameEngineRef.current.setState(loadedGame);

@@ -20,14 +20,18 @@ export function mockFetchFromPublic(): jest.SpyInstance {
   });
 }
 
+/** Graine des parties de test (core/random.ts) */
+export const TEST_SEED = 20261030;
+
 /**
  * Crée une vraie partie (cartes chargées depuis public/cards) prête à jouer :
  * phase PLAYING, mains distribuées, rangée remplie.
+ * Graine fixe par défaut : la même partie à chaque exécution des tests.
  */
-export async function createTestGame(playerNames: string[] = ['Alice', 'Bob']): Promise<Game> {
+export async function createTestGame(playerNames: string[] = ['Alice', 'Bob'], seed: number = TEST_SEED): Promise<Game> {
   const fetchSpy = mockFetchFromPublic();
   try {
-    const game = await GameFactory.createGame(playerNames);
+    const game = await GameFactory.createGame(playerNames, true, seed);
     const initialized = GameFactory.initializeGame(game);
     initialized.phase = GamePhase.PLAYING;
     return initialized;

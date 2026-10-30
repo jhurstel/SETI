@@ -20,6 +20,7 @@ import { AIBehavior } from './AIBehavior';
 import { AIController } from './AIController';
 import { AIEvaluator } from './AIEvaluator';
 import { uniqueId } from '../core/ids';
+import { random } from '../core/random';
 
 /**
  * Résultat d'une étape de jeu d'un robot.
@@ -258,7 +259,7 @@ export class AITurn {
       return null;
     }
     const top = options.sort((a, b) => b.gain - a.gain).slice(0, EASY_TOP_CHOICES);
-    const chosen = top[Math.floor(Math.random() * top.length)];
+    const chosen = top[Math.floor(random() * top.length)];
     console.log(`[AI] ${player.name} chose:`, chosen.decision.action, `(gain estimé ${chosen.gain.toFixed(2)})`);
     return chosen.result;
   }
@@ -428,7 +429,7 @@ export class AITurn {
    * Un robot stratégique choisit l'objectif le plus rentable.
    */
   private static tryClaimMission(game: Game, player: Player, always = false): StepResult | null {
-    if (!player.missions || (!always && Math.random() >= 0.4)) return null;
+    if (!player.missions || (!always && random() >= 0.4)) return null;
 
     // Les objectifs réalisables d'abord : valider un objectif efface les autres objectifs réalisables
     const candidates = player.missions
@@ -453,7 +454,7 @@ export class AITurn {
   }
 
   private static tryTransferData(game: Game, player: Player, always = false): StepResult | null {
-    if (player.data <= 0 || (!always && Math.random() >= 0.4)) return null;
+    if (player.data <= 0 || (!always && random() >= 0.4)) return null;
 
     const slotId = Object.keys(player.dataComputer.slots).find(id => ComputerSystem.canFillSlot(player, id));
     if (!slotId) return null;
@@ -477,11 +478,11 @@ export class AITurn {
   }
 
   private static tryBuyCard(game: Game, player: Player): StepResult | null {
-    if (player.mediaCoverage < 3 || Math.random() >= 0.1) return null;
+    if (player.mediaCoverage < 3 || random() >= 0.1) return null;
     const row = game.decks.cardRow;
     if (row.length === 0) return null;
 
-    const card = row[Math.floor(Math.random() * row.length)];
+    const card = row[Math.floor(random() * row.length)];
     const res = CardSystem.buyCard(game, player.id, card.id, false);
     if (res.error) return null;
     return { updatedGame: res.updatedGame, historyEntries: [{ message: `achète la carte "${card.name}"`, playerId: player.id }] };
@@ -489,7 +490,7 @@ export class AITurn {
 
   private static tryDiscardForFreeAction(game: Game, player: Player): StepResult | null {
     const hand = CardSystem.getHandCards(player);
-    if (hand.length === 0 || Math.random() >= 0.1) return null;
+    if (hand.length === 0 || random() >= 0.1) return null;
 
     // La carte la moins utile à garder (trop chère pour la prochaine manche, ou la moins puissante)
     const card = hand
@@ -522,7 +523,7 @@ export class AITurn {
     const probes = player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition);
     if (probes.length === 0) return null;
 
-    const probe = probes[Math.floor(Math.random() * probes.length)];
+    const probe = probes[Math.floor(random() * probes.length)];
     const solarSystem = game.board.solarSystem;
     const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
     const absSector = getAbsoluteSectorForProbe(probe.solarPosition, rotationState);
@@ -530,7 +531,7 @@ export class AITurn {
     const destinations = Array.from(reachable.keys()).filter(k => k !== `${probe.solarPosition.disk}${absSector}`);
     if (destinations.length === 0) return null;
 
-    const destKey = destinations[Math.floor(Math.random() * destinations.length)];
+    const destKey = destinations[Math.floor(random() * destinations.length)];
     return ProbeSystem.moveProbe(game, player.id, probe.id, destKey[0] as DiskName, parseInt(destKey.substring(1)) as SectorNumber, 1, sequenceId).updatedGame;
   }
 }

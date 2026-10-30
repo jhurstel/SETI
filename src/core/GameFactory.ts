@@ -6,12 +6,16 @@ import { DataLoader } from './DataLoader';
 import { cloneGame } from './cloneGame';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { uniqueId } from './ids';
+import { random, newSeed, seedRandom } from './random';
 
 export class GameFactory {
   /**
    * Crée une nouvelle partie
    */
-  static async createGame(playerNames: string[], humanIsFirstPlayer: boolean = true): Promise<Game> {
+  static async createGame(playerNames: string[], humanIsFirstPlayer: boolean = true, seed: number = newSeed()): Promise<Game> {
+    // Toute la mise en place (et la suite de la partie) découle de la graine
+    seedRandom(seed);
+
     if (playerNames.length < GAME_CONSTANTS.MIN_PLAYERS || playerNames.length > GAME_CONSTANTS.MAX_PLAYERS) {
       throw new Error(
         `Nombre de joueurs invalide (min ${GAME_CONSTANTS.MIN_PLAYERS}, max ${GAME_CONSTANTS.MAX_PLAYERS})`
@@ -62,11 +66,12 @@ export class GameFactory {
     let firstPlayerIndex = 0;
     if (!humanIsFirstPlayer && players.length > 1) {
       // Si l'humain (index 0) ne commence pas, on choisit un robot au hasard (index 1 à N-1)
-      firstPlayerIndex = Math.floor(Math.random() * (players.length - 1)) + 1;
+      firstPlayerIndex = Math.floor(random() * (players.length - 1)) + 1;
     }
 
     const game: Game = {
       id: `game_${uniqueId()}`,
+      seed,
       currentRound: 1,
       maxRounds: GAME_CONSTANTS.MAX_ROUNDS,
       currentPlayerIndex: firstPlayerIndex,
@@ -321,9 +326,9 @@ export class GameFactory {
           name: 'Oumuamua',
           color: SectorType.OUMUAMUA,
           signals: [
-            { id: `sig_${Math.random().toString(36).substr(2, 9)}`, type: SignalType.DATA, marked: false, bonus: { pv: 1 } },
-            { id: `sig_${Math.random().toString(36).substr(2, 9)}`, type: SignalType.DATA, marked: false, bonus: {} },
-            { id: `sig_${Math.random().toString(36).substr(2, 9)}`, type: SignalType.DATA, marked: false, bonus: { pv: 2 } },
+            { id: `sig_${random().toString(36).substr(2, 9)}`, type: SignalType.DATA, marked: false, bonus: { pv: 1 } },
+            { id: `sig_${random().toString(36).substr(2, 9)}`, type: SignalType.DATA, marked: false, bonus: {} },
+            { id: `sig_${random().toString(36).substr(2, 9)}`, type: SignalType.DATA, marked: false, bonus: { pv: 2 } },
           ],
           playerMarkers: [],
           isCovered: false,

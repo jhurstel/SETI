@@ -1,6 +1,7 @@
 import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, TechnologyCategory, Technology, TechnologyEffect, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorType, SignalType, Signal, LifeTraceType, AlienBoardType } from './types';
 import { sectorToIndex } from './SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
+import { random } from './random';
 
 export class BoardManager {
   /**
@@ -22,9 +23,9 @@ export class BoardManager {
    */
   private static createSolarSystem(): SolarSystem {
     // Calculer les angles initiaux à partir des secteurs initiaux
-    const initialSector1 = Math.floor(Math.random() * 8) + 1;
-    const initialSector2 = Math.floor(Math.random() * 8) + 1;
-    const initialSector3 = Math.floor(Math.random() * 8) + 1;
+    const initialSector1 = Math.floor(random() * 8) + 1;
+    const initialSector2 = Math.floor(random() * 8) + 1;
+    const initialSector3 = Math.floor(random() * 8) + 1;
     const sectorIndex1 = sectorToIndex[initialSector1] || 0;
     const initialAngle1 = sectorIndex1 * 45;
     const sectorIndex2 = sectorToIndex[initialSector2] || 0;
@@ -83,7 +84,7 @@ export class BoardManager {
     });
 
     // Appliquer une rotation aléatoire (angle initial sur le disque E)
-    const rotationOffset = Math.floor(Math.random() * 8);
+    const rotationOffset = Math.floor(random() * 8);
     const rotatedSequence = [
       ...sectorSequence.slice(rotationOffset),
       ...sectorSequence.slice(0, rotationOffset)
@@ -112,7 +113,7 @@ export class BoardManager {
    */
   private static createSignals(count: number): Signal[] {
     const signals = Array.from({ length: count }).map((_, i) => ({
-      id: `sig_${Math.random().toString(36).substr(2, 9)}`,
+      id: `sig_${random().toString(36).substr(2, 9)}`,
       type: SignalType.DATA,
       marked: false,
       bonus: i === 1 ? { pv: 2 } : undefined
@@ -120,7 +121,7 @@ export class BoardManager {
 
     // Ajout du slot supplémentaire blanc (sans bonus de donnée)
     signals.push({
-      id: `sig_white_${Math.random().toString(36).substr(2, 9)}`,
+      id: `sig_white_${random().toString(36).substr(2, 9)}`,
       type: SignalType.OTHER,
       marked: false,
       bonus: undefined
@@ -435,7 +436,7 @@ export class BoardManager {
 
     // Mélange de Fisher-Yates pour la sélection aléatoire
     for (let i = alienTypes.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(random() * (i + 1));
       [alienTypes[i], alienTypes[j]] = [alienTypes[j], alienTypes[i]];
     }
 
@@ -464,7 +465,7 @@ export class BoardManager {
     const tiles: ObjectiveTile[] = [];
 
     // 1. Technology
-    const techSide = Math.random() > 0.5 ? 'A' : 'B';
+    const techSide = random() > 0.5 ? 'A' : 'B';
     tiles.push({
       id: 'obj_tech',
       category: ObjectiveCategory.TECHNOLOGY,
@@ -478,7 +479,7 @@ export class BoardManager {
     });
 
     // 2. Mission
-    const missionSide = Math.random() > 0.5 ? 'A' : 'B';
+    const missionSide = random() > 0.5 ? 'A' : 'B';
     tiles.push({
       id: 'obj_mission',
       category: ObjectiveCategory.MISSION,
@@ -492,7 +493,7 @@ export class BoardManager {
     });
 
     // 3. Revenue
-    const revenueSide = Math.random() > 0.5 ? 'A' : 'B';
+    const revenueSide = random() > 0.5 ? 'A' : 'B';
     tiles.push({
       id: 'obj_revenue',
       category: ObjectiveCategory.REVENUE,
@@ -506,7 +507,7 @@ export class BoardManager {
     });
 
     // 4. Other
-    const otherSide = Math.random() > 0.5 ? 'A' : 'B';
+    const otherSide = random() > 0.5 ? 'A' : 'B';
     tiles.push({
       id: 'obj_other',
       category: ObjectiveCategory.OTHER,

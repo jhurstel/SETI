@@ -11,6 +11,7 @@ import { TechnologySystem } from '../systems/TechnologySystem';
 import { createRotationState, getAbsoluteSectorForProbe, calculateReachableCellsWithEnergy } from '../core/SolarSystemPosition';
 import { AIBehavior } from './AIBehavior';
 import { AIEvaluator } from './AIEvaluator';
+import { random } from '../core/random';
 
 /** Interactions où le robot fait un choix au hasard : il tire plusieurs choix (selon son niveau) et garde le meilleur */
 const RANDOM_CHOICE_INTERACTIONS: InteractionState['type'][] = [
@@ -137,7 +138,7 @@ export class AIController {
                     !s.isCovered && ScanSystem.validateScanSectorSelection(updatedGame, player.id, interaction, s.id).valid
                 );
                 if (validSectors.length > 0) {
-                    const chosen = validSectors[Math.floor(Math.random() * validSectors.length)];
+                    const chosen = validSectors[Math.floor(random() * validSectors.length)];
                     const res = ScanSystem.resolveScanSectorSelection(updatedGame, player.id, interaction, chosen.id, interaction.sequenceId || sequenceId);
                     updatedGame = res.updatedGame;
                     historyEntries.push(...res.historyEntries);
@@ -159,7 +160,7 @@ export class AIController {
             case 'SELECTING_SCAN_CARD': {
                 const row = updatedGame.decks.cardRow;
                 if (row.length > 0) {
-                    const randomCard = row[Math.floor(Math.random() * row.length)];
+                    const randomCard = row[Math.floor(random() * row.length)];
                     newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: randomCard.scanSector, cardId: randomCard.id, sequenceId });
                 }
                 break;
@@ -183,7 +184,7 @@ export class AIController {
             case 'PLACING_OBJECTIVE_MARKER': {
                 const availableObjectives = updatedGame.board.objectiveTiles.filter(tile => !tile.markers.includes(player.id));
                 if (availableObjectives.length > 0) {
-                    const randomObjective = availableObjectives[Math.floor(Math.random() * availableObjectives.length)];
+                    const randomObjective = availableObjectives[Math.floor(random() * availableObjectives.length)];
                     const result = ScoreManager.placeObjectiveMarker(updatedGame, player.id, randomObjective.id, interaction.milestone);
                     updatedGame = result.updatedGame;
                     if (result.logMessage) addHistory(result.logMessage, player.id, game);
@@ -192,7 +193,7 @@ export class AIController {
             }
             case 'RESERVING_CARD': {
                 const p = updatedGame.players.find(p => p.id === player.id);
-                const hand = p ? [...CardSystem.getHandCards(p)].sort(() => 0.5 - Math.random()) : [];
+                const hand = p ? [...CardSystem.getHandCards(p)].sort(() => 0.5 - random()) : [];
                 const res = CardSystem.reserveCards(updatedGame, player.id, hand.slice(0, interaction.count).map(c => c.id), sequenceId);
                 updatedGame = res.updatedGame;
                 historyEntries.push(...res.historyEntries);
@@ -201,7 +202,7 @@ export class AIController {
             case 'ACQUIRING_CARD': {
                 for (let i = 0; i < interaction.count; i++) {
                     const row = updatedGame.decks.cardRow;
-                    const cardId = row.length > 0 && Math.random() > 0.5 ? row[Math.floor(Math.random() * row.length)].id : undefined;
+                    const cardId = row.length > 0 && random() > 0.5 ? row[Math.floor(random() * row.length)].id : undefined;
                     const res = CardSystem.acquireCard(updatedGame, player.id, cardId, { isFree: interaction.isFree, triggerFreeAction: interaction.triggerFreeAction }, sequenceId);
                     if (res.error) continue;
                     updatedGame = res.updatedGame;
@@ -215,13 +216,13 @@ export class AIController {
                 if (p) {
                     const probes = p.probes.filter(pr => pr.state === ProbeState.IN_SOLAR_SYSTEM && pr.solarPosition);
                     if (probes.length > 0) {
-                        const probe = probes[Math.floor(Math.random() * probes.length)];
+                        const probe = probes[Math.floor(random() * probes.length)];
                         const rotationState = createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0);
                         const absPos = getAbsoluteSectorForProbe(probe.solarPosition!, rotationState);
                         const reachable = calculateReachableCellsWithEnergy(probe.solarPosition!.disk, absPos, 1, p.energy, rotationState, false, undefined, updatedGame.board.solarSystem.extraCelestialObjects);
                         const destinations = Array.from(reachable.keys()).filter(k => k !== `${probe.solarPosition!.disk}${absPos}`);
                         if (destinations.length > 0) {
-                            const destKey = destinations[Math.floor(Math.random() * destinations.length)];
+                            const destKey = destinations[Math.floor(random() * destinations.length)];
                             const disk = destKey[0] as DiskName;
                             const sector = parseInt(destKey.substring(1)) as SectorNumber;
                             const moveRes = ProbeSystem.moveProbe(updatedGame, p.id, probe.id, disk, sector, 1, sequenceId);
@@ -247,10 +248,10 @@ export class AIController {
                     validTechs = validTechs.filter(t => interaction.categories!.includes(t.type));
                 }
                 if (validTechs.length > 0) {
-                    const tech = validTechs[Math.floor(Math.random() * validTechs.length)];
+                    const tech = validTechs[Math.floor(random() * validTechs.length)];
                     let targetCol: number | undefined = undefined;
                     if (tech.type === TechnologyCategory.COMPUTING) {
-                        targetCol = [1, 3, 5, 6][Math.floor(Math.random() * 4)];
+                        targetCol = [1, 3, 5, 6][Math.floor(random() * 4)];
                     }
                     const res = TechnologySystem.acquireTechnology(updatedGame, player.id, tech, targetCol, interaction.noTileBonus);
                     updatedGame = res.updatedGame;
@@ -264,7 +265,7 @@ export class AIController {
                 const p = updatedGame.players.find(p => p.id === player.id);
                 const columns = p ? ComputerSystem.TECH_COLUMNS.filter(col => ComputerSystem.canAssignTechnology(p, col).canAssign) : [];
                 if (p && columns.length > 0) {
-                    const targetCol = columns[Math.floor(Math.random() * columns.length)];
+                    const targetCol = columns[Math.floor(random() * columns.length)];
                     ComputerSystem.assignTechnology(p, tech, targetCol);
                     addHistory(`assigne technologie "${tech.name}" au slot ${targetCol}`, player.id, game);
                 }
@@ -300,7 +301,7 @@ export class AIController {
             }
             case 'CHOOSING_OBS4_ACTION': {
                 const p = updatedGame.players.find(p => p.id === player.id);
-                const choice = p && p.energy >= 1 && Math.random() > 0.5 ? 'PROBE' : 'MOVE';
+                const choice = p && p.energy >= 1 && random() > 0.5 ? 'PROBE' : 'MOVE';
                 const res = ScanSystem.applyObservation4(updatedGame, player.id, choice, sequenceId);
                 updatedGame = res.updatedGame;
                 historyEntries.push(...res.historyEntries);
@@ -325,8 +326,8 @@ export class AIController {
                     const canPickFromRow = species.cardRow && species.cardRow.length > 0;
                     const canPickFromDeck = species.cards && species.cards.length > 0;
                     let cardId = 'deck';
-                    if (canPickFromRow && (!canPickFromDeck || Math.random() > 0.5)) {
-                        cardId = species.cardRow[Math.floor(Math.random() * species.cardRow.length)].id;
+                    if (canPickFromRow && (!canPickFromDeck || random() > 0.5)) {
+                        cardId = species.cardRow[Math.floor(random() * species.cardRow.length)].id;
                     }
                     const res = SpeciesSystem.acquireAlienCard(updatedGame, player.id, interaction.speciesId, cardId);
                     if (res.drawnCard) {
@@ -357,9 +358,9 @@ export class AIController {
                 const mode = interaction.type === 'CONSULTING_SPECIMEN' ? 'consult' : 'collect';
                 // Planète prélevée, ou consultable (Étude de l'Écosystème : sonde présente ; ET.8 à ET.10 : au choix)
                 const options = interaction.type === 'CONSULTING_SPECIMEN' ? SpeciesSystem.consultablePlanets(updatedGame, player.id, interaction) : [interaction.planetId];
-                const planetId = options[Math.floor(Math.random() * options.length)];
+                const planetId = options[Math.floor(random() * options.length)];
                 const tokenCount = planetId ? updatedGame.board.planets.find(p => p.id === planetId)?.mascamiteTokens?.length || 0 : 0;
-                const res = planetId && tokenCount > 0 ? SpeciesSystem.takeMascamiteSpecimen(updatedGame, player.id, planetId, Math.floor(Math.random() * tokenCount), mode, sequenceId) : null;
+                const res = planetId && tokenCount > 0 ? SpeciesSystem.takeMascamiteSpecimen(updatedGame, player.id, planetId, Math.floor(random() * tokenCount), mode, sequenceId) : null;
                 if (res) {
                     updatedGame = res.updatedGame;
                     historyEntries.push(...res.historyEntries);
@@ -370,8 +371,8 @@ export class AIController {
             case 'DISCARDING_FOR_SIGNAL': {
                 // Nombre de cartes tiré au hasard ; un robot stratégique compare les tirages
                 const p = updatedGame.players.find(p => p.id === player.id);
-                const hand = p ? [...CardSystem.getHandCards(p)].sort(() => 0.5 - Math.random()) : [];
-                const count = Math.floor(Math.random() * (Math.min(interaction.count, hand.length) + 1));
+                const hand = p ? [...CardSystem.getHandCards(p)].sort(() => 0.5 - random()) : [];
+                const count = Math.floor(random() * (Math.min(interaction.count, hand.length) + 1));
                 const res = CardSystem.discardForSignals(updatedGame, player.id, hand.slice(0, count).map(c => c.id), sequenceId);
                 historyEntries.push(...res.historyEntries);
                 newPendingInteractions.push(...res.newPendingInteractions);
@@ -382,7 +383,7 @@ export class AIController {
                 if (species && species.message) {
                     const availableTokens = species.message.map((token, index) => ({ token, index })).filter(item => item.token.isAvailable);
                     if (availableTokens.length > 0) {
-                        const choice = availableTokens[Math.floor(Math.random() * availableTokens.length)];
+                        const choice = availableTokens[Math.floor(random() * availableTokens.length)];
                         const res = SpeciesSystem.claimCentaurienReward(updatedGame, player.id, choice.index, interaction.markerId);
                         updatedGame = res.updatedGame;
                         historyEntries.push(...res.historyEntries);
@@ -392,7 +393,7 @@ export class AIController {
                 break;
             }
             case 'CHOOSING_MEDIA_OR_MOVE': {
-                const res = ProbeSystem.chooseMediaOrMove(updatedGame, player.id, Math.random() > 0.5 ? 'MEDIA' : 'MOVE', interaction.remainingMoves || 0, sequenceId);
+                const res = ProbeSystem.chooseMediaOrMove(updatedGame, player.id, random() > 0.5 ? 'MEDIA' : 'MOVE', interaction.remainingMoves || 0, sequenceId);
                 updatedGame = res.updatedGame;
                 historyEntries.push(...res.historyEntries);
                 if (res.nextInteraction) newPendingInteractions.push(res.nextInteraction);

@@ -6,6 +6,7 @@ import { getObjectPosition } from '../core/SolarSystemPosition';
 import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { uniqueId } from '../core/ids';
+import { random } from '../core/random';
 
 export class SpeciesSystem {
     /**
@@ -617,7 +618,7 @@ export class SpeciesSystem {
                 ];
 
                 shuffledTokens.forEach((token, index) => {
-                    const side = Math.random() < 0.5 ? 'head' : 'tail';
+                    const side = random() < 0.5 ? 'head' : 'tail';
                     const bonus = side === 'head' ? token.head : token.tail;
                     const sector = sectors[index] as SectorNumber;
 

@@ -4,6 +4,7 @@ import { ScanSystem } from '../systems/ScanSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
+import { random } from '../core/random';
 
 export class AIBehavior {
 
@@ -39,9 +40,9 @@ export class AIBehavior {
         }
 
         const types = [...new Set(possibleActions.map(a => a.action))];
-        const type = types[Math.floor(Math.random() * types.length)];
+        const type = types[Math.floor(random() * types.length)];
         const variants = possibleActions.filter(a => a.action === type);
-        const decision = variants[Math.floor(Math.random() * variants.length)];
+        const decision = variants[Math.floor(random() * variants.length)];
         console.log(`[AI] ${player.name} chose:`, decision.action, decision.data);
         return decision;
     }
@@ -109,7 +110,7 @@ export class AIBehavior {
         const keepCount = Math.min(hand.length, GAME_CONSTANTS.HAND_SIZE_AFTER_PASS);
         const ordered = this.getDifficulty(player) !== 'PASS'
             ? [...hand].sort((a, b) => this.cardKeepValue(player, b) - this.cardKeepValue(player, a))
-            : [...hand].sort(() => 0.5 - Math.random());
+            : [...hand].sort(() => 0.5 - random());
         return {
             action: ActionType.PASS,
             data: { cardsToKeep: ordered.slice(0, keepCount).map(c => c.id) }
@@ -137,7 +138,7 @@ export class AIBehavior {
             };
             return [...hand].sort((a, b) => rank(a) - rank(b))[0].id;
         }
-        return hand[Math.floor(Math.random() * hand.length)].id;
+        return hand[Math.floor(random() * hand.length)].id;
     }
 
     /**
@@ -153,7 +154,7 @@ export class AIBehavior {
                 const availableTiles = (game.board.objectiveTiles || []).filter(t => !t.markers.includes(player.id));
 
                 if (availableTiles.length > 0) {
-                    const randomTile = availableTiles[Math.floor(Math.random() * availableTiles.length)];
+                    const randomTile = availableTiles[Math.floor(random() * availableTiles.length)];
                     return { milestone: m, tileId: randomTile.id };
                 }
             }

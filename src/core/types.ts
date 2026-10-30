@@ -232,6 +232,8 @@ export interface Decks {
 
 export interface Game {
   id: string;
+  /** Graine du générateur aléatoire de la partie (core/random.ts), pour la rejouer */
+  seed?: number;
   currentRound: number;
   maxRounds: number;
   currentPlayerIndex: number;
