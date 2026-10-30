@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Game, HistoryEntry, InteractionState } from '../../core/types';
-import { AITurn } from '../../ai/AITurn';
+import { playAIStep, endAITurn } from './aiWorkerClient';
 
 const AI_STEP_DELAY_MS = 1500;
 
@@ -24,7 +24,8 @@ interface AITurnCallbacks {
 /**
  * Fait jouer les robots : une étape (action gratuite, action principale, fin de tour…)
  * toutes les AI_STEP_DELAY_MS, tant qu'aucune interaction n'est en cours.
- * La logique de jeu est dans AITurn (testable sans React).
+ * La logique de jeu est dans AITurn (testable sans React) ; elle est calculée dans un Web Worker
+ * (aiWorkerClient) pendant le délai, pour ne pas figer l'interface.
  */
 export function useAITurn(game: Game | null, interactionState: InteractionState, callbacks: AITurnCallbacks): void {
   // Toujours appeler les callbacks les plus récents sans relancer l'effet à chaque rendu
@@ -36,12 +37,17 @@ export function useAITurn(game: Game | null, interactionState: InteractionState,
     const currentPlayer = game.players[game.currentPlayerIndex];
     if (!currentPlayer || currentPlayer.type !== 'robot') return;
 
-    const timer = setTimeout(() => {
+    // Le calcul commence tout de suite ; son résultat est appliqué au plus tôt après le délai,
+    // et jamais si la partie a changé entre-temps (annulation, nouvelle partie…)
+    let cancelled = false;
+    const delay = new Promise<void>(resolve => setTimeout(resolve, AI_STEP_DELAY_MS));
+    const run = async () => {
+      const [step] = await Promise.all([playAIStep(game), delay]);
+      if (cancelled) return;
       const cb = callbacksRef.current;
       const record = (entries: HistoryEntry[]) =>
         entries.forEach(e => cb.addToHistory(e.message, e.playerId || undefined, game, undefined, e.sequenceId));
 
-      const step = AITurn.playStep(game);
       switch (step.kind) {
         case 'WAIT':
           return;
@@ -55,7 +61,8 @@ export function useAITurn(game: Game | null, interactionState: InteractionState,
           if (step.humanInteractions?.length) cb.onHumanInteractions(step.humanInteractions);
           return;
         case 'END_TURN': {
-          const end = AITurn.endTurn(game);
+          const end = await endAITurn(game);
+          if (cancelled) return;
           record(end.historyEntries);
           if (end.discoveryNotification) cb.onDiscovery(end.discoveryNotification.message);
           cb.applyGame(end.updatedGame);
@@ -66,8 +73,9 @@ export function useAITurn(game: Game | null, interactionState: InteractionState,
           cb.onPass(step.cardsToKeep);
           return;
       }
-    }, AI_STEP_DELAY_MS);
+    };
+    run().catch(error => console.error('[AI] Erreur pendant le tour du robot :', error));
 
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; };
   }, [game, interactionState.type]);
 }

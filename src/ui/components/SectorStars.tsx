@@ -55,7 +55,7 @@ const STAR_RADIUS = 89;
 /** Agrandissement de l'étoile et de ses détails */
 const STAR_SCALE = 1.6;
 
-export const SectorStars: React.FC<{ sectors: Sector[] }> = ({ sectors }) => (
+const SectorStarsBase: React.FC<{ sectors: Sector[] }> = ({ sectors }) => (
   <svg className="seti-sector-stars-svg" viewBox="0 0 200 200">
     <defs>
       {sectors.map((sector, i) => {
@@ -90,3 +90,7 @@ export const SectorStars: React.FC<{ sectors: Sector[] }> = ({ sectors }) => (
     })}
   </svg>
 );
+
+/** Les étoiles ne dépendent que des noms des secteurs : pas de nouveau dessin à chaque copie de la partie */
+export const SectorStars = React.memo(SectorStarsBase, (prev, next) =>
+  prev.sectors.length === next.sectors.length && prev.sectors.every((s, i) => s.name === next.sectors[i].name));

@@ -161,7 +161,7 @@ const Rings: React.FC<{ front: boolean; clipId: string }> = ({ front, clipId }) 
 );
 
 /** Planète réaliste en SVG, à la taille donnée (les anneaux débordent du carré) */
-export const PlanetGlobe: React.FC<{ id: string; size: number }> = ({ id, size }) => {
+const PlanetGlobeBase: React.FC<{ id: string; size: number }> = ({ id, size }) => {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const look = LOOKS[id] ?? { light: '#bbb', base: '#888', dark: '#333' };
   const clip = `clip-${uid}`;
@@ -202,7 +202,7 @@ export const PlanetGlobe: React.FC<{ id: string; size: number }> = ({ id, size }
  * Comète vue de profil : noyau à droite (x = +length/2), queue de poussière courbe et queue d'ions droite vers la gauche.
  * À faire pivoter selon la direction de la queue.
  */
-export const CometSvg: React.FC<{ length: number }> = ({ length }) => {
+const CometSvgBase: React.FC<{ length: number }> = ({ length }) => {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const h = length / 2;
   const w = 8 + length * 0.12;
@@ -255,7 +255,7 @@ const rockPath = (r: number, seed: number, rotation: number) => {
 };
 
 /** Champ d'astéroïdes : rochers ombrés de tailles variées et poussière, disposés de façon stable selon la graine */
-export const AsteroidFieldSvg: React.FC<{ width: number; height: number; count: number; seed: number }> = ({ width, height, count, seed }) => {
+const AsteroidFieldSvgBase: React.FC<{ width: number; height: number; count: number; seed: number }> = ({ width, height, count, seed }) => {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   const rocks = Array.from({ length: count }, (_, i) => {
     const a = (i / count) * Math.PI * 2 + seeded(seed + i) * 0.6;
@@ -288,7 +288,7 @@ export const AsteroidFieldSvg: React.FC<{ width: number; height: number; count: 
 };
 
 /** Soleil : photosphère granuleuse assombrie au bord, facules, protubérances et couronne diffuse */
-export const SunSvg: React.FC = () => {
+const SunSvgBase: React.FC = () => {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   // Granulation : petites cellules claires réparties de façon stable
   const grains = Array.from({ length: 70 }, (_, i) => {
@@ -340,7 +340,7 @@ export const SunSvg: React.FC = () => {
  * Sonde (type Voyager) vue de trois quarts : grande antenne parabolique, corps à la couleur du joueur
  * habillé de feuille d'or, bras des générateurs (RTG) et long bras du magnétomètre.
  */
-export const ProbeSvg: React.FC<{ color: string }> = ({ color }) => {
+const ProbeSvgBase: React.FC<{ color: string }> = ({ color }) => {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   return (
     <svg width="100%" height="100%" viewBox="-12 -12 24 24" style={{ overflow: 'visible', display: 'block' }}>
@@ -383,7 +383,7 @@ export const ProbeSvg: React.FC<{ color: string }> = ({ color }) => {
  * Capsule Mascamite : capsule de retour (bouclier thermique en bas), bande à la couleur du joueur,
  * hublot où brille le spécimen vert.
  */
-export const CapsuleSvg: React.FC<{ color: string }> = ({ color }) => {
+const CapsuleSvgBase: React.FC<{ color: string }> = ({ color }) => {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   return (
     <svg width="100%" height="100%" viewBox="-12 -12 24 24" style={{ overflow: 'visible', display: 'block' }}>
@@ -418,3 +418,21 @@ export const CapsuleSvg: React.FC<{ color: string }> = ({ color }) => {
     </svg>
   );
 };
+
+/** Dessin coûteux, sans état : redessiné seulement si ses props changent */
+export const PlanetGlobe = React.memo(PlanetGlobeBase);
+
+/** Dessin coûteux, sans état : redessiné seulement si ses props changent */
+export const CometSvg = React.memo(CometSvgBase);
+
+/** Dessin coûteux, sans état : redessiné seulement si ses props changent */
+export const AsteroidFieldSvg = React.memo(AsteroidFieldSvgBase);
+
+/** Dessin coûteux, sans état : redessiné seulement si ses props changent */
+export const SunSvg = React.memo(SunSvgBase);
+
+/** Dessin coûteux, sans état : redessiné seulement si ses props changent */
+export const ProbeSvg = React.memo(ProbeSvgBase);
+
+/** Dessin coûteux, sans état : redessiné seulement si ses props changent */
+export const CapsuleSvg = React.memo(CapsuleSvgBase);
