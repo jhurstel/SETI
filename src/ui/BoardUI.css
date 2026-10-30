@@ -388,10 +388,6 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
   padding: 2px 6px 2px 0;
   white-space: nowrap;
 }
-.seti-score-table thead tr.columns td {
-  color: #888;
-  font-size: 0.85em;
-}
 .seti-score-table td.detail {
   color: #aaa;
 }

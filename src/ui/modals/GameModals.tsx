@@ -184,21 +184,18 @@ const parseDetail = (line: string): ScoreRow => {
 };
 
 /** Tableau d'une infobulle de l'écran de fin, avec une ligne Total (colonne de calcul seulement si utile) */
-const ScoreTable = ({ title, rows, total, empty = 'Aucun', firstColumn }: { title: string; rows: ScoreRow[]; total?: string; empty?: string; firstColumn?: string }) => {
+const ScoreTable = ({ title, rows, total, empty = 'Aucun', typeColumn = false }: { title: string; rows: ScoreRow[]; total?: string; empty?: string; typeColumn?: boolean }) => {
   const withDetail = rows.some(row => row.detail);
   const columns = 2 + (withDetail ? 1 : 0);
   return (
     <table className="seti-score-table">
-      <thead>
-        <tr><th colSpan={columns}>{title}</th></tr>
-        {firstColumn && rows.length > 0 && <tr className="columns"><td>{firstColumn}</td><td colSpan={columns - 1}>Carte</td></tr>}
-      </thead>
+      <thead><tr><th colSpan={columns}>{title}</th></tr></thead>
       <tbody>
         {rows.length === 0 && <tr><td colSpan={columns} className="empty">{empty}</td></tr>}
         {rows.map((row, i) => (
           <tr key={i}>
-            <td className={firstColumn ? 'detail' : undefined}>{row.label}</td>
-            {withDetail && <td className={firstColumn ? undefined : 'detail'}>{row.detail}</td>}
+            <td className={typeColumn ? 'detail' : undefined}>{row.label}</td>
+            {withDetail && <td className={typeColumn ? undefined : 'detail'}>{row.detail}</td>}
             <td className={`value ${row.negative ? 'negative' : ''}`}>{row.value}</td>
           </tr>
         ))}
@@ -211,9 +208,16 @@ const ScoreTable = ({ title, rows, total, empty = 'Aucun', firstColumn }: { titl
 const pv = (n: number) => `${n} PV`;
 
 /** Infobulle d'une catégorie (tuiles objectif, cartes fin de partie) */
-const categoryTooltip = (title: string, lines: string[] | undefined, total: number) => (
-  <ScoreTable title={title} rows={(lines || []).map(parseDetail)} total={pv(total)} />
+const categoryTooltip = (title: string, lines: string[] | undefined, total: number, label: (text: string) => string = text => text) => (
+  <ScoreTable title={title} rows={(lines || []).map(parseDetail).map(row => ({ ...row, label: label(row.label) }))} total={pv(total)} />
 );
+
+/** Tuile objectif : nom et face (« Technologies A ») ; les anciennes sauvegardes notaient le marqueur entre parenthèses */
+const objectiveLabel = (game: Game) => (text: string) => {
+  const name = text.replace(/\s*\([^)]*marqueur\)/, '');
+  const tile = game.board?.objectiveTiles?.find(t => t.name === name);
+  return tile ? `${tile.name} ${tile.side}` : name;
+};
 
 /** Infobulle de la colonne Espèces : le danger d'abord, puis les cartes d'espèces (espèce, carte, PV) et la pénalité */
 const speciesTooltip = (score: FinalScore) => {
@@ -223,14 +227,22 @@ const speciesTooltip = (score: FinalScore) => {
     const [species, card] = row.label.includes(' — ') ? row.label.split(' — ') : ['', row.label];
     return { label: species, detail: card, value: row.value };
   });
-  if (score.dangerPenalty > 0) cardRows.push({ label: '', detail: 'Pénalité −10 %', value: `−${pv(score.dangerPenalty)}`, negative: true });
-  const dangerRows = (score.details?.danger || []).map(parseDetail).filter(r => !r.negative).map(r => ({ label: r.label, value: r.value }));
+  // Pénalité calculée sur le total avant pénalité
+  if (score.dangerPenalty > 0) cardRows.push({ label: 'Exertiens', detail: `Pénalité −10 % × ${pv(score.finalScore + score.dangerPenalty)}`, value: `−${pv(score.dangerPenalty)}`, negative: true });
+  // « Carte Navette des Confins : danger 6 », « Marqueur rouge : danger 2 » : type, nom, danger
+  // (anciennes sauvegardes : « Marqueurs sur la piste Exertiens : danger 3 », tous marqueurs confondus)
+  const dangerRows: ScoreRow[] = (score.details?.danger || []).map(parseDetail).filter(r => !r.negative).map(r => {
+    const match = r.label.match(/^(Carte|Marqueurs?)\s+(.*)$/);
+    const type = match ? match[1] : '';
+    const name = match ? match[2] : r.label;
+    return { label: type === 'Carte' ? 'Carte' : type ? 'Marqueur' : '', detail: name.replace(/^sur la /, ''), value: r.value.replace(/^danger\s*/, '') };
+  });
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
       {(dangerRows.length > 0 || score.danger > 0) && (
-        <ScoreTable title="Danger Exertien" rows={dangerRows} total={`danger ${score.danger}`} />
+        <ScoreTable title="Danger Exertien" rows={dangerRows} typeColumn total={`Danger ${score.danger}`} />
       )}
-      <ScoreTable title="Cartes espèces" rows={cardRows} firstColumn="Espèce" total={pv(score.categories.speciesBonuses + score.categories.exertienCards - score.dangerPenalty)} />
+      <ScoreTable title="Cartes espèces" rows={cardRows} typeColumn total={pv(score.categories.speciesBonuses + score.categories.exertienCards - score.dangerPenalty)} />
     </div>
   );
 };
@@ -243,7 +255,7 @@ const totalTooltip = (score: FinalScore) => {
     { label: 'Cartes fin de partie', value: pv(score.categories.missionEndGame) },
     { label: 'Espèces', value: pv(score.categories.speciesBonuses + score.categories.exertienCards) },
   ];
-  if (score.dangerPenalty > 0) rows.push({ label: 'Pénalité −10 %', value: `−${pv(score.dangerPenalty)}`, negative: true });
+  if (score.dangerPenalty > 0) rows.push({ label: `Pénalité Exertiens −10 % × ${pv(score.finalScore + score.dangerPenalty)}`, value: `−${pv(score.dangerPenalty)}`, negative: true });
   return <ScoreTable title="Score final" rows={rows} total={pv(score.finalScore)} />;
 };
 
@@ -289,7 +301,7 @@ export const EndGameModal = ({ game }: { game: Game }) => {
               <div className="col-rank">{index + 1}</div>
               <div className="col-player" style={{ color: player.color }}>{player.name}</div>
               <div className="col-score"><HoverTooltip content="Score avant le décompte final">{score.baseScore}</HoverTooltip></div>
-              <div className="col-score"><HoverTooltip content={categoryTooltip('Tuiles objectif', score.details?.objectiveTiles, score.categories.objectiveTiles)}>{score.categories.objectiveTiles}</HoverTooltip></div>
+              <div className="col-score"><HoverTooltip content={categoryTooltip('Tuiles objectif', score.details?.objectiveTiles, score.categories.objectiveTiles, objectiveLabel(game))}>{score.categories.objectiveTiles}</HoverTooltip></div>
               <div className="col-score"><HoverTooltip content={categoryTooltip('Cartes fin de partie', score.details?.missionEndGame, score.categories.missionEndGame)}>{score.categories.missionEndGame}</HoverTooltip></div>
               <div className="col-score" style={score.dangerPenalty > 0 ? { color: '#ff6b6b' } : undefined}>
                 <HoverTooltip content={speciesTooltip(score)}>{score.categories.speciesBonuses + score.categories.exertienCards - score.dangerPenalty}</HoverTooltip>

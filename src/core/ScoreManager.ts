@@ -394,9 +394,10 @@ export class ScoreManager {
         .filter(t => t.playerId === player.id && t.location === LifeTraceLocation.SPECIES && t.slotIndex !== undefined)
         .forEach(t => {
           // Valeur absolue : les anciennes sauvegardes stockaient ces dangers en négatif
-          markersDanger += Math.abs(slotsByColor[t.type]?.[t.slotIndex!]?.danger || 0);
+          const slotDanger = Math.abs(slotsByColor[t.type]?.[t.slotIndex!]?.danger || 0);
+          markersDanger += slotDanger;
+          if (slotDanger > 0) details?.push(`Marqueur ${t.type.toLowerCase()} : danger ${slotDanger}`);
         });
-      if (markersDanger > 0) details?.push(`Marqueurs sur la piste Exertiens : danger ${markersDanger}`);
     }
     return cardsDanger + markersDanger;
   }

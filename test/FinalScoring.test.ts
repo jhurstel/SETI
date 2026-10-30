@@ -84,8 +84,21 @@ describe('Décompte final', () => {
       const player = getPlayer(game, P1);
       player.playedCards = [card('ET.41'), card('ET.43')]; // 6 + 3
       game.board.alienBoards[0].lifeTraces.push({ id: 'm', type: LifeTraceType.RED, playerId: P1, location: LifeTraceLocation.SPECIES, slotIndex: 0 }); // +3
+      game.board.alienBoards[0].lifeTraces.push({ id: 'm2', type: LifeTraceType.RED, playerId: P1, location: LifeTraceLocation.SPECIES, slotIndex: 1 });
+      const details: string[] = [];
 
-      expect(ScoreManager.calculateExertienDanger(game, player)).toBe(12);
+      const danger = ScoreManager.calculateExertienDanger(game, player, details);
+      const species = game.species.find(s => s.name === AlienBoardType.EXERTIENS)!;
+      const secondSlot = species.fixedSlots.redlifetrace[1].danger || 0;
+
+      expect(danger).toBe(12 + secondSlot);
+      // Une ligne par carte et une par marqueur
+      expect(details).toEqual([
+        expect.stringMatching(/^Carte .+ : danger 6$/),
+        expect.stringMatching(/^Carte .+ : danger 3$/),
+        'Marqueur rouge : danger 3',
+        `Marqueur rouge : danger ${secondSlot}`,
+      ]);
     });
 
     test('les marqueurs ajoutent du danger, même avec une ancienne sauvegarde aux valeurs négatives', () => {
