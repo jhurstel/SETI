@@ -1,5 +1,5 @@
 import { CardSystem } from '../src/systems/CardSystem';
-import { calculateReachableCells, createRotationState, getAdjacentCells, getCell, getObjectPosition } from '../src/core/SolarSystemPosition';
+import { calculateReachableCells, createRotationState, getObjectPosition } from '../src/core/SolarSystemPosition';
 import { AlienBoardType, Card, DiskName, FreeActionType, Game, GAME_CONSTANTS, LifeTraceLocation, LifeTraceType, Mission, Probe, ProbeState, SectorNumber, SectorType, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
@@ -210,16 +210,6 @@ describe('Règles des cartes', () => {
       place(cellAt(m => m >= 5));
       expect(met('GAIN_IF_PROBE_IN_DEEP_SPACE')).toEqual({ pv: 3 });
     });
-
-    test('sonde sur un champ d\'astéroïdes voisin de la Terre', () => {
-      const solar = game.board.solarSystem;
-      const rotation = createRotationState(solar.rotationAngleLevel1 || 0, solar.rotationAngleLevel2 || 0, solar.rotationAngleLevel3 || 0);
-      const earth = getObjectPosition('earth', rotation.level1Angle, rotation.level2Angle, rotation.level3Angle, solar.extraCelestialObjects)!;
-      const asteroid = getAdjacentCells(earth.disk, earth.absoluteSector).find(c => getCell(c.disk, c.sector, rotation, solar.extraCelestialObjects)?.hasAsteroid);
-      expect(met('GAIN_IF_PROBE_ON_ASTEROID')).toBeNull();
-      if (!asteroid) return; // Aucun champ d'astéroïdes à côté de la Terre avec cette mise en place
-      getPlayer(game, P1).probes = [probe('p', ProbeState.IN_SOLAR_SYSTEM, { solarPosition: { disk: asteroid.disk, sector: asteroid.sector, level: 0 } })];
-      expect(met('GAIN_IF_PROBE_ON_ASTEROID')).toEqual({ pv: 3 });
-    });
+    // Sonde sur un champ d'astéroïdes voisin de la Terre : test/MissionConditions.test.ts (rotation choisie pour que le cas existe)
   });
 });
