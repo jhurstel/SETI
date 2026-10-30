@@ -16,6 +16,7 @@ import { ResearchTechAction } from '../actions/ResearchTechAction';
 import { ScanSectorAction } from '../actions/ScanSectorAction';
 import { GameEngine } from '../core/Game';
 import { cloneGame } from '../core/cloneGame';
+import { InteractionChoices } from '../core/InteractionChoices';
 import { TurnManager } from '../core/TurnManager';
 import { InteractionResolver, isAutomaticInteraction } from '../core/InteractionResolver';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -24,7 +25,6 @@ import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ScanSystem } from '../systems/ScanSystem';
-import { ScoreManager } from '../core/ScoreManager';
 import { useAITurn } from './hooks/useAITurn';
 import { useAutosave } from './hooks/useAutosave';
 import { DebugPanel } from './DebugPanel';
@@ -781,28 +781,19 @@ export const BoardUI: React.FC = () => {
   const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType, slotType: LifeTraceLocation, slotIndex?: number) => {
     if (!game) return;
     if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
-    // Trace « de n'importe quelle couleur » : le joueur choisit la couleur en cliquant
-    if (interactionState.color !== LifeTraceType.ANY && interactionState.color !== color) return;
-    if (interactionState.boardIndices && !interactionState.boardIndices.includes(boardIndex)) return;
 
-    // Create sequence id and player id
     const sequenceId = interactionState.sequenceId || `trace-${uniqueId()}`;
     const playerId = interactionState.playerId || game.players[game.currentPlayerIndex].id;
 
-    // Appel métier
-    const result = SpeciesSystem.placeLifeTrace(game, boardIndex, color, playerId, sequenceId, slotType, slotIndex);
-    const updatedGame = result.updatedGame;
-    const historyEntries = result.historyEntries;
-    const newPendingInteractions = result.newPendingInteractions;
+    // Appel métier (trace « de n'importe quelle couleur » : la couleur cliquée)
+    const result = InteractionChoices.placeLifeTrace(game, playerId, { ...interactionState, sequenceId }, boardIndex, color, slotType, slotIndex);
+    if (result.error) return;
+    const { updatedGame, historyEntries, newPendingInteractions } = result;
 
-    // Découverte d'espèce due à cette trace (comparaison des plateaux : un indicateur resté actif ne relance pas la popup)
-    const discovered = updatedGame.board.alienBoards.some((board, i) => board.isDiscovered && !game.board.alienBoards[i]?.isDiscovered);
-    if (discovered) {
-      historyEntries.push({ message: "découvre une nouvelle espèce Alien !", playerId, sequenceId });
+    if (result.discoveredSpecies) {
       setAlienDiscoveryNotification({ visible: true, message: "Découverte d'une nouvelle espèce Alien !" });
       setTimeout(() => setAlienDiscoveryNotification(null), 4000);
     }
-    updatedGame.isSpeciesDiscovered = false;
 
     // End transaction
     setGame(updatedGame);
@@ -863,25 +854,17 @@ export const BoardUI: React.FC = () => {
     if (interactionState.type !== 'ACQUIRING_ALIEN_CARD') return;
     if (interactionState.speciesId !== speciesId) return;
 
-    // Create sequence id and player id
     const sequenceId = interactionState.sequenceId || `alien-card-${uniqueId()}`;
     const playerId = actingPlayer(game).id;
 
-    const { updatedGame, drawnCard } = SpeciesSystem.acquireAlienCard(game, playerId, speciesId, cardId);
-    
-    if (drawnCard) {
-        setGame(updatedGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-        
-        const source = (cardId === 'deck') ? "de la pioche" : "de la rangée";
-        addToHistory(`acquiert la carte Alien "${drawnCard.name}" ${source}`, playerId, game, undefined, sequenceId);
+    const result = InteractionChoices.acquireAlienCard(game, playerId, { ...interactionState, sequenceId }, cardId);
+    if (result.error) return;
 
-        if (interactionState.count > 1) {
-            setInteractionState({ ...interactionState, count: interactionState.count - 1 });
-        } else {
-            setInteractionState({ type: 'IDLE' });
-        }
-    }
+    setGame(result.updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
+    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
+    // Plusieurs cartes à prendre : la même interaction continue avec une carte de moins
+    setInteractionState(result.newPendingInteractions[0] ?? { type: 'IDLE' });
   };
 
   // Gestionnaire pour les choix dans le menu de bonus
@@ -1578,12 +1561,15 @@ export const BoardUI: React.FC = () => {
     const playerId = game.players[game.currentPlayerIndex].id;
 
     // Appel métier
-    const result = ScoreManager.placeObjectiveMarker(game, playerId, tileId, interactionState.milestone);
+    const result = InteractionChoices.placeObjectiveMarker(game, playerId, interactionState, tileId);
+    if (result.error) {
+      setToast({ message: result.error, visible: true });
+      return;
+    }
 
-    // End
     setGame(result.updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    if (result.logMessage) addToHistory(result.logMessage, playerId, game, interactionState);
+    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, interactionState, e.sequenceId));
     setInteractionState({ type: 'IDLE' });
 
     // Continuer la fin de tour

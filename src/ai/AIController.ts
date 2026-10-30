@@ -4,7 +4,6 @@ import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ScanSystem } from '../systems/ScanSystem';
-import { ScoreManager } from '../core/ScoreManager';
 import { InteractionResolver } from '../core/InteractionResolver';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
@@ -12,6 +11,7 @@ import { createRotationState, getAbsoluteSectorForProbe, calculateReachableCells
 import { AIBehavior } from './AIBehavior';
 import { AIEvaluator } from './AIEvaluator';
 import { random } from '../core/random';
+import { InteractionChoices } from '../core/InteractionChoices';
 
 /** Interactions où le robot fait un choix au hasard : il tire plusieurs choix (selon son niveau) et garde le meilleur */
 const RANDOM_CHOICE_INTERACTIONS: InteractionState['type'][] = [
@@ -88,13 +88,9 @@ export class AIController {
         let best: { result: AIControllerResult; value: number } | null = null;
         for (const option of SpeciesSystem.lifeTraceOptions(game, interaction.color)) {
             if (interaction.boardIndices && !interaction.boardIndices.includes(option.boardIndex)) continue;
-            const placed = SpeciesSystem.placeLifeTrace(game, option.boardIndex, option.color, player.id, sequenceId, option.location, option.slotIndex);
+            const placed = InteractionChoices.placeLifeTrace(game, player.id, { ...interaction, sequenceId }, option.boardIndex, option.color, option.location, option.slotIndex);
             if (placed.updatedGame === game) continue;
-            const historyEntries: HistoryEntry[] = placed.historyEntries.map(e => ({ ...e, sequenceId }));
-            if (placed.updatedGame.isSpeciesDiscovered) {
-                historyEntries.push({ message: 'découvre une nouvelle espèce Alien !', playerId: player.id, sequenceId });
-                placed.updatedGame.isSpeciesDiscovered = false;
-            }
+            const historyEntries = placed.historyEntries;
             const followUp = this.processInteractionQueue(placed.updatedGame, placed.newPendingInteractions.map(i => ({ ...i, sequenceId })), sequenceId, player);
             const value = AIEvaluator.evaluate(followUp.updatedGame, player.id);
             if (!best || value > best.value) {
@@ -171,23 +167,20 @@ export class AIController {
                     const best = this.bestLifeTracePlacement(updatedGame, player, interaction, sequenceId);
                     if (best) return best;
                 }
-                const res = SpeciesSystem.placeLifeTraceAuto(updatedGame, interaction.color, player.id, sequenceId, interaction.boardIndices);
+                const auto = SpeciesSystem.placeLifeTraceAuto(updatedGame, interaction.color, player.id, sequenceId, interaction.boardIndices);
+                const res = InteractionChoices.noteDiscovery(updatedGame, { updatedGame: auto.updatedGame, historyEntries: auto.historyEntries, newPendingInteractions: auto.newPendingInteractions || [] }, player.id, sequenceId);
                 historyEntries.push(...res.historyEntries);
-                if (res.updatedGame.isSpeciesDiscovered) {
-                    addHistory("découvre une nouvelle espèce Alien !", player.id);
-                    res.updatedGame.isSpeciesDiscovered = false;
-                }
                 updatedGame = res.updatedGame;
-                newPendingInteractions.push(...(res.newPendingInteractions || []).map(i => ({ ...i, sequenceId })));
+                newPendingInteractions.push(...res.newPendingInteractions.map(i => ({ ...i, sequenceId })));
                 break;
             }
             case 'PLACING_OBJECTIVE_MARKER': {
                 const availableObjectives = updatedGame.board.objectiveTiles.filter(tile => !tile.markers.includes(player.id));
                 if (availableObjectives.length > 0) {
                     const randomObjective = availableObjectives[Math.floor(random() * availableObjectives.length)];
-                    const result = ScoreManager.placeObjectiveMarker(updatedGame, player.id, randomObjective.id, interaction.milestone);
+                    const result = InteractionChoices.placeObjectiveMarker(updatedGame, player.id, { ...interaction, sequenceId }, randomObjective.id);
                     updatedGame = result.updatedGame;
-                    if (result.logMessage) addHistory(result.logMessage, player.id, game);
+                    historyEntries.push(...result.historyEntries.map(e => ({ ...e, previousState: game })));
                 }
                 break;
             }
@@ -292,10 +285,10 @@ export class AIController {
                 const p = updatedGame.players.find(p => p.id === player.id);
                 const hand = p ? CardSystem.getHandCards(p) : [];
                 if (p && hand.length > 0) {
-                    const card = hand[0];
-                    updatedGame = CardSystem.discardCard(updatedGame, p.id, card.id);
-                    newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, sequenceId: sequenceId, cardId: card.id });
-                    addHistory(`utilise carte "${card.name}" pour Observation III`, p.id, game);
+                    // Comme le joueur humain : la carte défaussée marque un signal dans le secteur de sa couleur
+                    const res = CardSystem.discardForSignals(updatedGame, p.id, [hand[0].id], sequenceId);
+                    historyEntries.push(...res.historyEntries);
+                    newPendingInteractions.push(...res.newPendingInteractions);
                 }
                 break;
             }
@@ -329,10 +322,12 @@ export class AIController {
                     if (canPickFromRow && (!canPickFromDeck || random() > 0.5)) {
                         cardId = species.cardRow[Math.floor(random() * species.cardRow.length)].id;
                     }
-                    const res = SpeciesSystem.acquireAlienCard(updatedGame, player.id, interaction.speciesId, cardId);
-                    if (res.drawnCard) {
+                    // Plusieurs cartes : l'interaction reste en attente avec une carte de moins
+                    const res = InteractionChoices.acquireAlienCard(updatedGame, player.id, { ...interaction, sequenceId }, cardId);
+                    if (!res.error) {
                         updatedGame = res.updatedGame;
-                        addHistory(`acquiert la carte Alien "${res.drawnCard.name}"`, player.id, game);
+                        historyEntries.push(...res.historyEntries.map(e => ({ ...e, previousState: game })));
+                        newPendingInteractions.push(...res.newPendingInteractions);
                     }
                 }
                 break;
