@@ -4,7 +4,8 @@ import { ScoreManager } from '../src/core/ScoreManager';
 import { AIController } from '../src/ai/AIController';
 import { AITurn } from '../src/ai/AITurn';
 import { PassAction } from '../src/actions/PassAction';
-import { AlienBoardType, Card, CardType, Game } from '../src/core/types';
+import { AlienBoardType, Card, CardType, Game, Technology, TechnologyCategory } from '../src/core/types';
+import { AIEvaluator, DEFAULT_WEIGHTS } from '../src/ai/AIEvaluator';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -144,14 +145,53 @@ describe('Exertiens', () => {
   });
 
   describe('IA', () => {
-    test('AIController joue la carte la moins dangereuse', () => {
+    // Carte Exertien avec sa condition de fin de partie : END_CONDITION:TECH:<catégorie>:<seuil>:<PV>
+    const withCondition = (id: string, danger: number, category: string, threshold: number, points: number): Card => ({
+      ...exertien(id, danger),
+      passiveEffects: [{ type: 'END_CONDITION', target: 'TECH', value: `${category}:${threshold}:${points}` }],
+    });
+    const giveTechs = (g: Game, playerId: string, category: TechnologyCategory, count: number) => {
+      const player = getPlayer(g, playerId);
+      for (let i = 0; i < count; i++) player.technologies.push({ ...player.technologies[0], id: `${category}-${i}-1`, type: category } as Technology);
+    };
+
+    test('AIController joue la carte dont la condition est remplie, même plus dangereuse', () => {
       const player = getPlayer(game, P1);
-      player.cards.push(exertien('e1', 7), exertien('e2', 2), exertien('e3', 5));
+      game.currentRound = 3;
+      player.score = 40;
+      giveTechs(game, P1, TechnologyCategory.EXPLORATION, 3);
+      player.cards.push(withCondition('e1', 2, 'computing', 3, 9), withCondition('e2', 6, 'exploration', 3, 14));
 
       const res = AIController.processInteractionQueue(game, [{ type: 'CHOOSING_EXERTIEN_CARD', milestone: 30 }], 'seq', player);
 
       expect(getPlayer(res.updatedGame, P1).playedCards.map(c => c.id)).toEqual(['e2']);
-      expect(getPlayer(res.updatedGame, P1).danger).toBe(2);
+      expect(getPlayer(game, P1).playedCards.map(c => c.id)).toEqual([]);
+    });
+
+    test("AIController renonce quand aucune condition n'est engagée : le danger coûterait la pénalité", () => {
+      const player = getPlayer(game, P1);
+      player.score = 60;
+      player.cards.push(withCondition('e1', 3, 'computing', 3, 9), withCondition('e2', 6, 'observation', 3, 15));
+
+      const res = AIController.processInteractionQueue(game, [{ type: 'CHOOSING_EXERTIEN_CARD', milestone: 30 }], 'seq', player);
+
+      expect(getPlayer(res.updatedGame, P1).playedCards).toEqual([]);
+      expect(getPlayer(res.updatedGame, P1).claimedExertienMilestones).toEqual([30]);
+    });
+
+    test("l'évaluation retire la pénalité de danger attendue, moins si un adversaire est plus exposé", () => {
+      const player = getPlayer(game, P1);
+      player.score = 50;
+      const base = AIEvaluator.evaluate(game, P1);
+      player.playedCards.push(exertien('e1', 4));
+      const exposed = AIEvaluator.evaluate(game, P1);
+      getPlayer(game, P2).playedCards.push(exertien('e2', 6));
+      const lessExposed = AIEvaluator.evaluate(game, P1);
+
+      // 10 % du score final estimé (au moins le score actuel), moins la valeur d'une carte jouée (poids commun à toutes les cartes)
+      expect(exposed).toBeLessThanOrEqual(base - 5 + DEFAULT_WEIGHTS.playedCard + 1e-9);
+      expect(lessExposed).toBeGreaterThan(exposed);
+      expect(lessExposed).toBeLessThan(base);
     });
 
     test('un robot qui atteint un palier Exertien termine son tour sans blocage', () => {
@@ -164,7 +204,7 @@ describe('Exertiens', () => {
       const end = AITurn.endTurn(game);
 
       expect(end.updatedGame.currentPlayerIndex).toBe(1);
-      expect(getPlayer(end.updatedGame, P1).playedCards.map(c => c.id)).toContain('e1');
+      expect(getPlayer(end.updatedGame, P1).claimedExertienMilestones).toHaveLength(1);
       expect(warn).not.toHaveBeenCalled();
       warn.mockRestore();
     });

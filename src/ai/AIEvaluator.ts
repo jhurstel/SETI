@@ -54,6 +54,16 @@ export const DEFAULT_WEIGHTS = {
   lastRoundFactor: 0.27,
   // Gain minimal (en PV) pour qu'un robot stratégique joue une action gratuite facultative
   freeActionMinGain: 0.22,
+  // Danger Exertien : part de la pénalité attendue (10 % du score) comptée quand le joueur est le plus exposé,
+  // et réduction de l'exposition par point de danger d'écart avec l'adversaire le plus exposé
+  dangerPenalty: 1,
+  dangerMarginDecay: 0.5,
+  // Carte Exertien jouée : condition remplie, tous ses PV ; sinon, ses PV × cette chance par étape manquante
+  // (pendant la dernière manche, la chance par étape est réduite par lastRoundFactor)
+  exertienStepChance: 0.5,
+  // Score final estimé pour la pénalité de danger : score actuel + manches restantes × gain moyen par manche,
+  // ce gain étant au moins ce plancher (les premières manches rapportent peu)
+  minPointsPerRound: 15,
 };
 
 export type EvaluatorWeights = typeof DEFAULT_WEIGHTS;
@@ -89,15 +99,53 @@ export class AIEvaluator {
     value += remainingRounds * w.incomePerRound * (player.revenueCredits * w.credit + player.revenueEnergy * w.energy + player.revenueCards * w.card);
 
     // Le décompte final se calcule une seule fois, en fin de partie : l'Expert l'anticipe
+    // (sans les cartes Exertiens, comptées pour tous les niveaux ci-dessous)
     if (player.aiDifficulty === 'EXPERT' && !game.finalScores) {
       const weight = remainingRounds >= 1 ? w.endGameBefore : w.endGameLastRound;
-      value += weight * ScoreManager.calculateFinalScore(game, playerId).total;
+      const endGame = ScoreManager.calculateFinalScore(game, playerId);
+      value += weight * (endGame.total - endGame.exertienCards);
+    }
+    if (!game.finalScores) {
+      value += this.exertienCardsValue(game, player, remainingRounds, w);
+      value -= this.expectedDangerPenalty(game, player, w);
     }
     return value;
   }
 
+  /** PV attendus des cartes Exertiens jouées : pleins si la condition est remplie, sinon selon les étapes manquantes */
+  private static exertienCardsValue(game: Game, player: Player, remainingRounds: number, w: EvaluatorWeights): number {
+    return (player.playedCards || [])
+      .filter(card => card.type === CardType.EXERTIEN)
+      .reduce((sum, card) => {
+        const progress = ScoreManager.exertienCardProgress(game, player, card);
+        if (!progress || progress.threshold <= 0) return sum;
+        const missing = progress.threshold - progress.value;
+        if (missing <= 0) return sum + progress.points;
+        // Chaque étape manquante divise la chance de remplir la condition (bien plus pendant la dernière manche)
+        const stepChance = remainingRounds >= 1 ? w.exertienStepChance : w.exertienStepChance * w.lastRoundFactor;
+        return sum + stepChance ** missing * progress.points;
+      }, 0);
+  }
+
+  /**
+   * Pénalité de danger attendue : le joueur le plus exposé (ex aequo compris) perd 10 % de son total final,
+   * estimé à partir du score actuel et des manches restantes.
+   * Pleine si le joueur a le plus de danger, réduite à chaque point d'écart avec l'adversaire le plus exposé.
+   */
+  private static expectedDangerPenalty(game: Game, player: Player, w: EvaluatorWeights): number {
+    const danger = ScoreManager.calculateExertienDanger(game, player);
+    if (danger <= 0) return 0;
+    const maxOpponent = Math.max(0, ...game.players.filter(p => p.id !== player.id).map(p => ScoreManager.calculateExertienDanger(game, p)));
+    const exposure = danger >= maxOpponent ? 1 : w.dangerMarginDecay ** (maxOpponent - danger);
+    const remainingRounds = Math.max(0, game.maxRounds - game.currentRound);
+    const pointsPerRound = Math.max(w.minPointsPerRound, player.score / Math.max(1, game.currentRound));
+    const projectedScore = Math.max(0, player.score) + remainingRounds * pointsPerRound;
+    return w.dangerPenalty * exposure * 0.1 * projectedScore;
+  }
+
   private static resourceValue(player: Player, w: EvaluatorWeights): number {
-    const handSize = player.cards.length;
+    // Les cartes Exertiens ne sont pas en main (FAQ Q40) : elles ne valent rien tant qu'elles ne sont pas jouées
+    const handSize = player.cards.filter(c => c.type !== CardType.EXERTIEN).length;
     return player.credits * w.credit
       + player.energy * w.energy
       + player.mediaCoverage * w.media

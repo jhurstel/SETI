@@ -103,6 +103,19 @@ export class AIController {
         return best ? best.result : null;
     }
 
+    /** Palier Exertien : joue la carte (ou aucune) qui donne la meilleure position évaluée */
+    static bestExertienCard(game: Game, playerId: string, milestone: number): { updatedGame: Game; historyEntries: HistoryEntry[] } {
+        const player = game.players.find(p => p.id === playerId);
+        const options: (string | undefined)[] = [undefined, ...(player?.cards || []).filter(c => CardSystem.isExertienCard(c)).map(c => c.id)];
+        let best: { result: { updatedGame: Game; historyEntries: HistoryEntry[] }; value: number } | null = null;
+        for (const cardId of options) {
+            const result = SpeciesSystem.playExertienCard(game, playerId, milestone, cardId);
+            const value = AIEvaluator.evaluate(result.updatedGame, playerId);
+            if (!best || value > best.value) best = { result, value };
+        }
+        return best!.result;
+    }
+
     private static processSingleInteraction(
         game: Game,
         player: Player,
@@ -267,11 +280,9 @@ export class AIController {
                 break;
             }
             case 'CHOOSING_EXERTIEN_CARD': {
-                // Stratégie simple : jouer la carte la moins dangereuse
-                const p = updatedGame.players.find(p => p.id === player.id);
-                const exertienCards = (p?.cards || []).filter(c => CardSystem.isExertienCard(c));
-                const card = [...exertienCards].sort((a, b) => (a.danger || 0) - (b.danger || 0))[0];
-                const res = SpeciesSystem.playExertienCard(updatedGame, player.id, interaction.milestone, card?.id);
+                // Simule chaque carte (et le renoncement) : la position évaluée compte les PV promis
+                // selon l'avancement de la condition et la pénalité de danger attendue
+                const res = this.bestExertienCard(updatedGame, player.id, interaction.milestone);
                 updatedGame = res.updatedGame;
                 historyEntries.push(...res.historyEntries.map(e => ({ ...e, sequenceId })));
                 break;
