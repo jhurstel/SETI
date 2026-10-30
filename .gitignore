@@ -34,3 +34,5 @@ playwright-report/
 coverage/
 tools/spsa/build/
 tools/spsa/out/
+server/build/
+server/data/

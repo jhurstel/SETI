@@ -20,6 +20,7 @@ npm run test:e2e     # Playwright (e2e/*.spec.ts) : tour d'un joueur humain dans
 npm run check        # typecheck + lint + tests + build — à lancer avant chaque commit
 npm run tune:ai -- tune 140   # réglage SPSA des poids des robots (tools/spsa/README.md) ; compare <a.json|default> <b.json|default> <graines> pour valider
 npm run build        # typecheck puis vite build (→ dist/)
+npm run server       # serveur du jeu à distance (esbuild → server/build ; PORT=8787, SETI_DATA_DIR=server/data)
 ```
 
 La CI (`.github/workflows/ci.yml`) exécute typecheck, lint, tests et build à chaque push sur `main`, et les tests de bout en bout dans un job séparé (`e2e`). En local sous Windows, Playwright utilise le Chrome installé (`PW_CHANNEL` pour en choisir un autre ; Edge est bloqué sur certains postes).
@@ -63,6 +64,9 @@ src/
 │   ├── commands.ts          # Command / Choice : tout ce qu'un joueur peut demander (sérialisable)
 │   ├── InteractionQueue.ts  # File d'interactions dans l'état (game.interaction, game.pendingInteractions), ordre de résolution
 │   ├── SessionJournal.ts    # Historique et annulation (états gardés depuis le début de l'avant-dernier tour de chaque humain)
+│   ├── GameSetup.ts         # newGame(places, options) : création d'une partie (types, niveaux, premier joueur, journal de départ)
+│   ├── GameRoom.ts          # Salle d'une partie à distance (pure) : places, jetons, commandes, étapes des robots, vues, sauvegarde
+│   ├── protocol.ts          # Messages client/serveur (WebSocket), compatibilité des versions, lecture des messages reçus
 │   └── PlayerView.ts        # viewFor(game, joueur), viewEntries(entrées, joueur) : ce qu'un joueur a le droit de voir (pioches, mains adverses, cartes piochées… masquées) ; pour le futur serveur
 ├── ai/
 │   ├── AIBehavior.ts        # Actions possibles, choix aléatoire (EASY), cartes gardées, réservation, paliers
@@ -76,6 +80,7 @@ src/
     ├── components/          # HandCard, MissionCard, CardTooltip, PlayerComputer, PlanetIcon, SvgBonus, SectorDetails…
     ├── modals/              # NewGame, Settings, Documentation (public/docs/documentation.md + PDF), Pass, GameModals
     └── styles/celestialStyles.ts
+server/                      # Serveur Node du jeu à distance (GameServer : ws, salles, robots, fichiers) ; build/ et data/ ignorés
 e2e/                         # Playwright : parties pilotées dans le navigateur (serveur Vite lancé par playwright.config.ts)
 test/                        # Jest : un fichier par module moteur + AITurn (parties complètes entre robots), helpers/gameFixture.ts
 docs/etat-des-lieux-cartes.md # Audit des cartes et des opérations des robots (corrigé / situationnel / limites)
@@ -112,6 +117,8 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
 - **Centauriens** : `player.centaurienMilestones` est une liste de `CentaurienMarker` (score, carte source éventuelle, `resolved` une fois atteint) qui restent affichés sur la piste de score. Palier du message de l'espèce : choix d'une tuile Message (`claimedBy` retient qui l'a prise). Palier d'une carte : effet « Réception » de la carte (`RECEPTION_REVENUE` ou `RECEPTION:<récompenses>` dans le CSV), sans choix (`SpeciesSystem.receiveCentaurienCard`).
 - **Fenêtres et infobulles** : toute fenêtre de choix utilise `ui/modals/ChoiceModal` (`ChoiceModal`, `ChoiceOption`, `ChoiceFooterButton`), qui inclut le bouton « Voir le plateau » ; les choix de cartes de la main passent par `PassModal` (une carte : réservation, fin de manche) ou `CardPickModal` (plusieurs : défausse de fin de manche, défausse pour signaux, échange de 2 cartes), qui dessinent les cartes comme sur le plateau joueur (`ChoiceCardTile`, `CardContent`) avec l'attribut utile en surbrillance ; une option indisponible explique pourquoi dans son infobulle. Pas d'attribut HTML `title` : utiliser `setActiveTooltip` ou `components/HoverTooltip` pour garder l'aspect des infobulles du jeu (classe `.seti-tooltip`).
 - **Historique** : le moteur rédige le message de chaque action (y compris orbite et atterrissage) puis ses conséquences avec le même `sequenceId` ; l'historique indente ces conséquences sous l'action.
+- **Version** : `GAME_VERSION` (`core/version.ts`) = version de `package.json` (vérifié par `test/Version.test.ts`), affichée dans le menu et la documentation avec le commit du build (`__BUILD_COMMIT__`, injecté par Vite). Le serveur refuse un client d'une autre version mineure. L'augmenter à chaque version publiée.
+- **Jeu à distance** : `GameRoom` (pur, `test/GameRoom.test.ts`) tient la partie d'une salle et passe par `GameSession` ; `server/GameServer.ts` (WebSocket `ws`, `test/GameServer.test.ts` avec de vrais clients) gère les connexions, le rythme des robots (1,5 s), l'enregistrement des salles et les vues (`viewFor`, `viewEntries`). Les cartes y sont lues sur disque (`DataLoader.setReader`). Le générateur aléatoire est global : `GameRoom` rétablit `game.rngState` avant chaque étape de robot, et crée les parties une à la fois. Pas d'annulation en ligne. Le jeu local n'utilise pas le serveur.
 - **Persistance** : `GamePersistence` (pur) + `useAutosave` (`localStorage['seti_autosave']`, écriture différée de 500 ms, immédiate si la page est quittée) + export/import JSON dans `SettingsModal`. Les sauvegardes portent `saveVersion` : tout changement incompatible du modèle incrémente `SAVE_VERSION` et ajoute une migration dans `MIGRATIONS` (appliquée aussi aux états d'annulation du journal). Une sauvegarde plus récente que le jeu est refusée (`SaveVersionError`). Elle enregistre aussi l'état du générateur aléatoire (`rngState`), rétabli au chargement.
 - **Hasard** : jamais de `Math.random()` dans le moteur ni dans `ai/`, toujours `random()` de `core/random.ts` (générateur à graine). `GameFactory.createGame(noms, humainPremier, graine)` part de la graine (tirée au hasard si absente) et la note dans `game.seed` : même graine et mêmes choix = même partie. L'UI garde `Math.random` pour ce qui n'est pas du jeu (infobulles, noms des robots). Identifiants : `uniqueId()` de `core/ids.ts`, pas `Date.now()` seul.
 - **Outils de débogage** : le `DebugPanel` n'est affiché que si la case « Outils de débogage » du menu Paramètres est cochée (`useDebugSetting`, `localStorage['seti_show_debug']`).

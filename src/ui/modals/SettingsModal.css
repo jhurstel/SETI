@@ -116,3 +116,9 @@
   font-size: 0.85rem;
   cursor: pointer;
 }
+
+.seti-settings-version {
+  margin-top: 12px;
+  font-size: 0.75rem;
+  color: #888;
+}

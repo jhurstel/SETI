@@ -75,6 +75,7 @@ Les déplacements gratuits reçus d'une carte (« 2 déplacements ») se dépens
 ### 1.7 Paramètres
 
 - Export / import de la partie, nouvelle partie.
+- La version du jeu (et le commit du build) est affichée en bas du menu et dans l'en-tête de la documentation.
 - **Outils de débogage** : affiche un panneau pour modifier les ressources, piocher une carte précise, etc. (à réserver aux tests).
 
 ## 2. Règles appliquées
@@ -317,6 +318,7 @@ npm run check          # typecheck + lint + tests + build (avant chaque commit)
 npm test               # tests Jest du moteur
 npm run test:e2e       # tests Playwright dans un navigateur
 npm run tune:ai        # banc de réglage des robots
+npm run server         # serveur du jeu à distance
 ```
 
 ## 7. Vers le jeu à distance
@@ -325,7 +327,34 @@ npm run tune:ai        # banc de réglage des robots
 |---|---|---|
 | 0 | Session autonome, commandes validées, file d'interactions dans l'état, fin de tour dans le moteur, hasard par partie, annulation bornée | Fait |
 | 1 | Vue par joueur `viewFor` et historique filtré `viewEntries` | Fait (pas utilisés par le jeu local) |
-| 2 | Serveur Node avec le même moteur et des WebSockets : salles, sièges, reconnexion, robots côté serveur, persistance | À faire |
+| 2 | Serveur Node avec le même moteur et des WebSockets : salles, places, reconnexion, robots côté serveur, enregistrement | Fait |
 | 3 | Client réseau : l'interface envoie ses commandes au serveur et affiche la vue reçue | À faire |
 
 Le jeu solo n'est pas concerné : il garde la session dans le navigateur, sans serveur. Le mode en ligne s'ajoutera à côté, derrière la même interface (`useGameSession`).
+
+### 7.1 Le serveur
+
+- Lancement : `npm run server` (port `PORT`, 8787 par défaut ; salles enregistrées dans `SETI_DATA_DIR`, `server/data` par défaut). `GET /health` donne la version et le nombre de salles.
+- **Salle** (`session/GameRoom.ts`, sans réseau, testée avec Jest) : un code de 5 lettres, 2 à 4 places (humains ou robots). Le créateur prend la première place humaine, les autres joueurs rejoignent avec le code. La partie démarre quand toutes les places humaines sont prises, avec un premier joueur tiré au hasard.
+- **Jeton de place** : chaque joueur reçoit un jeton secret ; avec le code, il permet de reprendre sa place après une coupure (une seule connexion par place).
+- **Robots** : ils jouent sur le serveur, une étape toutes les 1,5 s, par les mêmes opérations que dans le jeu local.
+- **Enregistrement** : chaque salle est écrite sur disque après chaque changement (un fichier JSON par salle, écriture atomique) et relue au redémarrage.
+- **Ce que reçoit chaque joueur** : sa vue de la partie (`viewFor`) et l'historique qu'il peut lire (`viewEntries`), après chaque changement.
+- **Pas d'annulation en ligne** : elle reviendrait aussi sur les actions des autres joueurs.
+
+### 7.2 Protocole (`session/protocol.ts`)
+
+Messages JSON sur WebSocket.
+
+| Sens | Message | Rôle |
+|---|---|---|
+| Client → serveur | `create { version, name, seats }` | Crée une salle (`seats` : `{ type: 'human' }` ou `{ type: 'robot', aiDifficulty }`) |
+| Client → serveur | `join { version, code, name }` | Prend une place libre |
+| Client → serveur | `resume { version, code, token }` | Reprend sa place |
+| Client → serveur | `command { command }` | Une commande de la session (`LAUNCH_PROBE`, `CHOOSE`…) |
+| Serveur → client | `welcome { code, token, playerId }` | Place obtenue (garder le jeton) |
+| Serveur → client | `state { room, you, game, entries }` | Vue de la partie pour ce joueur |
+| Serveur → client | `notification { messages }` | Annonces (découverte d'une espèce…) |
+| Serveur → client | `error { message }` | Refus (version, salle, commande non permise…) |
+
+Client et serveur doivent avoir la même version aux deux premiers numéros près (1.1.x).

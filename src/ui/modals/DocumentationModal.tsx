@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { renderMarkdown } from '../components/markdown';
+import { versionLabel } from '../version';
 import './DocumentationModal.css';
 
 /** Chemins relatifs à la page (base Vite « ./ »), comme les CSV des cartes */
@@ -43,7 +44,7 @@ export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible,
     <div className="seti-modal-overlay" style={{ zIndex: 2100 }} onClick={onClose}>
       <div className="seti-doc-modal" onClick={e => e.stopPropagation()} role="dialog" aria-label="Documentation">
         <div className="seti-doc-header">
-          <h2 className="seti-modal-title">Documentation</h2>
+          <h2 className="seti-modal-title">Documentation <span className="seti-doc-version">{versionLabel()}</span></h2>
           <div className="seti-doc-links">
             <a href={`${BASE_URL}docs/seti-rules-fr.pdf`} target="_blank" rel="noopener noreferrer" className="seti-modal-btn">Règles du jeu (PDF)</a>
             <a href={`${BASE_URL}docs/SETI-FAQ-FR.pdf`} target="_blank" rel="noopener noreferrer" className="seti-modal-btn">FAQ (PDF)</a>

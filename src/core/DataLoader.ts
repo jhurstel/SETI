@@ -1,16 +1,31 @@
 import { Card, CardType, FreeActionType, SectorType, RevenueType, CardEffect, TechnologyCategory, LifeTraceType, CostType } from './types';
 
+/** Lit un fichier de données (chemin relatif à public/, ex. « cards/main.csv ») */
+export type TextReader = (path: string) => Promise<string>;
+
+const fetchText: TextReader = async path => {
+  const response = await fetch(path);
+  if (!response.ok) {
+    throw new Error(`Erreur lors du chargement de ${path}: ${response.statusText}`);
+  }
+  return response.text();
+};
+
 export class DataLoader {
+  /** Navigateur : fetch relatif à la page ; serveur Node : lecture sur disque (`setReader`) */
+  private static readText: TextReader = fetchText;
+
+  /** Remplace la lecture des fichiers de données (serveur Node : public/ sur disque) */
+  static setReader(reader: TextReader): void {
+    this.readText = reader;
+  }
+
   /**
    * Charge et parse un fichier CSV de cartes depuis une URL/chemin
    */
   static async loadCards(path: string): Promise<Card[]> {
     try {
-      const response = await fetch(path);
-      if (!response.ok) {
-        throw new Error(`Erreur lors du chargement de ${path}: ${response.statusText}`);
-      }
-      const csvContent = await response.text();
+      const csvContent = await this.readText(path);
       return this.parseCSV(csvContent);
     } catch (error) {
       console.error(`Impossible de charger les cartes depuis ${path}`, error);

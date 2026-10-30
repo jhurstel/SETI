@@ -28,6 +28,13 @@
     border: none;
 }
 
+.seti-doc-version {
+    font-size: 0.75rem;
+    font-weight: normal;
+    color: #888;
+    margin-left: 8px;
+}
+
 .seti-doc-links {
     display: flex;
     gap: 8px;

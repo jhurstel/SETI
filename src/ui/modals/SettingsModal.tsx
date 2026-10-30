@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { AIDifficulty, Game, HistoryEntry } from '../../core/types';
-import { GameFactory } from '../../core/GameFactory';
 import { NewGameModal } from './NewGameModal';
 import { serializeGame, deserializeGame, SaveVersionError } from '../../core/GamePersistence';
 import { readAutosave } from '../hooks/useAutosave';
 import './SettingsModal.css';
+import { versionLabel } from '../version';
+import { GameSetup, SeatConfig } from '../../session/GameSetup';
 
 /** API File System Access (Chrome, Edge) : absente des types DOM standards */
 type WindowWithSavePicker = Window & {
@@ -67,25 +68,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               playerNames.push(shuffledRobots[i-1]);
           }
 
-          GameFactory.createGame(playerNames, isFirstPlayer).then(newGame => {
-              // Configure players based on selection
-              newGame.players[0].type = 'human';
-              for(let i=1; i<newGame.players.length; i++) {
-              newGame.players[i].type = 'robot';
-              newGame.players[i].aiDifficulty = difficulty as AIDifficulty;
-            }
-
-          newGame = GameFactory.initializeGame(newGame);
-          
+          const seats: SeatConfig[] = playerNames.map((name, index) => (
+            index === 0 ? { name, type: 'human' } : { name, type: 'robot', aiDifficulty: difficulty as AIDifficulty }
+          ));
+          GameSetup.newGame(seats, { firstPlayer: isFirstPlayer ? 0 : 'randomOther' }).then(({ game: newGame, entries }) => {
           // Journal de départ : les entrées de mise en place écrites par la partie
-          onLoadGame(newGame, (newGame.gameLog || []).map(log => ({
-            id: log.id,
-            message: log.message,
-            playerId: log.playerId ?? "",
-            timestamp: log.timestamp,
-            sequenceId: log.sequenceId,
-          })));
-          
+          onLoadGame(newGame, entries);
+
           setNewGameModalVisible(false);
           setToast({ message: "Nouvelle partie commencée !", visible: true });
         });
@@ -200,6 +189,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <input type="checkbox" checked={showDebug} onChange={e => setShowDebug(e.target.checked)} />
               Outils de débogage
             </label>
+            <div className="seti-settings-version">{versionLabel()}</div>
           </div>
         </div>
       )}
