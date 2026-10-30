@@ -32,3 +32,5 @@ gittoken.txt
 test-results/
 playwright-report/
 coverage/
+tools/spsa/build/
+tools/spsa/out/

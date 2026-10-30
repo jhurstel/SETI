@@ -11,59 +11,61 @@ const distanceCache = new Map<string, number>();
 /**
  * Poids de la fonction d'évaluation (en équivalent points de victoire).
  * Les ressources et le potentiel perdent leur valeur à mesure que la partie avance.
- * Réglés ensemble par parties entre robots Experts (SPSA, 30 itérations de 48 parties à 2 et 3 joueurs) :
- * contre les poids précédents, 60 victoires sur 96 et environ +9 PV en moyenne (± 3,9).
+ * Réglés ensemble par parties entre robots Experts (SPSA, 140 itérations de 48 parties à 2 et 3 joueurs,
+ * moyenne des 70 dernières), après la correction de la recherche de technologie des robots : contre les poids
+ * précédents, sur 404 parties de validation, 229 victoires contre 173 et +6,6 PV en moyenne (± 1,5)
+ * (+9,0 à 2 joueurs, +4,3 à 3 joueurs). 60 itérations de plus n'ont rien apporté (−1,4 ± 1,5).
  */
 export const DEFAULT_WEIGHTS = {
-  credit: 0.96,
-  energy: 0.82,
-  media: 0.41,
-  data: 0.45,
-  card: 0.54,
-  maxUsefulCards: 6,
-  computerSlot: 0.44,
-  signal: 0.36,
-  lifeTrace: 1.93,
-  technology: 2.11,
-  probeInSystem: 1.48,
-  probeOnPlanet: 3.71,
-  probeStep: 0.72,
-  capsule: 1.86,
-  capsuleAtDestination: 2.8,
-  capsuleStep: 0.75,
-  orbiter: 3.75,
-  lander: 4.28,
-  openMission: 0.95,
-  playedCard: 0.67,
-  incomePerRound: 1.38,
+  credit: 1.06,
+  energy: 1.1,
+  media: 0.66,
+  data: 0.35,
+  card: 0.66,
+  maxUsefulCards: 10.16,
+  computerSlot: 0.21,
+  signal: 0.24,
+  lifeTrace: 1.44,
+  technology: 2.77,
+  probeInSystem: 1.15,
+  probeOnPlanet: 6.7,
+  probeStep: 1.13,
+  capsule: 2.06,
+  capsuleAtDestination: 4.97,
+  capsuleStep: 0.88,
+  orbiter: 5.59,
+  lander: 9.37,
+  openMission: 1.23,
+  playedCard: 0.4,
+  incomePerRound: 2.53,
   // 1re trace d'une couleur sur une espèce non découverte : carte Alien reçue à la découverte,
   // d'autant plus probable que les 3 couleurs sont déjà présentes
-  discoveryClaim: 3.2,
+  discoveryClaim: 5.66,
   // Carte Alien en main : plus forte qu'une carte normale (en plus de la valeur d'une carte)
-  alienCard: 0.99,
+  alienCard: 1.39,
   // Secteur où le joueur a la majorité : part du bonus de couverture (PV, traces de vie) comptée,
   // multipliée par le remplissage du secteur (un secteur presque plein sera bientôt couvert)
-  sectorLead: 0.64,
+  sectorLead: 1.27,
   // Valeur en PV d'une trace de vie gagnée en couvrant un secteur (pour estimer son bonus)
-  sectorLifeTraceValue: 2.66,
+  sectorLifeTraceValue: 2.24,
   // Robot Expert : part des points du décompte final déjà acquis (tuiles objectif, cartes Fin de partie,
   // cartes Exertiens), partielle avant la dernière manche : ce n'est qu'une projection
-  endGameBefore: 0.19,
+  endGameBefore: 0.18,
   endGameLastRound: 1,
   // Pendant la dernière manche, les ressources et le potentiel ne valent plus que cette part
-  lastRoundFactor: 0.27,
+  lastRoundFactor: 0.59,
   // Gain minimal (en PV) pour qu'un robot stratégique joue une action gratuite facultative
   freeActionMinGain: 0.22,
   // Danger Exertien : part de la pénalité attendue (10 % du score) comptée quand le joueur est le plus exposé,
   // et réduction de l'exposition par point de danger d'écart avec l'adversaire le plus exposé
-  dangerPenalty: 1,
-  dangerMarginDecay: 0.5,
+  dangerPenalty: 2.65,
+  dangerMarginDecay: 0.9,
   // Carte Exertien jouée : condition remplie, tous ses PV ; sinon, ses PV × cette chance par étape manquante
   // (pendant la dernière manche, la chance par étape est réduite par lastRoundFactor)
-  exertienStepChance: 0.5,
+  exertienStepChance: 0.12,
   // Score final estimé pour la pénalité de danger : score actuel + manches restantes × gain moyen par manche,
   // ce gain étant au moins ce plancher (les premières manches rapportent peu)
-  minPointsPerRound: 15,
+  minPointsPerRound: 17.04,
 };
 
 export type EvaluatorWeights = typeof DEFAULT_WEIGHTS;

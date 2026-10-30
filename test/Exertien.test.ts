@@ -160,7 +160,8 @@ describe('Exertiens', () => {
       game.currentRound = 3;
       player.score = 40;
       giveTechs(game, P1, TechnologyCategory.EXPLORATION, 3);
-      player.cards.push(withCondition('e1', 2, 'computing', 3, 9), withCondition('e2', 6, 'exploration', 3, 14));
+      // e2 rapporte plus que la pénalité de danger attendue (le joueur devient le plus exposé)
+      player.cards.push(withCondition('e1', 2, 'computing', 3, 9), withCondition('e2', 6, 'exploration', 3, 30));
 
       const res = AIController.processInteractionQueue(game, [{ type: 'CHOOSING_EXERTIEN_CARD', milestone: 30 }], 'seq', player);
 
