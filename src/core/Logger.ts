@@ -1,4 +1,5 @@
 import { Game } from './types';
+import { uniqueId } from './ids';
 
 export class Logger {
   static log(game: Game, message: string, playerId?: string): void {
@@ -6,7 +7,7 @@ export class Logger {
       game.gameLog = [];
     }
     game.gameLog.push({
-      id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: `log_${uniqueId()}`,
       message,
       timestamp: Date.now(),
       playerId

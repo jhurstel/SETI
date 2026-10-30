@@ -43,6 +43,7 @@ import {
 } from '../core/types';
 import { createRotationState, getAbsoluteSectorForProbe, getCell } from './SolarSystemPosition';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
+import { uniqueId } from './ids';
 
 export class ScoreManager {
   /**
@@ -527,7 +528,7 @@ export class ScoreManager {
         updatedGame.isSpeciesDiscovered = false;
         // Nouvelle copie de la partie : reprendre le joueur pour que les modifications suivantes y soient appliquées
         player = updatedGame.players.find(p => p.id === playerId)!;
-        const sequenceId = `neutral-${Date.now()}`;
+        const sequenceId = `neutral-${uniqueId()}`;
 
         if (result.code === 'PLACED' || result.code === 'DISCOVERED') {
           const { color } = result.data!;

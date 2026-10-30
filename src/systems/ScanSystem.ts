@@ -5,6 +5,7 @@ import { getObjectPosition, createRotationState, calculateAbsolutePosition, getA
 import { ResourceSystem } from './ResourceSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { CardSystem } from './CardSystem';
+import { uniqueId } from '../core/ids';
 
 type ScanSectorSelection = Extract<InteractionState, { type: 'SELECTING_SCAN_SECTOR' }>;
 
@@ -429,7 +430,7 @@ export class ScanSystem {
   static performScanAction(game: Game, isBonus: boolean = false, sequenceId?: string, scanSectorId?: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
     // Initier la séquence
     let updatedGame = cloneGame(game);
-    if (!sequenceId) sequenceId = `scan-${Date.now()}`;
+    if (!sequenceId) sequenceId = `scan-${uniqueId()}`;
     const historyEntries: HistoryEntry[] = [];
     const newPendingInteractions: InteractionState[] = [];
     const currentPlayer = updatedGame.players[updatedGame.currentPlayerIndex];

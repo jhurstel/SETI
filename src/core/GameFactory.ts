@@ -5,6 +5,7 @@ import { Logger } from './Logger';
 import { DataLoader } from './DataLoader';
 import { cloneGame } from './cloneGame';
 import { ResourceSystem } from '../systems/ResourceSystem';
+import { uniqueId } from './ids';
 
 export class GameFactory {
   /**
@@ -40,7 +41,7 @@ export class GameFactory {
     const gameLog: GameLogEntry[] = [];
     const addLog = (message: string, playerId?: string) => {
       gameLog.push({
-        id: `log_init_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        id: `log_init_${uniqueId()}`,
         message,
         timestamp: Date.now(),
         playerId
@@ -65,7 +66,7 @@ export class GameFactory {
     }
 
     const game: Game = {
-      id: `game_${Date.now()}`,
+      id: `game_${uniqueId()}`,
       currentRound: 1,
       maxRounds: GAME_CONSTANTS.MAX_ROUNDS,
       currentPlayerIndex: firstPlayerIndex,
@@ -244,7 +245,7 @@ export class GameFactory {
   private static async createSpecies(): Promise<Species[]> {
     return [
       {
-        id: `species-${AlienBoardType.MASCAMITES}-${Date.now()}`,
+        id: `species-${AlienBoardType.MASCAMITES}-${uniqueId()}`,
         name: AlienBoardType.MASCAMITES,
         description: `Nous avons découvert une forme de vie sur les lunes de Jupiter et de Saturne. Le nom donné à cette espèce s'inspire de son régime alimentaire, car ces créatures \
         se nourissent d'un minérallunaire rare, la mascagnite. Elles présentent des similarités comportementales avec les insectes terriens. Toutefois, seule une étude approfondie de \
@@ -273,7 +274,7 @@ export class GameFactory {
         ]
       },
       {
-        id: `species-${AlienBoardType.ANOMALIES}-${Date.now()}`,
+        id: `species-${AlienBoardType.ANOMALIES}-${uniqueId()}`,
         name: AlienBoardType.ANOMALIES,
         description: `Trois gigantesques objets hautement réfléchissants ont été repérés dans le système solaire. Ces "anomalies" provoquent des distorsions de l'espace-temps \
         autour d'elles, permettant ainsi une connexion avec des observateurs lointains. Depuis leur découverte, certaines personnes les vénèrent, d'autres les dénigrent... Ce \
@@ -298,7 +299,7 @@ export class GameFactory {
         ]
       },
       {
-        id: `species-${AlienBoardType.OUMUAMUA}-${Date.now()}`,
+        id: `species-${AlienBoardType.OUMUAMUA}-${uniqueId()}`,
         name: AlienBoardType.OUMUAMUA,
         description: `Cet astéroïde de 400 mètres de long est le premier objet extrasolaire observé dans le système solaire. A sa surface, nous avons fait une découverte fascinante: \
         les restes fossilisés d'une forme de vie extraterrestre. Une étude approfondie de ces exofossiles pourrait changer à jamais notre compréhension de la vie dans l'univers.`,
@@ -360,7 +361,7 @@ export class GameFactory {
 
       },
       {
-        id: `species-${AlienBoardType.CENTAURIENS}-${Date.now()}`,
+        id: `species-${AlienBoardType.CENTAURIENS}-${uniqueId()}`,
         name: AlienBoardType.CENTAURIENS,
         description: `Nous avons établi le contact avec une civilisation intelligente, situé à 4.5 années lumière de la Terre. Elle utilise une technologie comparable à la nôtre, \
         ce qui signifie que nous devons attendre 9 ans avant de recevoir leur réponse. Pendant ce temps, astronomes et scientifiques travaillent sans relâche sur Terre pour décoder \
@@ -398,7 +399,7 @@ export class GameFactory {
         ]
       },
       {
-        id: `species-${AlienBoardType.EXERTIENS}-${Date.now()}`,
+        id: `species-${AlienBoardType.EXERTIENS}-${uniqueId()}`,
         name: AlienBoardType.EXERTIENS,
         description: `Découverts grâce aux balises qu'ils essaiment derrière eux, les Exertiens utilisaient une technologie avancée de forage afin d'extraire l'énergie du noyau \
         des planètes. L'exploitation intense de cette technologie a finalement conduit à leur extinction. L'utilisation de cette technologie doit être envisagée avec précaution: \

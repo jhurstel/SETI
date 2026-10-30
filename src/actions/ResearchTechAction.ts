@@ -4,6 +4,7 @@ import { performRotation } from '../core/SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { cloneGame } from '../core/cloneGame';
+import { uniqueId } from '../core/ids';
 
 export class ResearchTechAction extends BaseAction {
     constructor(playerId: string, public techId?: string) {
@@ -22,7 +23,7 @@ export class ResearchTechAction extends BaseAction {
     execute(game: Game): Game {
         const updatedGame = cloneGame(game);
         const player = updatedGame.players.find(p => p.id === this.playerId)!;
-        const sequenceId = `tech-${Date.now()}`;
+        const sequenceId = `tech-${uniqueId()}`;
 
         // Payer le coût
         player.mediaCoverage -= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;

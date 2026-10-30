@@ -19,6 +19,7 @@ import { TechnologySystem } from '../systems/TechnologySystem';
 import { AIBehavior } from './AIBehavior';
 import { AIController } from './AIController';
 import { AIEvaluator } from './AIEvaluator';
+import { uniqueId } from '../core/ids';
 
 /**
  * Résultat d'une étape de jeu d'un robot.
@@ -111,7 +112,7 @@ export class AITurn {
       if (turn.turnEnded || !turn.pendingInteraction) {
         return { updatedGame: turn.updatedGame, historyEntries, discoveryNotification };
       }
-      const res = AIController.processInteractionQueue(turn.updatedGame, [turn.pendingInteraction], `ai-milestone-${Date.now()}`, player);
+      const res = AIController.processInteractionQueue(turn.updatedGame, [turn.pendingInteraction], `ai-milestone-${uniqueId()}`, player);
       historyEntries.push(...res.historyEntries);
       current = res.updatedGame;
     }
@@ -162,7 +163,7 @@ export class AITurn {
     if (!result.success || !result.updatedState) return null;
 
     let updatedGame = result.updatedState;
-    const sequenceId = `ai-${decision.action.toLowerCase()}-${Date.now()}`;
+    const sequenceId = `ai-${decision.action.toLowerCase()}-${uniqueId()}`;
     const historyEntries: HistoryEntry[] = action.historyEntries.map(e => ({ ...e, sequenceId: e.sequenceId || sequenceId }));
     let pending: InteractionState[] = action.newPendingInteractions;
 
@@ -345,7 +346,7 @@ export class AITurn {
       getAdjacentCells(probe.solarPosition.disk, absSector)
         .filter(adj => destinations.has(`${adj.disk}${adj.sector}`))
         .forEach(adj => {
-          const sequenceId = `ai-move-${Date.now()}`;
+          const sequenceId = `ai-move-${uniqueId()}`;
           try {
             const res = ProbeSystem.moveProbe(game, player.id, probe.id, adj.disk, adj.sector, freeMovements, sequenceId);
             options.push(this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, sequenceId));
@@ -374,7 +375,7 @@ export class AITurn {
     const options: StepResult[] = [];
     for (const card of CardSystem.getHandCards(player)) {
       if (!card.freeAction) continue;
-      const sequenceId = `ai-free-action-${Date.now()}`;
+      const sequenceId = `ai-free-action-${uniqueId()}`;
       const discarded = CardSystem.discardCard(game, player.id, card.id);
       const discardedPlayer = discarded.players.find(p => p.id === player.id)!;
 
@@ -410,7 +411,7 @@ export class AITurn {
         .map(adj => ({ adj, distance: distanceHome(adj.disk, adj.sector) }))
         .sort((a, b) => a.distance - b.distance)[0];
       if (!best || best.distance >= current) continue;
-      const sequenceId = `ai-capsule-${Date.now()}`;
+      const sequenceId = `ai-capsule-${uniqueId()}`;
       try {
         const res = ProbeSystem.moveProbe(game, player.id, capsule.id, best.adj.disk, best.adj.sector, 0, sequenceId);
         return this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, sequenceId);
@@ -440,7 +441,7 @@ export class AITurn {
 
     const options: StepResult[] = [];
     for (const candidate of candidates) {
-      const sequenceId = `ai-mission-${Date.now()}`;
+      const sequenceId = `ai-mission-${uniqueId()}`;
       const res = InteractionResolver.resolve(game, player.id, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: candidate.missionId, requirementId: candidate.requirementId, sequenceId });
       if (res.error || res.updatedGame === game) continue;
       // Les interactions déclenchées sont résolues par l'IA (et non confiées à l'interface du joueur humain)
@@ -460,7 +461,7 @@ export class AITurn {
     const { updatedGame, gains, bonusEffects } = ComputerSystem.fillSlot(game, player.id, slotId);
     let aiGame = updatedGame;
     const pending: InteractionState[] = [];
-    const sequenceId = `ai-computer-${Date.now()}`;
+    const sequenceId = `ai-computer-${uniqueId()}`;
     bonusEffects.forEach(effect => {
       if (effect.type === 'card') {
         aiGame = CardSystem.drawCards(aiGame, player.id, effect.amount);
@@ -496,7 +497,7 @@ export class AITurn {
       .sort((a, b) => AIBehavior.cardKeepValue(player, a) - AIBehavior.cardKeepValue(player, b))[0];
     if (!card) return null;
 
-    const sequenceId = `ai-free-action-${Date.now()}`;
+    const sequenceId = `ai-free-action-${uniqueId()}`;
     let updatedGame = game;
     let logMsg = '';
 

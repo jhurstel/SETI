@@ -5,6 +5,7 @@ import { ResourceSystem } from './ResourceSystem';
 import { getObjectPosition } from '../core/SolarSystemPosition';
 import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
+import { uniqueId } from '../core/ids';
 
 export class SpeciesSystem {
     /**
@@ -195,7 +196,7 @@ export class SpeciesSystem {
                 const isOccupied = board.lifeTraces.some(t => t.type === color);
                 if (!isOccupied) {
                     board.lifeTraces.push({
-                        id: `trace-neutral-${Date.now()}`,
+                        id: `trace-neutral-${uniqueId()}`,
                         type: color,
                         playerId: 'neutral'
                     });
@@ -351,14 +352,14 @@ export class SpeciesSystem {
 
         // Add the trace to the board and the player
         board.lifeTraces.push({
-            id: `trace-${Date.now()}`,
+            id: `trace-${uniqueId()}`,
             type: color,
             playerId: playerId,
             location: slotType,
             slotIndex: slotType === LifeTraceLocation.SPECIES ? (slotIndex !== undefined ? slotIndex : 0) : undefined
         });
         player.lifeTraces.push({
-            id: `player-trace-${Date.now()}`,
+            id: `player-trace-${uniqueId()}`,
             type: color,
             playerId: playerId,
             location: slotType,
@@ -621,7 +622,7 @@ export class SpeciesSystem {
                     const sector = sectors[index] as SectorNumber;
 
                     game.board.solarSystem.extraCelestialObjects!.push({
-                        id: `anomaly-${token.color}-${Date.now()}-${index}`,
+                        id: `anomaly-${token.color}-${uniqueId()}-${index}`,
                         type: 'anomaly',
                         name: `Anomalie ${token.color}`,
                         position: { disk: 'D', sector: sector, x: 0, y: 0 },
@@ -639,7 +640,7 @@ export class SpeciesSystem {
     static addCentaurienMarker(player: Player, card?: Card): void {
         if (!player.centaurienMilestones) player.centaurienMilestones = [];
         player.centaurienMilestones.push({
-            id: `centaurien-${player.id}-${player.centaurienMilestones.length}-${Date.now()}`,
+            id: `centaurien-${player.id}-${player.centaurienMilestones.length}-${uniqueId()}`,
             score: player.score + 15,
             cardId: card?.id,
             cardName: card?.name,
@@ -672,7 +673,7 @@ export class SpeciesSystem {
             : this.reachedCentaurienMarker(player);
         if (marker) marker.resolved = `Message décodé : ${label}`;
 
-        const sequenceId = `centaurien-${Date.now()}`;
+        const sequenceId = `centaurien-${uniqueId()}`;
         const res = ResourceSystem.processBonuses(token.bonus, updatedGame, playerId, 'centaurien_message', sequenceId);
         const gains = res.logs.length > 0 ? ` : ${res.logs.join(', ')}` : '';
         return {
@@ -693,7 +694,7 @@ export class SpeciesSystem {
         if (!player || !marker) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
 
         const card = player.playedCards.find(c => c.id === marker.cardId);
-        const sequenceId = `centaurien-${Date.now()}`;
+        const sequenceId = `centaurien-${uniqueId()}`;
         const cardName = marker.cardName || card?.name || 'carte Centaurien';
         if (!card) {
             marker.resolved = `Réception (« ${cardName} ») : carte absente`;

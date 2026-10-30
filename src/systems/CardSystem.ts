@@ -6,6 +6,7 @@ import { ResourceSystem } from './ResourceSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { ScanSystem } from './ScanSystem';
 import { SpeciesSystem } from './SpeciesSystem';
+import { uniqueId } from '../core/ids';
 
 /** Carte 108 (SETI@home) : Médias nécessaires pour marquer la trace de vie */
 const LIFETRACE_MEDIA_THRESHOLD = 8;
@@ -412,7 +413,7 @@ export class CardSystem {
                 if (player) {
                     if (!player.missions) player.missions = [];
                     const newMission: Mission = {
-                        id: `mission-${card.id}-${Date.now()}`,
+                        id: `mission-${card.id}-${uniqueId()}`,
                         cardId: card.id,
                         name: card.name,
                         description: card.description,
@@ -881,7 +882,7 @@ export class CardSystem {
             });
         }
 
-        const sequenceId = `seq-${Date.now()}`;
+        const sequenceId = `seq-${uniqueId()}`;
         const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs, historyEntries } = ResourceSystem.processBonuses(bonuses || {}, updatedGame, player.id, cardId, sequenceId);
 
         // Construction du message d'historique unifié
@@ -1019,7 +1020,7 @@ export class CardSystem {
         const card = player.cards.find(c => c.id === cardId);
         if (!card || !card.freeAction || this.isExertienCard(card)) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
 
-        const sequenceId = `free-action-discard-${Date.now()}`;
+        const sequenceId = `free-action-discard-${uniqueId()}`;
         const bonuses: Bonus = {};
 
         // 1. Get bonus from the card's free action

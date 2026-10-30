@@ -6,6 +6,7 @@ import { ResourceSystem } from '../systems/ResourceSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
+import { uniqueId } from './ids';
 
 /** Interactions résolues sans choix du joueur (effets de carte, résolution de secteur, validation de mission…). */
 export type AutomaticInteraction = Extract<InteractionState, { type: 'TRIGGER_CARD_EFFECT' | 'RESOLVING_SECTOR' | 'DRAW_AND_SCAN' | 'CLAIMING_MISSION_REQUIREMENT' }>;
@@ -181,7 +182,7 @@ export class InteractionResolver {
     const isCompleted = mission.completedRequirementIds.length >= mission.requirements.length;
     if (isCompleted) mission.completed = true;
 
-    const sequenceId = interaction.sequenceId || `mission-claim-${Date.now()}`;
+    const sequenceId = interaction.sequenceId || `mission-claim-${uniqueId()}`;
     const res = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'mission-claim', sequenceId);
     const actionText = isCompleted ? 'accomplit' : 'valide un objectif de';
     return {

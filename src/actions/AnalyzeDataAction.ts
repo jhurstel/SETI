@@ -3,6 +3,7 @@ import { Game, ActionType, ValidationResult, GAME_CONSTANTS, LifeTraceType } fro
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { cloneGame } from '../core/cloneGame';
+import { uniqueId } from '../core/ids';
 
 export class AnalyzeDataAction extends BaseAction {
     constructor(playerId: string) {
@@ -23,7 +24,7 @@ export class AnalyzeDataAction extends BaseAction {
         const player = updatedGame.players.find(p => p.id === this.playerId)!;
         player.energy -= GAME_CONSTANTS.ANALYZE_COST_ENERGY;
         ComputerSystem.clearComputer(player);
-        const sequenceId = `analyze-${Date.now()}`;
+        const sequenceId = `analyze-${uniqueId()}`;
         this.historyEntries = [{ message: `paye ${ResourceSystem.formatResource(GAME_CONSTANTS.ANALYZE_COST_ENERGY, 'ENERGY')} pour <strong>Analyser les données</strong> et gagne une trace de vie Bleu`, playerId: this.playerId, sequenceId }];
         this.newPendingInteractions = [{ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE, sequenceId }];
         return updatedGame;

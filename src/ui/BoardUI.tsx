@@ -41,6 +41,7 @@ import { SettingsModal } from './modals/SettingsModal';
 import { PlanetBoardUI } from './PlanetBoardUI';
 import './BoardUI.css';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
+import { uniqueId } from '../core/ids';
 
 export const BoardUI: React.FC = () => {
   // États pour le jeu
@@ -137,7 +138,7 @@ export const BoardUI: React.FC = () => {
   // Helper pour ajouter une entrée à l'historique
   const addToHistory = useCallback((message: string, playerId?: string, previousState?: Game, customInteractionState?: InteractionState, sequenceId?: string) => {
     const entry: HistoryEntry = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      id: uniqueId(),
       message,
       playerId: playerId ?? "",
       previousState,
@@ -160,7 +161,7 @@ export const BoardUI: React.FC = () => {
     if (others.length > 0) {
       if (others.length > 1 && !forceStacking) {
         const choices = others.map((interaction, index) => ({
-          id: `choice-${Date.now()}-${index}`,
+          id: `choice-${uniqueId()}-${index}`,
           label: getInteractionLabel(interaction),
           state: { ...interaction, sequenceId: interaction.sequenceId || sequenceId },
           done: false
@@ -535,7 +536,7 @@ export const BoardUI: React.FC = () => {
       if (!game || interactionState.type !== 'SELECTING_SCAN_SECTOR') return;
       const currentPlayer = actingPlayer(game);
 
-      const sequenceId = interactionState.sequenceId || `scan-${Date.now()}`;
+      const sequenceId = interactionState.sequenceId || `scan-${uniqueId()}`;
       const res = ScanSystem.resolveScanSectorSelection(game, currentPlayer.id, interactionState, sectorId, sequenceId);
       if (res.error) {
         setToast({ message: res.error, visible: true });
@@ -785,7 +786,7 @@ export const BoardUI: React.FC = () => {
     if (interactionState.boardIndices && !interactionState.boardIndices.includes(boardIndex)) return;
 
     // Create sequence id and player id
-    const sequenceId = interactionState.sequenceId || `trace-${Date.now()}`;
+    const sequenceId = interactionState.sequenceId || `trace-${uniqueId()}`;
     const playerId = interactionState.playerId || game.players[game.currentPlayerIndex].id;
 
     // Appel métier
@@ -816,7 +817,7 @@ export const BoardUI: React.FC = () => {
     if (interactionState.type !== 'CHOOSING_CENTAURIEN_REWARD') return;
 
     // Create sequence id and player id
-    const sequenceId = interactionState.sequenceId || `trace-${Date.now()}`;
+    const sequenceId = interactionState.sequenceId || `trace-${uniqueId()}`;
     const playerId = game.players[game.currentPlayerIndex].id;
 
     // Appel métier
@@ -863,7 +864,7 @@ export const BoardUI: React.FC = () => {
     if (interactionState.speciesId !== speciesId) return;
 
     // Create sequence id and player id
-    const sequenceId = interactionState.sequenceId || `alien-card-${Date.now()}`;
+    const sequenceId = interactionState.sequenceId || `alien-card-${uniqueId()}`;
     const playerId = actingPlayer(game).id;
 
     const { updatedGame, drawnCard } = SpeciesSystem.acquireAlienCard(game, playerId, speciesId, cardId);
@@ -916,7 +917,7 @@ export const BoardUI: React.FC = () => {
     if (interactionState.type !== 'CHOOSING_OBS2_ACTION') return;
 
     // Create sequence id
-    const sequenceId = interactionState.sequenceId || `obs2-${Date.now()}`;
+    const sequenceId = interactionState.sequenceId || `obs2-${uniqueId()}`;
 
     if (accepted) {
       const res = ScanSystem.applyObservation2(game, game.players[game.currentPlayerIndex].id, sequenceId);
@@ -943,7 +944,7 @@ export const BoardUI: React.FC = () => {
   const handleObs3Choice = (accepted: boolean) => {
     if (interactionState.type !== 'CHOOSING_OBS3_ACTION') return;
 
-    const sequenceId = interactionState.sequenceId || `obs3-${Date.now()}`;
+    const sequenceId = interactionState.sequenceId || `obs3-${uniqueId()}`;
 
     if (accepted) {
       setInteractionState({ type: 'DISCARDING_FOR_SIGNAL', count: 1, selectedCards: [], sequenceId });
@@ -959,7 +960,7 @@ export const BoardUI: React.FC = () => {
 
     if (interactionState.type !== 'CHOOSING_OBS4_ACTION') return;
 
-    const sequenceId = interactionState.sequenceId || `obs4-${Date.now()}`;
+    const sequenceId = interactionState.sequenceId || `obs4-${uniqueId()}`;
     const res = ScanSystem.applyObservation4(game, game.players[game.currentPlayerIndex].id, choice, sequenceId);
     if (res.error) {
       setToast({ message: res.error, visible: true });
@@ -1011,7 +1012,7 @@ export const BoardUI: React.FC = () => {
     if (!found) return false;
 
     // Générer un ID de séquence pour grouper l'action et ses bonus
-    const sequenceId = interactionState.sequenceId || `seq-${Date.now()}`;
+    const sequenceId = interactionState.sequenceId || `seq-${uniqueId()}`;
 
     try {
       const result = actionFn(game, currentPlayer.id, found.probe.id, planetId, sequenceId);
@@ -1119,7 +1120,7 @@ export const BoardUI: React.FC = () => {
       : SpeciesSystem.consultablePlanets(game, playerId, interactionState).includes(planetId);
     if (!allowed) return;
 
-    const sequenceId = interactionState.sequenceId || `mascamite-${Date.now()}`;
+    const sequenceId = interactionState.sequenceId || `mascamite-${uniqueId()}`;
     const mode = interactionState.type === 'CONSULTING_SPECIMEN' ? 'consult' : 'collect';
     const result = SpeciesSystem.takeMascamiteSpecimen(game, playerId, planetId, tokenIndex, mode, sequenceId);
     if (!result) {
@@ -1202,7 +1203,7 @@ export const BoardUI: React.FC = () => {
       // Utiliser l'action pour effectuer le mouvement
       const cost = ProbeSystem.getMovementCost(currentGame, currentPlayerId, probeId);
       const usedFree = Math.min(cost, freeMovements);
-      if (!currentSequenceId) currentSequenceId = `move-${Date.now()}`;
+      if (!currentSequenceId) currentSequenceId = `move-${uniqueId()}`;
       const action = new MoveProbeAction(currentPlayerId, probeId, { disk, sector }, freeMovements, currentSequenceId);
       const result = gameEngineRef.current.executeAction(action);
 
@@ -1345,7 +1346,7 @@ export const BoardUI: React.FC = () => {
       }
       setGame(trade.updatedGame);
       if (gameEngineRef.current) gameEngineRef.current.setState(trade.updatedGame);
-      const sequenceId = `trade-${Date.now()}`;
+      const sequenceId = `trade-${uniqueId()}`;
       trade.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
       handleNewInteractions(trade.newPendingInteractions, sequenceId);
       return;
@@ -1522,7 +1523,7 @@ export const BoardUI: React.FC = () => {
         return;
       }
       const updatedGame = result.updatedState;
-      const sequenceId = action.historyEntries[0]?.sequenceId || `tech-${Date.now()}`;
+      const sequenceId = action.historyEntries[0]?.sequenceId || `tech-${uniqueId()}`;
       action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
 
       if (tech.type === TechnologyCategory.COMPUTING) {

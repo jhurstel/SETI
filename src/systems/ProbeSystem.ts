@@ -15,6 +15,7 @@ import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, Disk
 import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe, getAllCelestialObjects } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { CardSystem } from './CardSystem';
+import { uniqueId } from '../core/ids';
 
 export class ProbeSystem {
   /**
@@ -131,7 +132,7 @@ export class ProbeSystem {
     if (!player || !planetDef) return null;
 
     const capsule: Probe = {
-      id: `capsule_${playerId}_${Date.now()}_${player.probes.length}`,
+      id: `capsule_${playerId}_${uniqueId()}_${player.probes.length}`,
       ownerId: playerId,
       position: { x: 0, y: 0 },
       solarPosition: { disk: planetDef.position.disk, sector: planetDef.position.sector, level: planetDef.level || 0 },
@@ -255,7 +256,7 @@ export class ProbeSystem {
 
     // Instancier la nouvelle sonde
     const probe: Probe = {
-      id: `probe_${Date.now()}_${Math.floor(Math.random() * 10000)}_${playerId}`,
+      id: `probe_${uniqueId()}_${playerId}`,
       ownerId: playerId,
       position: { x: 0, y: 0 },
       solarPosition: { disk: earthDisk, sector: earthSector, level: 3 },
@@ -265,7 +266,7 @@ export class ProbeSystem {
     };
     player.probes.push(probe);
 
-    const sequenceId = `launch-${Date.now()}`;
+    const sequenceId = `launch-${uniqueId()}`;
 
     // Payer les crédits
     if (!free) {
@@ -554,7 +555,7 @@ export class ProbeSystem {
     }
 
     // Appliquer les bonus via ResourceSystem
-    const currentSequenceId = sequenceId || `move-${Date.now()}`;
+    const currentSequenceId = sequenceId || `move-${uniqueId()}`;
     const res = ResourceSystem.processBonuses(bonus, updatedGame, playerId, 'move', currentSequenceId);
     updatedGame = res.updatedGame;
 
@@ -762,7 +763,7 @@ export class ProbeSystem {
       if (slotBonus) ResourceSystem.accumulateBonus(slotBonus, bonuses);
     }
 
-    const currentSequenceId = sequenceId || `orbit-${Date.now()}`;
+    const currentSequenceId = sequenceId || `orbit-${uniqueId()}`;
     const species = game.species.find(s => s.planet?.id === planetId);
     const speciesId = species?.id;
     const result = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'orbit', currentSequenceId, speciesId);
@@ -948,7 +949,7 @@ export class ProbeSystem {
       }
     }
 
-    const currentSequenceId = sequenceId || `land-${Date.now()}`;
+    const currentSequenceId = sequenceId || `land-${uniqueId()}`;
     const species = game.species.find(s => s.planet?.id === planetId);
     const speciesId = species?.id;
     const result = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'land', currentSequenceId, speciesId);
@@ -1030,7 +1031,7 @@ export class ProbeSystem {
 
     // Appliquer les gains via ResourceSystem : 3 PV, 1 Donnée, 1 Carte
     const bonuses: Bonus = { pv: 3, data: 1, card: 1 };
-    const currentSequenceId = sequenceId || `remove-orbiter-${Date.now()}`;
+    const currentSequenceId = sequenceId || `remove-orbiter-${uniqueId()}`;
     const res = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'atmospheric_entry', currentSequenceId);
 
     // Convertir les logs de bonus en entrées d'historique
@@ -1076,7 +1077,7 @@ export class ProbeSystem {
 
     // Appliquer les gains via ResourceSystem : 1 Trace de Vie Jaune
     const bonuses: Bonus = { lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] };
-    const currentSequenceId = sequenceId || `remove-lander-${Date.now()}`;
+    const currentSequenceId = sequenceId || `remove-lander-${uniqueId()}`;
     const res = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'sample_return', currentSequenceId);
 
     // Convertir les logs de bonus en entrées d'historique

@@ -2,6 +2,7 @@ import { cloneGame } from './cloneGame';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject, AlienBoardType, LifeTraceLocation } from './types';
+import { uniqueId } from './ids';
 
 /**
  * Position absolue d'un objet après toutes les rotations
@@ -798,7 +799,7 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
             if (highestPlayerId && highestPlayerId !== 'neutral') {
               const player = updatedGame.players.find(p => p.id === highestPlayerId);
               if (player) {
-                const res = ResourceSystem.processBonuses(bonus, updatedGame, highestPlayerId, 'anomaly', `anomaly-${Date.now()}`);
+                const res = ResourceSystem.processBonuses(bonus, updatedGame, highestPlayerId, 'anomaly', `anomaly-${uniqueId()}`);
                 updatedGame = res.updatedGame;
                 anomalyLogs.push(`Anomalie ${color} activée : ${player.name} gagne ${res.logs.join(', ')}`);
               }

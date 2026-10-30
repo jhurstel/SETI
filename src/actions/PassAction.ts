@@ -6,6 +6,7 @@ import { CardSystem } from '../systems/CardSystem';
 import { performRotation } from '../core/SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { cloneGame } from '../core/cloneGame';
+import { uniqueId } from '../core/ids';
 
 export class PassAction extends BaseAction {
   constructor(
@@ -50,7 +51,7 @@ export class PassAction extends BaseAction {
   }
 
   execute(game: Game): Game {
-    const sequenceId = `pass-${Date.now()}`;
+    const sequenceId = `pass-${uniqueId()}`;
     const playerId = this.playerId;
 
     let updatedGame = cloneGame(game);

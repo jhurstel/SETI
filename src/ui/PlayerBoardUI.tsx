@@ -14,6 +14,7 @@ import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsI
 import { SlotTooltip } from './components/SlotTooltip';
 import { cloneGame } from '../core/cloneGame';
 import { SLOT_COLORS } from './styles/slotColors';
+import { uniqueId } from '../core/ids';
 import './PlayerBoardUI.css';
 
 interface PlayerBoardUIProps {
@@ -310,7 +311,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
       const { updatedGame, gains, bonusEffects } = ComputerSystem.fillSlot(gameCopy, currentPlayer.id, slotId);
       
-      const sequenceId = `computer-${Date.now()}`;
+      const sequenceId = `computer-${uniqueId()}`;
 
       bonusEffects.forEach(effect => {
         handleComputerBonus(effect.type, effect.amount, sequenceId);
