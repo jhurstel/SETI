@@ -16,6 +16,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
     "check": "npm run typecheck && npm run lint && npm test && vite build"
   },
