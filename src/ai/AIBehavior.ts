@@ -28,26 +28,6 @@ export class AIBehavior {
     }
 
     /**
-     * Choix aléatoire d'un type d'action valide, puis d'une de ses variantes (robot sans évaluation)
-     */
-    static decideRandomAction(game: Game, player: Player): AIDecision {
-        if (this.getDifficulty(player) === 'PASS') return this.createPassDecision(player);
-
-        const possibleActions = this.listMainActions(game, player);
-        if (possibleActions.length === 0) {
-            console.log(`[AI] ${player.name} has no possible actions, passing.`);
-            return this.createPassDecision(player);
-        }
-
-        const types = [...new Set(possibleActions.map(a => a.action))];
-        const type = types[Math.floor(random() * types.length)];
-        const variants = possibleActions.filter(a => a.action === type);
-        const decision = variants[Math.floor(random() * variants.length)];
-        console.log(`[AI] ${player.name} chose:`, decision.action, decision.data);
-        return decision;
-    }
-
-    /**
      * Toutes les actions principales jouables (une entrée par technologie, carte ou planète possible)
      */
     static listMainActions(game: Game, player: Player): AIDecision[] {
@@ -135,26 +115,5 @@ export class AIBehavior {
             return [...hand].sort((a, b) => rank(a) - rank(b))[0].id;
         }
         return hand[Math.floor(random() * hand.length)].id;
-    }
-
-    /**
-     * Vérifie si le robot doit réclamer un palier d'objectif.
-     * Retourne le palier et l'ID de la tuile objectif choisie.
-     */
-    static checkAndClaimMilestone(game: Game, player: Player): { milestone: number, tileId: string } | null {
-        const milestones = [25, 50, 70];
-
-        for (const m of milestones) {
-            if (player.score >= m && !player.claimedGoldenMilestones.includes(m)) {
-                // Trouver les tuiles où le joueur n'a pas encore de marqueur
-                const availableTiles = (game.board.objectiveTiles || []).filter(t => !t.markers.includes(player.id));
-
-                if (availableTiles.length > 0) {
-                    const randomTile = availableTiles[Math.floor(random() * availableTiles.length)];
-                    return { milestone: m, tileId: randomTile.id };
-                }
-            }
-        }
-        return null;
     }
 }

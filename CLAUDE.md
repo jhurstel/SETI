@@ -112,7 +112,7 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
   - `test/helpers/gameFixture.ts` : `createTestGame()` crée une **vraie** partie (fetch simulé qui sert `public/`, donc les vraies cartes ; graine fixe `TEST_SEED`, donc la même partie à chaque exécution), `makeCard()`, `getPlayer()`. À privilégier plutôt que des mocks d'état écrits à la main.
   - Un bug connu et pas encore corrigé est documenté par un `test.failing(...)`. Retirer `.failing` quand il est corrigé.
   - `CardCatalog.test.ts` vérifie toutes les cartes des CSV (effets lus et traités, jouées par un robot sans erreur) et que les robots gèrent toutes les interactions du moteur. Une nouvelle carte ou un nouvel effet doit le faire passer.
-  - Couverture : SolarSystemPosition, ScanSystem, CardSystem, DataLoader (tous les CSV), TurnManager/PassAction, GameFactory, GameEngine, GamePersistence, InteractionResolver, Exertiens, orbite/atterrissage, immutabilité, cardEffects, et des parties complètes entre robots (AITurn).
+  - Couverture : SolarSystemPosition, ScanSystem, CardSystem (dont conditions de mission et défausse pour action gratuite), DataLoader (tous les CSV), TurnManager/PassAction, GameFactory, GameEngine, GamePersistence, InteractionResolver, InteractionChoices (chaque choix, côté joueur et robot), Anomalies, Exertiens, orbite/atterrissage, immutabilité, cardEffects, et des parties complètes entre robots (AITurn). `npm run test:coverage` : environ 94 % des instructions et 82 % des branches du moteur (hors `ui/`). Les fonctions de `SolarSystemPosition` qui ne servent qu'au dessin (`getSectorType`, `calculateObjectPosition`, `describeArc`) ne sont pas testées par Jest.
 
 ## Points d'attention
 

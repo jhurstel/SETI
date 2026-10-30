@@ -281,24 +281,6 @@ export class ResourceSystem {
     return { updatedGame };
   }
 
-  static updateCredit(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
-    const updatedGame = cloneGame(game);
-    const player = updatedGame.players.find(p => p.id === playerId);
-    if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
-
-    player.credits += count;
-    return { updatedGame };
-  }
-
-  static updateEnergy(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
-    const updatedGame = cloneGame(game);
-    const player = updatedGame.players.find(p => p.id === playerId);
-    if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
-
-    player.energy += count;
-    return { updatedGame };
-  }
-
   static updateData(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
     const updatedGame = cloneGame(game);
     const player = updatedGame.players.find(p => p.id === playerId);

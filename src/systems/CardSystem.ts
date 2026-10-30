@@ -17,7 +17,7 @@ import { addImmediateEffects, applyPassiveEffect, lifeTraceColor, PlayCardContex
  * 1. Missions Déclenchables (TRIGGERED / GAIN_ON_...):
  *    - Réagissent à des événements (actions).
  *    - Sont ajoutées à `player.permanentBuffs` lors de la mise en jeu.
- *    - Sont traitées automatiquement par les systèmes (ProbeSystem, ScanSystem, etc.) via `updateMissionProgress`.
+ *    - Sont traitées automatiquement par les systèmes (ProbeSystem, ScanSystem, etc.) au moment de l'événement (buffs GAIN_ON_…).
  * 
  * 2. Missions Conditionnelles (CONDITIONAL / GAIN_IF_...):
  *    - Vérifient un état du jeu.
@@ -752,27 +752,6 @@ export class CardSystem {
             return null;
         });
         return atLeastOneFulfillable;
-    }
-
-    /**
-     * Met à jour la progression d'une mission conditionnelle (liée à un buff permanent)
-     */
-    static updateMissionProgress(player: Player, buff: CardEffect): string | null {
-        if (buff.source) {
-            const mission = player.missions.find(m => m.name === buff.source);
-            if (mission && buff.id) {
-                if (!mission.completedRequirementIds.includes(buff.id)) {
-                    mission.completedRequirementIds.push(buff.id);
-                }
-
-                // Vérifier la complétion (même si le prérequis était déjà là, au cas où il aurait été bloqué précédemment)
-                if (!mission.completed && mission.completedRequirementIds.length >= mission.requirements.length) {
-                    mission.completed = true;
-                    return mission.name;
-                }
-            }
-        }
-        return null;
     }
 
     /**

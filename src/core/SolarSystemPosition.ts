@@ -627,31 +627,6 @@ export function getObjectPosition(
 }
 
 /**
- * Obtient tous les objets visibles sur une case spécifique
- */
-export function getObjectsOnCell(
-  disk: DiskName,
-  sector: SectorNumber,
-  rotationState: RotationState,
-  extraObjects: CelestialObject[] = []
-): CelestialObject[] {
-  const allObjects = getAllCelestialObjects(extraObjects);
-  const positions = getAllAbsolutePositions(rotationState, extraObjects);
-  const objectsOnCell: CelestialObject[] = [];
-
-  positions.forEach((pos, objId) => {
-    if (pos.disk === disk && pos.absoluteSector === sector && pos.isVisible) {
-      const obj = allObjects.find(o => o.id === objId);
-      if (obj) {
-        objectsOnCell.push(obj);
-      }
-    }
-  });
-
-  return objectsOnCell;
-}
-
-/**
  * Obtient l'état d'une case spécifique
  */
 export function getCell(

@@ -81,18 +81,9 @@ export class AITurn {
       return { kind: 'PASS', cardsToKeep: pass.action === ActionType.PASS ? pass.data.cardsToKeep : [] };
     }
 
-    const decision = AIBehavior.decideRandomAction(game, player);
-    if (decision.action === ActionType.PASS) {
-      return { kind: 'PASS', cardsToKeep: decision.data.cardsToKeep };
-    }
-
-    const result = this.playMainAction(game, player, decision);
-    if (!result) {
-      // Action refusée par le moteur : le robot termine son tour plutôt que de bloquer la partie
-      console.warn(`[AI] ${player.name} : action ${decision.action} refusée, fin de tour`);
-      return { kind: 'END_TURN' };
-    }
-    return { kind: 'UPDATED', ...result };
+    // Niveau PASS (tests) : le robot passe sans jouer d'action principale
+    const pass = AIBehavior.createPassDecision(player);
+    return { kind: 'PASS', cardsToKeep: pass.action === ActionType.PASS ? pass.data.cardsToKeep : [] };
   }
 
   /**
