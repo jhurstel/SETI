@@ -43,7 +43,7 @@ function post(kind: AIWorkerRequest['kind'], game: Game): Promise<AIWorkerRespon
   const id = nextId++;
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject });
-    target.postMessage({ id, kind, game, rngState: getRandomState() } satisfies AIWorkerRequest);
+    target.postMessage({ id, kind, game, rngState: game.rngState ?? getRandomState() } satisfies AIWorkerRequest);
   });
 }
 
@@ -56,6 +56,7 @@ export async function playAIStep(game: Game): Promise<AIStep> {
     if (response.kind !== 'playStep') throw new Error('Réponse inattendue du Web Worker');
     return response.step;
   } catch {
+    if (game.rngState !== undefined) setRandomState(game.rngState);
     return AITurn.playStep(game);
   }
 }
@@ -69,6 +70,7 @@ export async function endAITurn(game: Game): Promise<AIEndTurn> {
     if (response.kind !== 'endTurn') throw new Error('Réponse inattendue du Web Worker');
     return response.end;
   } catch {
+    if (game.rngState !== undefined) setRandomState(game.rngState);
     return AITurn.endTurn(game);
   }
 }

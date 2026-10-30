@@ -1,37 +1,25 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Game, ActionType, Card, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, ProbeState, TechnologyCategory, LifeTraceType, InteractionState, GamePhase, SignalType, HistoryEntry, getInteractionLabel, LifeTraceLocation } from '../core/types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Game, ActionType, Card, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, ProbeState, LifeTraceType, InteractionState, GamePhase, SignalType, getInteractionLabel, LifeTraceLocation } from '../core/types';
 import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
 import { ActionValidator } from '../core/ActionValidator';
-import { LaunchProbeAction } from '../actions/LaunchProbeAction';
 import { AnalyzeDataAction } from '../actions/AnalyzeDataAction';
-import { LandAction } from '../actions/LandAction';
-import { MoveProbeAction } from '../actions/MoveProbeAction';
-import { OrbitAction } from '../actions/OrbitAction';
-import { PassAction } from '../actions/PassAction';
-import { PlayCardAction } from '../actions/PlayCardAction';
-import { ResearchTechAction } from '../actions/ResearchTechAction';
-import { ScanSectorAction } from '../actions/ScanSectorAction';
-import { GameEngine } from '../core/Game';
-import { cloneGame } from '../core/cloneGame';
-import { InteractionChoices, ChoiceResult } from '../core/InteractionChoices';
-import { TurnManager } from '../core/TurnManager';
-import { InteractionResolver, isAutomaticInteraction } from '../core/InteractionResolver';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { TechnologySystem } from '../systems/TechnologySystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ScanSystem } from '../systems/ScanSystem';
+import { GameSession } from '../session/GameSession';
+import { Choice, Command } from '../session/commands';
 import { useAITurn } from './hooks/useAITurn';
 import { useAutosave } from './hooks/useAutosave';
+import { useGameSession, RobotStep } from './hooks/useGameSession';
 import { DebugPanel } from './DebugPanel';
 import { useDebugSetting } from './hooks/useDebugSetting';
 import { PassModal } from './modals/PassModal';
 import { CardPickModal } from './modals/CardPickModal';
-import { findTurnUndoPoint } from '../core/TurnUndo';
 import { Tooltip } from './Tooltip';
 import { ObjectiveBoardUI } from './ObjectiveBoardUI';
 import { HistoryBoardUI } from './HistoryBoardUI';
@@ -40,45 +28,49 @@ import { AlienBoardUI } from './AlienBoardUI';
 import { SettingsModal } from './modals/SettingsModal';
 import { PlanetBoardUI } from './PlanetBoardUI';
 import './BoardUI.css';
-import { uniqueId } from '../core/ids';
+
+/** Modes propres à l'interface (sélection avant la commande, animation) : la partie n'en sait rien */
+type LocalMode = Extract<InteractionState, { type: 'DISCARDING_CARD' | 'TRADING_CARD' | 'ANALYZING' }>;
+
+const DISCOVERY_NOTICE = "Découverte d'une nouvelle espèce Alien !";
 
 export const BoardUI: React.FC = () => {
-  // États pour le jeu
-  const [game, setGame] = useState<Game | null>(null);
-  const gameEngineRef = useRef<GameEngine | null>(null);
+  // La partie et son journal : tout passe par la session (GameSession)
+  const session = useGameSession();
+  const { game, gameRef, historyLog } = session;
 
-  // Ref pour accéder à l'état du jeu le plus récent dans les callbacks
-  const gameRef = useRef(game);
-  useEffect(() => {
-    gameRef.current = game;
-  }, [game]);
-
-  // Initialiser le GameEngine
-  if (!gameEngineRef.current && game) {
-    gameEngineRef.current = new GameEngine(game);
-  }
-
-  // États pour l'UI
+  // États de l'interface
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
-  const [historyLog, setHistoryLog] = useState<HistoryEntry[]>([]);
   const [showDebug, setShowDebug] = useDebugSetting();
-  const [interactionState, setInteractionState] = useState<InteractionState>({ type: 'IDLE' });
+  const [localMode, setLocalMode] = useState<LocalMode | null>(null);
+  // Cartes sélectionnées pour l'interaction en cours (réservation, défausse pour signaux)
+  const [selection, setSelection] = useState<string[]>([]);
   // Action Orbite / Atterrissage / Jouer une carte choisie : planètes ou cartes jouables mises en avant
   const [actionFocus, setActionFocus] = useState<'orbit' | 'land' | 'card' | null>(null);
-  const focusPlayer = game?.players[game.currentPlayerIndex];
-  useEffect(() => {
-    // L'action effectuée, une interaction ou un changement de joueur referme la mise en avant
-    setActionFocus(null);
-  }, [focusPlayer?.id, focusPlayer?.hasPerformedMainAction, interactionState.type]);
-  const [pendingInteractions, setPendingInteractions] = useState<InteractionState[]>([]);
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
   const [alienDiscoveryNotification, setAlienDiscoveryNotification] = useState<{ visible: boolean; message: string } | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null>(null);
   const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: Card[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
   const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
-  const [settingsVisible, setSettingsVisible] = useState(true); // Open at launch
+  const [settingsVisible, setSettingsVisible] = useState(true); // Ouvert au lancement
 
-  // Effet pour afficher un message toast si l'interaction en contient un
+  // Interaction affichée : le mode local s'il y en a un, sinon celle de la partie (avec la sélection de cartes en cours)
+  const sessionInteraction = game?.interaction;
+  const interactionState: InteractionState = useMemo(() => localMode
+    ?? (sessionInteraction
+      ? ('selectedCards' in sessionInteraction ? { ...sessionInteraction, selectedCards: selection } as InteractionState : sessionInteraction)
+      : { type: 'IDLE' }), [localMode, sessionInteraction, selection]);
+
+  // Nouvelle interaction de la partie : sélection remise à zéro
+  useEffect(() => { setSelection([]); }, [sessionInteraction]);
+
+  const focusPlayer = game?.players[game.currentPlayerIndex];
+  useEffect(() => {
+    // L'action effectuée, une interaction ou un changement de joueur referme la mise en avant
+    setActionFocus(null);
+  }, [focusPlayer?.id, focusPlayer?.hasPerformedMainAction, interactionState.type]);
+
+  // Message d'aide selon l'interaction en cours
   useEffect(() => {
     if (interactionState.type === 'IDLE') {
       if (game && game.players[game.currentPlayerIndex].hasPerformedMainAction) {
@@ -91,16 +83,12 @@ export const BoardUI: React.FC = () => {
     }
   }, [interactionState, game]);
 
-  // Effet pour la réservation initiale (Setup) pour le joueur humain
+  // Mise en place : le plateau du joueur humain qui réserve sa carte est affiché
   useEffect(() => {
-    if (game && game.phase === GamePhase.SETUP && interactionState.type === 'IDLE') {
-        const currentPlayer = game.players[game.currentPlayerIndex];
-        if (currentPlayer.type === 'human') {
-            setInteractionState({ type: 'RESERVING_CARD', count: 1, selectedCards: [] });
-            setViewedPlayerId(currentPlayer.id);
-        }
+    if (game?.phase === GamePhase.SETUP && sessionInteraction?.type === 'RESERVING_CARD') {
+      setViewedPlayerId(game.players[game.currentPlayerIndex].id);
     }
-  }, [game, interactionState.type, game?.currentPlayerIndex]);
+  }, [game, sessionInteraction]);
 
   // Joueur qui résout l'interaction en cours : celui qu'elle désigne (gain reçu pendant le tour
   // d'un autre joueur, ex. secteur couvert par un robot), sinon le joueur actif
@@ -110,1111 +98,46 @@ export const BoardUI: React.FC = () => {
   const reservingPlayer = game && interactionState.type === 'RESERVING_CARD' ? actingPlayer(game) : undefined;
   const isReservationModalActive = !!reservingPlayer && reservingPlayer.type === 'human';
 
-
-  const checkDataLimitAndProceed = (
-    potentialDataGain: number,
-    onConfirm: () => void
-  ) => {
-    if (!game) return;
-    const warning = ResourceSystem.lostBonusWarning(game, game.players[game.currentPlayerIndex].id, { data: potentialDataGain });
-    if (warning) {
-        setConfirmModalState({ visible: true, cardId: null, message: warning, onConfirm });
-    } else {
-        onConfirm();
-    }
-  };
-
   // Sauvegarde automatique à chaque modification du jeu
   useAutosave(game, historyLog);
 
-
-  // Ref pour accéder à l'état d'interaction actuel dans addToHistory sans dépendance
-  const interactionStateRef = useRef(interactionState);
-  useEffect(() => { interactionStateRef.current = interactionState; }, [interactionState]);
-  const pendingInteractionsRef = useRef(pendingInteractions);
-  useEffect(() => { pendingInteractionsRef.current = pendingInteractions; }, [pendingInteractions]);
-
-  // Helper pour ajouter une entrée à l'historique
-  const addToHistory = useCallback((message: string, playerId?: string, previousState?: Game, customInteractionState?: InteractionState, sequenceId?: string) => {
-    const entry: HistoryEntry = {
-      id: uniqueId(),
-      message,
-      playerId: playerId ?? "",
-      previousState,
-      previousInteractionState: customInteractionState || interactionStateRef.current,
-      previousPendingInteractions: pendingInteractionsRef.current,
-      timestamp: Date.now(),
-      sequenceId
-    };
-    setHistoryLog(prev => [...prev, entry]);
-  }, []);
-
-  // Helper pour gérer les nouvelles interactions (avec choix si multiple, sauf si forcé)
-  const handleNewInteractions = (newInteractions: InteractionState[], sequenceId?: string, summary?: string, forceStacking: boolean = false): boolean => {
-    if (newInteractions.length === 0) return false;
-
-    // Séparer les résolutions de secteur des autres interactions
-    const resolutions = newInteractions.filter(i => i.type === 'RESOLVING_SECTOR');
-    const others = newInteractions.filter(i => i.type !== 'RESOLVING_SECTOR');
-
-    if (others.length > 0) {
-      if (others.length > 1 && !forceStacking) {
-        const choices = others.map((interaction, index) => ({
-          id: `choice-${uniqueId()}-${index}`,
-          label: getInteractionLabel(interaction),
-          state: { ...interaction, sequenceId: interaction.sequenceId || sequenceId },
-          done: false
-        }));
-
-        setInteractionState({
-          type: 'CHOOSING_BONUS_ACTION',
-          bonusesSummary: summary || "Plusieurs actions disponibles. Choisissez l'ordre de résolution :",
-          choices,
-          sequenceId: sequenceId || others[0].sequenceId
-        });
-
-        // Ajouter les résolutions à la fin de la file d'attente
-        if (resolutions.length > 0) {
-             setPendingInteractions(prev => [...prev, ...resolutions.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId }))]);
-        }
+  /** Annonces de la partie (découverte d'une espèce…) */
+  const showNotifications = (notifications: string[]) => {
+    notifications.forEach(message => {
+      if (message === DISCOVERY_NOTICE) {
+        setAlienDiscoveryNotification({ visible: true, message });
+        setTimeout(() => setAlienDiscoveryNotification(null), 4000);
       } else {
-        const [first, ...rest] = others;
-        setInteractionState({ ...first, sequenceId: first.sequenceId || sequenceId });
-        
-        // Placer les autres interactions au début, et les résolutions à la toute fin
-        setPendingInteractions(prev => [
-            ...rest.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId })), 
-            ...prev,
-            ...resolutions.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId }))
-        ]);
-      }
-    } else {
-      // S'il n'y a que des résolutions
-      const [first, ...rest] = resolutions;
-      setInteractionState({ ...first, sequenceId: first.sequenceId || sequenceId });
-      
-      if (rest.length > 0) {
-          setPendingInteractions(prev => [...rest.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId })), ...prev]);
-      }
-    }
-    return true;
-  };
-
-  // Retour au début du dernier tour du joueur humain (annule aussi les tours des robots qui ont suivi)
-  const humanPlayerId = game?.players.find(p => p.type === 'human')?.id;
-  const turnUndoPoint = humanPlayerId ? findTurnUndoPoint(historyLog, humanPlayerId) : null;
-  const handleUndoTurn = () => {
-    if (!turnUndoPoint) return;
-    setConfirmModalState({
-      visible: true,
-      cardId: null,
-      message: "Revenir au début de votre dernier tour ? Toutes les actions jouées depuis, y compris celles des robots, seront annulées.",
-      onConfirm: () => {
-        setGame(turnUndoPoint.state);
-        if (gameEngineRef.current) gameEngineRef.current.setState(turnUndoPoint.state);
-        setHistoryLog(prev => prev.slice(0, turnUndoPoint.keepCount));
-        setPendingInteractions([]);
-        setInteractionState({ type: 'IDLE' });
-        setPassModalState({ visible: false, cards: [], selectedCardId: null });
+        setToast({ message, visible: true });
       }
     });
   };
 
-  // Gestionnaire pour annuler une action
-  const handleUndo = () => {
-    if (historyLog.length === 0) return;
-    const lastEntry = historyLog[historyLog.length - 1];
-
-    // Logique d'annulation de séquence (si sequenceId est présent)
-    if (lastEntry.sequenceId) {
-      // Trouver toutes les entrées de cette séquence
-      const sequenceEntries = historyLog.filter(e => e.sequenceId === lastEntry.sequenceId);
-      // L'état à restaurer est celui de la PREMIÈRE entrée de la séquence (l'action initiale)
-      const firstEntry = sequenceEntries[0];
-
-      if (firstEntry && firstEntry.previousState) {
-        setGame(firstEntry.previousState);
-        if (gameEngineRef.current) gameEngineRef.current.setState(firstEntry.previousState);
-
-        // Supprimer toutes les entrées de la séquence
-        setHistoryLog(prev => prev.filter(e => e.sequenceId !== lastEntry.sequenceId));
-
-        // Restaurer les états depuis la première entrée
-        setInteractionState(firstEntry.previousInteractionState || { type: 'IDLE' });
-        if (firstEntry.previousPendingInteractions) {
-          setPendingInteractions(firstEntry.previousPendingInteractions);
-        }
-      }
-    } else if (lastEntry.previousState) {
-      // Annulation standard (atomique)
-      setGame(lastEntry.previousState);
-      if (gameEngineRef.current) gameEngineRef.current.setState(lastEntry.previousState);
-      setHistoryLog(prev => prev.slice(0, -1));
-      setInteractionState(lastEntry.previousInteractionState || { type: 'IDLE' });
-
-      if (lastEntry.previousPendingInteractions) {
-        setPendingInteractions(lastEntry.previousPendingInteractions);
-      }
-    }
-  };
-
-  // Effet pour traiter la file d'attente des interactions (récompenses en chaîne) et le remplissage de la rangée
-  useEffect(() => {
-    if (interactionState.type === 'IDLE' && game) {
-      if (pendingInteractions.length > 0) {
-        const [next, ...rest] = pendingInteractions;
-        setPendingInteractions(rest);
-        setInteractionState(next);
-      } else if (game.decks.cardRow.length < 3 && game.decks.cards.length > 0) {
-        const updatedGame = CardSystem.refillCardRow(game);
-        setGame(updatedGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-      }
-    }
-  }, [interactionState, pendingInteractions, game]);
-
-  // Effet pour traiter les interactions automatiques (effets de carte, résolution de secteur, missions)
-  // La logique de jeu est dans InteractionResolver ; l'UI applique le résultat
-  useEffect(() => {
-    if (!game || !isAutomaticInteraction(interactionState)) return;
-
-    const { sequenceId } = interactionState;
-    const playerId = game.players[game.currentPlayerIndex].id;
-    const result = InteractionResolver.resolve(game, playerId, interactionState);
-
+  /** Envoie une commande à la session au nom du joueur qui agit ; affiche l'erreur s'il y en a une */
+  const run = (command: Command, playerId?: string): boolean => {
+    const current = gameRef.current;
+    if (!current) return false;
+    const result = session.dispatch(playerId ?? actingPlayer(current).id, command);
     if (result.error) {
       setToast({ message: result.error, visible: true });
-      setInteractionState({ type: 'IDLE' });
-      return;
-    }
-
-    if (result.updatedGame !== game) {
-      setGame(result.updatedGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    }
-    // L'état à restaurer en cas d'annulation est celui d'avant la résolution
-    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, e.sequenceId || sequenceId));
-
-    if (!handleNewInteractions(result.newInteractions, sequenceId, result.summary, result.forceStacking)) {
-      setInteractionState({ type: 'IDLE' });
-    }
-  }, [interactionState, game, addToHistory]);
-
-  // Helper pour exécuter l'action Passer via PassAction
-  const performPass = useCallback((cardsToKeep: string[], selectedCardId?: string) => {
-    if (!gameEngineRef.current || !gameRef.current) return;
-
-    // Synchroniser l'état
-    const currentGame = gameRef.current;
-    gameEngineRef.current.setState(currentGame);
-
-    // Utiliser l'état du moteur pour garantir la cohérence
-    const engineState = gameEngineRef.current.getState();
-    const enginePlayer = engineState.players[engineState.currentPlayerIndex];
-
-    const action = new PassAction(enginePlayer.id, cardsToKeep, selectedCardId);
-    const result = gameEngineRef.current.executeAction(action);
-    if (result.success && result.updatedState) {
-      if (action.historyEntries) {
-        action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, currentGame, undefined, e.sequenceId));
-      }
-
-      // Fin de partie : le décompte final est fait par le moteur (TurnManager.endRound),
-      // l'écran de fin s'affiche dès que la phase passe à FINAL_SCORING
-
-      // Patch de sécurité : Si une nouvelle manche commence, réinitialiser hasPerformedMainAction
-      if (result.updatedState.currentRound > currentGame.currentRound) {
-        result.updatedState.players = result.updatedState.players.map(p => ({ ...p, hasPerformedMainAction: false }));
-      }
-
-      setGame(result.updatedState);
-    } else {
-      console.error("Erreur lors de l'action Passer:", result.error);
-      setToast({ message: `Erreur lors de l'action Passer: ${result.error}`, visible: true });
-    }
-  }, [addToHistory]);
-
-  // Tour des robots (logique dans AITurn, cadence dans useAITurn)
-  useAITurn(game, interactionState, {
-    applyGame: (updatedGame) => {
-      setGame(updatedGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-    },
-    addToHistory,
-    onSetupReserved: (updatedGame) => handleSetupNextPlayer(updatedGame),
-    onPass: (cardsToKeep) => performPass(cardsToKeep),
-    onDiscovery: (message) => {
-      setAlienDiscoveryNotification({ visible: true, message });
-      setTimeout(() => setAlienDiscoveryNotification(null), 4000);
-    },
-    onTurnEnded: () => {
-      setPendingInteractions([]);
-      setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
-    },
-    onHumanInteractions: (interactions) => handleNewInteractions(interactions, interactions[0]?.sequenceId),
-  });
-
-  // Gestionnaire pour passer au joueur suivant pendant la phase de SETUP
-  const handleSetupNextPlayer = (currentGame: Game) => {
-      const { updatedGame: nextGame, historyEntries } = TurnManager.advanceSetup(currentGame);
-      historyEntries.forEach(e => addToHistory(e.message, e.playerId || undefined, nextGame));
-
-      setGame(nextGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(nextGame);
-  };
-
-  // Gestionnaire pour passer au joueur suivant (fin de tour simple)
-  // Bouton « Prochain joueur » : le tour ne se termine pas tant qu'une interaction obligatoire est en cours ou en attente
-  const handleNextPlayer = () => {
-    if (TurnManager.blocksEndOfTurn(interactionState) || pendingInteractions.length > 0) {
-      setToast({ message: "Terminez d'abord l'action en cours avant de finir votre tour.", visible: true });
-      return;
-    }
-    continueEndOfTurn();
-  };
-
-  // Fin de tour (paliers, puis joueur suivant) ; aussi reprise après le choix demandé par un palier
-  const continueEndOfTurn = () => {
-    if (!gameEngineRef.current || !game) return;
-
-    // Vérifier les paliers de score avant de passer au joueur suivant
-    // Utiliser l'état du moteur pour avoir la version la plus à jour
-    const stateBeforeMilestones = gameEngineRef.current.getState();
-    const turn = TurnManager.finishTurn(stateBeforeMilestones);
-
-    gameEngineRef.current.setState(turn.updatedGame);
-    setGame(turn.updatedGame);
-
-    // L'état à restaurer en cas d'undo est celui d'avant la vérification des paliers
-    turn.milestoneEntries.forEach(entry => addToHistory(entry.message, entry.playerId, stateBeforeMilestones, undefined, entry.sequenceId));
-    if (turn.discoveryNotification) {
-      setAlienDiscoveryNotification({ visible: true, message: turn.discoveryNotification.message });
-      setTimeout(() => setAlienDiscoveryNotification(null), 4000);
-    }
-
-    // Un palier exige un choix : on s'arrête là et on laisse le joueur interagir
-    if (!turn.turnEnded && turn.pendingInteraction) {
-      const interaction = turn.pendingInteraction;
-      setInteractionState(interaction);
-      let toastMessage = getInteractionLabel(interaction);
-      if (interaction.type === 'PLACING_OBJECTIVE_MARKER') {
-        toastMessage = `Palier de ${interaction.milestone} PV atteint ! Placez un marqueur sur un objectif.`;
-      } else if (interaction.type === 'CHOOSING_CENTAURIEN_REWARD') {
-        toastMessage = `Message Centaurien décodé ! Choisissez une récompense.`;
-      }
-      setToast({ message: toastMessage, visible: true });
-      return;
-    }
-
-    // Le joueur suivant est déjà actif dans turn.updatedGame : réinitialiser les interactions
-    setInteractionState({ type: 'IDLE' });
-    setPendingInteractions([]);
-    setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
-    turn.turnEntries.forEach(e => addToHistory(e.message, e.playerId, turn.updatedGame));
-  };
-
-  // Gestionnaire pour le clic sur une carte en mode défausse/échange/réservation/signal
-  const handleCardClick = (cardId: string) => {
-    if (!game) return;
-
-    if (interactionState.type === 'DISCARDING_CARD') {
-      const currentCards = interactionState.selectedCards;
-      if (currentCards.includes(cardId)) {
-        setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
-      } else {
-        // Pas plus de cartes que l'excédent de la main (règle du moteur, vérifiée aussi par PassAction)
-        if (currentCards.length < CardSystem.cardsToDiscardAtPass(actingPlayer(game))) {
-          setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
-        }
-      }
-    } else if (interactionState.type === 'TRADING_CARD') {
-      const currentCards = interactionState.selectedCards;
-      if (currentCards.includes(cardId)) {
-        setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
-      } else if (currentCards.length < interactionState.count) {
-        setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
-      }
-    } else if (interactionState.type === 'RESERVING_CARD') {
-      const currentCards = interactionState.selectedCards;
-      if (currentCards.includes(cardId)) {
-        setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
-      } else {
-        // On peut sélectionner jusqu'à 'count' cartes
-        // Si count est 1, on remplace la sélection
-        if (interactionState.count === 1) {
-          setInteractionState({ ...interactionState, selectedCards: [cardId] });
-        } else if (currentCards.length < interactionState.count) {
-          setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
-        }
-      }
-    } else if (interactionState.type === 'DISCARDING_FOR_SIGNAL') {
-      const currentCards = interactionState.selectedCards;
-      if (currentCards.includes(cardId)) {
-        setInteractionState({ ...interactionState, selectedCards: currentCards.filter(id => id !== cardId) });
-      } else {
-        // On peut sélectionner jusqu'à 'count' cartes
-        // Si count est 1, on remplace la sélection
-        if (interactionState.count === 1) {
-          setInteractionState({ ...interactionState, selectedCards: [cardId] });
-        } else if (currentCards.length < interactionState.count) {
-          setInteractionState({ ...interactionState, selectedCards: [...currentCards, cardId] });
-        }
-      }
-    }
-  };
-
-  // Gestionnaire pour confirmer la défausse
-  const handleConfirmDiscard = () => {
-    if (!game) return;
-
-    // Cas 1: Défausse pour fin de tour
-    if (interactionState.type === 'DISCARDING_CARD') {
-      const currentPlayer = game.players[game.currentPlayerIndex];
-      const cardsToKeep = CardSystem.getHandCards(currentPlayer).filter(c => !interactionState.selectedCards.includes(c.id)).map(c => c.id);
-
-      // Réinitialiser l'état de défausse
-      setInteractionState({ type: 'IDLE' });
-
-      // Vérifier s'il y a un paquet de manche pour déclencher la modale (pas à la manche 5)
-      const roundDeck = game.decks.roundDecks[game.currentRound];
-      if (roundDeck && roundDeck.length > 0) {
-        setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
-      } else {
-        // S'il n'y a pas de paquet (ex: fin de la manche 5), on passe directement
-        performPass(cardsToKeep);
-      }
-    }
-    // Cas 2: Défausse pour signal
-    else if (interactionState.type === 'DISCARDING_FOR_SIGNAL') {
-      const currentPlayer = game.players[game.currentPlayerIndex];
-      const sequenceId = interactionState.sequenceId;
-
-      const res = InteractionChoices.discardForSignals(game, currentPlayer.id, interactionState, interactionState.selectedCards);
-      if (res.error) {
-        setToast({ message: res.error, visible: true });
-        return;
-      }
-      res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
-      if (!handleNewInteractions(res.newPendingInteractions, sequenceId)) {
-        setInteractionState({ type: 'IDLE' });
-      }
-    }
-  };
-
-  // Gestionnaire pour la réservation de carte
-  const handleConfirmReservation = (cardIds?: string[]) => {
-    if (!game) return;
-
-    if (interactionState.type !== 'RESERVING_CARD') return;
-    const selectedCards = cardIds ?? interactionState.selectedCards;
-    if (selectedCards.length === 0) return;
-
-    // Le joueur concerné est celui qui possède la carte sélectionnée (sinon le joueur actif)
-    const owner = game.players.find(p => p.cards.some(c => c.id === selectedCards[0])) ?? game.players[game.currentPlayerIndex];
-    const result = InteractionChoices.reserveCards(game, owner.id, interactionState, selectedCards);
-    if (result.error) {
-      setToast({ message: result.error, visible: true });
-      return;
-    }
-    const { updatedGame, historyEntries } = result;
-    historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, { type: 'IDLE' }, interactionState.sequenceId));
-
-    setGame(updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-
-    // Cartes restantes à réserver : la même interaction continue
-    if (result.nextInteraction) {
-      setInteractionState(result.nextInteraction);
-    } else {
-      setInteractionState({ type: 'IDLE' });
-      
-      // Si on est en phase de SETUP, on passe au joueur suivant
-      if (game.phase === GamePhase.SETUP) {
-          handleSetupNextPlayer(updatedGame);
-      }
-    }
-  };
-
-  // Gestionnaire pour le clic sur un secteur (Scan)
-  const handleSectorClick = (sectorId: string) => {
-    const performInteractiveScan = () => {
-      if (!game || interactionState.type !== 'SELECTING_SCAN_SECTOR') return;
-      const currentPlayer = actingPlayer(game);
-
-      const sequenceId = interactionState.sequenceId || `scan-${uniqueId()}`;
-      const res = ScanSystem.resolveScanSectorSelection(game, currentPlayer.id, interactionState, sectorId, sequenceId);
-      if (res.error) {
-        setToast({ message: res.error, visible: true });
-        return;
-      }
-      const updatedGame = res.updatedGame;
-      const usedProbeId = res.usedProbeId;
-      res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, sequenceId));
-      const allNewInteractions = [...res.newPendingInteractions];
-
-      setGame(updatedGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-
-      let currentPending = [...pendingInteractions];
-
-      // Propager la sonde utilisée aux interactions suivantes de la même séquence
-      if (usedProbeId) currentPending = InteractionChoices.markProbeUsed(currentPending, interactionState, usedProbeId);
-
-      const resolutions = allNewInteractions.filter(i => i.type === 'RESOLVING_SECTOR');
-      const others = allNewInteractions.filter(i => i.type !== 'RESOLVING_SECTOR');
-
-      if (others.length > 0) {
-        const [next, ...rest] = others;
-        setInteractionState(next);
-        setPendingInteractions([...rest, ...currentPending, ...resolutions]);
-      } else if (currentPending.length > 0) {
-        const [next, ...rest] = currentPending;
-        setInteractionState(next);
-        setPendingInteractions([...rest, ...resolutions]);
-      } else if (resolutions.length > 0) {
-        const [next, ...rest] = resolutions;
-        setInteractionState(next);
-        setPendingInteractions([...rest]);
-      } else {
-        setInteractionState({ type: 'IDLE' });
-      }
-    };
-
-    const performDirectScan = () => {
-      if (!game) return;
-      const sector = ScanSystem.getSectorById(game, sectorId);
-      if (!sector) return;
-      const currentPlayer = game.players[game.currentPlayerIndex];
-      const action = new ScanSectorAction(currentPlayer.id, sector.id);
-      
-      if (gameEngineRef.current) {
-        gameEngineRef.current.setState(game);
-        const result = gameEngineRef.current.executeAction(action);
-        if (result.success && result.updatedState) {
-          const gameAfterScan = result.updatedState;
-          setGame(gameAfterScan);
-          action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-          handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId);
-        } else {
-          setToast({ message: result.error || "Impossible de scanner ce secteur", visible: true });
-        }
-      }
-    };
-
-    if (!game) return;
-
-    // Cas 1: Mode Scan actif ou bonus
-    if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
-      const sector = ScanSystem.getSectorById(game, sectorId);
-      if (!sector) return;
-      const nextSignalIndex = sector.signals.findIndex(s => !s.marked);
-      let potentialDataGain = 0;
-      if (nextSignalIndex !== -1) {
-        const signal = sector.signals[nextSignalIndex];
-        potentialDataGain = (signal.type !== SignalType.OTHER && !interactionState.noData) ? 1 : 0;
-      }
-      checkDataLimitAndProceed(potentialDataGain, performInteractiveScan);
-    } else if (interactionState.type === 'IDLE' && !game.players[game.currentPlayerIndex].hasPerformedMainAction) {
-      // Cas 2: Clic direct depuis Idle (Raccourci Action Scan)
-      const sector = ScanSystem.getSectorById(game, sectorId);
-      if (!sector) return;
-      const nextSignalIndex = sector.signals.findIndex(s => !s.marked);
-      let potentialDataGain = 0;
-      if (nextSignalIndex !== -1) {
-        const signal = sector.signals[nextSignalIndex];
-        potentialDataGain = (signal.type !== SignalType.OTHER) ? 1 : 0;
-      }
-      checkDataLimitAndProceed(potentialDataGain, performDirectScan);
-    }
-  };
-
-  // Gestionnaire pour les actions
-  const handleAction = (actionType: ActionType) => {
-    if (!gameEngineRef.current || !game || !gameRef.current) return;
-
-    // Atomicité : Si on est dans un mode interactif, on ne peut pas lancer d'autre action
-    if (interactionState.type !== 'IDLE') return;
-
-    // Synchroniser l'état de GameEngine avec le jeu actuel (pour préserver les angles de rotation)
-    gameEngineRef.current.setState(gameRef.current);
-
-    const currentGame = gameRef.current;
-    const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
-
-    /***
-     * LAUNCH PROBE
-     */
-    if (actionType === ActionType.LAUNCH_PROBE) {
-      const action = new LaunchProbeAction(currentPlayer.id);
-      const result = gameEngineRef.current.executeAction(action);
-      if (result.success && result.updatedState) {
-        setGame(result.updatedState);
-        action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-        handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId);
-      } else {
-        console.error('Erreur lors du lancement de la sonde:', result.error);
-        setToast({ message: result.error || 'Impossible de lancer la sonde', visible: true });
-      }
-    }
-    /***
-     * SCAN SECTOR
-     */
-    else if (actionType === ActionType.SCAN_SECTOR) {
-      const action = new ScanSectorAction(currentPlayer.id);
-      const result = gameEngineRef.current.executeAction(action);
-      if (result.success && result.updatedState) {
-        setGame(result.updatedState);
-        action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-        handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId);
-      } else {
-        console.error("Erreur lors du scan d'un secteur:", result.error);
-        setToast({ message: result.error || 'Impossible de scanner un secteur', visible: true });
-      }
-    }
-    /***
-     * ORBIT PROBE
-     */
-    else if (actionType === ActionType.ORBIT) {
-      setActionFocus('orbit');
-      setToast({ message: "Veuillez sélectionner un emplacement d'orbite sur une planète.", visible: true });
-    }
-    /***
-     * LAND PROBE
-     */
-    else if (actionType === ActionType.LAND) {
-      setActionFocus('land');
-      setToast({ message: "Veuillez sélectionner un emplacement d'atterrissage sur une planète.", visible: true });
-    }
-    /***
-     * PLAY CARD
-     */
-    else if (actionType === ActionType.PLAY_CARD) {
-      setActionFocus('card');
-      setToast({ message: "Veuillez sélectionner une carte.", visible: true });
-    }
-    /***
-     * RESEARCH TECH
-     */
-    else if (actionType === ActionType.RESEARCH_TECH) {
-      const action = new ResearchTechAction(currentPlayer.id);
-      const result = gameEngineRef.current.executeAction(action);
-      if (result.success && result.updatedState) {
-        setGame(result.updatedState);
-        action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-        handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId);
-      } else {
-        console.error("Erreur lors de la recherche de technologie:", result.error);
-        setToast({ message: result.error || 'Impossible de rechercher une technologie', visible: true });
-      }
-    }
-    /***
-     * ANALYZE DATA
-     */
-    else if (actionType === ActionType.ANALYZE_DATA) {
-      const action = new AnalyzeDataAction(currentPlayer.id);
-      const validation = ActionValidator.validateAction(currentGame, action);
-      if (!validation.valid) {
-        setToast({ message: validation.errors[0]?.message || "Analyse impossible", visible: true });
-        return;
-      }
-
-      // Déclencher l'animation
-      setInteractionState({ type: 'ANALYZING' });
-
-      // Capture state BEFORE analysis for undo (Deep copy to ensure computer data is saved)
-      const previousState = cloneGame(currentGame);
-
-      // Délai pour l'animation avant d'appliquer les effets
-      setTimeout(() => {
-        if (!gameEngineRef.current || !gameRef.current) return;
-        gameEngineRef.current.setState(gameRef.current);
-
-        const result = gameEngineRef.current.executeAction(action);
-        if (result.success && result.updatedState) {
-          setGame(result.updatedState);
-          action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, previousState, { type: 'IDLE' }, e.sequenceId));
-          if (!handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId)) setInteractionState({ type: 'IDLE' });
-        } else {
-          console.error("Erreur lors de l'analyse:", result.error);
-          setToast({ message: result.error || "Erreur lors de l'analyse", visible: true });
-          setInteractionState({ type: 'IDLE' });
-        }
-      }, 1500);
-    }
-    /***
-     * PASS
-     */
-    else if (actionType === ActionType.PASS) {
-      // 1. Vérifier la taille de la main
-      const handSize = CardSystem.getHandCards(currentPlayer).length;
-      const toDiscard = CardSystem.cardsToDiscardAtPass(currentPlayer);
-      if (toDiscard > 0) {
-        // Avertir avant de passer : le joueur ne jouera plus de la manche et perdra des cartes
-        setConfirmModalState({
-          visible: true,
-          cardId: null,
-          message: `Passer définitivement ? Vous ne pourrez plus agir avant la prochaine manche. Vous avez ${handSize} cartes en main : vous devrez en défausser ${toDiscard} pour n'en garder que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}.`,
-          onConfirm: () => {
-            setInteractionState({ type: 'DISCARDING_CARD', count: toDiscard, selectedCards: [] });
-            setToast({ message: `Veuillez défausser pour ne garder que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} cartes en main.`, visible: true });
-          }
-        });
-        return;
-      }
-
-      const cardsToKeep = CardSystem.getHandCards(currentPlayer).map(c => c.id);
-
-      // Vérifier s'il y a un paquet de manche pour déclencher la modale
-      const roundDeck = game.decks.roundDecks[game.currentRound];
-      if (roundDeck && roundDeck.length > 0) {
-        setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
-      } else {
-        performPass(cardsToKeep);
-      }
-    }
-  };
-
-  // Gestionnaire pour le clic sur une trace de vie
-  const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType, slotType: LifeTraceLocation, slotIndex?: number) => {
-    if (!game) return;
-    if (interactionState.type !== 'PLACING_LIFE_TRACE') return;
-
-    const sequenceId = interactionState.sequenceId || `trace-${uniqueId()}`;
-    const playerId = interactionState.playerId || game.players[game.currentPlayerIndex].id;
-
-    // Appel métier (trace « de n'importe quelle couleur » : la couleur cliquée)
-    const result = InteractionChoices.placeLifeTrace(game, playerId, { ...interactionState, sequenceId }, boardIndex, color, slotType, slotIndex);
-    if (result.error) return;
-    const { updatedGame, historyEntries, newPendingInteractions } = result;
-
-    if (result.discoveredSpecies) {
-      setAlienDiscoveryNotification({ visible: true, message: "Découverte d'une nouvelle espèce Alien !" });
-      setTimeout(() => setAlienDiscoveryNotification(null), 4000);
-    }
-
-    // End transaction
-    setGame(updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-    historyEntries.forEach((e, i) => { addToHistory(e.message, e.playerId, i === 0 ? game : undefined, undefined, sequenceId); });
-    if (!handleNewInteractions(newPendingInteractions, sequenceId)) setInteractionState({ type: 'IDLE' });
-  };
-
-  // Gestionnaire pour le choix de récompense Centaurienne
-  const handleCentaurienRewardClick = (tokenIndex: number) => {
-    if (!game) return;
-    if (interactionState.type !== 'CHOOSING_CENTAURIEN_REWARD') return;
-
-    const sequenceId = interactionState.sequenceId || `trace-${uniqueId()}`;
-    const playerId = game.players[game.currentPlayerIndex].id;
-
-    // Appel métier : la tuile résout le palier qui a déclenché le choix (markerId)
-    const result = InteractionChoices.claimCentaurienReward(game, playerId, interactionState, tokenIndex);
-    if (result.error) {
-      setToast({ message: result.error, visible: true });
-      return;
-    }
-    const { updatedGame, historyEntries, newPendingInteractions } = result;
-
-    // End transaction
-    setGame(updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-    historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
-    if (!handleNewInteractions(newPendingInteractions, sequenceId)) setInteractionState({ type: 'IDLE' });
-
-    // Continuer la fin de tour
-    continueEndOfTurn();
-  };
-
-  // Gestionnaire pour le choix d'une carte Exertien à un palier (cardId absent = renoncer)
-  const handleExertienCardChoice = (cardId?: string) => {
-    if (!game) return;
-    if (interactionState.type !== 'CHOOSING_EXERTIEN_CARD') return;
-
-    const playerId = game.players[game.currentPlayerIndex].id;
-    const result = InteractionChoices.playExertienCard(game, playerId, interactionState, cardId);
-    if (result.error) {
-      setToast({ message: result.error, visible: true });
-      return;
-    }
-
-    setGame(result.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, interactionState));
-    setInteractionState({ type: 'IDLE' });
-
-    // Continuer la fin de tour
-    continueEndOfTurn();
-  };
-
-  // Gestionnaire pour le clic sur une carte Alien
-  const handleSpeciesCardClick =(speciesId: string, cardId: string) => {
-    if (!game) return;
-    if (interactionState.type !== 'ACQUIRING_ALIEN_CARD') return;
-    if (interactionState.speciesId !== speciesId) return;
-
-    const sequenceId = interactionState.sequenceId || `alien-card-${uniqueId()}`;
-    const playerId = actingPlayer(game).id;
-
-    const result = InteractionChoices.acquireAlienCard(game, playerId, { ...interactionState, sequenceId }, cardId);
-    if (result.error) return;
-
-    setGame(result.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
-    // Plusieurs cartes à prendre : la même interaction continue avec une carte de moins
-    setInteractionState(result.newPendingInteractions[0] ?? { type: 'IDLE' });
-  };
-
-  // Gestionnaire pour les choix dans le menu de bonus
-  const handleMenuChoice = (choiceIndex: number) => {
-    if (interactionState.type !== 'CHOOSING_BONUS_ACTION') return;
-
-    const chosen = InteractionChoices.chooseBonusAction(interactionState, choiceIndex);
-    if (!chosen) return;
-
-    // L'action choisie devient active ; le menu mis à jour revient ensuite en tête de file
-    setInteractionState(chosen.next);
-    if (chosen.menu) {
-      const menu = chosen.menu;
-      setPendingInteractions(prev => [menu, ...prev]);
-    }
-  };
-
-  // Gestionnaire pour le choix Observation 2
-  const handleObs2Choice = (accepted: boolean) => {
-    if (!game) return;
-    if (interactionState.type !== 'CHOOSING_OBS2_ACTION') return;
-
-    // Create sequence id
-    const sequenceId = interactionState.sequenceId || `obs2-${uniqueId()}`;
-
-    if (accepted) {
-      const res = InteractionChoices.observation2(game, game.players[game.currentPlayerIndex].id, { ...interactionState, sequenceId }, true);
-      if (res.error) {
-        setToast({ message: res.error, visible: true });
-        setInteractionState({ type: 'IDLE' });
-        return;
-      }
-      res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, sequenceId));
-      setGame(res.updatedGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
-      if (res.newPendingInteractions.length > 0) {
-        handleNewInteractions(res.newPendingInteractions, sequenceId);
-      } else {
-        setInteractionState({ type: 'IDLE' });
-      }
-    } else {
-      setInteractionState({ type: 'IDLE' });
-    }
-
-  };
-
-  // Gestionnaire pour le choix Observation 3
-  const handleObs3Choice = (accepted: boolean) => {
-    if (!game || interactionState.type !== 'CHOOSING_OBS3_ACTION') return;
-
-    // Acceptée : choix de la carte à défausser ; refusée : interaction suivante (ou IDLE)
-    const result = InteractionChoices.observation3(game, interactionState, accepted);
-    setInteractionState(result.newPendingInteractions[0] ?? { type: 'IDLE' });
-  };
-
-  // Gestionnaire pour le choix Observation 4
-  const handleObs4Choice = (choice: 'PROBE' | 'MOVE') => {
-    if (!game) return;
-
-    if (interactionState.type !== 'CHOOSING_OBS4_ACTION') return;
-
-    const sequenceId = interactionState.sequenceId || `obs4-${uniqueId()}`;
-    const res = InteractionChoices.observation4(game, game.players[game.currentPlayerIndex].id, { ...interactionState, sequenceId }, choice);
-    if (res.error) {
-      setToast({ message: res.error, visible: true });
-      return;
-    }
-    res.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, sequenceId));
-    if (res.newPendingInteractions.length > 0) {
-      setPendingInteractions(prev => [...res.newPendingInteractions, ...prev]);
-    }
-    setGame(res.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
-    setInteractionState({ type: 'IDLE' });
-  };
-
-  // Gestionnaire pour le choix Média ou Déplacement (Carte 19)
-  const handleMediaOrMoveChoice = (choice: 'MEDIA' | 'MOVE') => {
-    if (!game) return;
-
-    if (interactionState.type !== 'CHOOSING_MEDIA_OR_MOVE') return;
-
-    const currentPlayer = actingPlayer(game);
-    const sequenceId = interactionState.sequenceId;
-    const res = InteractionChoices.chooseMediaOrMove(game, currentPlayer.id, interactionState, choice);
-    res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, { type: 'IDLE' }, sequenceId));
-    setGame(res.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
-    setInteractionState(res.nextInteraction ?? { type: 'IDLE' });
-  };
-
-  /** Exécute une action principale par le moteur ; en cas de refus, lève l'erreur (affichée par l'appelant) */
-  const runEngineAction = (action: OrbitAction | LandAction) => {
-    if (!gameEngineRef.current || !gameRef.current) throw new Error('Moteur indisponible');
-    gameEngineRef.current.setState(gameRef.current);
-    const result = gameEngineRef.current.executeAction(action);
-    if (!result.success || !result.updatedState) throw new Error(result.error || 'Action impossible');
-    return { updatedGame: result.updatedState, historyEntries: action.historyEntries, newPendingInteractions: action.newPendingInteractions };
-  };
-
-  // Helper générique pour les interactions avec les planètes (Orbite/Atterrissage)
-  // Renvoie true si de nouvelles interactions ont été déclenchées (bonus à résoudre)
-  const handlePlanetInteraction = (
-    planetId: string,
-    actionFn: (game: Game, playerId: string, probeId: string, targetId: string, sequenceId: string) => { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] },
-    successMessage: string
-  ): boolean => {
-    if (!game) return false;
-    const currentPlayer = actingPlayer(game);
-    const found = ProbeSystem.findProbeAtPlanet(game, currentPlayer.id, planetId);
-    if (!found) return false;
-
-    // Générer un ID de séquence pour grouper l'action et ses bonus
-    const sequenceId = interactionState.sequenceId || `seq-${uniqueId()}`;
-
-    try {
-      const result = actionFn(game, currentPlayer.id, found.probe.id, planetId, sequenceId);
-
-      // Les actions payantes (OrbitAction, LandAction) marquent elles-mêmes l'action principale
-      const updatedGame = result.updatedGame;
-
-      setGame(updatedGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-      const interactionTriggered = handleNewInteractions(result.newPendingInteractions, sequenceId);
-
-      // Le moteur rédige le message de l'action puis ses gains ; l'annulation restaure l'état d'avant l'action
-      result.historyEntries.forEach((entry, i) => addToHistory(entry.message, entry.playerId, i === 0 ? game : updatedGame, undefined, sequenceId));
-
-      if (!interactionTriggered) {
-        setToast({ message: successMessage, visible: true });
-      }
-      return interactionTriggered;
-    } catch (e) {
-      setToast({ message: e instanceof Error ? e.message : String(e), visible: true });
       return false;
     }
+    showNotifications(result.notifications);
+    return true;
   };
+  const choose = (choice: Choice) => run({ type: 'CHOOSE', choice });
 
-  // Orbite/atterrissage bonus (gratuit) : même règle que pour les robots (InteractionChoices.placeBonusProbe)
-  const placeBonusProbe = (planetId: string, slotIndex: number | undefined, successMessage: string) => {
-    if (!game || (interactionState.type !== 'ORBITING_PROBE' && interactionState.type !== 'LANDING_PROBE')) return;
-    const sequenceId = interactionState.sequenceId || `seq-${uniqueId()}`;
-    const result = InteractionChoices.placeBonusProbe(game, actingPlayer(game).id, { ...interactionState, sequenceId }, planetId, slotIndex);
-    if (result.error) {
-      setToast({ message: result.error, visible: true });
-      return;
-    }
-    const { updatedGame, nextInteraction } = result;
-    setGame(updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-    result.historyEntries.forEach((entry, i) => addToHistory(entry.message, entry.playerId, i === 0 ? game : updatedGame, undefined, sequenceId));
-
-    // Des bonus sont à résoudre d'abord : les placements restants sont mis en file d'attente
-    if (handleNewInteractions(result.newPendingInteractions, sequenceId)) {
-      if (nextInteraction) setPendingInteractions(prev => [...prev, nextInteraction]);
-      return;
-    }
-    setToast({ message: successMessage, visible: true });
-    setInteractionState(nextInteraction ?? { type: 'IDLE' });
-  };
-
-  // Retrait d'un orbiteur (carte 15) ou d'un atterrisseur (carte 84) : même règle que pour les robots
-  const handleRemoveProbe = (planetId: string, slotIndex?: number) => {
-    if (!game || (interactionState.type !== 'REMOVING_ORBITER' && interactionState.type !== 'REMOVING_LANDER')) return;
-    const result = InteractionChoices.removeProbe(game, actingPlayer(game).id, interactionState, planetId, slotIndex);
-    if (result.error) {
-      // Clic sur une planète sans sonde du joueur : ignoré ; refus du moteur : affiché
-      if (slotIndex !== undefined) setToast({ message: result.error, visible: true });
-      return;
-    }
-    setGame(result.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, e.sequenceId));
-    if (!handleNewInteractions(result.newPendingInteractions, interactionState.sequenceId)) {
-      setInteractionState({ type: 'IDLE' });
-    }
-  };
-
-  // Gestionnaire pour la mise en orbite via la hover card
-  const handleOrbit = (planetId: string, slotIndex?: number) => {
+  const checkDataLimitAndProceed = (potentialDataGain: number, onConfirm: () => void) => {
     if (!game) return;
-    const currentPlayer = actingPlayer(game);
-
-    // Carte 15 : retirer un orbiteur
-    if (interactionState.type === 'REMOVING_ORBITER') {
-      handleRemoveProbe(planetId, slotIndex);
-      return;
-    }
-
-    const found = ProbeSystem.findProbeAtPlanet(game, currentPlayer.id, planetId);
-    if (!found) return;
-
-    const executeOrbit = () => {
-      // Orbite bonus (gratuite)
-      if (interactionState.type === 'ORBITING_PROBE') {
-        placeBonusProbe(planetId, undefined, "Sonde mise en orbite");
-        return;
-      }
-
-      const action = new OrbitAction(currentPlayer.id, found.probe.id, planetId);
-      const validation = ActionValidator.validateAction(game, action);
-      if (!validation.valid) {
-        setToast({ message: validation.errors[0]?.message || "Mise en orbite impossible", visible: true });
-        return;
-      }
-
-      handlePlanetInteraction(planetId, () => runEngineAction(action), "Sonde mise en orbite");
-    };
-
-    // Avertissement si le bonus de l'emplacement serait perdu
-    const bonus = slotIndex !== undefined ? ProbeSystem.getSlotBonus(game, planetId, 'orbit', slotIndex) : undefined;
-    if (bonus && checkBonusAndConfirm(bonus, executeOrbit)) return;
-
-    executeOrbit();
-  };
-
-  // Gestionnaire pour le clic sur un token Mascamite
-  const handleMascamiteClick = (planetId: string, tokenIndex: number) => {
-    if (!game) return;
-    if (interactionState.type !== 'COLLECTING_SPECIMEN' && interactionState.type !== 'CONSULTING_SPECIMEN') return;
-    const playerId = actingPlayer(game).id;
-    const sequenceId = interactionState.sequenceId || `mascamite-${uniqueId()}`;
-    const result = InteractionChoices.takeSpecimen(game, playerId, { ...interactionState, sequenceId }, planetId, tokenIndex);
-    // Planète non autorisée : clic ignoré ; plus de spécimen à prendre : l'interaction se termine
-    if (result.error) return;
-    if (result.updatedGame === game) {
-      setInteractionState({ type: 'IDLE' });
-      return;
-    }
-
-    setGame(result.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
-    if (!handleNewInteractions(result.newPendingInteractions, sequenceId)) {
-      setInteractionState({ type: 'IDLE' });
+    const warning = ResourceSystem.lostBonusWarning(game, game.players[game.currentPlayerIndex].id, { data: potentialDataGain });
+    if (warning) {
+      setConfirmModalState({ visible: true, cardId: null, message: warning, onConfirm });
+    } else {
+      onConfirm();
     }
   };
 
-  // Gestionnaire pour l'atterrissage via la hover card
-  const handleLand = (planetId: string, slotIndex?: number) => {
-    if (!game) return;
-    const currentPlayer = actingPlayer(game);
-
-    // Carte 84 : retirer un atterrisseur
-    if (interactionState.type === 'REMOVING_LANDER') {
-      handleRemoveProbe(planetId, slotIndex);
-      return;
-    }
-
-    const found = ProbeSystem.findProbeAtPlanet(game, currentPlayer.id, planetId);
-    if (!found) return;
-
-    const executeLand = () => {
-      // Atterrissage bonus (gratuit)
-      if (interactionState.type === 'LANDING_PROBE') {
-        placeBonusProbe(planetId, slotIndex, "Atterrissage réussi");
-        return;
-      }
-
-      const action = new LandAction(currentPlayer.id, found.probe.id, planetId, slotIndex);
-      const validation = ActionValidator.validateAction(game, action);
-      if (!validation.valid) {
-        setToast({ message: validation.errors[0]?.message || "Atterrissage impossible", visible: true });
-        return;
-      }
-
-      handlePlanetInteraction(planetId, () => runEngineAction(action), "Atterrissage réussi");
-    };
-
-    // Avertissement si le bonus de l'emplacement serait perdu
-    const bonus = slotIndex !== undefined ? ProbeSystem.getSlotBonus(game, planetId, 'land', slotIndex) : undefined;
-    if (bonus && checkBonusAndConfirm(bonus, executeLand)) return;
-
-    executeLand();
-  };
-
-  // Gestionnaire pour le déplacement des sondes
-  const handleProbeMove = async (probeId: string, path: string[]) => {
-    if (!gameEngineRef.current || !game || !gameRef.current) return;
-
-    // Synchroniser l'état de GameEngine avec le jeu actuel
-    gameEngineRef.current.setState(gameRef.current);
-    let currentGame = gameRef.current; // Utiliser la ref pour avoir l'état le plus frais
-    const currentPlayerId = currentGame.players[currentGame.currentPlayerIndex].id;
-
-    let freeMovements = interactionState.type === 'MOVING_PROBE' ? interactionState.count : 0;
-    let interruptedForChoice = false;
-    let currentSequenceId = interactionState.sequenceId;
-
-    // Parcourir le chemin étape par étape (en ignorant le point de départ à l'index 0)
-    for (let i = 1; i < path.length; i++) {
-      const cellKey = path[i];
-      const disk = cellKey[0] as DiskName;
-      const sector = parseInt(cellKey.substring(1)) as SectorNumber;
-
-      // Utiliser l'action pour effectuer le mouvement
-      const usedFree = ProbeSystem.freeMovementsUsed(currentGame, currentPlayerId, probeId, freeMovements);
-      if (!currentSequenceId) currentSequenceId = `move-${uniqueId()}`;
-      const action = new MoveProbeAction(currentPlayerId, probeId, { disk, sector }, freeMovements, currentSequenceId);
-      const result = gameEngineRef.current.executeAction(action);
-
-      if (result.success && result.updatedState) {
-        const updatedGame = result.updatedState;
-
-        action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-        // Ajouter les nouvelles interactions et lancer la première
-        handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId);
-
-        // Carte 19 : le moteur propose le choix Média / déplacement, qui interrompt le chemin
-        if (action.newPendingInteractions.some(i => i.type === 'CHOOSING_MEDIA_OR_MOVE')) {
-          interruptedForChoice = true;
-          if (i < path.length - 1) {
-            setToast({ message: "Déplacement interrompu. Choisissez un bonus.", visible: true });
-          }
-        }
-
-        currentGame = updatedGame;
-        gameRef.current = currentGame; // Mettre à jour la ref locale pour garantir la fraîcheur
-        setGame(currentGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(currentGame); // Mettre à jour l'état du moteur pour la prochaine étape du mouvement
-
-        // Mettre à jour le compteur de mouvements gratuits
-        freeMovements -= usedFree;
-
-        // Petit délai pour l'animation
-        await new Promise(resolve => setTimeout(resolve, 300));
-
-        if (interruptedForChoice) {
-          break;
-        }
-
-      } else {
-        console.error('Erreur lors du déplacement de la sonde (étape):', result.error);
-        setToast({ message: result.error || 'Impossible de déplacer la sonde', visible: true });
-        break; // Arrêter le mouvement en cas d'erreur
-      }
-    }
-    if (interactionState.type === 'MOVING_PROBE' && !interruptedForChoice) {
-      if (freeMovements > 0) {
-        setInteractionState({ type: 'MOVING_PROBE', count: freeMovements, sequenceId: currentSequenceId });
-        setToast({ message: `Encore ${freeMovements} déplacement${freeMovements > 1 ? 's' : ''} gratuit${freeMovements > 1 ? 's' : ''}. Sélectionnez une sonde à déplacer.`, visible: true });
-      } else {
-        setInteractionState({ type: 'IDLE' });
-      }
-    }
-  };
-
-  const checkBonusAndConfirm = useCallback((
-    bonus: Bonus,
-    onConfirm: () => void,
-    cardId: string | null = null
-  ): boolean => {
+  const checkBonusAndConfirm = useCallback((bonus: Bonus, onConfirm: () => void, cardId: string | null = null): boolean => {
     if (!game) return false;
     const warning = ResourceSystem.lostBonusWarning(game, game.players[game.currentPlayerIndex].id, bonus);
     if (!warning) return false;
@@ -1222,346 +145,346 @@ export const BoardUI: React.FC = () => {
     return true;
   }, [game]);
 
-  // Gestionnaire pour jouer une carte (payer son coût en crédits)
-  const handlePlayCardRequest = (cardId: string, force: boolean = false) => {
-    if (!game || !gameRef.current || !gameEngineRef.current) return;
+  // --- Annulation ---
 
-    const currentGame = cloneGame(game);
-    const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
-    const card = currentPlayer.cards.find(c => c.id === cardId);
-    if (!card) return;
-
-    if (!force) {
-      const bonusToCheck = CardSystem.previewImmediateBonuses(card);
-      if (checkBonusAndConfirm(bonusToCheck, () => handlePlayCardRequest(cardId, true), cardId)) {
-        return;
+  const humanPlayerId = game?.players.find(p => p.type === 'human')?.id;
+  const resetInterface = () => {
+    setLocalMode(null);
+    setPassModalState({ visible: false, cards: [], selectedCardId: null });
+  };
+  const handleUndoTurn = () => {
+    if (!humanPlayerId) return;
+    setConfirmModalState({
+      visible: true,
+      cardId: null,
+      message: "Revenir au début de votre dernier tour ? Toutes les actions jouées depuis, y compris celles des robots, seront annulées.",
+      onConfirm: () => {
+        session.undoTurn(humanPlayerId);
+        resetInterface();
       }
-    }
-
-    // Synchroniser le moteur avec l'état affiché : sinon il peut refuser la carte sur un état périmé
-    gameEngineRef.current.setState(gameRef.current);
-    const action = new PlayCardAction(currentPlayer.id, cardId);
-    const result = gameEngineRef.current.executeAction(action);
-    if (!result.success || !result.updatedState) {
-      setToast({ message: result.error || 'Impossible de jouer cette carte', visible: true });
-      return;
-    }
-    if (result.success && result.updatedState) {
-      setGame(result.updatedState);
-      if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedState);
-        // Add history entries from processBonuses (objects)
-        if (action.historyEntries && action.historyEntries.length > 0) {
-          action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, currentGame, undefined, entry.sequenceId));
-        }
-        // Add pending interactions from processBonuses (objects)
-        if (action.newPendingInteractions && action.newPendingInteractions.length > 0) {
-          const forceStacking = ['27', '28', '29', '30'].includes(cardId);
-          handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId, undefined, forceStacking);
-        }
-    }
+    });
+  };
+  const handleUndo = () => {
+    session.undo();
+    resetInterface();
   };
 
-  // Gestionnaire pour l'action gratuite (défausse de carte)
-  const handleDiscardCardAction = (cardId: string) => {
-    if (!game || !gameRef.current) return;
-    if (interactionState.type !== 'IDLE') return;
+  // --- Robots ---
 
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    
-    const result = CardSystem.discardCardForFreeAction(game, currentPlayer.id, cardId);
-
-    setGame(result.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-
-    result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, game, undefined, entry.sequenceId));
-    handleNewInteractions(result.newPendingInteractions, result.historyEntries[0]?.sequenceId);
-  };
-
-  // Gestionnaire pour l'action d'achat de carte (payer avec 3 média)
-  const handleBuyCardAction = () => {
-    if (interactionState.type !== 'IDLE') return;
-    setInteractionState({ type: 'ACQUIRING_CARD', count: 1 });
-  };
-
-  // Gestionnaire pour les échanges directs (via les boutons rapides)
-  /**
-   * @param spendType - Type de ressource à dépenser (ex: 'energy', 'credits', etc.)
-   * @param gainType - Type de ressource à gagner (ex: 'media', 'card', etc.)
-   */
-  const handleDirectTrade = (spendType: string, gainType: string) => {
-    if (!game) return;
-    if (interactionState.type !== 'IDLE') return;
-
-    const currentPlayer = game.players[game.currentPlayerIndex];
-
-    // Carte : à choisir dans la rangée ou à piocher (le coût est payé, puis la rangée s'ouvre)
-    if (gainType === 'card' && (spendType === 'credit' || spendType === 'energy')) {
-      const trade = ResourceSystem.tradeForCard(game, currentPlayer.id, spendType);
-      if (trade.error) {
-        setToast({ message: trade.error, visible: true });
-        return;
-      }
-      setGame(trade.updatedGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(trade.updatedGame);
-      const sequenceId = `trade-${uniqueId()}`;
-      trade.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
-      handleNewInteractions(trade.newPendingInteractions, sequenceId);
-      return;
-    }
-
-    const result = ResourceSystem.tradeResources(game, currentPlayer.id, spendType, gainType);
+  useAITurn(game, !!localMode || passModalState.visible, (step: RobotStep) => {
+    const result = session.applyRobotStep(step);
+    if (!result) return;
     if (result.error) {
-      setToast({ message: result.error, visible: true });
+      console.error('[AI] Étape refusée :', result.error);
       return;
     }
-    setGame(result.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    setInteractionState({ type: 'IDLE' });
-    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game));
+    showNotifications(result.notifications);
+    if (step.kind === 'END_TURN_DONE') setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
+  });
+
+  // --- Tour ---
+
+  const handleNextPlayer = () => {
+    if (!game || !GameSession.canEndTurn(game)) {
+      setToast({ message: "Terminez d'abord l'action en cours avant de finir votre tour.", visible: true });
+      return;
+    }
+    const before = game.currentPlayerIndex;
+    if (run({ type: 'END_TURN' }) && gameRef.current?.currentPlayerIndex !== before) {
+      setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
+    }
   };
 
-  // Gestionnaire pour la sélection d'une carte de la pioche ou de la rangée principale
-  const handleCardRowClick = (cardId?: string) => { // cardId undefined means deck
+  /** Passer : la main est ramenée à 4 cartes, puis la carte de manche est choisie s'il y en a */
+  const startPass = (cardsToKeep: string[]) => {
     if (!game) return;
+    const roundDeck = game.decks.roundDecks[game.currentRound];
+    if (roundDeck && roundDeck.length > 0) {
+      setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
+    } else {
+      run({ type: 'PASS', cardsToKeep });
+    }
+  };
 
-    // Cas 1: Sélection pour 2eme action scan
-    if (interactionState.type === 'SELECTING_SCAN_CARD') {
-      if (!cardId) return; // Cannot select deck for scan color
-      
-      // La carte est défaussée de la rangée, puis le secteur de sa couleur est à choisir (même règle que pour les robots)
-      const result = InteractionChoices.selectScanCard(game, interactionState, cardId);
-      if (result.error) return;
+  // --- Sélection de cartes de la main ---
 
-      setGame(result.updatedGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
+  const toggle = (selected: string[], cardId: string, max: number) =>
+    selected.includes(cardId) ? selected.filter(id => id !== cardId) : max === 1 ? [cardId] : selected.length < max ? [...selected, cardId] : selected;
 
-      const [scanSector] = result.newPendingInteractions;
-      setTimeout(() => setInteractionState(scanSector), 200);
+  const handleCardClick = (cardId: string) => {
+    if (!game) return;
+    if (localMode?.type === 'DISCARDING_CARD') {
+      const max = CardSystem.cardsToDiscardAtPass(actingPlayer(game));
+      setLocalMode({ ...localMode, selectedCards: toggle(localMode.selectedCards, cardId, Math.max(max, 2)).slice(0, max) });
+    } else if (localMode?.type === 'TRADING_CARD') {
+      setLocalMode({ ...localMode, selectedCards: toggle(localMode.selectedCards, cardId, Math.max(localMode.count, 2)).slice(0, localMode.count) });
+    } else if (interactionState.type === 'RESERVING_CARD' || interactionState.type === 'DISCARDING_FOR_SIGNAL') {
+      setSelection(toggle(selection, cardId, interactionState.count));
+    }
+  };
 
-    // Cas 2: Sélection pour achat ou gain de carte (bonus)
-    } else if (interactionState.type === 'ACQUIRING_CARD') {
-        const currentPlayer = actingPlayer(game);
+  // Confirmer la défausse : fin de manche (mode local), ou défausse pour signaux (interaction de la partie)
+  const handleConfirmDiscard = () => {
+    if (!game) return;
+    if (localMode?.type === 'DISCARDING_CARD') {
+      const hand = CardSystem.getHandCards(game.players[game.currentPlayerIndex]);
+      const cardsToKeep = hand.filter(c => !localMode.selectedCards.includes(c.id)).map(c => c.id);
+      setLocalMode(null);
+      startPass(cardsToKeep);
+    } else if (interactionState.type === 'DISCARDING_FOR_SIGNAL') {
+      choose({ kind: 'CARDS', cardIds: selection });
+    }
+  };
 
-        const sequenceId = interactionState.sequenceId;
-        const result = InteractionChoices.acquireCard(game, currentPlayer.id, interactionState, cardId);
-        if (result.error) {
-          setToast({ message: result.error, visible: true });
-          // On reste dans l'état ACQUIRING_CARD pour permettre de réessayer ou d'annuler via l'overlay
+  const handleConfirmReservation = (cardIds?: string[]) => {
+    if (interactionState.type !== 'RESERVING_CARD') return;
+    const cards = cardIds ?? selection;
+    if (cards.length > 0) choose({ kind: 'CARDS', cardIds: cards });
+  };
+
+  const handleTradeCardAction = (targetGain?: string) => {
+    if (interactionState.type !== 'IDLE' || !targetGain) return;
+    setLocalMode({ type: 'TRADING_CARD', count: 2, targetGain, selectedCards: [] });
+  };
+
+  const handleConfirmTrade = () => {
+    if (localMode?.type !== 'TRADING_CARD') return;
+    if (run({ type: 'TRADE', spend: 'card', gain: localMode.targetGain, cardIds: localMode.selectedCards })) setLocalMode(null);
+  };
+
+  // --- Actions principales ---
+
+  const handleSectorClick = (sectorId: string) => {
+    if (!game) return;
+    const sector = ScanSystem.getSectorById(game, sectorId);
+    if (!sector) return;
+    const nextSignal = sector.signals.find(s => !s.marked);
+
+    if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
+      const dataGain = nextSignal && nextSignal.type !== SignalType.OTHER && !interactionState.noData ? 1 : 0;
+      checkDataLimitAndProceed(dataGain, () => choose({ kind: 'SECTOR', sectorId }));
+    } else if (interactionState.type === 'IDLE' && !game.players[game.currentPlayerIndex].hasPerformedMainAction) {
+      // Clic direct sur un secteur : raccourci de l'action Scanner
+      const dataGain = nextSignal && nextSignal.type !== SignalType.OTHER ? 1 : 0;
+      checkDataLimitAndProceed(dataGain, () => run({ type: 'SCAN', sectorId }));
+    }
+  };
+
+  const handleAction = (actionType: ActionType) => {
+    if (!game || interactionState.type !== 'IDLE') return;
+    const currentPlayer = game.players[game.currentPlayerIndex];
+
+    switch (actionType) {
+      case ActionType.LAUNCH_PROBE:
+        run({ type: 'LAUNCH_PROBE' });
+        break;
+      case ActionType.SCAN_SECTOR:
+        run({ type: 'SCAN' });
+        break;
+      case ActionType.ORBIT:
+        setActionFocus('orbit');
+        setToast({ message: "Veuillez sélectionner un emplacement d'orbite sur une planète.", visible: true });
+        break;
+      case ActionType.LAND:
+        setActionFocus('land');
+        setToast({ message: "Veuillez sélectionner un emplacement d'atterrissage sur une planète.", visible: true });
+        break;
+      case ActionType.PLAY_CARD:
+        setActionFocus('card');
+        setToast({ message: "Veuillez sélectionner une carte.", visible: true });
+        break;
+      case ActionType.RESEARCH_TECH:
+        run({ type: 'RESEARCH_TECH' });
+        break;
+      case ActionType.ANALYZE_DATA: {
+        const validation = ActionValidator.validateAction(game, new AnalyzeDataAction(currentPlayer.id));
+        if (!validation.valid) {
+          setToast({ message: validation.errors[0]?.message || "Analyse impossible", visible: true });
           return;
         }
-        setGame(result.updatedGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-        if (result.newPendingInteractions.length > 0) {
-          setPendingInteractions(prev => [...result.newPendingInteractions, ...prev]);
+        // Animation de l'analyse, puis la commande
+        setLocalMode({ type: 'ANALYZING' });
+        setTimeout(() => {
+          setLocalMode(null);
+          run({ type: 'ANALYZE' });
+        }, 1500);
+        break;
+      }
+      case ActionType.PASS: {
+        const handSize = CardSystem.getHandCards(currentPlayer).length;
+        const toDiscard = CardSystem.cardsToDiscardAtPass(currentPlayer);
+        if (toDiscard > 0) {
+          // Avertir avant de passer : le joueur ne jouera plus de la manche et perdra des cartes
+          setConfirmModalState({
+            visible: true,
+            cardId: null,
+            message: `Passer définitivement ? Vous ne pourrez plus agir avant la prochaine manche. Vous avez ${handSize} cartes en main : vous devrez en défausser ${toDiscard} pour n'en garder que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}.`,
+            onConfirm: () => {
+              setLocalMode({ type: 'DISCARDING_CARD', count: toDiscard, selectedCards: [] });
+              setToast({ message: `Veuillez défausser pour ne garder que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} cartes en main.`, visible: true });
+            }
+          });
+          return;
         }
-        // Pour l'achat normal, l'annulation revient à IDLE (pas à la sélection)
-        const undoState: InteractionState = !interactionState.isFree ? { type: 'IDLE' } : interactionState;
-        result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undoState, sequenceId));
-
-        // Cartes restantes à prendre : la même interaction continue
-        setInteractionState(result.nextInteraction ?? { type: 'IDLE' });
+        startPass(CardSystem.getHandCards(currentPlayer).map(c => c.id));
+        break;
+      }
     }
   };
 
-  // Gestionnaire pour l'échange de cartes contre des resources crédit/énergie
-  const handleTradeCardAction = (targetGain?: string) => {
-    if (interactionState.type !== 'IDLE') return;
-    if (!targetGain) return;
-
-    setInteractionState({ type: 'TRADING_CARD', count: 2, targetGain, selectedCards: [] });
-  }
-
-  // Gestionnaire unifié pour les échanges
-  const handleConfirmTrade = () => {
+  const handlePlayCardRequest = (cardId: string, force: boolean = false) => {
     if (!game) return;
+    const card = game.players[game.currentPlayerIndex].cards.find(c => c.id === cardId);
+    if (!card) return;
+    if (!force && checkBonusAndConfirm(CardSystem.previewImmediateBonuses(card), () => handlePlayCardRequest(cardId, true), cardId)) return;
+    run({ type: 'PLAY_CARD', cardId });
+  };
 
-    if (interactionState.type !== 'TRADING_CARD') return;
-    const currentPlayer = game.players[game.currentPlayerIndex];
+  // --- Planètes et sondes ---
 
-    const result = ResourceSystem.tradeResources(game, currentPlayer.id, 'card', interactionState.targetGain, interactionState.selectedCards);
-    if (result.error) {
-      setToast({ message: result.error, visible: true });
+  /** Orbite ou atterrissage : retrait (cartes 15, 84), placement bonus, ou action principale */
+  const handlePlanetPlacement = (kind: 'orbit' | 'land', planetId: string, slotIndex?: number) => {
+    if (!game) return;
+    if (interactionState.type === (kind === 'orbit' ? 'REMOVING_ORBITER' : 'REMOVING_LANDER')) {
+      choose({ kind: 'PLANET', planetId, slotIndex });
       return;
     }
-    setGame(result.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    setInteractionState({ type: 'IDLE' });
-    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, { type: 'IDLE' }));
-  };
+    if (!ProbeSystem.findProbeAtPlanet(game, actingPlayer(game).id, planetId)) return;
 
-  // Gestionnaire pour le clic sur une planète (ex: Terre pour lancer une sonde)
+    const execute = () => {
+      const bonusPlacement = interactionState.type === (kind === 'orbit' ? 'ORBITING_PROBE' : 'LANDING_PROBE');
+      const done = bonusPlacement
+        ? choose({ kind: 'PLANET', planetId, slotIndex })
+        : run(kind === 'orbit' ? { type: 'ORBIT', planetId } : { type: 'LAND', planetId, slotIndex });
+      if (done && !gameRef.current?.interaction) {
+        setToast({ message: kind === 'orbit' ? 'Sonde mise en orbite' : 'Atterrissage réussi', visible: true });
+      }
+    };
+
+    // Avertissement si le bonus de l'emplacement serait perdu
+    const bonus = slotIndex !== undefined ? ProbeSystem.getSlotBonus(game, planetId, kind, slotIndex) : undefined;
+    if (bonus && checkBonusAndConfirm(bonus, execute)) return;
+    execute();
+  };
+  const handleOrbit = (planetId: string, slotIndex?: number) => handlePlanetPlacement('orbit', planetId, slotIndex);
+  const handleLand = (planetId: string, slotIndex?: number) => handlePlanetPlacement('land', planetId, slotIndex);
+
   const handlePlanetClick = (planetId: string) => {
-    if (!gameEngineRef.current) return;
-    if (interactionState.type === 'REMOVING_ORBITER') {
-        handleOrbit(planetId);
-    } else if (interactionState.type === 'REMOVING_LANDER') {
-        handleLand(planetId);
-    } else if (planetId === 'earth') {
-        if (!gameRef.current) return;
-        gameEngineRef.current.setState(gameRef.current);
-        const action = new LaunchProbeAction(currentPlayer.id);
-        const result = gameEngineRef.current.executeAction(action);
-        if (result.success && result.updatedState) {
-          setGame(result.updatedState);
-          action.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, gameRef.current ?? undefined, undefined, entry.sequenceId));
-          handleNewInteractions(action.newPendingInteractions, action.historyEntries[0]?.sequenceId);
-        } else {
-          setToast({ message: result.error || 'Impossible de lancer une sonde', visible: true });
-        }
-    }
+    if (interactionState.type === 'REMOVING_ORBITER') handleOrbit(planetId);
+    else if (interactionState.type === 'REMOVING_LANDER') handleLand(planetId);
+    else if (planetId === 'earth') run({ type: 'LAUNCH_PROBE' });
   };
 
-  // Fonction interne pour traiter l'achat (commune à l'achat direct et après sélection)
-  const processTechPurchase = (tech: Technology, targetComputerCol?: number, noTileBonus?: boolean, baseGame?: Game, sequenceId: string | undefined = interactionState.sequenceId) => {
-    if (!game || !gameRef.current) return;
-
-    const currentGame = baseGame || gameRef.current;
-    const currentPlayer = actingPlayer(currentGame);
-
-    // Mettre à jour GameEngine
-    const result = TechnologySystem.acquireTechnology(currentGame, currentPlayer.id, tech, targetComputerCol, noTileBonus);
-
-    // Finaliser la transaction
-    setGame(result.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, currentGame, undefined, sequenceId));
-
-    if (result.newPendingInteractions && result.newPendingInteractions.length > 0) {
-        const interactionsWithSeqId = result.newPendingInteractions.map(i => ({ ...i, sequenceId }));
-        handleNewInteractions(interactionsWithSeqId, sequenceId);
-    } else {
-        setInteractionState({ type: 'IDLE' });
-    }
+  const handleMascamiteClick = (planetId: string, tokenIndex: number) => {
+    if (interactionState.type !== 'COLLECTING_SPECIMEN' && interactionState.type !== 'CONSULTING_SPECIMEN') return;
+    choose({ kind: 'SPECIMEN', planetId, tokenIndex });
   };
 
-  // Gestionnaire pour l'achat de technologie (clic initial)
-  const handleTechClick = (tech: Technology) => {
-    if (!game) return;
-
-    // Cas 1: Mode recherche actif ou bonus
-    if (interactionState.type === 'ACQUIRING_TECH') {
-      // Même règle que pour les robots : technologie autorisée, puis colonne d'ordinateur pour une Informatique
-      applyTechChoice(InteractionChoices.acquireTech(game, actingPlayer(game).id, interactionState, tech));
-    } else if (interactionState.type === 'IDLE') {
-      // Cas 2: Clic direct depuis IDLE (Raccourci Action Recherche)
-      const playerId = game.players[game.currentPlayerIndex].id;
-      const action = new ResearchTechAction(playerId);
-      const validation = ActionValidator.validateAction(game, action);
-      if (!validation.valid) {
-        setToast({ message: validation.errors[0]?.message || "Recherche impossible", visible: true });
+  /** Déplacement d'une sonde case par case (déplacements gratuits d'abord, puis énergie), animé */
+  const handleProbeMove = async (probeId: string, path: string[]) => {
+    for (let i = 1; i < path.length; i++) {
+      const cellKey = path[i];
+      if (!run({ type: 'MOVE_PROBE', probeId, disk: cellKey[0] as DiskName, sector: parseInt(cellKey.substring(1)) as SectorNumber })) break;
+      // Carte 19 : le choix Média / déplacement interrompt le chemin
+      if (gameRef.current?.interaction?.type === 'CHOOSING_MEDIA_OR_MOVE') {
+        if (i < path.length - 1) setToast({ message: "Déplacement interrompu. Choisissez un bonus.", visible: true });
         return;
       }
-
-      // Paiement + rotation via l'action moteur (marque aussi l'action principale)
-      const engine = new GameEngine(game);
-      const result = engine.executeAction(action);
-      if (!result.success || !result.updatedState) {
-        setToast({ message: result.error || "Recherche impossible", visible: true });
-        return;
-      }
-      const updatedGame = result.updatedState;
-      const sequenceId = action.historyEntries[0]?.sequenceId || `tech-${uniqueId()}`;
-      action.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
-
-      if (tech.type === TechnologyCategory.COMPUTING) {
-        // Sélection du slot
-        setGame(updatedGame);
-        if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
-        setInteractionState({ type: 'SELECTING_COMPUTER_SLOT', tech, sequenceId });
-      } else {
-        // Finaliser l'achat
-        processTechPurchase(tech, undefined, false, updatedGame, sequenceId);
-      }
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    const moving = gameRef.current?.interaction;
+    if (moving?.type === 'MOVING_PROBE') {
+      setToast({ message: `Encore ${moving.count} déplacement${moving.count > 1 ? 's' : ''} gratuit${moving.count > 1 ? 's' : ''}. Sélectionnez une sonde à déplacer.`, visible: true });
     }
   };
 
-  // Gestionnaire pour la sélection de la colonne ordinateur
-  const handleComputerColumnSelect = (col: number) => {
-    if (!game) return;
-    if (interactionState.type !== 'SELECTING_COMPUTER_SLOT') return;
-
-    // Clic hors des colonnes prévues pour une technologie : ignoré sans message
-    if (!ComputerSystem.TECH_COLUMNS.includes(col)) return;
-
-    // Finaliser l'achat (le renoncement au bonus de tuile suit l'interaction)
-    const currentGame = gameRef.current ?? game;
-    applyTechChoice(InteractionChoices.acquireTech(currentGame, actingPlayer(currentGame).id, interactionState, interactionState.tech, col), currentGame);
-  };
-
-  /** Applique le résultat d'un choix de technologie (ou ouvre le choix de la colonne d'ordinateur) */
-  const applyTechChoice = (result: ChoiceResult, baseGame: Game | null = game) => {
-    if (!baseGame) return;
-    if (result.error) {
-      setToast({ message: result.error, visible: true });
-      return;
-    }
-    const sequenceId = interactionState.sequenceId;
-    if (result.updatedGame === baseGame) {
-      setInteractionState(result.newPendingInteractions[0] ?? { type: 'IDLE' });
-      return;
-    }
-    setGame(result.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    result.historyEntries.forEach(entry => addToHistory(entry.message, entry.playerId, baseGame, undefined, entry.sequenceId || sequenceId));
-    if (!handleNewInteractions(result.newPendingInteractions, sequenceId)) setInteractionState({ type: 'IDLE' });
-  };
-
-  // Gestionnaire pour les bonus ordinateur (déclenché depuis PlayerBoardUI)
-  const handleComputerBonus = (interactions: InteractionState[], sequenceId: string) => {
-    handleNewInteractions(interactions, sequenceId);
-  };
-
-  // Gestionnaire pour le clic sur un objectif (placement de marqueur de palier)
-  const handleObjectiveClick = (tileId: string) => {
-    if (!game) return;
-    if (interactionState.type !== 'PLACING_OBJECTIVE_MARKER') return;
-
-    const playerId = game.players[game.currentPlayerIndex].id;
-
-    // Appel métier
-    const result = InteractionChoices.placeObjectiveMarker(game, playerId, interactionState, tileId);
-    if (result.error) {
-      setToast({ message: result.error, visible: true });
-      return;
-    }
-
-    setGame(result.updatedGame);
-    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, interactionState, e.sequenceId));
-    setInteractionState({ type: 'IDLE' });
-
-    // Continuer la fin de tour
-    continueEndOfTurn();
-  };
-
-  // Gestionnaire pour le clic sur le background
   const handleBackgroundClick = () => {
     setActionFocus(null);
-    if (interactionState.type === 'MOVING_PROBE') {
-      setInteractionState({ type: 'IDLE' });
-    }
-  }
+    if (interactionState.type === 'MOVING_PROBE') run({ type: 'SKIP' });
+  };
 
-  // Gestionnaire pour le clic sur une mission ou sur une playedCard (centaurien)
+  // --- Cartes, technologies, objectifs ---
+
+  const handleCardRowClick = (cardId?: string) => { // cardId absent : la pioche
+    if (interactionState.type === 'SELECTING_SCAN_CARD') {
+      if (cardId) choose({ kind: 'CARD', cardId });
+    } else if (interactionState.type === 'ACQUIRING_CARD') {
+      choose({ kind: 'CARD', cardId });
+    }
+  };
+
+  const handleTechClick = (tech: Technology) => {
+    if (interactionState.type === 'ACQUIRING_TECH') choose({ kind: 'TECH', techId: tech.id });
+    else if (interactionState.type === 'IDLE') run({ type: 'RESEARCH_TECH', techId: tech.id });
+  };
+
+  const handleComputerColumnSelect = (column: number) => {
+    if (interactionState.type !== 'SELECTING_COMPUTER_SLOT' || !ComputerSystem.TECH_COLUMNS.includes(column)) return;
+    choose({ kind: 'COMPUTER_COLUMN', column });
+  };
+
+  const handleObjectiveClick = (tileId: string) => {
+    if (interactionState.type === 'PLACING_OBJECTIVE_MARKER') choose({ kind: 'OBJECTIVE', tileId });
+  };
+
+  const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType, slotType: LifeTraceLocation, slotIndex?: number) => {
+    if (interactionState.type === 'PLACING_LIFE_TRACE') choose({ kind: 'LIFE_TRACE', boardIndex, color, slotType, slotIndex });
+  };
+
+  const handleSpeciesCardClick = (speciesId: string, cardId: string) => {
+    if (interactionState.type === 'ACQUIRING_ALIEN_CARD' && interactionState.speciesId === speciesId) choose({ kind: 'ALIEN_CARD', cardId });
+  };
+
+  const handleCentaurienRewardClick = (tokenIndex: number) => {
+    if (interactionState.type === 'CHOOSING_CENTAURIEN_REWARD') choose({ kind: 'CENTAURIEN', tokenIndex });
+  };
+
+  const handleExertienCardChoice = (cardId?: string) => {
+    if (interactionState.type === 'CHOOSING_EXERTIEN_CARD') choose({ kind: 'EXERTIEN', cardId });
+  };
+
+  const handleMenuChoice = (index: number) => {
+    if (interactionState.type === 'CHOOSING_BONUS_ACTION') choose({ kind: 'MENU', index });
+  };
+
+  // --- Actions gratuites ---
+
+  const handleDiscardCardAction = (cardId: string) => {
+    if (interactionState.type === 'IDLE') run({ type: 'DISCARD_FOR_FREE_ACTION', cardId });
+  };
+
+  const handleBuyCardAction = () => {
+    if (interactionState.type === 'IDLE') run({ type: 'BUY_CARD' });
+  };
+
+  const handleDirectTrade = (spend: string, gain: string) => {
+    if (interactionState.type === 'IDLE') run({ type: 'TRADE', spend, gain });
+  };
+
+  const handleTransferData = (slotId: string) => {
+    if (interactionState.type === 'IDLE') run({ type: 'TRANSFER_DATA', slotId });
+  };
+
   const handleMissionClick = (missionId: string, requirementId: string) => {
-    if (!game) return;
-    setInteractionState({ type: 'CLAIMING_MISSION_REQUIREMENT', missionId, requirementId });
+    run({ type: 'CLAIM_MISSION', missionId, requirementId });
+  };
+
+  // Partie chargée ou nouvelle partie
+  const handleLoadGame = (loaded: Game, log = historyLog.slice(0, 0)) => {
+    resetInterface();
+    showNotifications(session.load(loaded, log).notifications);
   };
 
   // Si le jeu n'est pas initialisé, afficher uniquement les modales de démarrage
   if (!game) {
     return (
       <div className="seti-root">
-        <SettingsModal 
+        <SettingsModal
           visible={settingsVisible}
           setVisible={setSettingsVisible}
           game={game}
-          setGame={(newGame) => { setGame(newGame); if (gameEngineRef.current) gameEngineRef.current.setState(newGame); }}
-          gameEngineRef={gameEngineRef}
           historyLog={historyLog}
-          setHistoryLog={setHistoryLog}
-          setInteractionState={setInteractionState}
-          setPendingInteractions={setPendingInteractions}
+          onLoadGame={handleLoadGame}
           setToast={setToast}
           showDebug={showDebug}
           setShowDebug={setShowDebug}
@@ -1588,20 +511,17 @@ export const BoardUI: React.FC = () => {
       {showDebug && (
         <DebugPanel
           game={game}
-          setGame={(newGame) => {
-            setGame(newGame);
-            if (gameEngineRef.current) gameEngineRef.current.setState(newGame);
-          }}
-          onHistory={addToHistory}
+          setGame={(newGame) => session.replace(newGame, 'DEBUG : partie modifiée', currentPlayer.id)}
+          onHistory={(message) => setToast({ message, visible: true })}
           interactionState={interactionState}
           onClose={() => setShowDebug(false)}
         />
       )}
 
       {activeTooltip && (
-        <Tooltip 
-          content={activeTooltip.content} 
-          targetRect={activeTooltip.rect} 
+        <Tooltip
+          content={activeTooltip.content}
+          targetRect={activeTooltip.rect}
           pointerEvents={activeTooltip.pointerEvents}
           onMouseEnter={activeTooltip.onMouseEnter}
           onMouseLeave={activeTooltip.onMouseLeave}
@@ -1613,10 +533,9 @@ export const BoardUI: React.FC = () => {
         visible={passModalState.visible}
         cards={passModalState.cards}
         onConfirm={(selectedCardId) => {
-          const currentPlayer = game.players[game.currentPlayerIndex];
           const cardsToKeep = passModalState.cardsToKeep || CardSystem.getHandCards(currentPlayer).map(c => c.id);
-          performPass(cardsToKeep, selectedCardId);
           setPassModalState({ visible: false, cards: [], selectedCardId: null });
+          run({ type: 'PASS', cardsToKeep, roundCardId: selectedCardId });
         }}
         currentRound={game.currentRound}
       />
@@ -1638,7 +557,7 @@ export const BoardUI: React.FC = () => {
       {/* Défausse de fin de manche (garder 4 cartes) : action gratuite en surbrillance */}
       {interactionState.type === 'DISCARDING_CARD' && actingPlayer(game).type === 'human' && (() => {
         const hand = CardSystem.getHandCards(actingPlayer(game));
-        const toDiscard = Math.max(0, hand.length - GAME_CONSTANTS.HAND_SIZE_AFTER_PASS);
+        const toDiscard = CardSystem.cardsToDiscardAtPass(actingPlayer(game));
         return (
           <CardPickModal
             title={`Défaussez ${toDiscard} carte${toDiscard > 1 ? 's' : ''}`}
@@ -1668,7 +587,7 @@ export const BoardUI: React.FC = () => {
           confirmLabel="Échanger"
           canConfirm={interactionState.selectedCards.length === interactionState.count}
           onConfirm={handleConfirmTrade}
-          onCancel={() => setInteractionState({ type: 'IDLE' })}
+          onCancel={() => setLocalMode(null)}
         />
       )}
 
@@ -1690,17 +609,17 @@ export const BoardUI: React.FC = () => {
 
       {/* Modale de choix Média ou Déplacement (Carte 19) */}
       {interactionState.type === 'CHOOSING_MEDIA_OR_MOVE' && (
-        <MediaOrMoveModal onChoice={handleMediaOrMoveChoice} />
+        <MediaOrMoveModal onChoice={(choice: 'MEDIA' | 'MOVE') => choose({ kind: 'MEDIA_OR_MOVE', choice })} />
       )}
 
       {/* Modale pour Observation 2 (Scanner un secteur) */}
       {interactionState.type === 'CHOOSING_OBS2_ACTION' && (
-        <Observation2Modal onChoice={handleObs2Choice} />
+        <Observation2Modal onChoice={(accepted: boolean) => choose({ kind: 'ACCEPT', accepted })} />
       )}
 
       {/* Modale pour Observation 3 (Scanner un secteur) */}
       {interactionState.type === 'CHOOSING_OBS3_ACTION' && (
-        <Observation3Modal onChoice={handleObs3Choice} />
+        <Observation3Modal onChoice={(accepted: boolean) => choose({ kind: 'ACCEPT', accepted })} />
       )}
 
       {/* Modale pour Observation 4 (Scanner un secteur) */}
@@ -1708,7 +627,7 @@ export const BoardUI: React.FC = () => {
         const canLaunch = currentPlayer.energy >= 1 && ProbeSystem.canLaunchProbe(game, currentPlayer.id, false).canLaunch;
         const canMove = currentPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
         return (
-          <Observation4Modal onChoice={handleObs4Choice} canLaunch={canLaunch} canMove={canMove} />
+          <Observation4Modal onChoice={(choice: 'PROBE' | 'MOVE') => choose({ kind: 'OBS4', choice })} canLaunch={canLaunch} canMove={canMove} />
         );
       })()}
 
@@ -1716,7 +635,7 @@ export const BoardUI: React.FC = () => {
       <BonusChoiceModal
         interactionState={interactionState}
         onChoice={handleMenuChoice}
-        onFinish={() => setInteractionState({ type: 'IDLE' })}
+        onFinish={() => run({ type: 'SKIP' })}
       />
 
       {/* Alien Discovery Notification */}
@@ -1754,16 +673,12 @@ export const BoardUI: React.FC = () => {
         }}
       />
 
-      <SettingsModal 
+      <SettingsModal
         visible={settingsVisible}
         setVisible={setSettingsVisible}
         game={game}
-        setGame={(newGame) => { setGame(newGame); if (gameEngineRef.current) gameEngineRef.current.setState(newGame); }}
-        gameEngineRef={gameEngineRef}
         historyLog={historyLog}
-        setHistoryLog={setHistoryLog}
-        setInteractionState={setInteractionState}
-        setPendingInteractions={setPendingInteractions}
+        onLoadGame={handleLoadGame}
         setToast={setToast}
         showDebug={showDebug}
         setShowDebug={setShowDebug}
@@ -1788,11 +703,9 @@ export const BoardUI: React.FC = () => {
               onBuyCardAction={handleBuyCardAction}
               onDirectTradeAction={handleDirectTrade}
               onPlayCard={handlePlayCardRequest}
-              onGameUpdate={(newGame) => { setGame(newGame); if (gameEngineRef.current) gameEngineRef.current.setState(newGame); }}
+              onTransferData={handleTransferData}
               onComputerSlotSelect={handleComputerColumnSelect}
               onNextPlayer={handleNextPlayer}
-              onHistory={(message, sequenceId) => addToHistory(message, game.players[game.currentPlayerIndex].id, game, undefined, sequenceId)}
-              onComputerBonus={handleComputerBonus}
               setActiveTooltip={setActiveTooltip}
               onSettingsClick={() => setSettingsVisible(true)}
               onMissionClick={handleMissionClick}
@@ -1863,7 +776,7 @@ export const BoardUI: React.FC = () => {
             historyLog={historyLog}
             game={game}
             onUndo={handleUndo}
-            onUndoTurn={turnUndoPoint ? handleUndoTurn : undefined}
+            onUndoTurn={session.canUndoTurn(humanPlayerId) ? handleUndoTurn : undefined}
             setActiveTooltip={setActiveTooltip}
           />
 

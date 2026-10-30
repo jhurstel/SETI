@@ -13,7 +13,6 @@ import { TechSpot } from './components/TechSpot';
 import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
-import { uniqueId } from '../core/ids';
 import './PlayerBoardUI.css';
 
 interface PlayerBoardUIProps {
@@ -27,11 +26,10 @@ interface PlayerBoardUIProps {
   onPlayCard: (cardId: string) => void;
   onBuyCardAction: () => void;
   onTradeCardAction: (targetGain?: string) => void;
-  onGameUpdate: (game: Game) => void;
+  /** Transfert d'une donnée sur une case de l'ordinateur (commande TRANSFER_DATA) */
+  onTransferData: (slotId: string) => void;
   onComputerSlotSelect: (col: number) => void;
   onNextPlayer: () => void;
-  onHistory: (message: string, sequenceId?: string) => void;
-  onComputerBonus: (interactions: InteractionState[], sequenceId: string) => void;
   onDirectTradeAction: (spendType: string, gainType: string) => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
   onSettingsClick: () => void;
@@ -210,7 +208,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onGameUpdate, onComputerSlotSelect, onNextPlayer, onHistory, onComputerBonus, onDirectTradeAction, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction, highlightPlayableCards = false }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onTransferData, onComputerSlotSelect, onNextPlayer, onDirectTradeAction, setActiveTooltip, onSettingsClick, onMissionClick, onConfirmAction, highlightPlayableCards = false }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -295,15 +293,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     if (isRobot) return;
     if (isInteractiveMode && !isSelectingComputerSlot) return;
 
-    const executeFillSlot = () => {
-      const sequenceId = `computer-${uniqueId()}`;
-      const { updatedGame, historyEntries, newPendingInteractions } = ComputerSystem.transferData(game, currentPlayer.id, slotId, sequenceId);
-      if (updatedGame === game) return;
-
-      if (newPendingInteractions.length > 0) onComputerBonus(newPendingInteractions, sequenceId);
-      if (onHistory) historyEntries.forEach(e => onHistory(e.message, sequenceId));
-      if (onGameUpdate) onGameUpdate(updatedGame);
-    };
+    const executeFillSlot = () => onTransferData(slotId);
 
     const slot = currentPlayer.dataComputer.slots[slotId];
     if (slot && slot.bonus === 'media') {

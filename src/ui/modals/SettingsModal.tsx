@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AIDifficulty, Game, HistoryEntry, InteractionState } from '../../core/types';
+import { AIDifficulty, Game, HistoryEntry } from '../../core/types';
 import { GameFactory } from '../../core/GameFactory';
-import { GameEngine } from '../../core/Game';
 import { NewGameModal } from './NewGameModal';
 import { serializeGame, deserializeGame, SaveVersionError } from '../../core/GamePersistence';
 import { readAutosave } from '../hooks/useAutosave';
@@ -19,12 +18,9 @@ interface SettingsModalProps {
   visible: boolean;
   setVisible: (visible: boolean) => void;
   game: Game | null;
-  setGame: (game: Game) => void;
-  gameEngineRef: React.MutableRefObject<GameEngine | null>;
   historyLog: HistoryEntry[];
-  setHistoryLog: React.Dispatch<React.SetStateAction<HistoryEntry[]>>;
-  setInteractionState: (state: InteractionState) => void;
-  setPendingInteractions: (interactions: InteractionState[]) => void;
+  /** Nouvelle partie ou partie chargée, avec son journal (la session la démarre) */
+  onLoadGame: (game: Game, historyLog?: HistoryEntry[]) => void;
   setToast: (toast: { message: string; visible: boolean } | null) => void;
   /** Réglage « Outils de débogage » */
   showDebug: boolean;
@@ -35,12 +31,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   visible, 
   setVisible, 
   game, 
-  setGame, 
-  gameEngineRef, 
-  historyLog, 
-  setHistoryLog, 
-  setInteractionState, 
-  setPendingInteractions, 
+  historyLog,
+  onLoadGame,
   setToast,
   showDebug,
   setShowDebug
@@ -56,13 +48,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // Restaure une partie sauvegardée (fichier ou sauvegarde automatique)
   const applySavedGame = (json: string) => {
       const { game: loadedGame, historyLog: loadedLog } = deserializeGame(json);
-      setGame(loadedGame);
-      if (gameEngineRef.current) {
-          gameEngineRef.current.setState(loadedGame);
-      } else {
-          gameEngineRef.current = new GameEngine(loadedGame);
-      }
-      setHistoryLog(loadedLog);
+      onLoadGame(loadedGame, loadedLog);
       setVisible(false);
   };
 
@@ -91,30 +77,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           newGame = GameFactory.initializeGame(newGame);
           
-          setGame(newGame);
-          if (gameEngineRef.current) {
-              gameEngineRef.current.setState(newGame);
-          } else {
-              gameEngineRef.current = new GameEngine(newGame);
-          }
-          
-          // Reset logs and history
-          if (newGame.gameLog && newGame.gameLog.length > 0) {
-            setHistoryLog(newGame.gameLog.map(log => ({
-              id: log.id,
-              message: log.message,
-              playerId: log.playerId ?? "",
-              timestamp: log.timestamp,
-              previousInteractionState: { type: 'IDLE' },
-              previousPendingInteractions: [],
-              sequenceId: log.sequenceId,
-              previousState: log.previousState
-            })));
-          } else {
-            setHistoryLog([]);
-          }
-          setInteractionState({ type: 'IDLE' });
-          setPendingInteractions([]);
+          // Journal de départ : les entrées de mise en place écrites par la partie
+          onLoadGame(newGame, (newGame.gameLog || []).map(log => ({
+            id: log.id,
+            message: log.message,
+            playerId: log.playerId ?? "",
+            timestamp: log.timestamp,
+            sequenceId: log.sequenceId,
+          })));
           
           setNewGameModalVisible(false);
           setToast({ message: "Nouvelle partie commencée !", visible: true });
