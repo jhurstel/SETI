@@ -391,6 +391,11 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
 .seti-score-table td.detail {
   color: #aaa;
 }
+/* Calcul dans une cellule de texte (pénalité) : même aspect que la colonne de calcul */
+.seti-score-table .seti-score-calc {
+  color: #aaa;
+  font-size: 0.85em;
+}
 .seti-score-table td.value {
   text-align: right;
   font-weight: bold;

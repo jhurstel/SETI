@@ -168,7 +168,7 @@ export const BonusChoiceModal = ({ interactionState, onChoice, onFinish }: { int
 
 /** Infobulle d'une case du décompte : une ligne par élément, puis le total */
 /** Ligne d'un tableau de décompte : libellé, calcul éventuel, valeur */
-type ScoreRow = { label: string; detail?: string; value: string; negative?: boolean };
+type ScoreRow = { label: string; detail?: string; value: string; negative?: boolean; calc?: string };
 
 /** « Libellé : 3 × 5 PV = 15 PV » → libellé, calcul « 3 × 5 PV », valeur « 15 PV » (détails enregistrés en texte par le moteur) */
 const parseDetail = (line: string): ScoreRow => {
@@ -195,7 +195,7 @@ const ScoreTable = ({ title, rows, total, empty = 'Aucun', typeColumn = false }:
         {rows.map((row, i) => (
           <tr key={i}>
             <td className={typeColumn ? 'detail' : undefined}>{row.label}</td>
-            {withDetail && <td className={typeColumn ? undefined : 'detail'}>{row.detail}</td>}
+            {withDetail && <td className={typeColumn ? undefined : 'detail'}>{row.detail}{row.calc && <span className="seti-score-calc"> {row.calc}</span>}</td>}
             <td className={`value ${row.negative ? 'negative' : ''}`}>{row.value}</td>
           </tr>
         ))}
@@ -228,14 +228,14 @@ const speciesTooltip = (score: FinalScore) => {
     return { label: species, detail: card, value: row.value };
   });
   // Pénalité calculée sur le total avant pénalité
-  if (score.dangerPenalty > 0) cardRows.push({ label: 'Exertiens', detail: `Pénalité −10 % × ${pv(score.finalScore + score.dangerPenalty)}`, value: `−${pv(score.dangerPenalty)}`, negative: true });
+  if (score.dangerPenalty > 0) cardRows.push({ label: 'Exertiens', detail: 'Pénalité', calc: `−10 % × ${pv(score.finalScore + score.dangerPenalty)}`, value: `−${pv(score.dangerPenalty)}`, negative: true });
   // « Carte Navette des Confins : danger 6 », « Marqueur rouge : danger 2 » : type, nom, danger
   // (anciennes sauvegardes : « Marqueurs sur la piste Exertiens : danger 3 », tous marqueurs confondus)
   const dangerRows: ScoreRow[] = (score.details?.danger || []).map(parseDetail).filter(r => !r.negative).map(r => {
     const match = r.label.match(/^(Carte|Marqueurs?)\s+(.*)$/);
     const type = match ? match[1] : '';
     const name = match ? match[2] : r.label;
-    return { label: type === 'Carte' ? 'Carte' : type ? 'Marqueur' : '', detail: name.replace(/^sur la /, ''), value: r.value.replace(/^danger\s*/, '') };
+    return { label: type === 'Carte' ? 'Carte' : type ? 'Marqueur' : '', detail: /piste Exertiens/.test(name) ? 'Plateau Exertien' : name, value: r.value.replace(/^danger\s*/, '') };
   });
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -247,15 +247,14 @@ const speciesTooltip = (score: FinalScore) => {
   );
 };
 
-/** Infobulle du total : somme des colonnes */
+/** Infobulle du total : les 4 colonnes précédentes (Base, Obj., Fin, Esp.) */
 const totalTooltip = (score: FinalScore) => {
   const rows: ScoreRow[] = [
     { label: 'Score avant décompte', value: pv(score.baseScore) },
     { label: 'Tuiles objectif', value: pv(score.categories.objectiveTiles) },
     { label: 'Cartes fin de partie', value: pv(score.categories.missionEndGame) },
-    { label: 'Espèces', value: pv(score.categories.speciesBonuses + score.categories.exertienCards) },
+    { label: 'Espèces', value: pv(score.categories.speciesBonuses + score.categories.exertienCards - score.dangerPenalty) },
   ];
-  if (score.dangerPenalty > 0) rows.push({ label: `Pénalité Exertiens −10 % × ${pv(score.finalScore + score.dangerPenalty)}`, value: `−${pv(score.dangerPenalty)}`, negative: true });
   return <ScoreTable title="Score final" rows={rows} total={pv(score.finalScore)} />;
 };
 
