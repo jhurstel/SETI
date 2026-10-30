@@ -113,7 +113,8 @@ export class AIController {
         const options: (string | undefined)[] = [undefined, ...(player?.cards || []).filter(c => CardSystem.isExertienCard(c)).map(c => c.id)];
         let best: { result: { updatedGame: Game; historyEntries: HistoryEntry[] }; value: number } | null = null;
         for (const cardId of options) {
-            const result = SpeciesSystem.playExertienCard(game, playerId, milestone, cardId);
+            const result = InteractionChoices.playExertienCard(game, playerId, { type: 'CHOOSING_EXERTIEN_CARD', milestone }, cardId);
+            if (result.error) continue;
             const value = AIEvaluator.evaluate(result.updatedGame, playerId);
             if (!best || value > best.value) best = { result, value };
         }
@@ -166,7 +167,11 @@ export class AIController {
                 const row = updatedGame.decks.cardRow;
                 if (row.length > 0) {
                     const randomCard = row[Math.floor(random() * row.length)];
-                    newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: randomCard.scanSector, cardId: randomCard.id, sequenceId });
+                    const res = InteractionChoices.selectScanCard(updatedGame, { ...interaction, sequenceId }, randomCard.id);
+                    if (!res.error) {
+                        updatedGame = res.updatedGame;
+                        newPendingInteractions.push(...res.newPendingInteractions);
+                    }
                 }
                 break;
             }
@@ -196,19 +201,24 @@ export class AIController {
             case 'RESERVING_CARD': {
                 const p = updatedGame.players.find(p => p.id === player.id);
                 const hand = p ? [...CardSystem.getHandCards(p)].sort(() => 0.5 - random()) : [];
-                const res = CardSystem.reserveCards(updatedGame, player.id, hand.slice(0, interaction.count).map(c => c.id), sequenceId);
-                updatedGame = res.updatedGame;
-                historyEntries.push(...res.historyEntries);
+                const res = InteractionChoices.reserveCards(updatedGame, player.id, { ...interaction, sequenceId }, hand.slice(0, interaction.count).map(c => c.id));
+                if (!res.error) {
+                    updatedGame = res.updatedGame;
+                    historyEntries.push(...res.historyEntries);
+                    if (res.nextInteraction) newPendingInteractions.push(res.nextInteraction);
+                }
                 break;
             }
             case 'ACQUIRING_CARD': {
-                for (let i = 0; i < interaction.count; i++) {
-                    const row = updatedGame.decks.cardRow;
-                    const cardId = row.length > 0 && random() > 0.5 ? row[Math.floor(random() * row.length)].id : undefined;
-                    const res = CardSystem.acquireCard(updatedGame, player.id, cardId, { isFree: interaction.isFree, triggerFreeAction: interaction.triggerFreeAction }, sequenceId);
-                    if (res.error) continue;
+                // Une carte de la rangée ou de la pioche ; les cartes restantes suivent (comme pour le joueur humain)
+                const row = updatedGame.decks.cardRow;
+                const cardId = row.length > 0 && random() > 0.5 ? row[Math.floor(random() * row.length)].id : undefined;
+                let res = InteractionChoices.acquireCard(updatedGame, player.id, { ...interaction, sequenceId }, cardId);
+                if (res.error && cardId) res = InteractionChoices.acquireCard(updatedGame, player.id, { ...interaction, sequenceId });
+                if (!res.error) {
                     updatedGame = res.updatedGame;
                     historyEntries.push(...res.historyEntries);
+                    if (res.nextInteraction) newPendingInteractions.push(res.nextInteraction);
                     newPendingInteractions.push(...res.newPendingInteractions);
                 }
                 break;
@@ -271,7 +281,7 @@ export class AIController {
                 break;
             }
             case 'CHOOSING_OBS2_ACTION': {
-                const res = ScanSystem.applyObservation2(updatedGame, player.id, sequenceId);
+                const res = InteractionChoices.observation2(updatedGame, player.id, { ...interaction, sequenceId }, true);
                 if (!res.error) {
                     updatedGame = res.updatedGame;
                     historyEntries.push(...res.historyEntries);
@@ -301,10 +311,12 @@ export class AIController {
             case 'CHOOSING_OBS4_ACTION': {
                 const p = updatedGame.players.find(p => p.id === player.id);
                 const choice = p && p.energy >= 1 && random() > 0.5 ? 'PROBE' : 'MOVE';
-                const res = ScanSystem.applyObservation4(updatedGame, player.id, choice, sequenceId);
-                updatedGame = res.updatedGame;
-                historyEntries.push(...res.historyEntries);
-                newPendingInteractions.push(...res.newPendingInteractions);
+                const res = InteractionChoices.observation4(updatedGame, player.id, { ...interaction, sequenceId }, choice);
+                if (!res.error) {
+                    updatedGame = res.updatedGame;
+                    historyEntries.push(...res.historyEntries);
+                    newPendingInteractions.push(...res.newPendingInteractions);
+                }
                 break;
             }
             case 'CHOOSING_BONUS_ACTION': {
@@ -353,13 +365,12 @@ export class AIController {
             }
             case 'COLLECTING_SPECIMEN':
             case 'CONSULTING_SPECIMEN': {
-                const mode = interaction.type === 'CONSULTING_SPECIMEN' ? 'consult' : 'collect';
                 // Planète prélevée, ou consultable (Étude de l'Écosystème : sonde présente ; ET.8 à ET.10 : au choix)
-                const options = interaction.type === 'CONSULTING_SPECIMEN' ? SpeciesSystem.consultablePlanets(updatedGame, player.id, interaction) : [interaction.planetId];
+                const options = InteractionChoices.specimenPlanets(updatedGame, player.id, interaction);
                 const planetId = options[Math.floor(random() * options.length)];
                 const tokenCount = planetId ? updatedGame.board.planets.find(p => p.id === planetId)?.mascamiteTokens?.length || 0 : 0;
-                const res = planetId && tokenCount > 0 ? SpeciesSystem.takeMascamiteSpecimen(updatedGame, player.id, planetId, Math.floor(random() * tokenCount), mode, sequenceId) : null;
-                if (res) {
+                const res = planetId && tokenCount > 0 ? InteractionChoices.takeSpecimen(updatedGame, player.id, { ...interaction, sequenceId }, planetId, Math.floor(random() * tokenCount)) : null;
+                if (res && !res.error) {
                     updatedGame = res.updatedGame;
                     historyEntries.push(...res.historyEntries);
                     newPendingInteractions.push(...res.newPendingInteractions);
@@ -371,7 +382,7 @@ export class AIController {
                 const p = updatedGame.players.find(p => p.id === player.id);
                 const hand = p ? [...CardSystem.getHandCards(p)].sort(() => 0.5 - random()) : [];
                 const count = Math.floor(random() * (Math.min(interaction.count, hand.length) + 1));
-                const res = CardSystem.discardForSignals(updatedGame, player.id, hand.slice(0, count).map(c => c.id), sequenceId);
+                const res = InteractionChoices.discardForSignals(updatedGame, player.id, { ...interaction, sequenceId }, hand.slice(0, count).map(c => c.id));
                 historyEntries.push(...res.historyEntries);
                 newPendingInteractions.push(...res.newPendingInteractions);
                 break;
@@ -391,45 +402,29 @@ export class AIController {
                 break;
             }
             case 'CHOOSING_MEDIA_OR_MOVE': {
-                const res = ProbeSystem.chooseMediaOrMove(updatedGame, player.id, random() > 0.5 ? 'MEDIA' : 'MOVE', interaction.remainingMoves || 0, sequenceId);
+                const res = InteractionChoices.chooseMediaOrMove(updatedGame, player.id, { ...interaction, sequenceId }, random() > 0.5 ? 'MEDIA' : 'MOVE');
                 updatedGame = res.updatedGame;
                 historyEntries.push(...res.historyEntries);
                 if (res.nextInteraction) newPendingInteractions.push(res.nextInteraction);
                 break;
             }
-            case 'REMOVING_ORBITER': {
-                const p = updatedGame.players.find(p => p.id === player.id)!;
-                const orbiter = p.probes.find(pr => pr.state === 'IN_ORBIT');
-                if (orbiter && orbiter.planetId) {
-                    const planet = updatedGame.board.planets.find(pl => pl.id === orbiter.planetId);
-                    if (planet) {
-                        const orbiterIndex = planet.orbiters.findIndex(o => o.id === orbiter.id);
-                        if (orbiterIndex !== -1) {
-                            const res = ProbeSystem.removeOrbiter(updatedGame, p.id, planet.id, orbiterIndex, sequenceId);
-                            updatedGame = res.updatedGame;
-                            historyEntries.push(...res.historyEntries);
-                            newPendingInteractions.push(...res.newPendingInteractions);
-                        }
+            case 'REMOVING_ORBITER':
+            case 'REMOVING_LANDER': {
+                // Le premier orbiteur (ou atterrisseur) du robot
+                const state = interaction.type === 'REMOVING_ORBITER' ? ProbeState.IN_ORBIT : ProbeState.LANDED;
+                const probe = updatedGame.players.find(p => p.id === player.id)!.probes.find(pr => pr.state === state && pr.planetId);
+                const planet = probe ? updatedGame.board.planets.find(pl => pl.id === probe.planetId) : undefined;
+                if (probe && planet) {
+                    const slots = interaction.type === 'REMOVING_ORBITER' ? planet.orbiters : planet.landers;
+                    const slotIndex = slots.findIndex(s => s.id === probe.id);
+                    const res = slotIndex === -1 ? null : InteractionChoices.removeProbe(updatedGame, player.id, { ...interaction, sequenceId }, planet.id, slotIndex);
+                    if (res && !res.error) {
+                        updatedGame = res.updatedGame;
+                        historyEntries.push(...res.historyEntries);
+                        newPendingInteractions.push(...res.newPendingInteractions);
                     }
                 }
                 break;
-            }
-            case 'REMOVING_LANDER': {
-                 const p = updatedGame.players.find(p => p.id === player.id)!;
-                 const lander = p.probes.find(pr => pr.state === 'LANDED');
-                 if (lander && lander.planetId) {
-                     const planet = updatedGame.board.planets.find(pl => pl.id === lander.planetId);
-                     if (planet) {
-                         const landerIndex = planet.landers.findIndex(l => l.id === lander.id);
-                         if (landerIndex !== -1) {
-                             const res = ProbeSystem.removeLander(updatedGame, p.id, planet.id, landerIndex, sequenceId);
-                             updatedGame = res.updatedGame;
-                             historyEntries.push(...res.historyEntries);
-                             newPendingInteractions.push(...res.newPendingInteractions);
-                         }
-                     }
-                 }
-                 break;
             }
             default:
                 addHistory(`AI ne peut pas gérer l'interaction: ${interaction.type}`, player.id);

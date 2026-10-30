@@ -3,6 +3,8 @@ import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
+import { CardSystem } from '../systems/CardSystem';
+import { ScanSystem } from '../systems/ScanSystem';
 import { ScoreManager } from './ScoreManager';
 import { uniqueId } from './ids';
 
@@ -191,5 +193,119 @@ export class InteractionChoices {
   static markProbeUsed(queue: InteractionState[], scan: Interaction<'SELECTING_SCAN_SECTOR'>, probeId: string): InteractionState[] {
     const usedProbeIds = [...(scan.usedProbeIds || []), probeId];
     return queue.map(i => i.type === 'SELECTING_SCAN_SECTOR' && i.sequenceId === scan.sequenceId ? { ...i, usedProbeIds } : i);
+  }
+
+  /**
+   * Carte gagnée ou achetée (ACQUIRING_CARD) : `cardId` de la rangée, ou la pioche (absent).
+   * S'il reste des cartes à prendre, la même interaction suit (nextInteraction).
+   */
+  static acquireCard(game: Game, playerId: string, interaction: Interaction<'ACQUIRING_CARD'>, cardId?: string): ChoiceResult {
+    const res = CardSystem.acquireCard(game, playerId, cardId, { isFree: interaction.isFree, triggerFreeAction: interaction.triggerFreeAction }, interaction.sequenceId);
+    if (res.error) return refused(game, res.error);
+    return {
+      updatedGame: res.updatedGame,
+      historyEntries: res.historyEntries,
+      newPendingInteractions: res.newPendingInteractions,
+      nextInteraction: interaction.count > 1 ? { ...interaction, count: interaction.count - 1 } : undefined,
+    };
+  }
+
+  /** Carte de la rangée choisie pour un signal (SELECTING_SCAN_CARD) : elle est défaussée, puis le secteur de sa couleur est à choisir. */
+  static selectScanCard(game: Game, interaction: Interaction<'SELECTING_SCAN_CARD'>, cardId: string): ChoiceResult {
+    const { updatedGame, discardedCard } = CardSystem.discardFromRow(game, cardId);
+    if (!discardedCard) return refused(game, 'Carte absente de la rangée');
+    return {
+      updatedGame,
+      historyEntries: [],
+      newPendingInteractions: [{
+        type: 'SELECTING_SCAN_SECTOR',
+        color: discardedCard.scanSector,
+        sequenceId: interaction.sequenceId,
+        cardId: discardedCard.id,
+        cardProcessed: true,
+        message: `utilise carte "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`,
+      }],
+    };
+  }
+
+  /** Cartes de la main réservées (RESERVING_CARD) ; s'il en reste à réserver, la même interaction suit. */
+  static reserveCards(game: Game, playerId: string, interaction: Interaction<'RESERVING_CARD'>, cardIds: string[]): ChoiceResult {
+    if (cardIds.length === 0 || cardIds.length > interaction.count) return refused(game, `Sélectionnez jusqu'à ${interaction.count} carte${interaction.count > 1 ? 's' : ''}`);
+    const res = CardSystem.reserveCards(game, playerId, cardIds, interaction.sequenceId);
+    const remaining = interaction.count - cardIds.length;
+    return {
+      updatedGame: res.updatedGame,
+      historyEntries: res.historyEntries,
+      newPendingInteractions: [],
+      nextInteraction: remaining > 0 ? { type: 'RESERVING_CARD', count: remaining, selectedCards: [], sequenceId: interaction.sequenceId } : undefined,
+    };
+  }
+
+  /** Cartes de la main défaussées pour marquer un signal dans le secteur de leur couleur (DISCARDING_FOR_SIGNAL). */
+  static discardForSignals(game: Game, playerId: string, interaction: Interaction<'DISCARDING_FOR_SIGNAL'>, cardIds: string[]): ChoiceResult {
+    if (cardIds.length > interaction.count) return refused(game, `Défaussez au plus ${interaction.count} carte${interaction.count > 1 ? 's' : ''}`);
+    const res = CardSystem.discardForSignals(game, playerId, cardIds, interaction.sequenceId);
+    return { updatedGame: game, historyEntries: res.historyEntries, newPendingInteractions: res.newPendingInteractions };
+  }
+
+  /** Média ou déplacement (carte 19, case à microphone) ; les déplacements restants suivent (nextInteraction). */
+  static chooseMediaOrMove(game: Game, playerId: string, interaction: Interaction<'CHOOSING_MEDIA_OR_MOVE'>, choice: 'MEDIA' | 'MOVE'): ChoiceResult {
+    const res = ProbeSystem.chooseMediaOrMove(game, playerId, choice, interaction.remainingMoves || 0, interaction.sequenceId);
+    return { updatedGame: res.updatedGame, historyEntries: res.historyEntries, newPendingInteractions: [], nextInteraction: res.nextInteraction };
+  }
+
+  /** Planètes où le joueur peut prélever ou consulter un spécimen Mascamite pour cette interaction */
+  static specimenPlanets(game: Game, playerId: string, interaction: Interaction<'COLLECTING_SPECIMEN'> | Interaction<'CONSULTING_SPECIMEN'>): string[] {
+    return interaction.type === 'COLLECTING_SPECIMEN' ? [interaction.planetId] : SpeciesSystem.consultablePlanets(game, playerId, interaction);
+  }
+
+  /**
+   * Spécimen Mascamite prélevé (capsule) ou consulté sur une planète autorisée.
+   * Plus de jeton sur la planète : rien ne se passe, l'interaction se termine.
+   */
+  static takeSpecimen(game: Game, playerId: string, interaction: Interaction<'COLLECTING_SPECIMEN'> | Interaction<'CONSULTING_SPECIMEN'>, planetId: string, tokenIndex: number): ChoiceResult {
+    if (!this.specimenPlanets(game, playerId, interaction).includes(planetId)) return refused(game, 'Planète non autorisée pour ce spécimen');
+    const sequenceId = interaction.sequenceId || `mascamite-${uniqueId()}`;
+    const mode = interaction.type === 'CONSULTING_SPECIMEN' ? 'consult' : 'collect';
+    const res = SpeciesSystem.takeMascamiteSpecimen(game, playerId, planetId, tokenIndex, mode, sequenceId);
+    if (!res) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+    return res;
+  }
+
+  /** Retrait d'un orbiteur (carte 15) ou d'un atterrisseur (carte 84) du joueur : celui de l'emplacement choisi, sinon le premier sur la planète. */
+  static removeProbe(game: Game, playerId: string, interaction: Interaction<'REMOVING_ORBITER'> | Interaction<'REMOVING_LANDER'>, planetId: string, slotIndex?: number): ChoiceResult {
+    const planet = game.board.planets.find(p => p.id === planetId);
+    const probes = interaction.type === 'REMOVING_ORBITER' ? planet?.orbiters : planet?.landers;
+    const index = slotIndex ?? probes?.findIndex(p => p.ownerId === playerId) ?? -1;
+    if (!probes || index === -1 || probes[index]?.ownerId !== playerId) return refused(game, 'Aucune de vos sondes à retirer ici');
+    try {
+      return interaction.type === 'REMOVING_ORBITER'
+        ? ProbeSystem.removeOrbiter(game, playerId, planetId, index, interaction.sequenceId)
+        : ProbeSystem.removeLander(game, playerId, planetId, index, interaction.sequenceId);
+    } catch (error) {
+      return refused(game, error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /** Carte Exertien jouée à un palier (cardId absent : le joueur renonce). */
+  static playExertienCard(game: Game, playerId: string, interaction: Interaction<'CHOOSING_EXERTIEN_CARD'>, cardId?: string): ChoiceResult {
+    const res = SpeciesSystem.playExertienCard(game, playerId, interaction.milestone, cardId);
+    if (res.error) return refused(game, res.error);
+    return { updatedGame: res.updatedGame, historyEntries: res.historyEntries, newPendingInteractions: [] };
+  }
+
+  /** Technologie Observation II acceptée (ou refusée : rien ne change). */
+  static observation2(game: Game, playerId: string, interaction: Interaction<'CHOOSING_OBS2_ACTION'>, accepted: boolean): ChoiceResult {
+    if (!accepted) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+    const res = ScanSystem.applyObservation2(game, playerId, interaction.sequenceId || `obs2-${uniqueId()}`);
+    if (res.error) return refused(game, res.error);
+    return res;
+  }
+
+  /** Technologie Observation IV : lancer une sonde ou gagner un déplacement. */
+  static observation4(game: Game, playerId: string, interaction: Interaction<'CHOOSING_OBS4_ACTION'>, choice: 'PROBE' | 'MOVE'): ChoiceResult {
+    const res = ScanSystem.applyObservation4(game, playerId, choice, interaction.sequenceId || `obs4-${uniqueId()}`);
+    if (res.error) return refused(game, res.error);
+    return res;
   }
 }

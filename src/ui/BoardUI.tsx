@@ -40,7 +40,6 @@ import { AlienBoardUI } from './AlienBoardUI';
 import { SettingsModal } from './modals/SettingsModal';
 import { PlanetBoardUI } from './PlanetBoardUI';
 import './BoardUI.css';
-import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { uniqueId } from '../core/ids';
 
 export const BoardUI: React.FC = () => {
@@ -490,7 +489,11 @@ export const BoardUI: React.FC = () => {
       const currentPlayer = game.players[game.currentPlayerIndex];
       const sequenceId = interactionState.sequenceId;
 
-      const res = CardSystem.discardForSignals(game, currentPlayer.id, interactionState.selectedCards, sequenceId);
+      const res = InteractionChoices.discardForSignals(game, currentPlayer.id, interactionState, interactionState.selectedCards);
+      if (res.error) {
+        setToast({ message: res.error, visible: true });
+        return;
+      }
       res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, sequenceId));
       if (!handleNewInteractions(res.newPendingInteractions, sequenceId)) {
         setInteractionState({ type: 'IDLE' });
@@ -508,16 +511,20 @@ export const BoardUI: React.FC = () => {
 
     // Le joueur concerné est celui qui possède la carte sélectionnée (sinon le joueur actif)
     const owner = game.players.find(p => p.cards.some(c => c.id === selectedCards[0])) ?? game.players[game.currentPlayerIndex];
-    const { updatedGame, historyEntries } = CardSystem.reserveCards(game, owner.id, selectedCards, interactionState.sequenceId);
+    const result = InteractionChoices.reserveCards(game, owner.id, interactionState, selectedCards);
+    if (result.error) {
+      setToast({ message: result.error, visible: true });
+      return;
+    }
+    const { updatedGame, historyEntries } = result;
     historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, { type: 'IDLE' }, interactionState.sequenceId));
 
     setGame(updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
 
-    // Mettre à jour l'état d'interaction
-    const newCount = interactionState.count - selectedCards.length;
-    if (newCount > 0) {
-      setInteractionState({ type: 'RESERVING_CARD', count: newCount, selectedCards: [], sequenceId: interactionState.sequenceId });
+    // Cartes restantes à réserver : la même interaction continue
+    if (result.nextInteraction) {
+      setInteractionState(result.nextInteraction);
     } else {
       setInteractionState({ type: 'IDLE' });
       
@@ -824,7 +831,7 @@ export const BoardUI: React.FC = () => {
     if (interactionState.type !== 'CHOOSING_EXERTIEN_CARD') return;
 
     const playerId = game.players[game.currentPlayerIndex].id;
-    const result = SpeciesSystem.playExertienCard(game, playerId, interactionState.milestone, cardId);
+    const result = InteractionChoices.playExertienCard(game, playerId, interactionState, cardId);
     if (result.error) {
       setToast({ message: result.error, visible: true });
       return;
@@ -882,7 +889,7 @@ export const BoardUI: React.FC = () => {
     const sequenceId = interactionState.sequenceId || `obs2-${uniqueId()}`;
 
     if (accepted) {
-      const res = ScanSystem.applyObservation2(game, game.players[game.currentPlayerIndex].id, sequenceId);
+      const res = InteractionChoices.observation2(game, game.players[game.currentPlayerIndex].id, { ...interactionState, sequenceId }, true);
       if (res.error) {
         setToast({ message: res.error, visible: true });
         setInteractionState({ type: 'IDLE' });
@@ -923,7 +930,7 @@ export const BoardUI: React.FC = () => {
     if (interactionState.type !== 'CHOOSING_OBS4_ACTION') return;
 
     const sequenceId = interactionState.sequenceId || `obs4-${uniqueId()}`;
-    const res = ScanSystem.applyObservation4(game, game.players[game.currentPlayerIndex].id, choice, sequenceId);
+    const res = InteractionChoices.observation4(game, game.players[game.currentPlayerIndex].id, { ...interactionState, sequenceId }, choice);
     if (res.error) {
       setToast({ message: res.error, visible: true });
       return;
@@ -945,7 +952,7 @@ export const BoardUI: React.FC = () => {
 
     const currentPlayer = actingPlayer(game);
     const sequenceId = interactionState.sequenceId;
-    const res = ProbeSystem.chooseMediaOrMove(game, currentPlayer.id, choice, interactionState.remainingMoves || 0, sequenceId);
+    const res = InteractionChoices.chooseMediaOrMove(game, currentPlayer.id, interactionState, choice);
     res.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, { type: 'IDLE' }, sequenceId));
     setGame(res.updatedGame);
     if (gameEngineRef.current) gameEngineRef.current.setState(res.updatedGame);
@@ -1022,19 +1029,20 @@ export const BoardUI: React.FC = () => {
     setInteractionState(nextInteraction ?? { type: 'IDLE' });
   };
 
-  // Retrait d'un orbiteur (carte 15) ou d'un atterrisseur (carte 84)
-  const handleRemoveProbe = (removeFn: () => { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] }) => {
-    if (!game) return;
-    try {
-      const result = removeFn();
-      setGame(result.updatedGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
-      result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, e.sequenceId));
-      if (!handleNewInteractions(result.newPendingInteractions, interactionState.sequenceId)) {
-        setInteractionState({ type: 'IDLE' });
-      }
-    } catch (e) {
-      setToast({ message: e instanceof Error ? e.message : String(e), visible: true });
+  // Retrait d'un orbiteur (carte 15) ou d'un atterrisseur (carte 84) : même règle que pour les robots
+  const handleRemoveProbe = (planetId: string, slotIndex?: number) => {
+    if (!game || (interactionState.type !== 'REMOVING_ORBITER' && interactionState.type !== 'REMOVING_LANDER')) return;
+    const result = InteractionChoices.removeProbe(game, actingPlayer(game).id, interactionState, planetId, slotIndex);
+    if (result.error) {
+      // Clic sur une planète sans sonde du joueur : ignoré ; refus du moteur : affiché
+      if (slotIndex !== undefined) setToast({ message: result.error, visible: true });
+      return;
+    }
+    setGame(result.updatedGame);
+    if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
+    result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undefined, e.sequenceId));
+    if (!handleNewInteractions(result.newPendingInteractions, interactionState.sequenceId)) {
+      setInteractionState({ type: 'IDLE' });
     }
   };
 
@@ -1045,9 +1053,7 @@ export const BoardUI: React.FC = () => {
 
     // Carte 15 : retirer un orbiteur
     if (interactionState.type === 'REMOVING_ORBITER') {
-      const orbiterIndex = slotIndex ?? game.board.planets.find(p => p.id === planetId)?.orbiters.findIndex(p => p.ownerId === currentPlayer.id);
-      if (orbiterIndex === undefined || orbiterIndex === -1) return;
-      handleRemoveProbe(() => ProbeSystem.removeOrbiter(game, currentPlayer.id, planetId, orbiterIndex, interactionState.sequenceId));
+      handleRemoveProbe(planetId, slotIndex);
       return;
     }
 
@@ -1083,15 +1089,11 @@ export const BoardUI: React.FC = () => {
     if (!game) return;
     if (interactionState.type !== 'COLLECTING_SPECIMEN' && interactionState.type !== 'CONSULTING_SPECIMEN') return;
     const playerId = actingPlayer(game).id;
-    const allowed = interactionState.type === 'COLLECTING_SPECIMEN'
-      ? interactionState.planetId === planetId
-      : SpeciesSystem.consultablePlanets(game, playerId, interactionState).includes(planetId);
-    if (!allowed) return;
-
     const sequenceId = interactionState.sequenceId || `mascamite-${uniqueId()}`;
-    const mode = interactionState.type === 'CONSULTING_SPECIMEN' ? 'consult' : 'collect';
-    const result = SpeciesSystem.takeMascamiteSpecimen(game, playerId, planetId, tokenIndex, mode, sequenceId);
-    if (!result) {
+    const result = InteractionChoices.takeSpecimen(game, playerId, { ...interactionState, sequenceId }, planetId, tokenIndex);
+    // Planète non autorisée : clic ignoré ; plus de spécimen à prendre : l'interaction se termine
+    if (result.error) return;
+    if (result.updatedGame === game) {
       setInteractionState({ type: 'IDLE' });
       return;
     }
@@ -1111,9 +1113,7 @@ export const BoardUI: React.FC = () => {
 
     // Carte 84 : retirer un atterrisseur
     if (interactionState.type === 'REMOVING_LANDER') {
-      const landerIndex = slotIndex ?? game.board.planets.find(p => p.id === planetId)?.landers.findIndex(p => p.ownerId === currentPlayer.id);
-      if (landerIndex === undefined || landerIndex === -1) return;
-      handleRemoveProbe(() => ProbeSystem.removeLander(game, currentPlayer.id, planetId, landerIndex, interactionState.sequenceId));
+      handleRemoveProbe(planetId, slotIndex);
       return;
     }
 
@@ -1333,31 +1333,22 @@ export const BoardUI: React.FC = () => {
     if (interactionState.type === 'SELECTING_SCAN_CARD') {
       if (!cardId) return; // Cannot select deck for scan color
       
-      const { updatedGame, discardedCard } = CardSystem.discardFromRow(game, cardId);
-      if (!discardedCard) return;
+      // La carte est défaussée de la rangée, puis le secteur de sa couleur est à choisir (même règle que pour les robots)
+      const result = InteractionChoices.selectScanCard(game, interactionState, cardId);
+      if (result.error) return;
 
-      setGame(updatedGame);
-      if (gameEngineRef.current) gameEngineRef.current.setState(updatedGame);
+      setGame(result.updatedGame);
+      if (gameEngineRef.current) gameEngineRef.current.setState(result.updatedGame);
 
-      setTimeout(() => {
-        setInteractionState({ 
-            type: 'SELECTING_SCAN_SECTOR', 
-            color: discardedCard.scanSector, 
-            sequenceId: interactionState.sequenceId, 
-            cardId: discardedCard.id,
-            cardProcessed: true,
-            message: `utilise carte "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`
-        });
-      }, 200);
-    
-    
-    
+      const [scanSector] = result.newPendingInteractions;
+      setTimeout(() => setInteractionState(scanSector), 200);
+
     // Cas 2: Sélection pour achat ou gain de carte (bonus)
     } else if (interactionState.type === 'ACQUIRING_CARD') {
         const currentPlayer = actingPlayer(game);
 
         const sequenceId = interactionState.sequenceId;
-        const result = CardSystem.acquireCard(game, currentPlayer.id, cardId, { isFree: interactionState.isFree, triggerFreeAction: interactionState.triggerFreeAction }, sequenceId);
+        const result = InteractionChoices.acquireCard(game, currentPlayer.id, interactionState, cardId);
         if (result.error) {
           setToast({ message: result.error, visible: true });
           // On reste dans l'état ACQUIRING_CARD pour permettre de réessayer ou d'annuler via l'overlay
@@ -1372,12 +1363,8 @@ export const BoardUI: React.FC = () => {
         const undoState: InteractionState = !interactionState.isFree ? { type: 'IDLE' } : interactionState;
         result.historyEntries.forEach(e => addToHistory(e.message, e.playerId, game, undoState, sequenceId));
 
-        // Gérer le compteur pour les sélections multiples
-        if (interactionState.count > 1) {
-          setInteractionState({ ...interactionState, count: interactionState.count - 1 });
-        } else {
-          setInteractionState({ type: 'IDLE' });
-        }
+        // Cartes restantes à prendre : la même interaction continue
+        setInteractionState(result.nextInteraction ?? { type: 'IDLE' });
     }
   };
 
