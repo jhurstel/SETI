@@ -29,6 +29,32 @@ describe('cloneGame', () => {
     expect(game.board.sectors[0].signals[0].marked).toBe(false);
     expect(game.decks.cards.length).toBe(copy.decks.cards.length + 1);
   });
+
+  test('cartes et technologies : champs variables copiés, effets figés et partagés', () => {
+    const copy = cloneGame(game);
+    const card = game.players[0].cards[0];
+    const cardCopy = copy.players[0].cards[0];
+    const tech = game.board.technologyBoard.available[0];
+    const techCopy = copy.board.technologyBoard.available[0];
+
+    expect(cardCopy).not.toBe(card);
+    expect(cardCopy.immediateEffects).toBe(card.immediateEffects);
+    expect(Object.isFrozen(card.immediateEffects)).toBe(true);
+    expect(techCopy).not.toBe(tech);
+    expect(techCopy.bonus).toBe(tech.bonus);
+
+    cardCopy.ownerId = 'autre';
+    cardCopy.isRevealed = !card.isRevealed;
+    techCopy.ownerId = 'autre';
+    expect(card.ownerId).not.toBe('autre');
+    expect(cardCopy.isRevealed).not.toBe(card.isRevealed);
+    expect(tech.ownerId).not.toBe('autre');
+    expect(() => (cardCopy.immediateEffects as unknown[]).push({})).toThrow(TypeError);
+  });
+
+  test('donne le même état que structuredClone', () => {
+    expect(cloneGame(game)).toEqual(structuredClone(game));
+  });
 });
 
 describe('ComputerSystem.fillSlot', () => {
