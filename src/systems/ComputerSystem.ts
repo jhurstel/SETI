@@ -12,9 +12,13 @@ import {
   Game,
   GAME_CONSTANTS,
   Technology,
-  Player
+  Player,
+  HistoryEntry,
+  InteractionState
 } from '../core/types';
 import { cloneGame } from '../core/cloneGame';
+import { uniqueId } from '../core/ids';
+import { CardSystem } from './CardSystem';
 
 export class ComputerSystem {
   static canAnalyzeData(game: Game, playerId: string): {
@@ -68,6 +72,35 @@ export class ComputerSystem {
     }
 
     return true;
+  }
+
+  /**
+   * Transfère 1 donnée sur une case de l'ordinateur (action gratuite), joueur humain comme robot :
+   * gains directs, message d'historique, et interactions des bonus à choix (réservation d'une carte
+   * de la main, carte de la rangée ou de la pioche).
+   */
+  static transferData(game: Game, playerId: string, slotId: string, sequenceId: string = `computer-${uniqueId()}`): {
+    updatedGame: Game;
+    historyEntries: HistoryEntry[];
+    newPendingInteractions: InteractionState[];
+  } {
+    const { updatedGame, gains, bonusEffects } = this.fillSlot(game, playerId, slotId);
+    const player = updatedGame.players.find(p => p.id === playerId);
+    if (updatedGame === game || !player) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+
+    const newPendingInteractions: InteractionState[] = [];
+    bonusEffects.forEach(effect => {
+      if (effect.type === 'reservation') {
+        const count = Math.min(effect.amount, CardSystem.getHandCards(player).length);
+        if (count > 0) newPendingInteractions.push({ type: 'RESERVING_CARD', count, selectedCards: [], sequenceId });
+      } else if (effect.type === 'anycard') {
+        newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: effect.amount, isFree: true, sequenceId });
+      }
+    });
+
+    let message = `transfère 1 donnée vers l'ordinateur${gains.length > 0 ? ` et gagne ${gains.join(', ')}` : ''}`;
+    if (slotId === '6a') message += " et complète l'ordinateur";
+    return { updatedGame, historyEntries: [{ message, playerId, sequenceId }], newPendingInteractions };
   }
 
   static fillSlot(game: Game, playerId: string, slotId: string): { updatedGame: Game, gains: string[], bonusEffects: { type: string, amount: number }[] } {

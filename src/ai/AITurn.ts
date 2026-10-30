@@ -459,22 +459,10 @@ export class AITurn {
     const slotId = Object.keys(player.dataComputer.slots).find(id => ComputerSystem.canFillSlot(player, id));
     if (!slotId) return null;
 
-    const { updatedGame, gains, bonusEffects } = ComputerSystem.fillSlot(game, player.id, slotId);
-    let aiGame = updatedGame;
-    const pending: InteractionState[] = [];
+    // Mêmes gains et interactions que pour le joueur humain (réservation, carte au choix)
     const sequenceId = `ai-computer-${uniqueId()}`;
-    bonusEffects.forEach(effect => {
-      if (effect.type === 'card') {
-        aiGame = CardSystem.drawCards(aiGame, player.id, effect.amount);
-      } else if (effect.type === 'reservation') {
-        // Réserver une carte de la main (revenu + gain immédiat), comme le joueur humain
-        pending.push({ type: 'RESERVING_CARD', count: effect.amount, selectedCards: [], sequenceId });
-      }
-    });
-
-    const gainText = gains.length > 0 ? ` et gagne ${gains.join(', ')}` : '';
-    const historyEntries: HistoryEntry[] = [{ message: `transfère 1 donnée vers l'ordinateur ${gainText}`, playerId: player.id, sequenceId }];
-    return this.resolvePending(aiGame, player, historyEntries, pending, sequenceId);
+    const res = ComputerSystem.transferData(game, player.id, slotId, sequenceId);
+    return this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, sequenceId);
   }
 
   private static tryBuyCard(game: Game, player: Player): StepResult | null {

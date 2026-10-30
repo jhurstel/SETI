@@ -1537,20 +1537,8 @@ export const BoardUI: React.FC = () => {
   };
 
   // Gestionnaire pour les bonus ordinateur (déclenché depuis PlayerBoardUI)
-  const handleComputerBonus = (type: string, amount: number, sequenceId?: string) => {
-    if (!game) return;
-
-    if (type === 'reservation') {
-      const currentPlayer = game.players[game.currentPlayerIndex];
-      const count = Math.min(amount, currentPlayer.cards.length);
-      if (count > 0) {
-        const seqId = sequenceId || interactionState.sequenceId;
-        setInteractionState({ type: 'RESERVING_CARD', count: count, selectedCards: [], sequenceId: seqId });
-      }
-    } else if (type === 'anycard') {
-        const seqId = sequenceId || interactionState.sequenceId;
-        setInteractionState({ type: 'ACQUIRING_CARD', count: amount, isFree: true, sequenceId: seqId });
-    }
+  const handleComputerBonus = (interactions: InteractionState[], sequenceId: string) => {
+    handleNewInteractions(interactions, sequenceId);
   };
 
   // Gestionnaire pour le clic sur un objectif (placement de marqueur de palier)

@@ -12,7 +12,6 @@ import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
 import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
-import { cloneGame } from '../core/cloneGame';
 import { SLOT_COLORS } from './styles/slotColors';
 import { uniqueId } from '../core/ids';
 import './PlayerBoardUI.css';
@@ -32,7 +31,7 @@ interface PlayerBoardUIProps {
   onComputerSlotSelect: (col: number) => void;
   onNextPlayer: () => void;
   onHistory: (message: string, sequenceId?: string) => void;
-  onComputerBonus: (type: string, amount: number, sequenceId?: string) => void;
+  onComputerBonus: (interactions: InteractionState[], sequenceId: string) => void;
   onDirectTradeAction: (spendType: string, gainType: string) => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
   onSettingsClick: () => void;
@@ -292,42 +291,17 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     }
   }, [isTrading]);
 
-  const handleComputerBonus = (type: string, amount: number, sequenceId?: string) => {
-    if (type === 'reservation') {
-      onComputerBonus(type, amount, sequenceId);
-    } else if (type === 'anycard') {
-      onComputerBonus(type, amount, sequenceId);
-    }
-  };
-
   const handleComputerSlotClick = (slotId: string) => {
     if (isRobot) return;
     if (isInteractiveMode && !isSelectingComputerSlot) return;
 
     const executeFillSlot = () => {
-      // Créer une copie profonde pour éviter la mutation de l'état actuel
-      // Cela garantit que 'game' reste valide comme 'previousState' pour l'historique
-      const gameCopy = cloneGame(game);
-
-      const { updatedGame, gains, bonusEffects } = ComputerSystem.fillSlot(gameCopy, currentPlayer.id, slotId);
-      
       const sequenceId = `computer-${uniqueId()}`;
+      const { updatedGame, historyEntries, newPendingInteractions } = ComputerSystem.transferData(game, currentPlayer.id, slotId, sequenceId);
+      if (updatedGame === game) return;
 
-      bonusEffects.forEach(effect => {
-        handleComputerBonus(effect.type, effect.amount, sequenceId);
-      });
-      
-      if (onHistory) {
-          let gainText = '';
-          if (gains.length > 0) {
-            gainText = ` et gagne ${gains.join(', ')}`;
-          }
-          if (currentPlayer.dataComputer.canAnalyze) {
-            gainText += " et complète l'ordinateur";
-          }
-          onHistory(`transfère 1 donnée vers l'ordinateur ${gainText}`, sequenceId);
-      }
-      
+      if (newPendingInteractions.length > 0) onComputerBonus(newPendingInteractions, sequenceId);
+      if (onHistory) historyEntries.forEach(e => onHistory(e.message, sequenceId));
       if (onGameUpdate) onGameUpdate(updatedGame);
     };
 
