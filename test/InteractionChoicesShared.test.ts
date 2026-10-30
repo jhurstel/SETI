@@ -170,6 +170,24 @@ describe('InteractionChoices : choix communs (cartes, signaux, spécimens, retra
     expect(InteractionChoices.observation2(game, P1, interaction, true).error).toBeDefined();
   });
 
+  test('observation3 : acceptée, une carte à défausser pour un signal ; refusée, rien', () => {
+    const interaction: Interaction<'CHOOSING_OBS3_ACTION'> = { type: 'CHOOSING_OBS3_ACTION', sequenceId: 's' };
+    freeze();
+
+    expect(InteractionChoices.observation3(game, interaction, true).newPendingInteractions).toEqual([{ type: 'DISCARDING_FOR_SIGNAL', count: 1, selectedCards: [], sequenceId: 's' }]);
+    expect(InteractionChoices.observation3(game, interaction, false)).toEqual({ updatedGame: game, historyEntries: [], newPendingInteractions: [] });
+    unchanged();
+  });
+
+  test('robot, Observation III sans carte en main : rien ne se passe', () => {
+    getPlayer(game, P1).cards = [];
+    freeze();
+    const res = AIController.processInteractionQueue(game, [{ type: 'CHOOSING_OBS3_ACTION' }], 's', getPlayer(game, P1));
+    expect(res.updatedGame).toEqual(game);
+    expect(res.historyEntries).toEqual([]);
+    unchanged();
+  });
+
   test('observation4 : déplacement, ou sonde contre 1 Énergie', () => {
     const interaction: Interaction<'CHOOSING_OBS4_ACTION'> = { type: 'CHOOSING_OBS4_ACTION', sequenceId: 's' };
     getPlayer(game, P1).energy = 1;

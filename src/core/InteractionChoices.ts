@@ -302,6 +302,16 @@ export class InteractionChoices {
     return res;
   }
 
+  /**
+   * Technologie Observation III acceptée : défausser 1 carte de la main pour marquer un signal dans le secteur
+   * de sa couleur (DISCARDING_FOR_SIGNAL, puis discardForSignals) ; refusée : rien ne change.
+   */
+  static observation3(game: Game, interaction: Interaction<'CHOOSING_OBS3_ACTION'>, accepted: boolean): ChoiceResult {
+    if (!accepted) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+    const sequenceId = interaction.sequenceId || `obs3-${uniqueId()}`;
+    return { updatedGame: game, historyEntries: [], newPendingInteractions: [{ type: 'DISCARDING_FOR_SIGNAL', count: 1, selectedCards: [], sequenceId }] };
+  }
+
   /** Technologie Observation IV : lancer une sonde ou gagner un déplacement. */
   static observation4(game: Game, playerId: string, interaction: Interaction<'CHOOSING_OBS4_ACTION'>, choice: 'PROBE' | 'MOVE'): ChoiceResult {
     const res = ScanSystem.applyObservation4(game, playerId, choice, interaction.sequenceId || `obs4-${uniqueId()}`);

@@ -911,16 +911,11 @@ export const BoardUI: React.FC = () => {
 
   // Gestionnaire pour le choix Observation 3
   const handleObs3Choice = (accepted: boolean) => {
-    if (interactionState.type !== 'CHOOSING_OBS3_ACTION') return;
+    if (!game || interactionState.type !== 'CHOOSING_OBS3_ACTION') return;
 
-    const sequenceId = interactionState.sequenceId || `obs3-${uniqueId()}`;
-
-    if (accepted) {
-      setInteractionState({ type: 'DISCARDING_FOR_SIGNAL', count: 1, selectedCards: [], sequenceId });
-    } else {
-      // Passer à l'interaction suivante (ou IDLE)
-      setInteractionState({ type: 'IDLE' });
-    }
+    // Acceptée : choix de la carte à défausser ; refusée : interaction suivante (ou IDLE)
+    const result = InteractionChoices.observation3(game, interactionState, accepted);
+    setInteractionState(result.newPendingInteractions[0] ?? { type: 'IDLE' });
   };
 
   // Gestionnaire pour le choix Observation 4

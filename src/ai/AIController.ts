@@ -298,11 +298,12 @@ export class AIController {
                 break;
             }
             case 'CHOOSING_OBS3_ACTION': {
+                // Même règle que le joueur humain (accepter, puis défausser 1 carte) ; le robot défausse sa première carte
                 const p = updatedGame.players.find(p => p.id === player.id);
                 const hand = p ? CardSystem.getHandCards(p) : [];
-                if (p && hand.length > 0) {
-                    // Comme le joueur humain : la carte défaussée marque un signal dans le secteur de sa couleur
-                    const res = CardSystem.discardForSignals(updatedGame, p.id, [hand[0].id], sequenceId);
+                const discard = InteractionChoices.observation3(updatedGame, { ...interaction, sequenceId }, hand.length > 0).newPendingInteractions[0];
+                if (discard?.type === 'DISCARDING_FOR_SIGNAL') {
+                    const res = InteractionChoices.discardForSignals(updatedGame, player.id, discard, [hand[0].id]);
                     historyEntries.push(...res.historyEntries);
                     newPendingInteractions.push(...res.newPendingInteractions);
                 }
