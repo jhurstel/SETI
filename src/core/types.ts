@@ -223,11 +223,6 @@ export interface GameLogEntry {
   previousState?: Game;
 }
 
-export interface GameState {
-  state: Game;
-  timestamp: number;
-}
-
 export interface Decks {
   cards: Card[];
   cardRow: Card[];
@@ -247,7 +242,6 @@ export interface Game {
   decks: Decks;
   species: Species[];
   discoveredSpecies: Species[];
-  history: GameState[];
   isFirstToPass: boolean;
   isRoundEnd: boolean;
   gameLog: GameLogEntry[];

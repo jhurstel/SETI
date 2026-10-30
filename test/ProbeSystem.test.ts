@@ -47,7 +47,6 @@ const createMockGame = (): Game => {
     decks: { cards: [], cardRow: [], discardPile: [], roundDecks: {} },
     species: [],
     discoveredSpecies: [],
-    history: [],
     isFirstToPass: false,
     isRoundEnd: false,
     isSpeciesDiscovered: false,

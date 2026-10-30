@@ -32,7 +32,7 @@ src/
 ├── index.ts                 # Barrel d'export
 ├── core/
 │   ├── types.ts             # TOUT le modèle : Game, Player, Board, Card, Bonus, InteractionState, enums, GAME_CONSTANTS…
-│   ├── Game.ts              # GameEngine : validate → saveState → action.execute → flag action principale ; undo
+│   ├── Game.ts              # GameEngine : validate → action.execute → flag action principale
 │   ├── GameFactory.ts       # Création de partie (async : charge les CSV), joueurs, espèces, technologies
 │   ├── DataLoader.ts        # fetch + parsing CSV des cartes, mini-DSL d'effets (colonne Contrainte)
 │   ├── Board.ts             # BoardManager : secteurs, planètes, plateau techno, plateaux alien, objectifs
@@ -84,8 +84,8 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
 ## Architecture et conventions
 
 - **Moteur indépendant de l'UI** : `core/`, `systems/` et `actions/` sont du TS pur. `BoardUI.tsx` passe par `GameEngine.executeAction` pour les actions principales, mais appelle aussi directement les systems pour les bonus et interactions. Suivre le schéma du handler voisin.
-- **État immuable** : les systems prennent un `Game` et renvoient `{ updatedGame, historyEntries, ... }` **sans jamais modifier la partie reçue**. Dans le moteur, toute fonction qui modifie l'état commence par `cloneGame(game)` (`src/core/cloneGame.ts` : copie profonde, sauf les instantanés de `history`, qui sont partagés). Pas de copie superficielle `{ ...game }` suivie de mutations : c'était la source de bugs d'undo. `test/Immutability.test.ts` vérifie cette règle.
-- **Historique** : `HistoryEntry { message, playerId, sequenceId }`. `sequenceId` regroupe les entrées d'une même action et sert à l'undo. Les messages sont en français et affichés au joueur.
+- **État immuable** : les systems prennent un `Game` et renvoient `{ updatedGame, historyEntries, ... }` **sans jamais modifier la partie reçue**. Dans le moteur, toute fonction qui modifie l'état commence par `cloneGame(game)` (`src/core/cloneGame.ts`, copie profonde ; à utiliser aussi dans l'UI plutôt que `structuredClone`). Pas de copie superficielle `{ ...game }` suivie de mutations : c'était la source de bugs d'undo. `test/Immutability.test.ts` vérifie cette règle.
+- **Historique** : `HistoryEntry { message, playerId, sequenceId, previousState }`. `sequenceId` regroupe les entrées d'une même action et sert à l'undo, qui est géré uniquement par l'UI : chaque entrée du journal (`historyLog`) garde l'état d'avant l'action (`previousState`). Le moteur ne garde pas d'instantanés (l'ancien `game.history`, jamais utilisé, faisait passer l'état de 170 Ko à plus de 10 Mo en fin de partie). Les messages sont en français et affichés au joueur.
 - **Interactions multi-étapes** : union discriminée `InteractionState` (`types.ts`). `BoardUI` tient `interactionState` et la file `pendingInteractions`. Pour en ajouter une : variant dans `InteractionState`, libellé dans `getInteractionLabel` (BoardUI), gestion dans les handlers **et** dans `AIController.processSingleInteraction` pour les robots.
 - **Cartes** : CSV `;` avec les colonnes `Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte`. `Gain` et `Contrainte` encodent les effets (`1 Sonde + 1 Média`, `GAIN_ON_VISIT:jupiter:data:1`, `VISIT_PLANET:mars:4`…), parsés dans `DataLoader`. Modifier une carte = modifier le CSV dans `public/cards/`.
 - **Effets de carte** : `CardEffect.value` est de type `CardEffectValue` (nombre, booléen, chaîne de mission, `EffectAmount` ou `Bonus`). Le lire avec les accesseurs de `core/cardEffects.ts` (`effectNumber(effect)` pour un calcul, `effectString` pour une mission `GAIN_IF_…`, `effectAmount<Scope>` pour quantité + portée, `effectBonus` pour des gains multiples), jamais avec `effect.value` brut dans une opération.
@@ -109,7 +109,7 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
   - `test/helpers/gameFixture.ts` : `createTestGame()` crée une **vraie** partie (fetch simulé qui sert `public/`, donc les vraies cartes), `makeCard()`, `getPlayer()`. À privilégier plutôt que des mocks d'état écrits à la main.
   - Un bug connu et pas encore corrigé est documenté par un `test.failing(...)`. Retirer `.failing` quand il est corrigé.
   - `CardCatalog.test.ts` vérifie toutes les cartes des CSV (effets lus et traités, jouées par un robot sans erreur) et que les robots gèrent toutes les interactions du moteur. Une nouvelle carte ou un nouvel effet doit le faire passer.
-  - Couverture : SolarSystemPosition, ScanSystem, CardSystem, DataLoader (tous les CSV), TurnManager/PassAction, GameFactory, GameEngine (undo), GamePersistence, InteractionResolver, Exertiens, orbite/atterrissage, immutabilité, cardEffects, et des parties complètes entre robots (AITurn).
+  - Couverture : SolarSystemPosition, ScanSystem, CardSystem, DataLoader (tous les CSV), TurnManager/PassAction, GameFactory, GameEngine, GamePersistence, InteractionResolver, Exertiens, orbite/atterrissage, immutabilité, cardEffects, et des parties complètes entre robots (AITurn).
 
 ## Points d'attention
 

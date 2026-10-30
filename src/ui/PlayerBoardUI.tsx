@@ -12,6 +12,7 @@ import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
 import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
+import { cloneGame } from '../core/cloneGame';
 import { SLOT_COLORS } from './styles/slotColors';
 import './PlayerBoardUI.css';
 
@@ -305,7 +306,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     const executeFillSlot = () => {
       // Créer une copie profonde pour éviter la mutation de l'état actuel
       // Cela garantit que 'game' reste valide comme 'previousState' pour l'historique
-      const gameCopy = structuredClone(game);
+      const gameCopy = cloneGame(game);
 
       const { updatedGame, gains, bonusEffects } = ComputerSystem.fillSlot(gameCopy, currentPlayer.id, slotId);
       

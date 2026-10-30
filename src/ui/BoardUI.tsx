@@ -15,6 +15,7 @@ import { PlayCardAction } from '../actions/PlayCardAction';
 import { ResearchTechAction } from '../actions/ResearchTechAction';
 import { ScanSectorAction } from '../actions/ScanSectorAction';
 import { GameEngine } from '../core/Game';
+import { cloneGame } from '../core/cloneGame';
 import { TurnManager } from '../core/TurnManager';
 import { InteractionResolver, isAutomaticInteraction } from '../core/InteractionResolver';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -723,7 +724,7 @@ export const BoardUI: React.FC = () => {
       setInteractionState({ type: 'ANALYZING' });
 
       // Capture state BEFORE analysis for undo (Deep copy to ensure computer data is saved)
-      const previousState = structuredClone(currentGame);
+      const previousState = cloneGame(currentGame);
 
       // Délai pour l'animation avant d'appliquer les effets
       setTimeout(() => {
@@ -1267,7 +1268,7 @@ export const BoardUI: React.FC = () => {
   const handlePlayCardRequest = (cardId: string, force: boolean = false) => {
     if (!game || !gameRef.current || !gameEngineRef.current) return;
 
-    const currentGame = structuredClone(game);
+    const currentGame = cloneGame(game);
     const currentPlayer = currentGame.players[currentGame.currentPlayerIndex];
     const card = currentPlayer.cards.find(c => c.id === cardId);
     if (!card) return;

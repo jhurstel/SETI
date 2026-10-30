@@ -1,9 +1,8 @@
-import { Game, GamePhase, Player, GameState, MAIN_ACTION_TYPES, FinalScore } from './types';
+import { Game, GamePhase, Player, MAIN_ACTION_TYPES, FinalScore } from './types';
 import { BaseAction } from '../actions/Action';
 import { ActionValidator } from './ActionValidator';
 import { TurnManager } from './TurnManager';
 import { ScoreManager } from './ScoreManager';
-import { cloneGame } from './cloneGame';
 
 export class GameEngine {
   private state: Game;
@@ -65,8 +64,6 @@ export class GameEngine {
       };
     }
 
-    // Sauvegarder l'état
-    this.saveState();
     const previousPlayerIndex = this.state.currentPlayerIndex;
     console.log(`[Game] Executing action ${action.type} for player index ${previousPlayerIndex}`);
 
@@ -127,40 +124,5 @@ export class GameEngine {
    */
   determineWinner(): string[] {
     return ScoreManager.determineWinner(this.calculateFinalScores());
-  }
-
-  /**
-   * Sauvegarde l'état actuel dans l'historique
-   */
-  saveState(): void {
-    // Instantané profond (sans l'historique, pour éviter la référence circulaire) :
-    // une mutation ultérieure de l'état courant ne doit pas altérer ce qui sera restauré par undo
-    const gameState: GameState = {
-      state: { ...cloneGame(this.state), history: [] },
-      timestamp: Date.now()
-    };
-    // Nouveau tableau : l'état fourni au moteur (ex: état React) ne doit pas être modifié
-    this.state = { ...this.state, history: [...(this.state.history || []), gameState] };
-  }
-
-  /**
-   * Annule la dernière action (undo)
-   */
-  undo(): boolean {
-    if (this.state.history.length === 0) {
-      return false;
-    }
-
-    const previousSnapshot = this.state.history.pop();
-    if (previousSnapshot) {
-      // On restaure l'état mais on conserve l'historique actuel (amputé du dernier état)
-      this.state = {
-        ...previousSnapshot.state,
-        history: this.state.history
-      };
-      return true;
-    }
-
-    return false;
   }
 }

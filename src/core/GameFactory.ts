@@ -76,7 +76,6 @@ export class GameFactory {
       decks,
       species,
       discoveredSpecies: [],
-      history: [],
       isFirstToPass: false,
       isRoundEnd: false,
       gameLog,

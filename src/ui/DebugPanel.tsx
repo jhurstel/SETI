@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { Game, Card, InteractionState, Technology, TechnologyCategory } from '../core/types';
+import { cloneGame } from '../core/cloneGame';
 
 interface DebugPanelProps {
   game: Game;
@@ -52,7 +53,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   };
 
   const handleAddResource = (resourceType: 'credits' | 'energy' | 'mediaCoverage' | 'data') => {
-    const updatedGame = structuredClone(game);
+    const updatedGame = cloneGame(game);
     const player = updatedGame.players[updatedGame.currentPlayerIndex];
     player[resourceType] = (player[resourceType] || 0) + amount;
     setGame(updatedGame);
@@ -61,7 +62,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   };
 
   const handleAddCard = () => {
-    const updatedGame = structuredClone(game);
+    const updatedGame = cloneGame(game);
     const player = updatedGame.players[updatedGame.currentPlayerIndex];
     const cardToFind = cardId.trim().toLowerCase();
     const isNumeric = /^\d+$/.test(cardId.trim());
@@ -90,7 +91,7 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
   };
 
   const handleAddTech = () => {
-    const updatedGame = structuredClone(game);
+    const updatedGame = cloneGame(game);
     const player = updatedGame.players[updatedGame.currentPlayerIndex];
     const techToFind = techId.toLowerCase();
 

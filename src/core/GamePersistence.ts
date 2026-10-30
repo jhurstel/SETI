@@ -8,8 +8,8 @@ import { Game, GameLogEntry, HistoryEntry } from './types';
  */
 export const SAVE_VERSION = 2;
 
-/** Partie sérialisée : l'historique d'annulation du moteur est exclu, le journal est stocké dans gameLog. */
-export type SavedGame = Omit<Game, 'history' | 'gameLog'> & { gameLog: GameLogEntry[]; saveVersion: number };
+/** Partie sérialisée : le journal est stocké dans gameLog. */
+export type SavedGame = Omit<Game, 'gameLog'> & { gameLog: GameLogEntry[]; saveVersion: number };
 
 /** Sauvegarde illisible par cette version du jeu (format plus récent ou inconnu). */
 export class SaveVersionError extends Error {}
@@ -38,8 +38,8 @@ function migrateState(state: RawState, fromVersion: number): void {
 }
 
 /** Retire de l'état les champs récursifs ou volumineux qui n'ont pas leur place dans une sauvegarde. */
-function stripForSave(state: Game): Omit<Game, 'history' | 'gameLog'> {
-  const { history, gameLog, ...rest } = state;
+function stripForSave(state: Game): Omit<Game, 'gameLog'> {
+  const { gameLog, ...rest } = state;
   return rest;
 }
 
@@ -84,9 +84,11 @@ export function deserializeGame(json: string): { game: Game; historyLog: History
     if (log.previousState) migrateState(log.previousState as unknown as RawState, version);
   });
   delete raw.saveVersion;
+  // Parties enregistrées avant sa suppression : historique d'annulation du moteur, inutilisé
+  delete raw.history;
 
   const saved = raw as Partial<SavedGame> & Partial<Game>;
-  const game = { ...saved, history: saved.history ?? [] } as Game;
+  const game = saved as Game;
   const historyLog: HistoryEntry[] = (saved.gameLog ?? []).map(log => ({
     id: log.id,
     message: log.message,

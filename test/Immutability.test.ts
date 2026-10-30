@@ -29,16 +29,6 @@ describe('cloneGame', () => {
     expect(game.board.sectors[0].signals[0].marked).toBe(false);
     expect(game.decks.cards.length).toBe(copy.decks.cards.length + 1);
   });
-
-  test('l\'historique : nouveau tableau, instantanés partagés (non recopiés)', () => {
-    game.history = [{ state: cloneGame(game), timestamp: 1 }];
-    const copy = cloneGame(game);
-
-    expect(copy.history).not.toBe(game.history);
-    expect(copy.history[0]).toBe(game.history[0]);
-    copy.history.push({ state: cloneGame(game), timestamp: 2 });
-    expect(game.history).toHaveLength(1);
-  });
 });
 
 describe('ComputerSystem.fillSlot', () => {
@@ -85,51 +75,27 @@ describe('Actions moteur', () => {
     expect(JSON.stringify(game)).toBe(before);
   });
 
-  test('GameEngine.executeAction n\'ajoute pas d\'instantané dans la partie fournie', async () => {
+  test('GameEngine.executeAction ne modifie pas la partie fournie', async () => {
     const game = await createTestGame();
     game.currentPlayerIndex = 0;
+    const before = JSON.stringify(game);
     const engine = new GameEngine(game);
     engine.executeAction(new PassAction(P1, getPlayer(game, P1).cards.slice(0, 4).map(c => c.id)));
 
-    expect(game.history).toHaveLength(0);
+    expect(JSON.stringify(game)).toBe(before);
     expect(engine.getState().players[0].hasPassed).toBe(true);
   });
-});
 
-describe('GameEngine undo', () => {
-  test('restaure exactement l\'état précédant l\'action', async () => {
+  test('GameEngine.executeAction ne garde pas d\'instantané de la partie (régression : l\'état grossissait à chaque action)', async () => {
     const game = await createTestGame();
     game.currentPlayerIndex = 0;
     game.phase = GamePhase.PLAYING;
-    const engine = new GameEngine(game);
-    const before = engine.getState();
-    const handBefore = getPlayer(before, P1).cards.map(c => c.id);
-    const angleBefore = before.board.solarSystem.rotationAngleLevel3;
+    const size = JSON.stringify(game).length;
 
-    const keep = handBefore.slice(0, 4);
-    expect(engine.executeAction(new PassAction(P1, keep)).success).toBe(true);
-    expect(engine.getState().currentPlayerIndex).toBe(1);
+    const result = new GameEngine(game).executeAction(new PassAction(P1, getPlayer(game, P1).cards.slice(0, 4).map(c => c.id)));
 
-    expect(engine.undo()).toBe(true);
-    const restored = engine.getState();
-
-    expect(restored.currentPlayerIndex).toBe(0);
-    expect(getPlayer(restored, P1).hasPassed).toBe(false);
-    expect(getPlayer(restored, P1).cards.map(c => c.id)).toEqual(handBefore);
-    expect(restored.board.solarSystem.rotationAngleLevel3).toBe(angleBefore);
-    expect(restored.history).toHaveLength(0);
-  });
-
-  test('l\'instantané n\'est pas altéré par une mutation de l\'état courant', async () => {
-    const game = await createTestGame();
-    game.currentPlayerIndex = 0;
-    const engine = new GameEngine(game);
-
-    engine.saveState();
-    // Mutation directe de l'état courant (comme le faisait nextPlayer avant correction)
-    engine.getState().players[0].credits = 999;
-
-    engine.undo();
-    expect(engine.getState().players[0].credits).not.toBe(999);
+    expect(result.success).toBe(true);
+    expect(result.updatedState).not.toHaveProperty('history');
+    expect(JSON.stringify(result.updatedState).length).toBeLessThan(size * 1.5);
   });
 });
