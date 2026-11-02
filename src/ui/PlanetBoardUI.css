@@ -149,3 +149,22 @@
   background: rgba(0, 0, 0, 0.7);
   white-space: nowrap;
 }
+
+/* Les icônes de gains restent sur une ligne (BonusIcons autorise le retour à la ligne) */
+.seti-satellite-gains > span,
+.seti-slot-gains > span {
+  flex-wrap: nowrap !important;
+}
+
+/* Gains propres à une case sans PV (données des premiers atterrisseurs), au centre de la case */
+.seti-slot-inner-gains {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seti-slot-inner-gains > span {
+  flex-wrap: nowrap !important;
+}

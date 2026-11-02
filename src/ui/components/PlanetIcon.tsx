@@ -4,8 +4,8 @@ import { ProbeSystem } from '../../systems/ProbeSystem';
 import { polarToCartesian, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../../core/SolarSystemPosition';
 import { PLANET_STYLES, SATELLITE_STYLES } from '../styles/celestialStyles';
 import { PlanetGlobe } from './CelestialBodies';
-import { SvgBonus, SvgExtraGains } from './SvgBonus';
-import { hasExtraGains, atAngle } from './bonusLayout';
+import { SvgBonus, SvgExtraGains, SvgSlotBonus } from './SvgBonus';
+import { hasExtraGains, atAngle, splitSlotBonuses } from './bonusLayout';
 import { BonusIcons } from './BonusIcons';
 
 interface PlanetIconProps {
@@ -211,6 +211,9 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
             const landSlots = planetData.landSlots || [];
 
             const isOumuamua = planetData.id === 'oumuamua';
+            // Gains communs à toutes les cases d'une piste (affichés une fois) et gains propres à chaque case
+            const orbitSplit = splitSlotBonuses(orbitSlots);
+            const landSplit = splitSlotBonuses(landSlots);
             const orbiterCircleRadius = 15;
             const orbitRadius = size / 2 + (isOumuamua ? 80 : 25);
             const landerCircleRadius = 15;
@@ -315,7 +318,7 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                 })()}
 
                 {/* Slots Orbiteurs */}
-                {orbitSlots.map((bonus, i) => {
+                {orbitSlots.map((_, i) => {
                   const pos = orbitPositions[i];
                   const probe = planetData.orbiters[i];
                   const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
@@ -359,8 +362,9 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                               transformOrigin: 'center'
                             }}
                           />
-                          {!player && <SvgBonus bonus={bonus} />}
-                          {!player && <SvgExtraGains bonus={bonus} radius={orbiterCircleRadius} />}
+                          {/* Dans la case : ce qui lui est propre ; à côté de la 1re case : ce que toutes les cases donnent */}
+                          {!player && <SvgSlotBonus bonus={orbitSplit.specific[i]} radius={orbiterCircleRadius} />}
+                          {i === 0 && <SvgExtraGains bonus={orbitSplit.common} radius={orbiterCircleRadius} withPv />}
                         </>
                       ) : (
                         <circle
@@ -380,7 +384,7 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                 })}
 
                 {/* Slots Atterrisseurs */}
-                {landSlots.map((bonus, i) => {
+                {landSlots.map((_, i) => {
                   const pos = landPositions[i];
 
                   const probesOnSlot = planetData.landers.filter(p => p.planetSlotIndex === i);
@@ -428,8 +432,8 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                               transformOrigin: 'center'
                             }}
                           />
-                          {!player && <SvgBonus bonus={bonus} />}
-                          {!player && <SvgExtraGains bonus={bonus} radius={landerCircleRadius} />}
+                          {!player && <SvgSlotBonus bonus={landSplit.specific[i]} radius={landerCircleRadius} />}
+                          {i === 0 && <SvgExtraGains bonus={landSplit.common} radius={landerCircleRadius} withPv />}
                         </>
                       ) : (
                         <circle r={4} fill={`url(#land-corridor-grad-${planetData.id})`}
