@@ -89,6 +89,12 @@ Les déplacements gratuits reçus d'une carte (« 2 déplacements ») se dépens
 - La version du jeu (et le commit du build) est affichée en bas du menu et dans l'en-tête de la documentation.
 - **Outils de débogage** : affiche un panneau pour modifier les ressources, piocher une carte précise, etc. (à réserver aux tests).
 
+### 1.9 Glossaire des symboles
+
+Les symboles de l'interface reprennent ceux du livret de règles.
+
+{{glossaire}}
+
 ## 2. Règles appliquées
 
 ### 2.1 Système solaire

@@ -27,6 +27,10 @@ describe('renderMarkdown (documentation du jeu)', () => {
     expect(html).toContain('<pre><code>x &lt; y</code></pre>');
   });
 
+  test('une ligne {{nom}} devient un emplacement de composant', () => {
+    expect(renderMarkdown('Avant\n\n{{glossaire}}\n\nAprès').html).toBe('<p>Avant</p>\n<div data-doc-component="glossaire"></div>\n<p>Après</p>');
+  });
+
   test('le texte est échappé', () => {
     expect(renderMarkdown('<script>alert(1)</script>').html).toBe('<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>');
   });

@@ -145,6 +145,26 @@ export const ActionHexIcon: React.FC<{ kind: ActionIconKind; size?: number }> = 
   );
 };
 
+/** Fin de tour (« Prochain joueur ») : hexagone vert, flèche circulaire qui passe la main au joueur suivant */
+export const EndTurnIcon: React.FC<{ size?: number }> = ({ size = 28 }) => {
+  const uid = useUid();
+  return (
+    <svg width={size} height={size} viewBox="-50 -50 100 100" style={{ display: 'block' }}>
+      <defs>
+        <radialGradient id={`hex-end-${uid}`} cx="50%" cy="40%" r="65%">
+          <stop offset="0%" stopColor="#3ccf7a" stopOpacity={0.75} />
+          <stop offset="100%" stopColor="#05060a" />
+        </radialGradient>
+      </defs>
+      <path d={HEX} fill={`url(#hex-end-${uid})`} stroke="#2fb36a" strokeWidth={7} strokeLinejoin="round" />
+      <path d={HEX_INNER} fill="none" stroke="rgba(255, 255, 255, 0.55)" strokeWidth={1.5} strokeLinejoin="round" />
+      {/* Arc de 300° terminé par une pointe : le tour passe au suivant */}
+      <path d="M17 -12 A21 21 0 1 0 19 9" fill="none" stroke="#fff" strokeWidth={8} strokeLinecap="round" />
+      <path d="M8 -20 L24 -15 L19 1 Z" fill="#fff" stroke="#fff" strokeWidth={3} strokeLinejoin="round" />
+    </svg>
+  );
+};
+
 /* ---------------------------------------------------- */
 /* Signal (livret p. 12) : disque gris à barres sonores */
 /* ---------------------------------------------------- */

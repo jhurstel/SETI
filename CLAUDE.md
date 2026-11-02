@@ -4,7 +4,7 @@ Adaptation numérique du jeu de société **SETI** (Iello) en TypeScript + React
 
 - Dépôt GitHub : https://github.com/jhurstel/SETI (remote `origin`, **public**), branche unique `main`. **Toujours faire `git pull` avant d'analyser ou de modifier le code** (le travail se fait sur plusieurs machines).
 - Règles officielles : `public/docs/seti-rules-fr.pdf`, FAQ : `public/docs/SETI-FAQ-FR.pdf` (référence pour toute question de règle ; accessibles dans le jeu par le bouton Documentation).
-- Documentation du jeu : `public/docs/documentation.md` (affichée par le bouton 📖 à côté des paramètres) : la tenir à jour quand une règle, une action, une interaction ou un poids des robots change.
+- Documentation du jeu : `public/docs/documentation.md` (affichée par le bouton 📖 à côté des paramètres) : la tenir à jour quand une règle, une action, une interaction ou un poids des robots change. Une ligne `{{glossaire}}` y insère le glossaire des symboles (`ui/components/SymbolGlossary.tsx`, vraies icônes de l'interface) : y ajouter tout nouveau symbole.
 - `gh` CLI n'est pas installé sur la machine ; Git utilise HTTPS.
 
 ## Commandes

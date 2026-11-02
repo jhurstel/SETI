@@ -143,3 +143,50 @@
 @media (max-width: 700px) {
     .seti-doc-toc { display: none; }
 }
+
+/* Glossaire des symboles (composant inséré à la place de {{glossaire}}) */
+.seti-glossary h4 {
+    margin: 16px 0 8px;
+    color: #9fb8ff;
+}
+
+.seti-glossary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 8px;
+}
+
+.seti-glossary-entry {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid #2a2f45;
+}
+
+.seti-glossary-icon {
+    flex-shrink: 0;
+    min-width: 34px;
+    display: flex;
+    justify-content: center;
+}
+
+.seti-glossary-icons {
+    display: inline-flex;
+    gap: 2px;
+}
+
+.seti-glossary-entry strong {
+    display: block;
+    color: #e8edff;
+    font-size: 0.9rem;
+}
+
+.seti-glossary-text {
+    display: block;
+    color: #a9b8dc;
+    font-size: 0.8rem;
+    line-height: 1.3;
+}

@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { SymbolGlossary } from '../components/SymbolGlossary';
 import { renderMarkdown } from '../components/markdown';
 import { versionLabel } from '../version';
 import './DocumentationModal.css';
@@ -34,6 +36,12 @@ export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible,
 
   const doc = useMemo(() => (source ? renderMarkdown(source, BASE_URL) : null), [source]);
 
+  // Emplacements {{glossaire}} du texte : le composant y est inséré (vraies icônes du jeu)
+  const [glossarySlots, setGlossarySlots] = useState<Element[]>([]);
+  useLayoutEffect(() => {
+    setGlossarySlots(visible && doc ? [...(bodyRef.current?.querySelectorAll('[data-doc-component="glossaire"]') || [])] : []);
+  }, [doc, visible]);
+
   if (!visible) return null;
 
   const goTo = (id: string) => {
@@ -66,6 +74,7 @@ export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible,
             {error && <p>Impossible de charger la documentation.</p>}
             {!error && !doc && <p>Chargement…</p>}
             {doc && <div dangerouslySetInnerHTML={{ __html: doc.html }} />}
+            {glossarySlots.map((slot, index) => createPortal(<SymbolGlossary />, slot, `glossary-${index}`))}
           </div>
         </div>
       </div>

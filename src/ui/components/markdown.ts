@@ -1,6 +1,8 @@
 /**
  * Rendu Markdown minimal pour la documentation du jeu (public/docs/documentation.md) :
  * titres, paragraphes, listes, tableaux, blocs de code, gras, code et liens.
+ * Une ligne `{{nom}}` devient un emplacement (`<div data-doc-component="nom">`) où l'interface insère un composant
+ * (glossaire des symboles, avec les icônes du jeu).
  * Le texte est échappé : seul le balisage ci-dessus produit du HTML.
  */
 
@@ -46,7 +48,11 @@ export function renderMarkdown(source: string, baseUrl = ''): { html: string; to
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const heading = /^(#{1,4})\s+(.*)$/.exec(line);
-    if (line.startsWith('```')) {
+    const component = /^\{\{([a-z-]+)\}\}$/.exec(line.trim());
+    if (component) {
+      flush();
+      html.push(`<div data-doc-component="${component[1]}"></div>`);
+    } else if (line.startsWith('```')) {
       flush();
       const code: string[] = [];
       for (i++; i < lines.length && !lines[i].startsWith('```'); i++) code.push(lines[i]);
