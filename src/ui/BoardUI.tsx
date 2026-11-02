@@ -19,6 +19,7 @@ import { useAutosave } from './hooks/useAutosave';
 import { useGameSession, RobotStep } from './hooks/useGameSession';
 import { useOnlineSession } from './hooks/useOnlineSession';
 import { OnlineModal } from './modals/OnlineModal';
+import { SpaceBackdrop } from './components/SpaceBackdrop';
 import { DebugPanel } from './DebugPanel';
 import { useDebugSetting } from './hooks/useDebugSetting';
 import { PassModal } from './modals/PassModal';
@@ -532,6 +533,7 @@ export const BoardUI: React.FC = () => {
       onOnline={online.available ? () => { if (isOnline) online.leave(); setOnlineVisible(true); } : undefined}
       onResumeOnline={online.available && online.storedSeat && !isOnline ? resumeOnline : undefined}
       onLeaveOnline={isOnline ? () => { online.leave(true); setSettingsVisible(true); } : undefined}
+      onDocumentation={() => setDocVisible(true)}
     />
   );
 
@@ -540,7 +542,9 @@ export const BoardUI: React.FC = () => {
     return (
       <div className="seti-root">
         {settingsModal}
+        {onlineVisible && <SpaceBackdrop />}
         <OnlineModal visible={onlineVisible} online={online} onBack={() => { setOnlineVisible(false); setSettingsVisible(true); }} />
+        <DocumentationModal visible={docVisible} onClose={() => setDocVisible(false)} />
       </div>
     );
   }
@@ -802,7 +806,7 @@ export const BoardUI: React.FC = () => {
           />
 
           {/* Toast Notification */}
-          {toast && toast.visible && (
+          {toast && toast.visible && !settingsVisible && (
             <div className="seti-toast" style={{ zIndex: 8000 }}>
               {toast.message}
             </div>

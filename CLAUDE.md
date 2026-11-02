@@ -79,7 +79,7 @@ src/
     ├── hooks/               # useGameSession (partie + journal, dispatch), useAITurn (cadence des robots, calcul dans le Web Worker via aiWorkerClient), useAutosave (localStorage, écriture différée)
     ├── SolarSystemBoardUI.tsx (~1700), PlayerBoardUI, PlanetBoardUI, AlienBoardUI, TechnologyBoardUI, ObjectiveBoardUI, CardRowUI, HistoryBoardUI
     ├── components/          # HandCard, MissionCard, CardTooltip, PlayerComputer, PlanetIcon, SvgBonus, SectorDetails…
-    ├── modals/              # NewGame, Settings, Documentation (public/docs/documentation.md + PDF), Pass, GameModals
+    ├── modals/              # Settings (écran d'accueil : continuer, nouvelle partie, en ligne, documentation), NewGame, Online, Documentation (public/docs/documentation.md + PDF), Pass, GameModals
     └── styles/celestialStyles.ts
 server/                      # Serveur Node du jeu à distance (GameServer : ws, salles, robots, fichiers) ; build/ et data/ ignorés
 e2e/                         # Playwright : parties pilotées dans le navigateur (serveur Vite lancé par playwright.config.ts)
@@ -88,7 +88,7 @@ docs/etat-des-lieux-cartes.md # Audit des cartes et des opérations des robots (
 docs/archive/                # Documents de conception initiaux, obsolètes
 ```
 
-Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `assets/`).
+Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `assets/`), sauf le logo `public/logo-seti.png` (détouré de la couverture du livret de règles, en clair sur fond transparent), affiché par l'accueil et la documentation. Le fond de l'accueil est `ui/components/SpaceBackdrop.tsx` (`ui/HomeScreen.css`, animations coupées si `prefers-reduced-motion`).
 
 ## Règles de travail
 

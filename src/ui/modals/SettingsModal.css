@@ -234,3 +234,24 @@
 .seti-online-banner .seti-modal-btn {
   padding: 4px 12px;
 }
+
+/* Fenêtres ouvertes depuis l'accueil (nouvelle partie, partie en ligne) : verre sur le ciel de l'accueil */
+.seti-modal-overlay:has(> .seti-newgame-modal),
+.seti-modal-overlay:has(> .seti-online-modal) {
+  background-color: rgba(3, 4, 11, 0.45);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.seti-newgame-modal,
+.seti-online-modal {
+  border-radius: 16px;
+  border: 1px solid rgba(130, 170, 255, 0.35);
+  background: linear-gradient(160deg, rgba(36, 46, 92, 0.92), rgba(12, 15, 34, 0.94));
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(70, 150, 255, 0.18);
+}
+
+.seti-newgame-modal {
+  width: min(460px, calc(100vw - 32px));
+  box-sizing: border-box;
+}

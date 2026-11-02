@@ -5,6 +5,7 @@ import { serializeGame, deserializeGame, SaveVersionError } from '../../core/Gam
 import { readAutosave } from '../hooks/useAutosave';
 import './SettingsModal.css';
 import { versionLabel } from '../version';
+import { SpaceBackdrop } from '../components/SpaceBackdrop';
 import { GameSetup, SeatConfig } from '../../session/GameSetup';
 
 /** API File System Access (Chrome, Edge) : absente des types DOM standards */
@@ -34,7 +35,36 @@ interface SettingsModalProps {
   onLeaveOnline?: () => void;
   /** Une partie (locale ou en ligne) est affichée : le menu peut se refermer */
   canClose?: boolean;
+  /** Ouvre la documentation du jeu */
+  onDocumentation?: () => void;
 }
+
+/** Résumé de la partie sauvegardée pour la carte « Continuer » : manche et scores */
+function autosaveSummary(json: string | null): string | null {
+  if (!json) return null;
+  try {
+    const save = JSON.parse(json) as { currentRound?: number; maxRounds?: number; players?: { name: string; score: number }[] };
+    const players = (save.players || []).map(p => `${p.name} ${p.score} PV`).join(' · ');
+    return `Manche ${save.currentRound ?? '?'}/${save.maxRounds ?? 5}${players ? ` — ${players}` : ''}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Icônes des cartes de l'accueil (traits, couleur du texte) */
+const Icon: React.FC<{ path: string }> = ({ path }) => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d={path} />
+  </svg>
+);
+const ICONS = {
+  play: 'M8 5.5v13l10.5-6.5z',
+  rocket: 'M12 2.5c3.5 2.2 5 5.8 5 9.5l-2 3H9l-2-3c0-3.7 1.5-7.3 5-9.5zM12 9.5a1.6 1.6 0 1 0 0 .01M9 15l-2.5 4 3-1M15 15l2.5 4-3-1M12 17v4',
+  online: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM3.5 9h17M3.5 15h17M12 3c2.5 2.6 3.6 5.6 3.6 9s-1.1 6.4-3.6 9c-2.5-2.6-3.6-5.6-3.6-9S9.5 5.6 12 3z',
+  resume: 'M4 12a8 8 0 1 0 2.4-5.7L4 8.5M4 4v4.5h4.5M12 8v4l3 2',
+  leave: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
+  back: 'M10 6l-6 6 6 6M4 12h16',
+};
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
   visible, 
@@ -49,13 +79,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onResumeOnline,
   onLeaveOnline,
   canClose,
+  onDocumentation,
 }) => {
   const [newGameModalVisible, setNewGameModalVisible] = useState(false);
   const [hasAutosave, setHasAutosave] = useState(false);
+  const [savedSummary, setSavedSummary] = useState<string | null>(null);
 
   // Vérifier s'il y a une sauvegarde automatique au démarrage ou à l'ouverture
   useEffect(() => {
-    setHasAutosave(!!readAutosave());
+    const autosave = readAutosave();
+    setHasAutosave(!!autosave);
+    setSavedSummary(autosaveSummary(autosave));
   }, [visible]);
 
   // Restaure une partie sauvegardée (fichier ou sauvegarde automatique)
@@ -184,27 +218,57 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       }
   };
 
+  const canGoBack = !!(game || canClose);
+  const card = (key: string, icon: keyof typeof ICONS, title: string, subtitle: string, onClick: () => void, primary = false) => (
+    <button key={key} className={`seti-home-card ${primary ? 'primary' : ''}`} onClick={onClick}>
+      <span className="seti-home-card-icon"><Icon path={ICONS[icon]} /></span>
+      <span className="seti-home-card-text">
+        <span className="seti-home-card-title">{title}</span>
+        <span className="seti-home-card-subtitle">{subtitle}</span>
+      </span>
+    </button>
+  );
+
   return (
     <>
+      {(visible || newGameModalVisible) && !canGoBack && <SpaceBackdrop />}
       {visible && (
-        <div className="seti-modal-overlay" style={{ zIndex: 2000 }}>
-          <div className="seti-modal-content seti-settings-modal">
-            <h2 className="seti-modal-title">Menu Principal</h2>
-            <div className="seti-modal-buttons-vertical">
-              {hasAutosave && <button onClick={handleContinue} className="seti-modal-btn primary">Continuer la partie</button>}
-              <button onClick={handleNewGameRequest} className={`seti-modal-btn ${!hasAutosave ? 'primary' : ''}`}>Nouvelle Partie</button>
-              <button onClick={handleSaveGame} className="seti-modal-btn">Sauvegarder Partie</button>
-              <button onClick={handleLoadGame} className="seti-modal-btn">Restaurer Partie</button>
-              {onResumeOnline && <button onClick={() => { setVisible(false); onResumeOnline(); }} className="seti-modal-btn">Reprendre la partie en ligne</button>}
-              {onLeaveOnline && <button onClick={onLeaveOnline} className="seti-modal-btn">Quitter la partie en ligne</button>}
-              {onOnline && <button onClick={() => { setVisible(false); onOnline(); }} className="seti-modal-btn">Partie en ligne</button>}
-              {(game || canClose) && <button onClick={() => setVisible(false)} className="seti-modal-btn secondary">Fermer</button>}
+        <div className="seti-home" role="dialog" aria-label="Accueil">
+          <SpaceBackdrop />
+          {canGoBack && (
+            <button className="seti-home-link seti-home-close" onClick={() => setVisible(false)}>
+              <Icon path={ICONS.back} /> Retour au jeu
+            </button>
+          )}
+          <div className="seti-home-content">
+            <div className="seti-home-hero">
+              <img className="seti-home-logo" src="logo-seti.png" alt="SETI" />
+              <div className="seti-home-wave" aria-hidden="true">
+                {Array.from({ length: 27 }, (_, i) => <span key={i} style={{ animationDelay: `${-(i * 0.13) % 1.6}s`, height: `${30 + ((i * 37) % 70)}%` }} />)}
+              </div>
+              <p className="seti-home-tagline">À la recherche d'une vie extraterrestre</p>
             </div>
-            <label className="seti-settings-option">
-              <input type="checkbox" checked={showDebug} onChange={e => setShowDebug(e.target.checked)} />
-              Outils de débogage
-            </label>
-            <div className="seti-settings-version">{versionLabel()}</div>
+
+            <div className="seti-home-actions">
+              {hasAutosave && card('continue', 'play', 'Continuer la partie', savedSummary || 'Reprendre la partie sauvegardée', handleContinue, true)}
+              {card('new', 'rocket', 'Nouvelle partie', 'Contre 1 à 3 robots, du Débutant à l\'Expert', handleNewGameRequest, !hasAutosave)}
+              {onResumeOnline && card('resume-online', 'resume', 'Reprendre en ligne', 'Retrouver votre place dans la salle', () => { setVisible(false); onResumeOnline(); })}
+              {onOnline && card('online', 'online', 'Partie en ligne', 'Créer une salle ou rejoindre des amis avec un code', () => { setVisible(false); onOnline(); })}
+              {onLeaveOnline && card('leave-online', 'leave', 'Quitter la partie en ligne', 'Votre place reste reprenable', onLeaveOnline)}
+            </div>
+
+            <div className="seti-home-footer">
+              <button className="seti-home-link" onClick={handleLoadGame}>Restaurer une sauvegarde</button>
+              {game && <button className="seti-home-link" onClick={handleSaveGame}>Sauvegarder la partie</button>}
+              {onDocumentation && <button className="seti-home-link" onClick={onDocumentation}>Documentation</button>}
+              <a className="seti-home-link" href="docs/seti-rules-fr.pdf" target="_blank" rel="noopener noreferrer">Règles (PDF)</a>
+              <a className="seti-home-link" href="docs/SETI-FAQ-FR.pdf" target="_blank" rel="noopener noreferrer">FAQ (PDF)</a>
+              <label className="seti-home-option">
+                <input type="checkbox" checked={showDebug} onChange={e => setShowDebug(e.target.checked)} />
+                Outils de débogage
+              </label>
+              <span className="seti-home-version">{versionLabel()}</span>
+            </div>
           </div>
         </div>
       )}

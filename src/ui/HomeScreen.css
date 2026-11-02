@@ -1,0 +1,391 @@
+/* ===== Fond spatial (accueil, création de partie, partie en ligne) ===== */
+
+.seti-space {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #03040b;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.seti-space-nebula {
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(ellipse 45% 35% at 22% 30%, rgba(88, 54, 190, 0.35), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 78% 70%, rgba(20, 120, 200, 0.28), transparent 70%),
+    radial-gradient(ellipse 30% 25% at 70% 18%, rgba(220, 90, 60, 0.18), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 50% 55%, rgba(30, 40, 90, 0.5), transparent 75%);
+  animation: seti-nebula-drift 60s ease-in-out infinite alternate;
+}
+
+@keyframes seti-nebula-drift {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(-3%, 2%) scale(1.06); }
+}
+
+/* Étoiles : motifs de petits points répétés, trois tailles et trois rythmes */
+.seti-space-stars {
+  position: absolute;
+  inset: 0;
+  background-repeat: repeat;
+}
+
+.seti-space-stars.small {
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, #fff, transparent),
+    radial-gradient(1px 1px at 120px 80px, #cfe0ff, transparent),
+    radial-gradient(1px 1px at 200px 160px, #fff, transparent),
+    radial-gradient(1px 1px at 60px 200px, #ffe9c9, transparent),
+    radial-gradient(1px 1px at 170px 20px, #fff, transparent);
+  background-size: 230px 230px;
+  opacity: 0.7;
+  animation: seti-twinkle 5s ease-in-out infinite alternate;
+}
+
+.seti-space-stars.medium {
+  background-image:
+    radial-gradient(1.5px 1.5px at 50px 110px, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 260px 40px, #bcd4ff, transparent),
+    radial-gradient(1.5px 1.5px at 330px 290px, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 150px 330px, #ffdcb0, transparent);
+  background-size: 380px 380px;
+  opacity: 0.8;
+  animation: seti-twinkle 7s ease-in-out infinite alternate-reverse;
+}
+
+.seti-space-stars.large {
+  background-image:
+    radial-gradient(2px 2px at 90px 140px, #fff, transparent),
+    radial-gradient(2.5px 2.5px at 420px 380px, #d6e6ff, transparent),
+    radial-gradient(2px 2px at 520px 90px, #fff, transparent);
+  background-size: 610px 610px;
+  animation: seti-twinkle 9s ease-in-out infinite alternate;
+}
+
+@keyframes seti-twinkle {
+  from { opacity: 0.35; }
+  to { opacity: 0.95; }
+}
+
+/* Système solaire décoratif, centré derrière le contenu */
+.seti-space-system {
+  position: absolute;
+  left: 50%;
+  top: 104%;
+  width: 0;
+  height: 0;
+}
+
+.seti-space-sun {
+  position: absolute;
+  width: 26vmin;
+  height: 26vmin;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff7d6 0%, #ffcc4d 35%, #ff8a1f 65%, rgba(255, 120, 20, 0) 72%);
+  box-shadow: 0 0 120px 50px rgba(255, 150, 40, 0.22);
+  opacity: 0.6;
+}
+
+.seti-space-orbit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(120, 160, 255, 0.13);
+  animation-name: seti-orbit-turn;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes seti-orbit-turn {
+  from { transform: translate(-50%, -50%) rotate(var(--start, 0deg)); }
+  to { transform: translate(-50%, -50%) rotate(calc(var(--start, 0deg) + 360deg)); }
+}
+
+.seti-space-planet {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  opacity: 0.8;
+}
+
+/* Balayage du radiotélescope : un cône de lumière qui tourne */
+.seti-space-sweep {
+  position: absolute;
+  width: 220vmin;
+  height: 220vmin;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(90, 200, 255, 0.16), rgba(90, 200, 255, 0) 40deg, transparent 360deg);
+  animation: seti-sweep 14s linear infinite;
+  mask-image: radial-gradient(circle, transparent 8%, #000 10%, #000 60%, transparent 70%);
+  -webkit-mask-image: radial-gradient(circle, transparent 8%, #000 10%, #000 60%, transparent 70%);
+}
+
+@keyframes seti-sweep {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.seti-space-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(0, 0, 0, 0.75) 100%);
+}
+
+/* ===== Accueil ===== */
+
+.seti-home {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  overflow-y: auto;
+  color: #e8edff;
+}
+
+.seti-home-content {
+  position: relative;
+  z-index: 1;
+  min-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 40px 16px 24px;
+}
+
+.seti-home-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: seti-home-rise 0.9s ease-out both;
+}
+
+.seti-home-logo {
+  width: min(560px, 86vw);
+  height: auto;
+  filter: drop-shadow(0 0 12px rgba(110, 200, 255, 0.55)) drop-shadow(0 0 40px rgba(110, 160, 255, 0.35));
+}
+
+/* Onde de signal sous le logo */
+.seti-home-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 26px;
+}
+
+.seti-home-wave span {
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(to top, #3fb6ff, #b9ecff);
+  transform-origin: center;
+  animation: seti-wave 1.6s ease-in-out infinite;
+  opacity: 0.85;
+}
+
+@keyframes seti-wave {
+  0%, 100% { transform: scaleY(0.18); }
+  50% { transform: scaleY(1); }
+}
+
+.seti-home-tagline {
+  margin: 0;
+  font-size: 0.95rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: #9fb6e8;
+  text-align: center;
+}
+
+@keyframes seti-home-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Cartes d'action */
+.seti-home-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  width: min(940px, 100%);
+  animation: seti-home-rise 0.9s 0.15s ease-out both;
+}
+
+.seti-home-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  min-height: 84px;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 14px;
+  border: 1px solid rgba(130, 170, 255, 0.22);
+  background: linear-gradient(160deg, rgba(40, 52, 100, 0.55), rgba(14, 18, 40, 0.65));
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.seti-home-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(120, 200, 255, 0.6);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45), 0 0 22px rgba(80, 170, 255, 0.25);
+}
+
+.seti-home-card:focus-visible {
+  outline: 2px solid #7fd4ff;
+  outline-offset: 3px;
+}
+
+.seti-home-card.primary {
+  border-color: rgba(120, 210, 255, 0.55);
+  background: linear-gradient(150deg, rgba(36, 120, 200, 0.55), rgba(88, 54, 190, 0.5));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 26px rgba(60, 160, 255, 0.3);
+}
+
+.seti-home-card.primary::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 14px;
+  pointer-events: none;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.18) 50%, transparent 70%);
+  background-size: 250% 100%;
+  animation: seti-card-shine 4.5s ease-in-out infinite;
+}
+
+@keyframes seti-card-shine {
+  0% { background-position: 120% 0; }
+  60%, 100% { background-position: -120% 0; }
+}
+
+.seti-home-card-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(120, 180, 255, 0.12);
+  color: #8fd8ff;
+}
+
+.seti-home-card.primary .seti-home-card-icon {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.seti-home-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.seti-home-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.seti-home-card-subtitle {
+  font-size: 0.8rem;
+  color: #a9b8dc;
+  line-height: 1.35;
+}
+
+.seti-home-card.primary .seti-home-card-subtitle {
+  color: #dfe9ff;
+}
+
+/* Pied de page : actions secondaires, réglage, version */
+.seti-home-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 18px;
+  font-size: 0.82rem;
+  color: #8796bd;
+  animation: seti-home-rise 0.9s 0.3s ease-out both;
+}
+
+.seti-home .seti-home-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: none;
+  color: #b8c7ee;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.seti-home .seti-home-link:hover {
+  color: #fff;
+  border-color: rgba(130, 170, 255, 0.3);
+  background: rgba(130, 170, 255, 0.08);
+}
+
+.seti-home .seti-home-link:focus-visible {
+  outline: 2px solid #7fd4ff;
+}
+
+.seti-home .seti-home-link:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.seti-home-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.seti-home-version {
+  opacity: 0.7;
+}
+
+/* Bouton « Retour au jeu » en haut à droite, quand une partie est affichée */
+.seti-home-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+}
+
+@media (max-width: 600px) {
+  .seti-home-content { gap: 20px; padding-top: 28px; }
+  .seti-home-tagline { letter-spacing: 0.2em; font-size: 0.8rem; }
+  .seti-home-close { top: 8px; right: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seti-space *,
+  .seti-home-hero,
+  .seti-home-actions,
+  .seti-home-footer,
+  .seti-home-wave span,
+  .seti-home-card.primary::after {
+    animation: none !important;
+  }
+}

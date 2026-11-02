@@ -12,10 +12,11 @@ Ce document décrit comment jouer, les règles telles qu'elles sont appliquées,
 
 ### 1.1 Lancer une partie
 
+- **Accueil** : au lancement (et par ⚙️ en cours de partie), l'écran d'accueil propose de continuer la partie sauvegardée (avec sa manche et les scores), d'en commencer une nouvelle, de jouer en ligne, ainsi que la documentation, les règles et la FAQ.
 - **Nouvelle partie** : choisir le nombre de robots (1 à 3), leur niveau (Débutant, Intermédiaire, Expert) et qui commence.
 - La partie se joue en **5 manches**. Chaque joueur commence avec 4 crédits, 3 énergies, 4 Médias et 5 cartes, puis **réserve** une carte sous son plateau (mise en place).
 - **Sauvegarde automatique** : l'état est enregistré dans le navigateur après chaque action (et quand la page est quittée). En rouvrant la page, la partie reprend où elle s'était arrêtée.
-- **Export / import** : le menu Paramètres (⚙️) enregistre la partie dans un fichier JSON ou en recharge une. Une sauvegarde d'une version plus récente du jeu est refusée.
+- **Export / import** : l'accueil (⚙️ en cours de partie) enregistre la partie dans un fichier JSON ou en recharge une. Une sauvegarde d'une version plus récente du jeu est refusée.
 
 ### 1.2 L'écran
 
