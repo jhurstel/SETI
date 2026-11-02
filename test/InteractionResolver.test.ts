@@ -1,7 +1,7 @@
 import { InteractionResolver, isAutomaticInteraction } from '../src/core/InteractionResolver';
 import { AIController } from '../src/ai/AIController';
 import { ResourceSystem } from '../src/systems/ResourceSystem';
-import { Game, LifeTraceType, Mission, Sector } from '../src/core/types';
+import { Game, LifeTraceLocation, LifeTraceType, Mission, Sector } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -111,6 +111,29 @@ describe('InteractionResolver', () => {
       expect(res.newInteractions.some(i => 'playerId' in i && i.playerId === P2)).toBe(false);
       expect(res.updatedGame.board.alienBoards[0].lifeTraces.some(t => t.playerId === P2)).toBe(true);
     });
+
+    test('gagnant robot dont la trace découvre une espèce : la découverte est annoncée', () => {
+      sector.firstBonus = { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] };
+      getPlayer(game, P2).type = 'robot';
+      game.board.alienBoards.forEach((board, index) => {
+        board.lifeTraces = [
+          { id: `y${index}`, type: LifeTraceType.YELLOW, playerId: P1, location: LifeTraceLocation.TRIANGLE },
+          { id: `b${index}`, type: LifeTraceType.BLUE, playerId: P1, location: LifeTraceLocation.TRIANGLE },
+        ];
+      });
+      markSignals(sector, [P2, P2, P1]);
+      const res = InteractionResolver.resolve(game, P1, { type: 'RESOLVING_SECTOR', sectorId: sector.id, sequenceId: 'seq' });
+
+      expect(res.historyEntries).toContainEqual({ message: 'découvre une nouvelle espèce Alien !', playerId: P2, sequenceId: 'seq' });
+      expect(res.updatedGame.isSpeciesDiscovered).toBe(false);
+    });
+
+    test('gagnant absent de la partie : son interaction est ignorée', () => {
+      sector.firstBonus = { lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] };
+      markSignals(sector, ['fantome', 'fantome', P1]);
+      const res = InteractionResolver.resolve(game, P1, { type: 'RESOLVING_SECTOR', sectorId: sector.id, sequenceId: 'seq' });
+      expect(res.newInteractions.some(i => i.type === 'PLACING_LIFE_TRACE')).toBe(false);
+    });
   });
 
   describe('DRAW_AND_SCAN', () => {
@@ -151,6 +174,46 @@ describe('InteractionResolver', () => {
       const res = InteractionResolver.resolve(game, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: 'm1', requirementId: 'r1' });
       expect(getPlayer(res.updatedGame, P1).missions[0].completed).toBe(true);
       expect(res.historyEntries[0].message).toContain('accomplit la mission');
+    });
+
+    test('mission inconnue : rien ne change', () => {
+      getPlayer(game, P1).missions = [];
+      const res = InteractionResolver.resolve(game, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: 'm1', requirementId: 'r1' });
+      expect(res.updatedGame).toBe(game);
+      expect(res.historyEntries).toEqual([]);
+    });
+
+    test('ET.23 : les 2 Tokens de la récompense sont défaussés, puis 11 PV', () => {
+      const player = getPlayer(game, P1);
+      player.tokens = 3;
+      player.missions = [mission('GAIN_IF_3_TOKEN:token:-2:pv:11', false, 1)];
+      const score = player.score;
+      const res = InteractionResolver.resolve(game, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: 'm1', requirementId: 'r1', sequenceId: 'seq' });
+
+      expect(res.error).toBeUndefined();
+      expect(getPlayer(res.updatedGame, P1).tokens).toBe(1);
+      expect(getPlayer(res.updatedGame, P1).score).toBe(score + 11);
+      expect(res.historyEntries[0].message).toMatch(/^accomplit la mission "Mission test" en défaussant 2 Tokens/);
+      expect(player.tokens).toBe(3);
+    });
+
+    test('ET.23 déjà signalée réalisable mais Tokens dépensés depuis : refusée', () => {
+      const player = getPlayer(game, P1);
+      player.tokens = 1;
+      player.missions = [mission('GAIN_IF_3_TOKEN:token:-2:pv:11', true, 1)];
+      const res = InteractionResolver.resolve(game, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: 'm1', requirementId: 'r1' });
+      expect(res.error).toBe('Pas assez de Tokens.');
+      expect(res.updatedGame).toBe(game);
+    });
+
+    test('objectif sans prérequis connu : validé sans gain, avec une séquence créée', () => {
+      const m = mission('GAIN_ON_VISIT:jupiter:pv:4', false, 2);
+      m.requirements = m.requirements.slice(1);
+      getPlayer(game, P1).missions = [m];
+      const res = InteractionResolver.resolve(game, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: 'm1', requirementId: 'r1' });
+      expect(res.historyEntries[0].message).toBe('accomplit la mission "Mission test"');
+      expect(res.historyEntries[0].sequenceId).toMatch(/^mission-claim-/);
+      expect(res.newInteractions).toEqual([]);
     });
 
     test('conditions non remplies : erreur et état inchangé', () => {
