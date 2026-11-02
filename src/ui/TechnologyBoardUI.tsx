@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
-import { TechTileIcon } from './components/GameIcons';
+import { TechTileIcon, VictoryPointsIcon } from './components/GameIcons';
 import { BonusIcons } from './components/BonusIcons';
 import { AnyTechIcon } from './components/ObjectiveSymbol';
 import { Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
@@ -163,8 +163,8 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                       }}
                     >
                       {hasExtraPv && (
-                        <div className="seti-tech-card-extra-pv">
-                            +2
+                        <div className="seti-tech-card-extra-pv" aria-label="2 PV">
+                          <VictoryPointsIcon amount={2} size={22} />
                         </div>
                       )}
                       

@@ -126,3 +126,26 @@
     justify-content: center;
     z-index: 1;
 }
+
+/* Gains d'une lune autres que les PV, à 135° de la lune (position calculée dans PlanetIcon) */
+.seti-satellite-gains {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  padding: 1px 3px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.65);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Gains d'une case d'orbite ou d'atterrissage autres que les PV (SvgExtraGains), à côté de la case */
+.seti-slot-gains {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 3px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+}

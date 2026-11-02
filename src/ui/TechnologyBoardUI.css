@@ -112,22 +112,19 @@
 
 .seti-tech-card-extra-pv {
   position: absolute;
-  top: 7px;
+  top: 4px;
   left: 50%;
   transform: translateX(-50%);
-  background-color: #8affc0;
-  color: #000;
   border-radius: 50%;
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.7em;
   font-weight: bold;
   z-index: 10;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-  border: 1px solid #fff;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6));
 }
 
 .seti-tech-card-image {

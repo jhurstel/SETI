@@ -29,6 +29,12 @@ const SIGNAL_SCOPES: Partial<Record<SectorType, { color?: string; badge?: Signal
   [SectorType.SATURN]: { badge: 'saturn' },
 };
 
+/** Symbole du signal d'une carte (coin de scan) : disque à la couleur du secteur ; à défaut, le nom du secteur */
+export const SectorSignalIcon: React.FC<{ sector: SectorType; size?: number }> = ({ sector, size = 16 }) => {
+  const signal = SIGNAL_SCOPES[sector];
+  return signal ? <SignalGainIcon color={signal.color} badge={signal.badge} size={size} /> : <span>{sector}</span>;
+};
+
 /** Icône sans emplacement pour un nombre (trace, réservation) : répétée autant de fois que la quantité */
 export const Repeated: React.FC<{ amount: number; children: React.ReactNode }> = ({ amount, children }) => (
   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '1px' }}>

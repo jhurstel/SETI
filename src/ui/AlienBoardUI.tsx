@@ -6,7 +6,7 @@ import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
 import { Tooltip } from './Tooltip';
-import { LifeTraceShape, VictoryPointsIcon, ResourceIcon } from './components/GameIcons';
+import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon } from './components/GameIcons';
 import { LIFE_TRACE_COLORS, LifeTraceColor } from './styles/lifeTraceColors';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import './AlienBoardUI.css';
@@ -29,7 +29,7 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
     onMouseLeave={onMouseLeave}
     onClick={(e) => { e.stopPropagation(); if (isClickable && onClick) { onClick(); } }}
   >
-    <svg width="60" height="50" viewBox="2 4 36 30" preserveAspectRatio="xMidYMid meet" className="alien-triangle-svg"
+    <svg width="60" height="50" viewBox={LIFE_TRACE_VIEWBOX} preserveAspectRatio="xMidYMid meet" className="alien-triangle-svg"
       style={{ opacity: isClickable ? 0.75 : 0.4, transition: 'all 0.3s ease', filter: isClickable ? `drop-shadow(0 0 4px ${LIFE_TRACE_COLORS[color]})` : 'none' }}>
       <LifeTraceShape color={color} />
       {isClickable && (

@@ -3,14 +3,14 @@ import { Card, Game, InteractionState, CostType, CardType, RevenueType } from '.
 import { CardSystem } from '../../systems/CardSystem';
 import { CardTooltip } from './CardTooltip';
 import { ResourceIcon } from './GameIcons';
-import { BonusIcons } from './BonusIcons';
+import { BonusIcons, SectorSignalIcon } from './BonusIcons';
 import { freeActionBonus, revenueBonus } from './cardBonus';
 import { FREE_ACTION_STYLES, SECTOR_STYLES, REVENUE_STYLES } from '../styles/celestialStyles';
 
 /** Contenu d'une carte (main, rangée, fenêtres de choix) : l'attribut utile au choix en cours est mis en surbrillance. */
 export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue' | 'scan' | 'freeAction' }> = ({ card, highlightedAttribute }) => {
   let bottomLabel = '';
-  let bottomValue = '';
+  let bottomValue: React.ReactNode = '';
   let bottomStyle = { color: '#fff', borderColor: '#fff', bgColor: 'rgba(255, 255, 255, 0.1)' };
   let details: React.ReactNode = null;
 
@@ -21,32 +21,38 @@ export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue'
     bottomStyle = { color: '#ff6b6b', borderColor: '#b33a3a', bgColor: 'rgba(179, 58, 58, 0.18)' };
   } else if (highlightedAttribute === 'revenue') {
     bottomLabel = 'Réservation';
-    bottomValue = card.revenue;
+    bottomValue = card.revenue && (
+      <BonusIcons bonus={revenueBonus(card.revenue)} size={20} empty={card.revenue} />
+    );
     if (card.revenue && REVENUE_STYLES[card.revenue]) bottomStyle = REVENUE_STYLES[card.revenue];
     details = (
       <>
-        {card.freeAction && <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>Act: <BonusIcons bonus={freeActionBonus(card.freeAction)} size={12} empty={card.freeAction} /></div>}
-        {card.scanSector && <div>Scan: {card.scanSector}</div>}
+        {card.freeAction && <div style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>Action:<BonusIcons bonus={freeActionBonus(card.freeAction)} size={12} empty={card.freeAction} /></div>}
+        {card.scanSector && <div style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>Signal:<SectorSignalIcon sector={card.scanSector} size={13} /></div>}
       </>
     );
   } else if (highlightedAttribute === 'scan') {
     bottomLabel = 'Signal';
-    bottomValue = card.scanSector;
+    bottomValue = card.scanSector && (
+      <SectorSignalIcon sector={card.scanSector} size={22} />
+    );
     if (card.scanSector && SECTOR_STYLES[card.scanSector]) bottomStyle = SECTOR_STYLES[card.scanSector];
     details = (
       <>
-        {card.freeAction && <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>Act: <BonusIcons bonus={freeActionBonus(card.freeAction)} size={12} empty={card.freeAction} /></div>}
-        {card.revenue && <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>Rev: <BonusIcons bonus={revenueBonus(card.revenue)} size={12} empty={card.revenue} /></div>}
+        {card.freeAction && <div style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>Action:<BonusIcons bonus={freeActionBonus(card.freeAction)} size={12} empty={card.freeAction} /></div>}
+        {card.revenue && <div style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>Revenu:<BonusIcons bonus={revenueBonus(card.revenue)} size={12} empty={card.revenue} /></div>}
       </>
     );
   } else {
     bottomLabel = 'Action gratuite';
-    bottomValue = card.freeAction;
+    bottomValue = card.freeAction && (
+      <BonusIcons bonus={freeActionBonus(card.freeAction)} size={20} empty={card.freeAction} />
+    );
     if (card.freeAction && FREE_ACTION_STYLES[card.freeAction]) bottomStyle = FREE_ACTION_STYLES[card.freeAction];
     details = (
       <>
-        {card.revenue && <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>Rev: <BonusIcons bonus={revenueBonus(card.revenue)} size={12} empty={card.revenue} /></div>}
-        {card.scanSector && <div>Scan: {card.scanSector}</div>}
+        {card.revenue && <div style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>Revenu:<BonusIcons bonus={revenueBonus(card.revenue)} size={12} empty={card.revenue} /></div>}
+        {card.scanSector && <div style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>Signal:<SectorSignalIcon sector={card.scanSector} size={13} /></div>}
       </>
     );
   }

@@ -4,7 +4,9 @@ import { ProbeSystem } from '../../systems/ProbeSystem';
 import { polarToCartesian, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../../core/SolarSystemPosition';
 import { PLANET_STYLES, SATELLITE_STYLES } from '../styles/celestialStyles';
 import { PlanetGlobe } from './CelestialBodies';
-import { SvgBonus } from './SvgBonus';
+import { SvgBonus, SvgExtraGains } from './SvgBonus';
+import { hasExtraGains, atAngle } from './bonusLayout';
+import { BonusIcons } from './BonusIcons';
 
 interface PlanetIconProps {
   id: string;
@@ -153,6 +155,13 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
               )}
             </g>
           </svg>
+          {/* Autres gains de la lune (comme sur le plateau : réservations, énergie, Médias, données, traces…) */}
+          {!player && hasExtraGains(bonus) && (
+            // À 135° (en bas à droite de la lune), comme les gains des cases sur le plateau
+            <div className="seti-satellite-gains" style={{ left: `${satSize / 2 + atAngle(satSize / 2, 135).x - 4}px`, top: `${satSize / 2 + atAngle(satSize / 2, 135).y - 4}px` }}>
+              <BonusIcons bonus={{ ...bonus, pv: undefined }} size={12} empty={null} />
+            </div>
+          )}
         </div>
       );
     });
@@ -351,6 +360,7 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                             }}
                           />
                           {!player && <SvgBonus bonus={bonus} />}
+                          {!player && <SvgExtraGains bonus={bonus} radius={orbiterCircleRadius} />}
                         </>
                       ) : (
                         <circle
@@ -419,6 +429,7 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                             }}
                           />
                           {!player && <SvgBonus bonus={bonus} />}
+                          {!player && <SvgExtraGains bonus={bonus} radius={landerCircleRadius} />}
                         </>
                       ) : (
                         <circle r={4} fill={`url(#land-corridor-grad-${planetData.id})`}

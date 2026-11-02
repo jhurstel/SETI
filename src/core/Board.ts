@@ -188,7 +188,7 @@ export class BoardManager {
           { id: 'io', name: 'Io', planetId: 'jupiter', landers: [], landBonus: { pv: 10, energy: 4 } },
           { id: 'europa', name: 'Europe', planetId: 'jupiter', landers: [], landBonus: { pv: 7, lifetraces: [{ amount: 2, scope: LifeTraceType.YELLOW }] } },
           { id: 'ganymede', name: 'Ganymède', planetId: 'jupiter', landers: [], landBonus: { pv: 12, media: 5 } },
-          { id: 'callisto', name: 'Callisto', planetId: 'jupiter', landers: [], landBonus: { pv: 1, data: 4 } },
+          { id: 'callisto', name: 'Callisto', planetId: 'jupiter', landers: [], landBonus: { pv: 13, data: 4 } }, // livret p. 11 : 13 PV + 4 données
         ],
         orbitSlots: [],
         landSlots: []

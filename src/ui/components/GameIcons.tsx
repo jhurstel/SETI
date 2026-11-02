@@ -182,7 +182,7 @@ const signalBadge = (badge: SignalBadge): React.ReactNode => {
       return (
         <g transform="translate(20 18)">
           <rect x={-10} y={-14} width={20} height={28} rx={2.5} fill="#f4f4f4" stroke="#2a2a2a" strokeWidth={2} />
-          <path d="M2 -14 H7.5 Q10 -14 10 -11.5 V-4 Z" fill="#2a2a2a" />
+          <path d="M-4 -14 H7.5 Q10 -14 10 -11.5 V2 Z" fill="#2a2a2a" />
         </g>
       );
     case 'mercury':
@@ -544,30 +544,43 @@ export const ResourceIcon: React.FC<{ kind: ResourceIconKind; amount?: number; s
 
 
 /** Trace de vie dans une case de 40 × 40 : triangle arrondi pointe en bas et pictogramme blanc */
+/** Triangle d'une trace de vie (livret p. 11) : haut large aux coins arrondis, pointe arrondie ; cadre 1 1 38 36 */
+export const LIFE_TRACE_PATH = 'M7.5 3 H32.5 Q38.6 3 36.6 8.6 L24.8 31.2 Q20 37.2 15.2 31.2 L3.4 8.6 Q1.4 3 7.5 3 Z';
+/** Cadre (viewBox) qui contient tout le triangle */
+export const LIFE_TRACE_VIEWBOX = '1 1 38 36';
+
 export const LifeTraceShape: React.FC<{ color: LifeTraceColor }> = ({ color }) => {
   const fill = LIFE_TRACE_COLORS[color];
   return (
     <g>
-      <path d="M8 6 H32 Q38 6 35.5 11 L23.5 33 Q20 38.5 16.5 33 L4.5 11 Q2 6 8 6 Z" fill={fill} />
+      <path d={LIFE_TRACE_PATH} fill={fill} />
       {color === 'red' && (
-        // Molécule : grosse sphère reliée à deux petites en haut et une moyenne en bas
+        // Molécule : grosse sphère reliée à deux petites en haut et à une moyenne en bas
         <g fill="#fff">
-          <path d="M11.5 10.5 L20 16.5 L28.5 10.5 M20 16.5 V25" fill="none" stroke="#fff" strokeWidth={2.4} />
-          <circle cx={20} cy={16.5} r={5.2} /><circle cx={11.5} cy={10.5} r={2.6} /><circle cx={28.5} cy={10.5} r={2.6} /><circle cx={20} cy={25.5} r={3.4} />
+          <path d="M10.6 8.6 L20 14.6 L29.4 8.6 M20 14.6 V25" fill="none" stroke="#fff" strokeWidth={2.4} strokeLinecap="round" />
+          <circle cx={20} cy={14.6} r={6.2} />
+          <circle cx={10.6} cy={8.6} r={3.1} />
+          <circle cx={29.4} cy={8.6} r={3.1} />
+          <circle cx={20} cy={25.2} r={3.7} />
         </g>
       )}
       {color === 'yellow' && (
-        // Roche fendue
+        // Roche fendue, éclats orange
         <g>
-          <path d="M12.5 13 L17 8.5 L24.5 9 L28.5 14 L27 20.5 L20.5 26 L14.5 23 Z" fill="#fff" />
-          <path d="M15.5 11 L16.5 18 L19.5 15.5 L20 22 M22 9.5 L21.5 14 L25 13" fill="none" stroke={fill} strokeWidth={1.6} strokeLinejoin="round" />
+          <path d="M12.2 10.4 L16.4 6.4 L23.4 6.8 L28 11 L27.4 17.8 L21.6 24.6 L15.4 22.6 L11.8 16.4 Z" fill="#fff" />
+          <path d="M16.4 6.4 L15.2 12.6 L18.6 11.6 L17.6 19.4 M23.4 6.8 L21.8 12.2 L25.6 13.8" fill="none" stroke={fill} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         </g>
       )}
       {color === 'blue' && (
-        // Micro-organismes : deux filaments et quelques points
-        <g fill="#fff">
-          <path d="M15.5 9.5 Q11.5 11.5 14.5 14.5 Q17.5 17.5 13.5 20.5 M23 9 Q28 9.5 25.5 13.5 Q23 17.5 26.5 19.5 Q29 22 24.5 24.5" fill="none" stroke="#fff" strokeWidth={3.4} strokeLinecap="round" />
-          <circle cx={30.5} cy={10} r={0.9} /><circle cx={19.5} cy={19} r={0.9} /><circle cx={28.5} cy={25} r={0.9} /><circle cx={10} cy={13} r={0.9} />
+        // Micro-organismes : deux bactéries épaisses aux cils courts, quelques points
+        <g fill="#fff" stroke="#fff" strokeLinecap="round">
+          <path d="M22.4 7.4 Q27.6 7.8 27.4 11.6 Q27.2 14.6 24.6 16" fill="none" strokeWidth={4.2} />
+          <path d="M11.6 13.6 Q14.8 12.6 15.8 16 Q16.8 19.6 20.6 21.4" fill="none" strokeWidth={4.2} />
+          <path d="M29.6 9.6 L31 9 M28.2 15.6 L29.4 16.6 M10 12.8 L8.8 11.8 M22.4 22.6 L23.2 24 M20.6 6.2 L20 5" fill="none" strokeWidth={0.9} />
+          <g stroke="none">
+            <circle cx={31.4} cy={10.6} r={0.9} /><circle cx={8.6} cy={9.4} r={0.9} /><circle cx={25.2} cy={25.4} r={0.9} />
+            <circle cx={16.4} cy={26.2} r={0.8} /><circle cx={30} cy={17.6} r={0.8} />
+          </g>
         </g>
       )}
     </g>
@@ -577,9 +590,9 @@ export const LifeTraceShape: React.FC<{ color: LifeTraceColor }> = ({ color }) =
 /** Trace de vie de couleur quelconque : triangle en trois bandes diagonales (livret p. 20) */
 export const AnyLifeTraceIcon: React.FC<{ size?: number }> = ({ size = 20 }) => {
   const uid = useUid();
-  const shape = 'M8 6 H32 Q38 6 35.5 11 L23.5 33 Q20 38.5 16.5 33 L4.5 11 Q2 6 8 6 Z';
+  const shape = LIFE_TRACE_PATH;
   return (
-    <svg width={size} height={size} viewBox="2 4 36 36" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+    <svg width={size} height={size} viewBox={LIFE_TRACE_VIEWBOX} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
       <defs><clipPath id={`anytrace-${uid}`}><path d={shape} /></clipPath></defs>
       <g clipPath={`url(#anytrace-${uid})`}>
         <rect x={0} y={0} width={40} height={40} fill={LIFE_TRACE_COLORS.yellow} />
@@ -593,7 +606,7 @@ export const AnyLifeTraceIcon: React.FC<{ size?: number }> = ({ size = 20 }) => 
 
 /** Trace de vie seule, à la taille voulue */
 export const LifeTraceIcon: React.FC<{ color: LifeTraceColor; size?: number }> = ({ color, size = 20 }) => (
-  <svg width={size} height={size} viewBox="2 4 36 36" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+  <svg width={size} height={size} viewBox={LIFE_TRACE_VIEWBOX} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
     <LifeTraceShape color={color} />
   </svg>
 );
