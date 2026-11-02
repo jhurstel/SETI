@@ -50,9 +50,14 @@ class Outcome {
   entries: HistoryEntry[] = [];
   notifications: string[] = [];
 
+  /**
+   * Ajoute des entrées d'historique. Avec `sequenceId` (résolution d'une interaction, d'un scan…), toutes les entrées
+   * sont rattachées à cette séquence, même celles qui en avaient une à elles (sonde lancée par une technologie…) :
+   * l'historique les montre sous l'action qui les a provoquées, et l'annulation les traite avec elle.
+   */
   add(entries: HistoryEntry[] | undefined, sequenceId?: string): void {
     (entries || []).forEach(e => {
-      this.entries.push(sequenceId && !e.sequenceId ? { ...e, sequenceId } : e);
+      this.entries.push(sequenceId && !e.message.startsWith('---') ? { ...e, sequenceId } : e);
       if (e.message === DISCOVERY_MESSAGE) this.notify(DISCOVERY_NOTICE);
     });
   }

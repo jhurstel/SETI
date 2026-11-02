@@ -58,6 +58,7 @@ export class TechnologySystem {
     let player = updatedGame.players.find(p => p.id === playerId);
     const historyEntries: HistoryEntry[] = [];
     const newPendingInteractions: InteractionState[] = [];
+    const probeEntries: HistoryEntry[] = [];
     if (!player) return { updatedGame: game, gains: [], historyEntries: [], newPendingInteractions: [] };
 
     const updatedTechBoard = updatedGame.board.technologyBoard;
@@ -116,7 +117,8 @@ export class TechnologySystem {
         if (result.probeId) {
           updatedGame = result.updatedGame;
           player = updatedGame.players.find(p => p.id === playerId)!;
-          historyEntries.push(...result.historyEntries);
+          // Le lancement suit le message de la technologie (il en est une conséquence)
+          probeEntries.push(...result.historyEntries);
           gains.push(`1 Sonde`);
         } else {
           gains.push(`1 Sonde (Perdue: Limite atteinte)`);
@@ -124,6 +126,7 @@ export class TechnologySystem {
       }
     }
     historyEntries.push({ message: `acquiert technologie "${tech.type} ${tech.name}"${gains.length > 0 ? ` et gagne ${gains.join(', ')}` : ''}`, playerId, sequenceId: '' });
+    historyEntries.push(...probeEntries);
 
     // Traitement des missions conditionnelles (GAIN_ON_TECH)
     const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {

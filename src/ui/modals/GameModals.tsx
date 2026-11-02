@@ -7,7 +7,7 @@ import { ChoiceModal, ChoiceOption, ChoiceFooterButton } from './ChoiceModal';
 import { HoverTooltip } from '../components/HoverTooltip';
 import { ChoiceCardTile } from './CardPickModal';
 import { Tooltip } from '../Tooltip';
-import { ResourceIcon, SignalGainIcon, ActionHexIcon } from '../components/GameIcons';
+import { ResourceIcon, SignalGainIcon, ActionHexIcon, CentaurienMessageIcon } from '../components/GameIcons';
 import { SpeciesSystem } from '../../systems/SpeciesSystem';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {
@@ -42,7 +42,7 @@ export const CentaurienRewardModal = ({ game, interactionState, onChoice }: { ga
         return (
           <ChoiceOption
             key={index}
-            icon="📩"
+            icon={<CentaurienMessageIcon size={26} />}
             label={(ResourceSystem.formatBonus(token.bonus) || []).join(', ')}
             onClick={() => onChoice(index)}
             disabled={!token.isAvailable}

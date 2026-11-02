@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, Game, InteractionState, CostType, CardType, RevenueType } from '../../core/types';
 import { CardSystem } from '../../systems/CardSystem';
 import { CardTooltip } from './CardTooltip';
-import { ResourceIcon } from './GameIcons';
+import { ResourceIcon, ActionHexIcon, DiscardCardIcon } from './GameIcons';
 import { BonusIcons, SectorSignalIcon } from './BonusIcons';
 import { freeActionBonus, revenueBonus } from './cardBonus';
 import { FREE_ACTION_STYLES, SECTOR_STYLES, REVENUE_STYLES } from '../styles/celestialStyles';
@@ -94,7 +94,7 @@ export const HandCard: React.FC<{
   onDiscardCardAction: (id: string) => void;
   handleTooltipHover: (e: React.MouseEvent, content: React.ReactNode) => void;
   handleTooltipLeave: () => void;
-  renderActionButton: (icon: string, tooltip: string, onClick: () => void, disabled: boolean, color: string, style: React.CSSProperties) => React.ReactNode;
+  renderActionButton: (icon: React.ReactNode, tooltip: React.ReactNode, onClick: () => void, disabled: boolean, color: string, style: React.CSSProperties) => React.ReactNode;
   disableGrayOut?: boolean;
   defaultAttribute?: 'revenue' | 'scan' | 'freeAction';
   defaultClickable?: boolean;
@@ -159,8 +159,8 @@ export const HandCard: React.FC<{
       >
         {isHighlighted && !isInteractiveMode && (
           <>
-          {renderActionButton('▶️', effectivePlayTooltip, () => { if (canPlayAction) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlayAction, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 } as React.CSSProperties)}
-          {renderActionButton('🗑️', discardTooltip, () => { if (canDiscard) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canDiscard, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 } as React.CSSProperties)}
+          {renderActionButton(<ActionHexIcon kind="card" size={16} />, effectivePlayTooltip, () => { if (canPlayAction) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlayAction, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 } as React.CSSProperties)}
+          {renderActionButton(<DiscardCardIcon size={16} />, discardTooltip, () => { if (canDiscard) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canDiscard, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 } as React.CSSProperties)}
           </>
         )}
         <CardContent card={card} highlightedAttribute={defaultAttribute} />

@@ -145,6 +145,31 @@ export const ActionHexIcon: React.FC<{ kind: ActionIconKind; size?: number }> = 
   );
 };
 
+/** Défausser une carte (pour son action gratuite) : carte blanche inclinée et flèche orange qui l'emmène vers le bas */
+export const DiscardCardIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" style={{ display: 'block' }}>
+    <g transform="rotate(-14 16 18)">
+      <rect x={7} y={5} width={18} height={25} rx={2.5} fill="#f4f4f4" stroke="#2a2a2a" strokeWidth={1.5} />
+      <path d="M11 11 H21 M11 15 H19" stroke="#9aa0ad" strokeWidth={1.6} strokeLinecap="round" />
+    </g>
+    <path d="M22 17 Q33 18 32 29" fill="none" stroke="#f28c1e" strokeWidth={4} strokeLinecap="round" />
+    <path d="M26.5 27 L32 36 L37.5 27 Z" fill="#f28c1e" />
+  </svg>
+);
+
+/** Message des Centauriens (tuile Message, palier) : tuile violette, point d'émission et ondes radio */
+export const CentaurienMessageIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" style={{ display: 'block' }}>
+    <rect x={3} y={3} width={34} height={34} rx={8} fill="#5b3fc4" stroke="#b9a8ff" strokeWidth={2} />
+    <circle cx={12} cy={28} r={3.4} fill="#fff" />
+    <g fill="none" stroke="#fff" strokeLinecap="round">
+      <path d="M12 19.5 A8.5 8.5 0 0 1 20.5 28" strokeWidth={2.6} />
+      <path d="M12 13 A15 15 0 0 1 27 28" strokeWidth={2.6} opacity={0.8} />
+      <path d="M12 6.5 A21.5 21.5 0 0 1 33.5 28" strokeWidth={2.6} opacity={0.55} />
+    </g>
+  </svg>
+);
+
 /** Fin de tour (« Prochain joueur ») : hexagone vert, flèche circulaire qui passe la main au joueur suivant */
 export const EndTurnIcon: React.FC<{ size?: number }> = ({ size = 28 }) => {
   const uid = useUid();

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { VictoryPointsIcon } from './components/GameIcons';
+import { VictoryPointsIcon, CentaurienMessageIcon } from './components/GameIcons';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { Game, GamePhase, InteractionState, GOLDEN_MILESTONES, NEUTRAL_MILESTONES } from '../core/types';
 import { SlotTooltip } from './components/SlotTooltip';
@@ -104,7 +104,7 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
                                         p.color, m.resolved ? '#7fff7f' : '#aaa')}
                                     onMouseLeave={() => setActiveTooltip(null)}
                                 >
-                                    <span style={{ fontSize: '12px', filter: `drop-shadow(0 0 2px ${p.color})` }}>{m.resolved ? '✉️' : '📩'}</span>
+                                    <span style={{ display: 'block', filter: `drop-shadow(0 0 2px ${p.color})` }}><CentaurienMessageIcon size={16} /></span>
                                     <div style={{ position: 'absolute', top: '-20px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: m.resolved ? '#7fff7f' : '#aaa', background: 'rgba(30,30,30,0.8)', padding: '0 3px', borderRadius: '2px' }}>{m.resolved ? '✓' : m.score}</div>
                                 </div>
                             ));

@@ -1,6 +1,6 @@
 import React from 'react';
 import { TechnologyCategory } from '../../core/types';
-import { ActionHexIcon, EndTurnIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon } from './GameIcons';
+import { ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon } from './GameIcons';
 import { ReservationIcon, TechCategoryIcon, AnyTechIcon, OrbiterOrLanderIcon } from './ObjectiveSymbol';
 import { LIFE_TRACE_COLORS } from '../styles/lifeTraceColors';
 
@@ -23,6 +23,13 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       { icon: <ActionHexIcon kind="research" size={30} />, name: 'Rechercher une technologie', text: '6 Médias : une technologie, et le système solaire tourne.' },
       { icon: <ActionHexIcon kind="pass" size={30} />, name: 'Passer', text: 'Plus de tour jusqu\'à la fin de la manche ; garder 4 cartes au plus.' },
       { icon: <EndTurnIcon size={30} />, name: 'Fin de tour', text: 'Après l\'action principale : au joueur suivant (paliers vérifiés).' },
+    ],
+  },
+  {
+    title: 'Actions gratuites',
+    entries: [
+      { icon: <DiscardCardIcon size={28} />, name: 'Défausser une carte', text: 'Une carte de la main pour l\'action gratuite de son coin (Média, donnée, déplacement…).' },
+      { icon: <ResourceIcon kind="movement" size={28} />, name: 'Déplacer une sonde', text: '1 énergie (ou un déplacement gratuit) par case.' },
     ],
   },
   {
@@ -61,6 +68,12 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       { icon: <SignalGainIcon badge="probe" size={26} />, name: 'Signal d\'une sonde', text: 'Dans le secteur d\'une de vos sondes.' },
       { icon: <span className="seti-glossary-icons"><SignalGainIcon badge="mercury" size={26} /><SignalGainIcon badge="mars" size={26} /><SignalGainIcon badge="jupiter" size={26} /></span>, name: 'Signal d\'une planète', text: 'Dans le secteur de cette planète.' },
       { icon: <RowCardIcon size={24} />, name: 'Carte de la rangée', text: 'Une des 3 cartes face visible.' },
+    ],
+  },
+  {
+    title: 'Espèces',
+    entries: [
+      { icon: <CentaurienMessageIcon size={28} />, name: 'Message centaurien', text: 'Palier des Centauriens : une tuile Message à choisir, ou l\'effet Réception d\'une carte.' },
     ],
   },
   {
