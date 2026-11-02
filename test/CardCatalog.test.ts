@@ -20,7 +20,7 @@ const CSVS = ['main', 'mascamites', 'anomalies', 'oumuamua', 'centauriens', 'exe
 const P1 = 'player_0';
 
 /** Interactions créées uniquement par l'interface du joueur humain (jamais par le moteur pour un robot) */
-const UI_ONLY_INTERACTIONS = ['IDLE', 'ANALYZING', 'DISCARDING_CARD', 'TRADING_CARD', 'SELECTING_MISSION'];
+const UI_ONLY_INTERACTIONS = ['IDLE', 'ANALYZING', 'DISCARDING_CARD', 'TRADING_CARD'];
 
 let allCards: Card[];
 

@@ -9,6 +9,7 @@ import { ChoiceCardTile } from './CardPickModal';
 import { Tooltip } from '../Tooltip';
 import { ResourceIcon, SignalGainIcon, ActionHexIcon, CentaurienMessageIcon } from '../components/GameIcons';
 import { SpeciesSystem } from '../../systems/SpeciesSystem';
+import { effectString } from '../../core/cardEffects';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {
   if (!visible) return null;
@@ -47,6 +48,34 @@ export const CentaurienRewardModal = ({ game, interactionState, onChoice }: { ga
             onClick={() => onChoice(index)}
             disabled={!token.isAvailable}
             disabledReason={owner ? <span>Déjà choisi par <strong style={{ color: owner.color }}>{owner.name}</strong></span> : 'Déjà choisi'}
+          />
+        );
+      })}
+    </ChoiceModal>
+  );
+};
+
+/** Missions déclenchées pendant le tour d'un autre joueur : un cercle à recouvrir, ou aucun */
+export const MissionRequirementModal = ({ game, interactionState, onChoice }: { game: Game, interactionState: InteractionState, onChoice: (missionId?: string, requirementId?: string) => void }) => {
+  if (interactionState.type !== 'CHOOSING_MISSION_REQUIREMENT') return null;
+  const player = game.players.find(p => p.id === interactionState.playerId) ?? game.players[game.currentPlayerIndex];
+
+  return (
+    <ChoiceModal
+      title="Mission déclenchée"
+      subtitle="Pendant le tour d'un autre joueur, vous pouvez recouvrir un cercle d'une de vos missions (un seul)."
+      footer={<ChoiceFooterButton secondary onClick={() => onChoice()}>Ne pas en profiter</ChoiceFooterButton>}
+    >
+      {interactionState.options.map(({ missionId, requirementId }) => {
+        const mission = player.missions.find(m => m.id === missionId);
+        const requirement = mission?.requirements.find(r => r.id === requirementId);
+        const bonus = requirement ? CardSystem.evaluateMission(game, player.id, effectString(requirement), true) : null;
+        return (
+          <ChoiceOption
+            key={`${missionId}-${requirementId}`}
+            label={mission?.name ?? missionId}
+            detail={bonus ? (ResourceSystem.formatBonus(bonus) || []).join(', ') : undefined}
+            onClick={() => onChoice(missionId, requirementId)}
           />
         );
       })}

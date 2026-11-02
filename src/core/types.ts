@@ -740,8 +740,11 @@ type InteractionStateVariant =
   | { type: 'CONSULTING_SPECIMEN', planetId?: string, sequenceId?: string, anyPlanet?: boolean } // anyPlanet : Jupiter ou Saturne au choix, sans sonde (ET.8 à ET.10)
   /** Le joueur a atteint un palier Exertien : il peut jouer une de ses cartes Exertiens face cachée (ou y renoncer). */
   | { type: 'CHOOSING_EXERTIEN_CARD', milestone: number, sequenceId?: string }
-  /** Le joueur doit confirmer la validation d'une mission. */
-  | { type: 'SELECTING_MISSION', missionId?: string, requirementId?: string, sequenceId?: string }; // Deprecated
+  /**
+   * Missions déclenchées pendant le tour d'un autre joueur : le joueur recouvre un des cercles `options`
+   * (un seul, toutes cartes confondues) ou y renonce.
+   */
+  | { type: 'CHOOSING_MISSION_REQUIREMENT', options: { missionId: string, requirementId: string }[], sequenceId?: string };
 
 /**
  * `playerId` : joueur qui résout l'interaction quand ce n'est pas le joueur actif
@@ -787,7 +790,7 @@ export const getInteractionLabel = (state: InteractionState): string => {
     case 'CHOOSING_EXERTIEN_CARD': return state.milestone === 0
       ? 'Découverte des Exertiens : vous pouvez jouer une carte Exertien.'
       : `Palier Exertien (${state.milestone} PV) : vous pouvez jouer une carte Exertien.`;
-    case 'SELECTING_MISSION': return `Veuillez confirmer la mission à recouvrir.`;
+    case 'CHOOSING_MISSION_REQUIREMENT': return `Mission déclenchée : vous pouvez recouvrir un cercle.`;
     case 'TRIGGER_CARD_EFFECT':
       return state.effectType === 'SCORE_PER_MEDIA'
         ? `Gagner ${state.value} PV par niveau de Média (PIXL).`

@@ -31,6 +31,8 @@ export type Choice =
   | { kind: 'SPECIMEN'; planetId: string; tokenIndex: number }
   /** CHOOSING_EXERTIEN_CARD (absent : renoncer) */
   | { kind: 'EXERTIEN'; cardId?: string }
+  /** CHOOSING_MISSION_REQUIREMENT (absent : renoncer) */
+  | { kind: 'MISSION'; missionId?: string; requirementId?: string }
   /** CHOOSING_OBS2_ACTION, CHOOSING_OBS3_ACTION */
   | { kind: 'ACCEPT'; accepted: boolean }
   /** CHOOSING_OBS4_ACTION */

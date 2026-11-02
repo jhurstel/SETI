@@ -7,6 +7,7 @@ import { CardSystem } from '../systems/CardSystem';
 import { ScanSystem } from '../systems/ScanSystem';
 import { ScoreManager } from './ScoreManager';
 import { uniqueId } from './ids';
+import { cloneGame } from './cloneGame';
 import { privateText } from './historyText';
 
 /** Résultat d'un choix fait sur une interaction en attente. */
@@ -314,6 +315,27 @@ export class InteractionChoices {
     const res = SpeciesSystem.playExertienCard(game, playerId, interaction.milestone, cardId);
     if (res.error) return refused(game, res.error);
     return { updatedGame: res.updatedGame, historyEntries: res.historyEntries, newPendingInteractions: [] };
+  }
+
+  /**
+   * Mission déclenchée hors du tour du joueur : le cercle choisi parmi `options` est recouvert (validation
+   * automatique, CLAIMING_MISSION_REQUIREMENT) ; sans choix, le joueur y renonce et les cercles proposés ne sont plus réalisables.
+   */
+  static chooseMissionRequirement(game: Game, playerId: string, interaction: Interaction<'CHOOSING_MISSION_REQUIREMENT'>, missionId?: string, requirementId?: string): ChoiceResult {
+    if (missionId === undefined) {
+      const updatedGame = cloneGame(game);
+      const player = updatedGame.players.find(p => p.id === playerId)!;
+      player.missions.forEach(mission => {
+        mission.fulfillableRequirementIds = (mission.fulfillableRequirementIds || [])
+          .filter(id => !interaction.options.some(o => o.missionId === mission.id && o.requirementId === id));
+      });
+      return { updatedGame, historyEntries: [{ message: 'ne recouvre pas de cercle de mission', playerId, sequenceId: interaction.sequenceId || '' }], newPendingInteractions: [] };
+    }
+    if (!interaction.options.some(o => o.missionId === missionId && o.requirementId === requirementId)) {
+      return refused(game, "Ce cercle de mission n'a pas été déclenché");
+    }
+    const sequenceId = interaction.sequenceId || `mission-claim-${uniqueId()}`;
+    return { updatedGame: game, historyEntries: [], newPendingInteractions: [{ type: 'CLAIMING_MISSION_REQUIREMENT', missionId, requirementId: requirementId!, playerId, sequenceId }] };
   }
 
   /** Technologie Observation II acceptée (ou refusée : rien ne change). */

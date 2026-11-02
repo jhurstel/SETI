@@ -83,7 +83,7 @@ export class GameSession {
     try {
       if (game.phase === GamePhase.FINAL_SCORING) refuse('La partie est terminée');
       const applied = this.apply(game, playerId, command, outcome);
-      const settled = this.settle(applied, outcome);
+      const settled = this.offerTriggeredMissions(game, this.settle(applied, outcome), outcome);
       return { game: { ...settled, rngState: getRandomState() }, entries: outcome.entries, notifications: outcome.notifications };
     } catch (error) {
       if (!(error instanceof Refusal)) console.error('[Session]', error);
@@ -141,7 +141,7 @@ export class GameSession {
           break;
         }
       }
-      const settled = this.settle(updated, outcome);
+      const settled = this.offerTriggeredMissions(game, this.settle(updated, outcome), outcome);
       return { game: { ...settled, rngState: getRandomState() }, entries: outcome.entries, notifications: outcome.notifications };
     } catch (error) {
       return { game, entries: [], notifications: [], error: error instanceof Error ? error.message : String(error) };
@@ -359,6 +359,10 @@ export class GameSession {
         if (choice.kind !== 'EXERTIEN') return wrong();
         result = InteractionChoices.playExertienCard(base, playerId, active, choice.cardId);
         break;
+      case 'CHOOSING_MISSION_REQUIREMENT':
+        if (choice.kind !== 'MISSION') return wrong();
+        result = InteractionChoices.chooseMissionRequirement(base, playerId, active, choice.missionId, choice.requirementId);
+        break;
       case 'CHOOSING_OBS2_ACTION':
         if (choice.kind !== 'ACCEPT') return wrong();
         result = InteractionChoices.observation2(base, playerId, active, choice.accepted);
@@ -463,6 +467,28 @@ export class GameSession {
       return current;
     }
     throw new Error('Interactions en boucle');
+  }
+
+  /**
+   * Missions déclenchées pendant le tour d'un autre joueur (trace de vie gagnée par une majorité…) : les cercles
+   * devenus réalisables ne peuvent pas attendre le tour de leur joueur, qui choisit aussitôt celui qu'il recouvre ou y renonce.
+   * Pendant son tour, le joueur les recouvre en cliquant sur la carte (CLAIM_MISSION).
+   */
+  private static offerTriggeredMissions(before: Game, after: Game, outcome: Outcome): Game {
+    const currentId = before.players[before.currentPlayerIndex]?.id;
+    const offered = new Set([after.interaction, ...InteractionQueue.pending(after)]
+      .filter(i => i?.type === 'CHOOSING_MISSION_REQUIREMENT').map(i => i!.playerId));
+    let updated = after;
+    for (const player of after.players) {
+      if (player.id === currentId || offered.has(player.id)) continue;
+      const previous = before.players.find(p => p.id === player.id);
+      const options = player.missions.flatMap(mission => {
+        const wasFulfillable = previous?.missions.find(m => m.id === mission.id)?.fulfillableRequirementIds || [];
+        return (mission.fulfillableRequirementIds || []).filter(id => !wasFulfillable.includes(id)).map(requirementId => ({ missionId: mission.id, requirementId }));
+      });
+      if (options.length > 0) updated = InteractionQueue.enqueue(updated, [{ type: 'CHOOSING_MISSION_REQUIREMENT', options, playerId: player.id, sequenceId: `mission-claim-${uniqueId()}` }]);
+    }
+    return updated === after ? after : this.settle(updated, outcome);
   }
 
   // --- Outils pour l'interface ---

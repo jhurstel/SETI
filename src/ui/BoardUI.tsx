@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Game, ActionType, Card, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, ProbeState, LifeTraceType, InteractionState, GamePhase, SignalType, getInteractionLabel, LifeTraceLocation } from '../core/types';
-import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal } from './modals/GameModals';
+import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal, MissionRequirementModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -479,6 +479,10 @@ export const BoardUI: React.FC = () => {
     if (interactionState.type === 'CHOOSING_EXERTIEN_CARD') choose({ kind: 'EXERTIEN', cardId });
   };
 
+  const handleMissionRequirementChoice = (missionId?: string, requirementId?: string) => {
+    if (interactionState.type === 'CHOOSING_MISSION_REQUIREMENT') choose({ kind: 'MISSION', missionId, requirementId });
+  };
+
   const handleMenuChoice = (index: number) => {
     if (interactionState.type === 'CHOOSING_BONUS_ACTION') choose({ kind: 'MENU', index });
   };
@@ -738,6 +742,13 @@ export const BoardUI: React.FC = () => {
         game={game}
         interactionState={interactionState}
         onChoice={handleExertienCardChoice}
+      />
+
+      {/* Modal pour une mission déclenchée hors de son tour */}
+      <MissionRequirementModal
+        game={game}
+        interactionState={interactionState}
+        onChoice={handleMissionRequirementChoice}
       />
 
       {/* Modale de confirmation */}

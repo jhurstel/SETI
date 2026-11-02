@@ -128,6 +128,7 @@ Chaque pile a 4 exemplaires ; le premier pris rapporte 3 PV, les suivants 1 Méd
 
 - **Action** : gains immédiats.
 - **Mission conditionnelle / déclenchable** : restent devant le joueur ; chaque condition remplie se réclame (action gratuite) et donne sa récompense.
+- **Mission déclenchée** : un même déclencheur ne recouvre qu'un cercle, toutes cartes confondues, au choix du joueur. Pendant son tour, les cercles possibles sont surlignés sur ses cartes : il clique sur celui qu'il recouvre (les autres s'éteignent). Si l'effet survient pendant le tour d'un autre joueur (trace de vie gagnée par une majorité…), une fenêtre lui propose aussitôt les cercles déclenchés ; il peut aussi ne pas en profiter.
 - **Fin de partie** : points au décompte final selon une condition.
 - La main n'a pas de limite pendant la manche ; au moment de passer, on n'en garde que 4.
 
@@ -239,6 +240,7 @@ Une interaction est un choix en attente. Elles sont gardées dans la partie, dan
 | `CHOOSING_CENTAURIEN_REWARD` | Palier Centaurien | Tuile Message (`CENTAURIEN`) | Non |
 | `COLLECTING_SPECIMEN` / `CONSULTING_SPECIMEN` | Cartes Mascamites | Spécimen (`SPECIMEN`) | Non |
 | `CHOOSING_EXERTIEN_CARD` | Palier Exertien, découverte des Exertiens (palier 0) | Carte ou renoncement (`EXERTIEN`) | Non (renoncer est un choix) |
+| `CHOOSING_MISSION_REQUIREMENT` | Mission déclenchée pendant le tour d'un autre joueur | Cercle ou renoncement (`MISSION`) | Non (renoncer est un choix) |
 | `RESOLVING_SECTOR`, `TRIGGER_CARD_EFFECT`, `DRAW_AND_SCAN`, `CLAIMING_MISSION_REQUIREMENT` | Secteur plein, effets automatiques | Aucun : résolues par le moteur (`InteractionResolver`) | — |
 
 Une interaction peut viser un autre joueur que le joueur actif (par exemple le gagnant d'un secteur couvert par un robot) : seul ce joueur peut y répondre. Une interaction d'un robot est résolue par le robot lui-même.

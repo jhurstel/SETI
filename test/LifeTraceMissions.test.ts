@@ -1,7 +1,8 @@
 import { CardSystem } from '../src/systems/CardSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { InteractionChoices } from '../src/core/InteractionChoices';
-import { Game, LifeTraceLocation, LifeTraceType } from '../src/core/types';
+import { Game, GamePhase, LifeTraceLocation, LifeTraceType } from '../src/core/types';
+import { GameSession } from '../src/session/GameSession';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -73,12 +74,18 @@ describe('missions déclenchées par une trace de vie (ET.29 « Analyse Comparat
     expect(fulfillable(placed.updatedGame)).toHaveLength(1);
   });
 
-  test.failing('règles : un même déclencheur ne recouvre qu\'un cercle, toutes cartes confondues (choix du joueur non géré)', () => {
-    // Carte 77 : se déclenche aussi sur une trace rouge ; la règle ne permet d'en recouvrir qu'un des deux cercles
+  test("règles : un même déclencheur ne recouvre qu'un cercle, toutes cartes confondues, au choix du joueur", () => {
+    // Carte 77 : se déclenche aussi sur une trace rouge ; les deux cercles sont proposés, en recouvrir un efface l'autre
     giveCard(game, '77');
     game = CardSystem.playCard(game, P1, '77').updatedGame;
+    game.phase = GamePhase.PLAYING;
     const g = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
-    const total = getPlayer(g, P1).missions.reduce((n, m) => n + (m.fulfillableRequirementIds?.length || 0), 0);
-    expect(total).toBe(1);
+    const offered = getPlayer(g, P1).missions.flatMap(m => m.fulfillableRequirementIds.map(requirementId => ({ missionId: m.id, requirementId })));
+    expect(offered).toHaveLength(2);
+
+    const claimed = GameSession.dispatch(g, P1, { type: 'CLAIM_MISSION', ...offered[0] });
+    expect(claimed.error).toBeUndefined();
+    expect(getPlayer(claimed.game, P1).missions.flatMap(m => m.completedRequirementIds)).toEqual([offered[0].requirementId]);
+    expect(getPlayer(claimed.game, P1).missions.flatMap(m => m.fulfillableRequirementIds)).toEqual([]);
   });
 });

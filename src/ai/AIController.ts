@@ -121,6 +121,22 @@ export class AIController {
         return best!.result;
     }
 
+    /** Mission déclenchée hors de son tour : recouvre le cercle (ou aucun) qui donne la meilleure position évaluée */
+    static bestMissionRequirement(game: Game, player: Player, interaction: Extract<InteractionState, { type: 'CHOOSING_MISSION_REQUIREMENT' }>, sequenceId: string): AIControllerResult {
+        const options: ({ missionId: string; requirementId: string } | undefined)[] = [...interaction.options, undefined];
+        let best: { result: AIControllerResult; value: number } | null = null;
+        for (const option of options) {
+            const chosen = InteractionChoices.chooseMissionRequirement(game, player.id, { ...interaction, sequenceId }, option?.missionId, option?.requirementId);
+            if (chosen.error) continue;
+            const followUp = this.processInteractionQueue(chosen.updatedGame, chosen.newPendingInteractions, sequenceId, player);
+            const value = AIEvaluator.evaluate(followUp.updatedGame, player.id);
+            if (!best || value > best.value) {
+                best = { value, result: { ...followUp, historyEntries: [...chosen.historyEntries, ...followUp.historyEntries] } };
+            }
+        }
+        return best!.result;
+    }
+
     private static processSingleInteraction(
         game: Game,
         player: Player,
@@ -287,6 +303,13 @@ export class AIController {
                     historyEntries.push(...res.historyEntries);
                     newPendingInteractions.push(...res.newPendingInteractions);
                 }
+                break;
+            }
+            case 'CHOOSING_MISSION_REQUIREMENT': {
+                const res = this.bestMissionRequirement(updatedGame, player, interaction, sequenceId);
+                updatedGame = res.updatedGame;
+                historyEntries.push(...res.historyEntries.map(e => ({ ...e, sequenceId })));
+                newPendingInteractions.push(...res.newPendingInteractions);
                 break;
             }
             case 'CHOOSING_EXERTIEN_CARD': {
