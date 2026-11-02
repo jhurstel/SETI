@@ -174,10 +174,17 @@ export class AITurn {
     return this.resolvePending(updatedGame, player, historyEntries, pending, sequenceId);
   }
 
+  /**
+   * Résout les interactions de l'étape. Toutes les entrées de l'étape prennent la séquence de sa première entrée
+   * (la carte jouée, l'action…) : l'historique montre les conséquences (atterrissage gagné, trace de vie…) sous
+   * l'action, comme pour le joueur humain, et l'annulation les traite avec elle.
+   */
   private static resolvePending(game: Game, player: Player, historyEntries: HistoryEntry[], pending: InteractionState[], sequenceId: string): StepResult {
-    if (pending.length === 0) return { updatedGame: game, historyEntries };
-    const res = AIController.processInteractionQueue(game, pending, sequenceId, player);
-    return { updatedGame: res.updatedGame, historyEntries: [...historyEntries, ...res.historyEntries], humanInteractions: res.newPendingInteractions };
+    const stepSequence = historyEntries[0]?.sequenceId || sequenceId;
+    const inStep = (entries: HistoryEntry[]) => entries.map(e => (e.message.startsWith('---') ? e : { ...e, sequenceId: stepSequence }));
+    if (pending.length === 0) return { updatedGame: game, historyEntries: inStep(historyEntries) };
+    const res = AIController.processInteractionQueue(game, pending.map(i => ({ ...i, sequenceId: i.sequenceId || stepSequence })), stepSequence, player);
+    return { updatedGame: res.updatedGame, historyEntries: inStep([...historyEntries, ...res.historyEntries]), humanInteractions: res.newPendingInteractions };
   }
 
   /** Tente une action gratuite (avec une part d'aléatoire). Renvoie null si aucune n'est jouée. */
