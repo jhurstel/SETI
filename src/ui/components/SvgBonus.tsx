@@ -48,7 +48,7 @@ export const SvgSlotBonus: React.FC<{ bonus: Bonus; radius: number }> = ({ bonus
   return (
     <foreignObject x={-radius} y={-radius} width={box} height={box} style={{ overflow: 'visible', pointerEvents: 'none' }}>
       <div className="seti-slot-inner-gains">
-        <BonusIcons bonus={bonus} size={Math.round(radius * 0.8)} empty={null} />
+        <BonusIcons bonus={bonus} size={Math.round(radius * 1.25)} empty={null} />
       </div>
     </foreignObject>
   );
