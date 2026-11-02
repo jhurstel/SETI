@@ -60,8 +60,6 @@ describe('Scan et couverture de secteur : cas limites', () => {
     expect(res.sharedLogs?.[0]).toContain('les joueurs présents');
     expect(getPlayer(res.updatedGame, P1).activeBuffs.some(b => b.type === 'BONUS_IF_COVERED')).toBe(false);
     expect(res.updatedGame.board.sectors[0].coveredBy).toEqual([P1]);
-    expect(ScanSystem.getCoveredSectorCount(res.updatedGame, P1)).toBe(1);
-    expect(ScanSystem.getCoveredSectors(res.updatedGame, P2)).toEqual([]);
     expect(JSON.stringify(game)).toBe(before);
   });
 

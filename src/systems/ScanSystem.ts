@@ -311,61 +311,6 @@ export class ScanSystem {
   }
 
   /**
-   * Calcule la majorité dans un secteur
-   */
-  static calculateMajority(sector: Sector): {
-    playerId: string | null;
-    count: number;
-  } {
-    // Compter les marqueurs par joueur dans les signaux
-    const counts = new Map<string, number>();
-
-    sector.signals.forEach(signal => {
-      if (signal.marked && signal.markedBy) {
-        const count = counts.get(signal.markedBy) || 0;
-        counts.set(signal.markedBy, count + 1);
-      }
-    });
-
-    if (counts.size === 0) {
-      return { playerId: null, count: 0 };
-    }
-
-    // Trouver le maximum
-    let maxCount = 0;
-    let maxPlayerId: string | null = null;
-    let isTie = false;
-
-    counts.forEach((count, playerId) => {
-      if (count > maxCount) {
-        maxCount = count;
-        maxPlayerId = playerId;
-        isTie = false;
-      } else if (count === maxCount) {
-        isTie = true;
-      }
-    });
-
-    // En cas d'égalité, le dernier marqueur posé gagne
-    if (isTie && maxPlayerId) {
-      for (let i = sector.signals.length - 1; i >= 0; i--) {
-        const s = sector.signals[i];
-        if (s.marked && s.markedBy) {
-          if (counts.get(s.markedBy) === maxCount) {
-            maxPlayerId = s.markedBy;
-            break;
-          }
-        }
-      }
-    }
-
-    return {
-      playerId: maxPlayerId,
-      count: maxCount
-    };
-  }
-
-  /**
    * Calcule les majorités dans un secteur et retourne une liste triée des joueurs.
    */
   static calculateMajorities(sector: Sector): { playerId: string; count: number }[] {
@@ -408,22 +353,6 @@ export class ScanSystem {
     }
 
     return sortedPlayers;
-  }
-
-  /**
-   * Obtient les secteurs couverts par un joueur
-   */
-  static getCoveredSectors(game: Game, playerId: string): Sector[] {
-    return game.board.sectors.filter(
-      s => s.coveredBy.includes(playerId) && s.isCovered
-    );
-  }
-
-  /**
-   * Obtient le nombre de secteurs couverts par un joueur
-   */
-  static getCoveredSectorCount(game: Game, playerId: string): number {
-    return this.getCoveredSectors(game, playerId).length;
   }
 
   // Helper pour effectuer une séquence de scan complète

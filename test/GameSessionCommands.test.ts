@@ -119,6 +119,19 @@ describe('GameSession : commandes et aiguillage des choix', () => {
       expect(getPlayer(res.game, P1).missions).toEqual(getPlayer(game, P1).missions);
     });
 
+    test("réclamer une mission dont la condition n'est pas remplie : annoncé, rien ne change", () => {
+      getPlayer(game, P1).missions = [{
+        id: 'm1', cardId: 'c1', name: 'Mission test', description: '', ownerId: P1,
+        requirements: [{ id: 'r1', type: 'GAIN_IF_ORBITER_OR_LANDER', value: 'GAIN_IF_ORBITER_OR_LANDER:venus:pv:7' }],
+        completedRequirementIds: [], fulfillableRequirementIds: [], completed: false,
+      }];
+      const res = dispatch(game, { type: 'CLAIM_MISSION', missionId: 'm1', requirementId: 'r1' });
+      expect(res.error).toBeUndefined();
+      expect(res.notifications).toEqual(['Conditions non remplies.']);
+      expect(res.game.interaction).toBeUndefined();
+      expect(getPlayer(res.game, P1).missions[0].completedRequirementIds).toEqual([]);
+    });
+
     test('échanges : contre une carte (à choisir), entre ressources, et refus faute de ressources', () => {
       Object.assign(getPlayer(game, P1), { credits: 4, energy: 0 });
       expect(dispatch(game, { type: 'TRADE', spend: 'credit', gain: 'card' }).game.interaction?.type).toBe('ACQUIRING_CARD');

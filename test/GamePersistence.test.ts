@@ -75,6 +75,28 @@ describe('GamePersistence', () => {
     expect(historyLog[0].previousState!.players[0].centaurienMilestones).toEqual([{ id: `centaurien-${id}-0`, score: 12 }]);
   });
 
+  test('migration : joueur sans paliers, paliers déjà en marqueurs, sauvegarde sans journal', () => {
+    const legacy = JSON.parse(JSON.stringify(serializeGame(game, [])));
+    delete legacy.saveVersion;
+    delete legacy.gameLog;
+    delete legacy.players[0].centaurienMilestones;
+    legacy.players[1].centaurienMilestones = [{ id: 'm', score: 20 }, 35];
+
+    const { game: restored, historyLog } = deserializeGame(JSON.stringify(legacy));
+    expect(restored.players[0].centaurienMilestones).toEqual([]);
+    expect(restored.players[1].centaurienMilestones).toEqual([{ id: 'm', score: 20 }, { id: `centaurien-${restored.players[1].id}-1`, score: 35 }]);
+    expect(historyLog).toEqual([]);
+  });
+
+  test('migration : état sans joueurs ; entrées du journal sans identifiant, date ni joueur', () => {
+    const legacy = { gameLog: [{ message: 'ancien' }] };
+    const { historyLog } = deserializeGame(JSON.stringify(legacy));
+    expect(historyLog).toEqual([expect.objectContaining({ message: 'ancien', playerId: '', id: undefined, previousState: undefined })]);
+
+    const saved = serializeGame(game, [{ message: 'sans id', playerId: 'player_0' } as HistoryEntry]);
+    expect(saved.gameLog[0]).toMatchObject({ id: '', timestamp: 0, message: 'sans id' });
+  });
+
   test("refuse une sauvegarde d'un format plus récent", () => {
     const saved = { ...serializeGame(game, []), saveVersion: SAVE_VERSION + 1 };
     expect(() => deserializeGame(JSON.stringify(saved))).toThrow(SaveVersionError);

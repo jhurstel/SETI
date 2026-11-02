@@ -3,6 +3,7 @@ import { ActionValidator } from '../src/core/ActionValidator';
 import { PassAction } from '../src/actions/PassAction';
 import { LaunchProbeAction } from '../src/actions/LaunchProbeAction';
 import { ScoreManager } from '../src/core/ScoreManager';
+import { TurnManager } from '../src/core/TurnManager';
 import { TechnologySystem } from '../src/systems/TechnologySystem';
 import { Game, GamePhase, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
@@ -18,52 +19,22 @@ describe('GameEngine : état de la partie', () => {
     game.currentPlayerIndex = 0;
   });
 
-  test('joueur courant, partie en cours, personne n\'a passé', () => {
-    const engine = new GameEngine(game);
-
-    expect(engine.getCurrentPlayer().id).toBe(P1);
-    expect(engine.isGameOver()).toBe(false);
-    expect(engine.allPlayersPassed()).toBe(false);
-  });
-
-  test('getState renvoie une nouvelle référence, setState remplace l\'état', () => {
+  test('getState renvoie une nouvelle référence de la partie', () => {
     const engine = new GameEngine(game);
     expect(engine.getState()).not.toBe(game);
     expect(engine.getState()).toEqual(game);
-
-    const other = { ...game, currentPlayerIndex: 1 };
-    engine.setState(other);
-    expect(engine.getCurrentPlayer().id).toBe(P2);
-  });
-
-  test('nextPlayer passe la main au joueur suivant sans modifier la partie reçue', () => {
-    const engine = new GameEngine(game);
-    engine.nextPlayer();
-
-    expect(engine.getCurrentPlayer().id).toBe(P2);
-    expect(game.currentPlayerIndex).toBe(0);
-  });
-
-  test('tous les joueurs ont passé : allPlayersPassed', () => {
-    game.players.forEach(p => { p.hasPassed = true; });
-    expect(new GameEngine(game).allPlayersPassed()).toBe(true);
   });
 
   test('fin de la dernière manche : décompte final, gagnant, partie terminée', () => {
     game.currentRound = game.maxRounds;
     game.players.forEach(p => { p.hasPassed = true; });
     getPlayer(game, P2).score = 50;
-    const engine = new GameEngine(game);
 
-    engine.endRound();
+    const ended = TurnManager.endRound(game);
 
-    expect(engine.isGameOver()).toBe(true);
-    expect(engine.calculateFinalScores()).toHaveLength(2);
-    expect(engine.determineWinner()).toEqual([P2]);
-  });
-
-  test('calculateFinalScores refuse une partie non terminée', () => {
-    expect(() => new GameEngine(game).calculateFinalScores()).toThrow('La partie n\'est pas terminée');
+    expect(ended.phase).toBe(GamePhase.FINAL_SCORING);
+    expect(ended.finalScores).toHaveLength(2);
+    expect(ScoreManager.determineWinner(ended.finalScores!)).toEqual([P2]);
   });
 
   test('executeAction renvoie l\'erreur de validation sans rien changer', () => {
@@ -126,13 +97,6 @@ describe('ActionValidator', () => {
   test('action principale déjà faite', () => {
     getPlayer(game, P1).hasPerformedMainAction = true;
     expect(errorCode(game)).toBe('MAIN_ACTION_ALREADY_PERFORMED');
-  });
-
-  test('canExecuteAction suit la validation', () => {
-    getPlayer(game, P1).credits = 10;
-    expect(ActionValidator.canExecuteAction(game, new LaunchProbeAction(P1))).toBe(true);
-    getPlayer(game, P1).hasPassed = true;
-    expect(ActionValidator.canExecuteAction(game, new LaunchProbeAction(P1))).toBe(false);
   });
 });
 

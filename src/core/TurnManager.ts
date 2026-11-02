@@ -5,17 +5,6 @@ import { cloneGame } from './cloneGame';
 
 export class TurnManager {
   /**
-   * Marque l'action principale du joueur comme effectuée
-   * (actions principales résolues hors GameEngine.executeAction, ex: orbite/atterrissage payants depuis l'UI)
-   */
-  static markMainActionPerformed(game: Game, playerId: string): Game {
-    const updatedGame = cloneGame(game);
-    const player = updatedGame.players.find(p => p.id === playerId);
-    if (player) player.hasPerformedMainAction = true;
-    return updatedGame;
-  }
-
-  /**
    * Phase de SETUP (réservation) : passe au joueur suivant, ou démarre la partie
    * quand on revient au premier joueur.
    */
@@ -85,14 +74,6 @@ export class TurnManager {
       turnEntries: [{ message: `--- Tour de ${nextPlayer.name} ---`, playerId: nextPlayer.id }],
       turnEnded: true,
     };
-  }
-
-  /**
-   * Vérifie si c'est le tour du joueur spécifié
-   */
-  static isPlayerTurn(game: Game, playerId: string): boolean {
-    const currentPlayer = game.players[game.currentPlayerIndex];
-    return currentPlayer.id === playerId && game.phase === GamePhase.PLAYING;
   }
 
   /**
@@ -184,41 +165,6 @@ export class TurnManager {
     updatedPlayer.data = Math.min(player.data + (player.revenueData || 0), GAME_CONSTANTS.MAX_DATA);
 
     return updatedPlayer;
-  }
-
-  /**
-   * Marque un joueur comme ayant passé
-   */
-  static markPlayerPassed(game: Game, playerId: string): Game {
-    const updatedGame = { ...game };
-    updatedGame.players = updatedGame.players.map(player => {
-      if (player.id === playerId) {
-        return { ...player, hasPassed: true };
-      }
-      return player;
-    });
-    return updatedGame;
-  }
-
-  /**
-   * Vérifie si tous les joueurs ont passé
-   */
-  static allPlayersPassed(game: Game): boolean {
-    return game.players.every(player => player.hasPassed);
-  }
-
-  /**
-   * Obtient le joueur actuel
-   */
-  static getCurrentPlayer(game: Game): Player {
-    return game.players[game.currentPlayerIndex];
-  }
-
-  /**
-   * Obtient le premier joueur de la manche
-   */
-  static getFirstPlayer(game: Game): Player {
-    return game.players[game.firstPlayerIndex];
   }
 
   /**

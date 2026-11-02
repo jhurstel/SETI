@@ -63,12 +63,4 @@ export class ActionValidator {
     // Valider l'action elle-même
     return action.validate(game);
   }
-
-  /**
-   * Vérifie si une action peut être exécutée
-   */
-  static canExecuteAction(game: Game, action: BaseAction): boolean {
-    const validation = this.validateAction(game, action);
-    return validation.valid;
-  }
 }

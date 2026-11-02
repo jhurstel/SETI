@@ -1,8 +1,6 @@
-import { Game, GamePhase, Player, MAIN_ACTION_TYPES, FinalScore } from './types';
+import { Game, MAIN_ACTION_TYPES } from './types';
 import { BaseAction } from '../actions/Action';
 import { ActionValidator } from './ActionValidator';
-import { TurnManager } from './TurnManager';
-import { ScoreManager } from './ScoreManager';
 
 export class GameEngine {
   private state: Game;
@@ -16,35 +14,6 @@ export class GameEngine {
    */
   getState(): Game {
     return { ...this.state };
-  }
-
-  /**
-   * Met à jour l'état du jeu (pour synchroniser avec l'UI)
-   */
-  setState(newState: Game): void {
-    this.state = newState;
-  }
-
-  /**
-   * Obtient le joueur actuel
-   */
-  getCurrentPlayer(): Player {
-    return this.state.players[this.state.currentPlayerIndex];
-  }
-
-  /**
-   * Vérifie si la partie est terminée
-   */
-  isGameOver(): boolean {
-    return this.state.currentRound > this.state.maxRounds ||
-      this.state.phase === GamePhase.FINAL_SCORING;
-  }
-
-  /**
-   * Vérifie si tous les joueurs ont passé
-   */
-  allPlayersPassed(): boolean {
-    return TurnManager.allPlayersPassed(this.state);
   }
 
   /**
@@ -95,36 +64,5 @@ export class GameEngine {
         error: error instanceof Error ? error.message : 'Erreur inconnue'
       };
     }
-  }
-
-  /**
-   * Passe au joueur suivant
-   */
-  nextPlayer(): void {
-    this.state = TurnManager.nextPlayer(this.state);
-  }
-
-  /**
-   * Termine la manche actuelle
-   */
-  endRound(): void {
-    this.state = TurnManager.endRound(this.state);
-  }
-
-  /**
-   * Calcule le score final de tous les joueurs
-   */
-  calculateFinalScores(): FinalScore[] {
-    if (this.state.phase !== GamePhase.FINAL_SCORING || !this.state.finalScores) {
-      throw new Error('La partie n\'est pas terminée');
-    }
-    return this.state.finalScores;
-  }
-
-  /**
-   * Détermine le(s) gagnant(s) (score final, pénalité de danger comprise)
-   */
-  determineWinner(): string[] {
-    return ScoreManager.determineWinner(this.calculateFinalScores());
   }
 }

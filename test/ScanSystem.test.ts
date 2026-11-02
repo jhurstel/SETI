@@ -122,13 +122,8 @@ describe('ScanSystem', () => {
 
     test('secteur vide → aucune majorité', () => {
       expect(ScanSystem.calculateMajorities(sector)).toEqual([]);
-      expect(ScanSystem.calculateMajority(sector)).toEqual({ playerId: null, count: 0 });
     });
 
-    test('calculateMajority applique la même règle d\'égalité', () => {
-      markSignals(sector, [P1, P2, P2, P1]);
-      expect(ScanSystem.calculateMajority(sector)).toEqual({ playerId: P1, count: 2 });
-    });
   });
 
   describe('coverSector', () => {

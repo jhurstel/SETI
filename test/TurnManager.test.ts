@@ -8,7 +8,6 @@ import { DISCOVERY_NOTICE } from '../src/systems/SpeciesSystem';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
-const P3 = 'player_2';
 
 describe('TurnManager', () => {
   let game: Game;
@@ -137,34 +136,12 @@ describe('TurnManager', () => {
     });
   });
 
-  describe('markMainActionPerformed', () => {
-    test('marque le joueur sans modifier l\'original', () => {
-      const updated = TurnManager.markMainActionPerformed(game, P2);
-      expect(getPlayer(updated, P2).hasPerformedMainAction).toBe(true);
-      expect(getPlayer(game, P2).hasPerformedMainAction).toBe(false);
-    });
-  });
-
   describe('utilitaires', () => {
-    test('markPlayerPassed / allPlayersPassed / isFirstPassOfRound', () => {
-      let updated = TurnManager.markPlayerPassed(game, P1);
-      expect(getPlayer(updated, P1).hasPassed).toBe(true);
-      expect(getPlayer(game, P1).hasPassed).toBe(false);
-      expect(TurnManager.isFirstPassOfRound(updated)).toBe(true);
-
-      updated = TurnManager.markPlayerPassed(updated, P2);
-      expect(TurnManager.isFirstPassOfRound(updated)).toBe(false);
-      expect(TurnManager.allPlayersPassed(updated)).toBe(false);
-
-      updated = TurnManager.markPlayerPassed(updated, P3);
-      expect(TurnManager.allPlayersPassed(updated)).toBe(true);
-    });
-
-    test('isPlayerTurn exige la phase PLAYING', () => {
-      expect(TurnManager.isPlayerTurn(game, P1)).toBe(true);
-      expect(TurnManager.isPlayerTurn(game, P2)).toBe(false);
-      game.phase = GamePhase.SETUP;
-      expect(TurnManager.isPlayerTurn(game, P1)).toBe(false);
+    test('isFirstPassOfRound : vrai pour le premier joueur qui passe seulement', () => {
+      getPlayer(game, P1).hasPassed = true;
+      expect(TurnManager.isFirstPassOfRound(game)).toBe(true);
+      getPlayer(game, P2).hasPassed = true;
+      expect(TurnManager.isFirstPassOfRound(game)).toBe(false);
     });
   });
 });

@@ -8,9 +8,11 @@ import {
   createRotationState,
   getAbsoluteSectorForProbe,
   performRotation,
+  RotationState,
 } from '../src/core/SolarSystemPosition';
-import { Game, SectorNumber } from '../src/core/types';
-import { createTestGame } from './helpers/gameFixture';
+import { DiskName, Game, Probe, ProbeState, SectorNumber } from '../src/core/types';
+import { ProbeSystem } from '../src/systems/ProbeSystem';
+import { createTestGame, getPlayer } from './helpers/gameFixture';
 
 const NO_ROTATION = createRotationState(0, 0, 0);
 
@@ -208,5 +210,60 @@ describe('performRotation', () => {
     expect(logs[0]).toContain('fait tourner le Système Solaire (Jaune)');
     expect(angles(game)).toEqual([0, 0, 0]);
     expect(game.board.solarSystem.nextRingLevel).toBe(3);
+  });
+});
+
+describe('poussée des sondes recouvertes par un anneau', () => {
+  let game: Game;
+
+  beforeEach(async () => {
+    game = await createTestGame();
+    const s = game.board.solarSystem;
+    s.rotationAngleLevel1 = 0;
+    s.rotationAngleLevel2 = 0;
+    s.rotationAngleLevel3 = 0;
+    s.nextRingLevel = 3;
+  });
+
+  /** Sonde de P1 sur une case (anneau fixe ou bleu/rouge, immobile) que l'anneau jaune recouvre après la rotation `after` */
+  function coveredProbe(after: RotationState): Probe {
+    const extra = game.board.solarSystem.extraCelestialObjects || [];
+    for (const disk of ['A', 'B', 'C', 'D', 'E'] as DiskName[]) {
+      for (let s = 1; s <= 8; s++) {
+        const sector = s as SectorNumber;
+        const level = getVisibleLevel(disk, sector, NO_ROTATION, extra);
+        if (level < 3 && getVisibleLevel(disk, sector, after, extra) > level) {
+          const probe: Probe = { id: 'pp', ownerId: 'player_0', position: { x: 0, y: 0 }, solarPosition: { disk, sector, level }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false };
+          getPlayer(game, 'player_0').probes = [probe];
+          game.board.solarSystem.probes = [probe];
+          return probe;
+        }
+      }
+    }
+    throw new Error('aucune case recouverte');
+  }
+
+  test.each([
+    ['sens du jeu (-45°) : poussée au secteur suivant', -45, 1],
+    ['sens inverse (+45°) : poussée au secteur précédent', 45, -1],
+  ])('%s', (_label, angle, step) => {
+    const after = createRotationState(0, 0, angle);
+    const probe = coveredProbe(after);
+    const from = probe.solarPosition!;
+
+    const res = ProbeSystem.updateProbesAfterRotation(game, NO_ROTATION, after, game.board.solarSystem.extraCelestialObjects || []);
+    const moved = getPlayer(res.game, 'player_0').probes[0];
+    const expected = ((from.sector - 1 + step + 8) % 8) + 1;
+    expect(moved.solarPosition!.disk).toBe(from.disk);
+    expect(getAbsoluteSectorForProbe(moved.solarPosition!, after)).toBe(expected);
+    expect(res.logs[0]).toMatch(new RegExp(`^Sonde de .+ poussée vers ${from.disk}${expected}`));
+    expect(res.game.board.solarSystem.probes[0].solarPosition).toEqual(moved.solarPosition);
+    expect(probe.solarPosition).toEqual(from);
+  });
+
+  test("sans changement d'angle : aucune poussée", () => {
+    coveredProbe(createRotationState(0, 0, -45));
+    const res = ProbeSystem.updateProbesAfterRotation(game, NO_ROTATION, NO_ROTATION, []);
+    expect(res.logs).toEqual([]);
   });
 });

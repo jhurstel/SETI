@@ -1,4 +1,5 @@
 import { GameRoom } from '../src/session/GameRoom';
+import { GameSession } from '../src/session/GameSession';
 import { isCompatibleVersion, parseClientMessage } from '../src/session/protocol';
 import { Command } from '../src/session/commands';
 import { CardSystem } from '../src/systems/CardSystem';
@@ -150,6 +151,38 @@ describe('GameRoom : salle de partie à distance', () => {
     expect(restored.game!.rngState).toBe(room.game!.rngState);
     const token = tokenOf(restored, current(restored).id);
     expect(restored.command(token, { type: 'LAUNCH_PROBE' }).error).toBeUndefined();
+  });
+
+  test('commande qui fait planter le moteur : refusée, la partie de la salle est inchangée', async () => {
+    const room = await startedRoom();
+    finishSetup(room);
+    const before = room.game;
+    const crash = jest.spyOn(GameSession, 'dispatch').mockImplementation(() => { throw new Error('boum'); });
+    try {
+      expect(room.command(tokenOf(room, current(room).id), { type: 'LAUNCH_PROBE' })).toEqual({ error: 'Commande invalide', notifications: [] });
+    } finally {
+      crash.mockRestore();
+    }
+    expect(room.game).toBe(before);
+  });
+
+  test('étape de robot refusée par la session : rien n\'est joué, la partie est inchangée', async () => {
+    const room = await startedRoom();
+    finishSetup(room);
+    const robot = room.game!.players.find(p => p.type === 'robot')!;
+    room.game = { ...room.game!, currentPlayerIndex: room.game!.players.indexOf(robot) };
+    expect(room.robotToPlay).toBe(true);
+    const before = room.game;
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const refuse = jest.spyOn(GameSession, 'applyRobotStep').mockReturnValue({ game: before, entries: [], notifications: [], error: 'refus' });
+    try {
+      expect(room.robotStep()).toEqual({ played: false, notifications: [] });
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('étape de robot refusée'), 'refus');
+    } finally {
+      refuse.mockRestore();
+      errorSpy.mockRestore();
+    }
+    expect(room.game).toBe(before);
   });
 });
 
