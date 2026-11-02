@@ -12,6 +12,7 @@ import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
 import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsIcon, EndTurnIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
+import { ReservationIcon } from './components/ObjectiveSymbol';
 import { SLOT_COLORS } from './styles/slotColors';
 import './PlayerBoardUI.css';
 
@@ -348,6 +349,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   const revenueEnergyFlash = useResourceFlash(currentPlayer.revenueEnergy, currentPlayer.id);
   const revenueCardFlash = useResourceFlash(currentPlayer.revenueCards, currentPlayer.id);
   const dataFlash = useResourceFlash(currentPlayer.data, currentPlayer.id);
+  const scoreFlash = useResourceFlash(currentPlayer.score, currentPlayer.id);
   const cardsFlash = useResourceFlash(handCards.length, currentPlayer.id);
 
   const actionAvailability: Record<ActionType, boolean> = {
@@ -608,7 +610,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         {/* Titre */}
         <div className="seti-player-panel-title seti-player-panel-title-container">
           <span>
-            {currentPlayer.name} {currentPlayer.type === 'robot' && !remoteHumanIds.includes(currentPlayer.id) ? '🤖' : '👤'} - Score: <VictoryPointsIcon amount={currentPlayer.score} size={24} />
+            {currentPlayer.name} {currentPlayer.type === 'robot' && !remoteHumanIds.includes(currentPlayer.id) ? '🤖' : '👤'}
           </span>
           <div className="seti-player-turn-buttons">
             {!isRobot && (() => {
@@ -634,83 +636,101 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         </div>
         
         <div className="seti-player-layout-container">
-          {/* Ressources/Revenus */}
-          <div className="seti-resources-row">
-            {/* Ressources */}
-            <div className="seti-player-section seti-section-relative">
-              <div className="seti-player-section-title seti-section-header">Ressource</div>
-              <div className="seti-player-resources">
-                <div 
-                  key={creditFlash ? `credit-${creditFlash.id}` : 'credit-static'}
-                  className={`seti-res-badge ${creditFlash ? (creditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
+          {/* Ressources et revenus : une barre de tuiles (symbole + valeur), les actions liées juste dessous */}
+          <div className="seti-stats-bar">
+            {(() => {
+              const flashClass = (flash: { type: string } | null) => (flash ? (flash.type === 'gain' ? 'flash-gain' : 'flash-loss') : '');
+              const tile = (key: string, flash: { id: number; type: string } | null, icon: React.ReactNode, tooltip: React.ReactNode, actions?: React.ReactNode) => (
+                <div
+                  key={flash ? `${key}-${flash.id}` : `${key}-static`}
+                  className={`seti-stat-tile ${flashClass(flash)}`}
                 >
-                  <span className="seti-res-label">Crédit <ResourceIcon kind="credit" size={15} /> :</span>
-                  <div className="seti-resource-badge-content">
-                    {renderDirectTradeButton('credit', 'energy', <ResourceIcon kind="energy" size={15} />, currentPlayer.credits >= 2)}
-                    {renderDirectTradeButton('credit', 'card', <ResourceIcon kind="card" size={15} />, currentPlayer.credits >= 2)}
-                    <strong style={{ marginLeft: '6px' }}>{currentPlayer.credits}</strong>
+                  <div className="seti-stat-main" onMouseEnter={(e) => handleTooltipHover(e, tooltip)} onMouseLeave={handleTooltipLeave}>
+                    {icon}
                   </div>
+                  {actions && <div className="seti-stat-actions">{actions}</div>}
                 </div>
-                <div 
-                  key={energyFlash ? `energy-${energyFlash.id}` : 'energy-static'}
-                  className={`seti-res-badge ${energyFlash ? (energyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-                >
-                  <span className="seti-res-label">Énergie <ResourceIcon kind="energy" size={15} /> :</span>
-                  <div className="seti-resource-badge-content">
-                    {renderDirectTradeButton('energy', 'credit', <ResourceIcon kind="credit" size={15} />, currentPlayer.energy >= 2)}
-                    {renderDirectTradeButton('energy', 'card', <ResourceIcon kind="card" size={15} />, currentPlayer.energy >= 2)}
-                    <strong style={{ marginLeft: '6px' }}>{currentPlayer.energy}</strong>
-                  </div>
-                </div>
-                <div 
-                  key={mediaFlash ? `media-${mediaFlash.id}` : 'media-static'}
-                  className={`seti-res-badge ${mediaFlash ? (mediaFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-                >
-                  <span className="seti-res-label">Média <ResourceIcon kind="media" size={15} /> :</span>
-                  <div className="seti-resource-badge-content">
-                  {/* Action principale « Rechercher une technologie » (payée en Médias), en surbrillance quand elle est possible */}
-                  {!isRobot && (() => {
-                    const canResearch = actionAvailability[ActionType.RESEARCH_TECH] && !isInteractiveMode;
-                    return renderActionButton(<ActionHexIcon kind="research" size={18} />, getActionTooltip(ActionType.RESEARCH_TECH, canResearch), () => onAction(ActionType.RESEARCH_TECH), !canResearch, '#4a9eff', { marginLeft: '4px' }, canResearch ? 'seti-flash-green' : '');
-                  })()}
-                  {/* Achat d'une carte (action gratuite, 3 Médias) */}
-                  {renderBuyCardButton(<ResourceIcon kind="card" size={15} />)}
-                  <strong style={{ marginLeft: '6px' }}>{currentPlayer.mediaCoverage}</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
+              );
+              return (
+                <>
+                  {tile('score', scoreFlash, <VictoryPointsIcon amount={currentPlayer.score} size={38} />, <SlotTooltip status="Score" statusColor="#6fd8bf" note={`${currentPlayer.score} points de victoire`} />)}
+                  {tile('credit', creditFlash, <ResourceIcon kind="credit" amount={currentPlayer.credits} size={34} />,
+                    <SlotTooltip status="Crédits" statusColor="#ffd700" note={`${currentPlayer.credits} crédit${currentPlayer.credits > 1 ? 's' : ''} : sondes, orbites, scans, cartes`} />,
+                    !isRobot && <>
+                      {renderDirectTradeButton('credit', 'energy', <ResourceIcon kind="energy" size={14} />, currentPlayer.credits >= 2)}
+                      {renderDirectTradeButton('credit', 'card', <ResourceIcon kind="card" size={14} />, currentPlayer.credits >= 2)}
+                    </>)}
+                  {tile('energy', energyFlash, <ResourceIcon kind="energy" amount={currentPlayer.energy} size={34} />,
+                    <SlotTooltip status="Énergie" statusColor="#3daa3a" note={`${currentPlayer.energy} énergie${currentPlayer.energy > 1 ? 's' : ''} : déplacements, atterrissages, scans, analyse`} />,
+                    !isRobot && <>
+                      {renderDirectTradeButton('energy', 'credit', <ResourceIcon kind="credit" size={14} />, currentPlayer.energy >= 2)}
+                      {renderDirectTradeButton('energy', 'card', <ResourceIcon kind="card" size={14} />, currentPlayer.energy >= 2)}
+                    </>)}
+                  {tile('media', mediaFlash, <ResourceIcon kind="media" amount={currentPlayer.mediaCoverage} size={34} />,
+                    <SlotTooltip status="Couverture médiatique" statusColor="#e5197e" note={`${currentPlayer.mediaCoverage} / ${GAME_CONSTANTS.MAX_MEDIA_COVERAGE} : technologies (6), achat d'une carte (3)`} />,
+                    !isRobot && <>
+                      {/* Action principale « Rechercher une technologie » (payée en Médias), en surbrillance quand elle est possible */}
+                      {(() => {
+                        const canResearch = actionAvailability[ActionType.RESEARCH_TECH] && !isInteractiveMode;
+                        return renderActionButton(<ActionHexIcon kind="research" size={16} />, getActionTooltip(ActionType.RESEARCH_TECH, canResearch), () => onAction(ActionType.RESEARCH_TECH), !canResearch, '#4a9eff', { marginLeft: '4px' }, canResearch ? 'seti-flash-green' : '');
+                      })()}
+                      {/* Achat d'une carte (action gratuite, 3 Médias) */}
+                      {renderBuyCardButton(<ResourceIcon kind="card" size={14} />)}
+                    </>)}
 
-            {/* Revenues */}
-            <div className="seti-player-section seti-section-relative">
-              <div className="seti-player-section-title">Revenu</div>
-              <div className="seti-player-revenues seti-revenues-list">
-                <div 
-                  key={revenueCreditFlash ? `rev-credit-${revenueCreditFlash.id}` : 'rev-credit-static'}
-                  className={`seti-res-badge ${revenueCreditFlash ? (revenueCreditFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-                >
-                  <span className="seti-res-label">Crédit <ResourceIcon kind="credit" size={15} /> :</span>
-                  <strong>{currentPlayer.revenueCredits} <span style={{fontSize: '0.8em', fontWeight: 'normal', color: '#aaa'}}>({currentPlayer.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS})</span></strong>
-                </div>
-                <div 
-                  key={revenueEnergyFlash ? `rev-energy-${revenueEnergyFlash.id}` : 'rev-energy-static'}
-                  className={`seti-res-badge ${revenueEnergyFlash ? (revenueEnergyFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-                >
-                  <span className="seti-res-label">Énergie <ResourceIcon kind="energy" size={15} /> :</span>
-                  <strong>{currentPlayer.revenueEnergy} <span style={{fontSize: '0.8em', fontWeight: 'normal', color: '#aaa'}}>({currentPlayer.revenueEnergy - GAME_CONSTANTS.INITIAL_REVENUE_ENERGY})</span></strong>
-                </div>
-                <div 
-                  key={revenueCardFlash ? `rev-card-${revenueCardFlash.id}` : 'rev-card-static'}
-                  className={`seti-res-badge ${revenueCardFlash ? (revenueCardFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-                >
-                  <span className="seti-res-label">Carte <ResourceIcon kind="card" size={15} /> :</span>
-                  <strong>{currentPlayer.revenueCards} <span style={{fontSize: '0.8em', fontWeight: 'normal', color: '#aaa'}}>({currentPlayer.revenueCards - GAME_CONSTANTS.INITIAL_REVENUE_CARDS})</span></strong>
-                </div>
-              </div>
-            </div>
+                  {/* Revenus : bouton Réservation, revenus de chaque manche en miniature, détail en infobulle */}
+                  {(() => {
+                    const revenues = [
+                      { kind: 'credit' as const, label: 'Crédits', total: currentPlayer.revenueCredits, base: GAME_CONSTANTS.INITIAL_REVENUE_CREDITS, flash: revenueCreditFlash },
+                      { kind: 'energy' as const, label: 'Énergie', total: currentPlayer.revenueEnergy, base: GAME_CONSTANTS.INITIAL_REVENUE_ENERGY, flash: revenueEnergyFlash },
+                      { kind: 'card' as const, label: 'Cartes', total: currentPlayer.revenueCards, base: GAME_CONSTANTS.INITIAL_REVENUE_CARDS, flash: revenueCardFlash },
+                      // Revenus apportés par les espèces (cartes Centauriens, réservations de cartes à revenu Média ou Donnée)
+                      { kind: 'media' as const, label: 'Médias', total: currentPlayer.revenueMedia || 0, base: 0, flash: null },
+                      { kind: 'data' as const, label: 'Données', total: currentPlayer.revenueData || 0, base: 0, flash: null },
+                    ].filter(r => r.base > 0 || r.total > 0);
+                    const reserved = currentPlayer.reservedCards || [];
+                    const tooltip = (
+                      <div className="seti-revenue-tooltip">
+                        <div className="seti-revenue-tooltip-title">Revenus à chaque fin de manche</div>
+                        {revenues.map(r => (
+                          <div key={r.kind} className="seti-revenue-tooltip-row">
+                            <ResourceIcon kind={r.kind} size={16} />
+                            <span>{r.label}</span>
+                            <strong>{r.total}</strong>
+                            <span className="seti-revenue-tooltip-detail">{r.base > 0 ? `${r.base} de départ` : ''}{r.base > 0 && r.total > r.base ? ' + ' : ''}{r.total > r.base ? `${r.total - r.base} réservé${r.total - r.base > 1 ? 's' : ''}` : ''}</span>
+                          </div>
+                        ))}
+                        <div className="seti-revenue-tooltip-cards">
+                          {reserved.length > 0
+                            ? <>Cartes réservées ({reserved.length}) : {reserved.map(c => c.name).join(', ')}</>
+                            : 'Aucune carte réservée'}
+                        </div>
+                      </div>
+                    );
+                    const anyFlash = revenues.find(r => r.flash)?.flash ?? null;
+                    return (
+                      <div
+                        key={anyFlash ? `revenue-${anyFlash.id}` : 'revenue-static'}
+                        className={`seti-stat-tile seti-revenue-tile ${flashClass(anyFlash)}`}
+                        onMouseEnter={(e) => handleTooltipHover(e, tooltip)}
+                        onMouseLeave={handleTooltipLeave}
+                        aria-label="Revenus"
+                      >
+                        <div className="seti-stat-main">
+                          <ReservationIcon size={26} />
+                          <span className="seti-revenue-count">{reserved.length}</span>
+                        </div>
+                        <div className="seti-revenue-mini">
+                          {revenues.map(r => <ResourceIcon key={r.kind} kind={r.kind} amount={r.total} size={17} />)}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              );
+            })()}
           </div>
 
-          {/* Piste Exploration */}
           <div className="seti-player-section">
             <div className="seti-player-section-title">Exploration</div>
             <ExplorationTrack
