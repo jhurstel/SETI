@@ -11,6 +11,7 @@ import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ScanSystem } from '../systems/ScanSystem';
+import { DISCOVERY_NOTICE } from '../systems/SpeciesSystem';
 import { GameSession } from '../session/GameSession';
 import { Choice, Command } from '../session/commands';
 import { useAITurn } from './hooks/useAITurn';
@@ -35,7 +36,7 @@ import './BoardUI.css';
 /** Modes propres à l'interface (sélection avant la commande, animation) : la partie n'en sait rien */
 type LocalMode = Extract<InteractionState, { type: 'DISCARDING_CARD' | 'TRADING_CARD' | 'ANALYZING' }>;
 
-const DISCOVERY_NOTICE = "Découverte d'une nouvelle espèce Alien !";
+
 
 export const BoardUI: React.FC = () => {
   // La partie et son journal : tout passe par la session (GameSession)
@@ -612,6 +613,22 @@ export const BoardUI: React.FC = () => {
           subtitle="La carte réservée est glissée sous votre plateau : vous gagnez aussitôt son revenu, puis à chaque manche."
           confirmLabel="Réserver"
           highlightedAttribute="revenue"
+        />
+      )}
+
+      {/* ET.15 : une des cartes piochées défaussée pour son action gratuite, puis une autre pour son revenu */}
+      {interactionState.type === 'DISCARDING_DRAWN_CARD' && actingPlayer(game).type === 'human' && (
+        <PassModal
+          visible
+          cards={actingPlayer(game).cards.filter(c => interactionState.cardIds.includes(c.id))}
+          onConfirm={(cardId) => choose({ kind: 'CARD', cardId })}
+          currentRound={game.currentRound}
+          title={interactionState.step === 'FREE_ACTION' ? 'Défaussez une carte pour son action gratuite' : 'Défaussez une carte pour son revenu'}
+          subtitle={interactionState.step === 'FREE_ACTION'
+            ? "Vie Quotidienne : vous gagnez l'action gratuite indiquée dans le coin de la carte."
+            : 'Vie Quotidienne : vous gagnez 1 ressource du type de son revenu.'}
+          confirmLabel="Défausser"
+          highlightedAttribute={interactionState.step === 'FREE_ACTION' ? 'freeAction' : 'revenue'}
         />
       )}
 

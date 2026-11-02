@@ -413,3 +413,14 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
   padding-top: 4px;
   font-weight: bold;
 }
+
+/* Jeton Anomalie : anneau pointillé qui tourne lentement autour de la récompense */
+.seti-anomaly-ring {
+  transform-origin: 20px 20px;
+  animation: seti-anomaly-spin 12s linear infinite;
+}
+
+@keyframes seti-anomaly-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

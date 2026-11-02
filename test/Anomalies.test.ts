@@ -13,7 +13,7 @@ function anomalyBoard(game: Game) {
   return board;
 }
 
-const anomalyAt = (sector: number, bonus: { credits?: number; energy?: number }): CelestialObject => ({
+const anomalyAt = (sector: number, bonus: { credits?: number; energy?: number; anycard?: number }): CelestialObject => ({
   id: `anomaly-${sector}`, type: 'anomaly', name: 'Anomalie', level: 0,
   position: { disk: 'D', sector: sector as SectorNumber, x: 0, y: 0 },
   anomalyData: { color: LifeTraceType.RED, side: 'head', bonus },
@@ -71,15 +71,36 @@ describe('Anomalies', () => {
       expect(JSON.stringify(game)).toBe(before);
     });
 
-    test('espèce non découverte, ou trace la plus avancée neutre : rien', () => {
+    test('régression : le message ne répète pas « gagne »', () => {
+      prepare(true, P1);
+      const name = getPlayer(game, P1).name;
+      const log = performRotation(game).logs.find(l => l.startsWith('Anomalie'))!;
+      expect(log).toBe(`Anomalie Rouge activée : ${name} gagne 3 Crédits`);
+    });
+
+    test('espèce non découverte : rien, pas de message', () => {
       prepare(false, P1);
       const credits = getPlayer(game, P1).credits;
-      expect(getPlayer(performRotation(game).updatedGame, P1).credits).toBe(credits);
+      const res = performRotation(game);
+      expect(getPlayer(res.updatedGame, P1).credits).toBe(credits);
+      expect(res.logs.some(l => l.startsWith('Anomalie'))).toBe(false);
+    });
 
+    test('personne sur la piste de la couleur (ou trace neutre) : personne ne gagne, et l\'historique le dit', () => {
       prepare(true, 'neutral');
       const res = performRotation(game);
       expect(res.updatedGame.players.map(p => p.credits)).toEqual(game.players.map(p => p.credits));
-      expect(res.logs.some(l => l.startsWith('Anomalie'))).toBe(false);
+      expect(res.logs).toContain('Anomalie Rouge activée : aucun marqueur sur la piste Rouge des Anomalies, personne ne gagne sa récompense');
+
+      anomalyBoard(game).lifeTraces = [];
+      expect(performRotation(game).logs).toContain('Anomalie Rouge activée : aucun marqueur sur la piste Rouge des Anomalies, personne ne gagne sa récompense');
+    });
+
+    test('récompense « 1 carte au choix » : le choix est transmis au gagnant', () => {
+      prepare(true, P2);
+      game.board.solarSystem.extraCelestialObjects = Array.from({ length: 8 }, (_, i) => anomalyAt(i + 1, { anycard: 1 }));
+      const res = performRotation(game);
+      expect(res.interactions).toEqual([expect.objectContaining({ type: 'ACQUIRING_CARD', playerId: P2 })]);
     });
   });
 

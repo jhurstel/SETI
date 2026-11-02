@@ -150,7 +150,19 @@ Une trace de vie (rouge, jaune ou bleue) se place sur le plateau d'une espèce A
 
 ### 3.2 Mascamites
 
-- 7 jetons spécimen face cachée : 3 sur Jupiter, 3 sur Saturne, 1 sur la piste bleue.
+- 7 jetons spécimen face cachée, mélangés à la découverte : 3 sur Jupiter, 3 sur Saturne, et le 7e sur la 3e case de la piste bleue. Celui-ci reste caché (« ? ») jusqu'à ce qu'une trace y soit posée : sa récompense est alors gagnée.
+- Récompenses des 7 spécimens :
+
+| Spécimen | Récompense |
+|---|---|
+| 1 | 2 crédits |
+| 2 | 2 énergies |
+| 3 | 3 Médias |
+| 4 | 2 données |
+| 5 | 2 cartes |
+| 6 | 3 PV + 1 carte au choix |
+| 7 | 7 PV |
+
 - Certaines cartes permettent de **prélever un spécimen** sur Jupiter, Saturne ou leurs lunes : le jeton part dans une **capsule**, qui se déplace comme une sonde (sans compter comme une sonde).
 - Une capsule arrivée sur la Terre (ou sur Mars pour ET.4) se réclame comme une mission : récompense de la carte plus celle du spécimen.
 - D'autres cartes permettent de **consulter** un spécimen (gagner son bonus sans le retirer).
@@ -159,7 +171,8 @@ Une trace de vie (rouge, jaune ou bleue) se place sur le plateau d'une espèce A
 ### 3.3 Anomalies
 
 - 3 anomalies sont posées sur le disque D : dans le secteur de la Terre et à 3 secteurs de chaque côté.
-- Quand une rotation amène la Terre sur une anomalie, le joueur le plus avancé sur la piste de la couleur de l'anomalie reçoit sa récompense.
+- Quand une rotation amène la Terre sur une anomalie, le joueur dont le marqueur est le plus haut sur la piste de la couleur de l'anomalie reçoit sa récompense (affichée au centre du jeton). Si personne n'a de marqueur sur cette piste, personne ne gagne ; l'historique l'indique.
+- Jetons (une face tirée au hasard) : rouge 1 crédit ou 4 PV, jaune 2 Médias ou 1 carte au choix, bleu 1 donnée ou 1 énergie.
 - Emplacement infini : 2 PV.
 
 ### 3.4 Oumuamua
@@ -170,14 +183,23 @@ Une trace de vie (rouge, jaune ou bleue) se place sur le plateau d'une espèce A
 
 ### 3.5 Centauriens
 
-- À la découverte, chaque joueur pose un palier à son score + 15 PV : en l'atteignant, il choisit une **tuile Message** (trace de vie au choix, carte Alien + 1 énergie, 3 Médias…).
+- À la découverte, chaque joueur pose un palier à son score + 15 PV : en l'atteignant, il choisit une **tuile Message** encore disponible (chaque tuile n'est prise qu'une fois ; s'il n'en reste plus, rien) :
+
+| Tuile Message | Récompense |
+|---|---|
+| 1 | 1 trace de vie de la couleur de son choix |
+| 2 | 1 carte Centaurien + 1 énergie |
+| 3 | 3 Médias |
+| 4 | 8 PV |
+
 - Les cartes Centauriens posent aussi un palier : en l'atteignant, l'effet **Réception** de la carte s'applique.
 - Piste : 15 PV pour 3 données ; emplacement infini : 6 PV pour 1 donnée.
 
 ### 3.6 Exertiens
 
-- À la découverte, chaque joueur reçoit 3 cartes Exertiens. Elles ne sont pas en main : ni défaussées, ni réservées, ni jouées normalement.
-- Des **paliers Exertiens** apparaissent au meilleur score + 20 et + 40. À chaque palier, chaque joueur peut jouer une carte Exertien face cachée (une par palier).
+- À la découverte, chaque joueur reçoit 3 cartes Exertiens (en plus des cartes des premiers marqueurs). Elles ne sont pas en main : ni défaussées, ni réservées, ni jouées normalement.
+- Chaque joueur qui a un marqueur sur les emplacements de découverte peut **jouer tout de suite** une carte Exertien face cachée (ou y renoncer).
+- Des **paliers Exertiens** apparaissent au meilleur score + 20 et + 40. À chaque palier, chaque joueur peut jouer une carte Exertien face cachée (une par palier) ; au **2e palier**, jouer sa carte coûte **1 crédit**.
 - Les cases de la piste rapportent PV et ressources, mais ajoutent du **danger** (3, 3, 2, 2, 1). Pas d'emplacement infini.
 - Fin de partie : les conditions des cartes jouées sont révélées (PV si remplies). Le joueur le plus exposé (somme du danger de ses cartes et de ses cases, ex aequo compris) perd **10 %** de son total, arrondi à l'inférieur. Aucune pénalité si personne n'a de danger.
 
@@ -201,12 +223,13 @@ Une interaction est un choix en attente. Elles sont gardées dans la partie, dan
 | `CHOOSING_OBS2_ACTION` / `CHOOSING_OBS3_ACTION` | Scan avec Observation II / III | Accepter ou non (`ACCEPT`) | Non |
 | `CHOOSING_OBS4_ACTION` | Scan avec Observation IV | Sonde, déplacement ou rien (`OBS4`) | Non |
 | `DISCARDING_FOR_SIGNAL` | Effet de carte | Cartes à défausser (`CARDS`) | Non |
+| `DISCARDING_DRAWN_CARD` | ET.15 « Vie Quotidienne » | Une des cartes piochées, pour son action gratuite puis pour son revenu (`CARD`) | Non |
 | `REMOVING_ORBITER` / `REMOVING_LANDER` | Cartes 15 et 84 | Planète (`PLANET`) | Non |
 | `CHOOSING_BONUS_ACTION` | Plusieurs gains à choix | Entrée du menu (`MENU`) | Oui |
 | `ACQUIRING_ALIEN_CARD` | Découverte, bonus | Carte Alien (`ALIEN_CARD`) | Non |
 | `CHOOSING_CENTAURIEN_REWARD` | Palier Centaurien | Tuile Message (`CENTAURIEN`) | Non |
 | `COLLECTING_SPECIMEN` / `CONSULTING_SPECIMEN` | Cartes Mascamites | Spécimen (`SPECIMEN`) | Non |
-| `CHOOSING_EXERTIEN_CARD` | Palier Exertien | Carte ou renoncement (`EXERTIEN`) | Non (renoncer est un choix) |
+| `CHOOSING_EXERTIEN_CARD` | Palier Exertien, découverte des Exertiens (palier 0) | Carte ou renoncement (`EXERTIEN`) | Non (renoncer est un choix) |
 | `RESOLVING_SECTOR`, `TRIGGER_CARD_EFFECT`, `DRAW_AND_SCAN`, `CLAIMING_MISSION_REQUIREMENT` | Secteur plein, effets automatiques | Aucun : résolues par le moteur (`InteractionResolver`) | — |
 
 Une interaction peut viser un autre joueur que le joueur actif (par exemple le gagnant d'un secteur couvert par un robot) : seul ce joueur peut y répondre. Une interaction d'un robot est résolue par le robot lui-même.

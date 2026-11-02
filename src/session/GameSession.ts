@@ -25,6 +25,7 @@ import { getRandomState, setRandomState } from '../core/random';
 import { uniqueId } from '../core/ids';
 import { Choice, Command } from './commands';
 import { InteractionQueue } from './InteractionQueue';
+import { DISCOVERY_NOTICE } from '../systems/SpeciesSystem';
 
 export interface DispatchResult {
   /** La partie après la commande (inchangée si refusée) */
@@ -52,7 +53,7 @@ class Outcome {
   add(entries: HistoryEntry[] | undefined, sequenceId?: string): void {
     (entries || []).forEach(e => {
       this.entries.push(sequenceId && !e.sequenceId ? { ...e, sequenceId } : e);
-      if (e.message === DISCOVERY_MESSAGE) this.notify("Découverte d'une nouvelle espèce Alien !");
+      if (e.message === DISCOVERY_MESSAGE) this.notify(DISCOVERY_NOTICE);
     });
   }
 
@@ -127,7 +128,7 @@ export class GameSession {
         case 'END_TURN_DONE':
           outcome.add(step.end.historyEntries);
           outcome.notify(step.end.discoveryNotification?.message);
-          updated = step.end.updatedGame;
+          updated = InteractionQueue.enqueue(step.end.updatedGame, step.end.humanInteractions || []);
           break;
         case 'PASS': {
           const player = game.players[game.currentPlayerIndex];
@@ -332,6 +333,10 @@ export class GameSession {
           return setup.updatedGame;
         }
         break;
+      case 'DISCARDING_DRAWN_CARD':
+        if (choice.kind !== 'CARD' || !choice.cardId) return wrong();
+        result = InteractionChoices.discardDrawnCard(base, playerId, active, choice.cardId);
+        break;
       case 'DISCARDING_FOR_SIGNAL':
         if (choice.kind !== 'CARDS') return wrong();
         result = InteractionChoices.discardForSignals(base, playerId, active, choice.cardIds);
@@ -370,7 +375,7 @@ export class GameSession {
 
     if (result.error) refuse(result.error);
     outcome.add(result.historyEntries, active.sequenceId);
-    if (result.discoveredSpecies) outcome.notify("Découverte d'une nouvelle espèce Alien !");
+    if (result.discoveredSpecies) outcome.notify(DISCOVERY_NOTICE);
     let updated = InteractionQueue.enqueue(result.updatedGame, result.newPendingInteractions, active.sequenceId);
     if (result.nextInteraction) updated = InteractionQueue.pushFront(updated, result.nextInteraction);
     return updated;
@@ -429,8 +434,9 @@ export class GameSession {
         const turn = TurnManager.finishTurn(current);
         outcome.add(turn.milestoneEntries);
         outcome.notify(turn.discoveryNotification?.message);
-        if (!turn.turnEnded && turn.pendingInteraction) {
-          current = InteractionQueue.set(turn.updatedGame, turn.pendingInteraction);
+        if (!turn.turnEnded && turn.pendingInteractions?.length) {
+          const [first, ...more] = turn.pendingInteractions;
+          current = InteractionQueue.set(turn.updatedGame, first, more);
           continue;
         }
         outcome.add(turn.turnEntries);

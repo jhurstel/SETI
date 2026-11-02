@@ -90,9 +90,10 @@ export class AITurn {
    * Fin de tour d'un robot : les choix liés aux paliers de score (marqueur d'objectif,
    * récompense centaurienne…) sont résolus par l'IA au lieu d'être confiés à l'interface.
    */
-  static endTurn(game: Game): { updatedGame: Game; historyEntries: HistoryEntry[]; discoveryNotification?: { message: string } } {
+  static endTurn(game: Game): { updatedGame: Game; historyEntries: HistoryEntry[]; discoveryNotification?: { message: string }; humanInteractions?: InteractionState[] } {
     const player = game.players[game.currentPlayerIndex];
     const historyEntries: HistoryEntry[] = [];
+    const humanInteractions: InteractionState[] = [];
     let discoveryNotification: { message: string } | undefined;
     let current = game;
 
@@ -101,11 +102,13 @@ export class AITurn {
       const turn = TurnManager.finishTurn(current);
       historyEntries.push(...turn.milestoneEntries, ...turn.turnEntries);
       discoveryNotification = turn.discoveryNotification ?? discoveryNotification;
-      if (turn.turnEnded || !turn.pendingInteraction) {
-        return { updatedGame: turn.updatedGame, historyEntries, discoveryNotification };
+      if (turn.turnEnded || !turn.pendingInteractions?.length) {
+        return { updatedGame: turn.updatedGame, historyEntries, discoveryNotification, humanInteractions };
       }
-      const res = AIController.processInteractionQueue(turn.updatedGame, [turn.pendingInteraction], `ai-milestone-${uniqueId()}`, player);
+      // Choix du robot résolus ici ; ceux d'un joueur humain (découverte des Exertiens) vont dans la file de la partie
+      const res = AIController.processInteractionQueue(turn.updatedGame, turn.pendingInteractions, `ai-milestone-${uniqueId()}`, player);
       historyEntries.push(...res.historyEntries);
+      humanInteractions.push(...res.newPendingInteractions);
       current = res.updatedGame;
     }
 
@@ -113,7 +116,7 @@ export class AITurn {
     const updatedGame = TurnManager.nextPlayer(current);
     const next = updatedGame.players[updatedGame.currentPlayerIndex];
     historyEntries.push({ message: `--- Tour de ${next.name} ---`, playerId: next.id });
-    return { updatedGame, historyEntries, discoveryNotification };
+    return { updatedGame, historyEntries, discoveryNotification, humanInteractions };
   }
 
   private static reserveForSetup(game: Game, player: Player): AIStep {

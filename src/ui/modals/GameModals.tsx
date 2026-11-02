@@ -8,6 +8,7 @@ import { HoverTooltip } from '../components/HoverTooltip';
 import { ChoiceCardTile } from './CardPickModal';
 import { Tooltip } from '../Tooltip';
 import { ResourceIcon } from '../components/GameIcons';
+import { SpeciesSystem } from '../../systems/SpeciesSystem';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {
   if (!visible) return null;
@@ -58,19 +59,22 @@ export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: 
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
   if (interactionState.type !== 'CHOOSING_EXERTIEN_CARD') return null;
 
-  const player = game.players[game.currentPlayerIndex];
+  // Joueur qui choisit : celui de l'interaction (découverte des Exertiens pendant le tour d'un autre), sinon le joueur actif
+  const player = game.players.find(p => p.id === interactionState.playerId) ?? game.players[game.currentPlayerIndex];
   const cards = player.cards.filter(c => CardSystem.isExertienCard(c));
+  const cost = SpeciesSystem.exertienCardCost(game, interactionState.milestone);
+  const canPay = player.credits >= cost;
   const choose = (cardId?: string) => { setSelectedId(null); setActiveTooltip(null); onChoice(cardId); };
 
   return (
     <>
       <ChoiceModal
-        title={`Palier Exertien atteint (${interactionState.milestone} PV)`}
-        subtitle={`Vous pouvez jouer une de vos cartes Exertiens face cachée. Son DANGER s'ajoute au vôtre (actuellement ${player.danger || 0}).`}
+        title={interactionState.milestone === 0 ? 'Découverte des Exertiens' : `Palier Exertien atteint (${interactionState.milestone} PV)`}
+        subtitle={`Vous pouvez jouer une de vos cartes Exertiens face cachée${cost > 0 ? `, pour ${cost} crédit` : ''}. Son DANGER s'ajoute au vôtre (actuellement ${player.danger || 0}).`}
         footer={
           <>
             <ChoiceFooterButton secondary onClick={() => choose(undefined)}>Ne pas jouer de carte</ChoiceFooterButton>
-            <ChoiceFooterButton onClick={() => selectedId && choose(selectedId)} disabled={!selectedId}>Jouer la carte</ChoiceFooterButton>
+            <ChoiceFooterButton onClick={() => selectedId && choose(selectedId)} disabled={!selectedId || !canPay}>{cost > 0 ? `Jouer la carte (${cost} crédit)` : 'Jouer la carte'}</ChoiceFooterButton>
           </>
         }
         wide

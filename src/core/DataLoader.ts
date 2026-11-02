@@ -521,6 +521,10 @@ export class DataLoader {
         effects.push({ type: 'NO_MEDIA', value: true });
       }
 
+      // ET.15 : parmi les cartes piochées, une défaussée pour son action gratuite, une autre pour son revenu
+      else if (passive === 'DISCARD_DRAWN_FOR_ACTION_AND_REVENUE') {
+        effects.push({ type: 'DISCARD_DRAWN_FOR_ACTION_AND_REVENUE', value: true });
+      }
       // Gestion du format GAIN_MOVE_IF_ANOMALY
       else if (passive === 'GAIN_MOVE_IF_ANOMALY') {
         effects.push({ type: 'GAIN_MOVE_IF_ANOMALY', value: true });

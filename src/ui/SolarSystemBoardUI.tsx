@@ -11,7 +11,6 @@ import { PlanetIcon } from './components/PlanetIcon';
 import { RotationDiskSector } from './components/RotationDiskSector';
 import { SectorDetails, SectorTooltip } from './components/SectorDetails';
 import { SvgBonus } from './components/SvgBonus';
-import { VictoryPointsIcon } from './components/GameIcons';
 import { PlanetGlobe, CometSvg, AsteroidFieldSvg, SunSvg, ProbeSvg, CapsuleSvg } from './components/CelestialBodies';
 import { SectorStars } from './components/SectorStars';
 import { SlotTooltip } from './components/SlotTooltip';
@@ -847,7 +846,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     };
 
     if (!obj.anomalyData) return null;
+    const color = colorMap[obj.anomalyData.color] || '#fff';
+    const gradientId = `seti-anomaly-glow-${obj.id}`;
 
+    // Jeton : anneau de distorsion à la couleur de l'anomalie (anneau pointillé qui tourne), récompense au centre
     return (
       <div
         key={obj.id}
@@ -855,25 +857,40 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         style={{
           top: `calc(50% + ${y}%)`,
           left: `calc(50% + ${x}%)`,
-          width: '24px',
-          height: '16px',
-          backgroundColor: colorMap[obj.anomalyData.color] || '#fff',
-          borderRadius: '50%',
+          width: '34px',
+          height: '34px',
           zIndex,
           position: 'absolute',
-          transform: 'translate(-50%, -50%) scale(1.5)',
-          boxShadow: `0 0 5px ${colorMap[obj.anomalyData.color] || '#fff'}`,
-          border: '1px solid white',
+          transform: 'translate(-50%, -50%)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
           cursor: 'help',
           pointerEvents: selectedProbeId ? 'none' : 'auto',
+          filter: `drop-shadow(0 0 4px ${color})`,
         }}
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
-        {!!obj.anomalyData.bonus?.pv && <VictoryPointsIcon amount={obj.anomalyData.bonus.pv} size={12} />}
+        <svg viewBox="0 0 40 40" width="34" height="34" style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+          <defs>
+            <radialGradient id={gradientId}>
+              <stop offset="0%" stopColor="#05060f" />
+              <stop offset="58%" stopColor="#0b1026" />
+              <stop offset="78%" stopColor={color} stopOpacity="0.85" />
+              <stop offset="100%" stopColor={color} stopOpacity="0" />
+            </radialGradient>
+          </defs>
+          <circle cx="20" cy="20" r="20" fill={`url(#${gradientId})`} />
+          <circle cx="20" cy="20" r="17.5" fill="none" stroke={color} strokeOpacity="0.55" strokeWidth="0.8" />
+          <g className="seti-anomaly-ring">
+            <circle cx="20" cy="20" r="14" fill="none" stroke={color} strokeWidth="1.6" strokeDasharray="5 3" strokeLinecap="round" />
+          </g>
+          <circle cx="20" cy="20" r="11" fill="#05060f" stroke="#ffffff" strokeOpacity="0.35" strokeWidth="0.6" />
+        </svg>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'scale(0.85)' }}>
+          <BonusIcons bonus={obj.anomalyData.bonus} size={11} empty={null} />
+        </div>
       </div>
     );
   };

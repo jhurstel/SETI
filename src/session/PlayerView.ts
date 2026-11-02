@@ -1,4 +1,4 @@
-import { AlienBoardType, Card, CardType, CostType, FreeActionType, Game, GamePhase, HistoryEntry, InteractionState, RevenueType, SectorType } from '../core/types';
+import { AlienBoardType, Card, CardType, CostType, FreeActionType, Game, GamePhase, HistoryEntry, InteractionState, LifeTraceLocation, LifeTraceType, RevenueType, SectorType } from '../core/types';
 import { textFor } from '../core/historyText';
 import { cloneGame } from '../core/cloneGame';
 import { InteractionQueue } from './InteractionQueue';
@@ -62,8 +62,17 @@ export function viewFor(game: Game, viewerId: string): Game {
   view.species.forEach(species => {
     species.cards = hideCards(species.cards);
     if (species.specimen) species.specimen = species.specimen.map(() => ({ bonus: {} }));
+    // 7e spécimen Mascamite : face cachée tant qu'aucune trace n'est posée sur sa case
+    const slot = species.hiddenSpecimenSlot;
+    const board = game.board.alienBoards.find(b => b.speciesId === species.name);
+    const revealed = board?.lifeTraces.some(t => t.type === LifeTraceType.BLUE && t.location === LifeTraceLocation.SPECIES && t.slotIndex === slot);
+    if (slot !== undefined && !revealed) {
+      species.fixedSlots = { ...species.fixedSlots, bluelifetrace: species.fixedSlots.bluelifetrace.map((bonus, i) => (i === slot ? {} : bonus)) };
+    }
   });
-  view.species = view.species.filter(species => species.discovered);
+  // Espèce découverte : son plateau est retourné (les anciennes sauvegardes n'ont que l'indicateur du plateau)
+  const discovered = (name: string) => game.board.alienBoards.some(board => board.speciesId === name && board.isDiscovered);
+  view.species = view.species.filter(species => species.discovered || discovered(species.name));
   view.board.alienBoards.forEach(board => {
     if (!board.isDiscovered) board.speciesId = HIDDEN_SPECIES;
   });

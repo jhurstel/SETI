@@ -443,3 +443,19 @@
 .seti-foldable-container.alien-foldable-container:hover {
     max-height: calc(100vh - 50px);
 }
+
+/* 7e spécimen Mascamite, face cachée sur la piste bleue */
+.alien-hidden-specimen {
+  width: 70%;
+  height: 70%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 35% 30%, #6b5a3a, #2e2516);
+  border: 1px solid #c9a96e;
+  color: #f1dfb5;
+  font-weight: bold;
+  font-size: 0.8rem;
+  box-shadow: 0 0 4px rgba(201, 169, 110, 0.6);
+}

@@ -4,6 +4,7 @@ import { PassAction } from '../src/actions/PassAction';
 import { CardType, Game, GamePhase, LifeTraceType } from '../src/core/types';
 import { ScoreManager } from '../src/core/ScoreManager';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
+import { DISCOVERY_NOTICE } from '../src/systems/SpeciesSystem';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
@@ -131,7 +132,7 @@ describe('TurnManager', () => {
       game.players[0].score = 26;
       const turn = TurnManager.finishTurn(game);
       expect(turn.turnEnded).toBe(false);
-      expect(turn.pendingInteraction).toEqual({ type: 'PLACING_OBJECTIVE_MARKER', milestone: 25 });
+      expect(turn.pendingInteractions).toEqual([{ type: 'PLACING_OBJECTIVE_MARKER', milestone: 25 }]);
       expect(turn.updatedGame.currentPlayerIndex).toBe(0);
     });
   });
@@ -316,7 +317,8 @@ describe('PassAction', () => {
       const res = ScoreManager.checkScoreMilestones(game, P1);
 
       expect(res.updatedGame.board.alienBoards[0].isDiscovered).toBe(true);
-      expect(res.discoveryNotification?.message).toContain('Espèce découverte');
+      // L'annonce est celle qui ouvre la fenêtre « Découverte » de l'interface
+      expect(res.discoveryNotification?.message).toBe(DISCOVERY_NOTICE);
       expect(res.updatedGame.isSpeciesDiscovered).toBe(false);
     });
   });

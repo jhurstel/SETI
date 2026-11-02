@@ -1,7 +1,7 @@
 import { cloneGame } from './cloneGame';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject, AlienBoardType, LifeTraceLocation } from './types';
+import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject, AlienBoardType, LifeTraceLocation, InteractionState } from './types';
 import { uniqueId } from './ids';
 
 /**
@@ -717,7 +717,12 @@ export function formatRotationLogs(baseMessage: string, rotationLogs: string[]) 
 };
 
 // Helper pour effectuer une rotation du système solaire
-export function performRotation(game: Game): { updatedGame: Game, logs: string[] } {
+/**
+ * Fait tourner l'anneau suivant du système solaire. Si la Terre arrive devant une anomalie (Anomalies découvertes),
+ * le joueur dont le marqueur est le plus haut sur la piste de sa couleur gagne sa récompense ; `interactions` contient
+ * les choix qu'elle ouvre (carte au choix…), pour ce joueur.
+ */
+export function performRotation(game: Game): { updatedGame: Game, logs: string[], interactions: InteractionState[] } {
   let updatedGame = cloneGame(game);
   const currentLevel = updatedGame.board.solarSystem.nextRingLevel;
   const oldRotationState = createRotationState(
@@ -755,6 +760,7 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
   const anomalies = (updatedGame.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly');
   const anomalyBoard = updatedGame.board.alienBoards.find(b => b.speciesId === AlienBoardType.ANOMALIES);
   const anomalyLogs: string[] = [];
+  const interactions: InteractionState[] = [];
 
   if (earthPos && anomalyBoard && anomalyBoard.isDiscovered) {
     for (const anomaly of anomalies) {
@@ -769,21 +775,22 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
           // Trier par index décroissant pour trouver le plus haut
           trackTraces.sort((a, b) => (b.slotIndex || 0) - (a.slotIndex || 0));
 
-          if (trackTraces.length > 0) {
-            const highestPlayerId = trackTraces[0].playerId;
-            if (highestPlayerId && highestPlayerId !== 'neutral') {
-              const player = updatedGame.players.find(p => p.id === highestPlayerId);
-              if (player) {
-                const res = ResourceSystem.processBonuses(bonus, updatedGame, highestPlayerId, 'anomaly', `anomaly-${uniqueId()}`);
-                updatedGame = res.updatedGame;
-                anomalyLogs.push(`Anomalie ${color} activée : ${player.name} gagne ${res.logs.join(', ')}`);
-              }
-            }
+          const highestPlayerId = trackTraces[0]?.playerId;
+          const player = highestPlayerId && highestPlayerId !== 'neutral' ? updatedGame.players.find(p => p.id === highestPlayerId) : undefined;
+          if (player) {
+            const res = ResourceSystem.processBonuses(bonus, updatedGame, player.id, 'anomaly', `anomaly-${uniqueId()}`);
+            updatedGame = res.updatedGame;
+            // Les journaux de processBonuses commencent déjà par leur verbe (« gagne 1 Crédit », « pioche carte… »)
+            const gains = res.logs.length > 0 ? res.logs.join(', ') : `gagne ${ResourceSystem.formatBonus(bonus)?.join(', ') || 'sa récompense'}`;
+            anomalyLogs.push(`Anomalie ${color} activée : ${player.name} ${gains}`);
+            interactions.push(...res.newPendingInteractions.map(i => ({ ...i, playerId: player.id })));
+          } else {
+            anomalyLogs.push(`Anomalie ${color} activée : aucun marqueur sur la piste ${color} des Anomalies, personne ne gagne sa récompense`);
           }
         }
       }
     }
   }
 
-  return { updatedGame, logs: [log, ...anomalyLogs] };
+  return { updatedGame, logs: [log, ...anomalyLogs], interactions };
 }

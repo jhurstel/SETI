@@ -56,14 +56,14 @@ export class TurnManager {
   /**
    * Fin de tour du joueur courant : vérifie les paliers de score puis passe au joueur suivant.
    * Si un palier exige un choix (marqueur d'objectif, récompense centaurienne…), le tour
-   * n'est pas terminé : `pendingInteraction` est renvoyée et `turnEnded` vaut false.
+   * n'est pas terminé : `pendingInteractions` (le premier choix, puis les autres) est renvoyée et `turnEnded` vaut false.
    */
   static finishTurn(game: Game): {
     updatedGame: Game;
     milestoneEntries: HistoryEntry[];
     turnEntries: HistoryEntry[];
     discoveryNotification?: { message: string };
-    pendingInteraction?: InteractionState;
+    pendingInteractions?: InteractionState[];
     turnEnded: boolean;
   } {
     const currentPlayer = game.players[game.currentPlayerIndex];
@@ -74,7 +74,7 @@ export class TurnManager {
     };
 
     if (milestone.shouldStop && milestone.newInteraction) {
-      return { ...base, updatedGame: milestone.updatedGame, turnEntries: [], pendingInteraction: milestone.newInteraction, turnEnded: false };
+      return { ...base, updatedGame: milestone.updatedGame, turnEntries: [], pendingInteractions: [milestone.newInteraction, ...(milestone.moreInteractions || [])], turnEnded: false };
     }
 
     const updatedGame = this.nextPlayer(milestone.updatedGame);

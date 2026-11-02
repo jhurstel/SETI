@@ -9,16 +9,34 @@ import { uniqueId } from '../core/ids';
 import { random } from '../core/random';
 import { privateText } from '../core/historyText';
 
+/** Mascamites : case de la piste bleue où est posé le 7e spécimen, face cachée */
+const MASCAMITE_BOARD_SPECIMEN_SLOT = 2;
+
+/** Annonce d'une découverte d'espèce (fenêtre « Découverte » de l'interface) */
+export const DISCOVERY_NOTICE = "Découverte d'une nouvelle espèce Alien !";
+
 export class SpeciesSystem {
     /**
      * Palier Exertien atteint : le joueur joue face cachée l'une de ses cartes Exertiens
      * (son DANGER s'ajoute au sien), ou y renonce si cardId est absent.
      * Dans les deux cas, le palier est consommé pour ce joueur.
      */
+    /** Coût d'une carte Exertien jouée à un palier : 1 crédit au 2e palier, rien au 1er ni à la découverte (palier 0) */
+    static exertienCardCost(game: Game, milestone: number): number {
+        return milestone > 0 && milestone === game.exertienMilestones?.[1] ? 1 : 0;
+    }
+
+    /** Libellé d'un palier Exertien pour l'historique et les fenêtres */
+    static exertienMilestoneLabel(milestone: number): string {
+        return milestone === 0 ? 'découverte des Exertiens' : `palier ${milestone} PV`;
+    }
+
     static playExertienCard(game: Game, playerId: string, milestone: number, cardId?: string): { updatedGame: Game; historyEntries: HistoryEntry[]; error?: string } {
         const updatedGame = cloneGame(game);
         const player = updatedGame.players.find(p => p.id === playerId);
         if (!player) return { updatedGame: game, historyEntries: [], error: 'Joueur introuvable' };
+        const cost = this.exertienCardCost(game, milestone);
+        const label = this.exertienMilestoneLabel(milestone);
 
         let card: Card | undefined;
         if (cardId) {
@@ -31,15 +49,20 @@ export class SpeciesSystem {
         player.claimedExertienMilestones = [...(player.claimedExertienMilestones || []), milestone];
 
         if (!card) {
-            return { updatedGame, historyEntries: [{ message: `renonce à jouer une carte Exertien (palier ${milestone} PV)`, playerId }] };
+            return { updatedGame, historyEntries: [{ message: `renonce à jouer une carte Exertien (${label})`, playerId }] };
+        }
+        if (player.credits < cost) {
+            return { updatedGame: game, historyEntries: [], error: `Il faut ${ResourceSystem.formatResource(cost, 'CREDIT')} pour jouer une carte Exertien à ce palier` };
         }
 
+        player.credits -= cost;
         player.cards = player.cards.filter(c => c.id !== card!.id);
         player.playedCards = [...(player.playedCards || []), card];
         player.danger = (player.danger || 0) + (card.danger || 0);
+        const paid = cost > 0 ? `paye ${ResourceSystem.formatResource(cost, 'CREDIT')} et ` : '';
         return {
             updatedGame,
-            historyEntries: [{ message: `joue une carte Exertien face cachée (palier ${milestone} PV)`, playerId }],
+            historyEntries: [{ message: `${paid}joue une carte Exertien face cachée (${label})`, playerId }],
         };
     }
 
@@ -178,8 +201,10 @@ export class SpeciesSystem {
         code: SpeciesDiscoveryCode;
         data?: { color: LifeTraceType; speciesId?: string; boardIndex: number };
         logs?: string[];
+        /** Choix ouverts par une découverte (Exertiens : carte jouée tout de suite par les joueurs qui ont un marqueur) */
+        interactions?: InteractionState[];
     } {
-        let updatedGame = cloneGame(game);
+        const updatedGame = cloneGame(game);
 
         // Vérifier s'il reste des marqueurs neutres pour ce palier
         if (!updatedGame.neutralMilestonesAvailable || updatedGame.neutralMilestonesAvailable[milestone] <= 0) {
@@ -210,60 +235,13 @@ export class SpeciesSystem {
                     const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
 
                     if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
-                        board.isDiscovered = true;
-                        updatedGame.isSpeciesDiscovered = true;
-
-                        const distResult = this.distributeDiscoveryCards(updatedGame, i);
-                        updatedGame = distResult.updatedGame;
-
-                        // Remplir la rangée de carte de l'espèce
-                        const species = updatedGame.species.find(s => s.name === board.speciesId);
-                        if (species) {
-                            if (!species.cardRow) species.cardRow = [];
-                            if (species.cards.length > 0 && species.cardRow.length < 1) {
-                                const card = species.cards.shift();
-                                if (card) {
-                                    species.cardRow.push(card);
-                                }
-                            }
-                        }
-
-                        if (board.speciesId === AlienBoardType.MASCAMITES) {
-                            const mascamiteLogs = this.spawnMascamites(updatedGame);
-                            distResult.logs.push(...mascamiteLogs);
-                        }
-
-                        if (board.speciesId === AlienBoardType.OUMUAMUA) {
-                            if (!updatedGame.board.solarSystem.extraCelestialObjects) {
-                                updatedGame.board.solarSystem.extraCelestialObjects = [];
-                            }
-                            updatedGame.board.solarSystem.extraCelestialObjects.push({ id: 'oumuamua', type: 'planet', name: 'Oumuamua', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 });
-                            distResult.logs.push("L'astéroïde Oumuamua apparaît dans le système solaire !");
-                        }
-
-                        if (board.speciesId === AlienBoardType.ANOMALIES) {
-                            const anomalyLogs = this.spawnAnomalies(updatedGame);
-                            distResult.logs.push(...anomalyLogs);
-                        }
-
-                        if (board.speciesId === AlienBoardType.CENTAURIENS) {
-                            updatedGame.players.forEach(p => this.addCentaurienMarker(p));
-                            distResult.logs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
-                        }
-
-                        if (board.speciesId === AlienBoardType.EXERTIENS) {
-                            const score = Math.max(...updatedGame.players.map(p => p.score));
-                            if (!updatedGame.exertienMilestones) updatedGame.exertienMilestones = [];
-                            updatedGame.exertienMilestones.push(score + 20);
-                            updatedGame.exertienMilestones.push(score + 40);
-                            distResult.logs.push("Deux nouveaus paliers à +20 PV et +40 PV apparaissent permettant d'utiliser la technologie des Exertiens.");
-                        }
-
+                        const discovery = this.discoverSpecies(updatedGame, i);
                         return {
                             updatedGame,
                             code: 'DISCOVERED',
                             data: { color, speciesId: board.speciesId, boardIndex: i },
-                            logs: distResult.logs
+                            logs: discovery.logs,
+                            interactions: discovery.interactions,
                         };
                     }
 
@@ -375,62 +353,15 @@ export class SpeciesSystem {
         const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
 
         let discoveryLogs: string[] = [];
+        let discoveryInteractions: InteractionState[] = [];
         if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
-            board.isDiscovered = true;
-            updatedGame.isSpeciesDiscovered = true;
-            
-            const distResult = this.distributeDiscoveryCards(updatedGame, boardIndex);
-            updatedGame = distResult.updatedGame;
-            discoveryLogs = distResult.logs;
-
-            // Remplir la rangée de carte de l'espèce
-            const discoveredSpecies = updatedGame.species.find(s => s.name === board.speciesId);
-            if (discoveredSpecies) {
-                if (!discoveredSpecies.cardRow) discoveredSpecies.cardRow = [];
-                if (discoveredSpecies.cards.length > 0 && discoveredSpecies.cardRow.length < 1) {
-                    const card = discoveredSpecies.cards.shift();
-                    if (card) {
-                        discoveredSpecies.cardRow.push(card);
-                    }
-                }
-            }
-
-            if (board.speciesId === AlienBoardType.MASCAMITES) {
-                const mascamiteLogs = this.spawnMascamites(updatedGame);
-                discoveryLogs.push(...mascamiteLogs);
-            }
-
-            if (board.speciesId === AlienBoardType.OUMUAMUA) {
-                if (!updatedGame.board.solarSystem.extraCelestialObjects) {
-                    updatedGame.board.solarSystem.extraCelestialObjects = [];
-                }
-                // Disque 1 (Level 1), 2 crans avant Jupiter (C5) -> C3
-                // C3 est un creux, donc l'objet flottera au-dessus
-                updatedGame.board.solarSystem.extraCelestialObjects.push({ id: 'oumuamua', type: 'planet', name: 'Oumuamua', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 });
-                discoveryLogs.push("L'astéroïde Oumuamua apparaît dans le système solaire !");
-            }
-
-            if (board.speciesId === AlienBoardType.ANOMALIES) {
-                const anomalyLogs = this.spawnAnomalies(updatedGame);
-                discoveryLogs.push(...anomalyLogs);
-            }
-
-            if (board.speciesId === AlienBoardType.CENTAURIENS) {
-                updatedGame.players.forEach(p => this.addCentaurienMarker(p));
-                discoveryLogs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
-            }
-
-            if (board.speciesId === AlienBoardType.EXERTIENS) {
-                const score = Math.max(...updatedGame.players.map(p => p.score));
-                if (!updatedGame.exertienMilestones) updatedGame.exertienMilestones = [];
-                updatedGame.exertienMilestones.push(score + 20);
-                updatedGame.exertienMilestones.push(score + 40);
-                distResult.logs.push("Deux nouveaus paliers à +20 PV et +40 PV apparaissent permettant d'utiliser la technologie des Exertiens.");
-            }
+            ({ logs: discoveryLogs, interactions: discoveryInteractions } = this.discoverSpecies(updatedGame, boardIndex));
         }
 
         // Traitement des missions conditionnelles (GAIN_ON_TECH)
         const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
+            // ET.29 : trace de vie de n'importe quelle couleur
+            if (buff.type === 'GAIN_ON_ANY_LIFETRACE') return true;
             if (color === LifeTraceType.YELLOW && buff.type === 'GAIN_ON_YELLOW_LIFETRACE') return true;
             if (color === LifeTraceType.RED && buff.type === 'GAIN_ON_RED_LIFETRACE') return true;
             if (color === LifeTraceType.BLUE && buff.type === 'GAIN_ON_BLUE_LIFETRACE') return true;
@@ -484,8 +415,73 @@ export class SpeciesSystem {
         return {
             updatedGame,
             historyEntries: res.historyEntries,
-            newPendingInteractions: res.newPendingInteractions
+            newPendingInteractions: [...res.newPendingInteractions, ...discoveryInteractions]
         };
+    }
+
+    /**
+     * Découverte de l'espèce du plateau `boardIndex` (partie déjà copiée, modifiée sur place) : cartes Alien des
+     * premiers marqueurs de chaque couleur, rangée de l'espèce, mise en jeu propre à l'espèce. Renvoie l'historique
+     * et les choix qu'elle ouvre : Exertiens, chaque joueur qui a un marqueur de découverte peut jouer tout de suite
+     * une carte Exertien (palier 0).
+     */
+    private static discoverSpecies(updatedGame: Game, boardIndex: number): { logs: string[]; interactions: InteractionState[] } {
+        const board = updatedGame.board.alienBoards[boardIndex];
+        board.isDiscovered = true;
+        updatedGame.isSpeciesDiscovered = true;
+        const { logs } = this.distributeDiscoveryCards(updatedGame, boardIndex);
+        const interactions: InteractionState[] = [];
+
+        // Rangée de cartes de l'espèce
+        const species = updatedGame.species.find(s => s.name === board.speciesId);
+        if (species) {
+            species.discovered = true;
+            if (!species.cardRow) species.cardRow = [];
+            if (species.cards.length > 0 && species.cardRow.length < 1) {
+                const card = species.cards.shift();
+                if (card) species.cardRow.push(card);
+            }
+        }
+
+        if (board.speciesId === AlienBoardType.MASCAMITES) {
+            logs.push(...this.spawnMascamites(updatedGame));
+        }
+
+        if (board.speciesId === AlienBoardType.OUMUAMUA) {
+            if (!updatedGame.board.solarSystem.extraCelestialObjects) {
+                updatedGame.board.solarSystem.extraCelestialObjects = [];
+            }
+            // Disque 1 (Level 1), 2 crans avant Jupiter (C5) -> C3 ; C3 est un creux, l'objet flotte au-dessus
+            updatedGame.board.solarSystem.extraCelestialObjects.push({ id: 'oumuamua', type: 'planet', name: 'Oumuamua', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 });
+            logs.push("L'astéroïde Oumuamua apparaît dans le système solaire !");
+        }
+
+        if (board.speciesId === AlienBoardType.ANOMALIES) {
+            logs.push(...this.spawnAnomalies(updatedGame));
+        }
+
+        if (board.speciesId === AlienBoardType.CENTAURIENS) {
+            updatedGame.players.forEach(p => this.addCentaurienMarker(p));
+            logs.push("Les Centauriens envoient un message ! Chaque joueur place un palier à +15 PV.");
+        }
+
+        if (board.speciesId === AlienBoardType.EXERTIENS) {
+            const score = Math.max(...updatedGame.players.map(p => p.score));
+            if (!updatedGame.exertienMilestones) updatedGame.exertienMilestones = [];
+            updatedGame.exertienMilestones.push(score + 20);
+            updatedGame.exertienMilestones.push(score + 40);
+            logs.push("Deux nouveaux paliers à +20 PV et +40 PV apparaissent permettant d'utiliser la technologie des Exertiens.");
+            // Joueurs qui ont un marqueur de découverte : une carte Exertien jouée tout de suite (ou non)
+            const owners = [...new Set(board.lifeTraces.map(t => t.playerId).filter(id => id !== 'neutral'))];
+            owners.forEach(playerId => {
+                const player = updatedGame.players.find(p => p.id === playerId);
+                if (player?.cards.some(c => CardSystem.isExertienCard(c))) {
+                    interactions.push({ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, playerId });
+                }
+            });
+        }
+
+        return { logs, interactions };
     }
 
     /**
@@ -590,7 +586,11 @@ export class SpeciesSystem {
             const jupiter = game.board.planets.find(p => p.id === 'jupiter');
             if (jupiter) jupiter.mascamiteTokens = jupiterTokens;
 
-            if (boardToken) species.fixedSlots.bluelifetrace[2] = boardToken.bonus;
+            // 7e spécimen : face cachée sur la piste bleue (3e case) ; sa récompense est celle de la case
+            if (boardToken) {
+                species.fixedSlots = { ...species.fixedSlots, bluelifetrace: species.fixedSlots.bluelifetrace.map((slot, i) => (i === MASCAMITE_BOARD_SPECIMEN_SLOT ? boardToken.bonus : slot)) };
+                species.hiddenSpecimenSlot = MASCAMITE_BOARD_SPECIMEN_SLOT;
+            }
             logs.push("Les Mascamites sont découverts ! Des spécimens apparaissent sur Jupiter et Saturne.");
         }
         return logs;

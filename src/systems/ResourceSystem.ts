@@ -333,6 +333,7 @@ export class ResourceSystem {
         const rotationResult = performRotation(updatedGame);
         updatedGame = rotationResult.updatedGame;
         logs.push(...rotationResult.logs);
+        newPendingInteractions.push(...rotationResult.interactions);
       }
     }
     if (bonuses.card) {

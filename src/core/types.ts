@@ -505,6 +505,11 @@ export interface Species {
   anomalie?: AnomalieToken[];
   message?: CentaurienToken[];
   specimen?: MascamitesToken[];
+  /**
+   * Mascamites : case de la piste bleue qui porte le 7e spécimen, face cachée jusqu'à ce qu'une trace y soit posée
+   * (sa récompense est le bonus de la case, gagné normalement)
+   */
+  hiddenSpecimenSlot?: number;
 }
 
 export interface Planet {
@@ -704,6 +709,11 @@ type InteractionStateVariant =
   | { type: 'CHOOSING_OBS3_ACTION', sequenceId?: string }
   /** Le joueur doit choisir s'il utilise la technologie Observation 4 (Payer 1 Energie pour lancer une sonde OU gagner 1 déplacement). */
   | { type: 'CHOOSING_OBS4_ACTION', sequenceId?: string }
+  /**
+   * ET.15 : parmi les cartes piochées (`cardIds`), le joueur en défausse une pour son action gratuite (étape
+   * FREE_ACTION), puis une autre pour gagner la ressource de son revenu (étape REVENUE).
+   */
+  | { type: 'DISCARDING_DRAWN_CARD', cardIds: string[], step: 'FREE_ACTION' | 'REVENUE', sequenceId?: string }
   /** Le joueur doit défausser des cartes de sa main pour leurs signaux. */
   | { type: 'DISCARDING_FOR_SIGNAL', count: number, selectedCards: string[], sequenceId?: string }
   /** Le joueur doit retirer un orbiteur (Carte 15). */
@@ -771,7 +781,12 @@ export const getInteractionLabel = (state: InteractionState): string => {
     case 'CHOOSING_CENTAURIEN_REWARD': return `Veuillez choisir une récompense Centaurien.`;
     case 'COLLECTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour le prélever.`;
     case 'CONSULTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour l'étudier.`;
-    case 'CHOOSING_EXERTIEN_CARD': return `Palier Exertien (${state.milestone} PV) : vous pouvez jouer une carte Exertien.`;
+    case 'DISCARDING_DRAWN_CARD': return state.step === 'FREE_ACTION'
+      ? "Défaussez une des cartes piochées pour son action gratuite."
+      : "Défaussez une autre des cartes piochées pour gagner la ressource de son revenu.";
+    case 'CHOOSING_EXERTIEN_CARD': return state.milestone === 0
+      ? 'Découverte des Exertiens : vous pouvez jouer une carte Exertien.'
+      : `Palier Exertien (${state.milestone} PV) : vous pouvez jouer une carte Exertien.`;
     case 'SELECTING_MISSION': return `Veuillez confirmer la mission à recouvrir.`;
     case 'TRIGGER_CARD_EFFECT':
       return state.effectType === 'SCORE_PER_MEDIA'

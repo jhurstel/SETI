@@ -109,6 +109,7 @@ export class PassAction extends BaseAction {
       this.historyEntries.unshift({ message: `<strong>passe son tour</strong> (premier de la manche)`, playerId, sequenceId });
       const result = performRotation(updatedGame);
       result.logs.forEach(log => this.historyEntries.push({ message: log, playerId, sequenceId }));
+      this.newPendingInteractions.push(...result.interactions);
       updatedGame = result.updatedGame;
       updatedGame.isFirstToPass = true;
     } else {

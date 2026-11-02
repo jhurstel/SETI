@@ -522,6 +522,13 @@ export class CardSystem {
             historyEntries.push({ message: "n'a encore marqué aucune trace de cette couleur : pas de trace de vie", playerId, sequenceId });
         }
 
+        // ET.15 : les cartes que la carte vient de faire piocher sont à défausser (action gratuite, puis revenu)
+        if (card.passiveEffects?.some(e => e.type === 'DISCARD_DRAWN_FOR_ACTION_AND_REVENUE')) {
+            const handBefore = new Set(game.players.find(p => p.id === playerId)!.cards.map(c => c.id));
+            const drawn = gameAfterBonuses.players.find(p => p.id === playerId)!.cards.filter(c => !handBefore.has(c.id)).map(c => c.id);
+            if (drawn.length > 0) extraInteractions.push({ type: 'DISCARDING_DRAWN_CARD', cardIds: drawn, step: 'FREE_ACTION' });
+        }
+
         const rewardedInteractions = missionRewards.reduce(
             (interactions, value) => this.missionRewardInteractions(gameAfterBonuses, playerId, value, interactions, sequenceId),
             newPendingInteractions);
@@ -658,6 +665,24 @@ export class CardSystem {
         return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions };
     }
 
+    /** ET.15 : défausse une carte de la main et gagne 1 ressource de son revenu (crédit, énergie, Média, donnée ou carte) */
+    static discardCardForRevenue(game: Game, playerId: string, cardId: string, sequenceId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
+        const card = game.players.find(p => p.id === playerId)?.cards.find(c => c.id === cardId);
+        if (!card || this.isExertienCard(card)) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+        const bonus: Bonus = {};
+        switch (card.revenue) {
+            case RevenueType.CREDIT: bonus.credits = 1; break;
+            case RevenueType.ENERGY: bonus.energy = 1; break;
+            case RevenueType.MEDIA: bonus.media = 1; break;
+            case RevenueType.DATA: bonus.data = 1; break;
+            default: bonus.card = 1;
+        }
+        const discarded = this.discardCard(game, playerId, cardId);
+        const res = ResourceSystem.processBonuses(bonus, discarded, playerId, cardId, sequenceId);
+        res.historyEntries.unshift({ message: `défausse carte "${card.name}"${res.logs.length > 0 ? ` et ${res.logs.join(', ')}` : ''} (revenu)`, playerId, sequenceId });
+        return { updatedGame: res.updatedGame, historyEntries: res.historyEntries, newPendingInteractions: res.newPendingInteractions };
+    }
+
     static discardFromRow(game: Game, cardId: string): { updatedGame: Game, discardedCard: Card | null } {
         const updatedGame = cloneGame(game);
         const row = updatedGame.decks.cardRow;
@@ -734,23 +759,18 @@ export class CardSystem {
         shouldTrigger: (buff: CardEffect) => boolean
     ): boolean {
         let atLeastOneFulfillable = false;
+        // Règles : un même déclencheur ne recouvre qu'un cercle à la fois ; ici, un cercle par carte
+        // (le premier non recouvert), pour que les 3 cercles d'ET.29 demandent 3 traces de vie
+        const triggeredMissions = new Set<string>();
         player.permanentBuffs.forEach(buff => {
-            if (shouldTrigger(buff)) {
-                if (buff.id && buff.source) {
-                    const mission = player.missions.find(m => m.name === buff.source);
-                    if (mission) {
-                        // Si déjà complété ou déjà marqué comme fulfillable, on ignore
-                        if (mission.completedRequirementIds.includes(buff.id)) return null;
-                        if (!mission.fulfillableRequirementIds) mission.fulfillableRequirementIds = [];
-                        if (mission.fulfillableRequirementIds.includes(buff.id)) return null;
-
-                        mission.fulfillableRequirementIds.push(buff.id);
-                        atLeastOneFulfillable = true;
-                        return mission.name;
-                    }
-                }
-            }
-            return null;
+            if (!shouldTrigger(buff) || !buff.id || !buff.source || triggeredMissions.has(buff.source)) return;
+            const mission = player.missions.find(m => m.name === buff.source);
+            if (!mission || mission.completedRequirementIds.includes(buff.id)) return;
+            if (!mission.fulfillableRequirementIds) mission.fulfillableRequirementIds = [];
+            if (mission.fulfillableRequirementIds.includes(buff.id)) return;
+            mission.fulfillableRequirementIds.push(buff.id);
+            triggeredMissions.add(buff.source);
+            atLeastOneFulfillable = true;
         });
         return atLeastOneFulfillable;
     }

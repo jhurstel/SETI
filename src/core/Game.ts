@@ -65,6 +65,7 @@ export class GameEngine {
     }
 
     const previousPlayerIndex = this.state.currentPlayerIndex;
+    const previousRound = this.state.currentRound;
     console.log(`[Game] Executing action ${action.type} for player index ${previousPlayerIndex}`);
 
     try {
@@ -78,8 +79,9 @@ export class GameEngine {
         action.newPendingInteractions = action.newPendingInteractions.map(i => i.sequenceId ? i : { ...i, sequenceId: actionSequenceId });
       }
 
+      // Pas si l'action a clos la manche (dernière passe) : le joueur peut ouvrir la suivante comme premier joueur
       const isMainAction = MAIN_ACTION_TYPES.includes(action.type);
-      if (isMainAction && this.state.currentPlayerIndex === previousPlayerIndex) {
+      if (isMainAction && this.state.currentPlayerIndex === previousPlayerIndex && this.state.currentRound === previousRound) {
         this.state.players[previousPlayerIndex].hasPerformedMainAction = true;
       }
 

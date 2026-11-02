@@ -242,6 +242,27 @@ export class InteractionChoices {
     };
   }
 
+  /**
+   * ET.15 (DISCARDING_DRAWN_CARD) : une des cartes piochées défaussée pour son action gratuite, puis une autre pour
+   * la ressource de son revenu (nextInteraction, s'il en reste en main).
+   */
+  static discardDrawnCard(game: Game, playerId: string, interaction: Interaction<'DISCARDING_DRAWN_CARD'>, cardId: string): ChoiceResult {
+    const hand = game.players.find(p => p.id === playerId)?.cards || [];
+    if (!interaction.cardIds.includes(cardId) || !hand.some(c => c.id === cardId)) return refused(game, 'Choisissez une des cartes piochées');
+    const sequenceId = interaction.sequenceId || `discard-drawn-${uniqueId()}`;
+    const res = interaction.step === 'FREE_ACTION'
+      ? CardSystem.discardCardForFreeAction(game, playerId, cardId)
+      : CardSystem.discardCardForRevenue(game, playerId, cardId, sequenceId);
+    if (res.updatedGame === game) return refused(game, 'Cette carte ne peut pas être défaussée');
+    const rest = interaction.cardIds.filter(id => id !== cardId && hand.some(c => c.id === id));
+    return {
+      updatedGame: res.updatedGame,
+      historyEntries: res.historyEntries.map(e => ({ ...e, sequenceId })),
+      newPendingInteractions: res.newPendingInteractions,
+      nextInteraction: interaction.step === 'FREE_ACTION' && rest.length > 0 ? { ...interaction, cardIds: rest, step: 'REVENUE', sequenceId } : undefined,
+    };
+  }
+
   /** Cartes de la main défaussées pour marquer un signal dans le secteur de leur couleur (DISCARDING_FOR_SIGNAL). */
   static discardForSignals(game: Game, playerId: string, interaction: Interaction<'DISCARDING_FOR_SIGNAL'>, cardIds: string[]): ChoiceResult {
     if (cardIds.length > interaction.count) return refused(game, `Défaussez au plus ${interaction.count} carte${interaction.count > 1 ? 's' : ''}`);

@@ -288,12 +288,16 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
 
         const trace = board.lifeTraces.find(t => t.location === LifeTraceLocation.SPECIES && t.type === type && t.slotIndex === index);
         const isFilled = !!trace;
+        // 7e spécimen Mascamite : face cachée tant que la case est libre (sa récompense se découvre en y posant une trace)
+        const hiddenSpecimen = !isFilled && !isInfinite && type === LifeTraceType.BLUE && species?.hiddenSpecimenSlot === index;
         const canAfford = !bonus.token || bonus.token >= 0 || (currentPlayer.tokens || 0) >= Math.abs(bonus.token);
         const isNext = index === 0 || (isInfinite && index === fixedSlotsLength) || !!board.lifeTraces.find(t => t.location === LifeTraceLocation.SPECIES && t.type === type && t.slotIndex === index - 1);
         const isClickable = isInfinite ? isPlacing && !isFilled && isNext && canAfford : isPlacing && !isFilled && canAfford; // Note: Fixed slots logic simplified for Mascamites specific placement if needed, but standard logic applies
 
         const handleMouseEnter = (e: React.MouseEvent) => {
-            const bonusText = <BonusIcons bonus={{ ...bonus, token: bonus.token && bonus.token > 0 ? bonus.token : undefined }} />;
+            const bonusText = hiddenSpecimen
+                ? <span>spécimen face cachée, révélé en y posant une trace de vie</span>
+                : <BonusIcons bonus={{ ...bonus, token: bonus.token && bonus.token > 0 ? bonus.token : undefined }} />;
 
             let costText = null;
             if (bonus.token && bonus.token < 0) {
@@ -312,6 +316,11 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 statusText = "Indisponible";
                 statusColor = "#ff6b6b";
                 actiontext = "Nécessite d'avoir suffisamment de tokens";
+            } else if (hiddenSpecimen) {
+                statusText = "Disponible";
+                statusColor = "#4a9eff";
+                actiontext = "Placer une trace de vie pour découvrir le spécimen";
+                actionColor = "#4a9eff";
             } else if ((ResourceSystem.formatBonus(bonus) || []).length <= 0) {
                 statusText = "Indisponible";
                 statusColor = "#ff6b6b";
@@ -382,7 +391,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={() => setActiveTooltip(null)}
             >
-                {!isFilled && !!bonus.pv && (!isInfinite || isInfiniteBottom) && <VictoryPointsIcon amount={bonus.pv} size={22} />}
+                {hiddenSpecimen && <div className="alien-hidden-specimen">?</div>}
+                {!isFilled && !hiddenSpecimen && !!bonus.pv && (!isInfinite || isInfiniteBottom) && <VictoryPointsIcon amount={bonus.pv} size={22} />}
             </div>
         );
     };

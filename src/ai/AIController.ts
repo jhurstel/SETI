@@ -378,6 +378,23 @@ export class AIController {
                 }
                 break;
             }
+            case 'DISCARDING_DRAWN_CARD': {
+                // ET.15 : chaque carte possible est simulée, la position la mieux évaluée est gardée
+                let best: { res: ReturnType<typeof InteractionChoices.discardDrawnCard>; value: number } | null = null;
+                for (const cardId of interaction.cardIds) {
+                    const res = InteractionChoices.discardDrawnCard(updatedGame, player.id, { ...interaction, sequenceId }, cardId);
+                    if (res.error) continue;
+                    const value = AIEvaluator.evaluate(res.updatedGame, player.id);
+                    if (!best || value > best.value) best = { res, value };
+                }
+                if (best) {
+                    updatedGame = best.res.updatedGame;
+                    historyEntries.push(...best.res.historyEntries);
+                    if (best.res.nextInteraction) newPendingInteractions.push(best.res.nextInteraction);
+                    newPendingInteractions.push(...best.res.newPendingInteractions);
+                }
+                break;
+            }
             case 'DISCARDING_FOR_SIGNAL': {
                 // Nombre de cartes tiré au hasard ; un robot stratégique compare les tirages
                 const p = updatedGame.players.find(p => p.id === player.id);

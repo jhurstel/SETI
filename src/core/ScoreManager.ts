@@ -42,7 +42,7 @@ import {
   Bonus
 } from '../core/types';
 import { createRotationState, getAbsoluteSectorForProbe, getCell } from './SolarSystemPosition';
-import { SpeciesSystem } from '../systems/SpeciesSystem';
+import { DISCOVERY_NOTICE, SpeciesSystem } from '../systems/SpeciesSystem';
 import { uniqueId } from './ids';
 
 export class ScoreManager {
@@ -491,6 +491,8 @@ export class ScoreManager {
   static checkScoreMilestones(game: Game, playerId: string): {
     updatedGame: Game;
     newInteraction?: InteractionState;
+    /** Autres choix ouverts en même temps (découverte des Exertiens : un par joueur qui a un marqueur) */
+    moreInteractions?: InteractionState[];
     historyEntries: HistoryEntry[];
     discoveryNotification?: { message: string };
     shouldStop: boolean; // true if an interaction was triggered and we should wait for the player
@@ -534,16 +536,21 @@ export class ScoreManager {
           const { color } = result.data!;
           historyEntries.push({ message: `a atteint le palier neutre ${m} PV ce qui place une trace de vie ${color} sur le plateau Alien.`, playerId, sequenceId });
 
-          let message = `Palier ${m} PV : Trace de vie ${color} placée`;
-
           if (result.code === 'DISCOVERED') {
-            message += " - Espèce découverte !";
+            // Même annonce qu'une découverte par une trace de vie : la fenêtre « Découverte » de l'interface
+            discoveryNotification = { message: DISCOVERY_NOTICE };
             historyEntries.push({ message: `déclenche la découverte d'une nouvelle espèce Alien !`, playerId, sequenceId });
             if (result.logs) {
               result.logs.forEach(log => historyEntries.push({ message: log, playerId, sequenceId }));
             }
+            // Choix ouverts par la découverte (Exertiens) : le tour attend qu'ils soient faits
+            const [first, ...more] = result.interactions || [];
+            if (first) {
+              return { updatedGame, newInteraction: first, moreInteractions: more, historyEntries, discoveryNotification, shouldStop: true };
+            }
+          } else {
+            discoveryNotification = { message: `Palier ${m} PV : Trace de vie ${color} placée` };
           }
-          discoveryNotification = { message };
         } else if (result.code === 'NO_SPACE') {
           historyEntries.push({ message: `a atteint le palier neutre ${m} PV mais aucun emplacement libre sur les plateaux Alien.`, playerId, sequenceId });
         }
@@ -583,8 +590,10 @@ export class ScoreManager {
     const claimedExertien = player.claimedExertienMilestones || [];
     const exertienMilestone = updatedGame.exertienMilestones?.find(m => player.score >= m && !claimedExertien.includes(m));
     if (exertienMilestone !== undefined) {
-      if (player.cards.some(c => c.type === CardType.EXERTIEN)) {
-        historyEntries.push({ message: `a atteint un palier Exertien et peut jouer une carte.`, playerId });
+      // 2e palier : jouer sa carte coûte 1 crédit
+      const cost = SpeciesSystem.exertienCardCost(updatedGame, exertienMilestone);
+      if (player.cards.some(c => c.type === CardType.EXERTIEN) && player.credits >= cost) {
+        historyEntries.push({ message: `a atteint un palier Exertien et peut jouer une carte${cost > 0 ? ` (pour ${cost} crédit)` : ''}.`, playerId });
         return {
           updatedGame,
           newInteraction: { type: 'CHOOSING_EXERTIEN_CARD', milestone: exertienMilestone },
