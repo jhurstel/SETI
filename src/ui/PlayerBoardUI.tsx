@@ -767,7 +767,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 key={dataFlash ? `data-${dataFlash.id}` : 'data-static'}
                 className={`seti-computer-data-badge ${dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
               >
-                <span className="seti-res-label">Donnée <ResourceIcon kind="data" size={15} /> :</span> <strong style={{ color: '#fff' }}>{currentPlayer.data || 0}</strong>
+                {/* Données en réserve : symbole et quantité */}
+                <span aria-label={`${currentPlayer.data || 0} donnée(s)`}><ResourceIcon kind="data" amount={currentPlayer.data || 0} size={24} /></span>
               </span>
             </div>
             <div className="seti-player-list seti-computer-list">
@@ -793,8 +794,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 key={cardsFlash ? `cards-${cardsFlash.id}` : 'cards-static'}
                 className={`seti-cards-badge ${cardsFlash ? (cardsFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
               >
-                <span className="seti-res-label">Carte <ResourceIcon kind="card" size={15} /> :</span>
-                <strong style={{ color: '#fff', marginLeft: '6px' }}>{handCards.length}</strong>
+                {/* Cartes en main : symbole et quantité */}
+                <span aria-label={`${handCards.length} carte(s) en main`}><ResourceIcon kind="card" amount={handCards.length} size={24} /></span>
                 {!isRobot && (
                     <>
                       {/* Action principale « Jouer une carte » : met en avant les cartes jouables de la main */}
