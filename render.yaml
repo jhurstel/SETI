@@ -12,6 +12,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      # Adresse du site du jeu (ex. https://mon-seti.netlify.app), à renseigner dans Render ; vide : toutes les origines
+      # Adresse du site du jeu (origine, sans « / » final) : seules ses pages peuvent se connecter
       - key: ALLOWED_ORIGINS
-        sync: false
+        value: https://my-seti.netlify.app
