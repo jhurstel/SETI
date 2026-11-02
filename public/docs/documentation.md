@@ -135,6 +135,8 @@ Chaque pile a 4 exemplaires ; le premier pris rapporte 3 PV, les suivants 1 Méd
 
 Une trace de vie (rouge, jaune ou bleue) se place sur le plateau d'une espèce Alien : sur l'emplacement de découverte de sa couleur, sur la piste de l'espèce, ou sur un emplacement excédentaire. Voir la partie 3.
 
+Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacement choisi : elle déclenche les missions de cette couleur et celles qui portent sur n'importe quelle trace de vie (ET.29), pas celles des autres couleurs.
+
 ### 2.7 Paliers et objectifs
 
 - **Paliers dorés** à 25, 50 et 70 PV : le joueur qui les franchit pose un marqueur sur une tuile objectif (Technologies, Missions, Revenus, Autres).

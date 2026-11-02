@@ -365,11 +365,7 @@ export class SpeciesSystem {
             if (color === LifeTraceType.YELLOW && buff.type === 'GAIN_ON_YELLOW_LIFETRACE') return true;
             if (color === LifeTraceType.RED && buff.type === 'GAIN_ON_RED_LIFETRACE') return true;
             if (color === LifeTraceType.BLUE && buff.type === 'GAIN_ON_BLUE_LIFETRACE') return true;
-            if (color === LifeTraceType.ANY && (
-                buff.type.includes('GAIN_ON_BLUE_LIFETRACE') ||
-                buff.type.includes('GAIN_ON_YELLOW_LIFETRACE') ||
-                buff.type.includes('GAIN_ON_RED_LIFETRACE')
-            )) return true;
+            // Une trace « quelconque » prend la couleur de l'emplacement choisi : elle n'arrive jamais ici en ANY
             return false;
         });
 

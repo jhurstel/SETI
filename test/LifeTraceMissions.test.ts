@@ -60,6 +60,19 @@ describe('missions déclenchées par une trace de vie (ET.29 « Analyse Comparat
     expect(fulfillable(game)).toHaveLength(0);
   });
 
+  test('une trace de couleur quelconque prend la couleur de la piste choisie : missions de cette couleur et « toute trace »', () => {
+    giveCard(game, '77');
+    game = CardSystem.playCard(game, P1, '77').updatedGame;
+    const placed = InteractionChoices.placeLifeTrace(game, P1, { type: 'PLACING_LIFE_TRACE', color: LifeTraceType.ANY }, 0, LifeTraceType.YELLOW, LifeTraceLocation.TRIANGLE);
+
+    expect(placed.error).toBeUndefined();
+    expect(placed.updatedGame.board.alienBoards[0].lifeTraces).toEqual([expect.objectContaining({ type: LifeTraceType.YELLOW, playerId: P1 })]);
+    const nasa = getPlayer(placed.updatedGame, P1).missions.find(m => m.cardId === '77')!;
+    const triggered = nasa.requirements.filter(r => nasa.fulfillableRequirementIds.includes(r.id!)).map(r => String(r.value));
+    expect(triggered).toEqual([expect.stringContaining(':yellow:')]);
+    expect(fulfillable(placed.updatedGame)).toHaveLength(1);
+  });
+
   test.failing('règles : un même déclencheur ne recouvre qu\'un cercle, toutes cartes confondues (choix du joueur non géré)', () => {
     // Carte 77 : se déclenche aussi sur une trace rouge ; la règle ne permet d'en recouvrir qu'un des deux cercles
     giveCard(game, '77');
