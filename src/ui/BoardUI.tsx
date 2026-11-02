@@ -16,6 +16,8 @@ import { Choice, Command } from '../session/commands';
 import { useAITurn } from './hooks/useAITurn';
 import { useAutosave } from './hooks/useAutosave';
 import { useGameSession, RobotStep } from './hooks/useGameSession';
+import { useOnlineSession } from './hooks/useOnlineSession';
+import { OnlineModal } from './modals/OnlineModal';
 import { DebugPanel } from './DebugPanel';
 import { useDebugSetting } from './hooks/useDebugSetting';
 import { PassModal } from './modals/PassModal';
@@ -38,7 +40,23 @@ const DISCOVERY_NOTICE = "Découverte d'une nouvelle espèce Alien !";
 export const BoardUI: React.FC = () => {
   // La partie et son journal : tout passe par la session (GameSession)
   const session = useGameSession();
-  const { game, gameRef, historyLog } = session;
+  // Partie en ligne : la partie vient du serveur (vue de ce joueur), les commandes y partent
+  const online = useOnlineSession({
+    onNotifications: messages => showNotifications(messages),
+    onError: message => setToast({ message, visible: true }),
+  });
+  const isOnline = online.active || !!online.game;
+  const realGame = isOnline ? online.game : session.game;
+  const gameRef = isOnline ? online.gameRef : session.gameRef;
+  const historyLog = isOnline ? online.state.entries : session.historyLog;
+  /** Joueur de cet écran : sa place en ligne, sinon le joueur humain de la partie locale */
+  const me = isOnline ? online.me : session.game?.players.find(p => p.type === 'human')?.id;
+  // En ligne, les autres joueurs humains se jouent ailleurs : l'affichage les traite comme des robots
+  // (actions désactivées pendant leur tour) ; les vrais types restent dans realGame
+  const game = useMemo(() => (realGame && isOnline
+    ? { ...realGame, players: realGame.players.map(p => (p.id !== me && p.type === 'human' ? { ...p, type: 'robot' as const } : p)) }
+    : realGame), [realGame, isOnline, me]);
+  const [onlineVisible, setOnlineVisible] = useState(false);
 
   // États de l'interface
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
@@ -56,8 +74,11 @@ export const BoardUI: React.FC = () => {
   const [settingsVisible, setSettingsVisible] = useState(true); // Ouvert au lancement
   const [docVisible, setDocVisible] = useState(false);
 
-  // Interaction affichée : le mode local s'il y en a un, sinon celle de la partie (avec la sélection de cartes en cours)
-  const sessionInteraction = game?.interaction;
+  // Interaction affichée : le mode local s'il y en a un, sinon celle de la partie (avec la sélection de cartes en cours).
+  // En ligne, celle d'un autre joueur n'est pas affichée (sa vue masquée n'en a pas le détail) : on l'attend
+  const interactionOwnerId = game?.interaction ? (game.interaction.playerId ?? game.players[game.currentPlayerIndex].id) : undefined;
+  const waitingPlayer = isOnline && interactionOwnerId && interactionOwnerId !== me ? realGame?.players.find(p => p.id === interactionOwnerId) : undefined;
+  const sessionInteraction = waitingPlayer ? undefined : game?.interaction;
   const interactionState: InteractionState = useMemo(() => localMode
     ?? (sessionInteraction
       ? ('selectedCards' in sessionInteraction ? { ...sessionInteraction, selectedCards: selection } as InteractionState : sessionInteraction)
@@ -100,8 +121,8 @@ export const BoardUI: React.FC = () => {
   const reservingPlayer = game && interactionState.type === 'RESERVING_CARD' ? actingPlayer(game) : undefined;
   const isReservationModalActive = !!reservingPlayer && reservingPlayer.type === 'human';
 
-  // Sauvegarde automatique à chaque modification du jeu
-  useAutosave(game, historyLog);
+  // Sauvegarde automatique à chaque modification de la partie locale (une partie en ligne est gardée par le serveur)
+  useAutosave(session.game, session.historyLog);
 
   /** Annonces de la partie (découverte d'une espèce…) */
   const showNotifications = (notifications: string[]) => {
@@ -115,10 +136,18 @@ export const BoardUI: React.FC = () => {
     });
   };
 
-  /** Envoie une commande à la session au nom du joueur qui agit ; affiche l'erreur s'il y en a une */
-  const run = (command: Command, playerId?: string): boolean => {
+  /**
+   * Envoie une commande au nom du joueur qui agit : à la session locale, ou au serveur en ligne (le joueur est alors
+   * celui de la place). Se termine quand la partie affichée est à jour ; affiche l'erreur s'il y en a une.
+   */
+  const run = async (command: Command, playerId?: string): Promise<boolean> => {
     const current = gameRef.current;
     if (!current) return false;
+    if (isOnline) {
+      const { error } = await online.send(command);
+      if (error) setToast({ message: error, visible: true });
+      return !error;
+    }
     const result = session.dispatch(playerId ?? actingPlayer(current).id, command);
     if (result.error) {
       setToast({ message: result.error, visible: true });
@@ -149,7 +178,8 @@ export const BoardUI: React.FC = () => {
 
   // --- Annulation ---
 
-  const humanPlayerId = game?.players.find(p => p.type === 'human')?.id;
+  // Pas d'annulation en ligne : elle reviendrait aussi sur les actions des autres joueurs
+  const humanPlayerId = isOnline ? undefined : me;
   const resetInterface = () => {
     setLocalMode(null);
     setPassModalState({ visible: false, cards: [], selectedCardId: null });
@@ -167,13 +197,15 @@ export const BoardUI: React.FC = () => {
     });
   };
   const handleUndo = () => {
+    if (isOnline) return;
     session.undo();
     resetInterface();
   };
 
   // --- Robots ---
 
-  useAITurn(game, !!localMode || passModalState.visible, (step: RobotStep) => {
+  // En ligne, les robots jouent sur le serveur
+  useAITurn(isOnline ? null : session.game, !!localMode || passModalState.visible, (step: RobotStep) => {
     const result = session.applyRobotStep(step);
     if (!result) return;
     if (result.error) {
@@ -186,13 +218,13 @@ export const BoardUI: React.FC = () => {
 
   // --- Tour ---
 
-  const handleNextPlayer = () => {
+  const handleNextPlayer = async () => {
     if (!game || !GameSession.canEndTurn(game)) {
       setToast({ message: "Terminez d'abord l'action en cours avant de finir votre tour.", visible: true });
       return;
     }
     const before = game.currentPlayerIndex;
-    if (run({ type: 'END_TURN' }) && gameRef.current?.currentPlayerIndex !== before) {
+    if (await run({ type: 'END_TURN' }) && gameRef.current?.currentPlayerIndex !== before) {
       setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
     }
   };
@@ -251,7 +283,7 @@ export const BoardUI: React.FC = () => {
 
   const handleConfirmTrade = () => {
     if (localMode?.type !== 'TRADING_CARD') return;
-    if (run({ type: 'TRADE', spend: 'card', gain: localMode.targetGain, cardIds: localMode.selectedCards })) setLocalMode(null);
+    run({ type: 'TRADE', spend: 'card', gain: localMode.targetGain, cardIds: localMode.selectedCards }).then(done => { if (done) setLocalMode(null); });
   };
 
   // --- Actions principales ---
@@ -353,11 +385,11 @@ export const BoardUI: React.FC = () => {
     }
     if (!ProbeSystem.findProbeAtPlanet(game, actingPlayer(game).id, planetId)) return;
 
-    const execute = () => {
+    const execute = async () => {
       const bonusPlacement = interactionState.type === (kind === 'orbit' ? 'ORBITING_PROBE' : 'LANDING_PROBE');
-      const done = bonusPlacement
+      const done = await (bonusPlacement
         ? choose({ kind: 'PLANET', planetId, slotIndex })
-        : run(kind === 'orbit' ? { type: 'ORBIT', planetId } : { type: 'LAND', planetId, slotIndex });
+        : run(kind === 'orbit' ? { type: 'ORBIT', planetId } : { type: 'LAND', planetId, slotIndex }));
       if (done && !gameRef.current?.interaction) {
         setToast({ message: kind === 'orbit' ? 'Sonde mise en orbite' : 'Atterrissage réussi', visible: true });
       }
@@ -386,7 +418,7 @@ export const BoardUI: React.FC = () => {
   const handleProbeMove = async (probeId: string, path: string[]) => {
     for (let i = 1; i < path.length; i++) {
       const cellKey = path[i];
-      if (!run({ type: 'MOVE_PROBE', probeId, disk: cellKey[0] as DiskName, sector: parseInt(cellKey.substring(1)) as SectorNumber })) break;
+      if (!(await run({ type: 'MOVE_PROBE', probeId, disk: cellKey[0] as DiskName, sector: parseInt(cellKey.substring(1)) as SectorNumber }))) break;
       // Carte 19 : le choix Média / déplacement interrompt le chemin
       if (gameRef.current?.interaction?.type === 'CHOOSING_MEDIA_OR_MOVE') {
         if (i < path.length - 1) setToast({ message: "Déplacement interrompu. Choisissez un bonus.", visible: true });
@@ -471,46 +503,73 @@ export const BoardUI: React.FC = () => {
     run({ type: 'CLAIM_MISSION', missionId, requirementId });
   };
 
-  // Partie chargée ou nouvelle partie
+  // Partie chargée ou nouvelle partie (locale : on quitte la partie en ligne, qui reste reprenable)
   const handleLoadGame = (loaded: Game, log = historyLog.slice(0, 0)) => {
+    if (isOnline) online.leave();
+    setOnlineVisible(false);
     resetInterface();
     showNotifications(session.load(loaded, log).notifications);
   };
 
-  // Si le jeu n'est pas initialisé, afficher uniquement les modales de démarrage
+  const resumeOnline = () => {
+    setOnlineVisible(true);
+    online.resume().catch((e: Error) => setToast({ message: e.message, visible: true }));
+  };
+
+  // Menu principal : la sauvegarde et le chargement portent sur la partie locale
+  const settingsModal = (
+    <SettingsModal
+      visible={settingsVisible}
+      setVisible={setSettingsVisible}
+      game={session.game}
+      historyLog={session.historyLog}
+      onLoadGame={handleLoadGame}
+      setToast={setToast}
+      showDebug={showDebug}
+      setShowDebug={setShowDebug}
+      canClose={!!game}
+      onOnline={online.available ? () => { if (isOnline) online.leave(); setOnlineVisible(true); } : undefined}
+      onResumeOnline={online.available && online.storedSeat && !isOnline ? resumeOnline : undefined}
+      onLeaveOnline={isOnline ? () => { online.leave(true); setSettingsVisible(true); } : undefined}
+    />
+  );
+
+  // Si le jeu n'est pas initialisé (ou dans le salon d'une partie en ligne), afficher uniquement les modales de démarrage
   if (!game) {
     return (
       <div className="seti-root">
-        <SettingsModal
-          visible={settingsVisible}
-          setVisible={setSettingsVisible}
-          game={game}
-          historyLog={historyLog}
-          onLoadGame={handleLoadGame}
-          setToast={setToast}
-          showDebug={showDebug}
-          setShowDebug={setShowDebug}
-        />
+        {settingsModal}
+        <OnlineModal visible={onlineVisible} online={online} onBack={() => { setOnlineVisible(false); setSettingsVisible(true); }} />
       </div>
     );
   }
 
-  const humanPlayer = game.players.find(p => p.type === 'human');
   const currentPlayer = game.players[game.currentPlayerIndex];
-  const currentPlayerIdToDisplay = viewedPlayerId || humanPlayer?.id || currentPlayer.id;
+  const currentPlayerIdToDisplay = viewedPlayerId || me || currentPlayer.id;
+  // Tour d'un robot, ou en ligne d'un autre joueur (ou interaction qu'il doit résoudre) : l'écran attend
+  const realCurrent = realGame!.players[realGame!.currentPlayerIndex];
+  const waitingText = waitingPlayer
+    ? `En attente de ${waitingPlayer.name}`
+    : realCurrent.type === 'robot' ? `Tour de l'IA (${realCurrent.name})` : `Tour de ${realCurrent.name}`;
 
   return (
     <div className="seti-root">
-      {currentPlayer.type === 'robot' && interactionState.type === 'IDLE' && (
+      {((currentPlayer.type === 'robot' && interactionState.type === 'IDLE') || waitingPlayer) && (
         <div className="seti-ai-overlay">
             <div className="seti-ai-spinner"></div>
             <p className="seti-ai-text">
-                Tour de l'IA ({currentPlayer.name})
+                {waitingText}
             </p>
         </div>
       )}
-      {/* Outils de débogage (réglage du menu Paramètres, masqués par défaut) */}
-      {showDebug && (
+      {isOnline && online.state.status !== 'connected' && (
+        <div className="seti-online-banner">
+          {online.state.status === 'connecting' ? 'Connexion au serveur perdue, reconnexion…' : 'Déconnecté du serveur.'}
+          {online.state.status === 'disconnected' && <button className="seti-modal-btn" onClick={() => setSettingsVisible(true)}>Menu</button>}
+        </div>
+      )}
+      {/* Outils de débogage (réglage du menu Paramètres, masqués par défaut ; pas en ligne) */}
+      {showDebug && !isOnline && (
         <DebugPanel
           game={game}
           setGame={(newGame) => session.replace(newGame, 'DEBUG : partie modifiée', currentPlayer.id)}
@@ -675,21 +734,12 @@ export const BoardUI: React.FC = () => {
         }}
       />
 
-      <SettingsModal
-        visible={settingsVisible}
-        setVisible={setSettingsVisible}
-        game={game}
-        historyLog={historyLog}
-        onLoadGame={handleLoadGame}
-        setToast={setToast}
-        showDebug={showDebug}
-        setShowDebug={setShowDebug}
-      />
+      {settingsModal}
 
       <DocumentationModal visible={docVisible} onClose={() => setDocVisible(false)} />
 
       {/* Ecran de fin de partie */}
-      {game.phase === GamePhase.FINAL_SCORING && <EndGameModal game={game} />}
+      {game.phase === GamePhase.FINAL_SCORING && <EndGameModal game={realGame!} />}
 
       <div className="seti-root-inner">
         <div className="seti-left-panel">
@@ -713,6 +763,7 @@ export const BoardUI: React.FC = () => {
               setActiveTooltip={setActiveTooltip}
               onSettingsClick={() => setSettingsVisible(true)}
               onDocumentationClick={() => setDocVisible(true)}
+              remoteHumanIds={isOnline ? realGame!.players.filter(p => p.type === 'human' && p.id !== me).map(p => p.id) : undefined}
               onMissionClick={handleMissionClick}
               onConfirmAction={(message, onConfirm) => setConfirmModalState({ visible: true, cardId: null, message, onConfirm })}
             />
@@ -779,7 +830,7 @@ export const BoardUI: React.FC = () => {
           {/* Historique en haut à droite */}
           <HistoryBoardUI
             historyLog={historyLog}
-            game={game}
+            game={realGame!}
             onUndo={handleUndo}
             onUndoTurn={session.canUndoTurn(humanPlayerId) ? handleUndoTurn : undefined}
             setActiveTooltip={setActiveTooltip}

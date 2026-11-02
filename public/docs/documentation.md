@@ -72,7 +72,17 @@ Les déplacements gratuits reçus d'une carte (« 2 déplacements ») se dépens
 - **Revenir au début du tour** rétablit l'état d'avant la première action du tour. Juste après le tour des robots, avant d'avoir rejoué, il ramène au début du tour qu'on vient de finir (le tour des robots est annulé lui aussi).
 - La mémoire est bornée : l'annulation ne remonte pas plus loin que le début de l'avant-dernier tour du joueur.
 
-### 1.7 Paramètres
+### 1.7 Jouer en ligne
+
+- Menu principal → **Partie en ligne** (bouton présent quand un serveur est configuré).
+- **Créer une salle** : votre nom, puis les autres places (joueur humain ou robot, de 2 à 4 joueurs en tout). Le jeu donne un **code de 5 lettres** à transmettre aux autres joueurs.
+- **Rejoindre** : votre nom et le code de la salle. La partie commence dès que toutes les places humaines sont prises ; le premier joueur est tiré au hasard.
+- Pendant le tour d'un autre joueur, l'écran attend (« Tour de Bob », « En attente de Bob » s'il doit faire un choix). Les robots jouent sur le serveur.
+- Chacun ne voit que ce qu'il a le droit de voir : la main des autres, les cartes qu'ils piochent et leurs cartes Exertiens restent cachées.
+- **Reprise** : en cas de coupure, le jeu se reconnecte tout seul ; après un rechargement de la page, menu → **Reprendre la partie en ligne**. Le serveur gratuit s'endort après 15 min sans joueurs et met environ une minute à se réveiller ; un redémarrage du serveur efface les salles en cours.
+- Pas d'annulation en ligne. La partie solo (sauvegarde automatique) n'est pas touchée : **Continuer la partie** y revient.
+
+### 1.8 Paramètres
 
 - Export / import de la partie, nouvelle partie.
 - La version du jeu (et le commit du build) est affichée en bas du menu et dans l'en-tête de la documentation.
@@ -318,7 +328,7 @@ npm run check          # typecheck + lint + tests + build (avant chaque commit)
 npm test               # tests Jest du moteur
 npm run test:e2e       # tests Playwright dans un navigateur
 npm run tune:ai        # banc de réglage des robots
-npm run server         # serveur du jeu à distance
+npm run server         # serveur du jeu à distance (server:build puis server:start)
 ```
 
 ## 7. Vers le jeu à distance
@@ -328,7 +338,7 @@ npm run server         # serveur du jeu à distance
 | 0 | Session autonome, commandes validées, file d'interactions dans l'état, fin de tour dans le moteur, hasard par partie, annulation bornée | Fait |
 | 1 | Vue par joueur `viewFor` et historique filtré `viewEntries` | Fait (pas utilisés par le jeu local) |
 | 2 | Serveur Node avec le même moteur et des WebSockets : salles, places, reconnexion, robots côté serveur, enregistrement | Fait |
-| 3 | Client réseau : l'interface envoie ses commandes au serveur et affiche la vue reçue | À faire |
+| 3 | Client réseau : l'interface envoie ses commandes au serveur et affiche la vue reçue | Fait |
 
 Le jeu solo n'est pas concerné : il garde la session dans le navigateur, sans serveur. Le mode en ligne s'ajoutera à côté, derrière la même interface (`useGameSession`).
 
@@ -357,4 +367,16 @@ Messages JSON sur WebSocket.
 | Serveur → client | `notification { messages }` | Annonces (découverte d'une espèce…) |
 | Serveur → client | `error { message }` | Refus (version, salle, commande non permise…) |
 
-Client et serveur doivent avoir la même version aux deux premiers numéros près (1.1.x).
+Client et serveur doivent avoir la même version aux deux premiers numéros près (1.1.x). Chaque commande porte un `requestId` ; le serveur répond par `ack { requestId, error? }` après avoir envoyé l'état qui en découle.
+
+### 7.3 Le client (`session/RemoteClient.ts`)
+
+- Pur (testé avec Jest contre le vrai serveur) : création, arrivée, reprise de la place, commandes ; une commande se termine à l'accusé de réception, la partie reçue est alors à jour.
+- Reconnexion automatique (reprise de la place par son jeton), pendant 2 minutes au plus ; une place inconnue du serveur (salle perdue) est oubliée.
+- Dans l'interface : `useOnlineSession` (place gardée dans le navigateur, `seti_online`), `OnlineModal` (créer, rejoindre, salon). `BoardUI` envoie ses commandes au serveur au lieu de la session locale, n'affiche pas les interactions des autres joueurs, et traite les autres joueurs humains comme des robots pour l'affichage (actions désactivées pendant leur tour).
+
+### 7.4 Déploiement
+
+1. **Serveur sur Render** (offre gratuite) : New → Blueprint, choisir le dépôt ; `render.yaml` crée le service `seti-server` (`npm ci && npm run server:build`, puis `npm run server:start`, vérification `/health`). Renseigner `ALLOWED_ORIGINS` avec l'adresse du site Netlify (ex. `https://mon-seti.netlify.app`).
+2. **Site sur Netlify** : variable d'environnement `VITE_SERVER_URL=wss://seti-server.onrender.com` (l'adresse donnée par Render, en `wss://`), puis redéployer : le bouton **Partie en ligne** apparaît.
+3. En local : `npm run server` puis `npm run dev` (le jeu se connecte à `ws://localhost:8787`).

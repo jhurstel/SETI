@@ -108,9 +108,10 @@ describe('serveur du jeu à distance', () => {
       const current = room.game!.players[room.game!.currentPlayerIndex];
       if (current.type === 'robot') { await new Promise(r => setTimeout(r, 20)); continue; }
       const other = clients[current.id === 'player_0' ? 'player_1' : 'player_0'];
-      other.send({ type: 'command', command: { type: 'CHOOSE', choice: { kind: 'CARDS', cardIds: [current.cards[0].id] } } });
-      expect((await other.next('error')).message).toBeDefined();
-      clients[current.id].send({ type: 'command', command: { type: 'CHOOSE', choice: { kind: 'CARDS', cardIds: [current.cards[0].id] } } });
+      other.send({ type: 'command', requestId: 100 + i, command: { type: 'CHOOSE', choice: { kind: 'CARDS', cardIds: [current.cards[0].id] } } });
+      expect((await other.next('ack', ack => ack.requestId === 100 + i)).error).toBeDefined();
+      clients[current.id].send({ type: 'command', requestId: i, command: { type: 'CHOOSE', choice: { kind: 'CARDS', cardIds: [current.cards[0].id] } } });
+      expect((await clients[current.id].next('ack', ack => ack.requestId === i)).error).toBeUndefined();
       await clients[current.id].latestState(s => s.game!.players.find(p => p.id === current.id)!.reservedCards.length === 1);
     }
     for (let i = 0; i < 100 && room.robotToPlay; i++) await new Promise(r => setTimeout(r, 20));
@@ -153,7 +154,7 @@ describe('serveur du jeu à distance', () => {
     client.send({ type: 'resume', version: GAME_VERSION, code: 'ZZZZZ', token: 'x' });
     expect((await client.next('error')).message).toBe('Place introuvable');
     client.send({ type: 'command', command: { type: 'END_TURN' } });
-    expect((await client.next('error')).message).toContain('Rejoignez');
+    expect((await client.next('ack')).error).toContain('Rejoignez');
     client.send({ type: 'create', version: GAME_VERSION, name: 'Alice', seats: [{ type: 'human' }] });
     expect((await client.next('error')).message).toContain('de 2 à 4 joueurs');
     client.close();

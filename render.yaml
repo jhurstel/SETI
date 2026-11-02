@@ -1,0 +1,17 @@
+# Déploiement Render (Blueprint) du serveur du jeu en ligne : offre gratuite.
+# Le service s'endort après 15 min sans trafic (environ 1 min pour se réveiller) et son disque n'est pas conservé :
+# les salles en cours sont perdues à chaque redémarrage ou redéploiement (voir CLAUDE.md, « Hébergement »).
+services:
+  - type: web
+    name: seti-server
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run server:build
+    startCommand: npm run server:start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Adresse du site du jeu (ex. https://mon-seti.netlify.app), à renseigner dans Render ; vide : toutes les origines
+      - key: ALLOWED_ORIGINS
+        sync: false

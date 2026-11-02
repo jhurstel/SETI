@@ -36,11 +36,7 @@ export class GameSetup {
       : firstPlayer === 'randomOther'
         ? (seats.length > 1 ? 1 + Math.floor(random() * (seats.length - 1)) : 0)
         : firstPlayer;
-    if (!Number.isInteger(first) || first < 0 || first >= seats.length) throw new Error(`Premier joueur invalide : ${firstPlayer}`);
-    created.firstPlayerIndex = first;
-    created.currentPlayerIndex = first;
-
-    const game = GameFactory.initializeGame(created);
+    const game = GameFactory.initializeGame(GameFactory.setFirstPlayer(created, first));
     const entries: HistoryEntry[] = (game.gameLog || []).map(log => ({
       id: log.id,
       message: log.message,

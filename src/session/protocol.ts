@@ -14,7 +14,8 @@ export type ClientMessage =
   | { type: 'create'; version: string; name: string; seats: SeatRequest[] }
   | { type: 'join'; version: string; code: string; name: string }
   | { type: 'resume'; version: string; code: string; token: string }
-  | { type: 'command'; command: Command };
+  /** `requestId` (facultatif) : renvoyé dans l'accusé de réception, après l'état qui suit la commande */
+  | { type: 'command'; command: Command; requestId?: number };
 
 export type RoomStatus = 'lobby' | 'playing' | 'finished';
 
@@ -32,6 +33,8 @@ export type ServerMessage =
   | { type: 'state'; room: RoomInfo; you: string; game?: Game; entries: HistoryEntry[] }
   /** Annonces (découverte d'une espèce…) */
   | { type: 'notification'; messages: string[] }
+  /** Commande traitée (l'état qui en découle a déjà été envoyé) ou refusée */
+  | { type: 'ack'; requestId?: number; error?: string }
   | { type: 'error'; message: string };
 
 /** Client et serveur s'entendent si leur version a les mêmes deux premiers numéros (1.1.x) */
@@ -76,7 +79,9 @@ export function parseClientMessage(raw: string): ClientMessage | null {
         : null;
     case 'command': {
       const command = message.command as Record<string, unknown> | null;
-      return command && typeof command === 'object' && typeof command.type === 'string' ? { type: 'command', command: command as unknown as Command } : null;
+      if (!command || typeof command !== 'object' || typeof command.type !== 'string') return null;
+      const requestId = typeof message.requestId === 'number' ? message.requestId : undefined;
+      return requestId === undefined ? { type: 'command', command: command as unknown as Command } : { type: 'command', command: command as unknown as Command, requestId };
     }
     default:
       return null;

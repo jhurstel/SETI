@@ -19,7 +19,9 @@
     "test:coverage": "jest --coverage",
     "test:e2e": "playwright test",
     "tune:ai": "esbuild tools/spsa/worker.ts tools/spsa/defaults.ts --bundle --platform=node --target=node20 --outdir=tools/spsa/build --log-level=warning && node tools/spsa/spsa.js",
-    "server": "esbuild server/index.ts --bundle --platform=node --target=node20 --packages=external --outfile=server/build/index.js --log-level=warning && node server/build/index.js",
+    "server": "npm run server:build && npm run server:start",
+    "server:build": "esbuild server/index.ts --bundle --platform=node --target=node20 --packages=external --outfile=server/build/index.js --log-level=warning",
+    "server:start": "node server/build/index.js",
     "check": "npm run typecheck && npm run lint && npm test && vite build"
   },
   "keywords": [

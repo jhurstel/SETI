@@ -18,6 +18,8 @@ export interface GameServerOptions {
   robotDelay?: number;
   /** Graine des parties (tests) ; absente : tirée au hasard */
   seed?: number;
+  /** Origines des pages autorisées à se connecter (ex. https://seti.netlify.app) ; vide : toutes */
+  allowedOrigins?: string[];
 }
 
 /** Lettres des codes de salle (sans I, O ni chiffres, faciles à dicter) */
@@ -50,7 +52,12 @@ export class GameServer {
   constructor(private readonly options: GameServerOptions) {
     DataLoader.setReader(file => fs.readFile(path.join(options.publicDir, file), 'utf-8'));
     this.http = createServer((req, res) => this.onHttp(req, res));
-    this.wss = new WebSocketServer({ server: this.http, maxPayload: MAX_MESSAGE });
+    this.wss = new WebSocketServer({
+      server: this.http,
+      maxPayload: MAX_MESSAGE,
+      // Seules les pages du jeu (origines autorisées) peuvent se connecter ; sans liste, toutes
+      verifyClient: ({ origin }: { origin: string }) => !options.allowedOrigins?.length || options.allowedOrigins.includes(origin),
+    });
     this.wss.on('connection', socket => this.onConnection(socket));
     this.loadRooms();
   }
@@ -147,11 +154,14 @@ export class GameServer {
         return this.enter(client, room, message.token);
       }
       case 'command': {
+        const { requestId } = message;
         const room = client.code ? this.rooms.get(client.code) : undefined;
-        if (!room || !client.token) return this.send(client, { type: 'error', message: 'Rejoignez d\'abord une salle' });
+        if (!room || !client.token) return this.send(client, { type: 'ack', requestId, error: 'Rejoignez d\'abord une salle' });
         const result = room.command(client.token, message.command);
-        if (result.error) return this.send(client, { type: 'error', message: result.error });
+        if (result.error) return this.send(client, { type: 'ack', requestId, error: result.error });
+        // L'état part avant l'accusé de réception : à sa réception, le client a déjà la partie à jour
         this.changed(room, result.notifications);
+        this.send(client, { type: 'ack', requestId });
       }
     }
   }

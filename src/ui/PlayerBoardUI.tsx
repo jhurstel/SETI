@@ -36,6 +36,8 @@ interface PlayerBoardUIProps {
   onDocumentationClick: () => void;
   onMissionClick: (missionId: string, requirementId: string) => void;
   onConfirmAction: (message: string, onConfirm: () => void) => void;
+  /** Partie en ligne : joueurs humains joués sur un autre écran (affichés comme robots pour bloquer les actions) */
+  remoteHumanIds?: string[];
   /** Action « Jouer une carte » choisie : met en avant les cartes jouables de la main */
   highlightPlayableCards?: boolean;
 }
@@ -209,7 +211,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onTransferData, onComputerSlotSelect, onNextPlayer, onDirectTradeAction, setActiveTooltip, onSettingsClick, onDocumentationClick, onMissionClick, onConfirmAction, highlightPlayableCards = false }) => {
+export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onTransferData, onComputerSlotSelect, onNextPlayer, onDirectTradeAction, setActiveTooltip, onSettingsClick, onDocumentationClick, onMissionClick, onConfirmAction, highlightPlayableCards = false, remoteHumanIds = [] }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -575,7 +577,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                  opacity: isViewed ? 1 : 0.7,
                }}
              >
-               {p.type === 'robot' ? '🤖' : '👤'} {p.name}
+               {p.type === 'robot' && !remoteHumanIds.includes(p.id) ? '🤖' : '👤'} {p.name}
                {isFirstPlayer && <span>👑</span>}
                {isActive && <span className="seti-player-tab-indicator"></span>}
              </div>
@@ -606,7 +608,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         {/* Titre */}
         <div className="seti-player-panel-title seti-player-panel-title-container">
           <span>
-            {currentPlayer.name} {currentPlayer.type === 'robot' ? '🤖' : '👤'} - Score: <VictoryPointsIcon amount={currentPlayer.score} size={24} />
+            {currentPlayer.name} {currentPlayer.type === 'robot' && !remoteHumanIds.includes(currentPlayer.id) ? '🤖' : '👤'} - Score: <VictoryPointsIcon amount={currentPlayer.score} size={24} />
           </span>
           <div className="seti-player-turn-buttons">
             {!isRobot && (() => {

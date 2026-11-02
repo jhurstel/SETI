@@ -41,21 +41,8 @@ export class GameFactory {
     // Créer le plateau
     const board = BoardManager.createInitialBoard();
 
-    // Initialiser les logs
+    // Journal de départ : l'arrivée des joueurs est écrite par setFirstPlayer (ordre du tour)
     const gameLog: GameLogEntry[] = [];
-    const addLog = (message: string, playerId?: string) => {
-      gameLog.push({
-        id: `log_init_${uniqueId()}`,
-        message,
-        timestamp: Date.now(),
-        playerId
-      });
-    };
-
-    players.map((p, index) => {
-      const suffix = index === 0 ? 'er' : 'ème';
-      addLog(`${p.name} a rejoint la partie (${index + 1}${suffix} joueur) avec ${p.score} PV`, p.id);
-    })
 
     const neutralCount = playerNames.length === 2 ? 2 : (playerNames.length === 3 ? 1 : 0);
     const neutralMilestonesAvailable: Record<number, number> = {};
@@ -89,7 +76,35 @@ export class GameFactory {
       isSpeciesDiscovered: false
     };
 
-    return game;
+    return this.setFirstPlayer(game, firstPlayerIndex);
+  }
+
+  /**
+   * Premier joueur de la partie : il joue le 1er tour, et les PV de départ suivent l'ordre du tour
+   * (1 PV pour le premier, 2 pour le deuxième…, règles : « Le premier joueur commence avec 1 PV et l'autre avec 2 PV »).
+   * Réécrit l'arrivée des joueurs dans le journal de départ, dans l'ordre du tour.
+   */
+  static setFirstPlayer(game: Game, firstIndex: number): Game {
+    const count = game.players.length;
+    if (!Number.isInteger(firstIndex) || firstIndex < 0 || firstIndex >= count) {
+      throw new Error(`Premier joueur invalide : ${firstIndex}`);
+    }
+    const updatedGame = cloneGame(game);
+    updatedGame.firstPlayerIndex = firstIndex;
+    updatedGame.currentPlayerIndex = firstIndex;
+    const joins: GameLogEntry[] = [];
+    for (let rank = 0; rank < count; rank++) {
+      const player = updatedGame.players[(firstIndex + rank) % count];
+      player.score = rank + 1;
+      joins.push({
+        id: `log_join_${uniqueId()}`,
+        message: `${player.name} a rejoint la partie (${rank + 1}${rank === 0 ? 'er' : 'ème'} joueur) avec ${player.score} PV`,
+        timestamp: Date.now(),
+        playerId: player.id,
+      });
+    }
+    updatedGame.gameLog = [...joins, ...(updatedGame.gameLog || []).filter(log => !log.id.startsWith('log_join_'))];
+    return updatedGame;
   }
 
   /**

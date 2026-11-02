@@ -26,6 +26,14 @@ interface SettingsModalProps {
   /** Réglage « Outils de débogage » */
   showDebug: boolean;
   setShowDebug: (show: boolean) => void;
+  /** Partie en ligne : ouvre la fenêtre de création / arrivée dans une salle (absent : serveur non configuré) */
+  onOnline?: () => void;
+  /** Reprend la partie en ligne gardée dans le navigateur (absent : aucune) */
+  onResumeOnline?: () => void;
+  /** Quitte la partie en ligne en cours (absent : pas de partie en ligne) */
+  onLeaveOnline?: () => void;
+  /** Une partie (locale ou en ligne) est affichée : le menu peut se refermer */
+  canClose?: boolean;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -36,7 +44,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onLoadGame,
   setToast,
   showDebug,
-  setShowDebug
+  setShowDebug,
+  onOnline,
+  onResumeOnline,
+  onLeaveOnline,
+  canClose,
 }) => {
   const [newGameModalVisible, setNewGameModalVisible] = useState(false);
   const [hasAutosave, setHasAutosave] = useState(false);
@@ -183,7 +195,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button onClick={handleNewGameRequest} className={`seti-modal-btn ${!hasAutosave ? 'primary' : ''}`}>Nouvelle Partie</button>
               <button onClick={handleSaveGame} className="seti-modal-btn">Sauvegarder Partie</button>
               <button onClick={handleLoadGame} className="seti-modal-btn">Restaurer Partie</button>
-              {game && <button onClick={() => setVisible(false)} className="seti-modal-btn secondary">Fermer</button>}
+              {onResumeOnline && <button onClick={() => { setVisible(false); onResumeOnline(); }} className="seti-modal-btn">Reprendre la partie en ligne</button>}
+              {onLeaveOnline && <button onClick={onLeaveOnline} className="seti-modal-btn">Quitter la partie en ligne</button>}
+              {onOnline && <button onClick={() => { setVisible(false); onOnline(); }} className="seti-modal-btn">Partie en ligne</button>}
+              {(game || canClose) && <button onClick={() => setVisible(false)} className="seti-modal-btn secondary">Fermer</button>}
             </div>
             <label className="seti-settings-option">
               <input type="checkbox" checked={showDebug} onChange={e => setShowDebug(e.target.checked)} />

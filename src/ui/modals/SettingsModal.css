@@ -122,3 +122,115 @@
   font-size: 0.75rem;
   color: #888;
 }
+
+/* Partie en ligne */
+.seti-online-modal {
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.seti-online-tabs {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.seti-online-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  margin-bottom: 12px;
+  color: #ccc;
+  font-size: 0.9rem;
+}
+
+.seti-online-field input,
+.seti-online-field select {
+  padding: 8px;
+  background: #1c1c26;
+  color: #fff;
+  border: 1px solid #555;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.seti-online-seat-row {
+  display: flex;
+  gap: 6px;
+}
+
+.seti-online-seat-row select {
+  flex: 1;
+}
+
+.seti-online-remove {
+  background: none;
+  border: 1px solid #555;
+  color: #aaa;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.seti-online-code {
+  font-size: 2.2rem;
+  letter-spacing: 0.3em;
+  color: #78a0ff;
+  font-weight: bold;
+  margin: 8px 0 14px;
+  user-select: all;
+}
+
+.seti-online-seats {
+  align-self: stretch;
+  width: 100%;
+  box-sizing: border-box;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  text-align: left;
+}
+
+.seti-online-seats li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-bottom: 1px solid #333;
+  color: #888;
+}
+
+.seti-online-seats li.claimed {
+  color: #fff;
+}
+
+.seti-online-hint {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.seti-online-error {
+  color: #ff7b7b;
+  font-size: 0.9rem;
+}
+
+.seti-online-banner {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(120, 30, 30, 0.95);
+  border: 1px solid #ff7b7b;
+  border-radius: 6px;
+  color: #fff;
+}
+
+.seti-online-banner .seti-modal-btn {
+  padding: 4px 12px;
+}

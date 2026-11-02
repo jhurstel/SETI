@@ -11,10 +11,13 @@ const buildCommit = (() => {
   }
 })();
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   define: {
     __BUILD_COMMIT__: JSON.stringify(buildCommit),
+    // Serveur du jeu en ligne : VITE_SERVER_URL (ex. wss://seti.onrender.com, à définir sur Netlify) ;
+    // en développement, le serveur local (npm run server) ; vide : pas de jeu en ligne
+    __SERVER_URL__: JSON.stringify(process.env.VITE_SERVER_URL || (mode === 'development' ? 'ws://localhost:8787' : '')),
   },
   base: './',
   build: {
@@ -29,4 +32,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
