@@ -7,7 +7,7 @@ import { ChoiceModal, ChoiceOption, ChoiceFooterButton } from './ChoiceModal';
 import { HoverTooltip } from '../components/HoverTooltip';
 import { ChoiceCardTile } from './CardPickModal';
 import { Tooltip } from '../Tooltip';
-import { ResourceIcon } from '../components/GameIcons';
+import { ResourceIcon, SignalGainIcon, ActionHexIcon } from '../components/GameIcons';
 import { SpeciesSystem } from '../../systems/SpeciesSystem';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {
@@ -135,22 +135,22 @@ export const MediaOrMoveModal = ({ onChoice }: { onChoice: (choice: 'MEDIA' | 'M
 
 export const Observation2Modal = ({ onChoice }: { onChoice: (accepted: boolean) => void }) => (
   <ChoiceModal title="Observation II" subtitle="Défausser un Média pour marquer un signal supplémentaire dans le secteur de Mercure ?">
-    <ChoiceOption icon="📡" label="Oui" detail="−1 Média, +1 signal (Mercure)" onClick={() => onChoice(true)} />
+    <ChoiceOption icon={<SignalGainIcon badge="mercury" size={24} />} label="Oui" detail="−1 Média, +1 signal (Mercure)" onClick={() => onChoice(true)} />
     <ChoiceOption icon="✋" label="Non" onClick={() => onChoice(false)} />
   </ChoiceModal>
 );
 
 export const Observation3Modal = ({ onChoice }: { onChoice: (accepted: boolean) => void }) => (
   <ChoiceModal title="Observation III" subtitle="Défausser une carte de votre main pour marquer un signal supplémentaire ?">
-    <ChoiceOption icon="🃏" label="Oui" detail="une carte de la main pour son signal" onClick={() => onChoice(true)} />
+    <ChoiceOption icon={<SignalGainIcon badge="discard" size={24} />} label="Oui" detail="une carte de la main pour son signal" onClick={() => onChoice(true)} />
     <ChoiceOption icon="✋" label="Non" onClick={() => onChoice(false)} />
   </ChoiceModal>
 );
 
 export const Observation4Modal = ({ onChoice, canLaunch, canMove }: { onChoice: (choice: 'PROBE' | 'MOVE') => void, canLaunch: boolean, canMove: boolean }) => (
   <ChoiceModal title="Observation IV" subtitle="Choisissez votre bonus.">
-    <ChoiceOption icon="🛰️" label="Lancer une sonde" detail="−1 Énergie" onClick={() => onChoice('PROBE')} disabled={!canLaunch} disabledReason="Pas assez d'énergie ou limite de sondes atteinte" />
-    <ChoiceOption icon="🚀" label="1 Déplacement" onClick={() => onChoice('MOVE')} disabled={!canMove} disabledReason="Aucune sonde dans le système solaire" />
+    <ChoiceOption icon={<ActionHexIcon kind="launch" size={26} />} label="Lancer une sonde" detail="−1 Énergie" onClick={() => onChoice('PROBE')} disabled={!canLaunch} disabledReason="Pas assez d'énergie ou limite de sondes atteinte" />
+    <ChoiceOption icon={<ResourceIcon kind="movement" size={22} />} label="1 Déplacement" onClick={() => onChoice('MOVE')} disabled={!canMove} disabledReason="Aucune sonde dans le système solaire" />
   </ChoiceModal>
 );
 

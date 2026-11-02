@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { TechTileIcon, VictoryPointsIcon } from './components/GameIcons';
 import { BonusIcons } from './components/BonusIcons';
-import { AnyTechIcon } from './components/ObjectiveSymbol';
+import { AnyTechIcon, TechCategoryIcon } from './components/ObjectiveSymbol';
 import { Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
 import { TECHNOLOGY_STYLES } from './styles/celestialStyles';
 import { TechnologySystem } from '../systems/TechnologySystem';
@@ -55,12 +55,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
     return Array.from(stacks.values());
   };
 
-  const getCategoryIcon = (category: TechnologyCategory) => {
-    if (category === TechnologyCategory.EXPLORATION) return '🚀';
-    if (category === TechnologyCategory.OBSERVATION) return '🔭';
-    if (category === TechnologyCategory.COMPUTING) return '💻';
-    return '⚙️';
-  };
+  const getCategoryIcon = (category: TechnologyCategory) => <TechCategoryIcon category={category} size={18} />;
 
   const renderBonus = (bonus: Bonus, excludeExtraPv: boolean) => {
     let pv = bonus.pv || 0;

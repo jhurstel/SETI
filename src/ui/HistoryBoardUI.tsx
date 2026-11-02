@@ -3,9 +3,9 @@ import { Card, Game, Technology, TechnologyCategory, CardType, Bonus, HistoryEnt
 import { CardTooltip } from '../ui/components/CardTooltip';
 import './HistoryBoardUI.css';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { ResourceIcon, ResourceIconKind, LifeTraceIcon, VictoryPointsIcon } from './components/GameIcons';
+import { ResourceIcon, ResourceIconKind, LifeTraceIcon, VictoryPointsIcon, ActionHexIcon } from './components/GameIcons';
 import { LifeTraceColor } from './styles/lifeTraceColors';
-import { ReservationIcon } from './components/ObjectiveSymbol';
+import { ReservationIcon, AnyTechIcon } from './components/ObjectiveSymbol';
 import { BonusIcons, Repeated } from './components/BonusIcons';
 import { revealText } from '../core/historyText';
 
@@ -165,7 +165,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         const parts = message.split(splitRegex);
         // « 2 PV », « 3 Crédits » : le nombre est retiré du texte et dessiné dans l'icône (laurier, pastille, jeton) ;
         // « 2 Traces rouges », « 2 Réservations » : l'icône est répétée
-        const iconKeys = ['PV', 'RESERVATION', ...Object.keys(RESOURCE_ICON_KINDS)];
+        const iconKeys = ['PV', 'RESERVATION', 'SONDE', 'TECH', ...Object.keys(RESOURCE_ICON_KINDS)];
         const amounts: (number | undefined)[] = parts.map((part, index) => {
             const takesAmount = index > 0 && (new RegExp(`^${LIFE_TRACE_PATTERN.source}$`).test(part)
                 || iconKeys.some(key => new RegExp(`^${ResourceSystem.RESOURCE_CONFIG[key].regex.source}$`).test(part)));
@@ -238,7 +238,9 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                     const icon = kind ? <ResourceIcon kind={kind} amount={amounts[index]} size={15} />
                         : key === 'RESERVATION' ? <Repeated amount={amounts[index] ?? 1}><ReservationIcon size={14} /></Repeated>
                         : key === 'PV' ? <VictoryPointsIcon amount={amounts[index]} size={17} />
-                        : config.icon;
+                        : key === 'SONDE' ? <Repeated amount={amounts[index] ?? 1}><ActionHexIcon kind="launch" size={15} /></Repeated>
+                        : key === 'TECH' ? <Repeated amount={amounts[index] ?? 1}><AnyTechIcon size={15} /></Repeated>
+                        : config.label;
                     return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: config.label, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)} style={{ color: config.color }}>{icon}</span>;
                 }
             }
