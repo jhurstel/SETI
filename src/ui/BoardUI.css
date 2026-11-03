@@ -23,10 +23,8 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   font-size: 0.85rem;
   font-weight: bold;
+  /* Sous le voile des fenêtres de choix : grisé comme le reste tant que la fenêtre est ouverte */
   pointer-events: none;
-  /* Visible au-dessus des fenêtres de choix (comme avant) */
-  position: relative;
-  z-index: 8000;
 }
 
 .seti-modal-overlay {
