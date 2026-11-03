@@ -616,11 +616,21 @@
 
 .seti-main-actions:first-child {
   flex: 1 1 auto;
+  min-width: 0;
 }
 
+/* Hexagones de 44px, qui rétrécissent un peu si le panneau est étroit */
 .seti-main-actions .obs-track-slot.hex {
-  width: 44px;
-  height: 44px;
+  flex: 0 1 44px;
+  min-width: 34px;
+  width: auto;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.seti-main-actions .obs-track-slot.hex > svg {
+  width: 100%;
+  height: 100%;
 }
 
 /* Une action n'est pas un emplacement : pas de cercle ni de fond rond, l'hexagone suffit */

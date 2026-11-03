@@ -61,6 +61,16 @@
   gap: 4px;
 }
 
+/* Texte et symboles mêlés : flux de texte normal, symboles centrés sur la ligne */
+.seti-board-tooltip-rows dd.inline {
+  line-height: 24px;
+}
+
+.seti-board-tooltip-rows dd.inline .seti-board-tooltip-symbols {
+  vertical-align: middle;
+  margin: 0 1px;
+}
+
 .seti-board-tooltip-note {
   font-size: 0.85em;
   color: #9fb2da;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, CardType, CostType, SectorType } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, CardType, SectorType } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
@@ -13,7 +13,7 @@ import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
 import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, ResourceIconKind, VictoryPointsIcon, EndTurnIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
-import { ActionTooltip, TechTooltip, ResourceSymbols, PieceSymbol, ScanSymbol, BlueTraceSymbol, CardCostSymbol, TechSymbol } from './components/BoardTooltips';
+import { ActionTooltip, TechTooltip, ResourceSymbols, PieceSymbol, ScanSymbol, BlueTraceSymbol, CardCostSymbol, TechSymbol, DiscardSymbol } from './components/BoardTooltips';
 import { ReservationIcon } from './components/ObjectiveSymbol';
 import './PlayerBoardUI.css';
 
@@ -107,7 +107,7 @@ const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, han
 
   const hasTech = (level: number) => player.technologies.some(t => t.id.startsWith(`exploration-${level}`));
   // Pouvoir sans la technologie, puis ce qu'elle apporte
-  const techSlot = (base: string, benefit: string, level: number, roman: string) => (
+  const techSlot = (base: React.ReactNode, benefit: React.ReactNode, level: number, roman: string) => (
     <TrackSlot icon={null} tooltip={<TechTooltip name={`Exploration ${roman}`} acquired={hasTech(level)} base={base} benefit={benefit} />}
       techFrame={{ acquired: hasTech(level), tile: `exploration-${level}` }}
       onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
@@ -115,10 +115,14 @@ const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, han
   // Les quatre emplacements de technologie Exploration, espacés régulièrement
   return (
     <div className="obs-track-container evenly">
-      {techSlot('1 sonde à la fois dans le système solaire', "Jusqu'à 2 sondes dans le système solaire", 1, 'I')}
-      {techSlot("Quitter un champ d'astéroïdes coûte 1 déplacement de plus", "+1 Média en visitant un champ d'astéroïdes, qu'on quitte sans surcoût", 2, 'II')}
-      {techSlot(`Atterrir coûte ${GAME_CONSTANTS.LAND_COST_ENERGY} Énergies (1 de moins avec un orbiteur)`, 'Atterrir coûte 1 Énergie de moins', 3, 'III')}
-      {techSlot('Atterrissage sur les planètes seulement', 'Atterrissage aussi sur les lunes', 4, 'IV')}
+      {techSlot(<>1 <PieceSymbol kind="probe" label="Sonde" /> à la fois dans le système solaire</>,
+        <>Jusqu'à 2 <PieceSymbol kind="probe" label="Sonde" /> dans le système solaire</>, 1, 'I')}
+      {techSlot(<>Quitter un champ d'astéroïdes coûte <ResourceSymbols bonus={{ movements: 1 }} /> de plus</>,
+        <><ResourceSymbols bonus={{ media: 1 }} /> en visitant un champ d'astéroïdes, qu'on quitte sans surcoût</>, 2, 'II')}
+      {techSlot(<>Atterrir coûte <ResourceSymbols bonus={{ energy: GAME_CONSTANTS.LAND_COST_ENERGY }} /> (1 de moins avec un orbiteur)</>,
+        <>Atterrir coûte <ResourceSymbols bonus={{ energy: 1 }} /> de moins</>, 3, 'III')}
+      {techSlot(<><PieceSymbol kind="lander" label="Atterrisseur" /> sur les planètes seulement</>,
+        <><PieceSymbol kind="lander" label="Atterrisseur" /> aussi sur les lunes</>, 4, 'IV')}
     </div>
   );
 };
@@ -158,7 +162,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, han
   // Étape du scan sans technologie : effectuée à chaque scan
   const stepTooltip = (title: string, bonus: React.ReactNode) => <ActionTooltip title={title} bonus={bonus} hint="Effectué à chaque scan" />;
   // Étape d'une technologie Observation : pouvoir du scan sans elle, puis ce qu'elle ajoute
-  const obsTooltip = (roman: string, acquired: boolean, base: string, benefit: string) =>
+  const obsTooltip = (roman: string, acquired: boolean, base: React.ReactNode, benefit: React.ReactNode) =>
     <TechTooltip name={`Observation ${roman}`} acquired={acquired} base={base} benefit={benefit} />;
 
   // Étapes du scan (l'action est dans la section Actions), reliées par des lignes de même longueur qui s'arrêtent au bord des cadres ;
@@ -167,7 +171,8 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, han
     <div className="obs-track-container evenly">
       {/* Étape de la Terre : la pastille (sans Observation I) a l'infobulle de l'étape, le cadre celle de la technologie */}
       {(() => {
-        const obs1Tooltip = obsTooltip('I', hasObs1, 'Signal dans le secteur de la Terre', 'Signal dans le secteur de la Terre ou un secteur adjacent');
+        const obs1Tooltip = obsTooltip('I', hasObs1, <><ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.EARTH }] }} /> dans le secteur de la Terre</>,
+          <><ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.EARTH }] }} /> dans le secteur de la Terre ou un secteur adjacent</>);
         return hasObs1
           ? <TrackSlot icon={null} tooltip={obs1Tooltip} techFrame={{ acquired: true, tile: 'observation-1' }} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
           : <TrackSlot icon={<SignalIcon badge="earth" size={30} />} tooltip={stepTooltip('Terre', <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.EARTH }] }} />)}
@@ -176,11 +181,14 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, han
       <div className="obs-track-connector into-left" />
       {renderSlot(<SignalIcon badge="card" size={30} />, stepTooltip('Carte de la rangée', <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.ROW }] }} note="la carte est défaussée" />), false)}
       <div className="obs-track-connector into-right" />
-      {renderSlot(null, obsTooltip('II', hasObs2, 'Pas de signal dans le secteur de Mercure', 'Pour 1 Média, signal dans le secteur de Mercure'), false, undefined, false, false, false, { acquired: hasObs2, tile: 'observation-2' })}
+      {renderSlot(null, obsTooltip('II', hasObs2, <>Pas de <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.MERCURY }] }} /></>,
+        <>Pour <ResourceSymbols bonus={{ media: 1 }} /> : <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.MERCURY }] }} /></>), false, undefined, false, false, false, { acquired: hasObs2, tile: 'observation-2' })}
       <div className="obs-track-connector into-left into-right" />
-      {renderSlot(null, obsTooltip('III', hasObs3, 'Pas de signal pour une carte de la main', 'En défaussant 1 carte de la main, signal dans son secteur'), false, undefined, false, false, false, { acquired: hasObs3, tile: 'observation-3' })}
+      {renderSlot(null, obsTooltip('III', hasObs3, 'Pas de signal pour une carte de la main',
+        <><DiscardSymbol /> : <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.ANY }] }} /> dans le secteur de la carte</>), false, undefined, false, false, false, { acquired: hasObs3, tile: 'observation-3' })}
       <div className="obs-track-connector into-left into-right" />
-      {renderSlot(null, obsTooltip('IV', hasObs4, 'Rien de plus après les signaux', 'Lancer une sonde pour 1 Énergie, ou gagner 1 déplacement'), false, undefined, false, false, false, { acquired: hasObs4, tile: 'observation-4' })}
+      {renderSlot(null, obsTooltip('IV', hasObs4, 'Rien de plus après les signaux',
+        <>Pour <ResourceSymbols bonus={{ energy: 1 }} /> : <PieceSymbol kind="probe" label="Sonde" />, ou <ResourceSymbols bonus={{ movements: 1 }} /></>), false, undefined, false, false, false, { acquired: hasObs4, tile: 'observation-4' })}
     </div>
   );
 };
@@ -412,7 +420,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         cost = <ResourceSymbols bonus={{ energy: GAME_CONSTANTS.ANALYZE_COST_ENERGY }} note="et les données de l'ordinateur" />;
         bonus = <BlueTraceSymbol />;
         action = 'Cliquez pour analyser les données';
-        if (!currentPlayer.dataComputer.canAnalyze) reason = "Nécessite des données à analyser dans l'ordinateur de données";
+        if (!currentPlayer.dataComputer.canAnalyze) reason = "Ligne du haut de l'ordinateur incomplète";
         else if (currentPlayer.energy < 1) reason = `Vous avez ${currentPlayer.energy} énergie`;
         break;
 
@@ -433,15 +441,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
       case ActionType.PLAY_CARD: {
         bonus = 'Les effets de la carte';
         action = 'Cliquez pour jouer une carte de votre main';
-        // Coût variable : fourchette des coûts des cartes en main, par ressource
-        const costRange = (costType: CostType, unit: string) => {
-          const costs = handCards.filter(c => (c.costType === CostType.ENERGY) === (costType === CostType.ENERGY)).map(c => c.cost);
-          if (costs.length === 0) return null;
-          const min = Math.min(...costs), max = Math.max(...costs);
-          return `${min === max ? min : `${min} à ${max}`} ${unit}${max > 1 ? 's' : ''}`;
-        };
-        const ranges = [costRange(CostType.CREDIT, 'Crédit'), costRange(CostType.ENERGY, 'Énergie')].filter(Boolean);
-        cost = <CardCostSymbol note={ranges.length > 0 ? `en main : ${ranges.join(', ')}` : undefined} />;
+        cost = <CardCostSymbol />;
         const cardCheck = CardSystem.canPlayCards(game, currentPlayer.id);
         if (!cardCheck.canPlay) reason = cardCheck.reason || 'Impossible';
         break;

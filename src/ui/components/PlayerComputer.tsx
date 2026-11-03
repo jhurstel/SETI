@@ -1,9 +1,29 @@
 import React from 'react';
-import { Player, ComputerSlot } from '../../core/types';
+import { Player, ComputerSlot, Bonus } from '../../core/types';
 import { ComputerSystem } from '../../systems/ComputerSystem';
 import { PlayerComputerSlot } from './PlayerComputerSlot';
 import { TechSpot } from './TechSpot';
+import { TechTooltip, ResourceSymbols } from './BoardTooltips';
 import './PlayerComputer.css';
+
+/** Gain de la ligne du bas apporté par chaque technologie Informatique (ComputerSystem.assignTechnology) */
+const COMPUTING_BOTTOM: { roman: string; bonus: Bonus }[] = [
+  { roman: 'I', bonus: { credits: 1 } },
+  { roman: 'II', bonus: { card: 1 } },
+  { roman: 'III', bonus: { energy: 1 } },
+  { roman: 'IV', bonus: { media: 2 } },
+];
+
+/** Infobulle d'un emplacement de technologie de l'ordinateur : technologie posée (Informatique I à IV) ou emplacement libre */
+const computingTooltip = (topSlot: ComputerSlot | undefined): React.ReactNode => {
+  const level = topSlot?.technologyId?.match(/^computing-(\d)/)?.[1];
+  const tech = level ? COMPUTING_BOTTOM[Number(level) - 1] : undefined;
+  const benefit = (bottom: React.ReactNode) => <>Haut : <ResourceSymbols bonus={{ pv: 2 }} /> ; bas : {bottom}</>;
+  return tech
+    ? <TechTooltip name={`Informatique ${tech.roman}`} acquired base={null} benefit={benefit(<ResourceSymbols bonus={tech.bonus} />)} />
+    : <TechTooltip name="Informatique" acquired={false} base="Ligne du bas fermée"
+        benefit={benefit(<>{COMPUTING_BOTTOM.map(t => <ResourceSymbols key={t.roman} bonus={t.bonus} />)} selon la technologie</>)} />;
+};
 
 export const PlayerComputer = ({ 
   player, onSlotClick, isSelecting, onColumnSelect, isAnalyzing, disabled, onHover, onLeave
@@ -96,6 +116,8 @@ export const PlayerComputer = ({
               return hasBottom ? (
                 <TechSpot className="computer-column" acquired={hasTech} selectable={isSelectableColumn}
                   tile="computing"
+                  onMouseOver={e => { if (!(e.target as Element).closest('.computer-slot')) onHover(e, computingTooltip(topSlot)); }}
+                  onMouseLeave={onLeave}
                   onClick={() => isSelectableColumn && onColumnSelect && onColumnSelect(col)}>
                   {columnContent}
                 </TechSpot>

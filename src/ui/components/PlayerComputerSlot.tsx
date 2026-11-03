@@ -1,5 +1,6 @@
 import React from 'react';
-import { ComputerSlot } from '../../core/types';
+import { Bonus, ComputerSlot } from '../../core/types';
+import { ResourceSymbols } from './BoardTooltips';
 import { SlotTooltip } from './SlotTooltip';
 import { ReservationIcon } from './ObjectiveSymbol';
 import { ResourceIcon, VictoryPointsIcon } from './GameIcons';
@@ -26,16 +27,13 @@ export const PlayerComputerSlot = ({
   }) => {
     const isFilled = slot.filled;
     
-    let bonusText = '';
     const mediaAmount = slot.technologyId && slot.technologyId.startsWith('computing-4') ? 2 : 1;
-    if (slot.bonus === 'media') {
-      bonusText = `${mediaAmount} Média${mediaAmount > 1 ? 's' : ''}`;
-    }
-    else if (slot.bonus === 'reservation') bonusText = '1 Réservation';
-    else if (slot.bonus === '2pv') bonusText = '2 PV';
-    else if (slot.bonus === 'credit') bonusText = '1 Crédit';
-    else if (slot.bonus === 'energy') bonusText = '1 Énergie';
-    else if (slot.bonus === 'card') bonusText = '1 Carte';
+    // Gain de l'emplacement, en symboles (chacun avec son infobulle)
+    const SLOT_BONUSES: Record<string, Bonus> = {
+      media: { media: mediaAmount }, reservation: { revenue: 1 }, '2pv': { pv: 2 }, credit: { credits: 1 }, energy: { energy: 1 }, card: { card: 1 },
+    };
+    const slotBonus = slot.bonus ? SLOT_BONUSES[slot.bonus] : undefined;
+    const bonusText = slotBonus ? <ResourceSymbols bonus={slotBonus} /> : '';
   
     let state: 'occupied' | 'clickable' | 'unavailable' = 'unavailable';
     if (isFilled) state = 'occupied';

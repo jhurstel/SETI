@@ -1,7 +1,7 @@
 import React from 'react';
 import { Bonus, LifeTraceType } from '../../core/types';
 import { BonusIcons } from './BonusIcons';
-import { ActionHexIcon, PieceIcon, PieceIconKind, ResourceIcon } from './GameIcons';
+import { ActionHexIcon, DiscardCardIcon, PieceIcon, PieceIconKind, ResourceIcon } from './GameIcons';
 import { AnyTechIcon } from './ObjectiveSymbol';
 import { HoverTooltip } from './HoverTooltip';
 import './BoardTooltips.css';
@@ -41,6 +41,11 @@ export const CardCostSymbol: React.FC<{ note?: string }> = ({ note }) => (
   <Symbols note={note}><Sym label="Le coût de la carte jouée, en crédits ou en énergie"><ResourceIcon kind="credit" amount="?" size={20} /></Sym></Symbols>
 );
 
+/** Défausser une carte de la main */
+export const DiscardSymbol: React.FC = () => (
+  <Symbols><Sym label="Défausser une carte"><DiscardCardIcon size={22} /></Sym></Symbols>
+);
+
 /** Bonus de la recherche : une technologie au choix */
 export const TechSymbol: React.FC<{ note?: string }> = ({ note }) => (
   <Symbols note={note}><Sym label="Une technologie au choix, et le bonus de sa tuile"><AnyTechIcon size={24} /></Sym></Symbols>
@@ -74,10 +79,10 @@ export const ActionTooltip: React.FC<{
 export const TechTooltip: React.FC<{
   name: string;
   acquired: boolean;
-  /** Pouvoir sans la technologie */
-  base: string;
-  /** Ce que la technologie apporte */
-  benefit: string;
+  /** Pouvoir sans la technologie (texte et symboles) */
+  base: React.ReactNode;
+  /** Ce que la technologie apporte (texte et symboles) */
+  benefit: React.ReactNode;
 }> = ({ name, acquired, base, benefit }) => (
   <div className="seti-board-tooltip">
     <div className="seti-board-tooltip-title">
@@ -85,8 +90,8 @@ export const TechTooltip: React.FC<{
       <span className={`seti-board-tooltip-badge ${acquired ? 'acquired' : ''}`}>{acquired ? 'Acquise' : 'À rechercher'}</span>
     </div>
     <dl className="seti-board-tooltip-rows">
-      <dt>Pouvoir actuel</dt><dd>{acquired ? benefit : base}</dd>
-      <dt>Bénéfice</dt><dd className="benefit">{benefit}</dd>
+      <dt>Pouvoir actuel</dt><dd className="inline">{acquired ? benefit : base}</dd>
+      <dt>Bénéfice</dt><dd className="benefit inline">{benefit}</dd>
     </dl>
   </div>
 );
