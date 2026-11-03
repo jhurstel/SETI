@@ -455,6 +455,21 @@ export class DataLoader {
         const parts = passive.split(':');
         effects.push({ type: 'LAND_BONUS', target: parts[1], value: `${parts[2]}:${parts[3]}` });
       }
+      // Défausser 1 Token pour un gain, pendant l'action de la carte : GAIN_ON_TOKEN:<gain>:<valeur> une fois (ET.24, ET.28),
+      // GAIN_ON_TOKEN_AND_LAND:<gain>:<valeur> autant de fois que voulu, puis 1 Atterrissage (ET.25)
+      else if (passive.startsWith('GAIN_ON_TOKEN:') || passive.startsWith('GAIN_ON_TOKEN_AND_LAND:')) {
+        const parts = passive.split(':');
+        if (parts.length === 3) {
+          effects.push({ type: parts[0] === 'GAIN_ON_TOKEN' ? 'DISCARD_TOKEN_FOR' : 'DISCARD_TOKENS_THEN_LAND', target: parts[1], value: parseInt(parts[2], 10) });
+        }
+      }
+      // Gain pour chaque signal marqué sur Oumuamua pendant l'action de la carte (ET.21), ou pour le premier (GAIN_ON_FIRST_SIGNAL, ET.22)
+      else if (passive.startsWith('GAIN_ON_SIGNAL:oumuamua:') || passive.startsWith('GAIN_ON_FIRST_SIGNAL:oumuamua:')) {
+        const parts = passive.split(':');
+        if (parts.length === 4) {
+          effects.push({ type: 'OUMUAMUA_SIGNAL_BONUS', target: parts[0] === 'GAIN_ON_SIGNAL' ? 'each' : 'first', value: `${parts[2]}:${parts[3]}` });
+        }
+      }
       else if (passive === 'GAIN_LANDING_AND_SPECIMEN') {
         effects.push({ type: 'GAIN_LANDING_AND_SPECIMEN', value: true });
       }
@@ -600,7 +615,7 @@ export class DataLoader {
           if (parts[1] === 'yellow') effects.push({ type: 'GAIN_ON_YELLOW_SIGNAL', target: parts[2], value: permanent });
           else if (parts[1] === 'red') effects.push({ type: 'GAIN_ON_RED_SIGNAL', target: parts[2], value: permanent });
           else if (parts[1] === 'blue') effects.push({ type: 'GAIN_ON_BLUE_SIGNAL', target: parts[2], value: permanent });
-          else if (parts[1] === 'oumuamua') effects.push({ type: 'GAIN_ON_OUMUAMUA_SIGNAL', target: parts[2], value: permanent });
+          // oumuamua : gain de la carte pendant son action (OUMUAMUA_SIGNAL_BONUS, voir parsePassiveEffects)
         }
       }
 
@@ -658,22 +673,6 @@ export class DataLoader {
           if (parts[1] === 'media') effects.push({ type: 'GAIN_ON_DISCARD_MEDIA', target: parts[2], value: permanent });
           else if (parts[1] === 'data') effects.push({ type: 'GAIN_ON_DISCARD_DATA', target: parts[2], value: permanent });
           else if (parts[1] === 'move') effects.push({ type: 'GAIN_ON_DISCARD_MOVE', target: parts[2], value: permanent });
-        }
-      }
-
-      // Gestion du format GAIN_ON_TOKEN:target:value
-      else if (permanent.startsWith('GAIN_ON_TOKEN:')) {
-        const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_TOKEN', target: parts[1], value: permanent });
-        }
-      }
-
-      // Gestion du format GAIN_ON_TOKEN_AND_LAND:target:value
-      else if (permanent.startsWith('GAIN_ON_TOKEN_AND_LAND:')) {
-        const parts = permanent.split(':');
-        if (parts.length === 3) {
-          effects.push({ type: 'GAIN_ON_TOKEN_AND_LAND', target: parts[1], value: permanent });
         }
       }
 

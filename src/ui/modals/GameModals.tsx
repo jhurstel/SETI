@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { InteractionState, Game, AlienBoardType, FinalScore } from '../../core/types';
+import { InteractionState, Game, AlienBoardType, FinalScore, HistoryEntry } from '../../core/types';
+import { HistoryList } from '../HistoryBoardUI';
 import { ScoreManager } from '../../core/ScoreManager';
 import { ResourceSystem } from '../../systems/ResourceSystem';
 import { CardSystem } from '../../systems/CardSystem';
@@ -178,6 +179,14 @@ export const Observation3Modal = ({ onChoice }: { onChoice: (accepted: boolean) 
   </ChoiceModal>
 );
 
+/** Défausser 1 Token pour le gain d'une carte (ET.24, ET.25, ET.28) ; ET.25 revient tant qu'il reste des tokens */
+export const TokenDiscardModal = ({ interaction, tokens, onChoice }: { interaction: Extract<InteractionState, { type: 'DISCARDING_TOKEN' }>, tokens: number, onChoice: (accepted: boolean) => void }) => (
+  <ChoiceModal title={interaction.cardName} subtitle={`Défausser 1 Token pour gagner ${interaction.rewardText} ? (${tokens} Token${tokens > 1 ? 's' : ''})`}>
+    <ChoiceOption icon={<ResourceIcon kind="token" size={22} />} label="Défausser 1 Token" detail={`+${interaction.rewardText}`} onClick={() => onChoice(true)} disabled={tokens < 1} disabledReason="Aucun token" />
+    <ChoiceOption icon="✋" label={interaction.then ? 'Arrêter et gagner 1 Atterrissage' : 'Non'} onClick={() => onChoice(false)} />
+  </ChoiceModal>
+);
+
 export const Observation4Modal = ({ onChoice, canLaunch, canMove }: { onChoice: (choice: 'PROBE' | 'MOVE') => void, canLaunch: boolean, canMove: boolean }) => (
   <ChoiceModal title="Observation IV" subtitle="Choisissez votre bonus.">
     <ChoiceOption icon={<ActionHexIcon kind="launch" size={26} />} label="Lancer une sonde" detail="−1 Énergie" onClick={() => onChoice('PROBE')} disabled={!canLaunch} disabledReason="Pas assez d'énergie ou limite de sondes atteinte" />
@@ -293,7 +302,8 @@ const totalTooltip = (score: FinalScore) => {
   return <ScoreTable title="Score final" rows={rows} total={pv(score.finalScore)} />;
 };
 
-export const EndGameModal = ({ game }: { game: Game }) => {
+/** Fenêtre de fin de partie : décompte final, puis l'historique complet de la partie (défilant) */
+export const EndGameModal = ({ game, historyLog, setActiveTooltip }: { game: Game, historyLog: HistoryEntry[], setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void }) => {
   // Décompte calculé une fois par le moteur (TurnManager.endRound → ScoreManager.applyFinalScoring).
   // Anciennes sauvegardes sans décompte enregistré : seul le score final est connu.
   const emptyCategories = { missionEndGame: 0, objectiveTiles: 0, speciesBonuses: 0, exertienCards: 0, total: 0 };
@@ -343,6 +353,13 @@ export const EndGameModal = ({ game }: { game: Game }) => {
               <div className="col-total"><HoverTooltip content={totalTooltip(score)}>{score.finalScore}</HoverTooltip></div>
             </div>
           ))}
+        </div>
+
+        <div className="seti-endgame-history">
+          <div className="seti-endgame-history-title">Historique de la partie</div>
+          <div className="seti-endgame-history-content">
+            <HistoryList historyLog={historyLog} game={game} setActiveTooltip={setActiveTooltip} />
+          </div>
         </div>
 
         <button className="seti-endgame-btn" onClick={() => window.location.reload()}>

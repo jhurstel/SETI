@@ -20,6 +20,8 @@ export interface PlayCardContext {
   extraInteractions: InteractionState[];
   /** Noms des cartes de la rangée prises en main (ET.16) */
   takenRowCards: string[];
+  /** Séquence de l'action de la carte (effets limités à cette action) */
+  sequenceId: string;
 }
 
 /** Couleur de trace de vie d'un paramètre de carte (red, yellow, blue ; sinon n'importe laquelle) */
@@ -72,6 +74,17 @@ export function addImmediateEffects(effects: CardEffect[] | undefined, bonuses: 
 
 type PassiveHandler = (ctx: PlayCardContext, effect: CardEffect) => void;
 
+/** Gain d'un Token défaussé (GAIN_ON_TOKEN…:<gain>:<valeur>) : Déplacements, Donnée ou Signal dans n'importe quel secteur */
+function tokenDiscard(card: Card, effect: CardEffect): Extract<InteractionState, { type: 'DISCARDING_TOKEN' }> {
+  const amount = effectNumber(effect);
+  const plural = amount > 1 ? 's' : '';
+  const [reward, rewardText]: [Bonus, string] =
+    effect.target === 'move' ? [{ movements: amount }, `${amount} Déplacement${plural}`]
+    : effect.target === 'anysignal' ? [{ signals: [{ amount, scope: SectorType.ANY }] }, `${amount} Signal dans n'importe quel secteur`]
+    : [{ data: amount }, `${amount} Donnée${plural}`];
+  return { type: 'DISCARDING_TOKEN', reward, rewardText, cardId: card.id, cardName: card.name };
+}
+
 /** Effets qui restent actifs pour le reste du tour (ou de la partie) : ajoutés aux buffs du joueur */
 const BUFF_EFFECTS = [
   'VISIT_UNIQUE', 'ASTEROID_EXIT_COST', 'VISIT_ASTEROID', 'VISIT_COMET', 'SAME_DISK_MOVE',
@@ -102,6 +115,18 @@ const FLAG_EFFECTS: Record<string, (bonuses: Bonus, effect: CardEffect) => void>
 };
 
 const PASSIVE_HANDLERS: Record<string, PassiveHandler> = {
+  // Défausser 1 Token pour un gain (ET.24, ET.28), autant de fois que voulu puis 1 Atterrissage (ET.25) : proposé s'il a des tokens
+  'DISCARD_TOKEN_FOR': ({ player, card, extraInteractions }, effect) => {
+    if (player.tokens) extraInteractions.push(tokenDiscard(card, effect));
+  },
+  'DISCARD_TOKENS_THEN_LAND': ({ player, card, bonuses, extraInteractions }, effect) => {
+    if (player.tokens) extraInteractions.push({ ...tokenDiscard(card, effect), repeat: true, then: { landing: 1 } });
+    else add(bonuses, 'landing', 1);
+  },
+  // Gain par signal marqué sur Oumuamua pendant l'action de la carte (ScanSystem.performSignalAndCover)
+  'OUMUAMUA_SIGNAL_BONUS': ({ player, card, sequenceId }, effect) => {
+    player.activeBuffs.push({ ...effect, source: card.name, sequenceId });
+  },
   'VISIT_BONUS': ({ player, card, bonuses }, effect) => {
     // Si la planète a DÉJÀ été visitée ce tour-ci, le bonus s'applique immédiatement (PV ajoutés par
     // processBonuses), sinon pour le reste du tour

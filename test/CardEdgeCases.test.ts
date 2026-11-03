@@ -201,6 +201,18 @@ describe('Cartes : cas limites et refus', () => {
       expect((res.updatedGame.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly')).toHaveLength(3);
     });
 
+    test('palier neutre atteint sans emplacement libre : aucune trace, le palier est noté dans l\'historique', () => {
+      game.board.alienBoards.forEach(board => {
+        board.lifeTraces = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE].map(type => ({ id: `t-${type}`, type, playerId: P1 }));
+      });
+      expect(SpeciesSystem.placeNeutralMilestone(game, milestone()).code).toBe('NO_SPACE');
+
+      getPlayer(game, P1).score = milestone();
+      const res = ScoreManager.checkScoreMilestones(game, P1);
+      expect(res.historyEntries.map(e => e.message)).toContain(`a atteint le palier neutre ${milestone()} PV mais aucun emplacement libre sur les plateaux Alien.`);
+      expect(res.updatedGame.board.alienBoards.every(b => b.lifeTraces.length === 3)).toBe(true);
+    });
+
     test('le marqueur neutre fait découvrir les Exertiens : deux paliers apparaissent', () => {
       almostDiscovered(AlienBoardType.EXERTIENS);
       const best = Math.max(...game.players.map(p => p.score));

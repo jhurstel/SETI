@@ -33,16 +33,8 @@ interface HistoryBoardUIProps {
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
 
-export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game, onUndo, onUndoTurn, setActiveTooltip }) => {
-    const [isHistoryOpen, setIsHistoryOpen] = useState(true);
-    const historyContentRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (historyContentRef.current) {
-            historyContentRef.current.scrollTo({ top: historyContentRef.current.scrollHeight, behavior: 'smooth' });
-        }
-    }, [historyLog]);
-
+/** Entrées de l'historique, indentées sous leur action (panneau de la partie, fenêtre de fin de partie) */
+export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'game' | 'setActiveTooltip'>> = ({ historyLog, game, setActiveTooltip }) => {
     const findCardByName = useCallback((name: string): Card | undefined => {
         if (!name) return undefined;
         const cleanName = name.trim();
@@ -287,6 +279,74 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         childParents.push(isChild ? headPlayer : undefined);
     });
 
+    return (
+        <div className="seti-history-list">
+            {historyLog.length === 0 && <div className="seti-history-empty">Aucune action</div>}
+            {historyLog.map((entry, index) => {
+                if (entry.message.startsWith('---')) {
+                    return (
+                        <div key={entry.id} className="seti-history-separator">
+                            <div className="seti-history-separator-line"></div>
+                            <div className="seti-history-separator-text">{entry.message.replace(/---/g, '').trim()}</div>
+                            <div className="seti-history-separator-line"></div>
+                        </div>
+                    );
+                }
+
+                const isSequenceChild = childFlags[index];
+
+                let player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
+                if (!player) {
+                    player = game.players.find(p => entry.message.startsWith(p.name));
+                }
+
+                const color = player ? (player.color || '#ccc') : '#ccc';
+                return (
+                    <div key={entry.id} className={`seti-history-item ${isSequenceChild ? 'child' : ''}`} style={{
+                        borderLeft: `3px solid ${color}`,
+                    }}>
+                        {isSequenceChild && (
+                            <div className="seti-history-sequence-indicator">↳</div>
+                        )}
+                        <div className="seti-history-message">
+                            <span className={`seti-history-text ${isSequenceChild ? 'child' : ''}`}>
+                                {/* Conséquence d'une action du même joueur : son nom n'est pas répété */}
+                                {isSequenceChild && player && entry.playerId === childParents[index] ? (
+                                    formatHistoryMessage(entry.message.startsWith(player.name) ? entry.message.substring(player.name.length).trimStart() : entry.message)
+                                ) : player ? (
+                                    entry.message.startsWith(player.name) ? (
+                                        <>
+                                            <strong style={{ color: color }}>{player.name}</strong>
+                                            {formatHistoryMessage(entry.message.substring(player.name.length))}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <strong style={{ color: color }}>{player.name} </strong>
+                                            {formatHistoryMessage(entry.message)}
+                                        </>
+                                    )
+                                ) : (
+                                    formatHistoryMessage(entry.message)
+                                )}
+                            </span>
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
+export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game, onUndo, onUndoTurn, setActiveTooltip }) => {
+    const [isHistoryOpen, setIsHistoryOpen] = useState(true);
+    const historyContentRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (historyContentRef.current) {
+            historyContentRef.current.scrollTo({ top: historyContentRef.current.scrollHeight, behavior: 'smooth' });
+        }
+    }, [historyLog]);
+
     const lastEntry = historyLog.length > 0 ? historyLog[historyLog.length - 1] : null;
     const canUndo = lastEntry && !lastEntry.message.startsWith('---') && (
         !!lastEntry.previousState || 
@@ -325,60 +385,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                     )}
                 </div>
                 <div className="seti-foldable-content seti-history-content" ref={historyContentRef}>
-                    <div className="seti-history-list">
-                        {historyLog.length === 0 && <div className="seti-history-empty">Aucune action</div>}
-                        {historyLog.map((entry, index) => {
-                            if (entry.message.startsWith('---')) {
-                                return (
-                                    <div key={entry.id} className="seti-history-separator">
-                                        <div className="seti-history-separator-line"></div>
-                                        <div className="seti-history-separator-text">{entry.message.replace(/---/g, '').trim()}</div>
-                                        <div className="seti-history-separator-line"></div>
-                                    </div>
-                                );
-                            }
-
-                            const isSequenceChild = childFlags[index];
-
-                            let player = entry.playerId ? game.players.find(p => p.id === entry.playerId) : null;
-                            if (!player) {
-                                player = game.players.find(p => entry.message.startsWith(p.name));
-                            }
-
-                            const color = player ? (player.color || '#ccc') : '#ccc';
-                            return (
-                                <div key={entry.id} className={`seti-history-item ${isSequenceChild ? 'child' : ''}`} style={{
-                                    borderLeft: `3px solid ${color}`,
-                                }}>
-                                    {isSequenceChild && (
-                                        <div className="seti-history-sequence-indicator">↳</div>
-                                    )}
-                                    <div className="seti-history-message">
-                                        <span className={`seti-history-text ${isSequenceChild ? 'child' : ''}`}>
-                                            {/* Conséquence d'une action du même joueur : son nom n'est pas répété */}
-                                            {isSequenceChild && player && entry.playerId === childParents[index] ? (
-                                                formatHistoryMessage(entry.message.startsWith(player.name) ? entry.message.substring(player.name.length).trimStart() : entry.message)
-                                            ) : player ? (
-                                                entry.message.startsWith(player.name) ? (
-                                                    <>
-                                                        <strong style={{ color: color }}>{player.name}</strong>
-                                                        {formatHistoryMessage(entry.message.substring(player.name.length))}
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <strong style={{ color: color }}>{player.name} </strong>
-                                                        {formatHistoryMessage(entry.message)}
-                                                    </>
-                                                )
-                                            ) : (
-                                                formatHistoryMessage(entry.message)
-                                            )}
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                    <HistoryList historyLog={historyLog} game={game} setActiveTooltip={setActiveTooltip} />
                 </div>
             </div>
         </div>

@@ -468,6 +468,8 @@ export interface CardEffect {
   value: CardEffectValue;
   target?: string;
   source?: string;
+  /** Effet limité à l'action de la carte (buff actif) : séquence de cette action */
+  sequenceId?: string;
 }
 
 export interface Mission {
@@ -741,6 +743,8 @@ type InteractionStateVariant =
   | { type: 'CHOOSING_EXERTIEN_CARD', milestone: number, sequenceId?: string }
   /** Carte de la pile de fin de manche `round`, choisie après avoir passé (la pile est cachée jusque-là) */
   | { type: 'CHOOSING_ROUND_CARD', round: number, playerId: string, sequenceId?: string }
+  /** Défausser 1 Token pour le gain d'une carte (ET.24, ET.25, ET.28) : `repeat` tant qu'il reste des tokens, `then` gagné en arrêtant */
+  | { type: 'DISCARDING_TOKEN', reward: Bonus, rewardText: string, repeat?: boolean, then?: Bonus, cardId: string, cardName: string, playerId?: string, sequenceId?: string }
   /**
    * Missions déclenchées pendant le tour d'un autre joueur : le joueur recouvre un des cercles `options`
    * (un seul, toutes cartes confondues) ou y renonce.
@@ -789,6 +793,7 @@ export const getInteractionLabel = (state: InteractionState): string => {
       ? "Défaussez une des cartes piochées pour son action gratuite."
       : "Défaussez une autre des cartes piochées pour gagner la ressource de son revenu.";
     case 'CHOOSING_ROUND_CARD': return `Choisissez une carte de fin de manche ${state.round}.`;
+    case 'DISCARDING_TOKEN': return `Défausser 1 Token pour gagner ${state.rewardText} ("${state.cardName}") ?`;
     case 'CHOOSING_EXERTIEN_CARD': return state.milestone === 0
       ? 'Découverte des Exertiens : vous pouvez jouer une carte Exertien.'
       : `Palier Exertien (${state.milestone} PV) : vous pouvez jouer une carte Exertien.`;

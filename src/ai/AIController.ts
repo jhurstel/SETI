@@ -142,6 +142,25 @@ export class AIController {
         return best!.result;
     }
 
+    /**
+     * Défausse d'un Token pour le gain d'une carte (ET.24, ET.25, ET.28) : le robot simule la défausse (et ses suites, dont
+     * les défausses suivantes d'ET.25) et le renoncement, et garde la meilleure position évaluée
+     */
+    static bestTokenDiscard(game: Game, player: Player, interaction: Extract<InteractionState, { type: 'DISCARDING_TOKEN' }>, sequenceId: string): AIControllerResult {
+        const options = requirePlayer(game, player.id).tokens ? [true, false] : [false];
+        let best: { result: AIControllerResult; value: number } | null = null;
+        for (const accepted of options) {
+            const chosen = InteractionChoices.discardToken(game, player.id, { ...interaction, sequenceId }, accepted);
+            const queue = chosen.nextInteraction ? [...chosen.newPendingInteractions, chosen.nextInteraction] : chosen.newPendingInteractions;
+            const followUp = this.processInteractionQueue(chosen.updatedGame, queue, sequenceId, player);
+            const value = AIEvaluator.evaluate(followUp.updatedGame, player.id);
+            if (!best || value > best.value) {
+                best = { value, result: { ...followUp, historyEntries: [...chosen.historyEntries, ...followUp.historyEntries] } };
+            }
+        }
+        return best!.result;
+    }
+
     /** Mission déclenchée hors de son tour : recouvre le cercle (ou aucun) qui donne la meilleure position évaluée */
     static bestMissionRequirement(game: Game, player: Player, interaction: Extract<InteractionState, { type: 'CHOOSING_MISSION_REQUIREMENT' }>, sequenceId: string): AIControllerResult {
         const options: ({ missionId: string; requirementId: string } | undefined)[] = [...interaction.options, undefined];
@@ -320,6 +339,13 @@ export class AIController {
                     historyEntries.push(...res.historyEntries);
                     newPendingInteractions.push(...res.newPendingInteractions);
                 }
+                break;
+            }
+            case 'DISCARDING_TOKEN': {
+                const res = this.bestTokenDiscard(updatedGame, player, interaction, sequenceId);
+                updatedGame = res.updatedGame;
+                historyEntries.push(...res.historyEntries.map(e => ({ ...e, sequenceId })));
+                newPendingInteractions.push(...res.newPendingInteractions);
                 break;
             }
             case 'CHOOSING_MISSION_REQUIREMENT': {

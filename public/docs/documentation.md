@@ -147,7 +147,7 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 
 ### 2.8 Fin de partie
 
-À la fin de la 5ᵉ manche, le décompte final ajoute : tuiles objectif, cartes Fin de partie, cartes Exertiens jouées, puis retire la pénalité de danger (Exertiens). Le détail s'affiche sur l'écran de fin.
+À la fin de la 5ᵉ manche, le décompte final ajoute : tuiles objectif, cartes Fin de partie, cartes Exertiens jouées, puis retire la pénalité de danger (Exertiens). Le détail s'affiche sur l'écran de fin, suivi de l'historique complet de la partie (défilant).
 
 ## 3. Les espèces Alien
 
@@ -190,6 +190,8 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 - L'astéroïde entre dans le système solaire : c'est une **planète** (orbite et atterrissage possibles) avec son propre secteur de 3 signaux (1 PV, rien, 2 PV).
 - Couvrir son secteur rapporte des **jetons** Oumuamua, dépensés sur la piste (25 PV pour 4 jetons sur la 1re case).
 - Emplacement infini : 6 PV pour 1 jeton.
+- Cartes qui défaussent des jetons : une fenêtre propose « Défausser 1 Token » ou d'y renoncer. *Échantillons d'Exofossiles* : 1 Donnée ; *Cartographie du Terrain* : 1 signal dans n'importe quel secteur ; *Adaptation des Sondes* : 2 Déplacements, autant de fois que voulu, puis 1 Atterrissage (en arrêtant, ou quand il n'y a plus de jeton). Les robots simulent la défausse et le renoncement et gardent le meilleur.
+- *Visiteur Céleste* (2 PV par signal) et *Modification de Trajectoire* (1 jeton au premier signal) ne comptent que les signaux marqués sur Oumuamua pendant l'action de la carte.
 
 ### 3.5 Centauriens
 

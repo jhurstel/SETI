@@ -67,6 +67,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       { icon: <SignalGainIcon badge="deck" size={26} />, name: 'Signal de la pioche', text: 'Dans le secteur de la carte révélée en haut de la pioche.' },
       { icon: <SignalGainIcon badge="probe" size={26} />, name: 'Signal d\'une sonde', text: 'Dans le secteur d\'une de vos sondes.' },
       { icon: <span className="seti-glossary-icons"><SignalGainIcon badge="mercury" size={26} /><SignalGainIcon badge="mars" size={26} /><SignalGainIcon badge="jupiter" size={26} /></span>, name: 'Signal d\'une planète', text: 'Dans le secteur de cette planète.' },
+      { icon: <SignalGainIcon badge="oumuamua" size={26} />, name: 'Signal Oumuamua', text: 'Sur la tuile d\'Oumuamua, ou dans le secteur où il se trouve.' },
       { icon: <RowCardIcon size={24} />, name: 'Carte de la rangée', text: 'Une des 3 cartes face visible.' },
     ],
   },

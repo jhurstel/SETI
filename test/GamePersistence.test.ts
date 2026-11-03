@@ -1,7 +1,8 @@
 import { serializeGame, deserializeGame, SAVE_VERSION, SaveVersionError } from '../src/core/GamePersistence';
 import { cloneGame } from '../src/core/cloneGame';
 import { Game, HistoryEntry } from '../src/core/types';
-import { createTestGame } from './helpers/gameFixture';
+import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
+import { CardSystem } from '../src/systems/CardSystem';
 
 describe('GamePersistence', () => {
   let game: Game;
@@ -25,6 +26,29 @@ describe('GamePersistence', () => {
     expect(restored.decks).toEqual(game.decks);
     expect(historyLog.map(e => e.message)).toEqual(['a', 'b']);
     expect(historyLog[0].previousInteractionState).toEqual({ type: 'IDLE' });
+  });
+
+  test('format 2 : les cartes Oumuamua à jetons et à signal reçoivent leur effet (ET.25 en main, mission ET.21 en jeu)', () => {
+    const player = getPlayer(game, 'player_0');
+    player.cards.push(makeCard('ET.25', { cost: 1, permanentEffects: [{ type: 'GAIN_ON_TOKEN_AND_LAND', target: 'move', value: 'GAIN_ON_TOKEN_AND_LAND:move:1' }] }));
+    player.missions.push({
+      id: 'm', cardId: 'ET.21', name: 'Visiteur Céleste', description: '', ownerId: player.id, completedRequirementIds: [], fulfillableRequirementIds: [], completed: false,
+      requirements: [{ id: 'mission-ET.21-req-0', type: 'GAIN_ON_OUMUAMUA_SIGNAL', value: 'x' }, { id: 'mission-ET.21-req-1', type: 'GAIN_IF_PAY_FOR_LIFETRACE', value: 'y' }],
+    });
+    player.permanentBuffs.push({ id: 'mission-ET.21-req-0', type: 'GAIN_ON_OUMUAMUA_SIGNAL', value: 'x', source: 'Visiteur Céleste' });
+    player.tokens = 1;
+    player.credits = 5;
+    const saved = { ...serializeGame(game, []), saveVersion: 2 };
+
+    const { game: restored } = deserializeGame(JSON.stringify(saved));
+    const p = getPlayer(restored, 'player_0');
+    const card = p.cards.find(c => c.id === 'ET.25')!;
+    expect(card.permanentEffects).toEqual([]);
+    expect(card.passiveEffects).toContainEqual({ type: 'DISCARD_TOKENS_THEN_LAND', target: 'move', value: 2 });
+    expect(p.missions[0].requirements.map(r => r.type)).toEqual(['GAIN_IF_PAY_FOR_LIFETRACE']);
+    expect(p.permanentBuffs.some(b => b.type === 'GAIN_ON_OUMUAMUA_SIGNAL')).toBe(false);
+    // La carte jouée propose maintenant la défausse de jetons
+    expect(CardSystem.playCard(restored, 'player_0', 'ET.25').newPendingInteractions).toContainEqual(expect.objectContaining({ type: 'DISCARDING_TOKEN' }));
   });
 
   test('retire l\'historique d\'annulation du moteur des anciennes sauvegardes', () => {

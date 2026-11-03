@@ -194,7 +194,7 @@ export const EndTurnIcon: React.FC<{ size?: number }> = ({ size = 28 }) => {
 /* Signal (livret p. 12) : disque gris à barres sonores */
 /* ---------------------------------------------------- */
 
-export type SignalBadge = 'earth' | 'card' | 'mercury' | 'discard' | 'deck' | 'probe' | 'venus' | 'mars' | 'jupiter' | 'saturn';
+export type SignalBadge = 'earth' | 'card' | 'mercury' | 'discard' | 'deck' | 'probe' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'oumuamua';
 
 /** Planète simple (badge de signal) : disque coloré, bandes pour Jupiter, anneau pour Saturne */
 const PlanetBadge: React.FC<{ fill: string; bands?: boolean; ring?: boolean }> = ({ fill, bands, ring }) => (
@@ -261,6 +261,14 @@ const signalBadge = (badge: SignalBadge): React.ReactNode => {
       return <PlanetBadge fill="#e0b080" bands />;
     case 'saturn':
       return <PlanetBadge fill="#e0c06a" ring />;
+    case 'oumuamua':
+      // Oumuamua : rocher brun allongé, en diagonale (comme sur le plateau)
+      return (
+        <g transform="translate(20 20) rotate(-35)">
+          <ellipse rx={17} ry={6} fill="#6d4c41" stroke="#0b0f1e" strokeWidth={1.5} />
+          <ellipse cx={-4} cy={-1.5} rx={6} ry={2} fill="#8d6e63" />
+        </g>
+      );
     case 'discard':
       // Carte défaussée : carte barrée d'une croix rouge
       return (

@@ -182,6 +182,13 @@ describe('CardSystem', () => {
   });
 
   describe('playCard', () => {
+    test('jouer une carte sans assez de crédits est refusé', () => {
+      const player = getPlayer(game, P1);
+      player.cards = [makeCard('chere', { cost: 3 })];
+      player.credits = 2;
+      expect(new PlayCardAction(P1, 'chere').validate(game)).toEqual(expect.objectContaining({ valid: false, errors: [expect.objectContaining({ code: 'INSUFFICIENT_CREDITS' })] }));
+    });
+
     test("les interactions d'une carte jouée (technologie) appartiennent à la séquence de la carte (historique indenté)", async () => {
       const fetchSpy = mockFetchFromPublic();
       const card = (await DataLoader.loadCards('cards/main.csv')).find(c => c.id === '61')!;

@@ -1,4 +1,4 @@
-import { effectNumber } from '../core/cardEffects';
+import { effectNumber, effectString } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
 import { Game, Sector, Bonus, SignalType, GAME_CONSTANTS, InteractionState, ProbeState, HistoryEntry, SectorType, RuleCheck } from '../core/types';
 import { getObjectPosition, createRotationState, calculateAbsolutePosition, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
@@ -476,6 +476,21 @@ export class ScanSystem {
       });
       if (hasFulfillable) {
         historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId});
+      }
+    }
+
+    // Gains d'une carte pour un signal marqué sur Oumuamua pendant son action (ET.21 : chaque signal, ET.22 : le premier)
+    if (sectorId === 'oumuamua') {
+      const signalBuffs = requirePlayer(updatedGame, playerId).activeBuffs.filter(buff => buff.type === 'OUMUAMUA_SIGNAL_BONUS' && buff.sequenceId === sequenceId);
+      for (const buff of signalBuffs) {
+        const reward = CardSystem.parseRewards(effectString(buff).split(':'));
+        const res = ResourceSystem.processBonuses(reward, updatedGame, playerId, 'scan', sequenceId);
+        updatedGame = res.updatedGame;
+        historyEntries.push({ message: `gagne ${ResourceSystem.formatBonus(reward)!.join(', ')} ("${buff.source}")`, playerId, sequenceId });
+        if (buff.target === 'first') {
+          const player = requirePlayer(updatedGame, playerId);
+          player.activeBuffs = player.activeBuffs.filter(b => !(b.type === buff.type && b.source === buff.source && b.sequenceId === buff.sequenceId));
+        }
       }
     }
 

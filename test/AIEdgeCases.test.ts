@@ -161,6 +161,14 @@ describe('Robots : cas limites', () => {
     });
   });
 
+  test('robot Débutant : une action impossible à jouer est ignorée (il passe)', () => {
+    const player = getPlayer(game, P1);
+    player.aiDifficulty = 'EASY';
+    const spy = jest.spyOn(AIBehavior, 'listMainActions').mockReturnValue([{ action: 'INCONNUE' } as never]);
+    expect(AITurn['chooseEasyMainAction'](game, player)).toBeNull();
+    spy.mockRestore();
+  });
+
   test('achat d\'une carte : sans pioche, seules les cartes de la rangée sont proposées', () => {
     const player = getPlayer(game, P1);
     player.mediaCoverage = 5;

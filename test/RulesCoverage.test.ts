@@ -255,12 +255,12 @@ describe('Règles du moteur peu couvertes', () => {
   });
 
   test('getInteractionLabel : un libellé pour chaque interaction', () => {
-    const sample = { count: 2, color: LifeTraceType.RED, milestone: 25, tech: { shorttext: 'Tech' }, categories: [TechnologyCategory.EXPLORATION], targetGain: 'credit', value: 1, effectType: 'X', choices: [], selectedCards: [] };
+    const sample = { count: 2, color: LifeTraceType.RED, milestone: 25, tech: { shorttext: 'Tech' }, categories: [TechnologyCategory.EXPLORATION], targetGain: 'credit', value: 1, effectType: 'X', choices: [], selectedCards: [], rewardText: '1 Donnée', cardName: 'Carte', round: 2 };
     const types: InteractionState['type'][] = ['IDLE', 'RESERVING_CARD', 'DISCARDING_CARD', 'TRADING_CARD', 'ACQUIRING_CARD', 'MOVING_PROBE', 'ORBITING_PROBE', 'LANDING_PROBE',
       'ACQUIRING_TECH', 'SELECTING_COMPUTER_SLOT', 'ANALYZING', 'PLACING_LIFE_TRACE', 'PLACING_OBJECTIVE_MARKER', 'SELECTING_SCAN_CARD', 'SELECTING_SCAN_SECTOR',
       'CHOOSING_MEDIA_OR_MOVE', 'CHOOSING_OBS2_ACTION', 'CHOOSING_OBS3_ACTION', 'CHOOSING_OBS4_ACTION', 'DISCARDING_FOR_SIGNAL', 'REMOVING_ORBITER', 'REMOVING_LANDER',
       'CHOOSING_BONUS_ACTION', 'RESOLVING_SECTOR', 'TRIGGER_CARD_EFFECT', 'DRAW_AND_SCAN', 'CLAIMING_MISSION_REQUIREMENT', 'ACQUIRING_ALIEN_CARD',
-      'CHOOSING_CENTAURIEN_REWARD', 'COLLECTING_SPECIMEN', 'CONSULTING_SPECIMEN', 'CHOOSING_EXERTIEN_CARD', 'CHOOSING_MISSION_REQUIREMENT', 'DISCARDING_DRAWN_CARD'];
+      'CHOOSING_CENTAURIEN_REWARD', 'COLLECTING_SPECIMEN', 'CONSULTING_SPECIMEN', 'CHOOSING_EXERTIEN_CARD', 'CHOOSING_MISSION_REQUIREMENT', 'DISCARDING_DRAWN_CARD', 'DISCARDING_TOKEN', 'CHOOSING_ROUND_CARD'];
 
     types.forEach(type => {
       const label = getInteractionLabel({ ...sample, type } as unknown as InteractionState);

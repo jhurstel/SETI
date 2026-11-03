@@ -358,6 +358,10 @@ export class GameSession {
         if (choice.kind !== 'MISSION') return wrong();
         result = InteractionChoices.chooseMissionRequirement(base, playerId, active, choice.missionId, choice.requirementId);
         break;
+      case 'DISCARDING_TOKEN':
+        if (choice.kind !== 'ACCEPT') return wrong();
+        result = InteractionChoices.discardToken(base, playerId, active, choice.accepted);
+        break;
       case 'CHOOSING_OBS2_ACTION':
         if (choice.kind !== 'ACCEPT') return wrong();
         result = InteractionChoices.observation2(base, playerId, active, choice.accepted);

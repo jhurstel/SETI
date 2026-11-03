@@ -2,6 +2,7 @@ import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { CardSystem } from '../src/systems/CardSystem';
 import { ScoreManager } from '../src/core/ScoreManager';
 import { DataLoader } from '../src/core/DataLoader';
+import { AIController } from '../src/ai/AIController';
 import { deserializeGame, serializeGame } from '../src/core/GamePersistence';
 import { AlienBoardType, Card, Game, LifeTraceType, RevenueType } from '../src/core/types';
 import { createTestGame, getPlayer, mockFetchFromPublic } from './helpers/gameFixture';
@@ -54,6 +55,17 @@ describe('Centauriens', () => {
       expect(kept).toHaveLength(1);
       expect(kept[0].resolved).toMatch(/^Message décodé : /);
       expect(res.historyEntries[0].message).toMatch(/^déchiffre un message Centaurien et choisit « .+ » : gagne /);
+    });
+
+    test('robot : il prend une tuile Message disponible au palier', () => {
+      SpeciesSystem.addCentaurienMarker(getPlayer(game, P1));
+      const marker = getPlayer(game, P1).centaurienMilestones[0];
+      const species = game.species.find(s => s.name === AlienBoardType.CENTAURIENS)!;
+      species.message!.forEach((token, i) => (token.isAvailable = i === 1));
+
+      const res = AIController.processInteractionQueue(game, [{ type: 'CHOOSING_CENTAURIEN_REWARD', markerId: marker.id }], 'seq', getPlayer(game, P1));
+      expect(res.updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS)!.message![1]).toMatchObject({ isAvailable: false, claimedBy: P1 });
+      expect(getPlayer(res.updatedGame, P1).centaurienMilestones[0].resolved).toMatch(/^Message décodé : /);
     });
 
     test('une tuile déjà choisie ne peut pas être reprise', () => {

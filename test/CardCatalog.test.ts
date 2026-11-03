@@ -68,9 +68,11 @@ describe('Catalogue des cartes', () => {
             ...(loader.parsePermanentEffects.call(DataLoader, token) as { type: string }[]),
           ];
           if (effects.length === 0 && loader.parseDanger.call(DataLoader, token) === undefined) problems.push(`${id} : contrainte non lue « ${token} »`);
+          // Un type est traité s'il est nommé dans le moteur, ou construit par un gabarit (`GAIN_ON_VISIT_${…}`)
+          const handled = (type: string) => engineSrc.includes(`'${type}'`) || engineSrc.includes(`\`${type.replace(/_[A-Z0-9]+$/, '_${')}`);
           effects
-            .filter(e => !e.type.startsWith('GAIN_ON_') && e.type !== 'END_CONDITION')
-            .filter(e => !engineSrc.includes(`'${e.type}'`))
+            .filter(e => e.type !== 'END_CONDITION')
+            .filter(e => !handled(e.type))
             .forEach(e => problems.push(`${id} : effet non traité ${e.type}`));
         });
       }

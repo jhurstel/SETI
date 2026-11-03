@@ -5,8 +5,31 @@ import { Game, GameLogEntry, HistoryEntry } from './types';
  * en ajoutant la migration correspondante dans MIGRATIONS.
  * - 1 : sauvegardes sans numéro de version (paliers Centauriens enregistrés comme de simples scores)
  * - 2 : paliers Centauriens enregistrés comme marqueurs { id, score, ... }
+ * - 3 : effets des cartes Oumuamua à jetons et à signal (ET.21, ET.22, ET.24, ET.25, ET.28) lus comme effets de la carte
  */
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
+
+/** Effets des cartes Oumuamua relus en version 3 (anciens effets permanents jamais traités) */
+const OUMUAMUA_CARD_EFFECTS: Record<string, { type: string; target: string; value: string | number }> = {
+  'ET.21': { type: 'OUMUAMUA_SIGNAL_BONUS', target: 'each', value: 'pv:2' },
+  'ET.22': { type: 'OUMUAMUA_SIGNAL_BONUS', target: 'first', value: 'token:1' },
+  'ET.24': { type: 'DISCARD_TOKEN_FOR', target: 'anysignal', value: 1 },
+  'ET.25': { type: 'DISCARD_TOKENS_THEN_LAND', target: 'move', value: 2 },
+  'ET.28': { type: 'DISCARD_TOKEN_FOR', target: 'data', value: 1 },
+};
+const OLD_OUMUAMUA_EFFECTS = ['GAIN_ON_OUMUAMUA_SIGNAL', 'GAIN_ON_TOKEN', 'GAIN_ON_TOKEN_AND_LAND'];
+
+type RawEffect = { type: string };
+type RawCard = { id?: unknown; passiveEffects?: RawEffect[]; permanentEffects?: RawEffect[]; requirements?: RawEffect[]; permanentBuffs?: RawEffect[] };
+
+/** Parcourt tout l'état (mains, pioches, missions, cartes d'espèce…) et applique `visit` à chaque objet */
+function visitObjects(value: unknown, visit: (obj: RawCard) => void): void {
+  if (Array.isArray(value)) value.forEach(v => visitObjects(v, visit));
+  else if (value && typeof value === 'object') {
+    visit(value as RawCard);
+    Object.values(value).forEach(v => visitObjects(v, visit));
+  }
+}
 
 /** Partie sérialisée : le journal est stocké dans gameLog. */
 export type SavedGame = Omit<Game, 'gameLog'> & { gameLog: GameLogEntry[]; saveVersion: number };
@@ -28,6 +51,19 @@ const MIGRATIONS: Record<number, (state: RawState) => void> = {
     players.forEach(p => {
       p.centaurienMilestones = (p.centaurienMilestones || []).map((m, i) =>
         typeof m === 'number' ? { id: `centaurien-${p.id}-${i}`, score: m } : m);
+    });
+  },
+  // Cartes Oumuamua : l'effet est porté par la carte ; l'ancien effet permanent (cercle de mission, buff) disparaît
+  2: state => {
+    visitObjects(state, obj => {
+      const removeOld = (effects?: RawEffect[]) => effects?.filter(e => !OLD_OUMUAMUA_EFFECTS.includes(e.type));
+      if (obj.permanentEffects) obj.permanentEffects = removeOld(obj.permanentEffects);
+      if (obj.requirements) obj.requirements = removeOld(obj.requirements);
+      if (obj.permanentBuffs) obj.permanentBuffs = removeOld(obj.permanentBuffs);
+      const effect = typeof obj.id === 'string' ? OUMUAMUA_CARD_EFFECTS[obj.id] : undefined;
+      if (effect && obj.passiveEffects && !obj.passiveEffects.some(e => e.type === effect.type)) {
+        obj.passiveEffects = [...obj.passiveEffects, { ...effect }];
+      }
     });
   },
 };

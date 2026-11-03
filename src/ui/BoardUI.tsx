@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Game, ActionType, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, ProbeState, LifeTraceType, InteractionState, GamePhase, SignalType, getInteractionLabel, LifeTraceLocation } from '../core/types';
-import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal, MissionRequirementModal } from './modals/GameModals';
+import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, TokenDiscardModal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal, MissionRequirementModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -696,6 +696,11 @@ export const BoardUI: React.FC = () => {
         <MediaOrMoveModal onChoice={(choice: 'MEDIA' | 'MOVE') => choose({ kind: 'MEDIA_OR_MOVE', choice })} />
       )}
 
+      {/* Défausse de Token pour le gain d'une carte (ET.24, ET.25, ET.28) */}
+      {interactionState.type === 'DISCARDING_TOKEN' && (
+        <TokenDiscardModal interaction={interactionState} tokens={currentPlayer.tokens || 0} onChoice={(accepted: boolean) => choose({ kind: 'ACCEPT', accepted })} />
+      )}
+
       {/* Modale pour Observation 2 (Scanner un secteur) */}
       {interactionState.type === 'CHOOSING_OBS2_ACTION' && (
         <Observation2Modal onChoice={(accepted: boolean) => choose({ kind: 'ACCEPT', accepted })} />
@@ -769,7 +774,7 @@ export const BoardUI: React.FC = () => {
       <DocumentationModal visible={docVisible} onClose={() => setDocVisible(false)} />
 
       {/* Ecran de fin de partie */}
-      {game.phase === GamePhase.FINAL_SCORING && <EndGameModal game={realGame!} />}
+      {game.phase === GamePhase.FINAL_SCORING && <EndGameModal game={realGame!} historyLog={historyLog} setActiveTooltip={setActiveTooltip} />}
 
       <div className="seti-root-inner">
         <div className="seti-left-panel">

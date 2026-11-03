@@ -27,6 +27,7 @@ const SIGNAL_SCOPES: Partial<Record<SectorType, { color?: string; badge?: Signal
   [SectorType.MARS]: { badge: 'mars' },
   [SectorType.JUPITER]: { badge: 'jupiter' },
   [SectorType.SATURN]: { badge: 'saturn' },
+  [SectorType.OUMUAMUA]: { badge: 'oumuamua' },
 };
 
 /** Symbole du signal d'une carte (coin de scan) : disque à la couleur du secteur ; à défaut, le nom du secteur */

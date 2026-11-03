@@ -33,7 +33,7 @@ export type Choice =
   | { kind: 'EXERTIEN'; cardId?: string }
   /** CHOOSING_MISSION_REQUIREMENT (absent : renoncer) */
   | { kind: 'MISSION'; missionId?: string; requirementId?: string }
-  /** CHOOSING_OBS2_ACTION, CHOOSING_OBS3_ACTION */
+  /** CHOOSING_OBS2_ACTION, CHOOSING_OBS3_ACTION, DISCARDING_TOKEN */
   | { kind: 'ACCEPT'; accepted: boolean }
   /** CHOOSING_OBS4_ACTION */
   | { kind: 'OBS4'; choice: 'PROBE' | 'MOVE' }

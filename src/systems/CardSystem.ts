@@ -424,7 +424,8 @@ export class CardSystem {
 
         // Effets immédiats (gains) et passifs (buffs, gains conditionnels) : systems/PlayCardEffects
         addImmediateEffects(card.immediateEffects, bonuses);
-        const effectContext: PlayCardContext = { game: updatedGame, player, card, bonuses, extraInteractions, takenRowCards };
+        const sequenceId = `seq-${uniqueId()}`;
+        const effectContext: PlayCardContext = { game: updatedGame, player, card, bonuses, extraInteractions, takenRowCards, sequenceId };
         (card.passiveEffects || []).forEach(effect => applyPassiveEffect(effectContext, effect));
 
         // Traitement des effets permanents (Missions déclenchables)
@@ -437,7 +438,6 @@ export class CardSystem {
             });
         }
 
-        const sequenceId = `seq-${uniqueId()}`;
         const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs, historyEntries } = ResourceSystem.processBonuses(bonuses || {}, updatedGame, player.id, cardId, sequenceId);
 
         // Construction du message d'historique unifié

@@ -1,4 +1,4 @@
-import { DiskName, Game, HistoryEntry, InteractionState, LifeTraceLocation, LifeTraceType, SectorNumber, Technology, TechnologyCategory } from './types';
+import { Bonus, DiskName, Game, HistoryEntry, InteractionState, LifeTraceLocation, LifeTraceType, SectorNumber, Technology, TechnologyCategory } from './types';
 import { GameEngine } from './Game';
 import { MoveProbeAction } from '../actions/MoveProbeAction';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
@@ -7,6 +7,7 @@ import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ScanSystem } from '../systems/ScanSystem';
+import { ResourceSystem } from '../systems/ResourceSystem';
 import { ScoreManager } from './ScoreManager';
 import { uniqueId } from './ids';
 import { cloneGame } from './cloneGame';
@@ -361,6 +362,34 @@ export class InteractionChoices {
     }
     const sequenceId = interaction.sequenceId || `mission-claim-${uniqueId()}`;
     return { updatedGame: game, historyEntries: [], newPendingInteractions: [{ type: 'CLAIMING_MISSION_REQUIREMENT', missionId, requirementId: requirementId!, playerId, sequenceId }] };
+  }
+
+  /**
+   * Défausser 1 Token pour le gain de la carte (ET.24, ET.28), ou y renoncer. Avec `repeat` (ET.25), la même question revient
+   * tant qu'il reste des tokens (après les gains), et `then` (l'atterrissage) est gagné quand le joueur arrête ou n'a plus de token.
+   */
+  static discardToken(game: Game, playerId: string, interaction: Interaction<'DISCARDING_TOKEN'>, accepted: boolean): ChoiceResult {
+    if (accepted && !requirePlayer(game, playerId).tokens) return refused(game, 'Aucun token à défausser');
+    const sequenceId = interaction.sequenceId || `token-${uniqueId()}`;
+    let updatedGame = cloneGame(game);
+    const historyEntries: HistoryEntry[] = [];
+    const newPendingInteractions: InteractionState[] = [];
+    const gain = (bonus: Bonus, message: string) => {
+      const res = ResourceSystem.processBonuses(bonus, updatedGame, playerId, interaction.cardId, sequenceId);
+      updatedGame = res.updatedGame;
+      historyEntries.push({ message, playerId, sequenceId }, ...res.logs.map(log => ({ message: log, playerId, sequenceId })), ...res.historyEntries);
+      newPendingInteractions.push(...res.newPendingInteractions);
+    };
+
+    if (accepted) {
+      requirePlayer(updatedGame, playerId).tokens! -= 1;
+      gain(interaction.reward, `défausse 1 Token pour gagner ${interaction.rewardText} ("${interaction.cardName}")`);
+      if (interaction.repeat && requirePlayer(updatedGame, playerId).tokens) {
+        return { updatedGame, historyEntries, newPendingInteractions, nextInteraction: interaction };
+      }
+    }
+    if (interaction.then) gain(interaction.then, `gagne ${ResourceSystem.formatBonus(interaction.then)!.join(', ')} ("${interaction.cardName}")`);
+    return { updatedGame, historyEntries, newPendingInteractions };
   }
 
   /** Technologie Observation II acceptée (ou refusée : rien ne change). */

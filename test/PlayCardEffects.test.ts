@@ -127,7 +127,7 @@ describe('Effets passifs appliqués directement (PlayCardEffects)', () => {
 
   /** Applique l'effet passif d'une carte et renvoie les gains cumulés */
   const play = (type: string, value: number, target?: string): Bonus => {
-    const ctx: PlayCardContext = { game, player: getPlayer(game, P1), card: makeCard('carte'), bonuses: {}, extraInteractions: [], takenRowCards: [] };
+    const ctx: PlayCardContext = { game, player: getPlayer(game, P1), card: makeCard('carte'), bonuses: {}, extraInteractions: [], takenRowCards: [], sequenceId: 'seq' };
     applyPassiveEffect(ctx, { type, value, target });
     return ctx.bonuses;
   };
