@@ -2,7 +2,8 @@ import { InteractionChoices } from '../src/core/InteractionChoices';
 import { AIController } from '../src/ai/AIController';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { CardSystem } from '../src/systems/CardSystem';
-import { Game, LifeTraceLocation, LifeTraceType, TechnologyCategory } from '../src/core/types';
+import { DiskName, Game, LifeTraceLocation, LifeTraceType, Probe, ProbeState, SectorNumber, TechnologyCategory } from '../src/core/types';
+import { createRotationState, getAdjacentCells, getCell, getObjectPosition } from '../src/core/SolarSystemPosition';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -103,3 +104,63 @@ describe('InteractionChoices', () => {
     expect(res.error).toBe("Choisissez une colonne de l'ordinateur");
   });
 });
+
+describe('InteractionChoices.moveProbe : le pas de sonde du joueur humain et des robots', () => {
+  let game: Game;
+  const MOVING = { type: 'MOVING_PROBE' as const, count: 3, sequenceId: 'mv' };
+
+  /** Sonde de P1 sur une case voisine de Mars sans astéroïde (anneaux à 0) ; renvoie la case de Mars */
+  const probeNextToMars = () => {
+    const s = game.board.solarSystem;
+    Object.assign(s, { rotationAngleLevel1: 0, rotationAngleLevel2: 0, rotationAngleLevel3: 0 });
+    const rotation = createRotationState(0, 0, 0);
+    const mars = getObjectPosition('mars', 0, 0, 0, s.extraCelestialObjects)!;
+    const from = getAdjacentCells(mars.disk, mars.absoluteSector).find(c => !getCell(c.disk, c.sector, rotation, s.extraCelestialObjects)?.hasAsteroid)!;
+    const probe: Probe = { id: 'p1', ownerId: P1, position: { x: 0, y: 0 }, solarPosition: { disk: from.disk, sector: from.sector, level: 0 }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false };
+    getPlayer(game, P1).probes = [probe];
+    s.probes = [probe];
+    return { disk: mars.disk as DiskName, sector: mars.absoluteSector as SectorNumber };
+  };
+
+  beforeEach(async () => {
+    game = await createTestGame();
+    game.currentPlayerIndex = 0;
+  });
+
+  test('déplacements gratuits : un pas consommé, les restants suivent, sans modifier la partie reçue', () => {
+    const mars = probeNextToMars();
+    const before = JSON.stringify(game);
+    const energy = getPlayer(game, P1).energy;
+
+    const res = InteractionChoices.moveProbe(game, P1, MOVING, 'p1', mars.disk, mars.sector, 'mv');
+
+    expect(res.error).toBeUndefined();
+    expect(getPlayer(res.updatedGame, P1).energy).toBe(energy);
+    expect(res.nextInteraction).toEqual({ ...MOVING, count: 2 });
+    expect(JSON.stringify(game)).toBe(before);
+  });
+
+  test('carte 19 sur une planète : le choix Média / déplacement reprend les déplacements restants (pas de suite en double)', () => {
+    const mars = probeNextToMars();
+    getPlayer(game, P1).activeBuffs = [{ type: 'CHOICE_MEDIA_OR_MOVE', value: true, source: 'Assistance' }];
+
+    const res = InteractionChoices.moveProbe(game, P1, MOVING, 'p1', mars.disk, mars.sector, 'mv');
+
+    expect(res.newPendingInteractions).toEqual([expect.objectContaining({ type: 'CHOOSING_MEDIA_OR_MOVE', remainingMoves: 2 })]);
+    expect(res.nextInteraction).toBeUndefined();
+  });
+
+  test("sans déplacement gratuit : payé en énergie ; refusé sans énergie ou hors de son tour", () => {
+    const mars = probeNextToMars();
+    getPlayer(game, P1).energy = 1;
+    const paid = InteractionChoices.moveProbe(game, P1, undefined, 'p1', mars.disk, mars.sector, 'mv');
+    expect(getPlayer(paid.updatedGame, P1).energy).toBe(0);
+    expect(paid.nextInteraction).toBeUndefined();
+
+    getPlayer(game, P1).energy = 0;
+    expect(InteractionChoices.moveProbe(game, P1, undefined, 'p1', mars.disk, mars.sector, 'mv').error).toBeDefined();
+    game.currentPlayerIndex = 1;
+    expect(InteractionChoices.moveProbe(game, P1, MOVING, 'p1', mars.disk, mars.sector, 'mv').error).toBe("Ce n'est pas votre tour");
+  });
+});
+

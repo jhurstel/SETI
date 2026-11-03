@@ -3,7 +3,7 @@ import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { TechnologySystem } from '../src/systems/TechnologySystem';
 import { ScoreManager } from '../src/core/ScoreManager';
 import { InteractionChoices } from '../src/core/InteractionChoices';
-import { AlienBoardType, Bonus, CardType, Game, GAME_CONSTANTS, getInteractionLabel, InteractionState, LifeTraceLocation, LifeTraceType, Mission, Probe, ProbeState, SectorType, TechnologyCategory } from '../src/core/types';
+import { AlienBoardType, Bonus, CardType, Game, GAME_CONSTANTS, getInteractionLabel, InteractionState, LifeTraceLocation, LifeTraceType, Mission, ObjectiveCategory, Probe, ProbeState, SectorType, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -273,5 +273,19 @@ describe('Règles du moteur peu couvertes', () => {
     expect(getInteractionLabel({ type: 'DISCARDING_DRAWN_CARD', cardIds: [], step: 'FREE_ACTION' })).not.toBe(getInteractionLabel({ type: 'DISCARDING_DRAWN_CARD', cardIds: [], step: 'REVENUE' }));
     // Interaction inconnue (sauvegarde d'une version plus ancienne) : libellé générique
     expect(getInteractionLabel({ type: 'ANCIENNE' } as unknown as InteractionState)).toBe('Interaction en cours (ANCIENNE).');
+  });
+});
+
+describe('Tuiles objectif « Mission » : séries comptées', () => {
+  test('face A : missions accomplies ; face B : paires mission accomplie / carte Fin de partie jouée', async () => {
+    const game = await createTestGame();
+    const player = getPlayer(game, P1);
+    const done = (id: string) => ({ id, cardId: id, name: id, description: '', ownerId: P1, requirements: [], completedRequirementIds: [], fulfillableRequirementIds: [], completed: true } as Mission);
+    player.missions = [done('m1'), done('m2'), { ...done('m3'), completed: false }];
+    player.playedCards = [makeCard('fin', { type: CardType.END_GAME })];
+    const tile = { ...game.board.objectiveTiles[0], category: ObjectiveCategory.MISSION };
+
+    expect(ScoreManager.objectiveTileSeries(player, game.board, { ...tile, side: 'A' })).toBe(2);
+    expect(ScoreManager.objectiveTileSeries(player, game.board, { ...tile, side: 'B' })).toBe(1);
   });
 });

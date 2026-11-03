@@ -253,15 +253,14 @@ export class AIController {
                         const destKey = destinations[Math.floor(random() * destinations.length)];
                         const disk = destKey[0] as DiskName;
                         const sector = parseInt(destKey.substring(1)) as SectorNumber;
-                        const usedFree = ProbeSystem.freeMovementsUsed(updatedGame, p.id, probe.id, interaction.count);
-                        try {
-                            const moveRes = ProbeSystem.moveProbe(updatedGame, p.id, probe.id, disk, sector, interaction.count, sequenceId);
-                            updatedGame = moveRes.updatedGame;
-                            historyEntries.push(...moveRes.historyEntries);
-                            newPendingInteractions.push(...moveRes.newPendingInteractions);
-                            if (interaction.count - usedFree > 0) newPendingInteractions.push({ ...interaction, count: interaction.count - usedFree });
-                        } catch {
-                            // Déplacement refusé par le moteur : le robot renonce aux déplacements restants
+                        // Même pas de sonde que le joueur humain : les déplacements restants suivent, sauf si le choix
+                        // Média / déplacement de la carte 19 les reprend ; un refus du moteur met fin aux déplacements
+                        const res = InteractionChoices.moveProbe(updatedGame, p.id, { ...interaction, sequenceId: interaction.sequenceId || sequenceId }, probe.id, disk, sector, interaction.sequenceId || sequenceId);
+                        if (!res.error) {
+                            updatedGame = res.updatedGame;
+                            historyEntries.push(...res.historyEntries);
+                            if (res.nextInteraction) newPendingInteractions.push(res.nextInteraction);
+                            newPendingInteractions.push(...res.newPendingInteractions);
                         }
                     }
                 }

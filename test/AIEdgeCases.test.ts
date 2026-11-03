@@ -2,12 +2,14 @@ import { AIController } from '../src/ai/AIController';
 import { AIEvaluator } from '../src/ai/AIEvaluator';
 import { AIBehavior } from '../src/ai/AIBehavior';
 import { AITurn } from '../src/ai/AITurn';
+import { GameSession } from '../src/session/GameSession';
 import { GameEngine } from '../src/core/Game';
 import { TurnManager } from '../src/core/TurnManager';
 import { random, setRandomState } from '../src/core/random';
 import { createRotationState, getAllCells } from '../src/core/SolarSystemPosition';
 import { ActionType, AlienBoardType, CardType, CelestialObject, DiskName, FreeActionType, Game, GamePhase, LifeTraceLocation, LifeTraceType, Mission, Probe, ProbeState, SectorNumber, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
+import { revealText } from '../src/core/historyText';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
@@ -200,7 +202,7 @@ describe('Robots : cas limites', () => {
     });
   });
 
-  test("déplacement gratuit au hasard : une sonde sur un astéroïde, sans énergie, ne peut pas en sortir", () => {
+  test("déplacement gratuit : une sonde sur un astéroïde, sans énergie, ne bouge pas et les déplacements s'arrêtent", () => {
     game.board.solarSystem.rotationAngleLevel1 = 0;
     game.board.solarSystem.rotationAngleLevel2 = 0;
     game.board.solarSystem.rotationAngleLevel3 = 0;
@@ -208,7 +210,114 @@ describe('Robots : cas limites', () => {
     const player = getPlayer(game, P1);
     player.probes = [{ id: 'p', ownerId: P1, position: { x: 0, y: 0 }, solarPosition: { disk: asteroid.disk, sector: asteroid.sector, level: 0 }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false }];
     player.energy = 0;
-    expect(AITurn['moveRandomProbe'](game, player, 's')).toBeNull();
+    const res = AIController.processInteractionQueue(game, [{ type: 'MOVING_PROBE', count: 1 }], 's', player);
+    expect(getPlayer(res.updatedGame, P1).probes[0].solarPosition).toEqual(player.probes[0].solarPosition);
+    expect(res.historyEntries).toEqual([]);
+  });
+
+  describe('mêmes opérations que le joueur humain', () => {
+    const history = (res: { historyEntries: { message: string }[] } | null) => res!.historyEntries.map(e => revealText(e.message));
+
+    test('mise en place : la réservation passe par le choix RESERVING_CARD (message du moteur)', () => {
+      game.phase = GamePhase.SETUP;
+      const step = AITurn.playStep(game);
+      expect(step.kind).toBe('SETUP_RESERVED');
+      if (step.kind === 'SETUP_RESERVED') {
+        expect(getPlayer(step.updatedGame, P1).reservedCards).toHaveLength(1);
+        expect(step.historyEntries[0].message).toMatch(/^réserve carte /);
+      }
+    });
+
+    test('recherche d\'une technologie Informatique : la colonne de l\'ordinateur est choisie (régression : technologie hors de l\'ordinateur)', () => {
+      const player = getPlayer(game, P1);
+      player.mediaCoverage = 10;
+      const tech = game.board.technologyBoard.available.find(t => t.type === TechnologyCategory.COMPUTING)!;
+      const res = AITurn['playMainAction'](game, player, { action: ActionType.RESEARCH_TECH, data: { tech } })!;
+      const slots = Object.values(getPlayer(res.updatedGame, P1).dataComputer.slots);
+      expect(slots.some(slot => slot.technologyId === tech.id)).toBe(true);
+    });
+
+    test('achat d\'une carte : la carte choisie sur ACQUIRING_CARD, payée 3 Médias', () => {
+      const player = getPlayer(game, P1);
+      player.mediaCoverage = 5;
+      const options = AITurn['buyCardOptions'](game, player);
+      expect(options).toHaveLength(game.decks.cardRow.length + 1);
+      expect(history(options[0])[0]).toMatch(/^paye 3 médias pour acheter carte ".+" depuis la rangée$/);
+      expect(history(options[options.length - 1])[0]).toMatch(/depuis la pioche$/);
+      expect(getPlayer(options[0].updatedGame, P1).mediaCoverage).toBe(2);
+    });
+
+    test('échange de 2 crédits contre une carte : coût payé, puis carte choisie dans la rangée ou la pioche', () => {
+      const player = getPlayer(game, P1);
+      Object.assign(player, { credits: 4, energy: 0, mediaCoverage: 0 });
+      const hand = player.cards.length;
+      const options = AITurn['preparationOptions'](game, player) as { updatedGame: Game; historyEntries: { message: string }[] }[];
+      const trade = options.find(o => getPlayer(o.updatedGame, P1).credits === 2 && getPlayer(o.updatedGame, P1).cards.length === hand + 1);
+      expect(trade).toBeDefined();
+      expect(history(trade!).length).toBeGreaterThan(1);
+    });
+
+    test.each([
+      [FreeActionType.PV_DATA, { score: 1, data: 1 }],
+      [FreeActionType.TWO_MEDIA, { mediaCoverage: 2 }],
+    ] as const)('défausse pour action gratuite « %s » : gain du moteur (régression : ignorée par les robots)', (freeAction, gains) => {
+      const player = getPlayer(game, P1);
+      Object.assign(player, { score: 0, data: 0, mediaCoverage: 0 });
+      player.cards = [makeCard('libre', { freeAction })];
+      const [option] = AITurn['discardForFreeActionOptions'](game, player);
+      const after = getPlayer(option.updatedGame, P1);
+      Object.entries(gains).forEach(([field, value]) => expect(after[field as keyof typeof gains]).toBe(value));
+      expect(option.updatedGame.decks.discardPile.some(c => c.id === 'libre')).toBe(true);
+    });
+
+    test('défausse pour un déplacement : chaque pas de sonde est simulé ; sans sonde, l\'action n\'est pas proposée', () => {
+      const player = getPlayer(game, P1);
+      player.cards = [makeCard('move', { freeAction: FreeActionType.MOVEMENT })];
+      player.probes = [];
+      expect(AITurn['discardForFreeActionOptions'](game, player)).toEqual([]);
+
+      game.board.solarSystem.rotationAngleLevel1 = 0;
+      game.board.solarSystem.rotationAngleLevel2 = 0;
+      game.board.solarSystem.rotationAngleLevel3 = 0;
+      const plain = [...getAllCells(createRotationState(0, 0, 0)).values()].find(c => !c.hasAsteroid && c.disk === 'C')!;
+      player.probes = [{ id: 'p', ownerId: P1, position: { x: 0, y: 0 }, solarPosition: { disk: plain.disk, sector: plain.sector, level: 0 }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false }];
+      game.board.solarSystem.probes = [...player.probes];
+      player.energy = 0;
+      const options = AITurn['discardForFreeActionOptions'](game, player);
+      expect(options.length).toBeGreaterThan(1);
+      options.forEach(o => {
+        expect(getPlayer(o.updatedGame, P1).probes[0].solarPosition).not.toEqual(player.probes[0].solarPosition);
+        expect(getPlayer(o.updatedGame, P1).energy).toBe(0);
+      });
+    });
+
+    test.each(['EXPERT', 'EASY'] as const)('passe (%s) : la carte de fin de manche est choisie dans la pile, et la session la donne', difficulty => {
+      const player = getPlayer(game, P1);
+      player.aiDifficulty = difficulty;
+      game.phase = GamePhase.PLAYING;
+      const roundDeck = game.decks.roundDecks[game.currentRound];
+      expect(roundDeck.length).toBeGreaterThan(1);
+
+      const step = AITurn['pass'](game, player);
+      expect(step.kind).toBe('PASS');
+      const roundCardId = step.kind === 'PASS' ? step.roundCardId : undefined;
+      expect(roundDeck.map(c => c.id)).toContain(roundCardId);
+
+      const applied = GameSession.applyRobotStep(game, step);
+      expect(applied.error).toBeUndefined();
+      expect(getPlayer(applied.game, P1).cards.some(c => c.id === roundCardId)).toBe(true);
+      expect(applied.entries.map(e => e.message)).toContain(`choisit carte "${roundDeck.find(c => c.id === roundCardId)!.name}" de fin de manche`);
+    });
+
+    test('robot Débutant : défausse pour « 2 Médias » avec l\'opération du moteur', () => {
+      const player = getPlayer(game, P1);
+      Object.assign(player, { aiDifficulty: 'EASY', mediaCoverage: 0 });
+      player.cards = [makeCard('media2', { freeAction: FreeActionType.TWO_MEDIA })];
+      nextDrawBelow(0.1);
+      const res = AITurn['tryDiscardForFreeAction'](game, player)!;
+      expect(getPlayer(res.updatedGame, P1).mediaCoverage).toBe(2);
+      expect(history(res)[0]).toMatch(/^défausse carte "/);
+    });
   });
 
   describe('capsule ramenée vers la Terre', () => {
@@ -237,5 +346,31 @@ describe('Robots : cas limites', () => {
       home.energy = 5;
       expect(AITurn['tryMoveCapsuleHome'](game, home)).toBeNull();
     });
+  });
+});
+
+describe('Robots : déplacement gagné sans case atteignable', () => {
+  test('défausse pour un déplacement avec une sonde bloquée sur un astéroïde : la défausse reste proposée, le déplacement est perdu', async () => {
+    const game = await createTestGame();
+    game.currentPlayerIndex = 0;
+    Object.assign(game.board.solarSystem, { rotationAngleLevel1: 0, rotationAngleLevel2: 0, rotationAngleLevel3: 0 });
+    const asteroid = [...getAllCells(createRotationState(0, 0, 0)).values()].find(c => c.hasAsteroid)!;
+    const player = getPlayer(game, P1);
+    player.type = 'robot';
+    player.aiDifficulty = 'EXPERT';
+    player.energy = 0;
+    player.cards = [makeCard('move', { freeAction: FreeActionType.MOVEMENT })];
+    player.probes = [{ id: 'p', ownerId: P1, position: { x: 0, y: 0 }, solarPosition: { disk: asteroid.disk, sector: asteroid.sector, level: 0 }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false }];
+    game.board.solarSystem.probes = [...player.probes];
+
+    const options = AITurn['discardForFreeActionOptions'](game, player);
+
+    expect(options).toHaveLength(1);
+    expect(getPlayer(options[0].updatedGame, P1).probes[0].solarPosition).toEqual(player.probes[0].solarPosition);
+    expect(options[0].updatedGame.decks.discardPile.some(c => c.id === 'move')).toBe(true);
+
+    // Avec 1 énergie, elle ne sort pas non plus de l'astéroïde (2 déplacements)
+    player.energy = 1;
+    expect(AITurn['probeMoveOptions'](game, player)).toEqual([]);
   });
 });

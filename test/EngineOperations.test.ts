@@ -154,12 +154,6 @@ describe('Opérations du moteur utilisées par l\'interface', () => {
     expect(ComputerSystem.canAssignTechnology(player, 3)).toEqual({ canAssign: false, reason: expect.stringContaining('occupé') });
   });
 
-  test('ResourceSystem.updateMedia ne modifie pas la partie reçue', () => {
-    const media = getPlayer(game, P1).mediaCoverage;
-    ResourceSystem.updateMedia(game, P1, 2);
-    expect(getPlayer(game, P1).mediaCoverage).toBe(media);
-  });
-
   describe("règles sorties de l'interface", () => {
     const probeAtEarth = () => {
       const solar = game.board.solarSystem;

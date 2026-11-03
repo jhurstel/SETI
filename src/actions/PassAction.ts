@@ -82,18 +82,14 @@ export class PassAction extends BaseAction {
       if (this.selectedCardId) {
         cardIndex = deck.findIndex(c => c.id === this.selectedCardId);
       } else {
-        // Si aucune carte n'est sélectionnée (ex: Robot), on prend la première
+        // Aucune carte choisie (niveau PASS des tests) : la première
         cardIndex = 0;
       }
 
       if (cardIndex !== -1) {
         const [card] = deck.splice(cardIndex, 1);
         updatedPlayer.cards.push(card);
-        if (updatedPlayer.type === 'robot') {
-          this.historyEntries.push({ message: `choisit carte Fin de Manche`, playerId, sequenceId });
-        } else {
-          this.historyEntries.push({ message: `choisit carte "${card.name}" de fin de manche`, playerId, sequenceId });
-        }
+        this.historyEntries.push({ message: `choisit carte "${card.name}" de fin de manche`, playerId, sequenceId });
       }
     }
 

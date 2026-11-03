@@ -3,6 +3,7 @@ import { CardSystem } from '../src/systems/CardSystem';
 import { AIController } from '../src/ai/AIController';
 import { DiskName, Game, InteractionState, Probe, ProbeState, SectorNumber } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
+import { getObjectPosition } from '../src/core/SolarSystemPosition';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
@@ -168,6 +169,20 @@ describe('InteractionChoices : choix communs (cartes, signaux, spécimens, retra
 
     getPlayer(game, P1).mediaCoverage = 0;
     expect(InteractionChoices.observation2(game, P1, interaction, true).error).toBeDefined();
+  });
+
+  test('observation2 : le signal qui complète le secteur de Mercure ouvre sa résolution, dans la même séquence', () => {
+    const s = game.board.solarSystem;
+    Object.assign(s, { rotationAngleLevel1: 0, rotationAngleLevel2: 0, rotationAngleLevel3: 0 });
+    const mercury = getObjectPosition('mercury', 0, 0, 0, s.extraCelestialObjects)!;
+    const sector = game.board.sectors[mercury.absoluteSector - 1];
+    const free = sector.signals.filter(sig => !sig.marked);
+    free.slice(0, -1).forEach(sig => { sig.marked = true; sig.markedBy = P2; });
+    getPlayer(game, P1).mediaCoverage = 2;
+
+    const res = InteractionChoices.observation2(game, P1, { type: 'CHOOSING_OBS2_ACTION', sequenceId: 's' }, true);
+
+    expect(res.newPendingInteractions).toContainEqual(expect.objectContaining({ type: 'RESOLVING_SECTOR', sequenceId: 's' }));
   });
 
   test('observation3 : acceptée, une carte à défausser pour un signal ; refusée, rien', () => {

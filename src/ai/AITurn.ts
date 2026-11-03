@@ -1,8 +1,10 @@
-import { Game, Player, ActionType, GamePhase, RevenueType, FreeActionType, ProbeState, DiskName, SectorNumber, HistoryEntry, InteractionState, AIDecision, Card, GAME_CONSTANTS } from '../core/types';
+import { Game, Player, ActionType, GamePhase, ProbeState, DiskName, SectorNumber, HistoryEntry, InteractionState, AIDecision, Card, GAME_CONSTANTS } from '../core/types';
 import { GameEngine } from '../core/Game';
 import { TurnManager } from '../core/TurnManager';
 import { InteractionResolver } from '../core/InteractionResolver';
-import { createRotationState, getAbsoluteSectorForProbe, calculateReachableCellsWithEnergy, calculateReachableCells, getAdjacentCells } from '../core/SolarSystemPosition';
+import { InteractionChoices } from '../core/InteractionChoices';
+import { requirePlayer } from '../core/players';
+import { createRotationState, getAbsoluteSectorForProbe, calculateReachableCells, getAdjacentCells } from '../core/SolarSystemPosition';
 import { BaseAction } from '../actions/Action';
 import { LaunchProbeAction } from '../actions/LaunchProbeAction';
 import { ScanSectorAction } from '../actions/ScanSectorAction';
@@ -11,11 +13,11 @@ import { ResearchTechAction } from '../actions/ResearchTechAction';
 import { PlayCardAction } from '../actions/PlayCardAction';
 import { OrbitAction } from '../actions/OrbitAction';
 import { LandAction } from '../actions/LandAction';
+import { PassAction } from '../actions/PassAction';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { TechnologySystem } from '../systems/TechnologySystem';
 import { AIBehavior } from './AIBehavior';
 import { AIController } from './AIController';
 import { AIEvaluator } from './AIEvaluator';
@@ -28,14 +30,14 @@ import { random } from '../core/random';
  * - SETUP_RESERVED : carte réservée pendant la mise en place → passer au joueur suivant du SETUP
  * - UPDATED : une action (gratuite ou principale) a été jouée, le robot continue son tour
  * - END_TURN : le robot a fini son tour
- * - PASS : le robot passe pour la manche (à exécuter via PassAction)
+ * - PASS : le robot passe pour la manche (à exécuter via PassAction), avec la carte de fin de manche choisie
  */
 export type AIStep =
   | { kind: 'WAIT' }
   | { kind: 'SETUP_RESERVED'; updatedGame: Game; historyEntries: HistoryEntry[] }
   | { kind: 'UPDATED'; updatedGame: Game; historyEntries: HistoryEntry[]; humanInteractions?: InteractionState[] }
   | { kind: 'END_TURN' }
-  | { kind: 'PASS'; cardsToKeep: string[] };
+  | { kind: 'PASS'; cardsToKeep: string[]; roundCardId?: string };
 
 /** humanInteractions : interactions destinées à un joueur humain, à confier à l'interface. */
 type StepResult = { updatedGame: Game; historyEntries: HistoryEntry[]; humanInteractions?: InteractionState[] };
@@ -70,20 +72,39 @@ export class AITurn {
     if (strategic) {
       const best = this.chooseBestMainAction(game, player);
       if (best) return { kind: 'UPDATED', ...best };
-      const pass = AIBehavior.createPassDecision(player);
-      return { kind: 'PASS', cardsToKeep: pass.action === ActionType.PASS ? pass.data.cardsToKeep : [] };
+      return this.pass(game, player);
     }
 
     if (AIBehavior.getDifficulty(player) === 'EASY') {
       const choice = this.chooseEasyMainAction(game, player);
       if (choice) return { kind: 'UPDATED', ...choice };
-      const pass = AIBehavior.createPassDecision(player);
-      return { kind: 'PASS', cardsToKeep: pass.action === ActionType.PASS ? pass.data.cardsToKeep : [] };
+      return this.pass(game, player);
     }
 
     // Niveau PASS (tests) : le robot passe sans jouer d'action principale
-    const pass = AIBehavior.createPassDecision(player);
-    return { kind: 'PASS', cardsToKeep: pass.action === ActionType.PASS ? pass.data.cardsToKeep : [] };
+    return this.pass(game, player);
+  }
+
+  /**
+   * Passe : cartes gardées, et carte de fin de manche choisie comme le joueur humain (parmi la pile de la manche).
+   * Un robot stratégique simule la passe avec chaque carte et garde la meilleure position ; le Débutant la tire
+   * au hasard ; le niveau PASS des tests prend la première.
+   */
+  private static pass(game: Game, player: Player): AIStep {
+    const decision = AIBehavior.createPassDecision(player);
+    const cardsToKeep = decision.action === ActionType.PASS ? decision.data.cardsToKeep : [];
+    const roundDeck = game.decks.roundDecks[game.currentRound] || [];
+    if (roundDeck.length === 0 || AIBehavior.getDifficulty(player) === 'PASS') return { kind: 'PASS', cardsToKeep };
+    if (!AIBehavior.isStrategic(player)) {
+      return { kind: 'PASS', cardsToKeep, roundCardId: roundDeck[Math.floor(random() * roundDeck.length)].id };
+    }
+    let best: { cardId: string; value: number } | null = null;
+    for (const card of roundDeck) {
+      const result = new GameEngine(game).executeAction(new PassAction(player.id, cardsToKeep, card.id));
+      const value = result.updatedState ? AIEvaluator.evaluate(result.updatedState, player.id) : -Infinity;
+      if (!best || value > best.value) best = { cardId: card.id, value };
+    }
+    return { kind: 'PASS', cardsToKeep, roundCardId: best?.cardId };
   }
 
   /**
@@ -123,15 +144,9 @@ export class AITurn {
     const cardId = AIBehavior.decideReservation(game, player);
     if (!cardId) return { kind: 'WAIT' };
 
-    const card = player.cards.find(c => c.id === cardId)!;
-    const gain = card.revenue === RevenueType.CREDIT ? '1 Crédit'
-      : card.revenue === RevenueType.ENERGY ? '1 Énergie'
-      : card.revenue === RevenueType.CARD ? '1 Carte' : '';
-    return {
-      kind: 'SETUP_RESERVED',
-      updatedGame: CardSystem.reserveCard(game, player.id, cardId),
-      historyEntries: [{ message: `réserve carte "${card.name}" et gagne ${gain}`, playerId: player.id }],
-    };
+    // Même choix que le joueur humain à la mise en place (RESERVING_CARD d'une carte)
+    const res = InteractionChoices.reserveCards(game, player.id, { type: 'RESERVING_CARD', count: 1, selectedCards: [] }, [cardId]);
+    return { kind: 'SETUP_RESERVED', updatedGame: res.updatedGame, historyEntries: res.historyEntries };
   }
 
   /** Exécute une action principale via le moteur, puis résout automatiquement les interactions qu'elle déclenche. */
@@ -164,12 +179,15 @@ export class AITurn {
 
     // (Analyse de données : la trace de vie Bleue est une interaction de l'action, résolue avec les autres)
     if (decision.action === ActionType.RESEARCH_TECH) {
-      // La technologie est choisie par l'IA : l'interaction ACQUIRING_TECH de l'action n'est pas utilisée,
-      // les autres (récompense d'une Anomalie activée par la rotation) restent à résoudre
-      const tech = TechnologySystem.acquireTechnology(updatedGame, player.id, decision.data.tech);
+      // La technologie choisie par l'IA répond à l'interaction ACQUIRING_TECH de l'action, comme le choix du joueur
+      // humain (colonne de l'ordinateur à choisir pour une technologie Informatique) ; les autres interactions
+      // (récompense d'une Anomalie activée par la rotation) restent à résoudre
+      // (la technologie vient de TechnologySystem.acquirableTechs : le choix est accepté)
+      const pick = pending.find((i): i is Extract<InteractionState, { type: 'ACQUIRING_TECH' }> => i.type === 'ACQUIRING_TECH')!;
+      const tech = InteractionChoices.acquireTech(updatedGame, player.id, { ...pick, sequenceId: pick.sequenceId || sequenceId }, decision.data.tech);
       updatedGame = tech.updatedGame;
       historyEntries.push(...tech.historyEntries);
-      pending = pending.filter(i => i.type !== 'ACQUIRING_TECH');
+      pending = [...tech.newPendingInteractions, ...pending.filter(i => i !== pick)];
     }
 
     return this.resolvePending(updatedGame, player, historyEntries, pending, sequenceId);
@@ -284,6 +302,12 @@ export class AITurn {
   private static preparationOptions(game: Game, player: Player): StepResult[] {
     const options: StepResult[] = [];
     const trade = (spend: string, gain: string, cardIds?: string[]) => {
+      if (gain === 'card' && (spend === 'credit' || spend === 'energy')) {
+        // Comme le joueur humain : le coût est payé, puis la carte est choisie (rangée ou pioche)
+        const res = ResourceSystem.tradeForCard(game, player.id, spend);
+        if (!res.error) options.push(this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, `ai-trade-${uniqueId()}`));
+        return;
+      }
       const res = ResourceSystem.tradeResources(game, player.id, spend, gain, cardIds);
       if (!res.error) options.push({ updatedGame: res.updatedGame, historyEntries: res.historyEntries });
     };
@@ -311,7 +335,7 @@ export class AITurn {
 
     const baseline = AIEvaluator.evaluate(game, player.id);
     const candidates = [
-      ...this.probeMoveOptions(game, player, 0),
+      ...this.probeMoveOptions(game, player),
       ...this.buyCardOptions(game, player),
       ...this.discardForFreeActionOptions(game, player),
     ];
@@ -332,8 +356,12 @@ export class AITurn {
     return best;
   }
 
-  /** Tous les déplacements d'une case des sondes du joueur (payés en énergie au-delà des déplacements gratuits) */
-  private static probeMoveOptions(game: Game, player: Player, freeMovements: number): StepResult[] {
+  /**
+   * Tous les déplacements d'une case des sondes du joueur, avec le pas de sonde du joueur humain
+   * (InteractionChoices.moveProbe : déplacements gratuits de `moving`, puis énergie).
+   */
+  private static probeMoveOptions(game: Game, player: Player, moving?: Extract<InteractionState, { type: 'MOVING_PROBE' }>): StepResult[] {
+    const freeMovements = moving?.count ?? 0;
     const options: StepResult[] = [];
     const solarSystem = game.board.solarSystem;
     const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
@@ -349,12 +377,12 @@ export class AITurn {
       getAdjacentCells(probe.solarPosition.disk, absSector)
         .filter(adj => destinations.has(`${adj.disk}${adj.sector}`))
         .forEach(adj => {
-          const sequenceId = `ai-move-${uniqueId()}`;
-          try {
-            const res = ProbeSystem.moveProbe(game, player.id, probe.id, adj.disk, adj.sector, freeMovements, sequenceId);
-            options.push(this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, sequenceId));
-          } catch {
-            // Déplacement refusé par le moteur : option ignorée
+          const sequenceId = moving?.sequenceId || `ai-move-${uniqueId()}`;
+          const res = InteractionChoices.moveProbe(game, player.id, moving, probe.id, adj.disk, adj.sector, sequenceId);
+          // Un déplacement refusé par le moteur n'est pas une option
+          if (!res.error) {
+            const next = res.nextInteraction ? [res.nextInteraction] : [];
+            options.push(this.resolvePending(res.updatedGame, player, res.historyEntries, [...next, ...res.newPendingInteractions], sequenceId));
           }
         });
     }
@@ -366,31 +394,40 @@ export class AITurn {
     if (player.mediaCoverage < GAME_CONSTANTS.BUY_CARD_COST_MEDIA) return [];
     const choices: (Card | undefined)[] = [...game.decks.cardRow, undefined];
     return choices.flatMap(card => {
-      const res = CardSystem.buyCard(game, player.id, card?.id, false);
-      if (res.error) return [];
-      const message = card ? `achète la carte "${card.name}"` : 'achète une carte de la pioche';
-      return [{ updatedGame: res.updatedGame, historyEntries: [{ message, playerId: player.id }] }];
+      const res = this.buyCard(game, player, card?.id);
+      return res ? [res] : [];
     });
   }
 
-  /** Défausse d'une carte de la main pour son action gratuite (Média, Donnée ou déplacement) */
+  /** Achat d'une carte (rangée, ou pioche sans `cardId`) : le choix du joueur humain sur l'interaction ACQUIRING_CARD */
+  private static buyCard(game: Game, player: Player, cardId?: string): StepResult | null {
+    const sequenceId = `ai-buy-${uniqueId()}`;
+    const res = InteractionChoices.acquireCard(game, player.id, { type: 'ACQUIRING_CARD', count: 1, sequenceId }, cardId);
+    if (res.error) return null;
+    return this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, sequenceId);
+  }
+
+  /**
+   * Défausse d'une carte de la main pour son action gratuite, avec l'opération du joueur humain
+   * (CardSystem.discardFromHandForFreeAction). Le déplacement gagné est simulé case par case.
+   */
   private static discardForFreeActionOptions(game: Game, player: Player): StepResult[] {
     const options: StepResult[] = [];
     for (const card of CardSystem.getHandCards(player)) {
-      const sequenceId = `ai-free-action-${uniqueId()}`;
-      const discarded = CardSystem.discardCard(game, player.id, card.id);
-      const discardedPlayer = discarded.players.find(p => p.id === player.id)!;
-
-      if (card.freeAction === FreeActionType.MEDIA) {
-        options.push({ updatedGame: ResourceSystem.updateMedia(discarded, player.id, 1).updatedGame, historyEntries: [{ message: `défausse "${card.name}" et gagne 1 Média`, playerId: player.id, sequenceId }] });
-      } else if (card.freeAction === FreeActionType.DATA) {
-        options.push({ updatedGame: ResourceSystem.updateData(discarded, player.id, 1).updatedGame, historyEntries: [{ message: `défausse "${card.name}" et gagne 1 Donnée`, playerId: player.id, sequenceId }] });
-      } else if (card.freeAction === FreeActionType.MOVEMENT) {
-        const move = this.pickBest(this.probeMoveOptions(discarded, discardedPlayer, 1), player.id, -Infinity);
-        if (move) {
-          options.push({ ...move, historyEntries: [{ message: `défausse "${card.name}" pour un déplacement gratuit`, playerId: player.id, sequenceId }, ...move.historyEntries] });
-        }
+      const res = CardSystem.discardFromHandForFreeAction(game, player.id, card.id);
+      if (res.error) continue;
+      const sequenceId = res.historyEntries[0].sequenceId!;
+      const moving = res.newPendingInteractions.find((i): i is Extract<InteractionState, { type: 'MOVING_PROBE' }> => i.type === 'MOVING_PROBE');
+      const moves = moving ? this.probeMoveOptions(res.updatedGame, requirePlayer(res.updatedGame, player.id), { ...moving, sequenceId }) : [];
+      if (moves.length === 0) {
+        options.push(this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, sequenceId));
+        continue;
       }
+      const others = res.newPendingInteractions.filter(i => i !== moving);
+      moves.forEach(move => {
+        const after = this.resolvePending(move.updatedGame, player, [...res.historyEntries, ...move.historyEntries], others, sequenceId);
+        options.push({ ...after, humanInteractions: [...(move.humanInteractions || []), ...(after.humanInteractions || [])] });
+      });
     }
     return options;
   }
@@ -414,12 +451,9 @@ export class AITurn {
         .sort((a, b) => a.distance - b.distance)[0];
       if (best && best.distance < current) {
         const sequenceId = `ai-capsule-${uniqueId()}`;
-        try {
-          const res = ProbeSystem.moveProbe(game, player.id, capsule.id, best.adj.disk, best.adj.sector, 0, sequenceId);
-          return this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, sequenceId);
-        } catch {
-          // Déplacement refusé par le moteur : capsule suivante
-        }
+        const res = InteractionChoices.moveProbe(game, player.id, undefined, capsule.id, best.adj.disk, best.adj.sector, sequenceId);
+        // Déplacement refusé par le moteur : capsule suivante
+        if (!res.error) return this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, sequenceId);
       }
     }
     return null;
@@ -472,55 +506,22 @@ export class AITurn {
     const row = game.decks.cardRow;
     if (row.length === 0) return null;
 
-    const card = row[Math.floor(random() * row.length)];
-    const res = CardSystem.buyCard(game, player.id, card.id, false);
-    return { updatedGame: res.updatedGame, historyEntries: [{ message: `achète la carte "${card.name}"`, playerId: player.id }] };
+    return this.buyCard(game, player, row[Math.floor(random() * row.length)].id);
   }
 
   private static tryDiscardForFreeAction(game: Game, player: Player): StepResult | null {
     const hand = CardSystem.getHandCards(player);
     if (hand.length === 0 || random() >= 0.1) return null;
 
-    // La carte la moins utile à garder (trop chère pour la prochaine manche, ou la moins puissante)
+    // La carte la moins utile à garder (trop chère pour la prochaine manche, ou la moins puissante),
+    // parmi celles dont l'action gratuite est utilisable
     const card = hand
-      .filter(c => c.freeAction !== FreeActionType.UNDEFINED)
+      .filter(c => CardSystem.canDiscardFreeAction(game, player.id, c.freeAction).canDiscard)
       .sort((a, b) => AIBehavior.cardKeepValue(player, a) - AIBehavior.cardKeepValue(player, b))[0];
     if (!card) return null;
 
-    const sequenceId = `ai-free-action-${uniqueId()}`;
-    let updatedGame = game;
-    let logMsg = '';
-
-    if (card.freeAction === FreeActionType.MEDIA) {
-      updatedGame = ResourceSystem.updateMedia(updatedGame, player.id, 1).updatedGame;
-      logMsg = 'gagne 1 Média';
-    } else if (card.freeAction === FreeActionType.DATA) {
-      updatedGame = ResourceSystem.updateData(updatedGame, player.id, 1).updatedGame;
-      logMsg = 'gagne 1 Donnée';
-    } else if (card.freeAction === FreeActionType.MOVEMENT) {
-      const moved = this.moveRandomProbe(updatedGame, player, sequenceId);
-      updatedGame = moved ?? updatedGame;
-      logMsg = moved ? 'déplace une sonde' : 'gagne 1 déplacement (inutilisé)';
-    }
-
-    updatedGame = CardSystem.discardCard(updatedGame, player.id, card.id);
-    return { updatedGame, historyEntries: [{ message: `défausse "${card.name}" et ${logMsg}`, playerId: player.id, sequenceId }] };
-  }
-
-  /** Déplace une sonde au hasard d'une case (déplacement gratuit). Renvoie null si impossible. */
-  private static moveRandomProbe(game: Game, player: Player, sequenceId: string): Game | null {
-    const probes = player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition);
-    if (probes.length === 0) return null;
-
-    const probe = probes[Math.floor(random() * probes.length)];
-    const solarSystem = game.board.solarSystem;
-    const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
-    const absSector = getAbsoluteSectorForProbe(probe.solarPosition, rotationState);
-    const reachable = calculateReachableCellsWithEnergy(probe.solarPosition.disk, absSector, 1, player.energy, rotationState, false);
-    const destinations = Array.from(reachable.keys()).filter(k => k !== `${probe.solarPosition.disk}${absSector}`);
-    if (destinations.length === 0) return null;
-
-    const destKey = destinations[Math.floor(random() * destinations.length)];
-    return ProbeSystem.moveProbe(game, player.id, probe.id, destKey[0] as DiskName, parseInt(destKey.substring(1)) as SectorNumber, 1, sequenceId).updatedGame;
+    // Même opération que le joueur humain ; le déplacement gagné est joué par AIController (MOVING_PROBE)
+    const res = CardSystem.discardFromHandForFreeAction(game, player.id, card.id);
+    return this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, res.historyEntries[0].sequenceId!);
   }
 }

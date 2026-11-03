@@ -254,6 +254,7 @@ Une interaction peut viser un autre joueur que le joueur actif (par exemple le g
 - **Expert (EXPERT)** : comme l'Intermédiaire, mais compte aussi les points du décompte final déjà acquis. Sur 72 parties contre l'Intermédiaire : 61 % de victoires, environ +11 PV.
 
 Pour les choix aléatoires (pioche, spécimen…), un robot compare 4 tirages et garde le meilleur. Chaque placement de trace de vie est simulé.
+Les robots jouent avec exactement les mêmes opérations que le joueur humain : mêmes vérifications, mêmes gains, mêmes messages dans l'historique (défausse pour une action gratuite, achat ou échange contre une carte à choisir dans la rangée ou la pioche, déplacements gratuits, colonne de l'ordinateur pour une technologie Informatique, réservation de mise en place). En passant, un robot choisit sa carte de fin de manche comme le joueur humain : l'Intermédiaire et l'Expert simulent chaque carte, le Débutant la tire au hasard.
 Un robot joue une étape toutes les 1,5 s ; le calcul tourne dans un Web Worker pour ne pas figer l'interface.
 
 ### 5.2 Évaluation d'une position

@@ -173,6 +173,15 @@ describe('Sondes : cas limites et refus', () => {
       expect(res.newPendingInteractions).toContainEqual({ type: 'COLLECTING_SPECIMEN', planetId: 'jupiter', sequenceId: 'seq' });
     });
 
+    test("présence sur une planète : un atterrisseur sur une de ses lunes compte, pas celui d'un adversaire", () => {
+      const jupiter = game.board.planets.find(p => p.id === 'jupiter')!;
+      const moon = jupiter.satellites![0];
+      moon.landers = [{ ...probeAt('l', 'C', 5, 1, ProbeState.LANDED, P2), planetId: moon.id }];
+      expect(ProbeSystem.hasPresenceOnPlanet(game, P1, 'jupiter')).toBe(false);
+      moon.landers.push({ ...probeAt('m', 'C', 5, 1, ProbeState.LANDED), planetId: moon.id });
+      expect(ProbeSystem.hasPresenceOnPlanet(game, P1, 'jupiter')).toBe(true);
+    });
+
     test('retirer l\'orbiteur ou l\'atterrisseur d\'un adversaire : refusé', () => {
       const mars = game.board.planets.find(p => p.id === 'mars')!;
       mars.orbiters = [{ ...probeAt('o', 'B', 1, 2, ProbeState.IN_ORBIT, P2), planetId: 'mars' }];

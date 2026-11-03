@@ -94,7 +94,7 @@ Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `as
 
 - **Séparer le moteur de l'affichage.** Toute règle du jeu (coûts, gains, validations, effets de carte, décisions des robots) vit dans le moteur (`core/`, `systems/`, `actions/`, `ai/`), en TypeScript pur, sans React. L'interface (`ui/`) ne fait qu'appeler le moteur, appliquer l'état renvoyé, afficher l'historique, les toasts et les fenêtres. Si un handler de l'UI calcule une règle, la déplacer dans le moteur avant d'y ajouter quoi que ce soit.
 - **Tester chaque opération du moteur.** Toute nouvelle opération ou toute correction du moteur s'accompagne d'un test Jest dans `test/` (avec une vraie partie via `createTestGame()`), qui vérifie le résultat et que la partie reçue n'est pas modifiée. Un bug corrigé reçoit un test de non-régression ; un bug connu non corrigé, un `test.failing`.
-- **Les robots passent par les mêmes opérations que le joueur humain** (pas de copie des règles dans `ai/`), et chaque opération de robot est testée.
+- **Les robots passent par les mêmes opérations que le joueur humain** (pas de copie des règles dans `ai/`), et chaque opération de robot est testée. Une commande du joueur que la session traite elle-même (pas de déplacement, défausse pour action gratuite…) a son opération dans le moteur (`InteractionChoices.moveProbe`, `CardSystem.discardFromHandForFreeAction`), appelée par `GameSession` et par les robots ; un choix du joueur sur une interaction passe par `InteractionChoices`, robots compris (achat : `acquireCard`, recherche : `acquireTech`, réservation de mise en place : `reserveCards`).
 - Lancer `npm run check` avant chaque commit.
 
 ## Architecture et conventions

@@ -9,7 +9,6 @@ import { OrbitAction } from '../actions/OrbitAction';
 import { LandAction } from '../actions/LandAction';
 import { PlayCardAction } from '../actions/PlayCardAction';
 import { PassAction } from '../actions/PassAction';
-import { MoveProbeAction } from '../actions/MoveProbeAction';
 import { InteractionChoices, ChoiceResult } from '../core/InteractionChoices';
 import { InteractionResolver, isAutomaticInteraction } from '../core/InteractionResolver';
 import { TurnManager } from '../core/TurnManager';
@@ -137,7 +136,7 @@ export class GameSession {
           break;
         case 'PASS': {
           const player = game.players[game.currentPlayerIndex];
-          updated = this.mainAction(game, new PassAction(player.id, step.cardsToKeep), outcome);
+          updated = this.mainAction(game, new PassAction(player.id, step.cardsToKeep, step.roundCardId), outcome);
           break;
         }
       }
@@ -199,10 +198,8 @@ export class GameSession {
         return InteractionQueue.set(game, { type: 'ACQUIRING_CARD', count: 1, sequenceId: `buy-${uniqueId()}` });
       }
       case 'DISCARD_FOR_FREE_ACTION': {
-        const card = CardSystem.getHandCards(current).find(c => c.id === command.cardId) ?? refuse('Carte absente de votre main');
-        const check = CardSystem.canDiscardFreeAction(game, playerId, card.freeAction);
-        if (!check.canDiscard) refuse(check.reason);
-        const res = CardSystem.discardCardForFreeAction(game, playerId, command.cardId);
+        const res = CardSystem.discardFromHandForFreeAction(game, playerId, command.cardId);
+        if (res.error) refuse(res.error);
         outcome.add(res.historyEntries);
         return InteractionQueue.enqueue(res.updatedGame, res.newPendingInteractions, res.historyEntries[0]?.sequenceId);
       }
@@ -233,19 +230,13 @@ export class GameSession {
   /** Un pas de sonde : déplacements gratuits en cours d'abord, puis énergie */
   private static moveProbe(game: Game, playerId: string, command: Extract<Command, { type: 'MOVE_PROBE' }>, outcome: Outcome): Game {
     const moving = game.interaction?.type === 'MOVING_PROBE' ? game.interaction : undefined;
-    const free = moving?.count ?? 0;
-    const used = ProbeSystem.freeMovementsUsed(game, playerId, command.probeId, free);
     const sequenceId = moving?.sequenceId || `move-${uniqueId()}`;
-    const action = new MoveProbeAction(playerId, command.probeId, { disk: command.disk, sector: command.sector }, free, sequenceId);
-    const result = new GameEngine(game).executeAction(action);
-    if (!result.success || !result.updatedState) refuse(result.error || 'Déplacement impossible');
-    outcome.add(action.historyEntries);
+    const res = InteractionChoices.moveProbe(game, playerId, moving, command.probeId, command.disk, command.sector, sequenceId);
+    if (res.error) refuse(res.error);
+    outcome.add(res.historyEntries);
 
-    let updated = InteractionQueue.enqueue(InteractionQueue.clear(result.updatedState!), action.newPendingInteractions, sequenceId);
-    // Déplacements gratuits restants (le choix Média / déplacement de la carte 19 les reprend lui-même)
-    const interrupted = action.newPendingInteractions.some(i => i.type === 'CHOOSING_MEDIA_OR_MOVE');
-    if (moving && !interrupted && free - used > 0) updated = InteractionQueue.pushFront(updated, { ...moving, count: free - used });
-    return updated;
+    const updated = InteractionQueue.enqueue(InteractionQueue.clear(res.updatedGame), res.newPendingInteractions, sequenceId);
+    return res.nextInteraction ? InteractionQueue.pushFront(updated, res.nextInteraction) : updated;
   }
 
   private static trade(game: Game, playerId: string, command: Extract<Command, { type: 'TRADE' }>, outcome: Outcome): Game {

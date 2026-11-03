@@ -53,7 +53,7 @@ function playRobotGame(initial: Game, maxSteps = 5000): { game: Game; steps: num
         break;
       case 'PASS': {
         const player = game.players[game.currentPlayerIndex];
-        const result = new GameEngine(game).executeAction(new PassAction(player.id, step.cardsToKeep));
+        const result = new GameEngine(game).executeAction(new PassAction(player.id, step.cardsToKeep, step.roundCardId));
         if (!result.success || !result.updatedState) throw new Error(`Passe refusée : ${result.error}`);
         game = result.updatedState;
         break;

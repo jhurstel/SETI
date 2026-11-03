@@ -562,6 +562,18 @@ export class CardSystem {
         return updatedGame;
     }
 
+    /**
+     * Action gratuite « défausser une carte de la main » (joueur humain et robots) : la carte doit être dans la main
+     * et son action gratuite utilisable (canDiscardFreeAction) ; sinon la partie reçue est renvoyée avec la raison.
+     */
+    static discardFromHandForFreeAction(game: Game, playerId: string, cardId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[], error?: string } {
+        const card = this.getHandCards(requirePlayer(game, playerId)).find(c => c.id === cardId);
+        if (!card) return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: 'Carte absente de votre main' };
+        const check = this.canDiscardFreeAction(game, playerId, card.freeAction);
+        if (!check.canDiscard) return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: check.reason };
+        return this.discardCardForFreeAction(game, playerId, cardId);
+    }
+
     static discardCardForFreeAction(game: Game, playerId: string, cardId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
         let updatedGame = cloneGame(game);
         const player = requirePlayer(updatedGame, playerId);

@@ -269,21 +269,6 @@ export class ResourceSystem {
     return null;
   }
 
-  static updateMedia(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
-    const updatedGame = cloneGame(game);
-    const player = requirePlayer(updatedGame, playerId);
-
-    player.mediaCoverage = Math.min(player.mediaCoverage + count, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-    return { updatedGame };
-  }
-
-  static updateData(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
-    const updatedGame = cloneGame(game);
-    const player = requirePlayer(updatedGame, playerId);
-
-    player.data = Math.min(player.data + count, GAME_CONSTANTS.MAX_DATA);
-    return { updatedGame };
-  }
 
   // Helper pour traiter les bonus
   static processBonuses(bonuses: Bonus, currentGame: Game, playerId: string, sourceId: string, sequenceId: string, speciesId?: string): { updatedGame: Game, newPendingInteractions: InteractionState[], passiveGains: string[], logs: string[], historyEntries: HistoryEntry[] } {

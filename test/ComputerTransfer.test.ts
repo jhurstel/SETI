@@ -78,3 +78,16 @@ describe('ComputerSystem : transferts refusés', () => {
     expect(res.historyEntries).toEqual([]);
   });
 });
+
+describe('ComputerSystem : bonus des cases', () => {
+  test('case « énergie » : +1 Énergie', async () => {
+    const game = await createTestGame();
+    const player = getPlayer(game, P1);
+    player.data = 1;
+    player.dataComputer.slots['1a'].bonus = 'energy';
+    const energy = player.energy;
+    const res = ComputerSystem.transferData(game, P1, '1a', 'seq');
+    expect(getPlayer(res.updatedGame, P1).energy).toBe(energy + 1);
+    expect(res.historyEntries[0].message).toContain('1 Énergie');
+  });
+});

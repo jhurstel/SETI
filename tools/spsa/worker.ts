@@ -35,7 +35,7 @@ async function playGame(seed: number, weights: EvaluatorWeights[]): Promise<numb
     else if (step.kind === 'END_TURN') game = AITurn.endTurn(game).updatedGame;
     else if (step.kind === 'PASS') {
       const player = game.players[game.currentPlayerIndex];
-      const res = new GameEngine(game).executeAction(new PassAction(player.id, step.cardsToKeep));
+      const res = new GameEngine(game).executeAction(new PassAction(player.id, step.cardsToKeep, step.roundCardId));
       if (!res.success || !res.updatedState) throw new Error(`Passe refusée : ${res.error}`);
       game = res.updatedState;
     } else throw new Error('Robot bloqué');

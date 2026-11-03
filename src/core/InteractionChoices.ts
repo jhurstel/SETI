@@ -1,4 +1,6 @@
-import { Game, HistoryEntry, InteractionState, LifeTraceLocation, LifeTraceType, Technology, TechnologyCategory } from './types';
+import { DiskName, Game, HistoryEntry, InteractionState, LifeTraceLocation, LifeTraceType, SectorNumber, Technology, TechnologyCategory } from './types';
+import { GameEngine } from './Game';
+import { MoveProbeAction } from '../actions/MoveProbeAction';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
@@ -268,6 +270,26 @@ export class InteractionChoices {
   static chooseMediaOrMove(game: Game, playerId: string, interaction: Interaction<'CHOOSING_MEDIA_OR_MOVE'>, choice: 'MEDIA' | 'MOVE'): ChoiceResult {
     const res = ProbeSystem.chooseMediaOrMove(game, playerId, choice, interaction.remainingMoves || 0, interaction.sequenceId);
     return { updatedGame: res.updatedGame, historyEntries: res.historyEntries, newPendingInteractions: [], nextInteraction: res.nextInteraction };
+  }
+
+  /**
+   * Un pas de sonde (ou de capsule) vers une case voisine : déplacements gratuits en cours (`moving`) d'abord, puis énergie.
+   * Les déplacements gratuits restants suivent (nextInteraction), sauf si le choix Média / déplacement de la carte 19
+   * interrompt le déplacement (il les reprend lui-même).
+   */
+  static moveProbe(game: Game, playerId: string, moving: Interaction<'MOVING_PROBE'> | undefined, probeId: string, disk: DiskName, sector: SectorNumber, sequenceId: string): ChoiceResult {
+    const free = moving?.count ?? 0;
+    const used = ProbeSystem.freeMovementsUsed(game, playerId, probeId, free);
+    const action = new MoveProbeAction(playerId, probeId, { disk, sector }, free, sequenceId);
+    const result = new GameEngine(game).executeAction(action);
+    if (!result.success || !result.updatedState) return refused(game, result.error || 'Déplacement impossible');
+    const interrupted = action.newPendingInteractions.some(i => i.type === 'CHOOSING_MEDIA_OR_MOVE');
+    return {
+      updatedGame: result.updatedState,
+      historyEntries: action.historyEntries,
+      newPendingInteractions: action.newPendingInteractions,
+      nextInteraction: moving && !interrupted && free - used > 0 ? { ...moving, count: free - used } : undefined,
+    };
   }
 
   /** Planètes où le joueur peut prélever ou consulter un spécimen Mascamite pour cette interaction */
