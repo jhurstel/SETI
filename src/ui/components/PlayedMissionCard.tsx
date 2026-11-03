@@ -1,17 +1,19 @@
 import React from 'react';
-import { Card, CardType } from '../../core/types';
+import { Card, CardType, CentaurienMarker } from '../../core/types';
 import { CardTooltip } from './CardTooltip';
+import { HoverTooltip } from './HoverTooltip';
+import { SlotTooltip } from './SlotTooltip';
+import { SLOT_COLORS } from '../styles/slotColors';
 
 interface PlayedMissionCardProps {
   card: Card;
-  isCurrentTurn?: boolean;
-  isRobot?: boolean;
-  onMissionClick: (missionId: string, requirementId: string) => void;
+  /** Carte Centaurien : son palier sur la piste de score (la réception se fait d'elle-même en l'atteignant) */
+  centaurienMarker?: CentaurienMarker;
   handleTooltipHover: (e: React.MouseEvent, content: React.ReactNode) => void;
   handleTooltipLeave: () => void;
 }
 
-export const PlayedMissionCard: React.FC<PlayedMissionCardProps> = ({ card, isCurrentTurn, isRobot, onMissionClick, handleTooltipHover, handleTooltipLeave }) => {
+export const PlayedMissionCard: React.FC<PlayedMissionCardProps> = ({ card, centaurienMarker, handleTooltipHover, handleTooltipLeave }) => {
   let missionRequirementStrings: string[] = [];
   if (card.description) {
     if (card.description.includes('Mission:')) {
@@ -27,8 +29,8 @@ export const PlayedMissionCard: React.FC<PlayedMissionCardProps> = ({ card, isCu
 
   const isCentaurien = card.type === CardType.CENTAURIEN;
   const tag = isCentaurien ? 'ET' : 'FIN';
-  const isCompleted = !!card.completed;
-  const canClick = isCentaurien && !isCompleted && isCurrentTurn && !isRobot && !!onMissionClick;
+  // Centaurien : reçue une fois son palier atteint (rien à cliquer, l'étoile n'indique que l'état)
+  const isCompleted = isCentaurien ? !!centaurienMarker?.resolved : !!card.completed;
 
   return (
     <div className={`seti-common-card seti-played-card ${isCompleted ? 'completed' : ''}`}
@@ -49,25 +51,22 @@ export const PlayedMissionCard: React.FC<PlayedMissionCardProps> = ({ card, isCu
       )}
       {isCentaurien && (
         <div className="seti-mission-requirements-row" style={{ display: 'flex', width: '100%', padding: '4px 0', marginTop: 'auto', justifyContent: 'center' }}>
-            <div
-              className={`seti-mission-requirement-indicator ${canClick ? 'seti-flash-green-icon' : ''}`}
-              style={{
-                fontSize: '14px',
-                color: isCompleted ? '#ffd700' : '#555',
-                cursor: canClick ? 'pointer' : 'default',
-                textShadow: isCompleted ? '0 0 5px #ffd700' : 'none',
-                transform: canClick ? 'scale(1.2)' : 'scale(1)',
-                transition: 'all 0.2s'
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (canClick && onMissionClick) {
-                  onMissionClick(card.id, 'centaurien');
-                }
-              }}
-            >
-              ★
-            </div>
+            <HoverTooltip nested content={isCompleted
+              ? <SlotTooltip status="Message reçu" statusColor="#ffd700" note={centaurienMarker?.resolved} />
+              : <SlotTooltip status={centaurienMarker ? `Réception à ${centaurienMarker.score} PV` : 'Réception'} statusColor={SLOT_COLORS.neutral}
+                  note="Effet appliqué en atteignant ce palier de score" />}>
+              <div
+                className="seti-mission-requirement-indicator"
+                style={{
+                  fontSize: '14px',
+                  color: isCompleted ? '#ffd700' : '#555',
+                  cursor: 'help',
+                  textShadow: isCompleted ? '0 0 5px #ffd700' : 'none',
+                }}
+              >
+                ★
+              </div>
+            </HoverTooltip>
         </div>
       )}
     </div>

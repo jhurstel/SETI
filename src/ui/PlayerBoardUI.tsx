@@ -869,9 +869,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   <PlayedMissionCard
                     key={card.id}
                     card={card}
-                    isCurrentTurn={isCurrentTurn}
-                    isRobot={isRobot}
-                    onMissionClick={onMissionClick}
+                    centaurienMarker={currentPlayer.centaurienMilestones.find(m => m.cardId === card.id)}
                     handleTooltipHover={handleTooltipHover}
                     handleTooltipLeave={handleTooltipLeave}
                   />
