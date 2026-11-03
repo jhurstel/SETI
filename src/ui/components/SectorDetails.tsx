@@ -3,7 +3,6 @@ import { SlotTooltip } from './SlotTooltip';
 import { SLOT_COLORS } from '../styles/slotColors';
 import { Game, InteractionState, SignalType, GAME_CONSTANTS, Sector, Player } from '../../core/types';
 import { describeArc, polarToCartesian } from '../solarGeometry';
-import { ResourceSystem } from '../../systems/ResourceSystem';
 import { BonusIcons } from './BonusIcons';
 import { SvgBonus } from './SvgBonus';
 import { SECTOR_STYLES } from '../styles/celestialStyles';
@@ -18,11 +17,9 @@ interface SectorDetailsProps {
 
 /**
  * Infobulle d'un secteur, au format de celle des traces de vie (classes alien-tooltip-*) : nom à la couleur du secteur,
- * joueurs qui l'ont couvert, puis gains (présence, couverture).
+ * joueurs qui l'ont couvert, puis bonus (présence, 1re couverture, couvertures suivantes).
  */
 export const SectorTooltip: React.FC<{ sector: Sector, color: string, coveredBy: Player[], presenceGain: React.ReactNode }> = ({ sector, color, coveredBy, presenceGain }) => {
-  const first = (ResourceSystem.formatBonus(sector.firstBonus) || []).join(', ') || 'Aucun';
-  const next = (ResourceSystem.formatBonus(sector.nextBonus) || []).join(', ') || 'Aucun';
   return (
     <div className="alien-tooltip-container">
       <div className="alien-tooltip-header" style={{ color }}>{sector.name}</div>
@@ -36,26 +33,17 @@ export const SectorTooltip: React.FC<{ sector: Sector, color: string, coveredBy:
       )}
       <div className="alien-tooltip-bonuses">
         <div className="alien-tooltip-bonus-row mb">
-          <span>Présence :</span>
+          <span>Bonus présence :</span>
           <span className="alien-tooltip-bonus-value">{presenceGain} par joueur</span>
         </div>
-        {first === next ? (
-          <div className="alien-tooltip-bonus-row">
-            <span>Couverture :</span>
-            <span className="alien-tooltip-bonus-value"><BonusIcons bonus={sector.firstBonus} /></span>
-          </div>
-        ) : (
-          <>
-            <div className="alien-tooltip-bonus-row mb">
-              <span>1re couverture :</span>
-              <span className="alien-tooltip-bonus-value"><BonusIcons bonus={sector.firstBonus} /></span>
-            </div>
-            <div className="alien-tooltip-bonus-row">
-              <span>Suivantes :</span>
-              <span className="alien-tooltip-bonus-value"><BonusIcons bonus={sector.nextBonus} /></span>
-            </div>
-          </>
-        )}
+        <div className="alien-tooltip-bonus-row mb">
+          <span>Bonus couverture :</span>
+          <span className="alien-tooltip-bonus-value"><BonusIcons bonus={sector.firstBonus} /></span>
+        </div>
+        <div className="alien-tooltip-bonus-row">
+          <span>Bonus suivants :</span>
+          <span className="alien-tooltip-bonus-value"><BonusIcons bonus={sector.nextBonus} /></span>
+        </div>
       </div>
     </div>
   );
@@ -193,18 +181,19 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
           );
         });
 
+        const showSectorTooltip = (e: React.MouseEvent<SVGElement>) => setActiveTooltip({ content: sectorTooltipContent, rect: e.currentTarget.getBoundingClientRect() });
+
         return (
           <g key={sector.id}
             style={{ pointerEvents: 'none' }}>
+            {/* Zone de survol : toute la couronne du secteur (nom et couloir), les slots gardent leur infobulle */}
+            <path d={describeArc(100, 100, (textRadius - 1.5 + slotRadius + 3.5) / 2, startAngle, endAngle, false)} fill="none" stroke="transparent"
+              strokeWidth={slotRadius + 3.5 - (textRadius - 1.5)} style={{ pointerEvents: 'stroke', cursor: 'help' }}
+              onMouseEnter={showSectorTooltip} onMouseLeave={() => setActiveTooltip(null)} />
             <defs>
               <path id={textPathId} d={textArc} />
             </defs>
-            <text fill={color} fontSize="2.5" fontWeight="bold" letterSpacing="0.5" opacity="0.9" style={{ cursor: 'help', pointerEvents: 'auto' }}
-              onMouseEnter={(e) => {
-                setActiveTooltip({ content: sectorTooltipContent, rect: e.currentTarget.getBoundingClientRect() });
-              }}
-              onMouseLeave={() => setActiveTooltip(null)}
-            >
+            <text fill={color} fontSize="2.5" fontWeight="bold" letterSpacing="0.5" opacity="0.9" style={{ pointerEvents: 'none' }}>
               <textPath href={`#${textPathId}`} startOffset="50%" textAnchor="middle">
                 {sector.name.toUpperCase()}
                 {coveredByPlayers.map((p, playerIndex) => (
@@ -217,7 +206,7 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
             {/* Fond presque opaque de la piste : les slots passent devant l'étoile du secteur, qui ne dépasse qu'autour
                 et transparaît à peine */}
             <path d={corridorPath} fill="none" stroke="#0a0e1a" strokeWidth="7" strokeLinecap="round" opacity="0.8" />
-            <path d={corridorPath} fill="none" stroke={color} strokeWidth="7" opacity="0.15" strokeLinecap="round" style={{ pointerEvents: 'auto', cursor: 'default' }} />
+            <path d={corridorPath} fill="none" stroke={color} strokeWidth="7" opacity="0.15" strokeLinecap="round" />
 
             {/* Slots */}
             {slots}
