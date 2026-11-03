@@ -247,4 +247,76 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
       expect(getPlayer(allowed.updatedGame, P1).probes[0].state).toBe(ProbeState.LANDED);
     });
   });
+
+  describe("emplacements d'atterrissage et d'orbite (règles appliquées par le moteur, pas seulement l'interface)", () => {
+    const exploration4 = { id: 'exploration-4-x', name: 'Exploration IV', type: 'Exploration', effects: [], bonus: {}, description: '', shorttext: '' } as unknown as Technology;
+    const landed = (id: string, planetId: string, slot: number): Probe => ({ ...probeAt(id, 'C', 5, 1), ownerId: 'player_1', state: ProbeState.LANDED, planetId, isLander: true, planetSlotIndex: slot });
+    let jupiter: ReturnType<typeof game.board.planets.find> & {};
+    let moonId: string;
+
+    beforeEach(() => {
+      jupiter = game.board.planets.find(p => p.id === 'jupiter')!;
+      moonId = jupiter.satellites![0].id;
+      getPlayer(game, P1).probes = [probeAt('p1', 'C', 5, 1)];
+      game.board.solarSystem.probes = structuredClone(getPlayer(game, P1).probes);
+      getPlayer(game, P1).energy = 10;
+      getPlayer(game, P1).technologies.push(exploration4);
+      game.currentPlayerIndex = 0;
+    });
+
+    test("une lune n'accueille qu'un atterrisseur, sauf Dragonfly (non-régression)", () => {
+      jupiter.satellites![0].landers.push(landed('x', moonId, 0));
+      const before = JSON.stringify(game);
+      expect(new LandAction(P1, 'p1', moonId).validate(game).errors[0]?.message).toBe('Cette lune a déjà un atterrisseur');
+      expect(AIBehavior.listMainActions(game, getPlayer(game, P1)).some(a => a.action === ActionType.LAND && (a.data as { planetId: string }).planetId === moonId)).toBe(false);
+      expect(InteractionChoices.placeBonusProbe(game, P1, { type: 'LANDING_PROBE', count: 1 }, moonId).error).toBe('Cette lune a déjà un atterrisseur');
+      const dragonfly = InteractionChoices.placeBonusProbe(game, P1, { type: 'LANDING_PROBE', count: 1, source: '16' }, moonId);
+      expect(dragonfly.error).toBeUndefined();
+      expect(dragonfly.updatedGame.board.planets.find(p => p.id === 'jupiter')!.satellites![0].landers).toHaveLength(2);
+      expect(JSON.stringify(game)).toBe(before);
+    });
+
+    test("l'emplacement choisi doit être le suivant ; une case occupée seulement avec Dragonfly (non-régression)", () => {
+      jupiter.landers.push(landed('a', 'jupiter', 0));
+      expect(new LandAction(P1, 'p1', 'jupiter', 0).validate(game).errors[0]?.message).toBe("Cet emplacement d'atterrissage n'est pas disponible");
+      expect(new LandAction(P1, 'p1', 'jupiter', 2).validate(game).valid).toBe(false);
+      expect(new LandAction(P1, 'p1', 'jupiter', 1).validate(game).valid).toBe(true);
+      expect(new LandAction(P1, 'p1', 'jupiter').validate(game).valid).toBe(true);
+      expect(InteractionChoices.placeBonusProbe(game, P1, { type: 'LANDING_PROBE', count: 1 }, 'jupiter', 0).error).toBe("Cet emplacement d'atterrissage n'est pas disponible");
+      const dragonfly = InteractionChoices.placeBonusProbe(game, P1, { type: 'LANDING_PROBE', count: 1, source: '16' }, 'jupiter', 0);
+      expect(dragonfly.error).toBeUndefined();
+      expect(getPlayer(dragonfly.updatedGame, P1).probes[0].planetSlotIndex).toBe(0);
+      expect(ProbeSystem.landingSlotForClick(game, 'jupiter', 1)).toBe(1);
+      expect(ProbeSystem.landingSlotForClick(game, 'jupiter', 0)).toBeNull();
+      expect(ProbeSystem.landingSlotForClick(game, 'jupiter', 0, true)).toBe(0);
+      expect(ProbeSystem.landingSlotForClick(game, 'jupiter', 2)).toBeNull();
+      // Lune : pas de case à choisir ; corps inconnu : rien à vérifier
+      expect(ProbeSystem.landingSlotForClick(game, moonId, 0)).toBeNull();
+      expect(ProbeSystem.canLandOnSlot(game, 'inconnu', 3).canLand).toBe(true);
+    });
+
+    test("pas de limite d'atterrisseurs : au-delà des cases imprimées, le bonus des suivants (non-régression)", () => {
+      jupiter.landSlots.forEach((_, i) => jupiter.landers.push(landed(`l${i}`, 'jupiter', i)));
+      const last = jupiter.landSlots.length - 1;
+      expect(ProbeSystem.landingSlotForClick(game, 'jupiter', last)).toBe(jupiter.landSlots.length);
+      expect(new LandAction(P1, 'p1', 'jupiter', jupiter.landSlots.length).validate(game).valid).toBe(true);
+      const score = getPlayer(game, P1).score;
+      const res = ProbeSystem.landProbe(game, P1, 'p1', 'jupiter', true, jupiter.landSlots.length, undefined, 'seq');
+      expect(getPlayer(res.updatedGame, P1).probes[0].planetSlotIndex).toBe(jupiter.landSlots.length);
+      expect(getPlayer(res.updatedGame, P1).score).toBe(score + (jupiter.landSlots[last].pv ?? 0));
+      expect(jupiter.landSlots[last].pv ?? 0).toBeGreaterThan(0);
+    });
+
+    test("pas de limite d'orbiteurs : au-delà des cases imprimées, le bonus des suivants (non-régression)", () => {
+      Object.assign(getPlayer(game, P1), { credits: 5, energy: 5, data: 0 });
+      const orbiter = (i: number): Probe => ({ ...landed(`o${i}`, 'jupiter', i), state: ProbeState.IN_ORBIT, isLander: false, isOrbiter: true });
+      // Dernière case imprimée encore libre : même gain qu'au-delà des cases
+      jupiter.orbiters = jupiter.orbitSlots.slice(1).map((_, i) => orbiter(i));
+      const onLastSlot = getPlayer(ProbeSystem.orbitProbe(game, P1, 'p1', 'jupiter', 'seq').updatedGame, P1).data;
+      jupiter.orbiters = jupiter.orbitSlots.map((_, i) => orbiter(i));
+      const beyond = getPlayer(ProbeSystem.orbitProbe(game, P1, 'p1', 'jupiter', 'seq').updatedGame, P1).data;
+      expect(onLastSlot).toBeGreaterThan(0);
+      expect(beyond).toBe(onLastSlot);
+    });
+  });
 });

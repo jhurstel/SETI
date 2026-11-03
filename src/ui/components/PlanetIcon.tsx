@@ -94,11 +94,10 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
       const probe = satellite.landers && satellite.landers.length > 0 ? satellite.landers[satellite.landers.length - 1] : undefined;
       const player = probe ? game.players.find(p => p.id === probe.ownerId) : null;
 
-      const isOccupied = !!player;
-      const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
+      const satelliteSlotOpen = ProbeSystem.canLandOnSlot(game, satellite.id, 0, ProbeSystem.allowsOccupiedLanding(interactionState)).canLand;
       const satelliteAllowed = ProbeSystem.canLandOnSatellite(game, currentPlayer.id, satellite.id, interactionState.type === 'LANDING_PROBE' && interactionState.ignoreSatelliteLimit).canLand;
       const isSatClickable =
-        (!isOccupied || allowOccupiedLanding) &&
+        satelliteSlotOpen &&
         canLand &&
         !!onLand &&
         satelliteAllowed;
@@ -324,7 +323,8 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
 
                   const isRemoving = removingItem?.type === 'orbiter' && removingItem?.planetId === planetData.id && removingItem?.index === i;
                   const isOccupied = !!player;
-                  const isNextAvailable = i === planetData.orbiters.length;
+                  // Pas de limite d'orbiteurs : quand toutes les cases sont prises, la dernière reste ouverte (bonus des suivants)
+                  const isNextAvailable = i === Math.min(planetData.orbiters.length, orbitSlots.length - 1);
 
                   let isClickable = false;
                   if (interactionState.type === 'REMOVING_ORBITER') {
@@ -391,15 +391,14 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                   const isRemoving = removingItem?.type === 'lander' && removingItem?.planetId === planetData.id && removingItem?.index === i;
 
                   const isOccupied = !!player;
-                  const isPrevSlotOccupied = i === 0 || planetData.landers.some(p => p.planetSlotIndex === i - 1);
-                  const isNextAvailable = !isOccupied && isPrevSlotOccupied;
-                  const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
+                  // Emplacement envoyé au moteur : case suivante (au-delà des cases imprimées, depuis la dernière), ou case occupée avec Dragonfly
+                  const landTarget = ProbeSystem.landingSlotForClick(game, planetData.id, i, ProbeSystem.allowsOccupiedLanding(interactionState));
 
                   let isClickable = false;
                   if (interactionState.type === 'REMOVING_LANDER') {
                     isClickable = !removingItem && isOccupied && player?.id === currentPlayer.id && !!onLand;
                   } else {
-                    isClickable = !removingItem && (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
+                    isClickable = !removingItem && landTarget !== null && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
                   }
                   
                   const isFullSlot = i === 0 || (planetData.id === 'mars' && i === 1) || (planetData.id === 'oumuamua' && i === 1) || (planetData.id === 'oumuamua' && i === 2);
@@ -407,7 +406,7 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
 
                   return (
                     <g key={`land-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: isClickable ? 'pointer' : 'help', pointerEvents: 'auto' }}
-                      onClick={(e) => handleSlotClick(e, isClickable, onLand, planetData.id, i, interactionState.type === 'REMOVING_LANDER' ? 'lander' : undefined)}
+                      onClick={(e) => handleSlotClick(e, isClickable, onLand, planetData.id, interactionState.type === 'REMOVING_LANDER' ? i : landTarget ?? i, interactionState.type === 'REMOVING_LANDER' ? 'lander' : undefined)}
                       onMouseEnter={(e) => {
                         if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); // Garde le tooltip principal ouvert
                         setHoveredSlot({ type: 'lander', planetId: planetData.id, index: i, rect: e.currentTarget.getBoundingClientRect() });

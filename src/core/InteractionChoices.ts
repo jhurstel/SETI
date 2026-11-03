@@ -174,8 +174,9 @@ export class InteractionChoices {
     const found = ProbeSystem.findProbeAtPlanet(game, playerId, planetId);
     if (!found) return refused(game, 'Aucune de vos sondes sur cette planète');
     if (interaction.type === 'LANDING_PROBE') {
-      const satellite = ProbeSystem.canLandOnSatellite(game, playerId, planetId, interaction.ignoreSatelliteLimit);
-      if (!satellite.canLand) return refused(game, satellite.reason);
+      for (const rule of [ProbeSystem.canLandOnSatellite(game, playerId, planetId, interaction.ignoreSatelliteLimit), ProbeSystem.canLandOnSlot(game, planetId, slotIndex, ProbeSystem.allowsOccupiedLanding(interaction))]) {
+        if (!rule.canLand) return refused(game, rule.reason);
+      }
     }
     const sequenceId = interaction.sequenceId || `seq-${uniqueId()}`;
     const res = interaction.type === 'ORBITING_PROBE'

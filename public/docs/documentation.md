@@ -50,7 +50,7 @@ Quand une action ouvre un choix (placer une trace de vie, choisir une carte, une
 #### Détail des étapes
 
 - **Lancer une sonde** : la sonde part de la case de la Terre. Exploration I permet un lancement gratuit et une 2ᵉ sonde.
-- **Orbite / atterrissage** : la sonde doit être sur la case de la planète. Si plusieurs planètes ou lunes sont possibles, le jeu demande laquelle. Mascamites : certains atterrissages permettent de **prélever un spécimen** (voir 3.2).
+- **Orbite / atterrissage** : la sonde doit être sur la case de la planète. Si plusieurs planètes ou lunes sont possibles, le jeu demande laquelle. Une planète n'a pas de limite d'orbiteurs ni d'atterrisseurs : une fois les cases imprimées occupées, les suivants reçoivent le gain de la dernière case. Une lune n'accueille qu'un seul atterrisseur (sauf avec *Dragonfly*, qui permet de se poser sur une lune occupée). Mascamites : certains atterrissages permettent de **prélever un spécimen** (voir 3.2).
 - **Scanner** : (1) signal dans le secteur de la Terre (ou un secteur adjacent avec Observation I) ; (2) choix d'une carte de la rangée, signal dans le secteur de sa couleur ; (3) Observation II : payer 1 Média pour un signal sur Mercure ; Observation III : défausser une carte pour un signal de sa couleur ; Observation IV : payer 1 énergie pour lancer une sonde, ou gagner 1 déplacement.
 - Chaque signal pose un marqueur dans le secteur et, si le secteur le prévoit, rapporte une **donnée**. Un secteur dont toutes les cases sont remplies est **résolu** (voir 2.2).
 - **Rechercher une technologie** : une technologie par pile et par joueur. Les technologies Informatique se posent sur l'ordinateur et ajoutent un gain quand la colonne est remplie.

@@ -12,9 +12,8 @@ export class LandAction extends BaseAction {
         if (!check.canLand) {
             return { valid: false, errors: [{ code: 'CANNOT_LAND', message: check.reason }], warnings: [] };
         }
-        const satellite = ProbeSystem.canLandOnSatellite(game, this.playerId, this.planetId);
-        if (!satellite.canLand) {
-            return { valid: false, errors: [{ code: 'CANNOT_LAND', message: satellite.reason }], warnings: [] };
+        for (const rule of [ProbeSystem.canLandOnSatellite(game, this.playerId, this.planetId), ProbeSystem.canLandOnSlot(game, this.planetId, this.slotIndex)]) {
+            if (!rule.canLand) return { valid: false, errors: [{ code: 'CANNOT_LAND', message: rule.reason }], warnings: [] };
         }
         return { valid: true, errors: [], warnings: [] };
     }

@@ -733,7 +733,8 @@ export class ProbeSystem {
     const bonuses: Bonus = {};
     // Bonus planète
     if (updatedPlanet && updatedPlanet.orbitSlots) {
-      const index = updatedPlanet.orbiters.length - 1;
+      // Au-delà des cases imprimées (pas de limite d'orbiteurs) : le bonus des suivants, celui de la dernière case
+      const index = Math.min(updatedPlanet.orbiters.length - 1, updatedPlanet.orbitSlots.length - 1);
       const slotBonus = updatedPlanet.orbitSlots[index];
       if (slotBonus) ResourceSystem.accumulateBonus(slotBonus, bonuses);
     }
@@ -827,6 +828,58 @@ export class ProbeSystem {
     return hasExploration4 ? { canLand: true, reason: 'Atterrissage possible' } : { canLand: false, reason: 'Nécessite la technologie Exploration IV' };
   }
 
+  /** Corps où l'on pose une sonde : planète, planète d'Oumuamua ou lune */
+  private static landingBody(game: Game, planetId: string): Planet | Satellite | undefined {
+    if (planetId === 'oumuamua') return game.species.find(s => s.name === AlienBoardType.OUMUAMUA)?.planet;
+    return game.board.planets.find(p => p.id === planetId)
+      ?? game.board.planets.flatMap(p => p.satellites || []).find(s => s.id === planetId);
+  }
+
+  /** La carte autorise à se poser sur une case (ou une lune) déjà occupée, en gagnant la récompense recouverte (Dragonfly) */
+  static allowsOccupiedLanding(interaction: InteractionState): boolean {
+    return interaction.type === 'LANDING_PROBE' && interaction.source === '16';
+  }
+
+  /** Premier emplacement d'atterrissage libre d'une planète ; au-delà des cases imprimées, il n'y a pas de limite (règles) */
+  static nextLandingSlot(game: Game, planetId: string): number {
+    const occupied = new Set((this.landingBody(game, planetId)?.landers || []).map(p => p.planetSlotIndex));
+    let k = 0;
+    while (occupied.has(k)) k++;
+    return k;
+  }
+
+  /**
+   * Emplacement visé par un atterrissage : une lune n'accueille qu'un atterrisseur, une planète se remplit dans l'ordre
+   * (emplacement libre suivant) ; une case occupée seulement avec Dragonfly (allowOccupied). Sans emplacement : le suivant.
+   */
+  static canLandOnSlot(game: Game, planetId: string, slotIndex?: number, allowOccupied: boolean = false): RuleCheck<'canLand'> {
+    const body = this.landingBody(game, planetId);
+    if (!body) return { canLand: true, reason: 'Atterrissage possible' };
+    if (!('landSlots' in body)) {
+      return body.landers.length > 0 && !allowOccupied
+        ? { canLand: false, reason: 'Cette lune a déjà un atterrisseur' }
+        : { canLand: true, reason: 'Atterrissage possible' };
+    }
+    if (slotIndex === undefined || slotIndex === this.nextLandingSlot(game, planetId)) return { canLand: true, reason: 'Atterrissage possible' };
+    const occupied = body.landers.some(p => p.planetSlotIndex === slotIndex);
+    return allowOccupied && occupied && slotIndex < body.landSlots.length
+      ? { canLand: true, reason: 'Atterrissage possible' }
+      : { canLand: false, reason: "Cet emplacement d'atterrissage n'est pas disponible" };
+  }
+
+  /**
+   * Case d'atterrissage cliquable dans l'interface (index d'une case imprimée) : l'emplacement à envoyer, ou null.
+   * La case libre suivante ; quand toutes les cases imprimées sont prises, la dernière (l'atterrisseur va au-delà, bonus des suivants) ;
+   * avec Dragonfly, aussi une case occupée.
+   */
+  static landingSlotForClick(game: Game, planetId: string, printedIndex: number, allowOccupied: boolean = false): number | null {
+    const body = this.landingBody(game, planetId);
+    if (!body || !('landSlots' in body)) return null;
+    const next = this.nextLandingSlot(game, planetId);
+    if (next === printedIndex || (next >= body.landSlots.length && printedIndex === body.landSlots.length - 1 && !allowOccupied)) return next;
+    return this.canLandOnSlot(game, planetId, printedIndex, allowOccupied).canLand ? printedIndex : null;
+  }
+
   /**
    * Fait atterrir une sonde
    */
@@ -861,22 +914,7 @@ export class ProbeSystem {
     player.energy = Math.max(0, player.energy - (free ? 0 : (validation.energyCost || GAME_CONSTANTS.LAND_COST_ENERGY)));
 
     // Identifier la cible (Planète ou Satellite)
-    let targetBody: Planet | Satellite | undefined = updatedGame.board.planets.find(p => p.id === planetId);
-    if (!targetBody && planetId === 'oumuamua') {
-      const species = updatedGame.species.find(s => s.name === AlienBoardType.OUMUAMUA);
-      if (species) targetBody = species.planet;
-    }
-    if (!targetBody) {
-      for (const p of updatedGame.board.planets) {
-        if (p.satellites) {
-          const sat = p.satellites.find(s => s.id === planetId);
-          if (sat) {
-            targetBody = sat;
-            break;
-          }
-        }
-      }
-    }
+    const targetBody = this.landingBody(updatedGame, planetId);
 
     const isFirstLander = targetBody ? (targetBody.landers || []).length === 0 : true;
     const isSecondLander = targetBody ? (targetBody.landers || []).length === 1 : false;
@@ -908,8 +946,9 @@ export class ProbeSystem {
     // Bonus planète (atterrissage)
     if (targetBody) {
       if ((targetBody as Planet).landSlots) {
-        const index = forcedSlotIndex !== undefined ? forcedSlotIndex : targetBody.landers.length - 1;
-        const slotBonus = (targetBody as Planet).landSlots[index];
+        // Au-delà des cases imprimées (pas de limite d'atterrisseurs) : le bonus des suivants, celui de la dernière case
+        const landSlots = (targetBody as Planet).landSlots;
+        const slotBonus = landSlots[Math.min(slotIndex, landSlots.length - 1)];
         if (slotBonus) ResourceSystem.accumulateBonus(slotBonus, bonuses);
       } else if ((targetBody as Satellite).landBonus) {
         ResourceSystem.accumulateBonus((targetBody as Satellite).landBonus, bonuses);

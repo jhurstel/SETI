@@ -139,7 +139,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       const bonusText = <BonusIcons bonus={bonus} />;
 
       const isOccupied = !!player;
-      const isNextAvailable = index === planetData!.orbiters.length;
+      // Pas de limite d'orbiteurs : quand toutes les cases sont prises, la dernière reste ouverte (bonus des suivants)
+      const isNextAvailable = index === Math.min(planetData!.orbiters.length, orbitSlots.length - 1);
 
       let canOrbit = false;
       let orbitReason = "";
@@ -186,9 +187,11 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       const bonusText = <BonusIcons bonus={bonus} />;
 
       const isOccupied = !!player;
-      const isPrevSlotOccupied = index === 0 || landers.some(p => p.planetSlotIndex === index - 1);
-      const isNextAvailable = !isOccupied && isPrevSlotOccupied;
-      const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
+      // Emplacement ouvert selon le moteur : lune libre, case suivante (au-delà des cases imprimées : la dernière), Dragonfly
+      const allowOccupiedLanding = ProbeSystem.allowsOccupiedLanding(interactionState);
+      const slotOpen = satelliteData
+        ? ProbeSystem.canLandOnSlot(game, satelliteData.id, 0, allowOccupiedLanding).canLand
+        : ProbeSystem.landingSlotForClick(game, planetData!.id, index, allowOccupiedLanding) !== null;
 
       let canLand = false;
       let landReason = "";
@@ -219,7 +222,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       if (interactionState.type === 'REMOVING_LANDER') {
           isClickable = isOccupied && !!player && player.id === currentPlayer.id && !!onLand;
       } else {
-          isClickable = (isNextAvailable || (allowOccupiedLanding && isOccupied)) && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
+          isClickable = slotOpen && (canLand || interactionState.type === 'LANDING_PROBE') && !!onLand;
       }
 
       const actionTextSuccess = interactionState.type === 'LANDING_PROBE'
