@@ -11,7 +11,8 @@ test('tour complet du joueur humain : lancer une sonde, passer la main au robot,
 
   // Nouvelle partie : 2 joueurs, robot Débutant, l'humain commence
   await page.getByRole('button', { name: 'Nouvelle Partie' }).click();
-  await page.getByText('2 Joueurs').click();
+  await page.getByText('2 joueurs').click();
+  await page.getByText('Débutant', { exact: true }).click();
   await page.getByRole('button', { name: 'Commencer' }).click();
 
   // Mise en place : réserver une carte de la main de départ
