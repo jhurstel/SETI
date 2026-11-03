@@ -22,10 +22,10 @@ interface OnlineModalProps {
   onBack: () => void;
 }
 
-/** Cadre commun des écrans en ligne : verre sur le ciel de l'accueil, titre et sous-titre */
-const Frame: React.FC<{ title: string; subtitle?: React.ReactNode; children: React.ReactNode }> = ({ title, subtitle, children }) => (
-  <div className="seti-modal-overlay" style={{ zIndex: 2000 }}>
-    <div className="seti-modal-content seti-newgame-modal seti-online-modal" role="dialog" aria-modal="true" aria-labelledby="seti-online-title">
+/** Cadre commun des écrans en ligne : verre sur le ciel de l'accueil, titre et sous-titre ; clic à l'extérieur : `onDismiss` */
+const Frame: React.FC<{ title: string; subtitle?: React.ReactNode; onDismiss?: () => void; children: React.ReactNode }> = ({ title, subtitle, onDismiss, children }) => (
+  <div className="seti-modal-overlay" style={{ zIndex: 2000 }} onClick={onDismiss}>
+    <div className="seti-modal-content seti-newgame-modal seti-online-modal" role="dialog" aria-modal="true" aria-labelledby="seti-online-title" onClick={e => e.stopPropagation()}>
       <header className="seti-newgame-header">
         <h2 id="seti-online-title">{title}</h2>
         {subtitle && <p>{subtitle}</p>}
@@ -165,7 +165,7 @@ export const OnlineModal: React.FC<OnlineModalProps> = ({ visible, online, onBac
   const switchTab = (next: 'create' | 'join') => { setTab(next); setError(''); };
 
   return (
-    <Frame title="Partie en ligne" subtitle="Jouez avec vos amis, chacun sur son écran">
+    <Frame title="Partie en ligne" subtitle="Jouez avec vos amis, chacun sur son écran" onDismiss={onBack}>
       <div className="seti-online-tabs" role="tablist">
         <button type="button" role="tab" aria-selected={tab === 'create'} className={tab === 'create' ? 'selected' : ''} onClick={() => switchTab('create')}>Créer une salle</button>
         <button type="button" role="tab" aria-selected={tab === 'join'} className={tab === 'join' ? 'selected' : ''} onClick={() => switchTab('join')}>Rejoindre</button>
@@ -220,7 +220,7 @@ export const OnlineModal: React.FC<OnlineModalProps> = ({ visible, online, onBac
       {error && <p className="seti-online-error" role="alert">{error}</p>}
 
       <div className="seti-newgame-actions">
-        <button type="button" className="seti-newgame-btn secondary" onClick={onBack}>Retour</button>
+        <button type="button" className="seti-newgame-btn secondary" onClick={onBack}>Annuler</button>
         <button type="button" className="seti-newgame-btn primary" disabled={busy} onClick={submit}>
           {busy ? 'Connexion…' : tab === 'create' ? 'Créer la salle' : 'Rejoindre la salle'}
         </button>
