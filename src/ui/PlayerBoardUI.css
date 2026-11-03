@@ -550,8 +550,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1px 2px;
+  gap: 0 1px;
   flex-wrap: wrap;
+  max-width: 64px;
+}
+
+/* Les 5 revenus restent affichés (Média et Donnée compris) ; un revenu nul est estompé */
+.seti-revenue-mini > span {
+  display: inline-flex;
+}
+
+.seti-revenue-mini > .empty {
+  opacity: 0.3;
 }
 
 .seti-revenue-tooltip {
@@ -666,51 +676,40 @@
   color: #8fa6d6;
 }
 
-.seti-resource-tooltip-action {
+.seti-resource-tooltip-action-row {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Bouton d'action gratuite : icônes seules (dépense → gain), détail dans son infobulle */
+.seti-resource-tooltip-action {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
+  gap: 3px;
+  padding: 3px 6px;
   border-radius: 6px;
   border: 1px solid rgba(74, 158, 255, 0.5);
   background: rgba(74, 158, 255, 0.12);
   color: #e8f1ff;
   font: inherit;
-  font-size: 0.85em;
-  text-align: left;
   cursor: pointer;
 }
 
-.seti-resource-tooltip-action:hover:not(:disabled) {
+.seti-resource-tooltip-action:hover:not([aria-disabled="true"]) {
   background: rgba(74, 158, 255, 0.3);
   border-color: #6fc3ff;
 }
 
-.seti-resource-tooltip-action:disabled {
+.seti-resource-tooltip-action[aria-disabled="true"] {
   cursor: not-allowed;
   border-color: rgba(255, 255, 255, 0.12);
   background: transparent;
   color: #8a93a8;
 }
 
-.seti-resource-tooltip-action:disabled svg {
+.seti-resource-tooltip-action[aria-disabled="true"] svg {
   opacity: 0.45;
   filter: grayscale(0.8);
-}
-
-.seti-resource-tooltip-action-icons {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.seti-resource-tooltip-action-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.seti-resource-tooltip-action-reason {
-  font-size: 0.85em;
-  color: #ff8a8a;
 }

@@ -1,12 +1,13 @@
 import { TurnManager } from '../src/core/TurnManager';
 import { GameEngine } from '../src/core/Game';
 import { PassAction } from '../src/actions/PassAction';
-import { CardType, Game, GamePhase, InteractionState, LifeTraceType } from '../src/core/types';
+import { CardType, Game, GamePhase, InteractionState, LifeTraceType, RevenueType } from '../src/core/types';
 import { InteractionChoices } from '../src/core/InteractionChoices';
 import { revealText } from '../src/core/historyText';
 import { ScoreManager } from '../src/core/ScoreManager';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 import { DISCOVERY_NOTICE } from '../src/systems/SpeciesSystem';
+import { CardSystem } from '../src/systems/CardSystem';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
@@ -63,6 +64,19 @@ describe('TurnManager', () => {
         expect(p.energy).toBe(before[i].energy + p.revenueEnergy);
         expect(p.cards).toHaveLength(before[i].cards + p.revenueCards);
       });
+    });
+
+    test('verse aussi les revenus Média et Donnée des cartes réservées', () => {
+      const player = game.players[0];
+      player.cards.push(makeCard('rm', { revenue: RevenueType.MEDIA }), makeCard('rd', { revenue: RevenueType.DATA }));
+      const reserved = CardSystem.reserveCard(CardSystem.reserveCard(game, player.id, 'rm'), player.id, 'rd');
+      const p = getPlayer(reserved, player.id);
+      p.mediaCoverage = 0;
+      p.data = 0;
+      const updated = TurnManager.endRound(reserved);
+      expect(getPlayer(updated, player.id).mediaCoverage).toBe(1);
+      expect(getPlayer(updated, player.id).data).toBe(1);
+      expect(p.mediaCoverage).toBe(0);
     });
 
     test('réinitialise les joueurs et fait tourner le premier joueur', () => {

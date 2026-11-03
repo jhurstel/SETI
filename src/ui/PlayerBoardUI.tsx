@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, CardType, SectorType } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, CardType, SectorType, Bonus } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
@@ -11,10 +11,11 @@ import { CardBack } from './components/CardBack';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
-import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, ResourceIconKind, VictoryPointsIcon, EndTurnIcon } from './components/GameIcons';
+import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsIcon, EndTurnIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
 import { ActionTooltip, TechTooltip, ResourceSymbols, PieceSymbol, ScanSymbol, BlueTraceSymbol, CardCostSymbol, TechSymbol, DiscardSymbol } from './components/BoardTooltips';
 import { ReservationIcon } from './components/ObjectiveSymbol';
+import { HoverTooltip } from './components/HoverTooltip';
 import './PlayerBoardUI.css';
 
 interface PlayerBoardUIProps {
@@ -493,48 +494,59 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   }, [handleTooltipHover, handleTooltipLeave]);
 
   // Actions gratuites d'une ressource (échanges, achat d'une carte), proposées dans son infobulle
-  type FreeAction = { key: string; spend: ResourceIconKind; gain: ResourceIconKind; label: string; available: boolean; lacking: string; onClick: () => void };
+  type FreeAction = {
+    key: string; title: string; spend: TradeKind; spendAmount: number; gain: TradeKind; gainAmount: number; note?: string;
+    available: boolean; lacking: string; onClick: () => void;
+  };
+  type TradeKind = 'credit' | 'energy' | 'card' | 'media';
+  const TRADE_BONUS: Record<TradeKind, keyof Bonus> = { credit: 'credits', energy: 'energy', card: 'card', media: 'media' };
+  const tradeBonus = (kind: TradeKind, amount: number): Bonus => ({ [TRADE_BONUS[kind]]: amount });
   const freeActionReason = (lacking: string) => !isCurrentTurn ? "Ce n'est pas votre tour" : isInteractiveMode ? "Terminez d'abord l'action en cours" : lacking;
   const trade = (spend: 'credit' | 'energy', gain: 'credit' | 'energy' | 'card'): FreeAction => {
     const have = spend === 'credit' ? currentPlayer.credits : currentPlayer.energy;
-    const spendLabel = spend === 'credit' ? '2 Crédits' : '2 Énergies';
-    const gainLabel = gain === 'credit' ? '1 Crédit' : gain === 'energy' ? '1 Énergie' : '1 Carte';
     return {
-      key: `${spend}-${gain}`, spend, gain, label: `${spendLabel} → ${gainLabel}`, available: isCurrentTurn && !isInteractiveMode && have >= 2,
+      key: `${spend}-${gain}`, title: 'Échanger', spend, spendAmount: 2, gain, gainAmount: 1, available: isCurrentTurn && !isInteractiveMode && have >= 2,
       lacking: `Vous avez ${have} ${spend === 'credit' ? 'crédit(s)' : 'énergie(s)'}`, onClick: () => onDirectTradeAction && onDirectTradeAction(spend, gain),
     };
   };
   const cardTrade = (gain: 'credit' | 'energy'): FreeAction => ({
-    key: `card-${gain}`, spend: 'card', gain, label: `2 Cartes → ${gain === 'credit' ? '1 Crédit' : '1 Énergie'}`, available: isCurrentTurn && !isInteractiveMode && handCards.length >= 2,
+    key: `card-${gain}`, title: 'Échanger des cartes', spend: 'card', spendAmount: 2, gain, gainAmount: 1, note: 'cartes de la main au choix',
+    available: isCurrentTurn && !isInteractiveMode && handCards.length >= 2,
     lacking: `Vous avez ${handCards.length} carte(s) en main`, onClick: () => onTradeCardAction && onTradeCardAction(gain),
   });
   const buyCard: FreeAction = {
-    key: 'buy-card', spend: 'media', gain: 'card', label: '3 Médias → 1 Carte (rangée ou pioche)', available: isCurrentTurn && !isInteractiveMode && currentPlayer.mediaCoverage >= 3,
+    key: 'buy-card', title: 'Acheter une carte', spend: 'media', spendAmount: 3, gain: 'card', gainAmount: 1, note: 'rangée ou pioche',
+    available: isCurrentTurn && !isInteractiveMode && currentPlayer.mediaCoverage >= 3,
     lacking: `Vous avez ${currentPlayer.mediaCoverage} média(s)`, onClick: () => onBuyCardAction && onBuyCardAction(),
   };
+  // Actions gratuites d'une ressource : boutons à icônes seules, chacun avec une infobulle d'action (coût, bonus, clic ou raison)
   const resourceTooltip = (status: string, color: string, note: string, actions: FreeAction[]) => (
     <div className="seti-resource-tooltip">
       <SlotTooltip status={status} statusColor={color} note={note} />
       {!isRobot && actions.length > 0 && (
         <div className="seti-resource-tooltip-actions">
           <div className="seti-resource-tooltip-actions-title">Actions gratuites</div>
-          {actions.map(action => (
-            <button
-              key={action.key}
-              type="button"
-              className="seti-resource-tooltip-action"
-              disabled={!action.available}
-              onClick={() => { setActiveTooltip(null); action.onClick(); }}
-            >
-              <span className="seti-resource-tooltip-action-icons">
-                <ResourceIcon kind={action.spend} size={16} /><span aria-hidden="true">→</span><ResourceIcon kind={action.gain} size={16} />
-              </span>
-              <span className="seti-resource-tooltip-action-text">
-                {action.label}
-                {!action.available && <span className="seti-resource-tooltip-action-reason">{freeActionReason(action.lacking)}</span>}
-              </span>
-            </button>
-          ))}
+          <div className="seti-resource-tooltip-action-row">
+            {actions.map(action => (
+              <HoverTooltip key={action.key} nested content={
+                <ActionTooltip title={action.title} cost={<ResourceSymbols bonus={tradeBonus(action.spend, action.spendAmount)} />}
+                  bonus={<ResourceSymbols bonus={tradeBonus(action.gain, action.gainAmount)} note={action.note} />}
+                  available={action.available} hint={action.available ? (action.key === 'buy-card' ? 'Cliquez pour acheter' : 'Cliquez pour échanger') : freeActionReason(action.lacking)} />
+              }>
+                <button
+                  type="button"
+                  className="seti-resource-tooltip-action"
+                  aria-label={action.title}
+                  aria-disabled={!action.available}
+                  onClick={() => { if (!action.available) return; setActiveTooltip(null); action.onClick(); }}
+                >
+                  <ResourceIcon kind={action.spend} amount={action.spendAmount} size={18} />
+                  <span aria-hidden="true">→</span>
+                  <ResourceIcon kind={action.gain} amount={action.gainAmount} size={18} />
+                </button>
+              </HoverTooltip>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -630,7 +642,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                       // Revenus apportés par les espèces (cartes Centauriens, réservations de cartes à revenu Média ou Donnée)
                       { kind: 'media' as const, label: 'Médias', total: currentPlayer.revenueMedia || 0, base: 0, flash: null },
                       { kind: 'data' as const, label: 'Données', total: currentPlayer.revenueData || 0, base: 0, flash: null },
-                    ].filter(r => r.base > 0 || r.total > 0);
+                    ];
                     const reserved = currentPlayer.reservedCards || [];
                     const tooltip = (
                       <div className="seti-revenue-tooltip">
@@ -664,7 +676,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                           <span className="seti-revenue-count">{reserved.length}</span>
                         </div>
                         <div className="seti-revenue-mini">
-                          {revenues.map(r => <ResourceIcon key={r.kind} kind={r.kind} amount={r.total} size={15} />)}
+                          {revenues.map(r => <span key={r.kind} className={r.total === 0 ? 'empty' : undefined}><ResourceIcon kind={r.kind} amount={r.total} size={12} /></span>)}
                         </div>
                       </div>
                     );
