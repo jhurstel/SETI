@@ -4,6 +4,7 @@ import { CardTooltip } from '../components/CardTooltip';
 import { CardContent } from '../components/HandCard';
 import { Tooltip } from '../Tooltip';
 import { ChoiceModal, ChoiceFooterButton } from './ChoiceModal';
+import { useCloseTooltipOnClick } from '../hooks/useCloseTooltipOnClick';
 
 type HighlightedAttribute = 'revenue' | 'scan' | 'freeAction';
 
@@ -60,6 +61,7 @@ interface CardPickModalProps {
 /** Choix de plusieurs cartes de la main dans une fenêtre centrale (défausses, échange) */
 export const CardPickModal: React.FC<CardPickModalProps> = ({ title, subtitle, cards, selectedIds, onToggle, highlightedAttribute, status, confirmLabel, canConfirm, onConfirm, onCancel }) => {
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
+  useCloseTooltipOnClick(() => setActiveTooltip(null));
 
   return (
     <>

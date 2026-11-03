@@ -10,6 +10,7 @@ import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon } f
 import { LIFE_TRACE_COLORS, LifeTraceColor } from './styles/lifeTraceColors';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import './AlienBoardUI.css';
+import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
 
 interface AlienBoardUIProps {
     game: Game;
@@ -129,6 +130,7 @@ const ExertienDangerTooltip: React.FC<{
     onLeave: () => void;
 }> = ({ game, onEnter, onLeave }) => {
     const [hoveredCard, setHoveredCard] = useState<{ card: Card, rect: DOMRect } | null>(null);
+    useCloseTooltipOnClick(() => setHoveredCard(null));
 
     return (
         <div

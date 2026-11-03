@@ -3,6 +3,7 @@ import { Card } from '../../core/types';
 import { Tooltip } from '../Tooltip';
 import { ChoiceCardTile } from './CardPickModal';
 import { ChoiceModal, ChoiceFooterButton } from './ChoiceModal';
+import { useCloseTooltipOnClick } from '../hooks/useCloseTooltipOnClick';
 
 interface PassModalProps {
   visible: boolean;
@@ -21,6 +22,7 @@ interface PassModalProps {
 export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm, currentRound, title, subtitle, confirmLabel, highlightedAttribute = 'freeAction' }) => {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
+  useCloseTooltipOnClick(() => setActiveTooltip(null));
 
   if (!visible) return null;
 

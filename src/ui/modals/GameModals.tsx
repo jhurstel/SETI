@@ -10,6 +10,7 @@ import { Tooltip } from '../Tooltip';
 import { ResourceIcon, SignalGainIcon, ActionHexIcon, CentaurienMessageIcon } from '../components/GameIcons';
 import { SpeciesSystem } from '../../systems/SpeciesSystem';
 import { effectString } from '../../core/cardEffects';
+import { useCloseTooltipOnClick } from '../hooks/useCloseTooltipOnClick';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {
   if (!visible) return null;
@@ -86,6 +87,7 @@ export const MissionRequirementModal = ({ game, interactionState, onChoice }: { 
 export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: Game, interactionState: InteractionState, onChoice: (cardId?: string) => void }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
+  useCloseTooltipOnClick(() => setActiveTooltip(null));
   if (interactionState.type !== 'CHOOSING_EXERTIEN_CARD') return null;
 
   // Joueur qui choisit : celui de l'interaction (découverte des Exertiens pendant le tour d'un autre), sinon le joueur actif

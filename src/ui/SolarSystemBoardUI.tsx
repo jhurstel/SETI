@@ -17,6 +17,7 @@ import { SectorStars } from './components/SectorStars';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
 import './SolarSystemBoardUI.css'
+import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
 
 interface SolarSystemBoardUIProps {
   game: Game;
@@ -47,6 +48,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   const planetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const [hoveredSlot, setHoveredSlot] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number, rect: DOMRect } | null>(null);
+  useCloseTooltipOnClick(() => setHoveredSlot(null));
 
   // État pour gérer l'animation de retrait
   const [removingItem, setRemovingItem] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number } | null>(null);

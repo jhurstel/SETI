@@ -10,6 +10,7 @@ import { BonusIcons } from './components/BonusIcons';
 import { OrbiterOrLanderIcon } from './components/ObjectiveSymbol';
 import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../core/SolarSystemPosition';
 import './PlanetBoardUI.css';
+import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
 
 interface PlanetBoardUIProps {
     game: Game;
@@ -32,6 +33,7 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
     const [removingItem, setRemovingItem] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number } | null>(null);
     const processingRef = useRef(false);
     const [hoveredSlot, setHoveredSlot] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number, rect: DOMRect } | null>(null);
+    useCloseTooltipOnClick(() => setHoveredSlot(null));
 
     const planets = PLANET_IDS.map(id => game.board.planets.find(p => p.id === id)).filter(p => p) as Planet[];
 

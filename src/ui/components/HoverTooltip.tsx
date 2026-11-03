@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Tooltip } from '../Tooltip';
+import { useCloseTooltipOnClick } from '../hooks/useCloseTooltipOnClick';
 
 /**
  * Affiche une infobulle du jeu (même aspect que les autres) au survol de son contenu,
@@ -12,6 +13,7 @@ export const HoverTooltip = ({ content, children, className, style }: {
   style?: React.CSSProperties;
 }) => {
   const [rect, setRect] = useState<DOMRect | null>(null);
+  useCloseTooltipOnClick(() => setRect(null));
   return (
     <span
       className={className}

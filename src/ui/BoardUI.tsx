@@ -33,6 +33,7 @@ import { SettingsModal } from './modals/SettingsModal';
 import { DocumentationModal } from './modals/DocumentationModal';
 import { PlanetBoardUI } from './PlanetBoardUI';
 import './BoardUI.css';
+import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
 
 /** Modes propres à l'interface (sélection avant la commande, animation) : la partie n'en sait rien */
 type LocalMode = Extract<InteractionState, { type: 'DISCARDING_CARD' | 'TRADING_CARD' | 'ANALYZING' }>;
@@ -71,6 +72,7 @@ export const BoardUI: React.FC = () => {
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
   const [alienDiscoveryNotification, setAlienDiscoveryNotification] = useState<{ visible: boolean; message: string } | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null>(null);
+  useCloseTooltipOnClick(() => setActiveTooltip(null));
   const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
   const [settingsVisible, setSettingsVisible] = useState(true); // Ouvert au lancement
   const [docVisible, setDocVisible] = useState(false);
