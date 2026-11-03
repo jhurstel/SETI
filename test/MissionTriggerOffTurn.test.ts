@@ -1,7 +1,9 @@
 import { GameSession } from '../src/session/GameSession';
 import { CardSystem } from '../src/systems/CardSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
-import { Game, GamePhase, LifeTraceLocation, LifeTraceType } from '../src/core/types';
+import { TechnologySystem } from '../src/systems/TechnologySystem';
+import { InteractionResolver } from '../src/core/InteractionResolver';
+import { Game, GamePhase, LifeTraceLocation, LifeTraceType, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -112,5 +114,25 @@ describe('missions déclenchées hors du tour de leur joueur', () => {
     expect(res.game.interaction).toBeUndefined();
     expect(getPlayer(res.game, P2).data).toBe(data + 1);
     expect(fulfillable(res.game, P2)).toEqual([]);
+  });
+
+  test('deux déclencheurs (2 technologies) : deux cercles recouverts (non-régression, Vulgarisation Scientifique)', () => {
+    game = playCards(game, P1, ['94']);
+    const techOf = (type: TechnologyCategory) => game.board.technologyBoard.available.find(t => t.type === type)!;
+    game = TechnologySystem.acquireTechnology(game, P1, techOf(TechnologyCategory.EXPLORATION)).updatedGame;
+    game = TechnologySystem.acquireTechnology(game, P1, techOf(TechnologyCategory.OBSERVATION)).updatedGame;
+    const mission = getPlayer(game, P1).missions.find(m => m.cardId === '94')!;
+    expect(mission.fulfillableRequirementIds).toHaveLength(2);
+    const [first, second] = mission.fulfillableRequirementIds;
+    const before = JSON.stringify(game);
+
+    const claim = (g: Game, requirementId: string) =>
+      InteractionResolver.resolve(g, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: mission.id, requirementId }).updatedGame;
+    const once = claim(game, first);
+    expect(fulfillable(once, P1)).toEqual([second]);
+    const twice = claim(once, second);
+    expect(getPlayer(twice, P1).missions.find(m => m.cardId === '94')!.completedRequirementIds).toEqual([first, second]);
+    expect(fulfillable(twice, P1)).toEqual([]);
+    expect(JSON.stringify(game)).toBe(before);
   });
 });

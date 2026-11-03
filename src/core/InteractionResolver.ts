@@ -176,8 +176,16 @@ export class InteractionResolver {
     }
 
     mission.completedRequirementIds.push(interaction.requirementId);
-    // Un seul prérequis réalisable peut être choisi : vider la liste pour toutes les missions du joueur
-    player.missions.forEach(m => (m.fulfillableRequirementIds = []));
+    // Un déclencheur ne recouvre qu'un cercle, toutes cartes confondues : les autres cercles du même déclencheur
+    // ne sont plus réalisables ; ceux d'un autre déclencheur (2e technologie…) le restent
+    const trigger = mission.fulfillableTriggers?.[interaction.requirementId];
+    player.missions.forEach(m => {
+      m.fulfillableRequirementIds = m.fulfillableRequirementIds.filter(id =>
+        id !== interaction.requirementId && trigger !== undefined && m.fulfillableTriggers?.[id] !== undefined && m.fulfillableTriggers[id] !== trigger);
+      if (m.fulfillableTriggers) {
+        m.fulfillableTriggers = Object.fromEntries(Object.entries(m.fulfillableTriggers).filter(([id]) => m.fulfillableRequirementIds.includes(id)));
+      }
+    });
     const isCompleted = mission.completedRequirementIds.length >= mission.requirements.length;
     if (isCompleted) mission.completed = true;
 

@@ -131,7 +131,7 @@ Chaque pile a 4 exemplaires ; le premier pris rapporte 3 PV, les suivants 1 Méd
 
 - **Action** : gains immédiats.
 - **Mission conditionnelle / déclenchable** : restent devant le joueur ; chaque condition remplie se réclame (action gratuite) et donne sa récompense.
-- **Mission déclenchée** : un même déclencheur ne recouvre qu'un cercle, toutes cartes confondues, au choix du joueur. Pendant son tour, les cercles possibles sont surlignés sur ses cartes : il clique sur celui qu'il recouvre (les autres s'éteignent). Si l'effet survient pendant le tour d'un autre joueur (trace de vie gagnée par une majorité…), une fenêtre lui propose aussitôt les cercles déclenchés ; il peut aussi ne pas en profiter.
+- **Mission déclenchée** : un même déclencheur ne recouvre qu'un cercle, toutes cartes confondues, au choix du joueur. Pendant son tour, les cercles possibles sont surlignés sur ses cartes : il clique sur celui qu'il recouvre (les autres cercles du même déclencheur s'éteignent ; deux déclencheurs, par exemple deux technologies acquises, recouvrent deux cercles). Si l'effet survient pendant le tour d'un autre joueur (trace de vie gagnée par une majorité…), une fenêtre lui propose aussitôt les cercles déclenchés ; il peut aussi ne pas en profiter.
 - **Fin de partie** : points au décompte final selon une condition.
 - La main n'a pas de limite pendant la manche ; au moment de passer, on n'en garde que 4.
 

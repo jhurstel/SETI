@@ -724,12 +724,15 @@ export class CardSystem {
         // Règles : un même déclencheur ne recouvre qu'un cercle à la fois ; ici, un cercle par carte
         // (le premier non recouvert), pour que les 3 cercles d'ET.29 demandent 3 traces de vie
         const triggeredMissions = new Set<string>();
+        // Chaque appel est un déclencheur : recouvrir un de ses cercles n'efface pas ceux d'un autre déclencheur
+        const triggerId = uniqueId();
         player.permanentBuffs.forEach(buff => {
             if (!shouldTrigger(buff) || !buff.id || !buff.source || triggeredMissions.has(buff.source)) return;
             const mission = player.missions.find(m => m.name === buff.source);
             if (!mission || mission.completedRequirementIds.includes(buff.id)) return;
             if (mission.fulfillableRequirementIds.includes(buff.id)) return;
             mission.fulfillableRequirementIds.push(buff.id);
+            mission.fulfillableTriggers = { ...mission.fulfillableTriggers, [buff.id]: triggerId };
             triggeredMissions.add(buff.source);
             atLeastOneFulfillable = true;
         });

@@ -483,6 +483,8 @@ export interface Mission {
   requirements: CardEffect[];
   completedRequirementIds: string[];
   fulfillableRequirementIds: string[];
+  /** Déclencheur de chaque cercle réalisable (prérequis → déclencheur) : un déclencheur ne recouvre qu'un cercle */
+  fulfillableTriggers?: Record<string, string>;
   completed: boolean;
   originalCard?: Card;
 }
