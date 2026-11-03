@@ -107,3 +107,23 @@
 .seti-board-tooltip-hint.blocked {
   color: #ff8a8a;
 }
+
+/* Étapes numérotées d'une action (Passer) */
+.seti-board-tooltip-steps {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.seti-board-tooltip-steps li {
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+/* Chaque étape tient sur une ligne : l'infobulle s'élargit au besoin */
+.seti-board-tooltip:has(.seti-board-tooltip-steps) {
+  max-width: none;
+}
+
+.seti-board-tooltip-steps .seti-board-tooltip-symbols {
+  vertical-align: middle;
+}

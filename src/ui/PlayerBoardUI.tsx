@@ -441,12 +441,16 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         break;
 
       case ActionType.PASS:
-        cost = 'Garder au plus 4 cartes en main';
+        // Pas de coût : une seule ligne Effet, les 3 étapes de la passe
+        cost = undefined;
         bonusLabel = 'Effet';
-        // Le premier joueur à passer fait tourner le Système solaire
-        bonus = game.players.some(p => p.hasPassed)
-          ? 'Une carte de fin de manche ; vous ne jouez plus avant la prochaine manche'
-          : <><ResourceSymbols bonus={{ rotation: 1 }} note="(premier à passer)" /> puis une carte de fin de manche ; vous ne jouez plus avant la prochaine manche</>;
+        bonus = (
+          <ol className="seti-board-tooltip-steps">
+            <li>Défaussez des cartes pour n'en conserver que 4</li>
+            <li><ResourceSymbols bonus={{ rotation: 1 }} /> si vous êtes premier à passer</li>
+            <li>Choisissez une carte de Fin de manche</li>
+          </ol>
+        );
         action = 'Cliquez pour passer';
         break;
 
@@ -703,7 +707,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                     let endTurnReason = "Terminez d'abord l'action en cours";
                     if (!isCurrentTurn) endTurnReason = "Ce n'est pas votre tour";
                     else if (!hasPerformedMainAction) endTurnReason = "Effectuez d'abord une action principale";
-                    const endTurnTooltip = <ActionTooltip title="Fin du tour" bonusLabel="Effet" bonus="Les paliers de score sont vérifiés, puis le joueur suivant joue"
+                    const endTurnTooltip = <ActionTooltip title="Fin du tour" bonusLabel="Effet" bonus="Les paliers de score sont vérifiés"
                       available={canEndTurn} hint={canEndTurn ? 'Cliquez pour terminer votre tour' : endTurnReason} />;
                     const canPass = actionAvailability[ActionType.PASS] && !interactionBlocks;
                     const mainActions: [ActionIconKind, ActionType][] = [
