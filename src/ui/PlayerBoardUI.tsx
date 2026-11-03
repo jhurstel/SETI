@@ -96,17 +96,12 @@ const TrackSlot: React.FC<{
 interface ExplorationTrackProps {
   game: Game;
   playerId: string;
-  onAction: (actionType: ActionType) => void;
-  /** Action principale possible maintenant (mêmes règles que les boutons d'action) */
-  isActionAvailable: (actionType: ActionType) => boolean;
-  /** Infobulle de l'action (mêmes textes que les boutons d'action) */
-  actionTooltip: (actionType: ActionType) => React.ReactNode;
   handleTooltipHover: (e: React.MouseEvent, content: React.ReactNode) => void;
   handleTooltipLeave: () => void;
 }
 
-/** Piste Exploration : lancement, mise en orbite et atterrissage, puis les emplacements des technologies Exploration I à IV */
-const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, onAction, isActionAvailable, actionTooltip, handleTooltipHover, handleTooltipLeave }) => {
+/** Piste Exploration : les emplacements des technologies Exploration I à IV (les actions sont dans la section Actions) */
+const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, handleTooltipHover, handleTooltipLeave }) => {
   const player = game.players.find(p => p.id === playerId);
   if (!player) return null;
 
@@ -117,30 +112,12 @@ const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, onA
       techFrame={{ acquired: hasTech(level), tile: `exploration-${level}` }}
       onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
   );
-  const actionSlot = (kind: ActionIconKind, actionType: ActionType) => {
-    const available = isActionAvailable(actionType);
-    return (
-      <TrackSlot icon={<ActionHexIcon kind={kind} size={44} />} hex label={actionType} tooltip={actionTooltip(actionType)} clickable={available} flash={available} onClick={() => onAction(actionType)}
-        onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
-    );
-  };
-
-  // Trois actions indépendantes : lancer (Exploration I et II), mettre en orbite, poser (Exploration III et IV) ; les groupes sont séparés
-  // par un espace sans ligne. Les lignes s'arrêtent au bord des cadres.
+  // Les quatre emplacements de technologie Exploration, espacés régulièrement
   return (
-    <div className="obs-track-container">
-      {actionSlot('launch', ActionType.LAUNCH_PROBE)}
-      <div className="obs-track-connector into-right" />
+    <div className="obs-track-container evenly">
       {techSlot('1 sonde à la fois dans le système solaire', "Jusqu'à 2 sondes dans le système solaire", 1, 'I')}
-      <div className="obs-track-connector into-left into-right between-frames" />
       {techSlot("Quitter un champ d'astéroïdes coûte 1 déplacement de plus", "+1 Média en visitant un champ d'astéroïdes, qu'on quitte sans surcoût", 2, 'II')}
-      <div className="obs-track-gap" />
-      {actionSlot('orbit', ActionType.ORBIT)}
-      <div className="obs-track-gap" />
-      {actionSlot('land', ActionType.LAND)}
-      <div className="obs-track-connector into-right" />
       {techSlot(`Atterrir coûte ${GAME_CONSTANTS.LAND_COST_ENERGY} Énergies (1 de moins avec un orbiteur)`, 'Atterrir coûte 1 Énergie de moins', 3, 'III')}
-      <div className="obs-track-connector into-left into-right between-frames" />
       {techSlot('Atterrissage sur les planètes seulement', 'Atterrissage aussi sur les lunes', 4, 'IV')}
     </div>
   );
@@ -149,15 +126,11 @@ const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, onA
 interface ObservationTrackProps {
   game: Game;
   playerId: string;
-  onAction: (actionType: ActionType) => void;
-  isCurrentTurn: boolean;
-  hasPerformedMainAction: boolean;
-  isInteractiveMode: boolean;
   handleTooltipHover: (e: React.MouseEvent, content: React.ReactNode) => void;
   handleTooltipLeave: () => void;
 }
 
-const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onAction, isCurrentTurn, hasPerformedMainAction, isInteractiveMode, handleTooltipHover, handleTooltipLeave }) => {
+const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, handleTooltipHover, handleTooltipLeave }) => {
   const player = game.players.find(p => p.id === playerId);
   if (!player) return null;
 
@@ -165,14 +138,6 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   const hasObs2 = player.technologies.some(t => t.id.startsWith('observation-2'));
   const hasObs3 = player.technologies.some(t => t.id.startsWith('observation-3'));
   const hasObs4 = player.technologies.some(t => t.id.startsWith('observation-4'));
-
-  const scanCheck = ScanSystem.canScanSector(game, playerId);
-  let scanReason: string | null = null;
-  if (!isCurrentTurn) scanReason = "Ce n'est pas votre tour";
-  else if (hasPerformedMainAction) scanReason = 'Action principale déjà effectuée';
-  else if (!scanCheck.canScan) scanReason = scanCheck.reason || 'Impossible de scanner';
-  else if (isInteractiveMode) scanReason = "Terminez d'abord l'action en cours";
-  const scanDisabled = scanReason !== null;
 
   const renderSlot = (
     icon: React.ReactNode,
@@ -196,15 +161,10 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   const obsTooltip = (roman: string, acquired: boolean, base: string, benefit: string) =>
     <TechTooltip name={`Observation ${roman}`} acquired={acquired} base={base} benefit={benefit} />;
 
-  const scanTooltip = <ActionTooltip title={ActionType.SCAN_SECTOR}
-    cost={<ResourceSymbols bonus={{ credits: GAME_CONSTANTS.SCAN_COST_CREDITS, energy: GAME_CONSTANTS.SCAN_COST_ENERGY }} />}
-    bonus={<ScanSymbol />} available={!scanDisabled} hint={scanReason ?? 'Cliquez pour scanner'} />;
-
-  // Les lignes s'arrêtent au bord des cadres de technologie ; les technologies II à IV n'ont que leur tuile
+  // Étapes du scan (l'action est dans la section Actions), reliées par des lignes de même longueur qui s'arrêtent au bord des cadres ;
+  // les technologies II à IV n'ont que leur tuile
   return (
-    <div className="obs-track-container">
-      {renderSlot(<ActionHexIcon kind="scan" size={44} />, scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled, undefined, ActionType.SCAN_SECTOR, true)}
-      <div className="obs-track-connector into-right" />
+    <div className="obs-track-container evenly">
       {/* Étape de la Terre : la pastille (sans Observation I) a l'infobulle de l'étape, le cadre celle de la technologie */}
       {(() => {
         const obs1Tooltip = obsTooltip('I', hasObs1, 'Signal dans le secteur de la Terre', 'Signal dans le secteur de la Terre ou un secteur adjacent');
@@ -217,9 +177,9 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
       {renderSlot(<SignalIcon badge="card" size={30} />, stepTooltip('Carte de la rangée', <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.ROW }] }} note="la carte est défaussée" />), false)}
       <div className="obs-track-connector into-right" />
       {renderSlot(null, obsTooltip('II', hasObs2, 'Pas de signal dans le secteur de Mercure', 'Pour 1 Média, signal dans le secteur de Mercure'), false, undefined, false, false, false, { acquired: hasObs2, tile: 'observation-2' })}
-      <div className="obs-track-connector into-left into-right between-frames" />
+      <div className="obs-track-connector into-left into-right" />
       {renderSlot(null, obsTooltip('III', hasObs3, 'Pas de signal pour une carte de la main', 'En défaussant 1 carte de la main, signal dans son secteur'), false, undefined, false, false, false, { acquired: hasObs3, tile: 'observation-3' })}
-      <div className="obs-track-connector into-left into-right between-frames" />
+      <div className="obs-track-connector into-left into-right" />
       {renderSlot(null, obsTooltip('IV', hasObs4, 'Rien de plus après les signaux', 'Lancer une sonde pour 1 Énergie, ou gagner 1 déplacement'), false, undefined, false, false, false, { acquired: hasObs4, tile: 'observation-4' })}
     </div>
   );
@@ -759,9 +719,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             <ExplorationTrack
               game={game}
               playerId={currentPlayer.id}
-              onAction={onAction}
-              isActionAvailable={(actionType) => actionAvailability[actionType] && !isInteractiveMode}
-              actionTooltip={(actionType) => getActionTooltip(actionType, actionAvailability[actionType] && !isInteractiveMode)}
               handleTooltipHover={handleTooltipHover}
               handleTooltipLeave={handleTooltipLeave}
             />
@@ -773,10 +730,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             <ObservationTrack
               game={game}
               playerId={currentPlayer.id}
-              onAction={onAction}
-              isCurrentTurn={isCurrentTurn}
-              hasPerformedMainAction={hasPerformedMainAction}
-              isInteractiveMode={isInteractiveMode}
               handleTooltipHover={handleTooltipHover}
               handleTooltipLeave={handleTooltipLeave}
             />
@@ -795,7 +748,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 disabled={isInteractiveMode || isRobot}
                 onHover={handleTooltipHover}
                 onLeave={handleTooltipLeave}
-                onAnalyzeClick={() => onAction(ActionType.ANALYZE_DATA)}
               />
             </div>
           </div>

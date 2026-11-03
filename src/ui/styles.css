@@ -184,14 +184,12 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   0%, 100% { filter: drop-shadow(0 0 1px rgba(76, 175, 80, 0.5)); }
   50% { filter: drop-shadow(0 0 4px rgba(76, 175, 80, 1)) drop-shadow(0 0 2px #4caf50); }
 }
-.obs-track-slot.hex.seti-flash-green,
-.computer-slot.hex-slot.seti-flash-green {
+.obs-track-slot.hex.seti-flash-green {
   animation: none;
   box-shadow: none;
   border-color: transparent !important;
 }
-.obs-track-slot.hex.seti-flash-green > svg,
-.computer-slot.hex-slot.seti-flash-green > svg {
+.obs-track-slot.hex.seti-flash-green > svg {
   animation: seti-flash-green-hex 1.6s ease-in-out infinite;
 }
 

@@ -475,12 +475,15 @@
 /* Entre un emplacement et un cadre : au moins 4px de trait, qui s'arrête au bord du cadre */
 .obs-track-connector.into-left,
 .obs-track-connector.into-right { min-width: 4px; }
-/* Entre deux cadres voisins : 4px d'écart, sans rétrécir */
-.obs-track-connector.between-frames { flex: 0 0 4px; }
-/* Séparation entre deux groupes indépendants d'une piste (sans ligne) */
-.obs-track-gap {
-  flex-grow: 1;
-  min-width: 8px;
+/* Piste aux emplacements espacés régulièrement et centrés (même marge que l'ordinateur) : sans lignes, écarts égaux ;
+   avec lignes, toutes de même longueur */
+.obs-track-container.evenly {
+  justify-content: space-evenly;
+  padding: 8px 24px;
+}
+
+.obs-track-container.evenly .obs-track-connector {
+  flex: 1 1 0;
 }
 
 /* ===== Barre Ressources / Revenus : tuiles symbole + valeur, actions dessous ===== */

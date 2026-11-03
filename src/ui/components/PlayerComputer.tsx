@@ -1,14 +1,12 @@
 import React from 'react';
-import { Player, GAME_CONSTANTS, ComputerSlot } from '../../core/types';
+import { Player, ComputerSlot } from '../../core/types';
 import { ComputerSystem } from '../../systems/ComputerSystem';
 import { PlayerComputerSlot } from './PlayerComputerSlot';
 import { TechSpot } from './TechSpot';
-import { ActionHexIcon } from './GameIcons';
-import { ActionTooltip, ResourceSymbols, BlueTraceSymbol } from './BoardTooltips';
 import './PlayerComputer.css';
 
 export const PlayerComputer = ({ 
-  player, onSlotClick, isSelecting, onColumnSelect, isAnalyzing, disabled, onHover, onLeave, onAnalyzeClick
+  player, onSlotClick, isSelecting, onColumnSelect, isAnalyzing, disabled, onHover, onLeave
 }: { 
   player: Player,
   onSlotClick: (slotId: string) => void,
@@ -17,8 +15,7 @@ export const PlayerComputer = ({
   isAnalyzing?: boolean,
   disabled?: boolean,
   onHover: (e: React.MouseEvent, content: React.ReactNode) => void,
-  onLeave: () => void,
-  onAnalyzeClick?: () => void
+  onLeave: () => void
 }) => {
   const slots = player.dataComputer.slots;
   const columns = [1, 2, 3, 4, 5, 6];
@@ -123,61 +120,6 @@ export const PlayerComputer = ({
         );
       })}
 
-      {/* 7th Slot (Analysis) */}
-      {(() => {
-          const col6Slots = Object.values(slots).filter((s) => s.col === 6);
-          const col6HasBottom = col6Slots.length > 1;
-          const leftMargin = -(col6HasBottom ? 12 : 4);
-          const rightMargin = -4;
-          
-          const slot6a = col6Slots.find(s => s.type === 'top');
-          const is6aFilled = slot6a ? slot6a.filled : false;
-          const hasEnergy = player.energy >= GAME_CONSTANTS.ANALYZE_COST_ENERGY;
-          const isAvailable = is6aFilled && hasEnergy;
-          const isClickable = isAvailable && !disabled;
-
-          return (
-            <>
-              <div style={{ flex: 1, position: 'relative', alignSelf: 'flex-start' }}>
-                <div 
-                  className="computer-separator"
-                  style={{
-                    position: 'absolute',
-                    left: leftMargin,
-                    right: rightMargin,
-                    top: 0
-                  }} 
-                />
-              </div>
-              <div className="computer-column">
-                <div
-                  className={`computer-slot hex-slot ${isAvailable ? 'can-fill' : ''} ${isClickable ? 'seti-flash-green' : ''}`}
-                  style={{ 
-                      cursor: isClickable ? 'pointer' : 'help',
-                      borderColor: isClickable ? undefined : (isAvailable ? '#00ffff' : '#444'),
-                      color: isClickable ? undefined : (isAvailable ? '#00ffff' : '#444'),
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '1.2em'
-                  }}
-                  onClick={() => { if (isClickable && onAnalyzeClick) onAnalyzeClick(); }}
-                  onMouseEnter={(e) => {
-                      const cost = <ResourceSymbols bonus={{ energy: GAME_CONSTANTS.ANALYZE_COST_ENERGY }} note="et les données de la ligne du haut" />;
-                      let reason: string | null = null;
-                      if (!is6aFilled) reason = 'Nécessite de remplir la ligne du haut';
-                      else if (!hasEnergy) reason = `Énergie insuffisante (${GAME_CONSTANTS.ANALYZE_COST_ENERGY} requise)`;
-
-                      onHover(e, reason
-                          ? <ActionTooltip title="Analyser les données" cost={cost} bonus={<BlueTraceSymbol />} available={false} hint={reason} />
-                          : <ActionTooltip title="Analyser les données" cost={cost} bonus={<BlueTraceSymbol />} hint="Cliquez pour analyser les données" />);
-                  }}
-                  onMouseLeave={onLeave}
-                >
-                  <ActionHexIcon kind="analyze" size={38} />
-                </div>
-              </div>
-            </>
-          );
-      })()}
     </div>
   );
 };
