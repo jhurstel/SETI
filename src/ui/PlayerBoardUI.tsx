@@ -714,7 +714,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                           const available = actionType === ActionType.PASS ? canPass : actionAvailability[actionType] && !isInteractiveMode;
                           return (
                             <TrackSlot key={actionType} icon={<ActionHexIcon kind={kind} size={42} />} hex label={actionType} tooltip={getActionTooltip(actionType, available)}
-                              clickable={available} flash={available && actionType !== ActionType.PASS} onClick={() => onAction(actionType)}
+                              clickable={available} flash={available} onClick={() => onAction(actionType)}
                               onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
                           );
                         })}
