@@ -5,6 +5,8 @@ import { Game, InteractionState, SignalType, GAME_CONSTANTS, Sector, Player } fr
 import { describeArc, polarToCartesian } from '../solarGeometry';
 import { BonusIcons } from './BonusIcons';
 import { SvgBonus } from './SvgBonus';
+import { HoverTooltip } from './HoverTooltip';
+import { HumanIcon } from './PlayerKindIcon';
 import { SECTOR_STYLES } from '../styles/celestialStyles';
 
 interface SectorDetailsProps {
@@ -34,7 +36,7 @@ export const SectorTooltip: React.FC<{ sector: Sector, color: string, coveredBy:
       <div className="alien-tooltip-bonuses">
         <div className="alien-tooltip-bonus-row mb">
           <span>Bonus présence :</span>
-          <span className="alien-tooltip-bonus-value">{presenceGain} par joueur</span>
+          <span className="alien-tooltip-bonus-value" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{presenceGain} / <HoverTooltip content="Par joueur présent" nested><HumanIcon size={14} /></HoverTooltip></span>
         </div>
         <div className="alien-tooltip-bonus-row mb">
           <span>Bonus couverture :</span>
