@@ -493,27 +493,6 @@
     border-top: 1px solid #444;
 }
 
-/* Toutes les tuiles ont la même taille (la plus large : carte + énergie) */
-.alien-centaurien-tile {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    box-sizing: border-box;
-    width: 66px;
-    height: 28px;
-    padding: 0 4px;
-    cursor: help;
-    border-radius: 5px;
-    border: 2px solid #b9a8ff;
-    background: rgba(91, 63, 196, 0.35);
-    white-space: nowrap;
-}
-
-.alien-centaurien-tile.taken {
-    opacity: 0.45;
-}
-
 /* Plateau ouvert : toute la hauteur disponible (la limite commune de 80vh faisait défiler le plateau Exertiens) */
 .seti-foldable-container.alien-foldable-container.open,
 .seti-foldable-container.alien-foldable-container:hover {

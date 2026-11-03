@@ -15,6 +15,7 @@ import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
 import { HoverTooltip } from './components/HoverTooltip';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
+import { CentaurienMessageTile } from './components/CentaurienMessageTile';
 
 /** Couleur de chaque piste de traces de vie */
 const TRACK_COLORS: Record<LifeTraceType, string> = {
@@ -210,10 +211,7 @@ const CentaurienMilestonesTooltip: React.FC<{ game: Game; species?: Species; onE
                             <SlotTooltip status={`Tuile Message ${index + 1} : ${status}`} statusColor={tile.isAvailable ? SLOT_COLORS.available : owner?.color ?? SLOT_COLORS.neutral}
                                 label="Récompense" value={<BonusIcons bonus={tile.bonus} size={16} />} />
                         }>
-                            <span className={`alien-centaurien-tile ${tile.isAvailable ? '' : 'taken'}`}
-                                style={owner ? { borderColor: owner.color } : undefined}>
-                                <BonusIcons bonus={tile.bonus} size={16} />
-                            </span>
+                            <CentaurienMessageTile bonus={tile.bonus} taken={!tile.isAvailable} takenColor={owner?.color} />
                         </HoverTooltip>
                     );
                 })}

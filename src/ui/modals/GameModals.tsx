@@ -8,6 +8,7 @@ import { ResourceSystem } from '../../systems/ResourceSystem';
 import { CardSystem } from '../../systems/CardSystem';
 import { ChoiceModal, ChoiceOption, ChoiceFooterButton } from './ChoiceModal';
 import { HoverTooltip } from '../components/HoverTooltip';
+import { CentaurienMessageTile } from '../components/CentaurienMessageTile';
 import { ChoiceCardTile } from './CardPickModal';
 import { Tooltip } from '../Tooltip';
 import { ResourceIcon, SignalGainIcon, ActionHexIcon, CentaurienMessageIcon } from '../components/GameIcons';
@@ -39,22 +40,19 @@ export const CentaurienRewardModal = ({ game, interactionState, onChoice }: { ga
 
   return (
     <ChoiceModal
-      title="Message Centaurien décodé"
+      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}><CentaurienMessageIcon size={24} />Message Centaurien décodé</span>}
       subtitle="Choisissez une tuile Message encore disponible : sa récompense est gagnée immédiatement."
     >
-      {species.message.map((token, index) => {
-        const owner = token.claimedBy ? game.players.find(p => p.id === token.claimedBy) : undefined;
-        return (
-          <ChoiceOption
-            key={index}
-            icon={<CentaurienMessageIcon size={26} />}
-            label={(ResourceSystem.formatBonus(token.bonus) || []).join(', ')}
-            onClick={() => onChoice(index)}
-            disabled={!token.isAvailable}
-            disabledReason={owner ? <span>Déjà choisi par <strong style={{ color: owner.color }}>{owner.name}</strong></span> : 'Déjà choisi'}
-          />
-        );
-      })}
+      {/* Les 4 tuiles sur une ligne, en symboles, de même taille (comme l'infobulle du plateau Centauriens) */}
+      <div className="seti-message-tile-row">
+        {species.message.map((token, index) => {
+          const owner = token.claimedBy ? game.players.find(p => p.id === token.claimedBy) : undefined;
+          const tile = <CentaurienMessageTile bonus={token.bonus} large taken={!token.isAvailable} takenColor={owner?.color} onClick={() => onChoice(index)} />;
+          return token.isAvailable ? <React.Fragment key={index}>{tile}</React.Fragment> : (
+            <HoverTooltip key={index} content={owner ? <span>Déjà choisie par <strong style={{ color: owner.color }}>{owner.name}</strong></span> : 'Déjà choisie'}>{tile}</HoverTooltip>
+          );
+        })}
+      </div>
     </ChoiceModal>
   );
 };
