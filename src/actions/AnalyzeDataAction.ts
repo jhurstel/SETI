@@ -13,7 +13,7 @@ export class AnalyzeDataAction extends BaseAction {
     validate(game: Game): ValidationResult {
         const check = ComputerSystem.canAnalyzeData(game, this.playerId);
         if (!check.canAnalyze) {
-            return { valid: false, errors: [{ code: 'CANNOT_ANALYZE', message: check.reason || 'Analyse impossible' }], warnings: [] };
+            return { valid: false, errors: [{ code: 'CANNOT_ANALYZE', message: check.reason }], warnings: [] };
         }
         return { valid: true, errors: [], warnings: [] };
     }

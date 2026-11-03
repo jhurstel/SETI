@@ -1,7 +1,7 @@
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { createRotationState, getAdjacentCells, getCell, getObjectPosition } from '../src/core/SolarSystemPosition';
 import { DiskName, Game, Mission, Probe, ProbeState, SectorNumber } from '../src/core/types';
-import { createTestGame, getPlayer } from './helpers/gameFixture';
+import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
@@ -46,7 +46,7 @@ describe('Sondes : cas limites et refus', () => {
 
   describe('Lancement', () => {
     test('joueur inconnu, crédits insuffisants, limite de sondes (2 avec Exploration I)', () => {
-      expect(ProbeSystem.canLaunchProbe(game, 'inconnu').reason).toBe('Joueur introuvable');
+      expect(() => ProbeSystem.canLaunchProbe(game, 'inconnu')).toThrow('Joueur introuvable');
       getPlayer(game, P1).credits = 0;
       expect(ProbeSystem.canLaunchProbe(game, P1).canLaunch).toBe(false);
 
@@ -72,7 +72,7 @@ describe('Sondes : cas limites et refus', () => {
   describe('Déplacement', () => {
     test('refus : joueur ou sonde inconnus, sonde hors du système solaire', () => {
       place(game, [probeAt('p1', 'A', 1, 0, ProbeState.IN_ORBIT)]);
-      expect(ProbeSystem.canMoveProbe(game, 'inconnu', 'p1', 1).reason).toBe('Joueur introuvable');
+      expect(() => ProbeSystem.canMoveProbe(game, 'inconnu', 'p1', 1)).toThrow('Joueur introuvable');
       expect(ProbeSystem.canMoveProbe(game, P1, 'inconnue', 1).reason).toBe('Sonde introuvable');
       expect(ProbeSystem.canMoveProbe(game, P1, 'p1', 1).reason).toBe('La sonde doit être dans le système solaire');
       expect(() => ProbeSystem.moveProbe(game, P1, 'p1', 'A', 2, 1)).toThrow('La sonde doit être dans le système solaire');
@@ -96,6 +96,14 @@ describe('Sondes : cas limites et refus', () => {
       expect(getPlayer(noMedia.updatedGame, P1).mediaCoverage).toBe(media);
     });
 
+    test('mission « visiter une planète » : déclenchée par Mars', () => {
+      const { mars, neighbour } = marsAndNeighbour();
+      place(game, [probeAt('p1', neighbour.disk, neighbour.sector, 0)]);
+      addTriggeredMission(game, 'GAIN_ON_VISIT_PLANET');
+      const res = ProbeSystem.moveProbe(game, P1, 'p1', mars.disk, mars.absoluteSector, 1, 's');
+      expect(res.historyEntries.some(e => e.message === 'déclenche une mission à recouvrir')).toBe(true);
+    });
+
     test('champ d\'astéroïdes : bonus « Survol d\'Astéroïdes » en Données, consommé', () => {
       const r = rotation();
       const extra = game.board.solarSystem.extraCelestialObjects;
@@ -112,10 +120,13 @@ describe('Sondes : cas limites et refus', () => {
       const player = getPlayer(game, P1);
       player.data = 0;
       player.activeBuffs.push({ type: 'VISIT_ASTEROID', value: 1, source: 'Survol' });
+      player.technologies.push(game.board.technologyBoard.available.find(t => t.id.startsWith('exploration-2'))!);
+      const media = player.mediaCoverage;
 
       const res = ProbeSystem.moveProbe(game, P1, 'p1', target!.disk, target!.sector, 1, 's');
 
       expect(getPlayer(res.updatedGame, P1).data).toBe(1);
+      expect(getPlayer(res.updatedGame, P1).mediaCoverage).toBe(media + 1);
       expect(getPlayer(res.updatedGame, P1).activeBuffs.some(b => b.type === 'VISIT_ASTEROID')).toBe(false);
     });
   });
@@ -123,12 +134,12 @@ describe('Sondes : cas limites et refus', () => {
   describe('Orbite et atterrissage', () => {
     test('refus : joueur ou sonde inconnus, sonde pas sur une planète', () => {
       place(game, [probeAt('p1', 'A', 1, 0)]);
-      expect(ProbeSystem.canOrbit(game, 'inconnu', 'p1').canOrbit).toBe(false);
+      expect(() => ProbeSystem.canOrbit(game, 'inconnu', 'p1')).toThrow('Joueur introuvable');
       expect(ProbeSystem.canOrbit(game, P1, 'inconnue').canOrbit).toBe(false);
       expect(ProbeSystem.canOrbit(game, P1, 'p1').reason).toBe('La sonde doit être sur une planète autre que la Terre');
       expect(() => ProbeSystem.orbitProbe(game, P1, 'p1', 'mars')).toThrow();
 
-      expect(ProbeSystem.canLand(game, 'inconnu', 'p1').canLand).toBe(false);
+      expect(() => ProbeSystem.canLand(game, 'inconnu', 'p1')).toThrow('Joueur introuvable');
       expect(ProbeSystem.canLand(game, P1, 'inconnue').canLand).toBe(false);
       expect(ProbeSystem.canLand(game, P1, 'p1').reason).toBe('La sonde doit être sur une planète autre que la Terre');
       place(game, [probeAt('p1', 'B', 1, 2, ProbeState.IN_ORBIT)]);
@@ -152,6 +163,14 @@ describe('Sondes : cas limites et refus', () => {
       addTriggeredMission(game, 'GAIN_ON_LAND');
       expect(ProbeSystem.orbitProbe(game, P1, 'p1', 'mars', 's', true).historyEntries.some(e => e.message === 'déclenche une mission à recouvrir')).toBe(true);
       expect(ProbeSystem.landProbe(game, P1, 'p1', 'mars', true, undefined, undefined, 's').historyEntries.some(e => e.message === 'déclenche une mission à recouvrir')).toBe(true);
+    });
+
+    test("atterrissage d'une carte « … et prélevez un spécimen » sur Jupiter : le prélèvement est proposé", () => {
+      place(game, [probeAt('p', 'C', 5, 1)]);
+      game.board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens = [{ bonus: { pv: 2 } }];
+      getPlayer(game, P1).cards.push(makeCard('spec', { passiveEffects: [{ type: 'GAIN_LANDING_AND_SPECIMEN', value: true }] }));
+      const res = ProbeSystem.landProbe(game, P1, 'p', 'jupiter', true, undefined, 'spec', 'seq');
+      expect(res.newPendingInteractions).toContainEqual({ type: 'COLLECTING_SPECIMEN', planetId: 'jupiter', sequenceId: 'seq' });
     });
 
     test('retirer l\'orbiteur ou l\'atterrisseur d\'un adversaire : refusé', () => {

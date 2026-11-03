@@ -7,6 +7,7 @@ import { performRotation } from '../core/SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { cloneGame } from '../core/cloneGame';
 import { uniqueId } from '../core/ids';
+import { requirePlayer } from '../core/players';
 
 export class PassAction extends BaseAction {
   constructor(
@@ -18,10 +19,7 @@ export class PassAction extends BaseAction {
   }
 
   validate(game: Game): ValidationResult {
-    const player = game.players.find(p => p.id === this.playerId);
-    if (!player) {
-      return { valid: false, errors: [{ code: 'INVALID_PLAYER', message: 'Joueur non trouvé' }], warnings: [] };
-    }
+    const player = requirePlayer(game, this.playerId);
 
     // Cartes gardées : des cartes de la main (pas les cartes Exertiens), exactement autant que la main
     // ramenée à 4 cartes (ni plus, ni moins : on ne défausse que l'excédent)

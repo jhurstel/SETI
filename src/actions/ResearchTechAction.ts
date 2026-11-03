@@ -14,7 +14,7 @@ export class ResearchTechAction extends BaseAction {
     validate(game: Game): ValidationResult {
         const check = TechnologySystem.canResearchTech(game, this.playerId);
         if (!check.canResearch) {
-            return { valid: false, errors: [{ code: 'CANNOT_RESEARCH', message: check.reason || 'Recherche impossible' }], warnings: [] };
+            return { valid: false, errors: [{ code: 'CANNOT_RESEARCH', message: check.reason }], warnings: [] };
         }
 
         return { valid: true, errors: [], warnings: [] };

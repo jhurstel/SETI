@@ -32,6 +32,7 @@ describe('SessionJournal', () => {
     expect(undone.game).toBe(log[1].previousState);
     expect(undone.log.map(e => e.message)).toEqual(['action 1']);
     expect(SessionJournal.undoLast([])).toBeNull();
+    expect(SessionJournal.undoLast([entry('trop ancienne', H, 's0')])).toBeNull();
   });
 
   test('entrée sans séquence (fin de tour) : la dernière commande est annulée', () => {

@@ -1,11 +1,12 @@
 import { effectNumber } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
-import { Game, Sector, Bonus, SignalType, GAME_CONSTANTS, InteractionState, ProbeState, HistoryEntry, SectorType } from '../core/types';
+import { Game, Sector, Bonus, SignalType, GAME_CONSTANTS, InteractionState, ProbeState, HistoryEntry, SectorType, RuleCheck } from '../core/types';
 import { getObjectPosition, createRotationState, calculateAbsolutePosition, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { CardSystem } from './CardSystem';
 import { uniqueId } from '../core/ids';
+import { requirePlayer } from '../core/players';
 
 type ScanSectorSelection = Extract<InteractionState, { type: 'SELECTING_SCAN_SECTOR' }>;
 
@@ -18,6 +19,16 @@ const PLANET_SCOPES: Partial<Record<SectorType, string>> = {
   [SectorType.EARTH]: 'earth',
 };
 
+/** Couleur de secteur visée par les cartes « PV par secteur » (SCORE_PER_SECTOR) */
+const SECTOR_COLOR_TARGETS: Record<string, SectorType> = { red: SectorType.RED, blue: SectorType.BLUE, yellow: SectorType.YELLOW, black: SectorType.BLACK };
+
+/** Missions déclenchées par un signal, selon la couleur du secteur */
+const SIGNAL_TRIGGERS: Partial<Record<SectorType, string>> = {
+  [SectorType.YELLOW]: 'GAIN_ON_YELLOW_SIGNAL',
+  [SectorType.RED]: 'GAIN_ON_RED_SIGNAL',
+  [SectorType.BLUE]: 'GAIN_ON_BLUE_SIGNAL',
+};
+
 export class ScanSystem {
   /**
    * Vérifie si un joueur peut scanner un secteur
@@ -26,14 +37,8 @@ export class ScanSystem {
     game: Game,
     playerId: string,
     checkCost: boolean = true
-  ): {
-    canScan: boolean;
-    reason?: string;
-  } {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) {
-      return { canScan: false, reason: 'Joueur introuvable' };
-    }
+  ): RuleCheck<'canScan'> {
+    const player = requirePlayer(game, playerId);
 
     // Vérifier les ressources
     if (checkCost && player.credits < GAME_CONSTANTS.SCAN_COST_CREDITS) {
@@ -79,7 +84,7 @@ export class ScanSystem {
   } {
     const validation = this.canScanSector(game, playerId, checkCost);
     if (!validation.canScan) {
-      throw new Error(validation.reason || 'Scan impossible');
+      throw new Error(validation.reason);
     }
 
     const updatedGame = cloneGame(game);
@@ -118,13 +123,7 @@ export class ScanSystem {
       if (player) {
         player.activeBuffs.forEach((buff) => {
           if (buff.type === 'SCORE_PER_SECTOR') {
-            let match = false;
-            if (buff.target === 'red' && sector.color === SectorType.RED) match = true;
-            else if (buff.target === 'blue' && sector.color === SectorType.BLUE) match = true;
-            else if (buff.target === 'yellow' && sector.color === SectorType.YELLOW) match = true;
-            else if (buff.target === 'black' && sector.color === SectorType.BLACK) match = true;
-
-            if (match) {
+            if (SECTOR_COLOR_TARGETS[buff.target ?? ''] === sector.color) {
               bonuses.pv = (bonuses.pv || 0) + effectNumber(buff);
               logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'PV')} (Bonus "${buff.source}")`);
             }
@@ -151,8 +150,7 @@ export class ScanSystem {
    * Vérifie si un secteur est couvert
    */
   static isSectorCovered(game: Game, sectorId: string): boolean {
-    const sector = this.getSectorById(game, sectorId);
-    if (!sector) return false;
+    const sector = this.getSectorById(game, sectorId)!;
     return sector.signals.filter(s => s.type === SignalType.DATA).every(s => s.marked);
   }
 
@@ -170,10 +168,6 @@ export class ScanSystem {
     newPendingInteractions: { interaction: InteractionState, playerId: string }[];
   } {
     let updatedGame = cloneGame(game);
-    const player = updatedGame.players.find(p => p.id === playerId)!;
-    if (!player) {
-      return { updatedGame, logs: [], bonuses: {}, newPendingInteractions: [] };
-    }
     const sector = this.getSectorById(updatedGame, sectorId);
     if (!sector) {
       return { updatedGame, logs: [], bonuses: {}, newPendingInteractions: [] };
@@ -466,12 +460,8 @@ export class ScanSystem {
       const bonusRes = ResourceSystem.processBonuses(scanResult.bonuses, updatedGame, playerId, 'scan', sequenceId);
       updatedGame = bonusRes.updatedGame;
       scanLogs.push(...bonusRes.logs);
-      if (bonusRes.historyEntries) {
-        historyEntries.push(...bonusRes.historyEntries);
-      }
-      if (bonusRes.newPendingInteractions.length > 0) {
-        newPendingInteractions.push(...bonusRes.newPendingInteractions.map(i => ({ ...i, sequenceId })));
-      }
+      historyEntries.push(...bonusRes.historyEntries);
+      newPendingInteractions.push(...bonusRes.newPendingInteractions);
     }
 
     // Traitement des missions conditionnelles (GAIN_ON_<couleur>_SIGNAL).
@@ -480,12 +470,7 @@ export class ScanSystem {
     if (player) {
       const sector = this.getSectorById(updatedGame, sectorId);
       const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
-        if (sector) {
-          if (sector.color === SectorType.YELLOW && buff.type === 'GAIN_ON_YELLOW_SIGNAL') return true;
-          if (sector.color === SectorType.RED && buff.type === 'GAIN_ON_RED_SIGNAL') return true;
-          if (sector.color === SectorType.BLUE && buff.type === 'GAIN_ON_BLUE_SIGNAL') return true;
-        }
-        return false;
+        return !!sector && buff.type === SIGNAL_TRIGGERS[sector.color];
       });
       if (hasFulfillable) {
         historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId});
@@ -530,8 +515,7 @@ export class ScanSystem {
 
     const isAdjacentToEarth = (sectorNum: number | undefined) => {
       if (!interaction.adjacents || sectorNum === undefined) return false;
-      const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, extraObjects);
-      if (!earthPos) return false;
+      const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, extraObjects)!;
       const diff = Math.abs(earthPos.absoluteSector - sectorNum);
       return diff <= 1 || diff === 7;
     };
@@ -627,7 +611,6 @@ export class ScanSystem {
         const cardIndex = source.cards.findIndex(c => c.id === interaction.cardId);
         if (cardIndex !== -1) {
           const removedCard = source.cards.splice(cardIndex, 1)[0];
-          if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
           updatedGame.decks.discardPile.push(removedCard);
           initialLogs.push(`utilise carte "${removedCard.name}" (${removedCard.scanSector}) ${source.label}`);
           cardProcessed = true;
@@ -678,10 +661,7 @@ export class ScanSystem {
       return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: 'Média insuffisant pour utiliser Observation II' };
     }
     const solarSystem = game.board.solarSystem;
-    const mercuryPos = getObjectPosition('mercury', solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0, solarSystem.extraCelestialObjects);
-    if (!mercuryPos) {
-      return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: 'Mercure introuvable' };
-    }
+    const mercuryPos = getObjectPosition('mercury', solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0, solarSystem.extraCelestialObjects)!;
 
     const updatedGame = cloneGame(game);
     updatedGame.players.find(p => p.id === playerId)!.mediaCoverage -= 1;

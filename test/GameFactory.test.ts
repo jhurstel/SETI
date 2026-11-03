@@ -1,5 +1,6 @@
 import { GAME_CONSTANTS, GamePhase } from '../src/core/types';
 import { createTestGame } from './helpers/gameFixture';
+import { GameFactory } from '../src/core/GameFactory';
 
 describe('GameFactory (partie réelle)', () => {
   test('crée une partie à 2 joueurs prête à jouer', async () => {
@@ -32,6 +33,12 @@ describe('GameFactory (partie réelle)', () => {
     ].map(c => c.id);
 
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test("initialisation refusée hors de la mise en place", async () => {
+    const game = await createTestGame();
+    game.phase = GamePhase.PLAYING;
+    expect(() => GameFactory.initializeGame(game)).toThrow('La partie doit être en phase SETUP');
   });
 
   test('refuse un nombre de joueurs invalide', async () => {

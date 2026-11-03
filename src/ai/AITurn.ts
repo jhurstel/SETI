@@ -164,11 +164,12 @@ export class AITurn {
 
     // (Analyse de données : la trace de vie Bleue est une interaction de l'action, résolue avec les autres)
     if (decision.action === ActionType.RESEARCH_TECH) {
-      // La technologie est choisie par l'IA : l'interaction ACQUIRING_TECH de l'action n'est pas utilisée
+      // La technologie est choisie par l'IA : l'interaction ACQUIRING_TECH de l'action n'est pas utilisée,
+      // les autres (récompense d'une Anomalie activée par la rotation) restent à résoudre
       const tech = TechnologySystem.acquireTechnology(updatedGame, player.id, decision.data.tech);
       updatedGame = tech.updatedGame;
       historyEntries.push(...tech.historyEntries);
-      pending = tech.newPendingInteractions || [];
+      pending = pending.filter(i => i.type !== 'ACQUIRING_TECH');
     }
 
     return this.resolvePending(updatedGame, player, historyEntries, pending, sequenceId);
@@ -376,7 +377,6 @@ export class AITurn {
   private static discardForFreeActionOptions(game: Game, player: Player): StepResult[] {
     const options: StepResult[] = [];
     for (const card of CardSystem.getHandCards(player)) {
-      if (!card.freeAction) continue;
       const sequenceId = `ai-free-action-${uniqueId()}`;
       const discarded = CardSystem.discardCard(game, player.id, card.id);
       const discardedPlayer = discarded.players.find(p => p.id === player.id)!;
@@ -412,13 +412,14 @@ export class AITurn {
         .filter(adj => cells.has(`${adj.disk}${adj.sector}`))
         .map(adj => ({ adj, distance: distanceHome(adj.disk, adj.sector) }))
         .sort((a, b) => a.distance - b.distance)[0];
-      if (!best || best.distance >= current) continue;
-      const sequenceId = `ai-capsule-${uniqueId()}`;
-      try {
-        const res = ProbeSystem.moveProbe(game, player.id, capsule.id, best.adj.disk, best.adj.sector, 0, sequenceId);
-        return this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, sequenceId);
-      } catch {
-        // Déplacement refusé par le moteur : capsule suivante
+      if (best && best.distance < current) {
+        const sequenceId = `ai-capsule-${uniqueId()}`;
+        try {
+          const res = ProbeSystem.moveProbe(game, player.id, capsule.id, best.adj.disk, best.adj.sector, 0, sequenceId);
+          return this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, sequenceId);
+        } catch {
+          // Déplacement refusé par le moteur : capsule suivante
+        }
       }
     }
     return null;
@@ -473,7 +474,6 @@ export class AITurn {
 
     const card = row[Math.floor(random() * row.length)];
     const res = CardSystem.buyCard(game, player.id, card.id, false);
-    if (res.error) return null;
     return { updatedGame: res.updatedGame, historyEntries: [{ message: `achète la carte "${card.name}"`, playerId: player.id }] };
   }
 
@@ -483,7 +483,7 @@ export class AITurn {
 
     // La carte la moins utile à garder (trop chère pour la prochaine manche, ou la moins puissante)
     const card = hand
-      .filter(c => c.freeAction)
+      .filter(c => c.freeAction !== FreeActionType.UNDEFINED)
       .sort((a, b) => AIBehavior.cardKeepValue(player, a) - AIBehavior.cardKeepValue(player, b))[0];
     if (!card) return null;
 

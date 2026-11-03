@@ -2,7 +2,7 @@ import React from 'react';
 import { SlotTooltip } from './SlotTooltip';
 import { SLOT_COLORS } from '../styles/slotColors';
 import { Game, InteractionState, SignalType, GAME_CONSTANTS, Sector, Player } from '../../core/types';
-import { describeArc, polarToCartesian } from '../../core/SolarSystemPosition';
+import { describeArc, polarToCartesian } from '../solarGeometry';
 import { ResourceSystem } from '../../systems/ResourceSystem';
 import { BonusIcons } from './BonusIcons';
 import { SvgBonus } from './SvgBonus';

@@ -552,7 +552,6 @@ export interface Bonus {
   revenue?: number;
   rotation?: number;
   technologies?: { amount: number, scope: TechnologyCategory }[];
-  orbiting?: number;
   probe?: number;
   movements?: number;
   landing?: number;
@@ -797,9 +796,10 @@ export const getInteractionLabel = (state: InteractionState): string => {
         : `Appliquer l'effet de la carte.`;
     case 'IDLE': return `Aucune action en cours.`;
     default: {
-      // Chaque type d'interaction doit avoir un libellé : erreur de compilation si un cas manque
+      // Chaque type d'interaction doit avoir un libellé : erreur de compilation si un cas manque.
+      // Reste possible à l'exécution pour une interaction d'une sauvegarde plus ancienne.
       const missing: never = state;
-      return missing;
+      return `Interaction en cours (${(missing as { type: string }).type}).`;
     }
   }
 };
@@ -919,3 +919,11 @@ export type AIDecision =
   | { action: ActionType.LAUNCH_PROBE | ActionType.SCAN_SECTOR | ActionType.ANALYZE_DATA; data?: undefined };
 
 export type AIDifficulty = 'PASS' | 'EASY' | 'MEDIUM' | 'EXPERT';
+
+/**
+ * Résultat d'une vérification de règle (`canLaunch`, `canScan`…) : un refus donne toujours sa raison,
+ * une autorisation peut porter un avertissement et des informations en plus (coût…).
+ */
+export type RuleCheck<K extends string, Extra = object> =
+  | ({ [P in K]: true } & { reason?: string } & Extra)
+  | ({ [P in K]: false } & { reason: string } & Partial<Extra>);

@@ -106,7 +106,7 @@ describe('TechnologySystem.canAcquireTech', () => {
 
     expect(TechnologySystem.canAcquireTech(game, P1)).toBe(true);
     expect(TechnologySystem.canAcquireTech(game, P1, [TechnologyCategory.COMPUTING])).toBe(true);
-    expect(TechnologySystem.canAcquireTech(game, 'inconnu')).toBe(false);
+    expect(() => TechnologySystem.canAcquireTech(game, 'inconnu')).toThrow('Joueur introuvable');
   });
 
   test('faux quand le joueur a déjà toutes les technologies de la catégorie', async () => {

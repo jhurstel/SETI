@@ -11,11 +11,12 @@
 
 import { effectNumber, effectBonus } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
-import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, InteractionState, LifeTraceType, MascamitesToken } from '../core/types';
-import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe, getAllCelestialObjects } from '../core/SolarSystemPosition';
+import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, InteractionState, LifeTraceType, MascamitesToken, RuleCheck } from '../core/types';
+import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe, getAllCelestialObjects, levelAngle } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { CardSystem } from './CardSystem';
 import { uniqueId } from '../core/ids';
+import { requirePlayer } from '../core/players';
 
 export class ProbeSystem {
   /**
@@ -126,10 +127,9 @@ export class ProbeSystem {
    * Crée la capsule d'un spécimen prélevé, posée sur la case de sa planète d'origine.
    * Modifie la partie reçue (à appeler sur une copie).
    */
-  static createCapsule(game: Game, playerId: string, planetId: string, specimen: MascamitesToken): Probe | null {
-    const player = game.players.find(p => p.id === playerId);
-    const planetDef = getAllCelestialObjects(game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === planetId);
-    if (!player || !planetDef) return null;
+  static createCapsule(game: Game, playerId: string, planetId: string, specimen: MascamitesToken): Probe {
+    const player = requirePlayer(game, playerId);
+    const planetDef = getAllCelestialObjects(game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === planetId)!;
 
     const capsule: Probe = {
       id: `capsule_${playerId}_${uniqueId()}_${player.probes.length}`,
@@ -149,10 +149,8 @@ export class ProbeSystem {
 
   /** Capsule du joueur sur la case d'une planète (ex: Terre, Mars), en position relative comme findProbeAtPlanet */
   static findCapsuleOnPlanet(game: Game, playerId: string, planetId: string): Probe | undefined {
-    const planetDef = getAllCelestialObjects(game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === planetId);
-    const player = game.players.find(p => p.id === playerId);
-    if (!planetDef || !player) return undefined;
-    return player.probes.find(p =>
+    const planetDef = getAllCelestialObjects(game.board.solarSystem.extraCelestialObjects || []).find(o => o.id === planetId)!;
+    return requirePlayer(game, playerId).probes.find(p =>
       p.state === ProbeState.CAPSULE &&
       p.solarPosition.disk === planetDef.position.disk &&
       p.solarPosition.sector === planetDef.position.sector &&
@@ -170,14 +168,8 @@ export class ProbeSystem {
   /**
    * Vérifie si un joueur peut lancer une sonde
    */
-  static canLaunchProbe(game: Game, playerId: string, checkCost: boolean = true, ignoreLimit: boolean = false): {
-    canLaunch: boolean;
-    reason?: string;
-  } {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) {
-      return { canLaunch: false, reason: 'Joueur introuvable' };
-    }
+  static canLaunchProbe(game: Game, playerId: string, checkCost: boolean = true, ignoreLimit: boolean = false): RuleCheck<'canLaunch'> {
+    const player = requirePlayer(game, playerId);
 
     // Vérifier les crédits
     if (checkCost && player.credits < GAME_CONSTANTS.PROBE_LAUNCH_COST) {
@@ -230,16 +222,9 @@ export class ProbeSystem {
     let message = '';
 
     // Calculer la position réelle absolue de la Terre
-    let earthDisk: DiskName;
-    let earthSector: SectorNumber;
-    const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3, solarSystem.extraCelestialObjects);
-    if (earthPos) {
-      earthDisk = earthPos.disk;
-      earthSector = earthPos.sector;
-    } else {
-      historyEntries.push({ message: `Terre non trouvée dans le système solaire`, playerId: player.id, sequenceId: '' });
-      return { updatedGame: game, probeId: null, historyEntries, newPendingInteractions };
-    }
+    const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3, solarSystem.extraCelestialObjects)!;
+    const earthDisk = earthPos.disk;
+    const earthSector = earthPos.sector;
 
     // Vérifier la limite de sondes (même pour un lancement gratuit)
     if (!ignoreLimit) {
@@ -302,15 +287,8 @@ export class ProbeSystem {
     playerId: string,
     probeId: string,
     availableFreeMovements: number = 0
-  ): {
-    canMove: boolean;
-    reason?: string;
-    energyCost?: number;
-  } {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) {
-      return { canMove: false, reason: 'Joueur introuvable' };
-    }
+  ): RuleCheck<'canMove', { energyCost?: number }> {
+    const player = requirePlayer(game, playerId);
 
     const probe = player.probes.find(p => p.id === probeId);
     if (!probe) {
@@ -387,7 +365,7 @@ export class ProbeSystem {
   ): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[]  } {
     const validation = this.canMoveProbe(game, playerId, probeId, availableFreeMovements);
     if (!validation.canMove) {
-      throw new Error(validation.reason || 'Déplacement impossible');
+      throw new Error(validation.reason);
     }
 
     let updatedGame = cloneGame(game);
@@ -613,8 +591,6 @@ export class ProbeSystem {
     );
 
     for (const probe of playerProbes) {
-      if (!probe.solarPosition) continue;
-
       // Calculer le secteur absolu de la sonde
       const probeAbsoluteSector = getAbsoluteSectorForProbe(probe.solarPosition, rotationState);
 
@@ -660,14 +636,8 @@ export class ProbeSystem {
     playerId: string,
     probeId: string,
     checkCost: boolean = true
-  ): {
-    canOrbit: boolean;
-    reason?: string;
-  } {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) {
-      return { canOrbit: false, reason: 'Joueur introuvable' };
-    }
+  ): RuleCheck<'canOrbit'> {
+    const player = requirePlayer(game, playerId);
 
     const probe = player.probes.find(p => p.id === probeId);
     if (!probe) {
@@ -722,7 +692,7 @@ export class ProbeSystem {
   } {
     const validation = this.canOrbit(game, playerId, probeId, !free);
     if (!validation.canOrbit) {
-      throw new Error(validation.reason || 'Mise en orbite impossible');
+      throw new Error(validation.reason);
     }
 
     const updatedGame = cloneGame(game);
@@ -817,15 +787,8 @@ export class ProbeSystem {
     playerId: string,
     probeId: string,
     checkCost: boolean = true
-  ): {
-    canLand: boolean;
-    reason: string;
-    energyCost?: number;
-  } {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) {
-      return { canLand: false, reason: 'Joueur introuvable' };
-    }
+  ): RuleCheck<'canLand', { energyCost?: number }> {
+    const player = requirePlayer(game, playerId);
 
     const probe = player.probes.find(p => p.id === probeId);
     if (!probe) {
@@ -876,7 +839,7 @@ export class ProbeSystem {
   } {
     const validation = this.canLand(game, playerId, probeId, !free);
     if (!validation.canLand) {
-      throw new Error(validation.reason || 'Atterrissage impossible');
+      throw new Error(validation.reason);
     }
 
     const updatedGame = cloneGame(game);
@@ -924,7 +887,6 @@ export class ProbeSystem {
 
     // Ajouter la sonde aux atterrisseurs de la cible
     if (targetBody) {
-      if (!targetBody.landers) targetBody.landers = [];
       targetBody.landers.push(probe);
     }
 
@@ -1028,8 +990,6 @@ export class ProbeSystem {
     // Retirer de la planète
     planet.orbiters.splice(orbiterIndex, 1);
 
-    // Retirer de la liste globale des sondes du système solaire (si elle y était, ce qui ne devrait pas être le cas pour un orbiteur)
-    updatedGame.board.solarSystem.probes = updatedGame.board.solarSystem.probes.filter(p => p.id !== removedProbe.id);
 
     // Retirer de la liste du joueur
     player.probes = player.probes.filter(p => p.id !== removedProbe.id);
@@ -1074,8 +1034,6 @@ export class ProbeSystem {
     // Retirer de la planète
     planet.landers.splice(landerIndex, 1);
 
-    // Retirer de la liste globale des sondes du système solaire (si elle y était, ce qui ne devrait pas être le cas pour un atterrisseur)
-    updatedGame.board.solarSystem.probes = updatedGame.board.solarSystem.probes.filter(p => p.id !== removedProbe.id);
 
     // Retirer de la liste du joueur
     player.probes = player.probes.filter(p => p.id !== removedProbe.id);
@@ -1137,19 +1095,13 @@ export class ProbeSystem {
         const pos = probe.solarPosition;
 
         // Vérifier si la sonde tourne avec son plateau (riding)
-        let isRiding = false;
-        if (pos.level === 3 && oldRotationState.level3Angle !== newRotationState.level3Angle) isRiding = true;
-        if (pos.level === 2 && oldRotationState.level2Angle !== newRotationState.level2Angle) isRiding = true;
-        if (pos.level === 1 && oldRotationState.level1Angle !== newRotationState.level1Angle) isRiding = true;
+        const isRiding = pos.level !== 0 && levelAngle(oldRotationState, pos.level) !== levelAngle(newRotationState, pos.level);
 
         if (isRiding) {
           this.recalculateProbePosition(probe, oldRotationState, newRotationState, extraObjects);
         } else {
           // La sonde ne tourne pas (ex: sur L0). Vérifier si elle est recouverte.
-          let absoluteSector = pos.sector;
-          if (pos.level === 1) absoluteSector = rotateSector(pos.sector, oldRotationState.level1Angle);
-          else if (pos.level === 2) absoluteSector = rotateSector(pos.sector, oldRotationState.level2Angle);
-          else if (pos.level === 3) absoluteSector = rotateSector(pos.sector, oldRotationState.level3Angle);
+          const absoluteSector = rotateSector(pos.sector, levelAngle(oldRotationState, pos.level));
 
           const newVisibleLevel = getVisibleLevel(pos.disk, absoluteSector, newRotationState, extraObjects);
 
@@ -1166,10 +1118,7 @@ export class ProbeSystem {
 
             const levelAtNewPos = getVisibleLevel(pos.disk, newAbsoluteSector, newRotationState, extraObjects);
 
-            let newRelativeSector = newAbsoluteSector;
-            if (levelAtNewPos === 3) newRelativeSector = rotateSector(newAbsoluteSector, -newRotationState.level3Angle);
-            else if (levelAtNewPos === 2) newRelativeSector = rotateSector(newAbsoluteSector, -newRotationState.level2Angle);
-            else if (levelAtNewPos === 1) newRelativeSector = rotateSector(newAbsoluteSector, -newRotationState.level1Angle);
+            const newRelativeSector = rotateSector(newAbsoluteSector, -levelAngle(newRotationState, levelAtNewPos));
 
             // Vérifier gains média
             const cell = getCell(pos.disk, newAbsoluteSector, newRotationState, extraObjects);
@@ -1216,51 +1165,22 @@ export class ProbeSystem {
     newRotationState: RotationState,
     extraObjects: import('../core/types').CelestialObject[]
   ): void {
-    const pos = probe.solarPosition!;
-    let absoluteSector = pos.sector;
+    const pos = probe.solarPosition;
 
     // 1. Calculer la position absolue "attendue" après rotation
     // Si la sonde est sur un plateau qui tourne, elle bouge avec lui (isRiding = true)
     // Si elle est sur un plateau fixe (par rapport à la rotation), elle reste sur place (isRiding = false)
 
-    let isRiding = false;
-    if (pos.level === 3 && oldRotationState.level3Angle !== newRotationState.level3Angle) isRiding = true;
-    if (pos.level === 2 && oldRotationState.level2Angle !== newRotationState.level2Angle) isRiding = true;
-    if (pos.level === 1 && oldRotationState.level1Angle !== newRotationState.level1Angle) isRiding = true;
+    const isRiding = pos.level !== 0 && levelAngle(oldRotationState, pos.level) !== levelAngle(newRotationState, pos.level);
 
-    if (isRiding) {
-      // La sonde tourne avec le plateau : son secteur relatif reste le même, mais l'absolu change
-      let angle = 0;
-      if (pos.level === 3) angle = newRotationState.level3Angle;
-      if (pos.level === 2) angle = newRotationState.level2Angle;
-      if (pos.level === 1) angle = newRotationState.level1Angle;
-      absoluteSector = rotateSector(pos.sector, angle);
-    } else {
-      // La sonde ne tourne pas avec le plateau : elle garde sa position absolue
-      let angle = 0;
-      if (pos.level === 1) angle = oldRotationState.level1Angle;
-      if (pos.level === 2) angle = oldRotationState.level2Angle;
-      if (pos.level === 3) angle = oldRotationState.level3Angle;
-
-      if (pos.level !== 0) {
-        absoluteSector = rotateSector(pos.sector, angle);
-      } else {
-        absoluteSector = pos.sector;
-      }
-    }
+    // La sonde tourne avec son plateau (secteur relatif inchangé) ou garde sa position absolue
+    const absoluteSector = rotateSector(pos.sector, levelAngle(isRiding ? newRotationState : oldRotationState, pos.level));
 
     // 2. Recalculer le niveau visible à cette position absolue (elle a peut-être été recouverte ou découverte)
     const newLevel = getVisibleLevel(pos.disk, absoluteSector, newRotationState, extraObjects);
 
     // 3. Recalculer le secteur relatif pour ce nouveau niveau
-    let newRelativeSector = absoluteSector;
-    if (newLevel === 3) {
-      newRelativeSector = rotateSector(absoluteSector, -newRotationState.level3Angle);
-    } else if (newLevel === 2) {
-      newRelativeSector = rotateSector(absoluteSector, -newRotationState.level2Angle);
-    } else if (newLevel === 1) {
-      newRelativeSector = rotateSector(absoluteSector, -newRotationState.level1Angle);
-    }
+    const newRelativeSector = rotateSector(absoluteSector, -levelAngle(newRotationState, newLevel));
 
     probe.solarPosition.sector = newRelativeSector;
     probe.solarPosition.level = newLevel;

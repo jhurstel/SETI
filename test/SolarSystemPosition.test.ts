@@ -261,6 +261,40 @@ describe('poussée des sondes recouvertes par un anneau', () => {
     expect(probe.solarPosition).toEqual(from);
   });
 
+  test.each([
+    ['une planète', 'hasPlanet', undefined],
+    ['une comète', 'hasComet', 'Visite de Comète'],
+    ["un champ d'astéroïdes (avec Exploration II)", 'hasAsteroid', "Visite d'Astéroïdes"],
+  ] as const)('poussée sur %s : 1 Média', (_label, feature, objectName) => {
+    const extra = game.board.solarSystem.extraCelestialObjects || [];
+    // Une sonde du disque fixe recouverte par une rotation d'un cran, et poussée sur une case de ce genre
+    let found: { after: RotationState; disk: DiskName; sector: SectorNumber; name?: string } | undefined;
+    for (const [a1, a2, a3] of [[-45, 0, 0], [45, 0, 0], [0, -45, 0], [0, 45, 0], [0, 0, -45], [0, 0, 45]]) {
+      const after = createRotationState(a1, a2, a3);
+      const step = a1 + a2 + a3 < 0 ? 1 : -1;
+      for (const disk of ['A', 'B', 'C', 'D'] as DiskName[]) {
+        for (let s = 1; s <= 8 && !found; s++) {
+          const sector = s as SectorNumber;
+          const target = getCell(disk, (((s - 1 + step + 8) % 8) + 1) as SectorNumber, after, extra);
+          if (getVisibleLevel(disk, sector, NO_ROTATION, extra) === 0 && getVisibleLevel(disk, sector, after, extra) > 0
+            && target?.[feature] && (feature === 'hasPlanet' ? target.planetId !== 'earth' : !target.hasPlanet)) found = { after, disk, sector, name: target.planetName };
+        }
+      }
+      if (found) break;
+    }
+    const { after, disk, sector, name } = found!;
+    const probe: Probe = { id: 'pp', ownerId: 'player_0', position: { x: 0, y: 0 }, solarPosition: { disk, sector, level: 0 }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false };
+    const player = getPlayer(game, 'player_0');
+    player.probes = [probe];
+    player.technologies.push(game.board.technologyBoard.available.find(t => t.id.startsWith('exploration-2'))!);
+    player.mediaCoverage = 0;
+
+    const res = ProbeSystem.updateProbesAfterRotation(game, NO_ROTATION, after, extra);
+
+    expect(res.logs[0]).toContain(`(${objectName ?? name}) et gagne 1 Média`);
+    expect(getPlayer(res.game, 'player_0').mediaCoverage).toBe(1);
+  });
+
   test("sans changement d'angle : aucune poussée", () => {
     coveredProbe(createRotationState(0, 0, -45));
     const res = ProbeSystem.updateProbesAfterRotation(game, NO_ROTATION, NO_ROTATION, []);

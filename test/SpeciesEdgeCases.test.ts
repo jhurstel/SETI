@@ -58,10 +58,18 @@ describe('SpeciesSystem : cas limites', () => {
       expect(free).not.toContain(fixed);
     });
 
-    test('sur la piste sans emplacement précisé : le premier emplacement libre de la couleur', () => {
-      discoveredBoard(game, AlienBoardType.ANOMALIES);
+    test("sur la piste sans emplacement précisé : après les traces de la couleur déjà posées (régression : enregistrée sur l'emplacement 0)", () => {
+      const board = discoveredBoard(game, AlienBoardType.ANOMALIES);
       const res = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.YELLOW, P1, 's', LifeTraceLocation.SPECIES);
       expect(res.updatedGame.board.alienBoards[0].lifeTraces).toEqual([expect.objectContaining({ type: LifeTraceType.YELLOW, slotIndex: 0 })]);
+
+      // Après les traces de cette couleur déjà posées (celles des autres couleurs ne comptent pas)
+      board.lifeTraces = [
+        { id: 'y', type: LifeTraceType.YELLOW, playerId: P1, location: LifeTraceLocation.SPECIES, slotIndex: 0 },
+        { id: 'r', type: LifeTraceType.RED, playerId: P1, location: LifeTraceLocation.SPECIES, slotIndex: 1 },
+      ];
+      const next = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.YELLOW, P1, 's', LifeTraceLocation.SPECIES);
+      expect(next.updatedGame.board.alienBoards[0].lifeTraces[2]).toEqual(expect.objectContaining({ type: LifeTraceType.YELLOW, slotIndex: 1 }));
     });
 
     test('piste Exertiens : le danger de l\'emplacement s\'ajoute à celui du joueur', () => {

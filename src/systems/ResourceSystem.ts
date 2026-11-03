@@ -7,6 +7,7 @@ import { ScanSystem } from './ScanSystem';
 import { TechnologySystem } from './TechnologySystem';
 import { random } from '../core/random';
 import { privateText } from '../core/historyText';
+import { requirePlayer } from '../core/players';
 
 export class ResourceSystem {
 
@@ -62,7 +63,6 @@ export class ResourceSystem {
     else if (key === 'ENERGY' || key === 'ENERGIE') label = `Énergie${plural}`;
     else if (key === 'CARD' || key === 'CARDS' || key === 'CARTES') label = `Carte${plural}`;
     else if (key === 'PROBE' || key === 'PROBES' || key === 'SONDE') label = `Sonde${plural}`;
-    else if (key === 'ORBITING' || key === 'ORBITINGS') label = `Mise${plural} en orbite`;
     else if (key === 'LANDING' || key === 'LANDINGS') label = `Atterrissage${plural}`;
     else if (key === 'TOKEN' || key === 'TOKENS') label = `Token${plural}`;
     else if (key === 'REVENUE' || key === 'REVENUES') label = `Réservation${plural}`;
@@ -110,7 +110,6 @@ export class ResourceSystem {
     }
 
     if (bonus.probe) items.push(`${bonus.probe} Sonde`);
-    if (bonus.orbiting) items.push(`${bonus.orbiting} Orbiteur`);
     if (bonus.landing) items.push(`${bonus.landing} Atterrisseur`);
     if (bonus.movements) items.push(`${bonus.movements} Déplacement`);
     if (bonus.token && bonus.token > 0) items.push(`${bonus.token} Token`);
@@ -169,8 +168,7 @@ export class ResourceSystem {
    */
   static tradeResources(game: Game, playerId: string, spendType: string, gainType: string, cardIdsToSpend?: string[]): { updatedGame: Game, error?: string, historyEntries: HistoryEntry[] } {
     let updatedGame = cloneGame(game);
-    const player = updatedGame.players.find(p => p.id === playerId);
-    if (!player) return { updatedGame: game, error: "Joueur non trouvé", historyEntries: [] };
+    const player = requirePlayer(updatedGame, playerId);
     let spentText = ResourceSystem.formatResource(2, spendType);
 
     const normalizedSpend = spendType.toLowerCase().trim().replace('é', 'e');
@@ -213,8 +211,7 @@ export class ResourceSystem {
    */
   static tradeForCard(game: Game, playerId: string, spendType: 'credit' | 'energy'): { updatedGame: Game, error?: string, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
     const updatedGame = cloneGame(game);
-    const player = updatedGame.players.find(p => p.id === playerId);
-    if (!player) return { updatedGame: game, error: "Joueur non trouvé", historyEntries: [], newPendingInteractions: [] };
+    const player = requirePlayer(updatedGame, playerId);
     if (spendType === 'credit') {
       if (player.credits < 2) return { updatedGame: game, error: "Pas assez de crédits", historyEntries: [], newPendingInteractions: [] };
       player.credits -= 2;
@@ -234,8 +231,7 @@ export class ResourceSystem {
    * message d'avertissement à confirmer par le joueur, ou null si tout le gain est utilisable.
    */
   static lostBonusWarning(game: Game, playerId: string, bonus: Bonus): string | null {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) return null;
+    const player = requirePlayer(game, playerId);
 
     if (bonus.revenue && CardSystem.getHandCards(player).length === 0) {
       return "Vous n'avez aucune carte en main pour effectuer la réservation (bonus). Le bonus sera perdu. Voulez-vous continuer ?";
@@ -275,8 +271,7 @@ export class ResourceSystem {
 
   static updateMedia(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
     const updatedGame = cloneGame(game);
-    const player = updatedGame.players.find(p => p.id === playerId);
-    if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
+    const player = requirePlayer(updatedGame, playerId);
 
     player.mediaCoverage = Math.min(player.mediaCoverage + count, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
     return { updatedGame };
@@ -284,8 +279,7 @@ export class ResourceSystem {
 
   static updateData(game: Game, playerId: string, count: number): { updatedGame: Game, error?: string } {
     const updatedGame = cloneGame(game);
-    const player = updatedGame.players.find(p => p.id === playerId);
-    if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
+    const player = requirePlayer(updatedGame, playerId);
 
     player.data = Math.min(player.data + count, GAME_CONSTANTS.MAX_DATA);
     return { updatedGame };
@@ -300,7 +294,6 @@ export class ResourceSystem {
     const passiveGains: string[] = [];
     const launchedProbeIds: string[] = [];
 
-    if (!bonuses) return { updatedGame, newPendingInteractions, logs, passiveGains, historyEntries };
 
     // Appliquer les ressources simples au joueur
     const player = updatedGame.players.find(p => p.id === playerId);
@@ -320,7 +313,6 @@ export class ResourceSystem {
     if (bonuses.data) { const txt = ResourceSystem.formatResource(bonuses.data, 'DATA'); passiveGains.push(txt); }
     if (bonuses.pv) { const txt = ResourceSystem.formatResource(bonuses.pv, 'PV'); passiveGains.push(txt); }
     if (bonuses.probe) { const txt = ResourceSystem.formatResource(bonuses.probe, 'PROBE'); passiveGains.push(txt); }
-    if (bonuses.orbiting) { const txt = ResourceSystem.formatResource(bonuses.orbiting, 'ORBITING'); passiveGains.push(txt); }
     if (bonuses.landing) { const txt = ResourceSystem.formatResource(bonuses.landing, 'LANDING'); passiveGains.push(txt); }
     if (bonuses.token && bonuses.token > 0) { const txt = ResourceSystem.formatResource(bonuses.token, 'TOKEN'); passiveGains.push(txt); }
     if (bonuses.revenue) { const txt = ResourceSystem.formatResource(bonuses.revenue, 'REVENUE'); passiveGains.push(txt); }
@@ -489,10 +481,6 @@ export class ResourceSystem {
           newPendingInteractions.push({ type: 'ACQUIRING_TECH', isBonus: true, categories, sharedOnly: bonuses.sharedOnly, noTileBonus: bonuses.noTileBonus, sequenceId });
         }
       }
-    }
-
-    if (bonuses.orbiting) {
-      newPendingInteractions.push({ type: 'ORBITING_PROBE', count: bonuses.orbiting, source: sourceId, sequenceId });
     }
 
     if (bonuses.landing) {

@@ -29,15 +29,14 @@ describe('Scan et couverture de secteur : cas limites', () => {
   };
 
   test('refus : joueur inconnu, scan sans crédits, secteur inconnu', () => {
-    expect(ScanSystem.canScanSector(game, 'inconnu').reason).toBe('Joueur introuvable');
+    expect(() => ScanSystem.canScanSector(game, 'inconnu')).toThrow('Joueur introuvable');
     getPlayer(game, P1).credits = 0;
     expect(() => ScanSystem.scanSector(game, P1, game.board.sectors[0].id)).toThrow();
     expect(ScanSystem.scanSector(game, P1, 'inconnu', false).logs).toEqual([]);
   });
 
-  test('couverture sans joueur, secteur ou signal : rien', () => {
+  test('couverture sans secteur ou sans signal : rien', () => {
     const sector = game.board.sectors[0];
-    expect(ScanSystem.coverSector(game, 'inconnu', sector.id).logs).toEqual([]);
     expect(ScanSystem.coverSector(game, P1, 'inconnu').logs).toEqual([]);
     expect(ScanSystem.coverSector(game, P1, sector.id).logs).toEqual([]);
   });
@@ -75,11 +74,15 @@ describe('Scan et couverture de secteur : cas limites', () => {
     expect(res.sharedLogs?.[0]).toContain('le joueur présent');
   });
 
-  test('mission « signal rouge » : signalée comme à recouvrir', () => {
-    addTriggeredMission(game, 'GAIN_ON_RED_SIGNAL');
-    const red = game.board.sectors.find(s => s.color === SectorType.RED)!;
+  test.each([
+    [SectorType.RED, 'GAIN_ON_RED_SIGNAL'],
+    [SectorType.YELLOW, 'GAIN_ON_YELLOW_SIGNAL'],
+    [SectorType.BLUE, 'GAIN_ON_BLUE_SIGNAL'],
+  ])('mission « signal %s » : signalée comme à recouvrir', (color, buffType) => {
+    addTriggeredMission(game, buffType);
+    const sector = game.board.sectors.find(s => s.color === color)!;
 
-    const res = ScanSystem.performSignalAndCover(game, P1, red.id, [], false, 's');
+    const res = ScanSystem.performSignalAndCover(game, P1, sector.id, [], false, 's');
 
     expect(res.historyEntries.some(e => e.message === 'déclenche une mission à recouvrir')).toBe(true);
   });

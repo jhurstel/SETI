@@ -1,5 +1,5 @@
 import { DataLoader } from '../src/core/DataLoader';
-import { CardType, CostType, FreeActionType, RevenueType, SectorType } from '../src/core/types';
+import { CardType, CostType, FreeActionType, LifeTraceType, RevenueType, SectorType } from '../src/core/types';
 import { mockFetchFromPublic } from './helpers/gameFixture';
 
 const CARD_FILES: [string, number][] = [
@@ -81,5 +81,18 @@ describe('DataLoader', () => {
     await expect(DataLoader.loadCards('cards/inexistant.csv')).resolves.toEqual([]);
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
+  });
+});
+
+describe('DataLoader : gains de la colonne Gain', () => {
+  const parse = (gain: string) => (DataLoader as unknown as { parseImmediateEffects(gain: string): unknown[] }).parseImmediateEffects(gain);
+
+  test.each([
+    ['1 Trace', LifeTraceType.ANY],
+    ['1 Trace rouge', LifeTraceType.RED],
+    ['2 Traces bleues', LifeTraceType.BLUE],
+    ['1 Trace jaune', LifeTraceType.YELLOW],
+  ])('« %s » : trace de vie de la couleur indiquée', (gain, scope) => {
+    expect(parse(gain)).toEqual([{ type: 'ACTION', target: 'LIFETRACE', value: { amount: Number(gain[0]), scope } }]);
   });
 });

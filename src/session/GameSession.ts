@@ -384,7 +384,6 @@ export class GameSession {
 
     if (result.error) refuse(result.error);
     outcome.add(result.historyEntries, active.sequenceId);
-    if (result.discoveredSpecies) outcome.notify(DISCOVERY_NOTICE);
     let updated = InteractionQueue.enqueue(result.updatedGame, result.newPendingInteractions, active.sequenceId);
     if (result.nextInteraction) updated = InteractionQueue.pushFront(updated, result.nextInteraction);
     return updated;

@@ -44,16 +44,14 @@ import {
 import { createRotationState, getAbsoluteSectorForProbe, getCell } from './SolarSystemPosition';
 import { DISCOVERY_NOTICE, SpeciesSystem } from '../systems/SpeciesSystem';
 import { uniqueId } from './ids';
+import { requirePlayer } from './players';
 
 export class ScoreManager {
   /**
    * Calcule le score final d'un joueur
    */
   static calculateFinalScore(game: Game, playerId: string, details?: ScoreDetails): ScoreCategories {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) {
-      throw new Error(`Player ${playerId} not found`);
-    }
+    const player = requirePlayer(game, playerId);
 
     const scores: ScoreCategories = {
       missionEndGame: 0,
@@ -278,7 +276,6 @@ export class ScoreManager {
    */
   private static calculateObjectiveTiles(player: Player, board: Game['board'], details?: string[]): number {
     let total = 0;
-    if (!board.objectiveTiles) return 0;
 
     board.objectiveTiles.forEach(tile => {
       const index = tile.markers.indexOf(player.id);
@@ -356,7 +353,7 @@ export class ScoreManager {
       case 'SAME_PLANET':
         return Math.max(0, ...game.board.planets.map(p => owned(p.orbiters) + landersOn(p)));
       case 'RESERVED':
-        return (player.reservedCards || []).length;
+        return player.reservedCards.length;
       case 'TRACES_SPECIES':
         // Traces du joueur sur le plateau Exertiens (« this ») ou sur les autres plateaux Alien (« other »)
         return game.board.alienBoards
@@ -498,10 +495,7 @@ export class ScoreManager {
     shouldStop: boolean; // true if an interaction was triggered and we should wait for the player
   } {
     let updatedGame = cloneGame(game);
-    let player = updatedGame.players.find(p => p.id === playerId);
-    if (!player) {
-      return { updatedGame, historyEntries: [], shouldStop: false };
-    }
+    let player = requirePlayer(updatedGame, playerId);
 
     const historyEntries: HistoryEntry[] = [];
     let discoveryNotification: { message: string } | undefined;

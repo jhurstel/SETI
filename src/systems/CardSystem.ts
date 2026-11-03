@@ -1,6 +1,6 @@
 import { effectNumber, effectString, effectAmount } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
-import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CostType, AlienBoardType, LifeTraceLocation } from '../core/types';
+import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CostType, AlienBoardType, LifeTraceLocation, RuleCheck } from '../core/types';
 import { createRotationState, getCell, getAdjacentCells, getObjectPosition, getAbsoluteSectorForProbe, calculateReachableCells } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
 import { ProbeSystem } from './ProbeSystem';
@@ -9,6 +9,20 @@ import { SpeciesSystem } from './SpeciesSystem';
 import { uniqueId } from '../core/ids';
 import { addImmediateEffects, applyPassiveEffect, lifeTraceColor, PlayCardContext } from './PlayCardEffects';
 import { privateText } from '../core/historyText';
+import { requirePlayer } from '../core/players';
+
+/** Missions déclenchées en jouant une carte, selon son coût */
+const PLAY_COST_TRIGGERS: Record<number, string> = { 1: 'GAIN_ON_PLAY_1_CREDIT', 2: 'GAIN_ON_PLAY_2_CREDITS', 3: 'GAIN_ON_PLAY_3_CREDITS' };
+
+/** Actions gratuites des cartes défaussées : ce qu'il faut pour en profiter et ce qu'elles rapportent */
+const FREE_ACTION_DISCARDS: Partial<Record<FreeActionType, { needs: 'probe' | 'data' | 'media', gain: string }>> = {
+    [FreeActionType.MOVEMENT]: { needs: 'probe', gain: '1 Déplacement' },
+    [FreeActionType.DATA]: { needs: 'data', gain: '1 Donnée' },
+    [FreeActionType.MEDIA]: { needs: 'media', gain: '1 Média' },
+    [FreeActionType.PV_MOVEMENT]: { needs: 'probe', gain: '1 PV et 1 Déplacement' },
+    [FreeActionType.PV_DATA]: { needs: 'data', gain: '1 PV et 1 Donnée' },
+    [FreeActionType.TWO_MEDIA]: { needs: 'media', gain: '2 Médias' },
+};
 
 /**
  * Système de gestion des cartes et des missions.
@@ -50,8 +64,7 @@ export class CardSystem {
      */
     static drawCards(game: Game, playerId: string, count: number): Game {
         const updatedGame = cloneGame(game);
-        const player = updatedGame.players.find(p => p.id === playerId);
-        if (!player) return game;
+        const player = requirePlayer(updatedGame, playerId);
 
         for (let i = 0; i < count; i++) {
             if (updatedGame.decks.cards.length > 0) {
@@ -70,9 +83,7 @@ export class CardSystem {
      */
     static reserveCard(game: Game, playerId: string, cardId: string): Game {
         let updatedGame = cloneGame(game);
-        const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
-        if (playerIndex === -1) return game;
-        const player = updatedGame.players[playerIndex];
+        const player = requirePlayer(updatedGame, playerId);
 
         const cardIndex = player.cards.findIndex(c => c.id === cardId);
         if (cardIndex === -1) return game;
@@ -83,10 +94,8 @@ export class CardSystem {
         player.cards.splice(cardIndex, 1);
 
         // Ajouter aux cartes réservées
-        if (!player.reservedCards) player.reservedCards = [];
         player.reservedCards.push(card);
 
-        updatedGame.players[playerIndex] = player;
 
         // Appliquer le revenu et le bonus immédiat
         if (card.revenue === RevenueType.CREDIT) {
@@ -238,63 +247,32 @@ export class CardSystem {
     /**
      * Vérifie si un joueur peut défausser une carte
      */
-    static canDiscardFreeAction(game: Game, playerId: string, freeAction: FreeActionType): { canDiscard: boolean, reason: string } {
-        const player = game.players.find(p => p.id === playerId);
-        if (!player) {
-            return { canDiscard: false, reason: "Joueur non trouvé" };
-        }
+    static canDiscardFreeAction(game: Game, playerId: string, freeAction: FreeActionType): RuleCheck<'canDiscard'> {
+        const player = requirePlayer(game, playerId);
 
         if (game.players[game.currentPlayerIndex].id !== playerId) {
             return { canDiscard: false, reason: "Ce n'est pas votre tour" };
         }
 
-        if (freeAction === FreeActionType.MOVEMENT) {
-            if (!(player.probes || []).some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
-                return { canDiscard: false, reason: "Nécessite une sonde dans le système solaire" };
-            } else {
-                return { canDiscard: true, reason: "Défausser pour gagner 1 Déplacement" };
-            }
-        } else if (freeAction === FreeActionType.DATA) {
-            if ((player.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
-                return { canDiscard: false, reason: "Nécessite de transférer des données" };
-            } else {
-                return { canDiscard: true, reason: "Défausser pour gagner 1 Donnée" };
-            }
-        } else if (freeAction === FreeActionType.MEDIA) {
-            if (player.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
-                return { canDiscard: false, reason: "Média au maximum" };
-            } else {
-                return { canDiscard: true, reason: "Défausser pour gagner 1 Média" };
-            }
-        } else if (freeAction === FreeActionType.PV_MOVEMENT) {
-            if (!(player.probes || []).some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
-                return { canDiscard: false, reason: "Nécessite une sonde dans le système solaire" };
-            } else {
-                return { canDiscard: true, reason: "Défausser pour gagner 1 PV et 1 Déplacement" };
-            }
-        } else if (freeAction === FreeActionType.PV_DATA) {
-            if ((player.data || 0) >= GAME_CONSTANTS.MAX_DATA) {
-                return { canDiscard: false, reason: "Nécessite de transférer des données" };
-            } else {
-                return { canDiscard: true, reason: "Défausser pour gagner 1 PV et 1 Donnée" };
-            }
-        } else if (freeAction === FreeActionType.TWO_MEDIA) {
-            if (player.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
-                return { canDiscard: false, reason: "Média au maximum" };
-            } else {
-                return { canDiscard: true, reason: "Défausser pour gagner 2 Médias" };
-            }
+        const rule = FREE_ACTION_DISCARDS[freeAction];
+        if (!rule) return { canDiscard: false, reason: "Cette carte n'a pas d'action gratuite" };
+        if (rule.needs === 'probe' && !player.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
+            return { canDiscard: false, reason: "Nécessite une sonde dans le système solaire" };
         }
-
-        return { canDiscard: true, reason: "Action inconnue" };
+        if (rule.needs === 'data' && player.data >= GAME_CONSTANTS.MAX_DATA) {
+            return { canDiscard: false, reason: "Nécessite de transférer des données" };
+        }
+        if (rule.needs === 'media' && player.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
+            return { canDiscard: false, reason: "Média au maximum" };
+        }
+        return { canDiscard: true, reason: `Défausser pour gagner ${rule.gain}` };
     }
 
     /**
      * Cartes de la main que le joueur peut jouer maintenant (coût et conditions compris)
      */
     static getPlayableCardIds(game: Game, playerId: string): string[] {
-        const player = game.players.find(p => p.id === playerId);
-        if (!player) return [];
+        const player = requirePlayer(game, playerId);
         return this.getHandCards(player).filter(card => this.canPlayCard(game, playerId, card).canPlay).map(card => card.id);
     }
 
@@ -305,10 +283,7 @@ export class CardSystem {
         game: Game,
         playerId: string,
     ): { canPlay: boolean, reason: string } {
-        const player = game.players.find(p => p.id === playerId);
-        if (!player) {
-            return { canPlay: false, reason: "Joueur non trouvé" };
-        }
+        const player = requirePlayer(game, playerId);
 
         const hand = this.getHandCards(player);
         if (hand.length === 0) {
@@ -328,10 +303,7 @@ export class CardSystem {
         playerId: string,
         card: Card
     ): { canPlay: boolean, reason: string } {
-        const player = game.players.find(p => p.id === playerId);
-        if (!player) {
-            return { canPlay: false, reason: "Joueur non trouvé" };
-        }
+        const player = requirePlayer(game, playerId);
 
         if (game.players[game.currentPlayerIndex].id !== playerId) {
             return { canPlay: false, reason: "Ce n'est pas votre tour" };
@@ -360,9 +332,7 @@ export class CardSystem {
      */
     static playCard(game: Game, playerId: string, cardId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
         const updatedGame = cloneGame(game);
-        const player = updatedGame.players.find(p => p.id === playerId);
-
-        if (!player) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+        const player = requirePlayer(updatedGame, playerId);
 
         const cardIndex = player.cards.findIndex(c => c.id === cardId);
         if (cardIndex === -1) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
@@ -384,13 +354,8 @@ export class CardSystem {
             player.credits -= card.cost;
         }
 
-        // Check for GAIN_ON_PLAY buffs
-        const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
-            if (card.cost === 1 && buff.type === 'GAIN_ON_PLAY_1_CREDIT') return true;
-            if (card.cost === 2 && buff.type === 'GAIN_ON_PLAY_2_CREDITS') return true;
-            if (card.cost === 3 && buff.type === 'GAIN_ON_PLAY_3_CREDITS') return true;
-            return false;
-        });
+        // Missions « jouer une carte de 1, 2 ou 3 crédits »
+        const hasFulfillable = CardSystem.processMissionBuffs(player, buff => buff.type === PLAY_COST_TRIGGERS[card.cost]);
 
         // Retirer la carte de la main
         player.cards.splice(cardIndex, 1);
@@ -402,64 +367,55 @@ export class CardSystem {
         const missionRewards: string[] = [];
 
         // Ajouter la carte jouée à la pile de défausse ou aux cartes jouées (Missions Fin de partie)
-        if (card) {
-            if (card.type === CardType.END_GAME || card.type === CardType.CENTAURIEN) {
-                if (player) {
-                    if (!player.playedCards) player.playedCards = [];
-                    player.playedCards.push(card);
+        if (card.type === CardType.END_GAME || card.type === CardType.CENTAURIEN) {
+            player.playedCards.push(card);
 
-                    if (card.type === CardType.CENTAURIEN) {
-                        // Réception différée : palier de message à +15 PV
-                        SpeciesSystem.addCentaurienMarker(player, card);
-                    }
-                }
-            } else if (card.type === CardType.CONDITIONAL_MISSION || card.type === CardType.TRIGGERED_MISSION) {
-                if (player) {
-                    if (!player.missions) player.missions = [];
-                    const newMission: Mission = {
-                        id: `mission-${card.id}-${uniqueId()}`,
-                        cardId: card.id,
-                        name: card.name,
-                        description: card.description,
-                        ownerId: player.id,
-                        requirements: (card.permanentEffects || []).map((effect, idx) => ({
-                            id: `mission-${card.id}-req-${idx}`,
-                            ...effect
-                        })),
-                        completedRequirementIds: [],
-                        fulfillableRequirementIds: [],
-                        completed: false,
-                        originalCard: card
-                    };
-                    player.missions.push(newMission);
+            if (card.type === CardType.CENTAURIEN) {
+                // Réception différée : palier de message à +15 PV
+                SpeciesSystem.addCentaurienMarker(player, card);
+            }
+        } else if (card.type === CardType.CONDITIONAL_MISSION || card.type === CardType.TRIGGERED_MISSION) {
+            const newMission: Mission = {
+                id: `mission-${card.id}-${uniqueId()}`,
+                cardId: card.id,
+                name: card.name,
+                description: card.description,
+                ownerId: player.id,
+                requirements: (card.permanentEffects || []).map((effect, idx) => ({
+                    id: `mission-${card.id}-req-${idx}`,
+                    ...effect
+                })),
+                completedRequirementIds: [],
+                fulfillableRequirementIds: [],
+                completed: false,
+                originalCard: card
+            };
+            player.missions.push(newMission);
 
-                    if (card.type === CardType.CONDITIONAL_MISSION) {
-                        newMission.requirements.forEach(req => {
-                            // Le spécimen doit d'abord être prélevé grâce à cette carte : jamais rempli au moment de la jouer
-                            if (req.type.startsWith('GAIN_IF_') && req.type !== 'GAIN_IF_SPECIMEN') {
-                                const bonus = CardSystem.evaluateMission(updatedGame, player.id, effectString(req));
-                                if (bonus) {
-                                    // Coût en Tokens (ET.23) : payé ici, processBonuses ne gère que les gains
-                                    if ((bonus.token ?? 0) < 0) {
-                                        player.tokens = Math.max(0, (player.tokens || 0) + bonus.token!);
-                                        delete bonus.token;
-                                    }
-                                    ResourceSystem.accumulateBonus(bonus, bonuses);
-                                    missionRewards.push(effectString(req));
-                                    newMission.completedRequirementIds.push(req.id!);
-                                }
+            if (card.type === CardType.CONDITIONAL_MISSION) {
+                newMission.requirements.forEach(req => {
+                    // Le spécimen doit d'abord être prélevé grâce à cette carte : jamais rempli au moment de la jouer
+                    if (req.type.startsWith('GAIN_IF_') && req.type !== 'GAIN_IF_SPECIMEN') {
+                        const bonus = CardSystem.evaluateMission(updatedGame, player.id, effectString(req));
+                        if (bonus) {
+                            // Coût en Tokens (ET.23) : payé ici, processBonuses ne gère que les gains
+                            if ((bonus.token ?? 0) < 0) {
+                                player.tokens = Math.max(0, (player.tokens || 0) + bonus.token!);
+                                delete bonus.token;
                             }
-                        });
-                        if (newMission.completedRequirementIds.length > 0 && newMission.completedRequirementIds.length >= newMission.requirements.length) {
-                            newMission.completed = true;
-                            completedMissions.push(newMission.name);
+                            ResourceSystem.accumulateBonus(bonus, bonuses);
+                            missionRewards.push(effectString(req));
+                            newMission.completedRequirementIds.push(req.id!);
                         }
                     }
+                });
+                if (newMission.completedRequirementIds.length > 0 && newMission.completedRequirementIds.length >= newMission.requirements.length) {
+                    newMission.completed = true;
+                    completedMissions.push(newMission.name);
                 }
-            } else {
-                if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
-                updatedGame.decks.discardPile.push(card);
             }
+        } else {
+            updatedGame.decks.discardPile.push(card);
         }
 
         // Interactions créées directement par un effet (ex: trace de vie limitée à certains plateaux)
@@ -578,8 +534,7 @@ export class CardSystem {
 
     static discardToHandSize(game: Game, playerId: string, cardIdsToKeep: string[]): Game {
         const updatedGame = cloneGame(game);
-        const player = updatedGame.players.find(p => p.id === playerId);
-        if (!player) return updatedGame;
+        const player = requirePlayer(updatedGame, playerId);
 
         // Les cartes Exertiens ne sont pas en main : elles sont toujours conservées
         const keep = (c: Card) => this.isExertienCard(c) || cardIdsToKeep.includes(c.id);
@@ -587,7 +542,6 @@ export class CardSystem {
         player.cards = player.cards.filter(keep);
 
         if (cardsToDiscard.length > 0) {
-            if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
             updatedGame.decks.discardPile.push(...cardsToDiscard);
         }
 
@@ -596,14 +550,12 @@ export class CardSystem {
 
     static discardCard(game: Game, playerId: string, cardId: string): Game {
         const updatedGame = cloneGame(game);
-        const player = updatedGame.players.find(p => p.id === playerId);
-        if (!player) return updatedGame;
+        const player = requirePlayer(updatedGame, playerId);
 
         const cardIndex = player.cards.findIndex(c => c.id === cardId);
         // Une carte Exertien ne peut être défaussée par aucun moyen (FAQ Q40)
         if (cardIndex !== -1 && !this.isExertienCard(player.cards[cardIndex])) {
             const [card] = player.cards.splice(cardIndex, 1);
-            if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
             updatedGame.decks.discardPile.push(card);
         }
 
@@ -612,11 +564,10 @@ export class CardSystem {
 
     static discardCardForFreeAction(game: Game, playerId: string, cardId: string): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
         let updatedGame = cloneGame(game);
-        const player = updatedGame.players.find(p => p.id === playerId);
-        if (!player) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+        const player = requirePlayer(updatedGame, playerId);
 
         const card = player.cards.find(c => c.id === cardId);
-        if (!card || !card.freeAction || this.isExertienCard(card)) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+        if (!card || !FREE_ACTION_DISCARDS[card.freeAction] || this.isExertienCard(card)) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
 
         const sequenceId = `free-action-discard-${uniqueId()}`;
         const bonuses: Bonus = {};
@@ -690,7 +641,6 @@ export class CardSystem {
 
         if (index !== -1) {
             const [card] = row.splice(index, 1);
-            if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
             updatedGame.decks.discardPile.push(card);
             return { updatedGame, discardedCard: card };
         }
@@ -723,8 +673,7 @@ export class CardSystem {
      */
     static buyCard(game: Game, playerId: string, cardIdFromRow?: string, isFree: boolean = false): { updatedGame: Game, error?: string } {
         let updatedGame = cloneGame(game);
-        const player = updatedGame.players.find(p => p.id === playerId);
-        if (!player) return { updatedGame: game, error: "Joueur non trouvé" };
+        const player = requirePlayer(updatedGame, playerId);
 
         if (!isFree) {
             if (player.mediaCoverage < 3) {
@@ -744,6 +693,7 @@ export class CardSystem {
                 return { updatedGame: game, error: "Carte non trouvée dans la rangée" };
             }
         } else {
+            if (updatedGame.decks.cards.length === 0) return { updatedGame: game, error: "La pioche est vide" };
             updatedGame = this.drawCards(updatedGame, playerId, 1);
         }
 
@@ -766,7 +716,6 @@ export class CardSystem {
             if (!shouldTrigger(buff) || !buff.id || !buff.source || triggeredMissions.has(buff.source)) return;
             const mission = player.missions.find(m => m.name === buff.source);
             if (!mission || mission.completedRequirementIds.includes(buff.id)) return;
-            if (!mission.fulfillableRequirementIds) mission.fulfillableRequirementIds = [];
             if (mission.fulfillableRequirementIds.includes(buff.id)) return;
             mission.fulfillableRequirementIds.push(buff.id);
             triggeredMissions.add(buff.source);
@@ -861,16 +810,13 @@ export class CardSystem {
                         rewards.lifetraces.push({ amount: bonusValue, scope: LifeTraceType.ANY });
                     }
                     else if (bonusType === 'yellowsignal') {
-                        if (!rewards.signals) rewards.signals = [];
-                        rewards.signals.push({ amount: bonusValue, scope: SectorType.YELLOW });
+                        (rewards.signals ??= []).push({ amount: bonusValue, scope: SectorType.YELLOW });
                     }
                     else if (bonusType === 'redsignal') {
-                        if (!rewards.signals) rewards.signals = [];
-                        rewards.signals.push({ amount: bonusValue, scope: SectorType.RED });
+                        (rewards.signals ??= []).push({ amount: bonusValue, scope: SectorType.RED });
                     }
                     else if (bonusType === 'bluesignal') {
-                        if (!rewards.signals) rewards.signals = [];
-                        rewards.signals.push({ amount: bonusValue, scope: SectorType.BLUE });
+                        (rewards.signals ??= []).push({ amount: bonusValue, scope: SectorType.BLUE });
                     }
                 }
             }
@@ -891,8 +837,7 @@ export class CardSystem {
             if (hasPresence) return rewards;
         }
 
-        const player = game.players.find(p => p.id === playerId);
-        if (!player) return null;
+        const player = requirePlayer(game, playerId);
 
         // Si on saute la vérification, on retourne les récompenses directement
         // Cela s'applique aux missions GAIN_ON_... qui ont été marquées comme fulfillable

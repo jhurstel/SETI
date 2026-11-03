@@ -40,7 +40,7 @@ describe('Conditions de mission (CardSystem.evaluateMission)', () => {
   };
 
   test('mission inconnue du joueur, mission vide ou mal écrite : aucune récompense', () => {
-    expect(CardSystem.evaluateMission(game, 'inconnu', 'GAIN_IF_8_MEDIA:pv:3')).toBeNull();
+    expect(() => CardSystem.evaluateMission(game, 'inconnu', 'GAIN_IF_8_MEDIA:pv:3')).toThrow('Joueur introuvable');
     expect(CardSystem.evaluateMission(game, P1, '')).toBeNull();
     expect(CardSystem.evaluateMission(game, P1, 'GAIN_IF_8_MEDIA')).toBeNull();
   });

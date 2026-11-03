@@ -9,14 +9,13 @@ import { ScoreManager } from './ScoreManager';
 import { uniqueId } from './ids';
 import { cloneGame } from './cloneGame';
 import { privateText } from './historyText';
+import { requirePlayer } from './players';
 
 /** Résultat d'un choix fait sur une interaction en attente. */
 export interface ChoiceResult {
   updatedGame: Game;
   historyEntries: HistoryEntry[];
   newPendingInteractions: InteractionState[];
-  /** Le choix a fait découvrir une espèce (l'interface affiche une notification) */
-  discoveredSpecies?: boolean;
   /** Même interaction à poursuivre (placements ou déplacements restants), après les interactions déclenchées */
   nextInteraction?: InteractionState;
   error?: string;
@@ -34,7 +33,7 @@ const refused = (game: Game, error: string): ChoiceResult => ({ updatedGame: gam
 export class InteractionChoices {
   /**
    * Détecte une découverte d'espèce due au choix (comparaison des plateaux Alien avant/après :
-   * un indicateur `isSpeciesDiscovered` resté actif ne compte pas) et l'ajoute à l'historique.
+   * un indicateur `isSpeciesDiscovered` resté actif ne compte pas) et l'ajoute à l'historique (la session en tire l'annonce).
    */
   static noteDiscovery(before: Game, result: ChoiceResult, playerId: string, sequenceId: string): ChoiceResult {
     const updatedGame = result.updatedGame;
@@ -44,7 +43,6 @@ export class InteractionChoices {
     if (!discovered) return result;
     return {
       ...result,
-      discoveredSpecies: true,
       historyEntries: [...result.historyEntries, { message: 'découvre une nouvelle espèce Alien !', playerId, sequenceId }],
     };
   }
@@ -119,8 +117,7 @@ export class InteractionChoices {
     computerCol?: number,
   ): ChoiceResult {
     const sequenceId = interaction.sequenceId || `tech-${uniqueId()}`;
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) return refused(game, 'Joueur introuvable');
+    const player = requirePlayer(game, playerId);
     const freeColumns = ComputerSystem.TECH_COLUMNS.filter(col => ComputerSystem.canAssignTechnology(player, col).canAssign);
 
     if (interaction.type === 'ACQUIRING_TECH') {
@@ -132,7 +129,7 @@ export class InteractionChoices {
     }
     if (tech.type === TechnologyCategory.COMPUTING && computerCol !== undefined) {
       const check = ComputerSystem.canAssignTechnology(player, computerCol);
-      if (!check.canAssign) return refused(game, check.reason || 'Colonne indisponible');
+      if (!check.canAssign) return refused(game, check.reason);
     } else if (tech.type === TechnologyCategory.COMPUTING && freeColumns.length > 0) {
       return refused(game, "Choisissez une colonne de l'ordinateur");
     }
@@ -141,7 +138,7 @@ export class InteractionChoices {
     return {
       updatedGame: res.updatedGame,
       historyEntries: res.historyEntries.map(e => ({ ...e, sequenceId: e.sequenceId || sequenceId })),
-      newPendingInteractions: (res.newPendingInteractions || []).map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId })),
+      newPendingInteractions: [],
     };
   }
 
@@ -173,19 +170,15 @@ export class InteractionChoices {
     const found = ProbeSystem.findProbeAtPlanet(game, playerId, planetId);
     if (!found) return refused(game, 'Aucune de vos sondes sur cette planète');
     const sequenceId = interaction.sequenceId || `seq-${uniqueId()}`;
-    try {
-      const res = interaction.type === 'ORBITING_PROBE'
-        ? ProbeSystem.orbitProbe(game, playerId, found.probe.id, planetId, sequenceId, true, interaction.source)
-        : ProbeSystem.landProbe(game, playerId, found.probe.id, planetId, true, slotIndex, interaction.source, sequenceId);
-      return {
-        updatedGame: res.updatedGame,
-        historyEntries: res.historyEntries,
-        newPendingInteractions: res.newPendingInteractions,
-        nextInteraction: interaction.count > 1 ? { ...interaction, count: interaction.count - 1, sequenceId } : undefined,
-      };
-    } catch (error) {
-      return refused(game, error instanceof Error ? error.message : String(error));
-    }
+    const res = interaction.type === 'ORBITING_PROBE'
+      ? ProbeSystem.orbitProbe(game, playerId, found.probe.id, planetId, sequenceId, true, interaction.source)
+      : ProbeSystem.landProbe(game, playerId, found.probe.id, planetId, true, slotIndex, interaction.source, sequenceId);
+    return {
+      updatedGame: res.updatedGame,
+      historyEntries: res.historyEntries,
+      newPendingInteractions: res.newPendingInteractions,
+      nextInteraction: interaction.count > 1 ? { ...interaction, count: interaction.count - 1, sequenceId } : undefined,
+    };
   }
 
   /**
@@ -301,13 +294,9 @@ export class InteractionChoices {
     const probes = interaction.type === 'REMOVING_ORBITER' ? planet?.orbiters : planet?.landers;
     const index = slotIndex ?? probes?.findIndex(p => p.ownerId === playerId) ?? -1;
     if (!probes || index === -1 || probes[index]?.ownerId !== playerId) return refused(game, 'Aucune de vos sondes à retirer ici');
-    try {
-      return interaction.type === 'REMOVING_ORBITER'
-        ? ProbeSystem.removeOrbiter(game, playerId, planetId, index, interaction.sequenceId)
-        : ProbeSystem.removeLander(game, playerId, planetId, index, interaction.sequenceId);
-    } catch (error) {
-      return refused(game, error instanceof Error ? error.message : String(error));
-    }
+    return interaction.type === 'REMOVING_ORBITER'
+      ? ProbeSystem.removeOrbiter(game, playerId, planetId, index, interaction.sequenceId)
+      : ProbeSystem.removeLander(game, playerId, planetId, index, interaction.sequenceId);
   }
 
   /** Carte Exertien jouée à un palier (cardId absent : le joueur renonce). */
@@ -326,7 +315,7 @@ export class InteractionChoices {
       const updatedGame = cloneGame(game);
       const player = updatedGame.players.find(p => p.id === playerId)!;
       player.missions.forEach(mission => {
-        mission.fulfillableRequirementIds = (mission.fulfillableRequirementIds || [])
+        mission.fulfillableRequirementIds = mission.fulfillableRequirementIds
           .filter(id => !interaction.options.some(o => o.missionId === mission.id && o.requirementId === id));
       });
       return { updatedGame, historyEntries: [{ message: 'ne recouvre pas de cercle de mission', playerId, sequenceId: interaction.sequenceId || '' }], newPendingInteractions: [] };

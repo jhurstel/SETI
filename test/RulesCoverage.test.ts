@@ -31,14 +31,20 @@ describe('Règles du moteur peu couvertes', () => {
   describe('ResourceSystem', () => {
     test('formatBonus : chaque gain a son libellé', () => {
       const bonus: Bonus = {
-        pv: 2, credits: 1, energy: 1, media: 1, card: 2, data: 1, scan: 1, revenue: 1, anycard: 1, probe: 1, orbiting: 1, landing: 1, movements: 2, token: 1,
+        pv: 2, credits: 1, energy: 1, media: 1, card: 2, data: 1, scan: 1, revenue: 1, anycard: 1, probe: 1, landing: 1, movements: 2, token: 1,
         signals: [{ amount: 1, scope: SectorType.RED }],
         technologies: [{ amount: 1, scope: [TechnologyCategory.EXPLORATION, TechnologyCategory.OBSERVATION] as never }],
       };
       const labels = ResourceSystem.formatBonus(bonus)!;
-      ['2 Pioche', '1 Donnée', '1 Signal (Rouge)', '1 Scan', '1 Réservation', '1 Carte', '1 Tech Exploration ou Observation', '1 Sonde', '1 Orbiteur', '1 Atterrisseur', '2 Déplacement', '1 Token']
+      ['2 Pioche', '1 Donnée', '1 Signal (Rouge)', '1 Scan', '1 Réservation', '1 Carte', '1 Tech Exploration ou Observation', '1 Sonde', '1 Atterrisseur', '2 Déplacement', '1 Token']
         .forEach(label => expect(labels).toContain(label));
       expect(ResourceSystem.formatBonus(undefined as unknown as Bonus)).toBeNull();
+    });
+
+    test('accumulateBonus : additionne les nombres, ajoute aux listes, garde les options, ignore les champs vides', () => {
+      const acc: Bonus = { media: 2, signals: [{ amount: 1, scope: SectorType.RED }] };
+      ResourceSystem.accumulateBonus({ media: 1, pv: 3, signals: [{ amount: 1, scope: SectorType.BLUE }], collectSpecimen: true, energy: undefined }, acc);
+      expect(acc).toEqual({ media: 3, pv: 3, signals: [{ amount: 1, scope: SectorType.RED }, { amount: 1, scope: SectorType.BLUE }], collectSpecimen: true });
     });
 
     test('lostBonusWarning : avertit quand un gain serait perdu', () => {
@@ -60,11 +66,28 @@ describe('Règles du moteur peu couvertes', () => {
       expect(warn({ atmosphericEntry: true })).toContain('aucun orbiteur');
       expect(warn({ sampleReturn: true })).toContain('aucun atterrisseur');
 
+      // Sondes ailleurs que là où le gain en a besoin
+      const at = (id: string, state: ProbeState) => ({ ...probe(id, P1, state), solarPosition: { disk: 'A' as const, sector: 1 as const, level: 0 } });
+      player.probes = [at('o', ProbeState.IN_ORBIT)];
+      expect(warn({ movements: 1 })).not.toBeNull();
+      expect(warn({ atmosphericEntry: true })).toBeNull();
+      expect(warn({ sampleReturn: true })).toContain('aucun atterrisseur');
+      player.probes = [at('l', ProbeState.LANDED)];
+      expect(warn({ sampleReturn: true })).toBeNull();
+
+      // Limite de sondes dans le système solaire atteinte
+      player.probes = [at('s', ProbeState.IN_SOLAR_SYSTEM)];
+      game.board.solarSystem.probes = [...player.probes];
+      expect(warn({ probe: 1 })).toContain('limite de sondes');
+      expect(warn({ probe: 1, ignoreProbeLimit: true })).toBeNull();
+      player.probes = [];
+      game.board.solarSystem.probes = [];
+
       const computing = game.board.technologyBoard.categorySlots!.find(s => s.category === TechnologyCategory.COMPUTING)!;
       player.technologies = [...computing.technologies];
       expect(warn({ technologies: [{ amount: 1, scope: TechnologyCategory.COMPUTING }] })).toContain('toutes les technologies');
       expect(warn({ technologies: [{ amount: 1, scope: TechnologyCategory.ANY }] })).toBeNull();
-      expect(ResourceSystem.lostBonusWarning(game, 'inconnu', { media: 1 })).toBeNull();
+      expect(() => ResourceSystem.lostBonusWarning(game, 'inconnu', { media: 1 })).toThrow('Joueur introuvable');
     });
 
     test('échanges : 2 cartes exactement, ressource valide, assez de crédits ou d\'énergie', () => {
@@ -72,7 +95,7 @@ describe('Règles du moteur peu couvertes', () => {
       const ids = player.cards.map(c => c.id);
       expect(ResourceSystem.tradeResources(game, P1, 'card', 'credit', [ids[0]]).error).toBeDefined();
       expect(ResourceSystem.tradeResources(game, P1, 'card', 'inconnu', ids.slice(0, 2)).error).toBe('Type de ressource à recevoir invalide');
-      expect(ResourceSystem.tradeResources(game, 'inconnu', 'card', 'credit', ids.slice(0, 2)).error).toBe('Joueur non trouvé');
+      expect(() => ResourceSystem.tradeResources(game, 'inconnu', 'card', 'credit', ids.slice(0, 2))).toThrow('Joueur introuvable');
 
       const traded = ResourceSystem.tradeResources(game, P1, 'card', 'credit', ids.slice(0, 2));
       expect(traded.error).toBeUndefined();
@@ -106,6 +129,17 @@ describe('Règles du moteur peu couvertes', () => {
       expect(progress('x:2:5', 'MISSIONS').value).toBe(1);
       expect(progress('x:2:5', 'INCONNU').value).toBe(0);
       expect(ScoreManager.exertienCardProgress(game, getPlayer(game, P1), makeCard('none'))).toBeNull();
+    });
+
+    test('traces de vie sur le plateau des Exertiens ou sur les autres plateaux', () => {
+      const [exertiens, other] = game.board.alienBoards;
+      exertiens.speciesId = AlienBoardType.EXERTIENS;
+      const trace = (type: LifeTraceType) => ({ id: `t-${type}`, type, playerId: P1, location: LifeTraceLocation.SPECIES });
+      exertiens.lifeTraces = [trace(LifeTraceType.RED), trace(LifeTraceType.BLUE)] as typeof exertiens.lifeTraces;
+      other.lifeTraces = [trace(LifeTraceType.YELLOW)] as typeof other.lifeTraces;
+
+      expect(progress('this:6:7', 'TRACES_SPECIES')).toEqual({ value: 2, threshold: 6, points: 7 });
+      expect(progress('other:6:20', 'TRACES_SPECIES').value).toBe(1);
     });
   });
 
@@ -148,9 +182,13 @@ describe('Règles du moteur peu couvertes', () => {
       expect(second).toBe(first + 20);
     });
 
-    test('mission « trace de vie rouge » : signalée comme à recouvrir', () => {
-      addTriggeredMission(game, 'GAIN_ON_RED_LIFETRACE');
-      const res = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.TRIANGLE);
+      test.each([
+      [LifeTraceType.RED, 'GAIN_ON_RED_LIFETRACE'],
+      [LifeTraceType.YELLOW, 'GAIN_ON_YELLOW_LIFETRACE'],
+      [LifeTraceType.BLUE, 'GAIN_ON_BLUE_LIFETRACE'],
+    ])('mission « trace de vie %s » : signalée comme à recouvrir', (color, buffType) => {
+      addTriggeredMission(game, buffType);
+      const res = SpeciesSystem.placeLifeTrace(game, 0, color, P1, 's', LifeTraceLocation.TRIANGLE);
       expect(res.historyEntries.some(e => e.message === 'déclenche une mission à recouvrir')).toBe(true);
     });
   });
@@ -177,6 +215,16 @@ describe('Règles du moteur peu couvertes', () => {
       expect(res.historyEntries.some(e => e.message === 'déclenche une mission à recouvrir')).toBe(true);
       expect(getPlayer(res.updatedGame, P1).score).toBe(score + 2 + (tech.bonus.pv ?? 0));
       expect(getPlayer(res.updatedGame, P1).activeBuffs.some(b => b.type === 'SCORE_PER_TECH_TYPE')).toBe(false);
+    });
+
+    test.each([
+      [TechnologyCategory.OBSERVATION, 'GAIN_ON_RED_TECH'],
+      [TechnologyCategory.COMPUTING, 'GAIN_ON_BLUE_TECH'],
+    ])('mission « technologie %s » : signalée comme à recouvrir', (category, buffType) => {
+      addTriggeredMission(game, buffType);
+      const tech = game.board.technologyBoard.available.find(t => t.type === category)!;
+      const res = TechnologySystem.acquireTechnology(game, P1, tech, 1);
+      expect(res.historyEntries.some(e => e.message === 'déclenche une mission à recouvrir')).toBe(true);
     });
 
     test('Média si un adversaire a déjà la même technologie', () => {
@@ -212,7 +260,7 @@ describe('Règles du moteur peu couvertes', () => {
       'ACQUIRING_TECH', 'SELECTING_COMPUTER_SLOT', 'ANALYZING', 'PLACING_LIFE_TRACE', 'PLACING_OBJECTIVE_MARKER', 'SELECTING_SCAN_CARD', 'SELECTING_SCAN_SECTOR',
       'CHOOSING_MEDIA_OR_MOVE', 'CHOOSING_OBS2_ACTION', 'CHOOSING_OBS3_ACTION', 'CHOOSING_OBS4_ACTION', 'DISCARDING_FOR_SIGNAL', 'REMOVING_ORBITER', 'REMOVING_LANDER',
       'CHOOSING_BONUS_ACTION', 'RESOLVING_SECTOR', 'TRIGGER_CARD_EFFECT', 'DRAW_AND_SCAN', 'CLAIMING_MISSION_REQUIREMENT', 'ACQUIRING_ALIEN_CARD',
-      'CHOOSING_CENTAURIEN_REWARD', 'COLLECTING_SPECIMEN', 'CONSULTING_SPECIMEN', 'CHOOSING_EXERTIEN_CARD', 'CHOOSING_MISSION_REQUIREMENT'];
+      'CHOOSING_CENTAURIEN_REWARD', 'COLLECTING_SPECIMEN', 'CONSULTING_SPECIMEN', 'CHOOSING_EXERTIEN_CARD', 'CHOOSING_MISSION_REQUIREMENT', 'DISCARDING_DRAWN_CARD'];
 
     types.forEach(type => {
       const label = getInteractionLabel({ ...sample, type } as unknown as InteractionState);
@@ -222,5 +270,8 @@ describe('Règles du moteur peu couvertes', () => {
     // Variantes : achat / gain gratuit, scan bonus, technologie bonus
     expect(getInteractionLabel({ type: 'ACQUIRING_CARD', count: 1, isFree: true })).not.toBe(getInteractionLabel({ type: 'ACQUIRING_CARD', count: 1 }));
     expect(getInteractionLabel({ type: 'ACQUIRING_TECH', isBonus: true })).not.toBe(getInteractionLabel({ type: 'ACQUIRING_TECH' }));
+    expect(getInteractionLabel({ type: 'DISCARDING_DRAWN_CARD', cardIds: [], step: 'FREE_ACTION' })).not.toBe(getInteractionLabel({ type: 'DISCARDING_DRAWN_CARD', cardIds: [], step: 'REVENUE' }));
+    // Interaction inconnue (sauvegarde d'une version plus ancienne) : libellé générique
+    expect(getInteractionLabel({ type: 'ANCIENNE' } as unknown as InteractionState)).toBe('Interaction en cours (ANCIENNE).');
   });
 });

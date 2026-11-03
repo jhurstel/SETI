@@ -10,7 +10,7 @@ export class LandAction extends BaseAction {
     validate(game: Game): ValidationResult {
         const check = ProbeSystem.canLand(game, this.playerId, this.probeId);
         if (!check.canLand) {
-            return { valid: false, errors: [{ code: 'CANNOT_LAND', message: check.reason || 'Atterrissage impossible' }], warnings: [] };
+            return { valid: false, errors: [{ code: 'CANNOT_LAND', message: check.reason }], warnings: [] };
         }
         return { valid: true, errors: [], warnings: [] };
     }

@@ -10,7 +10,7 @@ export class OrbitAction extends BaseAction {
     validate(game: Game): ValidationResult {
         const check = ProbeSystem.canOrbit(game, this.playerId, this.probeId);
         if (!check.canOrbit) {
-            return { valid: false, errors: [{ code: 'CANNOT_ORBIT', message: check.reason || 'Mise en orbite impossible' }], warnings: [] };
+            return { valid: false, errors: [{ code: 'CANNOT_ORBIT', message: check.reason }], warnings: [] };
         }
         return { valid: true, errors: [], warnings: [] };
     }

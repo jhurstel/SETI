@@ -30,7 +30,7 @@ export function lifeTraceColor(target?: string): LifeTraceType {
   return LifeTraceType.ANY;
 }
 
-function add(bonuses: Bonus, key: 'credits' | 'energy' | 'card' | 'probe' | 'token' | 'anycard' | 'rotation' | 'orbiting' | 'landing' | 'movements' | 'scan' | 'pv' | 'data' | 'media', amount: number): void {
+function add(bonuses: Bonus, key: 'credits' | 'energy' | 'card' | 'probe' | 'token' | 'anycard' | 'rotation' | 'landing' | 'movements' | 'scan' | 'pv' | 'data' | 'media', amount: number): void {
   bonuses[key] = (bonuses[key] || 0) + amount;
 }
 
@@ -55,7 +55,6 @@ const IMMEDIATE_GAINS: Record<string, (bonuses: Bonus, effect: CardEffect) => vo
   'GAIN:TOKEN': (b, e) => add(b, 'token', effectNumber(e)),
   'ACTION:ANYCARD': (b, e) => add(b, 'anycard', effectNumber(e)),
   'ACTION:ROTATION': (b, e) => add(b, 'rotation', effectNumber(e)),
-  'ACTION:ORBIT': (b, e) => add(b, 'orbiting', effectNumber(e)),
   'ACTION:LAND': (b, e) => add(b, 'landing', effectNumber(e)),
   'ACTION:MOVEMENT': (b, e) => add(b, 'movements', effectNumber(e)),
   'ACTION:SCAN': (b, e) => add(b, 'scan', effectNumber(e)),
@@ -104,10 +103,9 @@ const FLAG_EFFECTS: Record<string, (bonuses: Bonus, effect: CardEffect) => void>
 
 const PASSIVE_HANDLERS: Record<string, PassiveHandler> = {
   'VISIT_BONUS': ({ player, card, bonuses }, effect) => {
-    if (!effect.target) return;
     // Si la planète a DÉJÀ été visitée ce tour-ci, le bonus s'applique immédiatement (PV ajoutés par
     // processBonuses), sinon pour le reste du tour
-    if (player.visitedPlanetsThisTurn.includes(effect.target)) {
+    if (player.visitedPlanetsThisTurn.includes(effect.target!)) {
       add(bonuses, 'pv', effectNumber(effect));
     } else {
       player.activeBuffs.push({ ...effect, source: card.name });
@@ -117,7 +115,7 @@ const PASSIVE_HANDLERS: Record<string, PassiveHandler> = {
   'GAIN_LIFETRACE_IF_ASTEROID': ({ game, player, bonuses }, effect) => {
     const rotationState = rotationOf(game);
     const hasProbeOnAsteroid = player.probes.some(p => {
-      if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+      if (p.state !== ProbeState.IN_SOLAR_SYSTEM) return false;
       const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
       return getCell(p.solarPosition.disk, absSector, rotationState, game.board.solarSystem.extraCelestialObjects)?.hasAsteroid;
     });
@@ -189,8 +187,7 @@ const PASSIVE_HANDLERS: Record<string, PassiveHandler> = {
   'OPTIMAL_LAUNCH_WINDOW': ({ game, bonuses }) => {
     const rotationState = rotationOf(game);
     const extra = game.board.solarSystem.extraCelestialObjects;
-    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, extra);
-    if (!earthPos) return;
+    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, extra)!;
     const movementBonus = getAllCelestialObjects(extra).filter(obj => {
       if (obj.id === 'earth' || (obj.type !== 'planet' && obj.type !== 'comet')) return false;
       const objPos = calculateAbsolutePosition(obj, rotationState, extra);
@@ -243,8 +240,7 @@ const PASSIVE_HANDLERS: Record<string, PassiveHandler> = {
   'GAIN_MOVE_IF_ANOMALY': ({ game, bonuses }) => {
     const rotationState = rotationOf(game);
     const extra = game.board.solarSystem.extraCelestialObjects;
-    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, extra);
-    if (!earthPos) return;
+    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, extra)!;
     const hasAnomaly = anomaliesOf(game).some(a => calculateAbsolutePosition(a, rotationState, extra).absoluteSector === earthPos.absoluteSector);
     if (hasAnomaly) add(bonuses, 'movements', 1);
   },
@@ -269,7 +265,6 @@ const PASSIVE_HANDLERS: Record<string, PassiveHandler> = {
 
 /** PV par signal du joueur dans les secteurs des anomalies (SCORE_PER_ANOMALY…) */
 const scorePerAnomaly: PassiveHandler = ({ game, player, bonuses }, effect) => {
-  if (typeof effect.value !== 'number' || isNaN(effect.value)) return;
   const rotationState = rotationOf(game);
   const extra = game.board.solarSystem.extraCelestialObjects;
   const anomalySectors = new Set<number>(anomaliesOf(game).map(a => calculateAbsolutePosition(a, rotationState, extra).absoluteSector));

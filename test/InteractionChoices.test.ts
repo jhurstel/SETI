@@ -2,7 +2,7 @@ import { InteractionChoices } from '../src/core/InteractionChoices';
 import { AIController } from '../src/ai/AIController';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { CardSystem } from '../src/systems/CardSystem';
-import { Game, LifeTraceType } from '../src/core/types';
+import { Game, LifeTraceLocation, LifeTraceType, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -74,7 +74,7 @@ describe('InteractionChoices', () => {
 
     expect(res.error).toBeUndefined();
     expect(res.updatedGame).not.toBe(game);
-    expect(res.discoveredSpecies).toBeUndefined();
+    expect(res.historyEntries.some(e => e.message === 'découvre une nouvelle espèce Alien !')).toBe(false);
     expect(res.updatedGame.isSpeciesDiscovered).toBe(false);
     expect(res.historyEntries.every(e => e.sequenceId === 't')).toBe(true);
   });
@@ -89,5 +89,17 @@ describe('InteractionChoices', () => {
     expect(getPlayer(res.updatedGame, P1).cards.some(c => c.id === card.id)).toBe(false);
     expect(res.updatedGame.decks.discardPile.filter(c => c.id === card.id)).toHaveLength(1);
     expect(res.updatedGame.decks.discardPile.length).toBe(discardSize + 1);
+  });
+
+  test("trace de vie limitée à certains plateaux : un autre plateau est refusé", () => {
+    const res = InteractionChoices.placeLifeTrace(game, P1, { type: 'PLACING_LIFE_TRACE', color: LifeTraceType.RED, boardIndices: [1] }, 0, LifeTraceType.RED, LifeTraceLocation.TRIANGLE);
+    expect(res.error).toBe('Plateau Alien non autorisé');
+    expect(res.updatedGame).toBe(game);
+  });
+
+  test("technologie Informatique sans colonne alors qu'il en reste une libre : la colonne est demandée", () => {
+    const tech = game.board.technologyBoard.available.find(t => t.type === TechnologyCategory.COMPUTING)!;
+    const res = InteractionChoices.acquireTech(game, P1, { type: 'SELECTING_COMPUTER_SLOT', tech }, tech);
+    expect(res.error).toBe("Choisissez une colonne de l'ordinateur");
   });
 });

@@ -1,7 +1,7 @@
 import { CardSystem } from '../src/systems/CardSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { ScoreManager } from '../src/core/ScoreManager';
-import { AlienBoardType, CardType, CostType, FreeActionType, Game, LifeTraceType, Mission, ProbeState, TechnologyCategory } from '../src/core/types';
+import { AlienBoardType, CardType, CostType, FreeActionType, Game, LifeTraceType, Mission, ProbeState, RevenueType, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 import { revealText, textFor } from '../src/core/historyText';
 
@@ -68,9 +68,18 @@ describe('Cartes : cas limites et refus', () => {
     }));
   });
 
+  test("achat dans une pioche vide : refusé, les Médias ne sont pas dépensés (régression)", () => {
+    getPlayer(game, P1).mediaCoverage = 5;
+    game.decks.cards = [];
+    const res = CardSystem.buyCard(game, P1);
+    expect(res.error).toBe('La pioche est vide');
+    expect(res.updatedGame).toBe(game);
+    expect(getPlayer(game, P1).mediaCoverage).toBe(5);
+  });
+
   describe('playCard : refus sans changement', () => {
     test('joueur ou carte inconnus', () => {
-      expect(CardSystem.playCard(game, 'inconnu', 'x').updatedGame).toBe(game);
+      expect(() => CardSystem.playCard(game, 'inconnu', 'x')).toThrow('Joueur introuvable');
       expect(CardSystem.playCard(game, P1, 'inconnue').updatedGame).toBe(game);
     });
 
@@ -84,12 +93,17 @@ describe('Cartes : cas limites et refus', () => {
     });
   });
 
-  test('mission « jouer une carte à 1 crédit » : signalée comme à recouvrir', () => {
-    addTriggeredMission(game, 'GAIN_ON_PLAY_1_CREDIT');
-    getPlayer(game, P1).cards.push(makeCard('cheap', { cost: 1 }));
+  test.each([
+    [1, 'GAIN_ON_PLAY_1_CREDIT'],
+    [2, 'GAIN_ON_PLAY_2_CREDITS'],
+    [3, 'GAIN_ON_PLAY_3_CREDITS'],
+  ])('mission « jouer une carte à %i crédit(s) » : signalée comme à recouvrir, pas pour un autre coût', (cost, buffType) => {
+    addTriggeredMission(game, buffType);
+    getPlayer(game, P1).cards.push(makeCard('cible', { cost }), makeCard('autre', { cost: cost === 1 ? 2 : 1 }));
     getPlayer(game, P1).credits = 5;
-    const res = CardSystem.playCard(game, P1, 'cheap');
-    expect(res.historyEntries.some(e => e.message === 'déclenche une mission à recouvrir')).toBe(true);
+    const triggered = (cardId: string) => CardSystem.playCard(game, P1, cardId).historyEntries.some(e => e.message === 'déclenche une mission à recouvrir');
+    expect(triggered('cible')).toBe(true);
+    expect(triggered('autre')).toBe(false);
   });
 
   test('récompenses de mission : sonde, déplacements, trace bleue', () => {
@@ -132,6 +146,40 @@ describe('Cartes : cas limites et refus', () => {
       getPlayer(game, P1).probes = [{ id: 'p', ownerId: P1, position: { x: 0, y: 0 }, solarPosition: { disk: 'A', sector: 1, level: 0 }, state: ProbeState.IN_ORBIT, isOrbiter: true, isLander: false }];
       expect(endGame([{ type: 'SCORE_IF_PROBE_ON_ASTEROID', value: 13 }])).toBe(0);
     });
+  });
+
+  describe('Réservation et défausse : cartes Exertiens refusées', () => {
+    test('une carte Exertien (hors de la main) ne se réserve pas et ne se défausse pas pour son revenu', () => {
+      getPlayer(game, P1).cards.push(makeCard('ex', { type: CardType.EXERTIEN, revenue: RevenueType.CREDIT }));
+
+      const reserved = CardSystem.reserveCards(game, P1, ['ex'], 's');
+      expect(reserved.reservedCount).toBe(0);
+      expect(reserved.updatedGame).toBe(game);
+      expect(CardSystem.discardCardForRevenue(game, P1, 'ex', 's').updatedGame).toBe(game);
+    });
+
+    test.each([
+      [RevenueType.CREDIT, 'CREDIT'],
+      [RevenueType.ENERGY, 'ENERGY'],
+      [RevenueType.MEDIA, 'MEDIA'],
+      [RevenueType.DATA, 'DATA'],
+      [RevenueType.CARD, 'CARD'],
+    ])('ressource du revenu %s : %s', (revenue, resource) => {
+      expect(CardSystem.revenueResource(revenue)).toBe(resource);
+    });
+  });
+
+  test("mission déclenchable : un cercle déjà prêt à recouvrir ne l'est pas une seconde fois", () => {
+    addTriggeredMission(game, 'GAIN_ON_LAUNCH');
+    const player = getPlayer(game, P1);
+    expect(CardSystem.processMissionBuffs(player, b => b.type === 'GAIN_ON_LAUNCH')).toBe(true);
+    expect(CardSystem.processMissionBuffs(player, b => b.type === 'GAIN_ON_LAUNCH')).toBe(false);
+    expect(player.missions[0].fulfillableRequirementIds).toEqual(['r']);
+
+    // Cercle déjà recouvert : plus rien à préparer
+    player.missions[0].fulfillableRequirementIds = [];
+    player.missions[0].completedRequirementIds = ['r'];
+    expect(CardSystem.processMissionBuffs(player, b => b.type === 'GAIN_ON_LAUNCH')).toBe(false);
   });
 
   describe('Paliers neutres', () => {

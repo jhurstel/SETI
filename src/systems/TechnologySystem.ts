@@ -1,9 +1,17 @@
 import { effectNumber } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
-import { Game, Technology, GAME_CONSTANTS, TechnologyCategory, HistoryEntry, InteractionState } from '../core/types';
+import { Game, Technology, GAME_CONSTANTS, TechnologyCategory, HistoryEntry, RuleCheck } from '../core/types';
 import { ComputerSystem } from './ComputerSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { CardSystem } from './CardSystem';
+import { requirePlayer } from '../core/players';
+
+/** Missions déclenchées par une technologie, selon sa catégorie (couleur) */
+const TECH_TRIGGERS: Partial<Record<TechnologyCategory, string>> = {
+  [TechnologyCategory.EXPLORATION]: 'GAIN_ON_YELLOW_TECH',
+  [TechnologyCategory.OBSERVATION]: 'GAIN_ON_RED_TECH',
+  [TechnologyCategory.COMPUTING]: 'GAIN_ON_BLUE_TECH',
+};
 
 export class TechnologySystem {
 
@@ -18,8 +26,7 @@ export class TechnologySystem {
    * Même liste pour le joueur humain (plateau des technologies) et pour les robots.
    */
   static acquirableTechs(game: Game, playerId: string, options: { categories?: TechnologyCategory[]; sharedOnly?: boolean } = {}): Technology[] {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) return [];
+    const player = requirePlayer(game, playerId);
     const owned = new Set(player.technologies.map(t => this.stackId(t)));
     const shared = new Set(game.players.filter(p => p.id !== playerId).flatMap(p => p.technologies.map(t => this.stackId(t))));
     const result: Technology[] = [];
@@ -37,9 +44,8 @@ export class TechnologySystem {
     return result;
   }
 
-  static canResearchTech(game: Game, playerId: string): { canResearch: boolean, reason?: string } {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) return { canResearch: false, reason: "Joueur non trouvé" };
+  static canResearchTech(game: Game, playerId: string): RuleCheck<'canResearch'> {
+    const player = requirePlayer(game, playerId);
 
     if (player.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) {
       return { canResearch: false, reason: `Couverture médiatique insuffisante (Requis: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA})` };
@@ -53,14 +59,11 @@ export class TechnologySystem {
     return this.acquirableTechs(game, playerId, { categories }).length > 0;
   }
 
-  static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[], historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
+  static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[], historyEntries: HistoryEntry[] } {
     let updatedGame = cloneGame(game);
-    let player = updatedGame.players.find(p => p.id === playerId);
+    let player = requirePlayer(updatedGame, playerId);
     const historyEntries: HistoryEntry[] = [];
-    const newPendingInteractions: InteractionState[] = [];
     const probeEntries: HistoryEntry[] = [];
-    if (!player) return { updatedGame: game, gains: [], historyEntries: [], newPendingInteractions: [] };
-
     const updatedTechBoard = updatedGame.board.technologyBoard;
 
     // Remove tech from board
@@ -129,12 +132,7 @@ export class TechnologySystem {
     historyEntries.push(...probeEntries);
 
     // Traitement des missions conditionnelles (GAIN_ON_TECH)
-    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
-      if (tech.type === TechnologyCategory.EXPLORATION && buff.type === 'GAIN_ON_YELLOW_TECH') return true;
-      if (tech.type === TechnologyCategory.OBSERVATION && buff.type === 'GAIN_ON_RED_TECH') return true;
-      if (tech.type === TechnologyCategory.COMPUTING && buff.type === 'GAIN_ON_BLUE_TECH') return true;
-      return false;
-    });
+    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => buff.type === TECH_TRIGGERS[tech.type]);
     if (hasFulfillable) {
       historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId: ''});
     }
@@ -144,10 +142,7 @@ export class TechnologySystem {
     player.activeBuffs.forEach((buff, index) => {
       if (buff.type === 'SCORE_PER_TECH_TYPE') {
         // Identifier la catégorie de la tech acquise
-        let categoryPrefix = '';
-        if (tech.id.startsWith('exploration')) categoryPrefix = 'exploration';
-        else if (tech.id.startsWith('observation')) categoryPrefix = 'observation';
-        else if (tech.id.startsWith('computing')) categoryPrefix = 'computing';
+        const categoryPrefix = ['exploration', 'observation', 'computing'].find(prefix => tech.id.startsWith(prefix));
         if (categoryPrefix) {
           // Compter les technologies de ce type possédées par le joueur (incluant la nouvelle)
           const count = player.technologies.filter(t => t.id.startsWith(categoryPrefix)).length;
@@ -187,6 +182,6 @@ export class TechnologySystem {
       player.activeBuffs = player.activeBuffs.filter((_, index) => !buffsToRemove.includes(index));
     }
 
-    return { updatedGame, gains, historyEntries, newPendingInteractions };
+    return { updatedGame, gains, historyEntries };
   }
 }

@@ -10,7 +10,7 @@ export class ScanSectorAction extends BaseAction {
     validate(game: Game): ValidationResult {
         const check = ScanSystem.canScanSector(game, this.playerId);
         if (!check.canScan) {
-            return { valid: false, errors: [{ code: 'CANNOT_SCAN', message: check.reason || 'Scan impossible' }], warnings: [] };
+            return { valid: false, errors: [{ code: 'CANNOT_SCAN', message: check.reason }], warnings: [] };
         }
         return { valid: true, errors: [], warnings: [] };
     }

@@ -3,8 +3,9 @@ import { Command, Choice } from '../src/session/commands';
 import { CardSystem } from '../src/systems/CardSystem';
 import { ComputerSystem } from '../src/systems/ComputerSystem';
 import { TechnologySystem } from '../src/systems/TechnologySystem';
-import { FreeActionType, Game, GamePhase, InteractionState, LifeTraceLocation, LifeTraceType, Probe, ProbeState, TechnologyCategory } from '../src/core/types';
+import { FreeActionType, Game, GamePhase, InteractionState, LifeTraceLocation, LifeTraceType, Probe, ProbeState, SectorType, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
+import { createRotationState, getAdjacentCells, getObjectPosition } from '../src/core/SolarSystemPosition';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
@@ -60,6 +61,37 @@ describe('GameSession : commandes et aiguillage des choix', () => {
   });
 
   describe('commandes', () => {
+    test("signal dans le secteur d'une sonde : la sonde utilisée est retirée des signaux suivants de la même action", () => {
+      const s = game.board.solarSystem;
+      Object.assign(s, { rotationAngleLevel1: 0, rotationAngleLevel2: 0, rotationAngleLevel3: 0 });
+      const probe = probeAt('p1', 'A', 3, 0);
+      getPlayer(game, P1).probes = [probe];
+      s.probes = [probe];
+      const scan: InteractionState = { type: 'SELECTING_SCAN_SECTOR', color: SectorType.PROBE, onlyProbes: true, sequenceId: 'sc' };
+
+      const res = dispatch({ ...game, interaction: scan, pendingInteractions: [scan] }, { type: 'CHOOSE', choice: { kind: 'SECTOR', sectorId: 'sector_3' } });
+
+      expect(res.error).toBeUndefined();
+      expect(res.game.interaction).toEqual({ ...scan, usedProbeIds: ['p1'] });
+    });
+
+    test("déplacement gratuit interrompu par la carte 19 sur une planète : le choix passe avant, les déplacements restants ne sont pas remis", () => {
+      const s = game.board.solarSystem;
+      const r = createRotationState(s.rotationAngleLevel1 || 0, s.rotationAngleLevel2 || 0, s.rotationAngleLevel3 || 0);
+      const mars = getObjectPosition('mars', r.level1Angle, r.level2Angle, r.level3Angle, s.extraCelestialObjects)!;
+      const from = getAdjacentCells(mars.disk, mars.absoluteSector)[0];
+      const probe = { ...probeAt('p1', from.disk, from.sector, 0) };
+      getPlayer(game, P1).probes = [probe];
+      s.probes = [probe];
+      getPlayer(game, P1).activeBuffs = [{ type: 'CHOICE_MEDIA_OR_MOVE', value: true, source: 'Assistance' }];
+
+      const res = dispatch(withInteraction({ type: 'MOVING_PROBE', count: 3, sequenceId: 'mv' }), { type: 'MOVE_PROBE', probeId: 'p1', disk: mars.disk, sector: mars.absoluteSector });
+
+      expect(res.error).toBeUndefined();
+      expect(res.game.interaction).toEqual(expect.objectContaining({ type: 'CHOOSING_MEDIA_OR_MOVE', sequenceId: 'mv' }));
+      expect(res.game.pendingInteractions ?? []).not.toContainEqual(expect.objectContaining({ type: 'MOVING_PROBE' }));
+    });
+
     test('orbite et atterrissage : refusés sans sonde sur la planète, possibles avec', () => {
       expect(dispatch(game, { type: 'ORBIT', planetId: 'mars' }).error).toBe('Aucune de vos sondes sur cette planète');
       expect(dispatch(game, { type: 'LAND', planetId: 'mars' }).error).toBe('Aucune de vos sondes sur cette planète');

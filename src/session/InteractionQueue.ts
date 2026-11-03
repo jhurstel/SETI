@@ -7,10 +7,6 @@ import { uniqueId } from '../core/ids';
  * Fonctions pures : elles renvoient une nouvelle partie (seuls les champs de la file changent).
  */
 export class InteractionQueue {
-  static active(game: Game): InteractionState | undefined {
-    return game.interaction;
-  }
-
   static pending(game: Game): InteractionState[] {
     return game.pendingInteractions || [];
   }

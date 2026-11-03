@@ -1,5 +1,6 @@
 import { GameRoom } from '../src/session/GameRoom';
 import { GameSession } from '../src/session/GameSession';
+import { GameSetup } from '../src/session/GameSetup';
 import { isCompatibleVersion, parseClientMessage } from '../src/session/protocol';
 import { Command } from '../src/session/commands';
 import { CardSystem } from '../src/systems/CardSystem';
@@ -183,6 +184,61 @@ describe('GameRoom : salle de partie à distance', () => {
       errorSpy.mockRestore();
     }
     expect(room.game).toBe(before);
+  });
+});
+
+describe('GameRoom : cas limites', () => {
+  let logSpy: jest.SpyInstance;
+  beforeEach(() => { logSpy = jest.spyOn(console, 'log').mockImplementation(() => {}); });
+  afterEach(() => logSpy.mockRestore());
+
+  test('commande avant le lancement, deuxième lancement : refusés', async () => {
+    const lobby = GameRoom.create('ABCDE', 'Alice', 'tok-alice', SEATS, ['HAL']);
+    expect(lobby.command('tok-alice', { type: 'LAUNCH_PROBE' }).error).toBe("La partie n'a pas commencé");
+    expect(lobby.robotStep()).toEqual({ played: false, notifications: [] });
+
+    const room = await startedRoom();
+    await expect(room.start()).rejects.toThrow('La partie a déjà commencé');
+  });
+
+  test('une création de partie ratée ne bloque pas les suivantes', async () => {
+    const failing = GameRoom.create('FAIL1', 'Alice', 'tok-a', SEATS, ['HAL']);
+    failing.claim('Bob', 'tok-b');
+    const fail = jest.spyOn(GameSetup, 'newGame').mockRejectedValueOnce(new Error('création impossible'));
+    try {
+      await expect(failing.start()).rejects.toThrow('création impossible');
+    } finally {
+      fail.mockRestore();
+    }
+    expect(failing.status).toBe('lobby');
+
+    const room = await startedRoom();
+    expect(room.status).toBe('playing');
+  });
+
+  test("robot sans carte à réserver pendant la mise en place : il attend, rien n'est joué", async () => {
+    const room = await startedRoom();
+    const robot = room.game!.players.find(p => p.type === 'robot')!;
+    robot.cards = [];
+    room.game = { ...room.game!, currentPlayerIndex: room.game!.players.indexOf(robot), interaction: undefined, pendingInteractions: [] };
+    expect(room.game.phase).toBe(GamePhase.SETUP);
+    expect(room.robotToPlay).toBe(true);
+    const before = room.game;
+    expect(room.robotStep()).toEqual({ played: false, notifications: [] });
+    expect(room.game).toBe(before);
+  });
+
+  test('la dernière passe de la dernière manche termine la salle', async () => {
+    const room = await startedRoom();
+    finishSetup(room);
+    const active = current(room);
+    room.game = { ...room.game!, currentRound: room.game!.maxRounds };
+    room.game.players.forEach(p => { if (p.id !== active.id) p.hasPassed = true; });
+    const keep = CardSystem.getHandCards(active).slice(0, 4).map(c => c.id);
+    const res = room.command(tokenOf(room, active.id), { type: 'PASS', cardsToKeep: keep });
+    expect(res.error).toBeUndefined();
+    expect(room.game!.phase).toBe(GamePhase.FINAL_SCORING);
+    expect(room.status).toBe('finished');
   });
 });
 

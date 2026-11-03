@@ -8,12 +8,20 @@ import { ProbeSystem } from './ProbeSystem';
 import { uniqueId } from '../core/ids';
 import { random } from '../core/random';
 import { privateText } from '../core/historyText';
+import { requirePlayer } from '../core/players';
 
 /** Mascamites : case de la piste bleue où est posé le 7e spécimen, face cachée */
 const MASCAMITE_BOARD_SPECIMEN_SLOT = 2;
 
 /** Annonce d'une découverte d'espèce (fenêtre « Découverte » de l'interface) */
 export const DISCOVERY_NOTICE = "Découverte d'une nouvelle espèce Alien !";
+
+/** Missions déclenchées par une trace de vie, selon sa couleur */
+const LIFE_TRACE_TRIGGERS: Partial<Record<LifeTraceType, string>> = {
+    [LifeTraceType.YELLOW]: 'GAIN_ON_YELLOW_LIFETRACE',
+    [LifeTraceType.RED]: 'GAIN_ON_RED_LIFETRACE',
+    [LifeTraceType.BLUE]: 'GAIN_ON_BLUE_LIFETRACE',
+};
 
 export class SpeciesSystem {
     /**
@@ -33,8 +41,7 @@ export class SpeciesSystem {
 
     static playExertienCard(game: Game, playerId: string, milestone: number, cardId?: string): { updatedGame: Game; historyEntries: HistoryEntry[]; error?: string } {
         const updatedGame = cloneGame(game);
-        const player = updatedGame.players.find(p => p.id === playerId);
-        if (!player) return { updatedGame: game, historyEntries: [], error: 'Joueur introuvable' };
+        const player = requirePlayer(updatedGame, playerId);
         const cost = this.exertienCardCost(game, milestone);
         const label = this.exertienMilestoneLabel(milestone);
 
@@ -97,7 +104,7 @@ export class SpeciesSystem {
             updatedGame: res.updatedGame,
             historyEntries: [
                 { message: `étudie un spécimen Mascamite sur ${planet.name}`, playerId, sequenceId },
-                ...res.historyEntries.map(e => ({ ...e, sequenceId })),
+                ...res.historyEntries,
             ],
             newPendingInteractions: res.newPendingInteractions,
         };
@@ -275,6 +282,8 @@ export class SpeciesSystem {
 
         let bonusToApply: Bonus = {};
         let costText = '';
+        // Emplacement de la piste d'espèce effectivement occupé (sans objet pour le triangle)
+        let speciesSlotIndex: number | undefined;
 
         if (slotType === LifeTraceLocation.TRIANGLE) {
             // Le joueur a cliqué sur le triangle. On compte combien de ses traces y sont déjà.
@@ -289,14 +298,9 @@ export class SpeciesSystem {
                 return { updatedGame: game, historyEntries: [{ message: "Impossible de placer sur la piste d'espèce avant sa découverte.", playerId, sequenceId }], newPendingInteractions: [] };
             }
 
-            let trackIndex = 0;
-            if (slotIndex !== undefined) {
-                trackIndex = slotIndex;
-            } else {
-                // Fallback (ne devrait pas arriver avec la nouvelle UI)
-                const tracesOnSpeciesTrack = board.lifeTraces.filter(t => t.type === color && t.location === LifeTraceLocation.SPECIES).length;
-                trackIndex = tracesOnSpeciesTrack;
-            }
+            // Sans emplacement précisé : après les traces de cette couleur déjà posées sur la piste
+            const trackIndex = slotIndex ?? board.lifeTraces.filter(t => t.type === color && t.location === LifeTraceLocation.SPECIES).length;
+            speciesSlotIndex = trackIndex;
 
             const isOccupied = board.lifeTraces.some(t => t.type === color && t.location === LifeTraceLocation.SPECIES && t.slotIndex === trackIndex);
             if (isOccupied) {
@@ -336,14 +340,14 @@ export class SpeciesSystem {
             type: color,
             playerId: playerId,
             location: slotType,
-            slotIndex: slotType === LifeTraceLocation.SPECIES ? (slotIndex !== undefined ? slotIndex : 0) : undefined
+            slotIndex: speciesSlotIndex
         });
         player.lifeTraces.push({
             id: `player-trace-${uniqueId()}`,
             type: color,
             playerId: playerId,
             location: slotType,
-            slotIndex: slotType === LifeTraceLocation.SPECIES ? (slotIndex !== undefined ? slotIndex : 0) : undefined
+            slotIndex: speciesSlotIndex
         });
   
         // Check for species discovery
@@ -361,12 +365,8 @@ export class SpeciesSystem {
         // Traitement des missions conditionnelles (GAIN_ON_TECH)
         const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
             // ET.29 : trace de vie de n'importe quelle couleur
-            if (buff.type === 'GAIN_ON_ANY_LIFETRACE') return true;
-            if (color === LifeTraceType.YELLOW && buff.type === 'GAIN_ON_YELLOW_LIFETRACE') return true;
-            if (color === LifeTraceType.RED && buff.type === 'GAIN_ON_RED_LIFETRACE') return true;
-            if (color === LifeTraceType.BLUE && buff.type === 'GAIN_ON_BLUE_LIFETRACE') return true;
             // Une trace « quelconque » prend la couleur de l'emplacement choisi : elle n'arrive jamais ici en ANY
-            return false;
+            return buff.type === 'GAIN_ON_ANY_LIFETRACE' || buff.type === LIFE_TRACE_TRIGGERS[color];
         });
 
         // Process bonuses
@@ -432,7 +432,6 @@ export class SpeciesSystem {
         const species = updatedGame.species.find(s => s.name === board.speciesId);
         if (species) {
             species.discovered = true;
-            if (!species.cardRow) species.cardRow = [];
             if (species.cards.length > 0 && species.cardRow.length < 1) {
                 const card = species.cards.shift();
                 if (card) species.cardRow.push(card);

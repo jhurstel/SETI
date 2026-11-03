@@ -154,7 +154,6 @@ export class RemoteClient {
       this.socket = undefined;
       this.awaitingWelcome = false;
       this.failPending('Connexion perdue');
-      if (this.closedByUser) return;
       if (event.code === 4000) {
         // Place reprise depuis un autre onglet ou appareil : pas de reprise automatique
         this.update({ status: 'disconnected' });

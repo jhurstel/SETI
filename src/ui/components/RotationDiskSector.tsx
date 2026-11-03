@@ -1,6 +1,7 @@
 import React from 'react';
 import { Game, RotationDisk, DISK_NAMES } from '../../core/types';
-import { indexToSector, getSectorType, polarToCartesian } from '../../core/SolarSystemPosition';
+import { indexToSector } from '../../core/SolarSystemPosition';
+import { getSectorType, polarToCartesian } from '../solarGeometry';
 
 interface RotationDiskSectorProps {
   obj: RotationDisk;

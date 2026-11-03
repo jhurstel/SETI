@@ -1,7 +1,7 @@
 import { cloneGame } from './cloneGame';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { DiskName, DISK_NAMES, SectorNumber, Game, CelestialObject, AlienBoardType, LifeTraceLocation, InteractionState } from './types';
+import { DiskName, SectorNumber, Game, CelestialObject, AlienBoardType, LifeTraceLocation, InteractionState } from './types';
 import { uniqueId } from './ids';
 
 /**
@@ -201,26 +201,6 @@ export function rotateSector(relativeSector: SectorNumber, rotationAngle: number
   const newIndex = (((sectorIndex - sectorsRotated) % 8) + 8) % 8;
   return indexToSector[newIndex];
 }
-
-// Fonction helper pour calculer la position d'un objet céleste
-// Les secteurs sont rendus avec un offset de -90° pour commencer à 12h
-export function calculateObjectPosition(disk: DiskName, sector: SectorNumber, rotationAngle: number = 0) {
-  const diskIndex = DISK_NAMES[disk];
-  const sectorIndex = sectorToIndex[sector];
-  const diskWidth = 8;
-  const sunRadius = 4;
-  const innerRadius = sunRadius + (diskIndex * diskWidth);
-  const outerRadius = sunRadius + ((diskIndex + 1) * diskWidth);
-  const objectRadius = (innerRadius + outerRadius) / 2;
-  // Utiliser le même calcul que pour le rendu des secteurs (avec -90° offset)
-  const sectorStartAngle = -(360 / 8) * sectorIndex - 90;
-  const sectorEndAngle = -(360 / 8) * (sectorIndex + 1) - 90;
-  const sectorCenterAngle = (sectorStartAngle + sectorEndAngle) / 2;
-  // Appliquer la rotation
-  const rotatedAngle = sectorCenterAngle + rotationAngle;
-  const { x, y } = polarToCartesian(0, 0, objectRadius, rotatedAngle);
-  return { x, y, sectorCenterAngle, diskIndex };
-};
 
 /**
  * Calcule la position absolue d'un objet céleste après toutes les rotations
@@ -518,10 +498,7 @@ export function calculateReachableCells(
     }
 
     // Obtenir la case actuelle
-    const currentCell = cells.get(currentKey);
-    if (!currentCell) {
-      continue;
-    }
+    const currentCell = cells.get(currentKey)!;
 
     // Trouver les cases adjacentes (même disque, secteurs adjacents, ou disques adjacents)
     const adjacentCells = getAdjacentCells(current.disk, current.sector);
@@ -530,11 +507,7 @@ export function calculateReachableCells(
       if (adj.disk === 'E') return;
 
       const adjKey = `${adj.disk}${adj.sector}`;
-      const adjCell = cells.get(adjKey);
-
-      if (!adjCell) {
-        return;
-      }
+      const adjCell = cells.get(adjKey)!;
 
       // Calculer le coût pour atteindre cette case
       let cost = 1; // Coût de base pour une case adjacente
@@ -639,71 +612,20 @@ export function getCell(
   return cells.get(`${disk}${sector}`) || null;
 }
 
+/** Angle de rotation d'un niveau d'anneau (le niveau 0, fixe, ne tourne pas) */
+export function levelAngle(rotationState: RotationState, level: number): number {
+  if (level === 1) return rotationState.level1Angle;
+  if (level === 2) return rotationState.level2Angle;
+  if (level === 3) return rotationState.level3Angle;
+  return 0;
+}
+
 export function getAbsoluteSectorForProbe(
-  solarPosition: { disk: DiskName, sector: SectorNumber, level?: number },
-  rotationState: { level1Angle: number, level2Angle: number, level3Angle: number }
+  solarPosition: { disk: DiskName, sector: SectorNumber, level: number },
+  rotationState: RotationState
 ): SectorNumber {
-  let angle = 0;
-
-  if (solarPosition.level !== undefined) {
-    if (solarPosition.level === 1) angle = rotationState.level1Angle;
-    else if (solarPosition.level === 2) angle = rotationState.level2Angle;
-    else if (solarPosition.level === 3) angle = rotationState.level3Angle;
-  } else {
-    // Fallback si le niveau n'est pas défini (ne devrait pas arriver pour une sonde placée)
-    if (solarPosition.disk === 'A') angle = rotationState.level3Angle;
-    else if (solarPosition.disk === 'B') angle = rotationState.level2Angle;
-    else if (solarPosition.disk === 'C') angle = rotationState.level1Angle;
-  }
-
-  return rotateSector(solarPosition.sector, angle);
-};
-
-export function polarToCartesian(centerX: number, centerY: number, radius: number, angleInDegrees: number) {
-  const angleInRadians = (angleInDegrees) * Math.PI / 180.0;
-  return {
-    x: centerX + (radius * Math.cos(angleInRadians)),
-    y: centerY + (radius * Math.sin(angleInRadians))
-  };
-};
-
-export function describeArc(x: number, y: number, radius: number, startAngle: number, endAngle: number, reverse: boolean = false) {
-  const start = polarToCartesian(x, y, radius, endAngle);
-  const end = polarToCartesian(x, y, radius, startAngle);
-  const largeArcFlag = Math.abs(endAngle - startAngle) <= 180 ? "0" : "1";
-
-  if (reverse) {
-    // Sens anti-horaire (Start -> End) pour le texte du bas
-    return ["M", end.x, end.y, "A", radius, radius, 0, largeArcFlag, 0, start.x, start.y].join(" ");
-  }
-
-  // Sens horaire (End -> Start) pour le texte du haut
-  return ["M", start.x, start.y, "A", radius, radius, 0, largeArcFlag, 1, end.x, end.y].join(" ");
-};
-
-// Fonction helper pour déterminer le type de secteur (normal, hollow, empty) pour tous les niveaux
-export function getSectorType(level: number, disk: DiskName, relativeSector: SectorNumber): 'normal' | 'hollow' | 'empty' {
-  let obj: CelestialObject | undefined;
-
-  // Chercher dans le bon tableau selon le niveau
-  if (level === 1) {
-    obj = INITIAL_ROTATING_LEVEL1_OBJECTS.find(
-      o => o.level === level && o.position.disk === disk && o.position.sector === relativeSector
-    );
-  } else if (level === 2) {
-    obj = INITIAL_ROTATING_LEVEL2_OBJECTS.find(
-      o => o.level === level && o.position.disk === disk && o.position.sector === relativeSector
-    );
-  } else if (level === 3) {
-    obj = INITIAL_ROTATING_LEVEL3_OBJECTS.find(
-      o => o.level === level && o.position.disk === disk && o.position.sector === relativeSector
-    );
-  }
-
-  if (obj?.type === 'hollow') return 'hollow';
-  if (obj?.type === 'empty') return 'empty';
-  return 'normal';
-};
+  return rotateSector(solarPosition.sector, levelAngle(rotationState, solarPosition.level));
+}
 
 // Helper pour formater les logs de rotation
 export function formatRotationLogs(baseMessage: string, rotationLogs: string[]) {

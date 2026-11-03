@@ -99,6 +99,22 @@ describe('RemoteClient : cas limites (serveur simulé)', () => {
     expect(sockets).toHaveLength(1);
   });
 
+  test('commande en attente quand la connexion tombe : « Connexion perdue », puis reprise ; fermeture : « Déconnecté »', async () => {
+    const { client, sockets } = await connected();
+    const lost = client.send({ type: 'END_TURN' });
+    sockets[0].drop();
+    await expect(lost).resolves.toEqual({ error: 'Connexion perdue' });
+    await wait(20);
+    expect(sockets).toHaveLength(2);
+
+    sockets[1].open();
+    sockets[1].receive(welcome);
+    const closed = client.send({ type: 'END_TURN' });
+    client.close();
+    await expect(closed).resolves.toEqual({ error: 'Déconnecté' });
+    expect(client.current.status).toBe('disconnected');
+  });
+
   test('coupure puis place perdue sur le serveur : reprise tentée, place oubliée, erreur annoncée', async () => {
     const { sockets, log, client } = await connected();
     sockets[0].drop();

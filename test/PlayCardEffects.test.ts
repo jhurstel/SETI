@@ -1,6 +1,7 @@
 import { CardSystem } from '../src/systems/CardSystem';
-import { Bonus, CardEffect, Game, LifeTraceType, SectorNumber } from '../src/core/types';
-import { createRotationState, getObjectPosition } from '../src/core/SolarSystemPosition';
+import { applyPassiveEffect, lifeTraceColor, PlayCardContext } from '../src/systems/PlayCardEffects';
+import { Bonus, CardEffect, CelestialObject, Game, GAME_CONSTANTS, LifeTraceType, Probe, ProbeState, SectorNumber } from '../src/core/types';
+import { createRotationState, getAllCells, getObjectPosition } from '../src/core/SolarSystemPosition';
 import { createTestGame, getPlayer, giveCard, makeCard } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -111,5 +112,61 @@ describe('CardSystem.playCard : effets passifs conditionnels', () => {
     const after = play({ type: 'SCORE_PER_ANOMALY', value: 1 });
 
     expect(after.score).toBe(scoreBefore + 2);
+  });
+});
+
+describe('Effets passifs appliqués directement (PlayCardEffects)', () => {
+  let game: Game;
+
+  beforeEach(async () => {
+    game = await createTestGame();
+    game.board.solarSystem.rotationAngleLevel1 = 0;
+    game.board.solarSystem.rotationAngleLevel2 = 0;
+    game.board.solarSystem.rotationAngleLevel3 = 0;
+  });
+
+  /** Applique l'effet passif d'une carte et renvoie les gains cumulés */
+  const play = (type: string, value: number, target?: string): Bonus => {
+    const ctx: PlayCardContext = { game, player: getPlayer(game, P1), card: makeCard('carte'), bonuses: {}, extraInteractions: [], takenRowCards: [] };
+    applyPassiveEffect(ctx, { type, value, target });
+    return ctx.bonuses;
+  };
+
+  test('couleur de trace de vie : rouge, jaune, bleue, sinon n\'importe laquelle', () => {
+    expect(['red', 'yellow', 'blue', undefined].map(lifeTraceColor))
+      .toEqual([LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE, LifeTraceType.ANY]);
+  });
+
+  test('Hayabusa : trace de vie jaune seulement avec une sonde sur un astéroïde', () => {
+    const asteroid = [...getAllCells(createRotationState(0, 0, 0)).values()].find(c => c.hasAsteroid)!;
+    const probe: Probe = { id: 'p1', ownerId: P1, position: { x: 0, y: 0 }, solarPosition: { disk: asteroid.disk, sector: asteroid.sector, level: 0 }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false };
+
+    expect(play('GAIN_LIFETRACE_IF_ASTEROID', 1, 'yellow').lifetraces).toBeUndefined();
+    getPlayer(game, P1).probes = [{ ...probe, state: ProbeState.IN_ORBIT }];
+    expect(play('GAIN_LIFETRACE_IF_ASTEROID', 1, 'yellow').lifetraces).toBeUndefined();
+    getPlayer(game, P1).probes = [probe];
+    expect(play('GAIN_LIFETRACE_IF_ASTEROID', 1, 'yellow').lifetraces).toEqual([{ amount: 1, scope: LifeTraceType.YELLOW }]);
+  });
+
+  test('cartes 91 et 92 : un gain par carte déjà réservée sous ce revenu, en plus du gain de la carte', () => {
+    const player = getPlayer(game, P1);
+    player.revenueEnergy = GAME_CONSTANTS.INITIAL_REVENUE_ENERGY + 2;
+    player.revenueCards = GAME_CONSTANTS.INITIAL_REVENUE_CARDS + 1;
+
+    expect(play('GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE', 1).energy).toBe(3);
+    expect(play('GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE', 1)).toEqual({ media: 1, card: 1 });
+  });
+
+  test('ET.11 : 1 Déplacement si une anomalie est dans le secteur de la Terre', () => {
+    expect(play('GAIN_MOVE_IF_ANOMALY', 1).movements).toBeUndefined();
+
+    const earth = getObjectPosition('earth', 0, 0, 0)!;
+    const anomaly: CelestialObject = {
+      id: 'anomaly-1', type: 'anomaly', name: 'Anomalie', level: 0,
+      position: { disk: 'D', sector: earth.absoluteSector as SectorNumber, x: 0, y: 0 },
+      anomalyData: { color: LifeTraceType.RED, side: 'head', bonus: {} },
+    };
+    game.board.solarSystem.extraCelestialObjects = [anomaly];
+    expect(play('GAIN_MOVE_IF_ANOMALY', 1).movements).toBe(1);
   });
 });

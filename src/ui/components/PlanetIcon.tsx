@@ -1,7 +1,8 @@
 import React from 'react';
 import { Game, Planet, ProbeState, InteractionState } from '../../core/types';
 import { ProbeSystem } from '../../systems/ProbeSystem';
-import { polarToCartesian, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../../core/SolarSystemPosition';
+import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../../core/SolarSystemPosition';
+import { polarToCartesian } from '../solarGeometry';
 import { PLANET_STYLES, SATELLITE_STYLES } from '../styles/celestialStyles';
 import { PlanetGlobe } from './CelestialBodies';
 import { SvgBonus, SvgExtraGains, SvgSlotBonus } from './SvgBonus';

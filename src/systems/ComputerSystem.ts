@@ -14,21 +14,15 @@ import {
   Technology,
   Player,
   HistoryEntry,
-  InteractionState
-} from '../core/types';
+  InteractionState, RuleCheck } from '../core/types';
 import { cloneGame } from '../core/cloneGame';
 import { uniqueId } from '../core/ids';
 import { CardSystem } from './CardSystem';
+import { requirePlayer } from '../core/players';
 
 export class ComputerSystem {
-  static canAnalyzeData(game: Game, playerId: string): {
-    canAnalyze: boolean;
-    reason?: string;
-  } {
-    const player = game.players.find(p => p.id === playerId);
-    if (!player) {
-      return { canAnalyze: false, reason: 'Joueur introuvable' };
-    }
+  static canAnalyzeData(game: Game, playerId: string): RuleCheck<'canAnalyze'> {
+    const player = requirePlayer(game, playerId);
 
     // Vérifier l'énergie
     if (player.energy < GAME_CONSTANTS.ANALYZE_COST_ENERGY) {
@@ -50,7 +44,6 @@ export class ComputerSystem {
   }
 
   static canFillSlot(player: Player, slotId: string): boolean {
-    if (!player.dataComputer) return false;
     const slots = player.dataComputer.slots;
     const slot = slots[slotId];
 
@@ -85,8 +78,8 @@ export class ComputerSystem {
     newPendingInteractions: InteractionState[];
   } {
     const { updatedGame, gains, bonusEffects } = this.fillSlot(game, playerId, slotId);
-    const player = updatedGame.players.find(p => p.id === playerId);
-    if (updatedGame === game || !player) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+    if (updatedGame === game) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
+    const player = requirePlayer(updatedGame, playerId);
 
     const newPendingInteractions: InteractionState[] = [];
     bonusEffects.forEach(effect => {
@@ -106,10 +99,7 @@ export class ComputerSystem {
   static fillSlot(game: Game, playerId: string, slotId: string): { updatedGame: Game, gains: string[], bonusEffects: { type: string, amount: number }[] } {
     // Copie profonde : les cases de l'ordinateur (dataComputer.slots) sont modifiées ci-dessous
     const updatedGame = cloneGame(game);
-    const playerIndex = updatedGame.players.findIndex(p => p.id === playerId);
-    if (playerIndex === -1) return { updatedGame: game, gains: [], bonusEffects: [] };
-
-    const player = updatedGame.players[playerIndex];
+    const player = requirePlayer(updatedGame, playerId);
 
     if (!this.canFillSlot(player, slotId)) {
       return { updatedGame: game, gains: [], bonusEffects: [] };
@@ -164,9 +154,9 @@ export class ComputerSystem {
   static readonly TECH_COLUMNS = [1, 3, 5, 6];
 
   /** Une technologie Informatique peut-elle être placée dans cette colonne (colonne prévue et encore libre) ? */
-  static canAssignTechnology(player: Player, column: number): { canAssign: boolean; reason?: string } {
+  static canAssignTechnology(player: Player, column: number): RuleCheck<'canAssign'> {
     if (!this.TECH_COLUMNS.includes(column)) return { canAssign: false, reason: 'Colonne non prévue pour une technologie' };
-    if (player.dataComputer.slots?.[`${column}a`]?.bonus === '2pv') {
+    if (player.dataComputer.slots[`${column}a`]?.bonus === '2pv') {
       return { canAssign: false, reason: 'Emplacement déjà occupé. Sélectionnez un autre emplacement.' };
     }
     return { canAssign: true };

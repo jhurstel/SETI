@@ -52,7 +52,6 @@ function cloneBoard(board: Board): Board {
 }
 
 function cloneDecks(decks: Decks): Decks {
-  if (!decks) return decks;
   const roundDecks: Decks['roundDecks'] = {};
   for (const round in decks.roundDecks) roundDecks[round] = cloneCards(decks.roundDecks[round]);
   return {

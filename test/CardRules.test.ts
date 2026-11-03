@@ -38,7 +38,7 @@ describe('Règles des cartes', () => {
     test('refusée hors de son tour ou pour un joueur inconnu', () => {
       game.currentPlayerIndex = 1;
       expect(CardSystem.canDiscardFreeAction(game, P1, FreeActionType.MEDIA).canDiscard).toBe(false);
-      expect(CardSystem.canDiscardFreeAction(game, 'inconnu', FreeActionType.MEDIA).canDiscard).toBe(false);
+      expect(() => CardSystem.canDiscardFreeAction(game, 'inconnu', FreeActionType.MEDIA)).toThrow('Joueur introuvable');
     });
 
     test.each([
@@ -105,7 +105,7 @@ describe('Règles des cartes', () => {
       player.cards = [expensive, makeCard('ok', { cost: 1 })];
       expect(CardSystem.canPlayCards(game, P1).canPlay).toBe(true);
       expect(CardSystem.getPlayableCardIds(game, P1)).toEqual(['ok']);
-      expect(CardSystem.canPlayCards(game, 'inconnu').canPlay).toBe(false);
+      expect(() => CardSystem.canPlayCards(game, 'inconnu')).toThrow('Joueur introuvable');
     });
   });
 

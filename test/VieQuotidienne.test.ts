@@ -70,6 +70,16 @@ describe('ET.15 « Vie Quotidienne » : 3 cartes piochées, une défaussée pour
     expect(InteractionChoices.discardDrawnCard(played.updatedGame, P1, discarding, other.id).error).toBe('Choisissez une des cartes piochées');
   });
 
+  test("une carte piochée sans action gratuite : refusée pour l'action gratuite (régression : défaussée pour rien)", () => {
+    const played = playVieQuotidienne(game);
+    const discarding = played.newPendingInteractions.find(i => i.type === 'DISCARDING_DRAWN_CARD') as Discarding;
+    const drawn = getPlayer(played.updatedGame, P1).cards.find(c => c.id === 'move')!;
+    drawn.freeAction = FreeActionType.UNDEFINED;
+    const res = InteractionChoices.discardDrawnCard(played.updatedGame, P1, discarding, 'move');
+    expect(res.error).toBe('Cette carte ne peut pas être défaussée');
+    expect(res.updatedGame).toBe(played.updatedGame);
+  });
+
   test('robot : les deux défausses sont faites (cartes simulées)', () => {
     const played = playVieQuotidienne(game);
     const res = AIController.processInteractionQueue(played.updatedGame, played.newPendingInteractions, 's', getPlayer(played.updatedGame, P1));

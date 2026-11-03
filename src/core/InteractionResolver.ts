@@ -7,6 +7,7 @@ import { CardSystem } from '../systems/CardSystem';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { uniqueId } from './ids';
+import { requirePlayer } from './players';
 
 /** Interactions résolues sans choix du joueur (effets de carte, résolution de secteur, validation de mission…). */
 export type AutomaticInteraction = Extract<InteractionState, { type: 'TRIGGER_CARD_EFFECT' | 'RESOLVING_SECTOR' | 'DRAW_AND_SCAN' | 'CLAIMING_MISSION_REQUIREMENT' }>;
@@ -76,7 +77,7 @@ export class InteractionResolver {
       const bonusRes = ResourceSystem.processBonuses(coverage.bonuses, updatedGame, playerId, 'scan', sequenceId || '');
       updatedGame = bonusRes.updatedGame;
       coverageLogs.push(...bonusRes.logs);
-      historyEntries.push(...bonusRes.historyEntries.map(e => ({ ...e, sequenceId })));
+      historyEntries.push(...bonusRes.historyEntries);
       newInteractions.push(...bonusRes.newPendingInteractions.map(i => ({ ...i, sequenceId })));
     }
 
@@ -91,8 +92,7 @@ export class InteractionResolver {
 
     // Interactions des autres joueurs (ex: le gagnant de la majorité place une trace de vie)
     for (const { interaction: other, playerId: otherId } of coverage.newPendingInteractions || []) {
-      const owner = updatedGame.players.find(p => p.id === otherId);
-      if (!owner) continue;
+      const owner = requirePlayer(updatedGame, otherId);
 
       if (owner.type === 'human') {
         newInteractions.push({ ...other, playerId: otherId, sequenceId } as InteractionState);
@@ -120,7 +120,6 @@ export class InteractionResolver {
     const updatedGame = cloneGame(game);
     const { sequenceId } = interaction;
     const drawnCard = updatedGame.decks.cards.shift()!;
-    if (!updatedGame.decks.discardPile) updatedGame.decks.discardPile = [];
     updatedGame.decks.discardPile.push(drawnCard);
 
     return {
@@ -189,7 +188,7 @@ export class InteractionResolver {
       updatedGame: res.updatedGame,
       historyEntries: [
         { message: `${actionText} la mission "${mission.name}"${specimenLog}${res.logs.length > 0 ? ' et ' + res.logs.join(', ') : ''}`, playerId, sequenceId },
-        ...res.historyEntries.map(e => ({ ...e, sequenceId })),
+        ...res.historyEntries,
       ],
       newInteractions: (requirement ? CardSystem.missionRewardInteractions(res.updatedGame, playerId, effectString(requirement), res.newPendingInteractions, sequenceId) : res.newPendingInteractions)
         .map(i => ({ ...i, sequenceId })),

@@ -62,7 +62,6 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
     if (bonus.movements) items.push(<ResourceIcon key="movements" kind="movement" amount={bonus.movements} size={size} />);
     if (bonus.revenue) items.push(<Repeated key="revenue" amount={bonus.revenue}><ReservationIcon size={size} /></Repeated>);
     if (bonus.probe) items.push(<Repeated key="probe" amount={bonus.probe}><ActionHexIcon kind="launch" size={size + 2} /></Repeated>);
-    if (bonus.orbiting) items.push(<Repeated key="orbiting" amount={bonus.orbiting}><ActionHexIcon kind="orbit" size={size + 2} /></Repeated>);
     if (bonus.landing) items.push(<Repeated key="landing" amount={bonus.landing}><ActionHexIcon kind="land" size={size + 2} /></Repeated>);
     if (bonus.scan) items.push(<Repeated key="scan" amount={bonus.scan}><ActionHexIcon kind="scan" size={size + 2} /></Repeated>);
     (bonus.technologies || []).forEach((t, i) => items.push(<Repeated key={`tech-${i}`} amount={t.amount}><TechCategoryIcon category={t.scope} size={size + 2} /></Repeated>));
@@ -73,7 +72,7 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
     });
     rest.signals = otherSignals.length > 0 ? otherSignals : undefined;
     delete rest.speciesCard; delete rest.token;
-    delete rest.probe; delete rest.orbiting; delete rest.landing; delete rest.scan; delete rest.technologies;
+    delete rest.probe; delete rest.landing; delete rest.scan; delete rest.technologies;
     delete rest.pv; delete rest.credits; delete rest.energy; delete rest.media; delete rest.data; delete rest.movements; delete rest.revenue; delete rest.card; delete rest.anycard;
     (bonus.lifetraces || []).forEach((l, i) => {
       const color = LIFE_TRACE_ICON[l.scope];

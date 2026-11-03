@@ -12,6 +12,7 @@ import { AIBehavior } from './AIBehavior';
 import { AIEvaluator } from './AIEvaluator';
 import { random } from '../core/random';
 import { InteractionChoices } from '../core/InteractionChoices';
+import { requirePlayer } from '../core/players';
 
 /** Interactions où le robot fait un choix au hasard : il tire plusieurs choix (selon son niveau) et garde le meilleur */
 const RANDOM_CHOICE_INTERACTIONS: InteractionState['type'][] = [
@@ -127,7 +128,6 @@ export class AIController {
         let best: { result: AIControllerResult; value: number } | null = null;
         for (const option of options) {
             const chosen = InteractionChoices.chooseMissionRequirement(game, player.id, { ...interaction, sequenceId }, option?.missionId, option?.requirementId);
-            if (chosen.error) continue;
             const followUp = this.processInteractionQueue(chosen.updatedGame, chosen.newPendingInteractions, sequenceId, player);
             const value = AIEvaluator.evaluate(followUp.updatedGame, player.id);
             if (!best || value > best.value) {
@@ -215,8 +215,8 @@ export class AIController {
                 break;
             }
             case 'RESERVING_CARD': {
-                const p = updatedGame.players.find(p => p.id === player.id);
-                const hand = p ? [...CardSystem.getHandCards(p)].sort(() => 0.5 - random()) : [];
+                const p = requirePlayer(updatedGame, player.id);
+                const hand = [...CardSystem.getHandCards(p)].sort(() => 0.5 - random());
                 const res = InteractionChoices.reserveCards(updatedGame, player.id, { ...interaction, sequenceId }, hand.slice(0, interaction.count).map(c => c.id));
                 if (!res.error) {
                     updatedGame = res.updatedGame;
@@ -240,30 +240,28 @@ export class AIController {
                 break;
             }
             case 'MOVING_PROBE': {
-                const p = updatedGame.players.find(p => p.id === player.id);
-                if (p) {
-                    const probes = p.probes.filter(pr => pr.state === ProbeState.IN_SOLAR_SYSTEM && pr.solarPosition);
-                    if (probes.length > 0) {
-                        const probe = probes[Math.floor(random() * probes.length)];
-                        const rotationState = createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0);
-                        const absPos = getAbsoluteSectorForProbe(probe.solarPosition!, rotationState);
-                        // Une case voisine, payée avec les déplacements gratuits restants puis l'énergie (comme le joueur humain)
-                        const reachable = calculateReachableCellsWithEnergy(probe.solarPosition!.disk, absPos, interaction.count, p.energy, rotationState, false, undefined, updatedGame.board.solarSystem.extraCelestialObjects);
-                        const destinations = Array.from(reachable.entries()).filter(([, cell]) => cell.path.length === 2).map(([key]) => key);
-                        if (destinations.length > 0) {
-                            const destKey = destinations[Math.floor(random() * destinations.length)];
-                            const disk = destKey[0] as DiskName;
-                            const sector = parseInt(destKey.substring(1)) as SectorNumber;
-                            const usedFree = ProbeSystem.freeMovementsUsed(updatedGame, p.id, probe.id, interaction.count);
-                            try {
-                                const moveRes = ProbeSystem.moveProbe(updatedGame, p.id, probe.id, disk, sector, interaction.count, sequenceId);
-                                updatedGame = moveRes.updatedGame;
-                                historyEntries.push(...moveRes.historyEntries);
-                                newPendingInteractions.push(...moveRes.newPendingInteractions);
-                                if (interaction.count - usedFree > 0) newPendingInteractions.push({ ...interaction, count: interaction.count - usedFree });
-                            } catch {
-                                // Déplacement refusé par le moteur : le robot renonce aux déplacements restants
-                            }
+                const p = requirePlayer(updatedGame, player.id);
+                const probes = p.probes.filter(pr => pr.state === ProbeState.IN_SOLAR_SYSTEM && pr.solarPosition);
+                if (probes.length > 0) {
+                    const probe = probes[Math.floor(random() * probes.length)];
+                    const rotationState = createRotationState(updatedGame.board.solarSystem.rotationAngleLevel1 || 0, updatedGame.board.solarSystem.rotationAngleLevel2 || 0, updatedGame.board.solarSystem.rotationAngleLevel3 || 0);
+                    const absPos = getAbsoluteSectorForProbe(probe.solarPosition!, rotationState);
+                    // Une case voisine, payée avec les déplacements gratuits restants puis l'énergie (comme le joueur humain)
+                    const reachable = calculateReachableCellsWithEnergy(probe.solarPosition!.disk, absPos, interaction.count, p.energy, rotationState, false, undefined, updatedGame.board.solarSystem.extraCelestialObjects);
+                    const destinations = Array.from(reachable.entries()).filter(([, cell]) => cell.path.length === 2).map(([key]) => key);
+                    if (destinations.length > 0) {
+                        const destKey = destinations[Math.floor(random() * destinations.length)];
+                        const disk = destKey[0] as DiskName;
+                        const sector = parseInt(destKey.substring(1)) as SectorNumber;
+                        const usedFree = ProbeSystem.freeMovementsUsed(updatedGame, p.id, probe.id, interaction.count);
+                        try {
+                            const moveRes = ProbeSystem.moveProbe(updatedGame, p.id, probe.id, disk, sector, interaction.count, sequenceId);
+                            updatedGame = moveRes.updatedGame;
+                            historyEntries.push(...moveRes.historyEntries);
+                            newPendingInteractions.push(...moveRes.newPendingInteractions);
+                            if (interaction.count - usedFree > 0) newPendingInteractions.push({ ...interaction, count: interaction.count - usedFree });
+                        } catch {
+                            // Déplacement refusé par le moteur : le robot renonce aux déplacements restants
                         }
                     }
                 }
@@ -285,8 +283,8 @@ export class AIController {
                 break;
             }
             case 'SELECTING_COMPUTER_SLOT': {
-                const p = updatedGame.players.find(p => p.id === player.id);
-                const columns = p ? ComputerSystem.TECH_COLUMNS.filter(col => ComputerSystem.canAssignTechnology(p, col).canAssign) : [];
+                const p = requirePlayer(updatedGame, player.id);
+                const columns = ComputerSystem.TECH_COLUMNS.filter(col => ComputerSystem.canAssignTechnology(p, col).canAssign);
                 const targetCol = columns.length > 0 ? columns[Math.floor(random() * columns.length)] : undefined;
                 const res = InteractionChoices.acquireTech(updatedGame, player.id, { ...interaction, sequenceId }, interaction.tech, targetCol);
                 if (!res.error) {
@@ -322,8 +320,8 @@ export class AIController {
             }
             case 'CHOOSING_OBS3_ACTION': {
                 // Même règle que le joueur humain (accepter, puis défausser 1 carte) ; le robot défausse sa première carte
-                const p = updatedGame.players.find(p => p.id === player.id);
-                const hand = p ? CardSystem.getHandCards(p) : [];
+                const p = requirePlayer(updatedGame, player.id);
+                const hand = CardSystem.getHandCards(p);
                 const discard = InteractionChoices.observation3(updatedGame, { ...interaction, sequenceId }, hand.length > 0).newPendingInteractions[0];
                 if (discard?.type === 'DISCARDING_FOR_SIGNAL') {
                     const res = InteractionChoices.discardForSignals(updatedGame, player.id, discard, [hand[0].id]);
@@ -333,8 +331,8 @@ export class AIController {
                 break;
             }
             case 'CHOOSING_OBS4_ACTION': {
-                const p = updatedGame.players.find(p => p.id === player.id);
-                const choice = p && p.energy >= 1 && random() > 0.5 ? 'PROBE' : 'MOVE';
+                const p = requirePlayer(updatedGame, player.id);
+                const choice = p.energy >= 1 && random() > 0.5 ? 'PROBE' : 'MOVE';
                 const res = InteractionChoices.observation4(updatedGame, player.id, { ...interaction, sequenceId }, choice);
                 if (!res.error) {
                     updatedGame = res.updatedGame;
@@ -406,7 +404,6 @@ export class AIController {
                 let best: { res: ReturnType<typeof InteractionChoices.discardDrawnCard>; value: number } | null = null;
                 for (const cardId of interaction.cardIds) {
                     const res = InteractionChoices.discardDrawnCard(updatedGame, player.id, { ...interaction, sequenceId }, cardId);
-                    if (res.error) continue;
                     const value = AIEvaluator.evaluate(res.updatedGame, player.id);
                     if (!best || value > best.value) best = { res, value };
                 }
@@ -420,8 +417,8 @@ export class AIController {
             }
             case 'DISCARDING_FOR_SIGNAL': {
                 // Nombre de cartes tiré au hasard ; un robot stratégique compare les tirages
-                const p = updatedGame.players.find(p => p.id === player.id);
-                const hand = p ? [...CardSystem.getHandCards(p)].sort(() => 0.5 - random()) : [];
+                const p = requirePlayer(updatedGame, player.id);
+                const hand = [...CardSystem.getHandCards(p)].sort(() => 0.5 - random());
                 const count = Math.floor(random() * (Math.min(interaction.count, hand.length) + 1));
                 const res = InteractionChoices.discardForSignals(updatedGame, player.id, { ...interaction, sequenceId }, hand.slice(0, count).map(c => c.id));
                 historyEntries.push(...res.historyEntries);

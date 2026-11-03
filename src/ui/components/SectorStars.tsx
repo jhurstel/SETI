@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sector } from '../../core/types';
-import { polarToCartesian } from '../../core/SolarSystemPosition';
+import { polarToCartesian } from '../solarGeometry';
 
 // Étoile qui donne son nom à chaque secteur, dessinée discrètement au-delà de l'anneau extérieur,
 // avec un halo qui s'estompe radialement. Repère du plateau : 0..200, centre (100, 100).

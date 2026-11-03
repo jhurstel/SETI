@@ -16,7 +16,7 @@ export class MoveProbeAction extends BaseAction {
   validate(game: Game): ValidationResult {
     const check = ProbeSystem.canMoveProbe(game, this.playerId, this.probeId, this.availableFreeMovements);
     if (!check.canMove) {
-      return { valid: false, errors: [{ code: 'CANNOT_MOVE', message: check.reason || 'Déplacement impossible' }], warnings: [] };
+      return { valid: false, errors: [{ code: 'CANNOT_MOVE', message: check.reason }], warnings: [] };
     }
     return { valid: true, errors: [], warnings: [] };
   }

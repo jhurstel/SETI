@@ -58,3 +58,23 @@ describe('ComputerSystem.transferData', () => {
     expect(getPlayer(res!.updatedGame, P1).cards).toHaveLength(handSize + 1);
   });
 });
+
+describe('ComputerSystem : transferts refusés', () => {
+  let game: Game;
+  beforeEach(async () => { game = await createTestGame(); });
+
+  test('case inconnue, sans donnée ou déjà remplie : refusée, la partie reçue est renvoyée telle quelle', () => {
+    const player = getPlayer(game, P1);
+    player.data = 3;
+    expect(ComputerSystem.canFillSlot(player, 'inconnue')).toBe(false);
+    player.data = 0;
+    expect(ComputerSystem.canFillSlot(player, '1a')).toBe(false);
+    player.data = 3;
+
+    player.dataComputer.slots['1a'].filled = true;
+    expect(ComputerSystem.canFillSlot(player, '1a')).toBe(false);
+    const res = ComputerSystem.transferData(game, P1, '1a', 'seq');
+    expect(res.updatedGame).toBe(game);
+    expect(res.historyEntries).toEqual([]);
+  });
+});
