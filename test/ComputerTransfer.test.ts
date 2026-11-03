@@ -69,6 +69,30 @@ describe('ComputerSystem.transferData', () => {
     expect(res).not.toBeNull();
     expect(getPlayer(res!.updatedGame, P1).cards).toHaveLength(handSize + 1);
   });
+
+  test("robot : pas de transfert vers une case « réservation » sans carte en main (bonus perdu), sauf réserve de données pleine", () => {
+    const player = getPlayer(game, P1);
+    player.dataComputer.slots['1a'].bonus = 'reservation';
+    player.cards = [];
+
+    expect(tryTransferData(game, player)).toBeNull();
+
+    player.data = 6;
+    const res = tryTransferData(game, player);
+    expect(res).not.toBeNull();
+    expect(getPlayer(res!.updatedGame, P1).dataComputer.slots['1a'].filled).toBe(true);
+  });
+
+  test('robot : transfère vers une case « réservation » avec une carte en main', () => {
+    const player = getPlayer(game, P1);
+    player.dataComputer.slots['1a'].bonus = 'reservation';
+    player.cards = [makeCard('c1')];
+
+    const res = tryTransferData(game, player);
+
+    expect(res).not.toBeNull();
+    expect(getPlayer(res!.updatedGame, P1).dataComputer.slots['1a'].filled).toBe(true);
+  });
 });
 
 describe('ComputerSystem : transferts refusés', () => {

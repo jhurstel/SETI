@@ -478,7 +478,11 @@ export class AITurn {
   private static tryTransferData(game: Game, player: Player, always = false): StepResult | null {
     if (player.data <= 0 || (!always && random() >= 0.4)) return null;
 
-    const slotId = Object.keys(player.dataComputer.slots).find(id => ComputerSystem.canFillSlot(player, id));
+    // Une case de réservation sans carte en main perd son bonus : le robot attend d'avoir une carte,
+    // sauf si sa réserve de données est pleine (une donnée gagnée serait perdue)
+    const wastesReservation = (id: string) => player.dataComputer.slots[id]!.bonus === 'reservation'
+      && CardSystem.getHandCards(player).length === 0 && player.data < GAME_CONSTANTS.MAX_DATA;
+    const slotId = Object.keys(player.dataComputer.slots).find(id => ComputerSystem.canFillSlot(player, id) && !wastesReservation(id));
     if (!slotId) return null;
 
     // Mêmes gains et interactions que pour le joueur humain (réservation, carte au choix)
