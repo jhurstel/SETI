@@ -139,26 +139,6 @@
   border-color: #7fd4ff;
 }
 
-/* Force du niveau */
-.seti-newgame-strength {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  width: 24px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
-.seti-newgame-strength span {
-  width: 5px;
-  border-radius: 1px;
-  background: rgba(160, 180, 230, 0.25);
-}
-
-.seti-newgame-strength span.on {
-  background: #ffcf5a;
-}
-
 /* Interrupteur « Je commence » */
 .seti-newgame-switch {
   position: relative;

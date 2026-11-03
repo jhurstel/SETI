@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import './SettingsModal.css';
 import './NewGameModal.css';
+import { LevelStrength } from '../components/PlayerKindIcon';
 
 interface NewGameModalProps {
   visible: boolean;
@@ -22,13 +23,6 @@ const LEVELS: { id: Difficulty; name: string; text: string; strength: number }[]
 const Seats: React.FC<{ count: number }> = ({ count }) => (
   <span className="seti-newgame-seats" aria-hidden="true">
     {Array.from({ length: count }, (_, i) => <span key={i} className={i === 0 ? 'you' : 'robot'} />)}
-  </span>
-);
-
-/** Force du niveau : 1 à 3 barres */
-const Strength: React.FC<{ value: number }> = ({ value }) => (
-  <span className="seti-newgame-strength" aria-hidden="true">
-    {[1, 2, 3].map(i => <span key={i} className={i <= value ? 'on' : ''} style={{ height: 4 + i * 4 }} />)}
   </span>
 );
 
@@ -83,7 +77,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({ visible, onConfirm, 
             {LEVELS.map(l => (
               <label key={l.id} className={`seti-newgame-option ${difficulty === l.id ? 'selected' : ''}`}>
                 <input type="radio" name="seti-difficulty" checked={difficulty === l.id} onChange={() => setDifficulty(l.id)} />
-                <Strength value={l.strength} />
+                <LevelStrength value={l.strength} />
                 <span className="seti-newgame-option-text">
                   <span className="seti-newgame-option-main">{l.name}</span>
                   <span className="seti-newgame-option-sub">{l.text}</span>

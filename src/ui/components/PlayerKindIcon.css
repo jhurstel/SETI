@@ -1,0 +1,33 @@
+/* Force du niveau d'un robot (1 à 3 barres) */
+.seti-level-strength {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  width: 24px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.seti-level-strength span {
+  width: 5px;
+  border-radius: 1px;
+  background: rgba(160, 180, 230, 0.25);
+}
+
+.seti-level-strength span.on {
+  background: #ffcf5a;
+}
+
+/* Icône devant le nom d'un joueur : même largeur pour un humain et un robot */
+.seti-player-kind {
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  flex-shrink: 0;
+  vertical-align: middle;
+  cursor: help;
+}
+
+.seti-human-icon {
+  color: #7fd4ff;
+}

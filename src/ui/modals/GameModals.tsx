@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { InteractionState, Game, AlienBoardType, FinalScore, HistoryEntry } from '../../core/types';
 import { HistoryList } from '../HistoryBoardUI';
 import { HistoryProgressBar } from '../components/HistoryProgressBar';
+import { PlayerKindIcon } from '../components/PlayerKindIcon';
 import { historyTimeline } from '../../core/historyTimeline';
 import { ScoreManager } from '../../core/ScoreManager';
 import { ResourceSystem } from '../../systems/ResourceSystem';
@@ -358,7 +359,7 @@ export const EndGameModal = ({ game, historyLog, setActiveTooltip }: { game: Gam
           {rows.map(({ score, player }, index) => (
             <div key={player.id} className="seti-endgame-row">
               <div className="col-rank">{index + 1}</div>
-              <div className="col-player" style={{ color: player.color }}>{player.name}</div>
+              <div className="col-player" style={{ color: player.color }}><PlayerKindIcon player={player} /> {player.name}</div>
               <div className="col-score"><HoverTooltip content="Score avant le décompte final">{score.baseScore}</HoverTooltip></div>
               <div className="col-score"><HoverTooltip content={categoryTooltip('Tuiles objectif', score.details?.objectiveTiles, score.categories.objectiveTiles, objectiveLabel(game))}>{score.categories.objectiveTiles}</HoverTooltip></div>
               <div className="col-score"><HoverTooltip content={categoryTooltip('Cartes fin de partie', score.details?.missionEndGame, score.categories.missionEndGame)}>{score.categories.missionEndGame}</HoverTooltip></div>
@@ -371,9 +372,12 @@ export const EndGameModal = ({ game, historyLog, setActiveTooltip }: { game: Gam
         </div>
 
         <div className="seti-endgame-history">
-          <div className="seti-endgame-history-title">Historique de la partie</div>
-          <HistoryProgressBar rounds={timeline} maxRounds={game.maxRounds} players={game.players} onSelect={scrollToEntry} />
-          <div className="seti-endgame-history-content" ref={historyRef}>
+          {/* Titre puis résumé de la partie (barre des tours), au-dessus du séparateur */}
+          <div className="seti-endgame-history-title">
+            Historique de la partie
+            <HistoryProgressBar rounds={timeline} maxRounds={game.maxRounds} players={game.players} onSelect={scrollToEntry} />
+          </div>
+          <div className="seti-endgame-history-content seti-thin-scroll" ref={historyRef}>
             <HistoryList historyLog={historyLog} game={game} setActiveTooltip={setActiveTooltip} />
           </div>
         </div>

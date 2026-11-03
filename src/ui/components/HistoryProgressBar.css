@@ -25,20 +25,27 @@
   display: flex;
   width: 100%;
   height: 100%;
-  padding: 2px 1px;
+  /* Trait plein sur toute la hauteur, un fin espace entre deux tours */
+  padding: 0 0.5px;
   margin: 0;
   border: none;
   background: none;
   box-sizing: border-box;
 }
 
-button.seti-progress-hit {
+button.seti-progress-hit,
+.seti-root button.seti-progress-hit {
+  /* Sans le fond gris des boutons du jeu : le trait garde la couleur pleine du joueur */
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   cursor: pointer;
 }
 
 .seti-progress-hit > span {
   flex: 1;
-  border-radius: 2px;
+  border-radius: 1px;
   transition: filter 0.15s;
 }
 
@@ -66,4 +73,67 @@ button.seti-progress-hit:focus-visible > span {
 
 .seti-progress-bar.compact .seti-progress-hit {
   padding: 1px 0.5px;
+}
+
+/* Fin de partie : une ligne par manche, un trait par tour, colonnes alignées d'une manche à l'autre */
+.seti-progress-rounds {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-transform: none;
+  font-weight: normal;
+}
+
+.seti-progress-round {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.seti-progress-round-label,
+.seti-root button.seti-progress-round-label {
+  flex: 0 0 68px;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: #9aa4b8;
+  font-size: 0.72rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.seti-root button.seti-progress-round-label {
+  cursor: pointer;
+}
+
+.seti-root button.seti-progress-round-label:hover {
+  color: #fff;
+  background: none;
+}
+
+.seti-progress-round.future .seti-progress-round-label {
+  opacity: 0.4;
+}
+
+.seti-progress-round-turns {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  height: 14px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.seti-progress-chip {
+  display: flex !important;
+  min-width: 0;
+}
+
+.seti-progress-chip .seti-progress-hit {
+  padding: 0;
+}
+
+.seti-progress-chip .seti-progress-hit > span {
+  border-radius: 2px;
 }

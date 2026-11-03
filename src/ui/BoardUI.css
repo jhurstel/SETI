@@ -211,9 +211,15 @@ color: #aaa;
 text-transform: uppercase;
 font-size: 0.8rem;
 font-weight: bold;
+flex-shrink: 0;
 padding-bottom: 6px;
 border-bottom: 2px solid rgba(255, 255, 255, 0.2);
 margin-bottom: 6px;
+}
+
+/* Résumé (barre des tours) juste sous le titre, au-dessus du séparateur */
+.seti-endgame-history-title .seti-progress-rounds {
+margin: 8px 0 2px;
 }
 
 .seti-endgame-history-content {

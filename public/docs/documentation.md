@@ -150,7 +150,7 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 
 ### 2.8 Fin de partie
 
-À la fin de la 5ᵉ manche, le décompte final ajoute : tuiles objectif, cartes Fin de partie, cartes Exertiens jouées, puis retire la pénalité de danger (Exertiens). Le détail s'affiche sur l'écran de fin, suivi de l'historique complet de la partie (défilant). Au-dessus de l'historique, une barre de progression montre les manches (traits gris) et les tours de chaque joueur (traits de sa couleur, avec son action principale au survol) : un clic sur un trait fait défiler l'historique jusqu'à ce tour ou cette manche.
+À la fin de la 5ᵉ manche, le décompte final ajoute : tuiles objectif, cartes Fin de partie, cartes Exertiens jouées, puis retire la pénalité de danger (Exertiens). Le détail s'affiche sur l'écran de fin (devant chaque nom : silhouette pour un humain, force du niveau pour un robot), suivi de l'historique complet de la partie (défilant). Sous son titre, le résumé montre une ligne par manche et un trait plein de la couleur du joueur par tour, tous de même longueur (action principale au survol) : un clic sur un trait ou sur le nom d'une manche fait défiler l'historique jusqu'à ce tour ou cette manche.
 
 ## 3. Les espèces Alien
 
