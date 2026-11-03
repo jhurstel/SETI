@@ -499,6 +499,55 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     return game.board.solarSystem.probes || [];
   }, [game.board.solarSystem.probes]);
 
+  /** Sondes et capsules posées sur une case (position relative à son anneau) */
+  const piecesOnCell = (disk: DiskName, sector: SectorNumber, level: number) => probesInSystem.filter(p =>
+    p.solarPosition && p.solarPosition.disk === disk && p.solarPosition.sector === sector && (p.solarPosition.level || 0) === level);
+
+  /** Sondes et capsules d'une case, regroupées par joueur (une ligne par joueur, à sa couleur) */
+  const piecesSummary = (pieces: Probe[]) => {
+    if (pieces.length === 0) return null;
+    return (
+      <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+        {game.players.filter(pl => pieces.some(p => p.ownerId === pl.id)).map(pl => {
+          const mine = pieces.filter(p => p.ownerId === pl.id);
+          const probes = mine.filter(p => p.state !== ProbeState.CAPSULE).length;
+          const capsules = mine.filter(p => p.state === ProbeState.CAPSULE);
+          const parts: string[] = [];
+          if (probes > 0) parts.push(`${probes} sonde${probes > 1 ? 's' : ''}`);
+          capsules.forEach(c => {
+            const reward = c.specimen ? (ResourceSystem.formatBonus(c.specimen.bonus) || []).join(', ') : '';
+            parts.push(`1 capsule${reward ? ` (spécimen : ${reward})` : ''}`);
+          });
+          return (
+            <div key={pl.id} style={{ fontSize: '0.85em' }}>
+              <strong style={{ color: pl.color }}>{pl.name}</strong> : {parts.join(', ')}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  /** Pièces du joueur humain en cours sur la case d'une planète (sélectionnables en cliquant sur la planète) */
+  const ownPiecesOnPlanet = (obj: CelestialObject) => {
+    const currentPlayer = game.players[game.currentPlayerIndex];
+    if (currentPlayer.type === 'robot') return [];
+    return piecesOnCell(obj.position.disk, obj.position.sector, obj.level || 0).filter(p => p.ownerId === currentPlayer.id);
+  };
+
+  /** Clic sur une planète : sélectionne la sonde ou la capsule du joueur qui s'y trouve (la suivante à chaque clic), sinon l'action de la planète */
+  const handlePlanetObjectClick = (obj: CelestialObject) => {
+    const removing = interactionState.type === 'REMOVING_ORBITER' || interactionState.type === 'REMOVING_LANDER';
+    const mine = removing ? [] : ownPiecesOnPlanet(obj);
+    if (mine.length > 0) {
+      setActiveTooltip(null);
+      const current = mine.findIndex(p => p.id === selectedProbeId);
+      setSelectedProbeId(mine[(current + 1) % mine.length].id);
+      return;
+    }
+    if (onPlanetClick) onPlanetClick(obj.id);
+  };
+
   // Ref pour le timeout de fermeture du tooltip
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -561,7 +610,15 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             } else if (check.canLaunch) {
               color = '#4a9eff';
             }
-            subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: color, fontStyle: 'italic' }}>{text}</div>;
+            const ownHere = ownPiecesOnPlanet(obj).length > 0;
+            subContent = (
+              <>
+                {piecesSummary(piecesOnCell(obj.position.disk, obj.position.sector, obj.level || 0))}
+                <div style={{ fontSize: '0.8em', marginTop: '4px', color: ownHere ? '#4a9eff' : color, fontStyle: 'italic' }}>
+                  {ownHere ? "Cliquer pour sélectionner votre sonde (lancer : bouton de l'action)" : text}
+                </div>
+              </>
+            );
           } else {
             subContent = visitMedia;
             tooltipProps = hoverable;
@@ -986,7 +1043,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         }}
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
-        onClick={() => onPlanetClick && onPlanetClick(obj.id)}
+        onClick={() => handlePlanetObjectClick(obj)}
       >
         {hasOrbiters && (
           <div className="seti-planet-orbit-ring"
@@ -1167,12 +1224,33 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         key={probe.id}
         onClick={(e) => {
           e.stopPropagation();
-          if (!isRobot) {
+          if (!isRobot && isOwner) {
             handleProbeClick(probe);
+            return;
           }
+          // Pièce d'un autre joueur (souvent posée par-dessus) : sélectionne celle du joueur sur la même case, s'il en a une
+          const currentPlayer = game.players[game.currentPlayerIndex];
+          if (currentPlayer.type === 'robot') return;
+          const mine = piecesOnCell(probe.solarPosition.disk, probe.solarPosition.sector, probe.solarPosition.level || 0).filter(p => p.ownerId === currentPlayer.id);
+          if (mine.length === 0) return;
+          setActiveTooltip(null);
+          const current = mine.findIndex(p => p.id === selectedProbeId);
+          setSelectedProbeId(mine[(current + 1) % mine.length].id);
         }}
         onMouseEnter={(e) => {
-          const content = (
+          // Toutes les sondes et capsules de la case, regroupées par joueur, puis l'action de la pièce survolée
+          const here = piecesOnCell(probe.solarPosition.disk, probe.solarPosition.sector, probe.solarPosition.level || 0);
+          const content = here.length > 1 ? (
+            <>
+              <div style={{ fontWeight: 'bold' }}>{here.length} pièces sur cette case</div>
+              {piecesSummary(here)}
+              {(() => {
+                const currentPlayer = game.players[game.currentPlayerIndex];
+                const ownHere = currentPlayer.type !== 'robot' && here.some(p => p.ownerId === currentPlayer.id);
+                return ownHere && <div style={{ fontSize: '0.8em', color: '#ccc', marginTop: '4px' }}>Cliquer pour sélectionner votre {isOwner && isCapsule ? 'capsule' : 'sonde'}</div>;
+              })()}
+            </>
+          ) : (
             <>
               <div style={{ fontWeight: 'bold' }}>{playerName}</div>
               {isCapsule ? (
@@ -1192,7 +1270,8 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         style={{
           top: `calc(50% + ${y + offsetY}%)`,
           left: `calc(50% + ${x + offsetX}%)`,
-          zIndex,
+          // Les pièces du joueur en cours passent au-dessus des autres (la sélectionnée en premier)
+          zIndex: zIndex + (isSelected ? 2 : isOwner && !isRobot ? 1 : 0),
           cursor: isRobot ? 'default' : 'pointer',
         }}
       >
