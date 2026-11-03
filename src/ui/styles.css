@@ -273,9 +273,10 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   }
 }
 
-/* Barre de défilement fine (plateau joueur, historique) : 6 px, curseur bleuté */
+/* Barre de défilement fine (plateau joueur, historique, cartes) : 6 px, verticale ou horizontale, curseur bleuté */
 .seti-thin-scroll::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 .seti-thin-scroll::-webkit-scrollbar-track {

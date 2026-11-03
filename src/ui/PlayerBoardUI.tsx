@@ -773,7 +773,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
           {/* Cartes */}
           <div className="seti-player-section">
             <div className="seti-player-section-title">Main</div>
-            <div className="seti-player-list seti-cards-list" ref={cardsListRef}>
+            <div className="seti-player-list seti-cards-list seti-thin-scroll" ref={cardsListRef}>
               {!isRobot ? (
                 handCards.length > 0 ? (
                   handCards.map(card => (
@@ -845,7 +845,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 <button className="seti-cancel-btn" onClick={onCancelMissionClaim}>Annuler</button>
               </div>
             )*/}
-            <div className="seti-player-list seti-cards-list">
+            <div className="seti-player-list seti-cards-list seti-thin-scroll">
               {((currentPlayer.missions && currentPlayer.missions.length > 0) || (currentPlayer.playedCards && currentPlayer.playedCards.length > 0)) ? (
                 <>
                 {/* Mission conditionnelle et Mission déclenchable */}
