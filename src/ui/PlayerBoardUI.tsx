@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, CardType, CostType } from '../core/types';
+import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, CardType, CostType, SectorType } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
@@ -13,7 +13,7 @@ import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
 import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, ResourceIconKind, VictoryPointsIcon, EndTurnIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
-import { ActionTooltip, TechTooltip } from './components/BoardTooltips';
+import { ActionTooltip, TechTooltip, ResourceSymbols, PieceSymbol, ScanSymbol, BlueTraceSymbol, CardCostSymbol, TechSymbol } from './components/BoardTooltips';
 import { ReservationIcon } from './components/ObjectiveSymbol';
 import './PlayerBoardUI.css';
 
@@ -55,6 +55,8 @@ const TrackSlot: React.FC<{
   tech?: { acquired: boolean };
   /** Emplacement de technologie : cadre TechSpot, avec la tuile de la technologie en fond */
   techFrame?: { acquired: boolean, tile?: string };
+  /** Infobulle du cadre de technologie, hors de la pastille (qui garde la sienne) */
+  frameTooltip?: React.ReactNode;
   /** Hexagone d'action principale : pas de pastille ronde derrière */
   hex?: boolean;
   flash?: boolean;
@@ -62,7 +64,7 @@ const TrackSlot: React.FC<{
   label?: string;
   onHover: (e: React.MouseEvent, content: React.ReactNode) => void;
   onLeave: () => void;
-}> = ({ icon, tooltip, clickable, onClick, tech, techFrame, flash, label, hex, onHover, onLeave }) => {
+}> = ({ icon, tooltip, clickable, onClick, tech, techFrame, frameTooltip, flash, label, hex, onHover, onLeave }) => {
   let className = 'obs-track-slot';
   if (hex) className += ' hex';
   if (icon === null) className += ' ghost';
@@ -82,7 +84,13 @@ const TrackSlot: React.FC<{
       {icon}
     </div>
   );
-  return techFrame ? <TechSpot acquired={techFrame.acquired} tile={techFrame.tile}>{slot}</TechSpot> : slot;
+  // Survol du cadre hors de la pastille : infobulle de la technologie
+  const onFrameOver = frameTooltip ? (e: React.MouseEvent) => {
+    if (!(e.target as Element).closest('.obs-track-slot')) onHover(e, frameTooltip);
+  } : undefined;
+  return techFrame
+    ? <TechSpot acquired={techFrame.acquired} tile={techFrame.tile} onMouseOver={onFrameOver} onMouseLeave={frameTooltip ? onLeave : undefined}>{slot}</TechSpot>
+    : slot;
 };
 
 interface ExplorationTrackProps {
@@ -183,22 +191,30 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, onA
   );
 
   // Étape du scan sans technologie : effectuée à chaque scan
-  const stepTooltip = (title: string, bonus: string) => <ActionTooltip title={title} bonus={bonus} hint="Effectué à chaque scan" />;
+  const stepTooltip = (title: string, bonus: React.ReactNode) => <ActionTooltip title={title} bonus={bonus} hint="Effectué à chaque scan" />;
   // Étape d'une technologie Observation : pouvoir du scan sans elle, puis ce qu'elle ajoute
   const obsTooltip = (roman: string, acquired: boolean, base: string, benefit: string) =>
     <TechTooltip name={`Observation ${roman}`} acquired={acquired} base={base} benefit={benefit} />;
 
-  const scanTooltip = <ActionTooltip title={ActionType.SCAN_SECTOR} cost={`${GAME_CONSTANTS.SCAN_COST_CREDITS} Crédit, ${GAME_CONSTANTS.SCAN_COST_ENERGY} Énergies`}
-    bonus="Les signaux des étapes de la piste" available={!scanDisabled} hint={scanReason ?? 'Cliquez pour scanner'} />;
+  const scanTooltip = <ActionTooltip title={ActionType.SCAN_SECTOR}
+    cost={<ResourceSymbols bonus={{ credits: GAME_CONSTANTS.SCAN_COST_CREDITS, energy: GAME_CONSTANTS.SCAN_COST_ENERGY }} />}
+    bonus={<ScanSymbol />} available={!scanDisabled} hint={scanReason ?? 'Cliquez pour scanner'} />;
 
   // Les lignes s'arrêtent au bord des cadres de technologie ; les technologies II à IV n'ont que leur tuile
   return (
     <div className="obs-track-container">
       {renderSlot(<ActionHexIcon kind="scan" size={44} />, scanTooltip, !scanDisabled, () => onAction(ActionType.SCAN_SECTOR), false, false, !scanDisabled, undefined, ActionType.SCAN_SECTOR, true)}
       <div className="obs-track-connector into-right" />
-      {renderSlot(hasObs1 ? null : <SignalIcon badge="earth" size={30} />, obsTooltip('I', hasObs1, 'Signal dans le secteur de la Terre', 'Signal dans le secteur de la Terre ou un secteur adjacent'), false, undefined, false, false, false, { acquired: hasObs1, tile: 'observation-1' })}
+      {/* Étape de la Terre : la pastille (sans Observation I) a l'infobulle de l'étape, le cadre celle de la technologie */}
+      {(() => {
+        const obs1Tooltip = obsTooltip('I', hasObs1, 'Signal dans le secteur de la Terre', 'Signal dans le secteur de la Terre ou un secteur adjacent');
+        return hasObs1
+          ? <TrackSlot icon={null} tooltip={obs1Tooltip} techFrame={{ acquired: true, tile: 'observation-1' }} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
+          : <TrackSlot icon={<SignalIcon badge="earth" size={30} />} tooltip={stepTooltip('Terre', <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.EARTH }] }} />)}
+              techFrame={{ acquired: false, tile: 'observation-1' }} frameTooltip={obs1Tooltip} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />;
+      })()}
       <div className="obs-track-connector into-left" />
-      {renderSlot(<SignalIcon badge="card" size={30} />, stepTooltip('Carte de la rangée', "Signal dans le secteur d'une carte de la rangée, qui est défaussée"), false)}
+      {renderSlot(<SignalIcon badge="card" size={30} />, stepTooltip('Carte de la rangée', <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.ROW }] }} note="la carte est défaussée" />), false)}
       <div className="obs-track-connector into-right" />
       {renderSlot(null, obsTooltip('II', hasObs2, 'Pas de signal dans le secteur de Mercure', 'Pour 1 Média, signal dans le secteur de Mercure'), false, undefined, false, false, false, { acquired: hasObs2, tile: 'observation-2' })}
       <div className="obs-track-connector into-left into-right between-frames" />
@@ -238,14 +254,24 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     if (highlightPlayableCards) cardsListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [highlightPlayableCards]);
 
-  const handleTooltipHover = useCallback((e: React.MouseEvent, content: React.ReactNode) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setActiveTooltip({ content, rect });
-  }, [setActiveTooltip]);
-
-  const handleTooltipLeave = useCallback(() => {
-    setActiveTooltip(null);
-  }, [setActiveTooltip]);
+  // Infobulles du plateau : on peut y entrer (elles restent ouvertes) pour cliquer les actions gratuites d'une ressource
+  // ou survoler les symboles d'une action
+  const tooltipCloseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelTooltipClose = useCallback(() => {
+    if (tooltipCloseRef.current) clearTimeout(tooltipCloseRef.current);
+    tooltipCloseRef.current = null;
+  }, []);
+  const scheduleTooltipClose = useCallback(() => {
+    cancelTooltipClose();
+    tooltipCloseRef.current = setTimeout(() => setActiveTooltip(null), 250);
+  }, [cancelTooltipClose, setActiveTooltip]);
+  useEffect(() => cancelTooltipClose, [cancelTooltipClose]);
+  const showInteractiveTooltip = useCallback((e: React.MouseEvent, content: React.ReactNode) => {
+    cancelTooltipClose();
+    setActiveTooltip({ content, rect: e.currentTarget.getBoundingClientRect(), pointerEvents: 'auto', onMouseEnter: cancelTooltipClose, onMouseLeave: scheduleTooltipClose });
+  }, [cancelTooltipClose, scheduleTooltipClose, setActiveTooltip]);
+  const handleTooltipHover = showInteractiveTooltip;
+  const handleTooltipLeave = scheduleTooltipClose;
   
   const isInteractiveMode = isDiscarding || isTrading || isReserving || isSelectingComputerSlot || isAnalyzing || isPlacingLifeTrace || isSelectingSector || isDiscardingForSignal || interactionState.type === 'CHOOSING_BONUS_ACTION' || interactionState.type === 'CLAIMING_MISSION_REQUIREMENT';
 
@@ -369,16 +395,16 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   // Infobulle d'une action principale : coût, bonus, puis action possible ou raison de l'indisponibilité
   const getActionTooltip = (actionType: ActionType, available: boolean): React.ReactNode => {
     const hasProbeOnPlanetInfo = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
-    let cost = '';
-    let bonus = '';
+    let cost: React.ReactNode = '';
+    let bonus: React.ReactNode = '';
     let action = '';
     let bonusLabel = 'Bonus';
     let reason: string | undefined;
 
     switch (actionType) {
       case ActionType.LAUNCH_PROBE: {
-        cost = `${GAME_CONSTANTS.PROBE_LAUNCH_COST} Crédits`;
-        bonus = 'Une sonde sur la Terre';
+        cost = <ResourceSymbols bonus={{ credits: GAME_CONSTANTS.PROBE_LAUNCH_COST }} />;
+        bonus = <PieceSymbol kind="probe" label="Une sonde sur la Terre" />;
         action = 'Cliquez pour lancer une sonde depuis la Terre';
         const launchCheck = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
         if (!launchCheck.canLaunch) reason = launchCheck.reason || 'Impossible de lancer une sonde';
@@ -386,8 +412,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
       }
 
       case ActionType.ORBIT: {
-        cost = `${GAME_CONSTANTS.ORBIT_COST_CREDITS} Crédit, ${GAME_CONSTANTS.ORBIT_COST_ENERGY} Énergie`;
-        bonus = 'Un orbiteur autour de la planète, et le gain de sa case (plus celui du premier en orbite)';
+        cost = <ResourceSymbols bonus={{ credits: GAME_CONSTANTS.ORBIT_COST_CREDITS, energy: GAME_CONSTANTS.ORBIT_COST_ENERGY }} />;
+        bonus = <PieceSymbol kind="orbiter" label="Un orbiteur autour de la planète, et le gain de sa case (plus celui du premier en orbite)" />;
         action = 'Cliquez pour mettre une sonde en orbite';
         const orbitProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
         if (!orbitProbe) reason = 'Nécessite une sonde dans le système solaire';
@@ -399,13 +425,13 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
       }
 
       case ActionType.LAND: {
-        bonus = "Un atterrisseur sur la planète, et le gain de sa case (plus celui du premier à s'y poser)";
+        bonus = <PieceSymbol kind="lander" label="Un atterrisseur sur la planète, et le gain de sa case (plus celui du premier à s'y poser)" />;
         action = 'Cliquez pour poser une sonde sur une planète';
         // Coût courant : celui de la planète où se trouve la sonde, sinon le coût de base (réduit par Exploration III)
         const hasExploration3 = currentPlayer.technologies.some(t => t.id.startsWith('exploration-3'));
         const landCost = hasProbeOnPlanetInfo.landCost ?? (hasExploration3 ? GAME_CONSTANTS.LAND_COST_ENERGY_WITH_TECHNOLOGY : GAME_CONSTANTS.LAND_COST_ENERGY);
         const reductions = [hasProbeOnPlanetInfo.hasOrbiter && 'orbiteur présent', hasExploration3 && 'Exploration III'].filter(Boolean);
-        cost = `${landCost} Énergie${landCost > 1 ? 's' : ''}${reductions.length > 0 ? ` (${reductions.join(', ')})` : ''}`;
+        cost = <ResourceSymbols bonus={{ energy: landCost }} note={reductions.length > 0 ? reductions.join(', ') : undefined} />;
         const landProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
         if (!landProbe) reason = 'Nécessite une sonde dans le système solaire';
         else {
@@ -416,23 +442,23 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
       }
 
       case ActionType.SCAN_SECTOR:
-        cost = `${GAME_CONSTANTS.SCAN_COST_CREDITS} Crédit, ${GAME_CONSTANTS.SCAN_COST_ENERGY} Énergies`;
-        bonus = "Signaux dans le secteur de la Terre et celui d'une carte de la rangée, plus ceux des technologies Observation";
+        cost = <ResourceSymbols bonus={{ credits: GAME_CONSTANTS.SCAN_COST_CREDITS, energy: GAME_CONSTANTS.SCAN_COST_ENERGY }} />;
+        bonus = <ScanSymbol />;
         action = 'Cliquez pour scanner';
         if (currentPlayer.credits < GAME_CONSTANTS.SCAN_COST_CREDITS || currentPlayer.energy < GAME_CONSTANTS.SCAN_COST_ENERGY) reason = `Vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s)`;
         break;
 
       case ActionType.ANALYZE_DATA:
-        cost = "1 Énergie et les données de l'ordinateur";
-        bonus = 'Une trace de vie bleue';
+        cost = <ResourceSymbols bonus={{ energy: GAME_CONSTANTS.ANALYZE_COST_ENERGY }} note="et les données de l'ordinateur" />;
+        bonus = <BlueTraceSymbol />;
         action = 'Cliquez pour analyser les données';
         if (!currentPlayer.dataComputer.canAnalyze) reason = "Nécessite des données à analyser dans l'ordinateur de données";
         else if (currentPlayer.energy < 1) reason = `Vous avez ${currentPlayer.energy} énergie`;
         break;
 
       case ActionType.RESEARCH_TECH:
-        cost = `${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} Médias`;
-        bonus = 'Une technologie et le bonus de sa tuile ; le système solaire tourne';
+        cost = <ResourceSymbols bonus={{ media: GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA }} />;
+        bonus = <TechSymbol note="puis le système solaire tourne" />;
         action = 'Cliquez pour rechercher une technologie';
         if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) reason = `Vous avez ${currentPlayer.mediaCoverage} média(s)`;
         break;
@@ -445,7 +471,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         break;
 
       case ActionType.PLAY_CARD: {
-        bonus = 'Les gains de la carte, puis sa mission ou son effet de fin de partie';
+        bonus = 'Les effets de la carte';
         action = 'Cliquez pour jouer une carte de votre main';
         // Coût variable : fourchette des coûts des cartes en main, par ressource
         const costRange = (costType: CostType, unit: string) => {
@@ -455,7 +481,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
           return `${min === max ? min : `${min} à ${max}`} ${unit}${max > 1 ? 's' : ''}`;
         };
         const ranges = [costRange(CostType.CREDIT, 'Crédit'), costRange(CostType.ENERGY, 'Énergie')].filter(Boolean);
-        cost = ranges.length > 0 ? `${ranges.join(', ')} selon la carte` : 'Selon la carte';
+        cost = <CardCostSymbol note={ranges.length > 0 ? `en main : ${ranges.join(', ')}` : undefined} />;
         const cardCheck = CardSystem.canPlayCards(game, currentPlayer.id);
         if (!cardCheck.canPlay) reason = cardCheck.reason || 'Impossible';
         break;
@@ -505,22 +531,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
       </button>
     );
   }, [handleTooltipHover, handleTooltipLeave]);
-
-  // Infobulle d'une ressource : on peut y entrer (elle reste ouverte) pour cliquer ses actions gratuites
-  const tooltipCloseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const cancelTooltipClose = useCallback(() => {
-    if (tooltipCloseRef.current) clearTimeout(tooltipCloseRef.current);
-    tooltipCloseRef.current = null;
-  }, []);
-  const scheduleTooltipClose = useCallback(() => {
-    cancelTooltipClose();
-    tooltipCloseRef.current = setTimeout(() => setActiveTooltip(null), 250);
-  }, [cancelTooltipClose, setActiveTooltip]);
-  useEffect(() => cancelTooltipClose, [cancelTooltipClose]);
-  const showInteractiveTooltip = (e: React.MouseEvent, content: React.ReactNode) => {
-    cancelTooltipClose();
-    setActiveTooltip({ content, rect: e.currentTarget.getBoundingClientRect(), pointerEvents: 'auto', onMouseEnter: cancelTooltipClose, onMouseLeave: scheduleTooltipClose });
-  };
 
   // Actions gratuites d'une ressource (échanges, achat d'une carte), proposées dans son infobulle
   type FreeAction = { key: string; spend: ResourceIconKind; gain: ResourceIconKind; label: string; available: boolean; lacking: string; onClick: () => void };

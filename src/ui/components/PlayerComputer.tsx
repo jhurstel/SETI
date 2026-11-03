@@ -4,7 +4,7 @@ import { ComputerSystem } from '../../systems/ComputerSystem';
 import { PlayerComputerSlot } from './PlayerComputerSlot';
 import { TechSpot } from './TechSpot';
 import { ActionHexIcon } from './GameIcons';
-import { ActionTooltip } from './BoardTooltips';
+import { ActionTooltip, ResourceSymbols, BlueTraceSymbol } from './BoardTooltips';
 import './PlayerComputer.css';
 
 export const PlayerComputer = ({ 
@@ -161,14 +161,14 @@ export const PlayerComputer = ({
                   }}
                   onClick={() => { if (isClickable && onAnalyzeClick) onAnalyzeClick(); }}
                   onMouseEnter={(e) => {
-                      const cost = `${GAME_CONSTANTS.ANALYZE_COST_ENERGY} Énergie et les données de la ligne du haut`;
+                      const cost = <ResourceSymbols bonus={{ energy: GAME_CONSTANTS.ANALYZE_COST_ENERGY }} note="et les données de la ligne du haut" />;
                       let reason: string | null = null;
                       if (!is6aFilled) reason = 'Nécessite de remplir la ligne du haut';
                       else if (!hasEnergy) reason = `Énergie insuffisante (${GAME_CONSTANTS.ANALYZE_COST_ENERGY} requise)`;
 
                       onHover(e, reason
-                          ? <ActionTooltip title="Analyser les données" cost={cost} bonus="Une trace de vie bleue" available={false} hint={reason} />
-                          : <ActionTooltip title="Analyser les données" cost={cost} bonus="Une trace de vie bleue" hint="Cliquez pour analyser les données" />);
+                          ? <ActionTooltip title="Analyser les données" cost={cost} bonus={<BlueTraceSymbol />} available={false} hint={reason} />
+                          : <ActionTooltip title="Analyser les données" cost={cost} bonus={<BlueTraceSymbol />} hint="Cliquez pour analyser les données" />);
                   }}
                   onMouseLeave={onLeave}
                 >

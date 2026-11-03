@@ -50,6 +50,22 @@
   color: #e8eefc;
 }
 
+.seti-board-tooltip-rows dt {
+  align-self: center;
+}
+
+.seti-board-tooltip-symbols {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.seti-board-tooltip-note {
+  font-size: 0.85em;
+  color: #9fb2da;
+}
+
 .seti-board-tooltip-rows dd.cost {
   color: #ffd700;
 }

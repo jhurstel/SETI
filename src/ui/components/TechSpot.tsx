@@ -14,11 +14,15 @@ export const TechSpot: React.FC<{
   tile?: string;
   className?: string;
   onClick?: () => void;
+  onMouseOver?: (e: React.MouseEvent) => void;
+  onMouseLeave?: () => void;
   children: React.ReactNode;
-}> = ({ acquired, selectable, tile, className, onClick, children }) => (
+}> = ({ acquired, selectable, tile, className, onClick, onMouseOver, onMouseLeave, children }) => (
   <div
     className={`seti-tech-spot ${acquired ? 'acquired' : ''} ${selectable ? 'selectable' : ''} ${className ?? ''}`}
     onClick={onClick}
+    onMouseOver={onMouseOver}
+    onMouseLeave={onMouseLeave}
   >
     {tile && <div className={`seti-tech-spot-tile ${acquired ? 'acquired' : ''}`}><TechTileIcon techId={tile} width={56} height={80} /></div>}
     {children}

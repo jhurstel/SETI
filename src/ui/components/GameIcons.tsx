@@ -145,6 +145,28 @@ export const ActionHexIcon: React.FC<{ kind: ActionIconKind; size?: number }> = 
   );
 };
 
+/** Pièce obtenue par une action (sonde, orbiteur, atterrisseur) : le pictogramme de l'action dans un cercle */
+export type PieceIconKind = 'probe' | 'orbiter' | 'lander';
+const PIECE_ACTIONS: Record<PieceIconKind, ActionIconKind> = { probe: 'launch', orbiter: 'orbit', lander: 'land' };
+
+export const PieceIcon: React.FC<{ kind: PieceIconKind; size?: number }> = ({ kind, size = 24 }) => {
+  const uid = useUid();
+  const st = ACTION_STYLES[PIECE_ACTIONS[kind]];
+  return (
+    <svg width={size} height={size} viewBox="-50 -50 100 100" style={{ display: 'block' }}>
+      <defs>
+        <radialGradient id={`piece-in-${uid}`} cx="50%" cy="40%" r="65%">
+          <stop offset="0%" stopColor={st.inner} stopOpacity={0.75} />
+          <stop offset="100%" stopColor="#05060a" />
+        </radialGradient>
+      </defs>
+      <circle r={44} fill={`url(#piece-in-${uid})`} stroke={st.frame} strokeWidth={7} />
+      <circle r={36} fill="none" stroke="rgba(255, 255, 255, 0.55)" strokeWidth={1.5} />
+      <g transform="scale(0.9)">{actionGlyph(PIECE_ACTIONS[kind], st.glyph)}</g>
+    </svg>
+  );
+};
+
 /** Défausser une carte (pour son action gratuite) : carte blanche inclinée et flèche orange qui l'emmène vers le bas */
 export const DiscardCardIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 40 40" style={{ display: 'block' }}>
@@ -582,7 +604,7 @@ const Revenue = () => {
 };
 
 /** Icône de ressource du matériel ; `amount` affiche le nombre comme sur les cartes */
-export const ResourceIcon: React.FC<{ kind: ResourceIconKind; amount?: number; size?: number }> = ({ kind, amount, size = 24 }) => {
+export const ResourceIcon: React.FC<{ kind: ResourceIconKind; amount?: number | string; size?: number }> = ({ kind, amount, size = 24 }) => {
   const wide = kind !== 'revenue' && amount !== undefined;
   return (
     <svg width={wide ? size * 1.5 : size} height={size} viewBox={wide ? '-36 -24 72 48' : '-24 -24 48 48'} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
