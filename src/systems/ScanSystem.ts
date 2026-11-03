@@ -449,6 +449,8 @@ export class ScanSystem {
     const scanLogs: string[] = [...initialLogs];
 
     const newPendingInteractions: InteractionState[] = [];
+    // Secteur déjà plein (résolution en attente) : un signal sur l'emplacement en pointillé ne le résout pas une 2e fois
+    const alreadyFull = ScanSystem.isSectorCovered(updatedGame, sectorId);
 
     // 1. Scan
     const scanResult = ScanSystem.scanSector(updatedGame, playerId, sectorId, false, noData);
@@ -477,8 +479,8 @@ export class ScanSystem {
       }
     }
 
-    // 3. Check if covered
-    if (ScanSystem.isSectorCovered(updatedGame, sectorId)) {
+    // 3. Le signal qui remplit le secteur demande sa résolution (une seule, à la fin des actions en cours)
+    if (!alreadyFull && ScanSystem.isSectorCovered(updatedGame, sectorId)) {
       scanLogs.push(`complète le secteur`);
       historyEntries.push({ message: scanLogs.join(', '), playerId, sequenceId });
       newPendingInteractions.push({ type: 'RESOLVING_SECTOR', sectorId, sequenceId });

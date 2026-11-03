@@ -106,7 +106,7 @@ Les symboles de l'interface reprennent ceux du livret de règles.
 ### 2.2 Signaux et secteurs
 
 - Chaque secteur a une couleur (jaune, rouge, bleu, noir) et un nombre de cases. Les cartes indiquent une couleur de scan.
-- Un secteur plein est résolu à la fin des actions en cours. Le joueur majoritaire (en cas d'égalité, le dernier à avoir posé un marqueur) reçoit la récompense du secteur : celle du premier à le couvrir, puis celle des suivants (souvent une trace de vie).
+- Un secteur plein est résolu une seule fois, à la fin des actions en cours. Si d'autres signaux y sont posés avant (emplacement en pointillé), ils comptent pour la majorité. Le joueur majoritaire (en cas d'égalité, le dernier à avoir posé un marqueur, pointillé compris) reçoit la récompense du secteur : celle du premier à le couvrir, puis celle des suivants (souvent une trace de vie).
 - Le secteur est vidé ; le deuxième (même départage) garde un marqueur sur la première case, les autres reprennent les leurs.
 
 ### 2.3 Ordinateur de données

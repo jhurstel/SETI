@@ -1,7 +1,7 @@
 import { InteractionChoices } from '../src/core/InteractionChoices';
 import { CardSystem } from '../src/systems/CardSystem';
 import { AIController } from '../src/ai/AIController';
-import { DiskName, Game, InteractionState, Probe, ProbeState, SectorNumber } from '../src/core/types';
+import { DiskName, Game, InteractionState, Probe, ProbeState, SectorNumber, SignalType } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 import { getObjectPosition } from '../src/core/SolarSystemPosition';
 
@@ -176,7 +176,8 @@ describe('InteractionChoices : choix communs (cartes, signaux, spécimens, retra
     Object.assign(s, { rotationAngleLevel1: 0, rotationAngleLevel2: 0, rotationAngleLevel3: 0 });
     const mercury = getObjectPosition('mercury', 0, 0, 0, s.extraCelestialObjects)!;
     const sector = game.board.sectors[mercury.absoluteSector - 1];
-    const free = sector.signals.filter(sig => !sig.marked);
+    // Il ne reste que le dernier emplacement Donnée (le pointillé, au-delà, ne remplit pas le secteur)
+    const free = sector.signals.filter(sig => !sig.marked && sig.type === SignalType.DATA);
     free.slice(0, -1).forEach(sig => { sig.marked = true; sig.markedBy = P2; });
     getPlayer(game, P1).mediaCoverage = 2;
 
