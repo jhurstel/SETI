@@ -18,13 +18,13 @@ export const SvgBonus: React.FC<{ bonus: Bonus }> = ({ bonus }) => {
  * Gains d'un emplacement autres que les PV (données, traces de vie, réservations…), posés à côté de la case
  * comme sur le plateau du livret : à 135° (en bas à droite), contre le bord de la case de rayon `radius` (unités SVG = px).
  */
-export const SvgExtraGains: React.FC<{ bonus: Bonus; radius: number; size?: number; angle?: number; withPv?: boolean }> = ({ bonus, radius, size = 12, angle = 135, withPv = false }) => {
+export const SvgExtraGains: React.FC<{ bonus: Bonus; radius: number; size?: number; angle?: number; withPv?: boolean; tooltips?: boolean }> = ({ bonus, radius, size = 12, angle = 135, withPv = false, tooltips = false }) => {
   if (withPv ? isEmptyBonus(bonus) : !hasExtraGains(bonus)) return null;
   const { x, y } = atAngle(radius + 1, angle);
   return (
     <foreignObject x={x - 6} y={y - 6} width={160} height={size + 12} style={{ overflow: 'visible', pointerEvents: 'none' }}>
-      <div className="seti-slot-gains">
-        <BonusIcons bonus={withPv ? bonus : { ...bonus, pv: undefined }} size={size} empty={null} />
+      <div className="seti-slot-gains" style={{ pointerEvents: tooltips ? 'auto' : 'none' }}>
+        <BonusIcons bonus={withPv ? bonus : { ...bonus, pv: undefined }} size={size} empty={null} tooltips={tooltips} />
       </div>
     </foreignObject>
   );
@@ -32,15 +32,16 @@ export const SvgExtraGains: React.FC<{ bonus: Bonus; radius: number; size?: numb
 
 /**
  * Contenu d'une case (rayon `radius`) : ses PV (laurier) ou, sans PV, ses autres gains (données…) au centre.
- * Avec des PV et d'autres gains, les autres gains vont à côté (SvgExtraGains).
+ * Avec des PV et d'autres gains, les autres gains vont à côté (SvgExtraGains), sauf avec `withoutExtras`
+ * (l'appelant les dessine hors de la case, pour leurs propres infobulles).
  */
-export const SvgSlotBonus: React.FC<{ bonus: Bonus; radius: number }> = ({ bonus, radius }) => {
+export const SvgSlotBonus: React.FC<{ bonus: Bonus; radius: number; withoutExtras?: boolean }> = ({ bonus, radius, withoutExtras = false }) => {
   if (isEmptyBonus(bonus)) return null;
   if (bonus.pv) {
     return (
       <>
         <SvgBonus bonus={bonus} />
-        <SvgExtraGains bonus={bonus} radius={radius} />
+        {!withoutExtras && <SvgExtraGains bonus={bonus} radius={radius} />}
       </>
     );
   }

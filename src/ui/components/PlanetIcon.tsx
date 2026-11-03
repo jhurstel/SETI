@@ -160,7 +160,7 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
           {!player && hasExtraGains(bonus) && (
             // À 135° (en bas à droite de la lune), comme les gains des cases sur le plateau
             <div className="seti-satellite-gains" style={{ left: `${satSize / 2 + atAngle(satSize / 2, 135).x - 4}px`, top: `${satSize / 2 + atAngle(satSize / 2, 135).y - 4}px` }}>
-              <BonusIcons bonus={{ ...bonus, pv: undefined }} size={12} empty={null} />
+              <BonusIcons bonus={{ ...bonus, pv: undefined }} size={12} empty={null} tooltips />
             </div>
           )}
         </div>
@@ -364,8 +364,7 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                             }}
                           />
                           {/* Dans la case : ce qui lui est propre ; à côté de la 1re case : ce que toutes les cases donnent */}
-                          {!player && <SvgSlotBonus bonus={orbitSplit.specific[i]} radius={orbiterCircleRadius} />}
-                          {i === 0 && <SvgExtraGains bonus={orbitSplit.common} radius={orbiterCircleRadius} withPv />}
+                          {!player && <SvgSlotBonus bonus={orbitSplit.specific[i]} radius={orbiterCircleRadius} withoutExtras />}
                         </>
                       ) : (
                         <circle
@@ -433,8 +432,7 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                               transformOrigin: 'center'
                             }}
                           />
-                          {!player && <SvgSlotBonus bonus={landSplit.specific[i]} radius={landerCircleRadius} />}
-                          {i === 0 && <SvgExtraGains bonus={landSplit.common} radius={landerCircleRadius} withPv />}
+                          {!player && <SvgSlotBonus bonus={landSplit.specific[i]} radius={landerCircleRadius} withoutExtras />}
                         </>
                       ) : (
                         <circle r={4} fill={`url(#land-corridor-grad-${planetData.id})`}
@@ -450,6 +448,17 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                     </g>
                   );
                 })}
+
+                {/* Gains posés à côté des cases (hors de leur zone de survol) : une infobulle par symbole */}
+                {[
+                  { positions: orbitPositions, split: orbitSplit, radius: orbiterCircleRadius, occupied: (i: number) => !!planetData.orbiters[i] },
+                  { positions: landPositions, split: landSplit, radius: landerCircleRadius, occupied: (i: number) => planetData.landers.some(p => p.planetSlotIndex === i) },
+                ].map(({ positions, split, radius, occupied }, track) => positions.map((pos, i) => (
+                  <g key={`gains-${track}-${i}`} transform={`translate(${pos.x}, ${pos.y})`}>
+                    {!occupied(i) && !!split.specific[i].pv && <SvgExtraGains bonus={split.specific[i]} radius={radius} tooltips={isInteractive} />}
+                    {i === 0 && <SvgExtraGains bonus={split.common} radius={radius} withPv tooltips={isInteractive} />}
+                  </g>
+                )))}
               </>
             );
           })()}

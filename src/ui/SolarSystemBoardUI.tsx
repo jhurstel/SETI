@@ -510,6 +510,15 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     let tooltipProps: Partial<Parameters<typeof setActiveTooltip>[0]> = {};
 
     const currentPlayer = game.players[game.currentPlayerIndex];
+    // Infobulle qu'on peut survoler (symboles avec leur propre infobulle)
+    const hoverable: Partial<Parameters<typeof setActiveTooltip>[0]> = {
+      onMouseEnter: () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); },
+      onMouseLeave: handleMouseLeaveObject,
+      pointerEvents: 'auto'
+    };
+    const subtitleStyle: React.CSSProperties = { fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' };
+    // « Visiter pour gagner [Média] » : symbole avec son infobulle
+    const visitMedia = <div style={subtitleStyle}>Visiter pour gagner <BonusIcons bonus={{ media: 1 }} size={14} tooltips /></div>;
 
     // Special handling for Oumuamua which might be typed as asteroid but behaves like a planet with slots
     const isOumuamua = obj.id === 'oumuamua';
@@ -525,20 +534,14 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                 <div style={{ fontWeight: 'bold', fontSize: '1.2em', color: '#78a0ff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
                   {planetData.name}
                 </div>
-                <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>
-                  Visiter pour gagner 1 media
-                </div>
+                {visitMedia}
               </div>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px', minHeight: '220px', alignItems: 'center' }}>
                 <PlanetIcon id={planetData.id} size={planetData.id === 'oumuamua' ? 80 : 220} planetData={planetData} game={game} interactionState={interactionState} onOrbit={onOrbit} onLand={onLand} handleSlotClick={handleSlotClick} removingItem={removingItem} hoverTimeoutRef={hoverTimeoutRef} setHoveredSlot={setHoveredSlot} />
               </div>
             </div>
           );
-          tooltipProps = {
-            onMouseEnter: () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); },
-            onMouseLeave: handleMouseLeaveObject,
-            pointerEvents: 'auto'
-          };
+          tooltipProps = hoverable;
         } else {
           // Fallback for Earth or other objects without detailed data
           let subContent;
@@ -558,25 +561,25 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             }
             subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: color, fontStyle: 'italic' }}>{text}</div>;
           } else {
-            subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>Visiter pour gagner 1 Média</div>;
+            subContent = visitMedia;
+            tooltipProps = hoverable;
           }
           content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{subContent}</>;
         }
         break;
       }
       case 'comet': {
-        const subContent = <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>Visiter pour gagner 1 Média</div>;
-        content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{subContent}</>;
+        content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{visitMedia}</>;
+        tooltipProps = hoverable;
         break;
       }
       case 'asteroid': {
         const hasTech = currentPlayer.technologies.some(t => t.id.startsWith('exploration-2'));
-        const subContent = (
-          <div style={{ fontSize: '0.8em', marginTop: '4px', color: '#aaa', fontStyle: 'italic' }}>
-            {hasTech ? 'Visiter pour gagner 1 Média' : 'Quitter nécessite 1 déplacement supplémentaire'}
-          </div>
-        );
+        const subContent = hasTech
+          ? visitMedia
+          : <div style={subtitleStyle}>Quitter nécessite <BonusIcons bonus={{ movements: 1 }} size={14} tooltips /> supplémentaire</div>;
         content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{subContent}</>;
+        tooltipProps = hoverable;
         break;
       }
       case 'anomaly': {

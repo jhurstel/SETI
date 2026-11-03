@@ -23,6 +23,7 @@ Ce document décrit comment jouer, les règles telles qu'elles sont appliquées,
 - **Système solaire** (centre) : 3 anneaux rotatifs, 8 secteurs, planètes, comètes, champs d'astéroïdes, sondes.
 - **Plateau du joueur** (bas) : ressources, revenus, ordinateur de données, technologies, cartes en main, missions et cartes jouées. Les onglets en haut affichent le plateau de chaque joueur.
 - **Rangée de cartes**, **plateau des technologies**, **tuiles objectif**, **plateaux des espèces Alien** et **historique**.
+- **Panneau Planètes** : chaque planète, avec à côté une ligne par type de sonde présente (orbiteurs, atterrisseurs, lunes comprises) et une pastille de la couleur de chaque joueur, dans l'ordre d'arrivée. Son infobulle montre les cases de la planète ; chaque gain posé à côté d'une case a sa propre infobulle.
 - Les infobulles (survol) donnent le détail de chaque élément : coût, gain, raison d'une action indisponible.
 
 ### 1.3 Le tour

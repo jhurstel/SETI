@@ -3,6 +3,7 @@ import { Bonus, LifeTraceType, SectorType } from '../../core/types';
 import { ResourceSystem } from '../../systems/ResourceSystem';
 import { ResourceIcon, LifeTraceIcon, AnyLifeTraceIcon, VictoryPointsIcon, SignalGainIcon, SignalBadge, ActionHexIcon } from './GameIcons';
 import { ReservationIcon, TechCategoryIcon } from './ObjectiveSymbol';
+import { HoverTooltip } from './HoverTooltip';
 import { LIFE_TRACE_COLORS, LifeTraceColor } from '../styles/lifeTraceColors';
 
 const LIFE_TRACE_ICON: Partial<Record<LifeTraceType, LifeTraceColor>> = {
@@ -43,33 +44,41 @@ export const Repeated: React.FC<{ amount: number; children: React.ReactNode }> =
   </span>
 );
 
+/** « 1 Média », « 2 Médias », « 1 Trace Bleue »… : libellé d'un gain (infobulles des symboles) */
+const amountLabel = (amount: number, singular: string, plural = `${singular}s`) => `${amount} ${amount > 1 ? plural : singular}`;
+
 /**
  * Gains d'un bonus avec les icônes du livret (PV, crédits, énergie, médias, cartes, données, déplacements, réservation, sondes, orbite, atterrissage, scan,
  * technologies, signaux, traces de vie) ;
- * les autres gains restent écrits en toutes lettres.
+ * les autres gains restent écrits en toutes lettres. Avec `tooltips`, chaque symbole a son infobulle (le gain en toutes lettres).
  */
-export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?: React.ReactNode }> = ({ bonus, size = 16, empty = 'Aucun' }) => {
-  const items: React.ReactNode[] = [];
+export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?: React.ReactNode; tooltips?: boolean }> = ({ bonus, size = 16, empty = 'Aucun', tooltips = false }) => {
+  const items: { key: string; node: React.ReactNode; label: string }[] = [];
+  const add = (key: string, node: React.ReactNode, label: string) => items.push({ key, node, label });
   if (bonus) {
     const rest: Bonus = { ...bonus };
-    if (bonus.pv) items.push(<VictoryPointsIcon key="pv" amount={bonus.pv} size={size + 2} />);
-    if (bonus.credits) items.push(<ResourceIcon key="credits" kind="credit" amount={bonus.credits} size={size} />);
-    if (bonus.energy) items.push(<ResourceIcon key="energy" kind="energy" amount={bonus.energy} size={size} />);
-    if (bonus.media) items.push(<ResourceIcon key="media" kind="media" amount={bonus.media} size={size} />);
-    if (bonus.card || bonus.anycard) items.push(<ResourceIcon key="card" kind="card" amount={(bonus.card || 0) + (bonus.anycard || 0)} size={size} />);
-    if (bonus.speciesCard) items.push(<ResourceIcon key="speciesCard" kind="alienCard" amount={bonus.speciesCard} size={size} />);
-    if (bonus.token && bonus.token > 0) items.push(<ResourceIcon key="token" kind="token" amount={bonus.token} size={size} />);
-    if (bonus.data) items.push(<ResourceIcon key="data" kind="data" amount={bonus.data} size={size} />);
-    if (bonus.movements) items.push(<ResourceIcon key="movements" kind="movement" amount={bonus.movements} size={size} />);
-    if (bonus.revenue) items.push(<Repeated key="revenue" amount={bonus.revenue}><ReservationIcon size={size} /></Repeated>);
-    if (bonus.probe) items.push(<Repeated key="probe" amount={bonus.probe}><ActionHexIcon kind="launch" size={size + 2} /></Repeated>);
-    if (bonus.landing) items.push(<Repeated key="landing" amount={bonus.landing}><ActionHexIcon kind="land" size={size + 2} /></Repeated>);
-    if (bonus.scan) items.push(<Repeated key="scan" amount={bonus.scan}><ActionHexIcon kind="scan" size={size + 2} /></Repeated>);
-    (bonus.technologies || []).forEach((t, i) => items.push(<Repeated key={`tech-${i}`} amount={t.amount}><TechCategoryIcon category={t.scope} size={size + 2} /></Repeated>));
+    if (bonus.pv) add('pv', <VictoryPointsIcon amount={bonus.pv} size={size + 2} />, `${bonus.pv} PV`);
+    if (bonus.credits) add('credits', <ResourceIcon kind="credit" amount={bonus.credits} size={size} />, amountLabel(bonus.credits, 'Crédit'));
+    if (bonus.energy) add('energy', <ResourceIcon kind="energy" amount={bonus.energy} size={size} />, amountLabel(bonus.energy, 'Énergie'));
+    if (bonus.media) add('media', <ResourceIcon kind="media" amount={bonus.media} size={size} />, amountLabel(bonus.media, 'Média'));
+    if (bonus.card || bonus.anycard) {
+      const cards = (bonus.card || 0) + (bonus.anycard || 0);
+      add('card', <ResourceIcon kind="card" amount={cards} size={size} />, amountLabel(cards, 'Carte'));
+    }
+    if (bonus.speciesCard) add('speciesCard', <ResourceIcon kind="alienCard" amount={bonus.speciesCard} size={size} />, amountLabel(bonus.speciesCard, 'Carte Alien', 'Cartes Alien'));
+    if (bonus.token && bonus.token > 0) add('token', <ResourceIcon kind="token" amount={bonus.token} size={size} />, amountLabel(bonus.token, 'Jeton Oumuamua', 'Jetons Oumuamua'));
+    if (bonus.data) add('data', <ResourceIcon kind="data" amount={bonus.data} size={size} />, amountLabel(bonus.data, 'Donnée'));
+    if (bonus.movements) add('movements', <ResourceIcon kind="movement" amount={bonus.movements} size={size} />, amountLabel(bonus.movements, 'Déplacement'));
+    if (bonus.revenue) add('revenue', <Repeated amount={bonus.revenue}><ReservationIcon size={size} /></Repeated>, amountLabel(bonus.revenue, 'Réservation'));
+    if (bonus.probe) add('probe', <Repeated amount={bonus.probe}><ActionHexIcon kind="launch" size={size + 2} /></Repeated>, amountLabel(bonus.probe, 'Sonde'));
+    if (bonus.landing) add('landing', <Repeated amount={bonus.landing}><ActionHexIcon kind="land" size={size + 2} /></Repeated>, amountLabel(bonus.landing, 'Atterrissage'));
+    if (bonus.scan) add('scan', <Repeated amount={bonus.scan}><ActionHexIcon kind="scan" size={size + 2} /></Repeated>, amountLabel(bonus.scan, 'Scan'));
+    (bonus.technologies || []).forEach((t, i) => add(`tech-${i}`, <Repeated amount={t.amount}><TechCategoryIcon category={t.scope} size={size + 2} /></Repeated>,
+      `${amountLabel(t.amount, 'Technologie')}${t.scope ? ` ${Array.isArray(t.scope) ? t.scope.join(' ou ') : t.scope}` : ''}`));
     const otherSignals = (bonus.signals || []).filter(s => !SIGNAL_SCOPES[s.scope]);
     (bonus.signals || []).forEach((s, i) => {
       const signal = SIGNAL_SCOPES[s.scope];
-      if (signal) items.push(<Repeated key={`signal-${i}`} amount={s.amount}><SignalGainIcon color={signal.color} badge={signal.badge} size={size + 2} /></Repeated>);
+      if (signal) add(`signal-${i}`, <Repeated amount={s.amount}><SignalGainIcon color={signal.color} badge={signal.badge} size={size + 2} /></Repeated>, `${amountLabel(s.amount, 'Signal', 'Signaux')} (${s.scope})`);
     });
     rest.signals = otherSignals.length > 0 ? otherSignals : undefined;
     delete rest.speciesCard; delete rest.token;
@@ -77,11 +86,18 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
     delete rest.pv; delete rest.credits; delete rest.energy; delete rest.media; delete rest.data; delete rest.movements; delete rest.revenue; delete rest.card; delete rest.anycard;
     (bonus.lifetraces || []).forEach((l, i) => {
       const color = LIFE_TRACE_ICON[l.scope];
-      items.push(<Repeated key={`trace-${i}`} amount={l.amount}>{color ? <LifeTraceIcon color={color} size={size} /> : <AnyLifeTraceIcon size={size} />}</Repeated>);
+      add(`trace-${i}`, <Repeated amount={l.amount}>{color ? <LifeTraceIcon color={color} size={size} /> : <AnyLifeTraceIcon size={size} />}</Repeated>,
+        ResourceSystem.formatBonus({ lifetraces: [l] })?.[0] ?? amountLabel(l.amount, 'Trace de vie', 'Traces de vie'));
     });
     delete rest.lifetraces;
-    (ResourceSystem.formatBonus(rest) || []).forEach((text, i) => items.push(<span key={`text-${i}`}>{text}</span>));
+    (ResourceSystem.formatBonus(rest) || []).forEach((text, i) => add(`text-${i}`, <span>{text}</span>, ''));
   }
   if (items.length === 0) return <>{empty}</>;
-  return <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px', verticalAlign: 'middle' }}>{items}</span>;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px', verticalAlign: 'middle' }}>
+      {items.map(item => (tooltips && item.label
+        ? <HoverTooltip key={item.key} content={item.label} style={{ alignItems: 'center', cursor: 'help' }}>{item.node}</HoverTooltip>
+        : <React.Fragment key={item.key}>{item.node}</React.Fragment>))}
+    </span>
+  );
 };

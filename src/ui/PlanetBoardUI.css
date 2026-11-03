@@ -17,18 +17,53 @@
 
 .planet-icon-wrapper {
     display: flex;
-    flex-direction: column;
     align-items: center;
+    gap: 6px;
     /* Survol seulement (infobulle de la planète) : curseur d'aide */
     cursor: help;
     padding: 4px;
     border-radius: 4px;
     transition: background-color 0.2s;
+    min-width: 50px;
+}
+
+/* Planète et son nom ; ses orbiteurs et atterrisseurs à droite */
+.planet-main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     width: 50px;
 }
 
 .planet-icon-wrapper:hover {
     background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Orbiteurs et atterrisseurs de la planète : pastilles de la couleur des joueurs (comme les signaux des secteurs) */
+.planet-probe-owners {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.planet-probe-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+    max-width: 64px;
+}
+
+.planet-probe-row > svg {
+    margin-right: 1px;
+}
+
+.planet-probe-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-sizing: border-box;
 }
 
 .planet-icon-wrapper .planet-name {
@@ -136,7 +171,8 @@
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.65);
   white-space: nowrap;
-  pointer-events: none;
+  /* Infobulle de chaque symbole */
+  pointer-events: auto;
   z-index: 20;
 }
 

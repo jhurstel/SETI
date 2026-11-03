@@ -8,6 +8,7 @@ import { PlanetIcon } from './components/PlanetIcon';
 import { Tooltip } from './Tooltip';
 import { BonusIcons } from './components/BonusIcons';
 import { OrbiterOrLanderIcon } from './components/ObjectiveSymbol';
+import { ActionHexIcon } from './components/GameIcons';
 import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../core/SolarSystemPosition';
 import './PlanetBoardUI.css';
 import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
@@ -295,6 +296,28 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
         hoverTimeoutRef.current = setTimeout(() => setActiveTooltip(null), 300);
     };
 
+    // Orbiteurs et atterrisseurs (lunes comprises) : une ligne chacun, une pastille de la couleur du joueur par sonde, dans l'ordre d'arrivée
+    const renderProbeOwners = (planet: Planet) => {
+        const landers = [...planet.landers, ...(planet.satellites || []).flatMap(s => s.landers || [])];
+        const rows = [
+            { kind: 'orbit' as const, label: 'Orbiteurs', probes: planet.orbiters },
+            { kind: 'land' as const, label: 'Atterrisseurs', probes: landers },
+        ].filter(row => row.probes.length > 0);
+        if (rows.length === 0) return null;
+        return (
+            <div className="planet-probe-owners">
+                {rows.map(row => (
+                    <div key={row.kind} className="planet-probe-row" aria-label={`${row.label} : ${row.probes.map(p => game.players.find(pl => pl.id === p.ownerId)?.name).join(', ')}`}>
+                        <ActionHexIcon kind={row.kind} size={13} />
+                        {row.probes.map(probe => (
+                            <span key={probe.id} className="planet-probe-dot" style={{ background: game.players.find(p => p.id === probe.ownerId)?.color ?? '#888' }} />
+                        ))}
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     // Une sonde du joueur humain peut se mettre en orbite ou se poser : le panneau clignote
     const actingPlayer = game.players[game.currentPlayerIndex];
     const canOrbitOrLand = actingPlayer.type === 'human' && !actingPlayer.hasPerformedMainAction && interactionState.type === 'IDLE'
@@ -324,21 +347,24 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
                             onMouseEnter={(e) => handleMouseEnter(e, planet)}
                             onMouseLeave={handleMouseLeave}
                         >
-                            <PlanetIcon 
-                                id={planet.id} 
-                                size={32} 
-                                planetData={planet}
-                                game={game} 
-                                interactionState={interactionState}
-                                onOrbit={() => {}}
-                                onLand={() => {}}
-                                handleSlotClick={() => {}}
-                                removingItem={null}
-                                hoverTimeoutRef={hoverTimeoutRef}
-                                setHoveredSlot={() => {}}
-                                isInteractive={false}
-                            />
-                            <span className="planet-name">{planet.name}</span>
+                            <div className="planet-main">
+                                <PlanetIcon 
+                                    id={planet.id} 
+                                    size={32} 
+                                    planetData={planet}
+                                    game={game} 
+                                    interactionState={interactionState}
+                                    onOrbit={() => {}}
+                                    onLand={() => {}}
+                                    handleSlotClick={() => {}}
+                                    removingItem={null}
+                                    hoverTimeoutRef={hoverTimeoutRef}
+                                    setHoveredSlot={() => {}}
+                                    isInteractive={false}
+                                />
+                                <span className="planet-name">{planet.name}</span>
+                            </div>
+                            {renderProbeOwners(planet)}
                         </div>
                     ))}
                 </div>
