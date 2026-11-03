@@ -173,15 +173,24 @@ export const PLANET_STYLES: Record<string, PlanetStyle> = {
     'oumuamua': 20,
   };
   
+  /** Lunes : reflet en haut à gauche, quelques taches de relief, teinte, bord assombri (l'ombrage s'ajoute dans PlanetIcon) */
+  const moon = (light: string, base: string, dark: string, spots = 'rgba(0, 0, 0, 0.18)') => [
+    'radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 30%)',
+    `radial-gradient(circle at 62% 58%, ${spots} 0, ${spots} 9%, transparent 14%)`,
+    `radial-gradient(circle at 40% 70%, ${spots} 0, ${spots} 6%, transparent 10%)`,
+    `radial-gradient(circle at 70% 30%, ${spots} 0, ${spots} 5%, transparent 9%)`,
+    `radial-gradient(circle at 35% 32%, ${light}, ${base} 55%, ${dark} 100%)`,
+  ].join(', ');
+
   export const SATELLITE_STYLES: { [key: string]: string } = {
-    'phobosdeimos': 'radial-gradient(circle at 30% 30%, #8b7355, #4a3c31)',
-    'io': 'radial-gradient(circle at 30% 30%, #fffacd, #ffd700, #ff8c00)',
-    'europa': 'radial-gradient(circle at 30% 30%, #f0f8ff, #b0c4de)',
-    'ganymede': 'radial-gradient(circle at 30% 30%, #d3d3d3, #8b8b83)',
-    'callisto': 'radial-gradient(circle at 30% 30%, #696969, #2f4f4f)',
-    'titan': 'radial-gradient(circle at 30% 30%, #f4a460, #cd853f)',
-    'enceladus': 'radial-gradient(circle at 30% 30%, #ffffff, #e0ffff)',
-    'titania': 'radial-gradient(circle at 30% 30%, #dcdcdc, #708090)',
-    'triton': 'radial-gradient(circle at 30% 30%, #ffe4e1, #bc8f8f)',
+    'phobosdeimos': moon('#a89070', '#6e5a45', '#2e241b'),
+    'io': moon('#fffad0', '#f2c94c', '#9a5a10', 'rgba(170, 60, 20, 0.35)'),
+    'europa': moon('#ffffff', '#cbd8e6', '#6d7f96', 'rgba(150, 90, 60, 0.25)'),
+    'ganymede': moon('#e2ddd4', '#9a948a', '#45413b'),
+    'callisto': moon('#8e8a84', '#55534f', '#1f1e1c', 'rgba(220, 220, 210, 0.18)'),
+    'titan': moon('#ffd09a', '#d4904a', '#6e3e14', 'rgba(255, 220, 160, 0.15)'),
+    'enceladus': moon('#ffffff', '#e6f6ff', '#93aebd', 'rgba(120, 170, 210, 0.15)'),
+    'titania': moon('#e8e8e8', '#9aa3ad', '#434a52'),
+    'triton': moon('#fff0ec', '#d1a9a2', '#6d4a45', 'rgba(140, 90, 85, 0.25)'),
   };
   

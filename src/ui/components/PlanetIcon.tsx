@@ -116,8 +116,8 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
             height: `${satSize}px`,
             borderRadius: '50%',
             background: SATELLITE_STYLES[satellite.id] || 'radial-gradient(circle at 30% 30%, #d0d0d0, #808080)',
-            border: '1px solid #666',
-            boxShadow: '2px 2px 6px rgba(0,0,0,0.6)',
+            // Ombrage : côté nuit en bas à droite, lumière sur le bord en haut à gauche, ombre portée
+            boxShadow: `inset ${-satSize * 0.18}px ${-satSize * 0.16}px ${satSize * 0.28}px rgba(0, 0, 0, 0.7), inset ${satSize * 0.05}px ${satSize * 0.05}px ${satSize * 0.1}px rgba(255, 255, 255, 0.3), 2px 2px 6px rgba(0, 0, 0, 0.6)`,
             zIndex: 10 + index,
             display: 'flex',
             justifyContent: 'center',

@@ -269,7 +269,7 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
         setActiveTooltip({
             rect,
             content: (
-                <div style={{ minWidth: '350px' }}>
+                <div style={{ width: '314px' }}>
                     <div style={{ borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '12px', textAlign: 'left' }}>
                         <div style={{ fontWeight: 'bold', fontSize: '1.2em', color: '#78a0ff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
                             {planet.name}

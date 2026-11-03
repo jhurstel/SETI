@@ -173,11 +173,31 @@ const PlanetGlobeBase: React.FC<{ id: string; size: number }> = ({ id, size }) =
           <stop offset="45%" stopColor={look.base} />
           <stop offset="100%" stopColor={look.dark} />
         </radialGradient>
-        {/* Ombre du côté nuit */}
-        <radialGradient id={`shade-${uid}`} cx="30%" cy="28%" r="85%">
-          <stop offset="55%" stopColor="#000" stopOpacity={0} />
-          <stop offset="100%" stopColor="#000" stopOpacity={0.65} />
+        {/* Côté nuit : transition jour/nuit progressive (terminateur), assombrissement du bord */}
+        <radialGradient id={`shade-${uid}`} cx="28%" cy="26%" r="95%">
+          <stop offset="35%" stopColor="#000" stopOpacity={0} />
+          <stop offset="62%" stopColor="#000" stopOpacity={0.22} />
+          <stop offset="82%" stopColor="#000" stopOpacity={0.55} />
+          <stop offset="100%" stopColor="#000" stopOpacity={0.85} />
         </radialGradient>
+        {/* Lumière diffuse du côté éclairé */}
+        <radialGradient id={`light-${uid}`} cx="32%" cy="30%" r="45%">
+          <stop offset="0%" stopColor="#fff" stopOpacity={0.28} />
+          <stop offset="100%" stopColor="#fff" stopOpacity={0} />
+        </radialGradient>
+        {/* Liseré de lumière sur le bord éclairé */}
+        <linearGradient id={`rim-${uid}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={look.atmosphere ?? look.light} stopOpacity={0.7} />
+          <stop offset="45%" stopColor={look.atmosphere ?? look.light} stopOpacity={0} />
+        </linearGradient>
+        {/* Détails de surface adoucis, grain fin pour la matière */}
+        <filter id={`soft-${uid}`} x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur stdDeviation={1.1} />
+        </filter>
+        <filter id={`grain-${uid}`} x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency={0.08} numOctaves={3} seed={id.length} result="noise" />
+          <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.4 1" />
+        </filter>
         <radialGradient id={`glow-${uid}`} r="50%">
           <stop offset="88%" stopColor={look.atmosphere ?? '#fff'} stopOpacity={0.45} />
           <stop offset="100%" stopColor={look.atmosphere ?? '#fff'} stopOpacity={0} />
@@ -188,11 +208,12 @@ const PlanetGlobeBase: React.FC<{ id: string; size: number }> = ({ id, size }) =
       {look.atmosphere && <circle r={R + 6} fill={`url(#glow-${uid})`} />}
       <circle r={R} fill={`url(#body-${uid})`} />
       <g clipPath={`url(#${clip})`}>
-        {surface(id)}
+        <g filter={`url(#soft-${uid})`}>{surface(id)}</g>
+        <rect x={-R} y={-R} width={R * 2} height={R * 2} filter={`url(#grain-${uid})`} opacity={0.18} />
+        <circle r={R} fill={`url(#light-${uid})`} />
         <circle r={R} fill={`url(#shade-${uid})`} />
       </g>
-      {/* Reflet */}
-      <ellipse cx={-18} cy={-20} rx={14} ry={9} fill="#fff" opacity={0.12} transform="rotate(-35 -18 -20)" />
+      <circle r={R - 0.6} fill="none" stroke={`url(#rim-${uid})`} strokeWidth={1.6} />
       {look.rings && <Rings front clipId={`rf-${uid}`} />}
     </svg>
   );

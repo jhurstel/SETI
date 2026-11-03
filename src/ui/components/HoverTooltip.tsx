@@ -6,11 +6,13 @@ import { useCloseTooltipOnClick } from '../hooks/useCloseTooltipOnClick';
  * Affiche une infobulle du jeu (même aspect que les autres) au survol de son contenu,
  * à la place de l'attribut HTML `title` et de l'infobulle native du navigateur.
  */
-export const HoverTooltip = ({ content, children, className, style }: {
+export const HoverTooltip = ({ content, children, className, style, nested = false }: {
   content: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  /** Dans une autre infobulle : collée à son élément, sans s'écarter des infobulles ouvertes */
+  nested?: boolean;
 }) => {
   const [rect, setRect] = useState<DOMRect | null>(null);
   useCloseTooltipOnClick(() => setRect(null));
@@ -22,7 +24,7 @@ export const HoverTooltip = ({ content, children, className, style }: {
       onMouseLeave={() => setRect(null)}
     >
       {children}
-      {rect && content && <Tooltip content={content} targetRect={rect} />}
+      {rect && content && <Tooltip content={content} targetRect={rect} disableCollision={nested} />}
     </span>
   );
 };

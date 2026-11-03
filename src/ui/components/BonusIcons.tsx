@@ -44,20 +44,56 @@ export const Repeated: React.FC<{ amount: number; children: React.ReactNode }> =
   </span>
 );
 
-/** « 1 Média », « 2 Médias », « 1 Trace Bleue »… : libellé d'un gain (infobulles des symboles) */
+/** « 1 Média », « 2 Médias »… : libellé d'un gain (infobulles des symboles) */
 const amountLabel = (amount: number, singular: string, plural = `${singular}s`) => `${amount} ${amount > 1 ? plural : singular}`;
+
+/** Secteur visé par un signal, en toutes lettres (« dans un secteur noir », « dans le secteur de Jupiter ») */
+const SIGNAL_TARGETS: Partial<Record<SectorType, string>> = {
+  [SectorType.RED]: 'dans un secteur rouge',
+  [SectorType.YELLOW]: 'dans un secteur jaune',
+  [SectorType.BLUE]: 'dans un secteur bleu',
+  [SectorType.BLACK]: 'dans un secteur noir',
+  [SectorType.ANY]: 'dans un secteur au choix',
+  [SectorType.ROW]: "dans le secteur d'une carte de la rangée",
+  [SectorType.DECK]: 'dans le secteur de la carte du dessus de la pioche',
+  [SectorType.PROBE]: "dans le secteur d'une de vos sondes",
+  [SectorType.EARTH]: 'dans le secteur de la Terre',
+  [SectorType.MERCURY]: 'dans le secteur de Mercure',
+  [SectorType.VENUS]: 'dans le secteur de Vénus',
+  [SectorType.MARS]: 'dans le secteur de Mars',
+  [SectorType.JUPITER]: 'dans le secteur de Jupiter',
+  [SectorType.SATURN]: 'dans le secteur de Saturne',
+  [SectorType.OUMUAMUA]: "dans le secteur d'Oumuamua",
+};
+
+const LIFE_TRACE_NAMES: Record<LifeTraceType, string> = {
+  [LifeTraceType.RED]: 'Trace de vie rouge',
+  [LifeTraceType.YELLOW]: 'Trace de vie jaune',
+  [LifeTraceType.BLUE]: 'Trace de vie bleue',
+  [LifeTraceType.ANY]: 'Trace de vie au choix',
+};
 
 /**
  * Gains d'un bonus avec les icônes du livret (PV, crédits, énergie, médias, cartes, données, déplacements, réservation, sondes, orbite, atterrissage, scan,
  * technologies, signaux, traces de vie) ;
- * les autres gains restent écrits en toutes lettres. Avec `tooltips`, chaque symbole a son infobulle (le gain en toutes lettres).
+ * les autres gains restent écrits en toutes lettres. Avec `tooltips` (dans une infobulle), chaque symbole a son infobulle, le gain en toutes lettres :
+ * un symbole répété (2 réservations, 2 traces) en a une par exemplaire.
  */
 export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?: React.ReactNode; tooltips?: boolean }> = ({ bonus, size = 16, empty = 'Aucun', tooltips = false }) => {
-  const items: { key: string; node: React.ReactNode; label: string }[] = [];
-  const add = (key: string, node: React.ReactNode, label: string) => items.push({ key, node, label });
+  const items: React.ReactNode[] = [];
+  const withTooltip = (key: string, node: React.ReactNode, label: string) => (tooltips
+    ? <HoverTooltip key={key} content={label} nested style={{ alignItems: 'center', cursor: 'help' }}>{node}</HoverTooltip>
+    : <React.Fragment key={key}>{node}</React.Fragment>);
+  const add = (key: string, node: React.ReactNode, label: string) => items.push(withTooltip(key, node, label));
+  // Symbole répété autant de fois que la quantité (sans chiffre) : une infobulle par exemplaire
+  const addRepeated = (key: string, amount: number, node: React.ReactNode, label: string) => items.push(
+    <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
+      {Array.from({ length: Math.max(1, amount) }, (_, i) => withTooltip(`${key}-${i}`, node, label))}
+    </span>
+  );
   if (bonus) {
     const rest: Bonus = { ...bonus };
-    if (bonus.pv) add('pv', <VictoryPointsIcon amount={bonus.pv} size={size + 2} />, `${bonus.pv} PV`);
+    if (bonus.pv) add('pv', <VictoryPointsIcon amount={bonus.pv} size={size + 2} />, amountLabel(bonus.pv, 'PV', 'PVs'));
     if (bonus.credits) add('credits', <ResourceIcon kind="credit" amount={bonus.credits} size={size} />, amountLabel(bonus.credits, 'Crédit'));
     if (bonus.energy) add('energy', <ResourceIcon kind="energy" amount={bonus.energy} size={size} />, amountLabel(bonus.energy, 'Énergie'));
     if (bonus.media) add('media', <ResourceIcon kind="media" amount={bonus.media} size={size} />, amountLabel(bonus.media, 'Média'));
@@ -69,16 +105,15 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
     if (bonus.token && bonus.token > 0) add('token', <ResourceIcon kind="token" amount={bonus.token} size={size} />, amountLabel(bonus.token, 'Jeton Oumuamua', 'Jetons Oumuamua'));
     if (bonus.data) add('data', <ResourceIcon kind="data" amount={bonus.data} size={size} />, amountLabel(bonus.data, 'Donnée'));
     if (bonus.movements) add('movements', <ResourceIcon kind="movement" amount={bonus.movements} size={size} />, amountLabel(bonus.movements, 'Déplacement'));
-    if (bonus.revenue) add('revenue', <Repeated amount={bonus.revenue}><ReservationIcon size={size} /></Repeated>, amountLabel(bonus.revenue, 'Réservation'));
-    if (bonus.probe) add('probe', <Repeated amount={bonus.probe}><ActionHexIcon kind="launch" size={size + 2} /></Repeated>, amountLabel(bonus.probe, 'Sonde'));
-    if (bonus.landing) add('landing', <Repeated amount={bonus.landing}><ActionHexIcon kind="land" size={size + 2} /></Repeated>, amountLabel(bonus.landing, 'Atterrissage'));
-    if (bonus.scan) add('scan', <Repeated amount={bonus.scan}><ActionHexIcon kind="scan" size={size + 2} /></Repeated>, amountLabel(bonus.scan, 'Scan'));
-    (bonus.technologies || []).forEach((t, i) => add(`tech-${i}`, <Repeated amount={t.amount}><TechCategoryIcon category={t.scope} size={size + 2} /></Repeated>,
-      `${amountLabel(t.amount, 'Technologie')}${t.scope ? ` ${Array.isArray(t.scope) ? t.scope.join(' ou ') : t.scope}` : ''}`));
+    if (bonus.revenue) addRepeated('revenue', bonus.revenue, <ReservationIcon size={size} />, 'Réservation');
+    if (bonus.probe) addRepeated('probe', bonus.probe, <ActionHexIcon kind="launch" size={size + 2} />, 'Sonde');
+    if (bonus.landing) addRepeated('landing', bonus.landing, <ActionHexIcon kind="land" size={size + 2} />, 'Atterrissage');
+    if (bonus.scan) addRepeated('scan', bonus.scan, <ActionHexIcon kind="scan" size={size + 2} />, 'Scan');
+    (bonus.technologies || []).forEach((t, i) => addRepeated(`tech-${i}`, t.amount, <TechCategoryIcon category={t.scope} size={size + 2} />, t.scope ? `Technologie ${t.scope}` : 'Technologie'));
     const otherSignals = (bonus.signals || []).filter(s => !SIGNAL_SCOPES[s.scope]);
     (bonus.signals || []).forEach((s, i) => {
       const signal = SIGNAL_SCOPES[s.scope];
-      if (signal) add(`signal-${i}`, <Repeated amount={s.amount}><SignalGainIcon color={signal.color} badge={signal.badge} size={size + 2} /></Repeated>, `${amountLabel(s.amount, 'Signal', 'Signaux')} (${s.scope})`);
+      if (signal) addRepeated(`signal-${i}`, s.amount, <SignalGainIcon color={signal.color} badge={signal.badge} size={size + 2} />, `Signal ${SIGNAL_TARGETS[s.scope] ?? `(${s.scope})`}`);
     });
     rest.signals = otherSignals.length > 0 ? otherSignals : undefined;
     delete rest.speciesCard; delete rest.token;
@@ -86,18 +121,11 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
     delete rest.pv; delete rest.credits; delete rest.energy; delete rest.media; delete rest.data; delete rest.movements; delete rest.revenue; delete rest.card; delete rest.anycard;
     (bonus.lifetraces || []).forEach((l, i) => {
       const color = LIFE_TRACE_ICON[l.scope];
-      add(`trace-${i}`, <Repeated amount={l.amount}>{color ? <LifeTraceIcon color={color} size={size} /> : <AnyLifeTraceIcon size={size} />}</Repeated>,
-        ResourceSystem.formatBonus({ lifetraces: [l] })?.[0] ?? amountLabel(l.amount, 'Trace de vie', 'Traces de vie'));
+      addRepeated(`trace-${i}`, l.amount, color ? <LifeTraceIcon color={color} size={size} /> : <AnyLifeTraceIcon size={size} />, LIFE_TRACE_NAMES[l.scope]);
     });
     delete rest.lifetraces;
-    (ResourceSystem.formatBonus(rest) || []).forEach((text, i) => add(`text-${i}`, <span>{text}</span>, ''));
+    (ResourceSystem.formatBonus(rest) || []).forEach((text, i) => items.push(<span key={`text-${i}`}>{text}</span>));
   }
   if (items.length === 0) return <>{empty}</>;
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px', verticalAlign: 'middle' }}>
-      {items.map(item => (tooltips && item.label
-        ? <HoverTooltip key={item.key} content={item.label} style={{ alignItems: 'center', cursor: 'help' }}>{item.node}</HoverTooltip>
-        : <React.Fragment key={item.key}>{item.node}</React.Fragment>))}
-    </span>
-  );
+  return <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px', verticalAlign: 'middle' }}>{items}</span>;
 };
