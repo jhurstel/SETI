@@ -511,7 +511,10 @@ export class ResourceSystem {
         tracesText.push(`${lifetraceBonus.amount} trace${lifetraceBonus.amount > 1 ? 's' : ''} de vie${colorLabel}`);
       }
       if (tracesText.length > 0) {
-        logs.push(`obtient ${tracesText.join(' et ')}`);
+        // Sur la même ligne que les autres gains (« gagne 2 PV, 1 trace de vie »)
+        const gainsIndex = gainsText ? logs.indexOf(`gagne ${gainsText}`) : -1;
+        if (gainsIndex !== -1) logs[gainsIndex] += `, ${tracesText.join(', ')}`;
+        else logs.push(`gagne ${tracesText.join(', ')}`);
       }
     }
     // Effets interactifs (File d'attente)

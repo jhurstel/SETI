@@ -1,3 +1,4 @@
+import { ResourceSystem } from '../src/systems/ResourceSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { AlienBoardType, Game, LifeTraceLocation, LifeTraceType } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
@@ -114,6 +115,9 @@ describe('SpeciesSystem : cas limites', () => {
       expect(getPlayer(placed.updatedGame, P1).data).toBe(0);
       expect(getPlayer(placed.updatedGame, P1).score).toBe(score + slots[slotIndex].pv!);
       expect(player.data).toBe(cost);
+      // Le coût est écrit comme un coût, avant les gains (pas « gagne -3 données »)
+      expect(placed.historyEntries[0].message).toContain(`et paye ${ResourceSystem.formatResource(cost, 'DATA')} et gagne ${ResourceSystem.formatResource(slots[slotIndex].pv!, 'PV')}`);
+      expect(placed.historyEntries[0].message).not.toMatch(/-\s?\d/);
     });
 
     test('premier palier d\'un joueur : la liste est créée, à son score + 15', () => {

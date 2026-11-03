@@ -41,6 +41,14 @@ describe('Règles du moteur peu couvertes', () => {
       expect(ResourceSystem.formatBonus(undefined as unknown as Bonus)).toBeNull();
     });
 
+    test('processBonuses : la trace de vie est sur la ligne des autres gains', () => {
+      const withGains = ResourceSystem.processBonuses({ pv: 7, lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] }, game, P1, 'test', 'seq');
+      expect(withGains.logs).toEqual([`gagne ${ResourceSystem.formatResource(7, 'PV')}, 1 trace de vie (${LifeTraceType.YELLOW})`]);
+      const alone = ResourceSystem.processBonuses({ lifetraces: [{ amount: 1, scope: LifeTraceType.RED }] }, game, P1, 'test', 'seq');
+      expect(alone.logs).toEqual([`gagne 1 trace de vie (${LifeTraceType.RED})`]);
+      expect(alone.newPendingInteractions).toMatchObject([{ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.RED }]);
+    });
+
     test('accumulateBonus : additionne les nombres, ajoute aux listes, garde les options, ignore les champs vides', () => {
       const acc: Bonus = { media: 2, signals: [{ amount: 1, scope: SectorType.RED }] };
       ResourceSystem.accumulateBonus({ media: 1, pv: 3, signals: [{ amount: 1, scope: SectorType.BLUE }], collectSpecimen: true, energy: undefined }, acc);
