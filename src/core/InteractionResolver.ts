@@ -172,6 +172,10 @@ export class InteractionResolver {
       if (capsule) {
         ProbeSystem.removeCapsule(updatedGame, playerId, capsule.id);
         specimenLog += requirement.target === 'mars' ? ' en ramenant un spécimen sur Mars' : ' en ramenant un spécimen sur Terre';
+        // Le jeton du spécimen devient le bonus d'une case libre de la piste bleue des Mascamites
+        if (capsule.specimen && SpeciesSystem.placeSpecimenOnTrack(updatedGame, capsule.specimen) !== -1) {
+          specimenLog += ' (le spécimen rejoint la piste bleue des Mascamites)';
+        }
       }
     }
 

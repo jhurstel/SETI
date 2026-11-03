@@ -5,7 +5,8 @@ import { InteractionResolver } from '../src/core/InteractionResolver';
 import { InteractionChoices } from '../src/core/InteractionChoices';
 import { LandAction } from '../src/actions/LandAction';
 import { AIBehavior } from '../src/ai/AIBehavior';
-import { ActionType, FreeActionType } from '../src/core/types';
+import { ActionType, FreeActionType, AlienBoardType, LifeTraceType, LifeTraceLocation } from '../src/core/types';
+import { cloneGame } from '../src/core/cloneGame';
 import { CardSystem } from '../src/systems/CardSystem';
 import { getObjectPosition } from '../src/core/SolarSystemPosition';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
@@ -204,6 +205,35 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
       expect(getPlayer(res.updatedGame, P1).probes.some(p => p.id === capsule.id)).toBe(false);
       expect(res.updatedGame.board.solarSystem.probes.some(p => p.id === capsule.id)).toBe(false);
       expect(res.historyEntries[0].message).toContain('en ramenant un spécimen sur Terre');
+    });
+
+    test('le spécimen ramené devient le bonus de la première case libre de la piste bleue des Mascamites', () => {
+      const species = game.species.find(s => s.name === AlienBoardType.MASCAMITES)!;
+      // Cases 0 et 1 imprimées, case 2 : 7e spécimen ; case 3 libre mais déjà occupée par une trace
+      species.fixedSlots = { ...species.fixedSlots, bluelifetrace: species.fixedSlots.bluelifetrace.map((b, i) => (i === 2 ? { media: 1 } : b)) };
+      const board = game.board.alienBoards[0];
+      board.speciesId = AlienBoardType.MASCAMITES;
+      board.lifeTraces = [{ id: 't', type: LifeTraceType.BLUE, playerId: P1, location: LifeTraceLocation.SPECIES, slotIndex: 3 }];
+      ProbeSystem.createCapsule(game, P1, 'earth', { bonus: { pv: 3 } });
+      getPlayer(game, P1).missions = [missionReturning('GAIN_IF_SPECIMEN:earth:pv:1')];
+      const before = JSON.stringify(game);
+
+      const res = InteractionResolver.resolve(game, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: 'm1', requirementId: 'r1', sequenceId: 'seq' });
+
+      const blue = res.updatedGame.species.find(s => s.name === AlienBoardType.MASCAMITES)!.fixedSlots.bluelifetrace;
+      expect(blue[2]).toEqual({ media: 1 });
+      expect(blue[3]).toEqual({});
+      expect(blue[4]).toEqual({ pv: 3 });
+      expect(res.historyEntries[0].message).toContain('le spécimen rejoint la piste bleue des Mascamites');
+      expect(JSON.stringify(game)).toBe(before);
+    });
+
+    test('piste bleue pleine : le spécimen ramené ne se pose nulle part', () => {
+      const species = game.species.find(s => s.name === AlienBoardType.MASCAMITES)!;
+      species.fixedSlots = { ...species.fixedSlots, bluelifetrace: species.fixedSlots.bluelifetrace.map(() => ({ pv: 1 })) };
+      const g = cloneGame(game);
+      expect(SpeciesSystem.placeSpecimenOnTrack(g, { bonus: { pv: 3 } })).toBe(-1);
+      expect(SpeciesSystem.placeSpecimenOnTrack({ ...g, species: g.species.filter(s => s.name !== AlienBoardType.MASCAMITES) }, { bonus: { pv: 3 } })).toBe(-1);
     });
 
     test('Prélèvement de Reproducteurs : la récompense du spécimen est gagnée deux fois', () => {

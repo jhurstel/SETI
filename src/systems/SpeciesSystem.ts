@@ -1,6 +1,6 @@
 import { effectNumber } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
-import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode, LifeTraceLocation, Player, CentaurienMarker, Species } from '../core/types';
+import { Game, LifeTraceType, HistoryEntry, InteractionState, AlienBoardType, Bonus, Card, SectorNumber, SpeciesDiscoveryCode, LifeTraceLocation, Player, CentaurienMarker, Species, MascamitesToken } from '../core/types';
 import { ResourceSystem } from './ResourceSystem';
 import { getObjectPosition } from '../core/SolarSystemPosition';
 import { CardSystem } from './CardSystem';
@@ -109,6 +109,23 @@ export class SpeciesSystem {
             ],
             newPendingInteractions: res.newPendingInteractions,
         };
+    }
+
+    /**
+     * Spécimen ramené à destination : son jeton devient le bonus de la première case libre de la piste bleue des
+     * Mascamites (sans bonus ni trace de vie). Modifie la partie reçue (déjà copiée par l'appelant) ; renvoie la case,
+     * ou -1 s'il n'y en a plus.
+     */
+    static placeSpecimenOnTrack(game: Game, specimen: MascamitesToken): number {
+        const species = game.species.find(s => s.name === AlienBoardType.MASCAMITES);
+        if (!species) return -1;
+        const board = game.board.alienBoards.find(b => b.speciesId === AlienBoardType.MASCAMITES);
+        const slots = species.fixedSlots.bluelifetrace;
+        const index = slots.findIndex((bonus, i) => Object.keys(bonus).length === 0
+            && !board?.lifeTraces.some(t => t.type === LifeTraceType.BLUE && t.location === LifeTraceLocation.SPECIES && t.slotIndex === i));
+        if (index === -1) return -1;
+        species.fixedSlots = { ...species.fixedSlots, bluelifetrace: slots.map((bonus, i) => (i === index ? specimen.bonus : bonus)) };
+        return index;
     }
 
     /**

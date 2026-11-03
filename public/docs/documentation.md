@@ -177,7 +177,7 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 | 7 | 7 PV |
 
 - Certaines cartes permettent de **prélever un spécimen** sur Jupiter, Saturne ou leurs lunes : une fenêtre montre les spécimens restants de la planète et leur récompense ; le jeton choisi part dans une **capsule**, qui se déplace et se comporte comme une sonde : énergie ou déplacements gratuits (défausse d'une carte Déplacement, Observation IV…), coût de sortie d'un champ d'astéroïdes, Médias des cases, visites et missions déclenchées par un déplacement. Elle ne compte pas dans la limite de sondes et ne peut ni se mettre en orbite ni atterrir. Les robots simulent chaque spécimen et gardent la meilleure récompense.
-- Une capsule arrivée sur la Terre (ou sur Mars pour ET.4) se réclame comme une mission : récompense de la carte plus celle du spécimen.
+- Une capsule arrivée sur la Terre (ou sur Mars pour ET.4) se réclame comme une mission : récompense de la carte plus celle du spécimen. Le jeton du spécimen se pose ensuite sur la première case libre (sans bonus ni trace) de la piste bleue des Mascamites : sa récompense devient le gain de cette case.
 - D'autres cartes permettent de **consulter** un spécimen (gagner son bonus sans le retirer), choisi dans la même fenêtre.
 - Pas d'emplacement infini.
 

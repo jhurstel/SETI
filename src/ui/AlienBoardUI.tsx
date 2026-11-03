@@ -337,8 +337,10 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
 
         const trace = board.lifeTraces.find(t => t.location === LifeTraceLocation.SPECIES && t.type === type && t.slotIndex === index);
         const isFilled = !!trace;
-        // 7e spécimen Mascamite, face visible sur sa case tant qu'elle est libre (sa récompense est celle de la case)
-        const specimenSlot = !isFilled && !isInfinite && type === LifeTraceType.BLUE && species?.name === AlienBoardType.MASCAMITES && index === MASCAMITE_BOARD_SPECIMEN_SLOT;
+        // Spécimens Mascamites posés sur la piste bleue (le 7e à la découverte, puis ceux ramenés à destination),
+        // face visible tant que la case est libre : leur récompense est celle de la case
+        const specimenSlot = !isFilled && !isInfinite && type === LifeTraceType.BLUE && species?.name === AlienBoardType.MASCAMITES
+          && index >= MASCAMITE_BOARD_SPECIMEN_SLOT && Object.keys(bonus).length > 0;
         // Coûts de l'emplacement (valeurs négatives : tokens, données), payés en y posant la trace (SpeciesSystem.placeLifeTrace)
         const tokenCost = bonus.token && bonus.token < 0 ? -bonus.token : 0;
         const dataCost = bonus.data && bonus.data < 0 ? -bonus.data : 0;
