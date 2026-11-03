@@ -105,8 +105,9 @@ export const TechTooltip: React.FC<{
       <span className={`seti-board-tooltip-badge ${acquired ? 'acquired' : ''}`}>{acquired ? 'Acquise' : 'À rechercher'}</span>
     </div>
     <dl className="seti-board-tooltip-rows">
+      {/* Acquise : seul le pouvoir actuel (qui est le bénéfice) ; sinon le pouvoir actuel puis ce que la technologie apporterait */}
       <dt>Pouvoir actuel</dt><dd className="inline">{acquired ? benefit : base}</dd>
-      <dt>Bénéfice</dt><dd className="benefit inline">{benefit}</dd>
+      {!acquired && <><dt>Bénéfice</dt><dd className="benefit inline">{benefit}</dd></>}
     </dl>
   </div>
 );
