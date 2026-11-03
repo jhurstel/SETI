@@ -1,0 +1,350 @@
+/* Partie en ligne (accueil) : même aspect que « Nouvelle partie » (NewGameModal.css) */
+
+/* Onglets Créer / Rejoindre : commande segmentée */
+.seti-online-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 18px;
+  border-radius: 12px;
+  background: rgba(8, 12, 30, 0.55);
+  border: 1px solid rgba(140, 170, 240, 0.22);
+}
+
+.seti-online-modal .seti-online-tabs button {
+  padding: 8px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #9fb2da;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.seti-online-modal .seti-online-tabs button:hover {
+  color: #e8f1ff;
+}
+
+.seti-online-modal .seti-online-tabs button.selected {
+  color: #fff;
+  background: linear-gradient(150deg, rgba(36, 120, 200, 0.75), rgba(88, 54, 190, 0.7));
+  box-shadow: 0 2px 10px rgba(40, 120, 255, 0.3);
+}
+
+.seti-online-modal .seti-online-tabs button:focus-visible,
+.seti-online-modal .seti-online-chips button:focus-visible,
+.seti-online-modal .seti-online-add:focus-visible,
+.seti-online-modal .seti-online-remove:focus-visible {
+  outline: 2px solid #7fd4ff;
+  outline-offset: 2px;
+}
+
+/* Champs de saisie */
+.seti-online-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(140, 170, 240, 0.3);
+  background: rgba(8, 12, 30, 0.6);
+  color: #f2f6ff;
+  font: inherit;
+  font-size: 1rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.seti-online-input::placeholder {
+  color: #5f6f95;
+}
+
+.seti-online-input:focus {
+  outline: none;
+  border-color: #6fc3ff;
+  box-shadow: 0 0 0 3px rgba(111, 195, 255, 0.2);
+}
+
+.seti-online-input.code {
+  text-align: center;
+  font-family: ui-monospace, 'Consolas', monospace;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+}
+
+/* Places de la salle à créer */
+.seti-online-seat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.seti-online-seat-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(140, 170, 240, 0.22);
+  background: rgba(8, 12, 30, 0.45);
+}
+
+.seti-online-seat-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 88px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #f2f6ff;
+}
+
+.seti-online-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+}
+
+.seti-online-modal .seti-online-chips button {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(140, 170, 240, 0.25);
+  background: transparent;
+  color: #9fb2da;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.seti-online-modal .seti-online-chips button:hover {
+  color: #e8f1ff;
+  border-color: rgba(140, 190, 255, 0.5);
+}
+
+.seti-online-modal .seti-online-chips button.selected {
+  color: #fff;
+  border-color: #6fc3ff;
+  background: rgba(36, 120, 200, 0.45);
+}
+
+.seti-online-modal .seti-online-remove {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(140, 170, 240, 0.25);
+  background: transparent;
+  color: #9fb2da;
+  cursor: pointer;
+}
+
+.seti-online-modal .seti-online-remove:hover {
+  color: #ff9b9b;
+  border-color: rgba(255, 123, 123, 0.5);
+}
+
+.seti-online-modal .seti-online-add {
+  padding: 9px;
+  border-radius: 10px;
+  border: 1px dashed rgba(140, 170, 240, 0.4);
+  background: transparent;
+  color: #9fd2ff;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.seti-online-modal .seti-online-add:hover {
+  background: rgba(40, 60, 120, 0.3);
+}
+
+/* Silhouette d'une place */
+.seti-online-avatar {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(160, 180, 230, 0.12);
+  color: #6f80a8;
+}
+
+.seti-online-avatar.claimed.human {
+  background: rgba(127, 212, 255, 0.18);
+  color: #7fd4ff;
+}
+
+.seti-online-avatar.claimed.robot {
+  background: rgba(255, 207, 90, 0.16);
+  color: #ffcf5a;
+}
+
+/* Connexion */
+.seti-online-connecting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 0 4px;
+  text-align: center;
+  color: #9fb2da;
+  font-size: 0.85rem;
+}
+
+.seti-online-connecting p {
+  margin: 0;
+}
+
+.seti-online-spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid rgba(140, 170, 240, 0.2);
+  border-top-color: #7fd4ff;
+  animation: seti-online-spin 0.9s linear infinite;
+}
+
+@keyframes seti-online-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Salon */
+.seti-online-code-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 14px;
+  margin-bottom: 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(111, 195, 255, 0.4);
+  background: rgba(8, 12, 30, 0.55);
+}
+
+.seti-online-code {
+  font-family: ui-monospace, 'Consolas', monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  /* L'espacement suit aussi la dernière lettre : on le compense pour centrer le code */
+  margin-right: -0.3em;
+  color: #9fdcff;
+  user-select: all;
+}
+
+.seti-online-code-box .seti-newgame-btn {
+  padding: 7px 14px;
+}
+
+.seti-online-progress {
+  height: 4px;
+  margin-bottom: 10px;
+  border-radius: 2px;
+  background: rgba(160, 180, 230, 0.15);
+  overflow: hidden;
+}
+
+.seti-online-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #2478c8, #7fd4ff);
+  transition: width 0.3s;
+}
+
+.seti-online-seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.seti-online-seats li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px dashed rgba(140, 170, 240, 0.25);
+  color: #6f80a8;
+}
+
+.seti-online-seats li.claimed {
+  border-style: solid;
+  background: rgba(8, 12, 30, 0.45);
+  color: #f2f6ff;
+}
+
+.seti-online-seat-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seti-online-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.seti-online-status.you {
+  color: #7fd4ff;
+  background: rgba(127, 212, 255, 0.14);
+}
+
+.seti-online-status.ready {
+  color: #7fe0a0;
+  background: rgba(127, 224, 160, 0.14);
+}
+
+.seti-online-status.waiting {
+  color: #9fb2da;
+}
+
+.seti-online-error {
+  margin: 4px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 123, 123, 0.4);
+  background: rgba(120, 30, 40, 0.35);
+  color: #ffb3b3;
+  font-size: 0.85rem;
+}
+
+.seti-newgame-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+  transform: none;
+}
+
+/* Téléphone : les choix d'une place passent sous son étiquette */
+@media (max-width: 480px) {
+  .seti-online-seat-label {
+    flex: 1;
+  }
+  .seti-online-chips {
+    order: 3;
+    flex-basis: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seti-online-spinner {
+    animation-duration: 3s;
+  }
+  .seti-online-modal   .seti-online-tabs button,
+  .seti-online-modal   .seti-online-chips button,
+  .seti-online-progress span {
+    transition: none;
+  }
+}
