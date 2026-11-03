@@ -434,7 +434,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
       case ActionType.RESEARCH_TECH:
         cost = <ResourceSymbols bonus={{ media: GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA }} />;
-        bonus = <TechSymbol note="puis le système solaire tourne" />;
+        // Le Système solaire tourne avant de prendre la technologie
+        bonus = <><ResourceSymbols bonus={{ rotation: 1 }} /> puis <TechSymbol /></>;
         action = 'Cliquez pour rechercher une technologie';
         if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) reason = `Vous avez ${currentPlayer.mediaCoverage} média(s)`;
         break;
@@ -442,7 +443,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
       case ActionType.PASS:
         cost = 'Garder au plus 4 cartes en main';
         bonusLabel = 'Effet';
-        bonus = 'Une carte de fin de manche ; vous ne jouez plus avant la prochaine manche';
+        // Le premier joueur à passer fait tourner le Système solaire
+        bonus = game.players.some(p => p.hasPassed)
+          ? 'Une carte de fin de manche ; vous ne jouez plus avant la prochaine manche'
+          : <><ResourceSymbols bonus={{ rotation: 1 }} note="(premier à passer)" /> puis une carte de fin de manche ; vous ne jouez plus avant la prochaine manche</>;
         action = 'Cliquez pour passer';
         break;
 

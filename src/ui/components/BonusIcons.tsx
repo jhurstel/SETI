@@ -1,7 +1,7 @@
 import React from 'react';
 import { Bonus, LifeTraceType, SectorType } from '../../core/types';
 import { ResourceSystem } from '../../systems/ResourceSystem';
-import { ResourceIcon, LifeTraceIcon, AnyLifeTraceIcon, VictoryPointsIcon, SignalGainIcon, SignalBadge, ActionHexIcon } from './GameIcons';
+import { ResourceIcon, LifeTraceIcon, AnyLifeTraceIcon, VictoryPointsIcon, SignalGainIcon, SignalBadge, ActionHexIcon, RotationTokenIcon } from './GameIcons';
 import { ReservationIcon, TechCategoryIcon } from './ObjectiveSymbol';
 import { HoverTooltip } from './HoverTooltip';
 import { LIFE_TRACE_COLORS, LifeTraceColor } from '../styles/lifeTraceColors';
@@ -109,6 +109,7 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
     if (bonus.probe) addRepeated('probe', bonus.probe, <ActionHexIcon kind="launch" size={size + 2} />, 'Sonde');
     if (bonus.landing) addRepeated('landing', bonus.landing, <ActionHexIcon kind="land" size={size + 2} />, 'Atterrissage');
     if (bonus.scan) addRepeated('scan', bonus.scan, <ActionHexIcon kind="scan" size={size + 2} />, 'Scan');
+    if (bonus.rotation) addRepeated('rotation', bonus.rotation, <RotationTokenIcon size={size + 2} />, 'Rotation du Système solaire');
     (bonus.technologies || []).forEach((t, i) => addRepeated(`tech-${i}`, t.amount, <TechCategoryIcon category={t.scope} size={size + 2} />, t.scope ? `Technologie ${t.scope}` : 'Technologie'));
     const otherSignals = (bonus.signals || []).filter(s => !SIGNAL_SCOPES[s.scope]);
     (bonus.signals || []).forEach((s, i) => {
@@ -117,7 +118,7 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
     });
     rest.signals = otherSignals.length > 0 ? otherSignals : undefined;
     delete rest.speciesCard; delete rest.token;
-    delete rest.probe; delete rest.landing; delete rest.scan; delete rest.technologies;
+    delete rest.probe; delete rest.landing; delete rest.scan; delete rest.rotation; delete rest.technologies;
     delete rest.pv; delete rest.credits; delete rest.energy; delete rest.media; delete rest.data; delete rest.movements; delete rest.revenue; delete rest.card; delete rest.anycard;
     (bonus.lifetraces || []).forEach((l, i) => {
       const color = LIFE_TRACE_ICON[l.scope];

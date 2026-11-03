@@ -698,3 +698,30 @@ export const RotationChevronIcon: React.FC<{ color: string; size?: number }> = (
     <path d="M6 3 L14 10 L6 17" fill="none" stroke={color} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
+
+/**
+ * Jeton Rotation du Système solaire (livret p. 5) : disque argenté, orbite extérieure, arc épais,
+ * soleil sombre cerclé et deux planètes sur leurs orbites
+ */
+export const RotationTokenIcon: React.FC<{ size?: number }> = ({ size = 20 }) => {
+  const uid = useUid();
+  return (
+    <svg width={size} height={size} viewBox="-20 -20 40 40" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+      <defs>
+        <radialGradient id={`rot-${uid}`} cx="40%" cy="35%" r="70%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="70%" stopColor="#d9dde5" />
+          <stop offset="100%" stopColor="#a9afbb" />
+        </radialGradient>
+      </defs>
+      <circle r={19} fill={`url(#rot-${uid})`} stroke="#7d8492" strokeWidth={0.8} />
+      <circle r={15.5} fill="none" stroke="#9aa1ae" strokeWidth={1} />
+      {/* Arc épais de l'orbite moyenne, de la gauche au-dessus jusqu'à droite */}
+      <path d="M-10.8 4.2 A11.6 11.6 0 1 1 10.4 -5.1" fill="none" stroke="#a3a9b5" strokeWidth={2.6} strokeLinecap="round" />
+      <circle r={7} fill="none" stroke="#9aa1ae" strokeWidth={1.1} />
+      <circle r={4} fill="#2d3550" />
+      <circle cx={5} cy={-5} r={1.9} fill="#c3c8d1" stroke="#8d95a3" strokeWidth={0.8} />
+      <circle cx={-8.6} cy={8.6} r={3} fill="#b3b9c4" stroke="#8d95a3" strokeWidth={0.8} />
+    </svg>
+  );
+};
