@@ -90,7 +90,7 @@ Les déplacements gratuits reçus d'une carte (« 2 déplacements ») se dépens
 
 - Export / import de la partie, nouvelle partie.
 - La version du jeu (et le commit du build) est affichée en bas du menu et dans l'en-tête de la documentation.
-- **Outils de débogage** : affiche un panneau pour modifier les ressources, piocher une carte précise, etc. (à réserver aux tests).
+- **Outils de débogage** (en développement seulement, absents de la version publiée) : affiche un panneau pour modifier les ressources, piocher une carte précise, etc. (à réserver aux tests).
 
 ### 1.9 Glossaire des symboles
 

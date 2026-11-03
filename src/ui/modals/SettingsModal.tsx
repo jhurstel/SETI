@@ -1,3 +1,4 @@
+import { DEBUG_AVAILABLE } from '../hooks/useDebugSetting';
 import React, { useState, useEffect } from 'react';
 import { AIDifficulty, Game, HistoryEntry } from '../../core/types';
 import { NewGameModal } from './NewGameModal';
@@ -266,12 +267,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {onDocumentation && <button className="seti-home-link" onClick={onDocumentation}>Documentation</button>}
               <a className="seti-home-link" href="docs/seti-rules-fr.pdf" target="_blank" rel="noopener noreferrer">Règles (PDF)</a>
               <a className="seti-home-link" href="docs/SETI-FAQ-FR.pdf" target="_blank" rel="noopener noreferrer">FAQ (PDF)</a>
-              <label className="seti-home-option">
-                <input type="checkbox" checked={showDebug} onChange={e => setShowDebug(e.target.checked)} />
-                Outils de débogage
-              </label>
-              <span className="seti-home-version">{versionLabel()}</span>
+              {DEBUG_AVAILABLE && (
+                <label className="seti-home-option">
+                  <input type="checkbox" checked={showDebug} onChange={e => setShowDebug(e.target.checked)} />
+                  Outils de débogage
+                </label>
+              )}
             </div>
+            {/* Version discrète, en bas à droite de l'écran */}
+            <span className="seti-home-version">{versionLabel()}</span>
           </div>
         </div>
       )}

@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => ({
     __BUILD_COMMIT__: JSON.stringify(buildCommit),
     // Serveur du jeu en ligne : VITE_SERVER_URL (ex. wss://seti.onrender.com, à définir sur Netlify) ;
     // en développement, le serveur local (npm run server) ; vide : pas de jeu en ligne
+    // Outils de débogage : seulement en développement (npm run dev), jamais dans la version publiée
+    __DEBUG_TOOLS__: JSON.stringify(mode === 'development'),
     __SERVER_URL__: JSON.stringify(process.env.VITE_SERVER_URL || (mode === 'development' ? 'ws://localhost:8787' : '')),
   },
   base: './',
