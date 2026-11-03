@@ -10,7 +10,7 @@ import { HandCard } from './components/HandCard';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
-import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsIcon, EndTurnIcon, TransferDataIcon } from './components/GameIcons';
+import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, ResourceIconKind, VictoryPointsIcon, EndTurnIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
 import { ReservationIcon } from './components/ObjectiveSymbol';
 import { SLOT_COLORS } from './styles/slotColors';
@@ -32,7 +32,7 @@ interface PlayerBoardUIProps {
   onComputerSlotSelect: (col: number) => void;
   onNextPlayer: () => void;
   onDirectTradeAction: (spendType: string, gainType: string) => void;
-  setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
+  setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null) => void;
   onSettingsClick: () => void;
   onDocumentationClick: () => void;
   onMissionClick: (missionId: string, requirementId: string) => void;
@@ -499,75 +499,69 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     );
   }, [handleTooltipHover, handleTooltipLeave]);
 
-  // Helper pour le bouton d'achat de carte
-  // Infobulle d'un échange ou d'un achat (actions gratuites) : coût, puis gain ou raison du blocage
-  const CARD_GAIN = '1 carte (de la rangée ou de la pioche)';
-  const tradeTooltip = (cost: string, gain: string, canDo: boolean, lacking: string) => {
-    if (canDo) return <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} label="Coût" value={cost} note={`Cliquez pour gagner ${gain}`} />;
-    const reason = !isCurrentTurn ? "Ce n'est pas votre tour" : isInteractiveMode ? "Terminez d'abord l'action en cours" : lacking;
-    return <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} label="Coût" value={cost} note={reason} />;
-  };
-  const RESOURCE_LABELS: Record<string, { cost: string, gain: string, have: () => number, unit: string }> = {
-    credit: { cost: '2 Crédits', gain: '1 Crédit', have: () => currentPlayer.credits, unit: 'crédit(s)' },
-    energy: { cost: '2 Énergies', gain: '1 Énergie', have: () => currentPlayer.energy, unit: 'énergie(s)' },
-    card: { cost: '2 Cartes', gain: CARD_GAIN, have: () => handCards.length, unit: 'carte(s) en main' },
-  };
-
-  const renderBuyCardButton = (icon: React.ReactNode) => {
-    if (isRobot) return null;
-    const canBuy = isCurrentTurn && !isInteractiveMode && currentPlayer.mediaCoverage >= 3;
-    
-    return renderActionButton(
-        icon,
-        tradeTooltip('3 Médias', CARD_GAIN, canBuy, `Vous avez ${currentPlayer.mediaCoverage} média(s)`),
-        () => onBuyCardAction && onBuyCardAction(),
-        !canBuy,
-        canBuy ? '#ffd700' : '#555',
-        { marginLeft: '4px' }
-    );
+  // Infobulle d'une ressource : on peut y entrer (elle reste ouverte) pour cliquer ses actions gratuites
+  const tooltipCloseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelTooltipClose = useCallback(() => {
+    if (tooltipCloseRef.current) clearTimeout(tooltipCloseRef.current);
+    tooltipCloseRef.current = null;
+  }, []);
+  const scheduleTooltipClose = useCallback(() => {
+    cancelTooltipClose();
+    tooltipCloseRef.current = setTimeout(() => setActiveTooltip(null), 250);
+  }, [cancelTooltipClose, setActiveTooltip]);
+  useEffect(() => cancelTooltipClose, [cancelTooltipClose]);
+  const showInteractiveTooltip = (e: React.MouseEvent, content: React.ReactNode) => {
+    cancelTooltipClose();
+    setActiveTooltip({ content, rect: e.currentTarget.getBoundingClientRect(), pointerEvents: 'auto', onMouseEnter: cancelTooltipClose, onMouseLeave: scheduleTooltipClose });
   };
 
-  // Helper pour les boutons d'échange rapide
-  const renderDirectTradeButton = (spendType: string, gainType: string, icon: React.ReactNode, canSpend: boolean) => {
-    if (isRobot) return null;
-    const canTrade = isCurrentTurn && !isInteractiveMode && canSpend;
-    const spend = RESOURCE_LABELS[spendType];
-    
-    return renderActionButton(
-        icon, 
-        tradeTooltip(spend.cost, RESOURCE_LABELS[gainType].gain, canTrade, `Vous avez ${spend.have()} ${spend.unit}`), 
-        () => onDirectTradeAction && onDirectTradeAction(spendType, gainType), 
-        !canTrade, 
-        canTrade ? '#ffd700' : '#555',
-        { marginLeft: '4px' }
-    );
+  // Actions gratuites d'une ressource (échanges, achat d'une carte), proposées dans son infobulle
+  type FreeAction = { key: string; spend: ResourceIconKind; gain: ResourceIconKind; label: string; available: boolean; lacking: string; onClick: () => void };
+  const freeActionReason = (lacking: string) => !isCurrentTurn ? "Ce n'est pas votre tour" : isInteractiveMode ? "Terminez d'abord l'action en cours" : lacking;
+  const trade = (spend: 'credit' | 'energy', gain: 'credit' | 'energy' | 'card'): FreeAction => {
+    const have = spend === 'credit' ? currentPlayer.credits : currentPlayer.energy;
+    const spendLabel = spend === 'credit' ? '2 Crédits' : '2 Énergies';
+    const gainLabel = gain === 'credit' ? '1 Crédit' : gain === 'energy' ? '1 Énergie' : '1 Carte';
+    return {
+      key: `${spend}-${gain}`, spend, gain, label: `${spendLabel} → ${gainLabel}`, available: isCurrentTurn && !isInteractiveMode && have >= 2,
+      lacking: `Vous avez ${have} ${spend === 'credit' ? 'crédit(s)' : 'énergie(s)'}`, onClick: () => onDirectTradeAction && onDirectTradeAction(spend, gain),
+    };
   };
-
-  // Helper pour les boutons d'échange de cartes (initie la sélection)
-  const renderCardTradeButton = (gainType: string, icon: React.ReactNode, style?: React.CSSProperties) => {
-    if (isRobot) return null;
-    const canTrade = isCurrentTurn && !isInteractiveMode && handCards.length >= 2;
-    
-    return renderActionButton(
-        icon,
-        tradeTooltip('2 Cartes', RESOURCE_LABELS[gainType].gain, canTrade, `Vous avez ${handCards.length} carte(s) en main`),
-        () => onTradeCardAction && onTradeCardAction(gainType),
-        !canTrade,
-        canTrade ? '#ffd700' : '#555',
-        { marginLeft: '4px', ...style }
-    );
+  const cardTrade = (gain: 'credit' | 'energy'): FreeAction => ({
+    key: `card-${gain}`, spend: 'card', gain, label: `2 Cartes → ${gain === 'credit' ? '1 Crédit' : '1 Énergie'}`, available: isCurrentTurn && !isInteractiveMode && handCards.length >= 2,
+    lacking: `Vous avez ${handCards.length} carte(s) en main`, onClick: () => onTradeCardAction && onTradeCardAction(gain),
+  });
+  const buyCard: FreeAction = {
+    key: 'buy-card', spend: 'media', gain: 'card', label: '3 Médias → 1 Carte (rangée ou pioche)', available: isCurrentTurn && !isInteractiveMode && currentPlayer.mediaCoverage >= 3,
+    lacking: `Vous avez ${currentPlayer.mediaCoverage} média(s)`, onClick: () => onBuyCardAction && onBuyCardAction(),
   };
-
-  // Action gratuite « Transférer une donnée » : vers la case suivante de l'ordinateur (une autre case libre se choisit d'un clic dans l'ordinateur)
-  const renderTransferDataButton = () => {
-    const slotId = ComputerSystem.nextTransferSlot(currentPlayer);
-    const canTransfer = isCurrentTurn && !isInteractiveMode && !!slotId;
-    const lacking = (currentPlayer.data || 0) < 1 ? "Vous n'avez aucune donnée" : "Aucune case libre dans l'ordinateur";
-    const tooltip = canTransfer
-      ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} label="Coût" value="1 Donnée" note="Cliquez pour transférer une donnée sur la case suivante de l'ordinateur (ou cliquez une case libre de l'ordinateur)" />
-      : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} label="Coût" value="1 Donnée" note={!isCurrentTurn ? "Ce n'est pas votre tour" : isInteractiveMode ? "Terminez d'abord l'action en cours" : lacking} />;
-    return renderActionButton(<TransferDataIcon size={16} />, tooltip, () => slotId && handleComputerSlotClick(slotId), !canTransfer, '#6f9be0', {}, '', 'Transférer une donnée');
-  };
+  const resourceTooltip = (status: string, color: string, note: string, actions: FreeAction[]) => (
+    <div className="seti-resource-tooltip">
+      <SlotTooltip status={status} statusColor={color} note={note} />
+      {!isRobot && actions.length > 0 && (
+        <div className="seti-resource-tooltip-actions">
+          <div className="seti-resource-tooltip-actions-title">Actions gratuites</div>
+          {actions.map(action => (
+            <button
+              key={action.key}
+              type="button"
+              className="seti-resource-tooltip-action"
+              disabled={!action.available}
+              onClick={() => { setActiveTooltip(null); action.onClick(); }}
+            >
+              <span className="seti-resource-tooltip-action-icons">
+                <ResourceIcon kind={action.spend} size={16} /><span aria-hidden="true">→</span><ResourceIcon kind={action.gain} size={16} />
+              </span>
+              <span className="seti-resource-tooltip-action-text">
+                {action.label}
+                {!action.available && <span className="seti-resource-tooltip-action-reason">{freeActionReason(action.lacking)}</span>}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="seti-player-board-container">
@@ -623,49 +617,30 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
           <div className="seti-stats-bar">
             {(() => {
               const flashClass = (flash: { type: string } | null) => (flash ? (flash.type === 'gain' ? 'flash-gain' : 'flash-loss') : '');
-              const tile = (key: string, flash: { id: number; type: string } | null, icon: React.ReactNode, tooltip: React.ReactNode, actions?: React.ReactNode) => (
+              const tile = (key: string, flash: { id: number; type: string } | null, icon: React.ReactNode, tooltip: React.ReactNode) => (
                 <div
                   key={flash ? `${key}-${flash.id}` : `${key}-static`}
                   className={`seti-stat-tile ${flashClass(flash)}`}
+                  onMouseEnter={(e) => showInteractiveTooltip(e, tooltip)}
+                  onMouseLeave={scheduleTooltipClose}
                 >
-                  <div className="seti-stat-main" onMouseEnter={(e) => handleTooltipHover(e, tooltip)} onMouseLeave={handleTooltipLeave}>
-                    {icon}
-                  </div>
-                  {actions && <div className="seti-stat-actions">{actions}</div>}
+                  <div className="seti-stat-main">{icon}</div>
                 </div>
               );
               return (
                 <>
                   <div className="seti-stats-row">
                   {tile('score', scoreFlash, <VictoryPointsIcon amount={currentPlayer.score} size={32} />, <SlotTooltip status="Score" statusColor="#6fd8bf" note={`${currentPlayer.score} points de victoire`} />)}
-                  {tile('credit', creditFlash, <ResourceIcon kind="credit" amount={currentPlayer.credits} size={28} />,
-                    <SlotTooltip status="Crédits" statusColor="#ffd700" note={`${currentPlayer.credits} crédit${currentPlayer.credits > 1 ? 's' : ''} : sondes, orbites, scans, cartes`} />,
-                    !isRobot && <>
-                      {renderDirectTradeButton('credit', 'energy', <ResourceIcon kind="energy" size={14} />, currentPlayer.credits >= 2)}
-                      {renderDirectTradeButton('credit', 'card', <ResourceIcon kind="card" size={14} />, currentPlayer.credits >= 2)}
-                    </>)}
-                  {tile('energy', energyFlash, <ResourceIcon kind="energy" amount={currentPlayer.energy} size={28} />,
-                    <SlotTooltip status="Énergie" statusColor="#3daa3a" note={`${currentPlayer.energy} énergie${currentPlayer.energy > 1 ? 's' : ''} : déplacements, atterrissages, scans, analyse`} />,
-                    !isRobot && <>
-                      {renderDirectTradeButton('energy', 'credit', <ResourceIcon kind="credit" size={14} />, currentPlayer.energy >= 2)}
-                      {renderDirectTradeButton('energy', 'card', <ResourceIcon kind="card" size={14} />, currentPlayer.energy >= 2)}
-                    </>)}
-                  {tile('cards', cardsFlash, <ResourceIcon kind="card" amount={handCards.length} size={28} />,
-                    <SlotTooltip status="Cartes en main" statusColor="#e8e8e8" note={`${handCards.length} / ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} : au-delà, défausse en passant`} />,
-                    !isRobot && <>
-                      {/* Échange de 2 cartes contre 1 Crédit ou 1 Énergie (action gratuite) */}
-                      {renderCardTradeButton('credit', <ResourceIcon kind="credit" size={14} />)}
-                      {renderCardTradeButton('energy', <ResourceIcon kind="energy" size={14} />)}
-                    </>)}
-                  {tile('media', mediaFlash, <ResourceIcon kind="media" amount={currentPlayer.mediaCoverage} size={28} />,
-                    <SlotTooltip status="Couverture médiatique" statusColor="#e5197e" note={`${currentPlayer.mediaCoverage} / ${GAME_CONSTANTS.MAX_MEDIA_COVERAGE} : technologies (6), achat d'une carte (3)`} />,
-                    !isRobot && <>
-                      {/* Achat d'une carte (action gratuite, 3 Médias) */}
-                      {renderBuyCardButton(<ResourceIcon kind="card" size={14} />)}
-                    </>)}
-                  {tile('data', dataFlash, <ResourceIcon kind="data" amount={currentPlayer.data || 0} size={28} />,
-                    <SlotTooltip status="Données" statusColor="#6f9be0" note={`${currentPlayer.data || 0} / ${GAME_CONSTANTS.MAX_DATA} : à transférer vers l'ordinateur`} />,
-                    !isRobot && renderTransferDataButton())}
+                  {tile('credit', creditFlash, <ResourceIcon kind="credit" amount={currentPlayer.credits} size={30} />,
+                    resourceTooltip('Crédits', '#ffd700', `${currentPlayer.credits} crédit${currentPlayer.credits > 1 ? 's' : ''} : sondes, orbites, scans, cartes`, [trade('credit', 'energy'), trade('credit', 'card')]))}
+                  {tile('energy', energyFlash, <ResourceIcon kind="energy" amount={currentPlayer.energy} size={30} />,
+                    resourceTooltip('Énergie', '#3daa3a', `${currentPlayer.energy} énergie${currentPlayer.energy > 1 ? 's' : ''} : déplacements, atterrissages, scans, analyse`, [trade('energy', 'credit'), trade('energy', 'card')]))}
+                  {tile('cards', cardsFlash, <ResourceIcon kind="card" amount={handCards.length} size={30} />,
+                    resourceTooltip('Cartes en main', '#e8e8e8', `${handCards.length} / ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} : au-delà, défausse en passant`, [cardTrade('credit'), cardTrade('energy')]))}
+                  {tile('media', mediaFlash, <ResourceIcon kind="media" amount={currentPlayer.mediaCoverage} size={30} />,
+                    resourceTooltip('Couverture médiatique', '#e5197e', `${currentPlayer.mediaCoverage} / ${GAME_CONSTANTS.MAX_MEDIA_COVERAGE} : technologies (6), achat d'une carte (3)`, [buyCard]))}
+                  {tile('data', dataFlash, <ResourceIcon kind="data" amount={currentPlayer.data || 0} size={30} />,
+                    resourceTooltip('Données', '#6f9be0', `${currentPlayer.data || 0} / ${GAME_CONSTANTS.MAX_DATA} : à transférer vers l'ordinateur`, []))}
 
                   {/* Revenus : bouton Réservation, revenus de chaque manche en miniature, détail en infobulle */}
                   {(() => {
@@ -717,7 +692,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   })()}
                   </div>
 
-                  {/* Ligne des actions du tour, sous les ressources : Rechercher une technologie, Jouer une carte, puis Fin de tour et Passer */}
+                  {/* Ligne des 8 actions principales en hexagones, puis la fin du tour à part */}
                   {!isRobot && (() => {
                     // Une interaction obligatoire en cours (ex : technologie à choisir) empêche de finir le tour ou de passer
                     const interactionBlocks = isInteractiveMode || TurnManager.blocksEndOfTurn(interactionState);
@@ -729,17 +704,23 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                       ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} note="Cliquez pour terminer votre tour" />
                       : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} note={endTurnReason} />;
                     const canPass = actionAvailability[ActionType.PASS] && !interactionBlocks;
-                    const canPlay = actionAvailability[ActionType.PLAY_CARD] && !isInteractiveMode;
-                    const canResearch = actionAvailability[ActionType.RESEARCH_TECH] && !isInteractiveMode;
+                    const mainActions: [ActionIconKind, ActionType][] = [
+                      ['launch', ActionType.LAUNCH_PROBE], ['orbit', ActionType.ORBIT], ['land', ActionType.LAND], ['scan', ActionType.SCAN_SECTOR],
+                      ['analyze', ActionType.ANALYZE_DATA], ['card', ActionType.PLAY_CARD], ['research', ActionType.RESEARCH_TECH], ['pass', ActionType.PASS],
+                    ];
                     return (
-                      <div className="seti-turn-actions">
-                        {/* Actions principales payées en Médias et en cartes, en surbrillance quand elles sont possibles */}
-                        {renderActionButton(<ActionHexIcon kind="research" size={22} />, getActionTooltip(ActionType.RESEARCH_TECH, canResearch), () => onAction(ActionType.RESEARCH_TECH), !canResearch, '#4a9eff', {}, canResearch ? 'seti-flash-green' : '', 'Rechercher une technologie')}
-                        {/* « Jouer une carte » : met en avant les cartes jouables de la main */}
-                        {renderActionButton(<ActionHexIcon kind="card" size={22} />, getActionTooltip(ActionType.PLAY_CARD, canPlay), () => onAction(ActionType.PLAY_CARD), !canPlay, '#4a9eff', {}, canPlay ? 'seti-flash-green' : '', ActionType.PLAY_CARD)}
-                        <span className="seti-turn-actions-separator" aria-hidden="true" />
-                        {renderActionButton(<EndTurnIcon size={22} />, endTurnTooltip, () => onNextPlayer && onNextPlayer(), !canEndTurn, '#fff', {}, canEndTurn ? 'seti-flash-green' : '', 'Prochain joueur')}
-                        {renderActionButton(<ActionHexIcon kind="pass" size={22} />, getActionTooltip(ActionType.PASS, canPass), () => onAction(ActionType.PASS), !canPass, '#fff', {}, '', 'Passer définitivement')}
+                      <div className="seti-main-actions">
+                        {mainActions.map(([kind, actionType]) => {
+                          const available = actionType === ActionType.PASS ? canPass : actionAvailability[actionType] && !isInteractiveMode;
+                          return (
+                            <TrackSlot key={actionType} icon={<ActionHexIcon kind={kind} size={36} />} hex label={actionType} tooltip={getActionTooltip(actionType, available)}
+                              clickable={available} flash={available && actionType !== ActionType.PASS} onClick={() => onAction(actionType)}
+                              onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
+                          );
+                        })}
+                        <span className="seti-main-actions-separator" aria-hidden="true" />
+                        <TrackSlot icon={<EndTurnIcon size={36} />} hex label="Prochain joueur" tooltip={endTurnTooltip} clickable={canEndTurn} flash={canEndTurn}
+                          onClick={() => onNextPlayer && onNextPlayer()} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
                       </div>
                     );
                   })()}

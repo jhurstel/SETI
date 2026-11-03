@@ -1,6 +1,6 @@
 import React from 'react';
 import { TechnologyCategory } from '../../core/types';
-import { ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, ROTATION_CHEVRON_COLORS, TransferDataIcon } from './GameIcons';
+import { ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, ROTATION_CHEVRON_COLORS } from './GameIcons';
 import { ReservationIcon, TechCategoryIcon, AnyTechIcon, OrbiterOrLanderIcon } from './ObjectiveSymbol';
 import { LIFE_TRACE_COLORS } from '../styles/lifeTraceColors';
 
@@ -30,7 +30,6 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
     entries: [
       { icon: <DiscardCardIcon size={28} />, name: 'Défausser une carte', text: 'Une carte de la main pour l\'action gratuite de son coin (Média, donnée, déplacement…).' },
       { icon: <ResourceIcon kind="movement" size={28} />, name: 'Déplacer une sonde', text: '1 énergie (ou un déplacement gratuit) par case.' },
-      { icon: <TransferDataIcon size={28} />, name: 'Transférer une donnée', text: "1 donnée vers la case suivante de l'ordinateur (ou une case libre au choix d'un clic dans l'ordinateur)." },
     ],
   },
   {

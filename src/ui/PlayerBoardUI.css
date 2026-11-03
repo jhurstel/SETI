@@ -517,18 +517,7 @@
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
 }
 
-.seti-stat-actions {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-}
 
-.seti-stat-actions .seti-action-btn {
-  margin-left: 0 !important;
-  width: 21px;
-  padding: 0;
-}
 
 /* Revenus : bouton Réservation, nombre de cartes réservées, revenus en miniature */
 .seti-revenue-tile {
@@ -611,24 +600,95 @@
   gap: 4px;
 }
 
-/* Actions du tour, sur une ligne sous les ressources : Rechercher, Jouer une carte | Fin de tour, Passer */
-.seti-turn-actions {
+/* Les 8 actions principales en hexagones (comme sur les pistes), puis la fin du tour, à part */
+.seti-main-actions {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
   padding-top: 5px;
   border-top: 1px solid rgba(120, 160, 255, 0.15);
 }
 
-.seti-turn-actions .seti-action-btn {
-  width: 40px;
-  height: 26px;
+.seti-main-actions .obs-track-slot.hex {
+  width: 38px;
+  height: 38px;
 }
 
-.seti-turn-actions-separator {
+.seti-main-actions-separator {
   width: 1px;
-  height: 18px;
+  height: 26px;
   margin: 0 6px;
   background: rgba(120, 160, 255, 0.3);
+}
+
+/* Infobulle d'une ressource : actions gratuites cliquables */
+.seti-stat-tile {
+  cursor: help;
+}
+
+.seti-resource-tooltip-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.seti-resource-tooltip-actions-title {
+  font-size: 0.75em;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8fa6d6;
+}
+
+.seti-resource-tooltip-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(74, 158, 255, 0.5);
+  background: rgba(74, 158, 255, 0.12);
+  color: #e8f1ff;
+  font: inherit;
+  font-size: 0.85em;
+  text-align: left;
+  cursor: pointer;
+}
+
+.seti-resource-tooltip-action:hover:not(:disabled) {
+  background: rgba(74, 158, 255, 0.3);
+  border-color: #6fc3ff;
+}
+
+.seti-resource-tooltip-action:disabled {
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #8a93a8;
+}
+
+.seti-resource-tooltip-action:disabled svg {
+  opacity: 0.45;
+  filter: grayscale(0.8);
+}
+
+.seti-resource-tooltip-action-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.seti-resource-tooltip-action-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.seti-resource-tooltip-action-reason {
+  font-size: 0.85em;
+  color: #ff8a8a;
 }

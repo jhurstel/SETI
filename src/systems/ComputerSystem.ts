@@ -71,15 +71,6 @@ export class ComputerSystem {
   }
 
   /**
-   * Case visée par l'action gratuite « Transférer une donnée » : la case suivante de la ligne du haut,
-   * sinon la première case libre de la ligne du bas (sous une technologie) ; aucune sans donnée ni case libre.
-   */
-  static nextTransferSlot(player: Player): string | undefined {
-    const fillable = Object.values(player.dataComputer.slots).filter(slot => this.canFillSlot(player, slot.id));
-    return (fillable.find(slot => slot.type === 'top') ?? fillable.sort((a, b) => a.col - b.col)[0])?.id;
-  }
-
-  /**
    * Transfère 1 donnée sur une case de l'ordinateur (action gratuite), joueur humain comme robot :
    * gains directs, message d'historique, et interactions des bonus à choix (réservation d'une carte
    * de la main, carte de la rangée ou de la pioche).

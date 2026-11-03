@@ -1,10 +1,10 @@
 import { test, expect, Page } from '@playwright/test';
 
-/** Emplacement d'action principale disponible sur une piste du plateau joueur (exploration, observation). */
+/** Action principale disponible dans la ligne des actions du plateau joueur (hexagones). */
 const availableAction = (page: Page, label: string) =>
-  page.locator(`.obs-track-slot.clickable[aria-label="${label}"]`);
+  page.locator(`.seti-main-actions .obs-track-slot.clickable[aria-label="${label}"]`);
 /** N'importe quel emplacement d'action principale disponible. */
-const anyAvailableAction = (page: Page) => page.locator('.obs-track-slot.clickable[aria-label]');
+const anyAvailableAction = (page: Page) => page.locator('.seti-main-actions .obs-track-slot.clickable[aria-label]');
 
 test('tour complet du joueur humain : lancer une sonde, passer la main au robot, la récupérer', async ({ page }) => {
   await page.goto('/');

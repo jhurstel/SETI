@@ -581,19 +581,6 @@ const Revenue = () => {
   );
 };
 
-/** Action gratuite « Transférer une donnée » : pastille fléchée bleutée (comme les échanges) et petit jeton Donnée */
-export const TransferDataIcon: React.FC<{ size?: number }> = ({ size = 24 }) => (
-  <svg width={size} height={size} viewBox="-24 -24 48 48" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
-    <path d="M-10 -16 H12 L24 0 L12 16 H-10 Q-14 16 -14 12 V-12 Q-14 -16 -10 -16 Z" fill="#2c5aa8" />
-    <g transform="translate(2 0)">
-      <rect x={-8} y={-8} width={16} height={16} rx={2.5} transform="rotate(45)" fill="#dce8ff" />
-      <g fill="#2c5aa8" fontSize={5.5} fontWeight="bold" fontFamily="Consolas, monospace" textAnchor="middle">
-        <text y={-0.5}>01</text><text y={5.5}>10</text>
-      </g>
-    </g>
-  </svg>
-);
-
 /** Icône de ressource du matériel ; `amount` affiche le nombre comme sur les cartes */
 export const ResourceIcon: React.FC<{ kind: ResourceIconKind; amount?: number; size?: number }> = ({ kind, amount, size = 24 }) => {
   const wide = kind !== 'revenue' && amount !== undefined;
