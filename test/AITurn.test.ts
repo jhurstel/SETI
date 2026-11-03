@@ -153,7 +153,7 @@ describe('AITurn (parties complètes entre robots)', () => {
     if (step.kind !== 'UPDATED') return;
     const messages = step.historyEntries.map(e => e.message);
     expect(messages[0]).toMatch(/^échange 2 .* contre 1 /);
-    expect(messages.some(m => m.includes('pour jouer carte "Carte rich"'))).toBe(true);
+    expect(messages.some(m => m.includes('pour jouer "Carte rich"'))).toBe(true);
   });
 
   test('la mise en place : chaque robot réserve une carte puis la partie démarre', async () => {

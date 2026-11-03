@@ -27,10 +27,10 @@ describe('Cartes : cas limites et refus', () => {
       getPlayer(game, P1).mediaCoverage = 5;
       const res = CardSystem.acquireCard(game, P1, undefined, {}, 's');
       const message = res.historyEntries[0].message;
-      expect(revealText(message)).toMatch(/^paye 3 médias pour acheter carte ".+" depuis la pioche$/);
+      expect(revealText(message)).toMatch(/^paye 3 médias pour acheter ".+" depuis la pioche$/);
       // La carte piochée n'est lisible que par celui qui l'a achetée
       expect(textFor(message, P1)).toBe(revealText(message));
-      expect(textFor(message, 'player_1')).toBe('paye 3 médias pour acheter carte depuis la pioche');
+      expect(textFor(message, 'player_1')).toBe('paye 3 médias pour acheter une carte depuis la pioche');
       expect(getPlayer(res.updatedGame, P1).mediaCoverage).toBe(2);
     });
 
@@ -47,7 +47,7 @@ describe('Cartes : cas limites et refus', () => {
       const res = CardSystem.acquireCard(game, P1, 'row', { isFree: true, triggerFreeAction: true }, 's');
 
       const after = getPlayer(res.updatedGame, P1);
-      expect(res.historyEntries[0].message).toBe(`choisit carte "Carte row"${suffix}`);
+      expect(res.historyEntries[0].message).toBe(`choisit "Carte row"${suffix}`);
       Object.entries(gains).forEach(([key, value]) => expect(after[key as 'score']).toBe(before[key as 'score'] + value));
       expect(after.cards.find(c => c.id === 'row')!.isRevealed).toBe(true);
       if (freeAction === FreeActionType.PV_MOVEMENT) expect(res.newPendingInteractions).toEqual([{ type: 'MOVING_PROBE', count: 1, sequenceId: 's' }]);

@@ -944,7 +944,7 @@ export class ProbeSystem {
       const [resource, amount] = String(landBonus.value).split(':');
       const bonusRes = ResourceSystem.processBonuses({ [resource]: parseInt(amount, 10) || 0 } as Bonus, result.updatedGame, playerId, 'land-bonus', currentSequenceId);
       result.updatedGame = bonusRes.updatedGame;
-      if (bonusRes.logs.length > 0) result.historyEntries.push({ message: `${bonusRes.logs.join(', ')} (carte "${this.findCard(result.updatedGame, sourceId!)?.name}")`, playerId, sequenceId: currentSequenceId });
+      if (bonusRes.logs.length > 0) result.historyEntries.push({ message: `${bonusRes.logs.join(', ')} ("${this.findCard(result.updatedGame, sourceId!)?.name}")`, playerId, sequenceId: currentSequenceId });
     }
 
     // Cartes « … et prélevez un spécimen » : sur Jupiter, Saturne ou une de leurs lunes, tant qu'il reste des spécimens

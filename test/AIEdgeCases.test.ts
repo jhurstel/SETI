@@ -232,7 +232,7 @@ describe('Robots : cas limites', () => {
       expect(step.kind).toBe('SETUP_RESERVED');
       if (step.kind === 'SETUP_RESERVED') {
         expect(getPlayer(step.updatedGame, P1).reservedCards).toHaveLength(1);
-        expect(step.historyEntries[0].message).toMatch(/^réserve carte /);
+        expect(step.historyEntries[0].message).toMatch(/^réserve /);
       }
     });
 
@@ -250,7 +250,7 @@ describe('Robots : cas limites', () => {
       player.mediaCoverage = 5;
       const options = AITurn['buyCardOptions'](game, player);
       expect(options).toHaveLength(game.decks.cardRow.length + 1);
-      expect(history(options[0])[0]).toMatch(/^paye 3 médias pour acheter carte ".+" depuis la rangée$/);
+      expect(history(options[0])[0]).toMatch(/^paye 3 médias pour acheter ".+" depuis la rangée$/);
       expect(history(options[options.length - 1])[0]).toMatch(/depuis la pioche$/);
       expect(getPlayer(options[0].updatedGame, P1).mediaCoverage).toBe(2);
     });
@@ -316,7 +316,7 @@ describe('Robots : cas limites', () => {
       if (difficulty === 'PASS') expect(taken.id).toBe(roundDeck[0].id);
       expect(applied.game.decks.roundDecks[game.currentRound]).toHaveLength(roundDeck.length - 1);
       const message = applied.entries.map(e => e.message).find(m => m.includes('de fin de manche'))!;
-      expect(revealText(message)).toBe(`choisit carte "${taken.name}" de fin de manche`);
+      expect(revealText(message)).toBe(`prend "${taken.name}" de la pile de fin de manche`);
       expect(textFor(message, P2)).not.toContain(taken.name);
     });
 
@@ -327,7 +327,7 @@ describe('Robots : cas limites', () => {
       nextDrawBelow(0.1);
       const res = AITurn['tryDiscardForFreeAction'](game, player)!;
       expect(getPlayer(res.updatedGame, P1).mediaCoverage).toBe(2);
-      expect(history(res)[0]).toMatch(/^défausse carte "/);
+      expect(history(res)[0]).toMatch(/^défausse "/);
     });
   });
 

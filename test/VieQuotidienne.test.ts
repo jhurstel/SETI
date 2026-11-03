@@ -60,7 +60,7 @@ describe('ET.15 « Vie Quotidienne » : 3 cartes piochées, une défaussée pour
     expect(second.error).toBeUndefined();
     expect(getPlayer(second.updatedGame, P1).credits).toBe(credits + 1);
     expect(second.nextInteraction).toBeUndefined();
-    expect(second.historyEntries[0].message).toContain('défausse carte "Carte data" et gagne 1 Crédit (revenu)');
+    expect(second.historyEntries[0].message).toContain('défausse "Carte data" et gagne 1 Crédit (revenu)');
   });
 
   test('une carte qui n\'est pas une des cartes piochées est refusée', () => {
@@ -85,6 +85,6 @@ describe('ET.15 « Vie Quotidienne » : 3 cartes piochées, une défaussée pour
     const res = AIController.processInteractionQueue(played.updatedGame, played.newPendingInteractions, 's', getPlayer(played.updatedGame, P1));
     const hand = getPlayer(res.updatedGame, P1).cards.map(c => c.id);
     expect(['media', 'data', 'move'].filter(id => hand.includes(id))).toHaveLength(1);
-    expect(res.historyEntries.filter(e => e.message.startsWith('défausse carte'))).toHaveLength(2);
+    expect(res.historyEntries.filter(e => e.message.startsWith('défausse "'))).toHaveLength(2);
   });
 });

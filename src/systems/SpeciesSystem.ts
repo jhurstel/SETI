@@ -403,7 +403,7 @@ export class SpeciesSystem {
             scorePerTraceBuffs.forEach(buff => {
                 const points = tracesOfColor * (effectNumber(buff) || 1);
                 scoringPlayer.score += points;
-                res.historyEntries.push({ message: `gagne ${ResourceSystem.formatResource(points, 'PV')} (${tracesOfColor} trace${tracesOfColor > 1 ? 's' : ''} de vie ${color}, carte "${buff.source}")`, playerId, sequenceId });
+                res.historyEntries.push({ message: `gagne ${ResourceSystem.formatResource(points, 'PV')} (${tracesOfColor} trace${tracesOfColor > 1 ? 's' : ''} de vie ${color}, "${buff.source}")`, playerId, sequenceId });
             });
             scoringPlayer.activeBuffs = scoringPlayer.activeBuffs.filter(b => b.type !== 'SCORE_PER_TRACE');
         }

@@ -222,7 +222,7 @@ export class InteractionChoices {
         sequenceId: interaction.sequenceId,
         cardId: discardedCard.id,
         cardProcessed: true,
-        message: `utilise carte "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`,
+        message: `utilise "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`,
       }],
     };
   }
@@ -331,7 +331,7 @@ export class InteractionChoices {
     if (index === -1) return refused(game, 'Carte absente de la pile de fin de manche');
     const [card] = deck.splice(index, 1);
     requirePlayer(updatedGame, playerId).cards.push(card);
-    const message = `choisit carte ${privateText(playerId, `"${card.name}"`)} de fin de manche`;
+    const message = `prend ${privateText(playerId, `"${card.name}"`, 'une carte')} de la pile de fin de manche`;
     const finished = PassAction.finishPass(updatedGame);
     return { updatedGame: finished.updatedGame, historyEntries: [{ message, playerId, sequenceId: interaction.sequenceId || '' }, ...finished.historyEntries], newPendingInteractions: [] };
   }

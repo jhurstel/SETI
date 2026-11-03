@@ -51,7 +51,7 @@ describe('cartes : revenus, actions gratuites et récompenses', () => {
       player.data = 0;
       const res = CardSystem.discardCardForRevenue(game, P1, 'rv', 'seq');
       expect(getPlayer(res.updatedGame, P1)[field]).toBe(1);
-      expect(res.historyEntries[0].message).toMatch(/^défausse carte "Revenu" et .+ \(revenu\)$/);
+      expect(res.historyEntries[0].message).toMatch(/^défausse "Revenu" et .+ \(revenu\)$/);
       expect(player[field]).toBe(0);
     });
   });

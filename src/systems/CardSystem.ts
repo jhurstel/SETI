@@ -141,7 +141,7 @@ export class CardSystem {
                 const drawn = updatedGame.players.find(p => p.id === playerId)!.cards.find(c => !handBefore.includes(c.id));
                 if (drawn) gain += ` ${privateText(playerId, `"${drawn.name}"`)}`;
             }
-            historyEntries.push({ message: `réserve carte "${card.name}" et gagne ${gain}`, playerId, sequenceId });
+            historyEntries.push({ message: `réserve "${card.name}" et gagne ${gain}`, playerId, sequenceId });
         }
         return { updatedGame, historyEntries, reservedCount };
     }
@@ -164,8 +164,8 @@ export class CardSystem {
         const newPendingInteractions: InteractionState[] = [];
 
         let message = options.isFree
-            ? (cardId ? `choisit carte "${cardName}"` : `pioche carte ${privateText(playerId, `"${cardName}"`)}`)
-            : `paye 3 médias pour acheter carte ${cardId ? `"${cardName}" depuis la rangée` : `${privateText(playerId, `"${cardName}"`)} depuis la pioche`}`;
+            ? (cardId ? `choisit "${cardName}"` : `pioche ${privateText(playerId, `"${cardName}"`, 'une carte')}`)
+            : `paye 3 médias pour acheter ${cardId ? `"${cardName}" depuis la rangée` : `${privateText(playerId, `"${cardName}"`, 'une carte')} depuis la pioche`}`;
 
         if (options.triggerFreeAction && card) {
             card.isRevealed = true;
@@ -441,7 +441,7 @@ export class CardSystem {
         const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs, historyEntries } = ResourceSystem.processBonuses(bonuses || {}, updatedGame, player.id, cardId, sequenceId);
 
         // Construction du message d'historique unifié
-        let message = `paye ${card.cost} ${card.costType}${card.cost > 1 ? 's' : ''} pour jouer carte "${card.name}"`;
+        let message = `paye ${card.cost} ${card.costType}${card.cost > 1 ? 's' : ''} pour jouer "${card.name}"`;
 
         // Filtrer les logs pour séparer ce qu'on fusionne de ce qu'on garde séparé
         const isPassiveLog = (log: string) => log.startsWith('gagne ') || log.startsWith('pioche ');
@@ -616,7 +616,7 @@ export class CardSystem {
         const { updatedGame: gameAfterBonuses, newPendingInteractions, logs, historyEntries } = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, cardId, sequenceId);
 
         // 5. Create history entry
-        let message = `défausse carte "${card.name}"`;
+        let message = `défausse "${card.name}"`;
         if (logs.length > 0) {
             message += ` et ${logs.join(', ')}`;
         }
@@ -642,7 +642,7 @@ export class CardSystem {
         }
         const discarded = this.discardCard(game, playerId, cardId);
         const res = ResourceSystem.processBonuses(bonus, discarded, playerId, cardId, sequenceId);
-        res.historyEntries.unshift({ message: `défausse carte "${card.name}"${res.logs.length > 0 ? ` et ${res.logs.join(', ')}` : ''} (revenu)`, playerId, sequenceId });
+        res.historyEntries.unshift({ message: `défausse "${card.name}"${res.logs.length > 0 ? ` et ${res.logs.join(', ')}` : ''} (revenu)`, playerId, sequenceId });
         return { updatedGame: res.updatedGame, historyEntries: res.historyEntries, newPendingInteractions: res.newPendingInteractions };
     }
 

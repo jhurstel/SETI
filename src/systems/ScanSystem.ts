@@ -241,13 +241,13 @@ export class ScanSystem {
         if (winnerId === playerId) {
           if (buff.target === 'energy') {
             bonuses.energy = (bonuses.energy || 0) + effectNumber(buff);
-            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'ENERGY')} (Bonus carte "${buff.source}")`);
+            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'ENERGY')} (Bonus "${buff.source}")`);
           } else if (buff.target === 'draw') {
             bonuses.card = (bonuses.card || 0) + effectNumber(buff);
-            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'CARD')} (Bonus carte "${buff.source}")`);
+            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'CARD')} (Bonus "${buff.source}")`);
           } else if (buff.target === 'data') {
             bonuses.data = (bonuses.data || 0) + effectNumber(buff);
-            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'DATA')} (Bonus carte "${buff.source}")`);
+            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'DATA')} (Bonus "${buff.source}")`);
           }
         }
       });
@@ -613,7 +613,7 @@ export class ScanSystem {
         const { updatedGame: gameAfterRowDiscard, discardedCard } = CardSystem.discardFromRow(updatedGame, interaction.cardId);
         if (discardedCard) {
           updatedGame = gameAfterRowDiscard;
-          initialLogs.push(`utilise carte "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`);
+          initialLogs.push(`utilise "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`);
           cardProcessed = true;
         }
       }
@@ -629,7 +629,7 @@ export class ScanSystem {
         if (cardIndex !== -1) {
           const removedCard = source.cards.splice(cardIndex, 1)[0];
           updatedGame.decks.discardPile.push(removedCard);
-          initialLogs.push(`utilise carte "${removedCard.name}" (${removedCard.scanSector}) ${source.label}`);
+          initialLogs.push(`utilise "${removedCard.name}" (${removedCard.scanSector}) ${source.label}`);
           cardProcessed = true;
         }
       }
@@ -662,7 +662,7 @@ export class ScanSystem {
       if (playerSignals.length === 1 && cardIndex !== -1 && player) {
         const card = discardPile.splice(cardIndex, 1)[0];
         player.cards.push(card);
-        historyEntries.push({ message: `récupère la carte "${card.name}" en main (Condition remplie)`, playerId, sequenceId });
+        historyEntries.push({ message: `récupère "${card.name}" en main (Condition remplie)`, playerId, sequenceId });
       }
     }
 

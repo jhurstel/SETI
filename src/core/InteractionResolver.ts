@@ -124,7 +124,7 @@ export class InteractionResolver {
 
     return {
       updatedGame,
-      historyEntries: [{ message: `révèle carte "${drawnCard.name}" (${drawnCard.scanSector}) de la pioche`, playerId, sequenceId }],
+      historyEntries: [{ message: `révèle "${drawnCard.name}" (${drawnCard.scanSector}) de la pioche`, playerId, sequenceId }],
       newInteractions: [{
         type: 'SELECTING_SCAN_SECTOR',
         color: drawnCard.scanSector,

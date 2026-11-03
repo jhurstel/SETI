@@ -107,7 +107,7 @@ describe('CardSystem', () => {
 
       expect(getPlayer(updatedGame, P1).mediaCoverage).toBe(3);
       expect(getPlayer(updatedGame, P1).cards).toHaveLength(0);
-      expect(historyEntries[0].message).toContain('défausse carte "Carte f1"');
+      expect(historyEntries[0].message).toContain('défausse "Carte f1"');
     });
   });
 

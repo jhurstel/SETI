@@ -60,7 +60,7 @@ describe('Règles des cartes', () => {
       expect(res.updatedGame.decks.discardPile.some(c => c.id === 'free')).toBe(true);
       Object.entries(gain).forEach(([key, value]) => expect(after[key as 'data' | 'mediaCoverage']).toBe(value));
       expect(after.score).toBe(score + points);
-      expect(res.historyEntries[0].message).toContain('défausse carte "Carte free"');
+      expect(res.historyEntries[0].message).toContain('défausse "Carte free"');
       expect(JSON.stringify(game)).toBe(before);
     });
 

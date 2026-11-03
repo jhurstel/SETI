@@ -65,6 +65,11 @@
     letter-spacing: 0.05em;
 }
 
+/* Séparateurs successifs (début de partie, manche, tour) : rapprochés */
+.seti-history-separator + .seti-history-separator {
+    margin-top: -6px;
+}
+
 .seti-history-separator-line {
     flex: 1;
     height: 1px;

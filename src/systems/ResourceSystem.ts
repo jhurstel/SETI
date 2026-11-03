@@ -327,12 +327,12 @@ export class ResourceSystem {
         const actualDrawn = updatedPlayer.cards.length - countBefore;
         if (actualDrawn > 0) {
           const drawnCards = updatedPlayer.cards.slice(-actualDrawn);
-          cardDetails = ` ${privateText(playerId, `"${drawnCards.map(c => c.name).join('", "')}"`)}`;
+          cardDetails = ` ${privateText(playerId, `"${drawnCards.map(c => c.name).join('", "')}"`, `${actualDrawn} carte${actualDrawn > 1 ? 's' : ''}`)}`;
         }
       }
 
       passiveGains.push(ResourceSystem.formatResource(bonuses.card, 'CARD'));
-      logs.push(`pioche carte ${cardDetails}`);
+      logs.push(`pioche${cardDetails || " aucune carte"}`);
     }
     if (bonuses.probe) {
       const ignoreLimit = bonuses.ignoreProbeLimit || false;

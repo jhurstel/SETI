@@ -55,7 +55,9 @@ describe('les cartes piochées face cachée ne sont nommées que pour leur propr
 
   test('carte gagnée ou achetée dans la pioche ; une carte de la rangée reste publique', () => {
     const free = CardSystem.acquireCard(game, P1, undefined, { isFree: true }, 's');
-    expect(revealText(free.historyEntries[0].message)).toMatch(/^pioche carte ".+"$/);
+    expect(revealText(free.historyEntries[0].message)).toMatch(/^pioche ".+"$/);
+    // Les autres joueurs lisent « une carte » à la place du nom
+    expect(textFor(free.historyEntries[0].message, P2)).toBe('pioche une carte');
     expectPrivate(free.historyEntries[0].message, P1, P2, drawnCards(game, free.updatedGame, P1));
 
     getPlayer(game, P1).mediaCoverage = 5;
@@ -72,15 +74,16 @@ describe('les cartes piochées face cachée ne sont nommées que pour leur propr
 
   test('bonus de carte (processBonuses)', () => {
     const res = ResourceSystem.processBonuses({ card: 2 }, game, P1, 'test', 's');
-    const message = res.logs.find(log => log.startsWith('pioche carte'))!;
+    const message = res.logs.find(log => log.startsWith('pioche '))!;
     expectPrivate(message, P1, P2, drawnCards(game, res.updatedGame, P1));
+    expect(textFor(message, P2)).toBe('pioche 2 cartes');
   });
 
   test('réservation d\'une carte à revenu « carte »', () => {
     const card = getPlayer(game, P1).cards[0];
     getPlayer(game, P1).cards[0] = { ...card, revenue: RevenueType.CARD };
     const res = CardSystem.reserveCards(game, P1, [card.id], 's');
-    expect(textFor(res.historyEntries[0].message, P2)).toContain(`réserve carte "${card.name}"`);
+    expect(textFor(res.historyEntries[0].message, P2)).toContain(`réserve "${card.name}"`);
     const drawn = drawnCards(game, res.updatedGame, P1).filter(c => c.id !== card.id);
     expectPrivate(res.historyEntries[0].message, P1, P2, drawn);
   });

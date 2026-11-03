@@ -231,7 +231,7 @@ describe('PassAction', () => {
 
       expect(getPlayer(chosen.updatedGame, P1).cards.some(c => c.id === card.id)).toBe(true);
       expect(chosen.updatedGame.currentPlayerIndex).toBe(1);
-      expect(chosen.historyEntries.map(e => revealText(e.message))).toEqual([`choisit carte "${card.name}" de fin de manche`, '--- Tour de Bob ---']);
+      expect(chosen.historyEntries.map(e => revealText(e.message))).toEqual([`prend "${card.name}" de la pile de fin de manche`, '--- Tour de Bob ---']);
       expect(passed.currentPlayerIndex).toBe(0);
     });
 

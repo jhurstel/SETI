@@ -32,7 +32,7 @@ describe('Opérations du moteur utilisées par l\'interface', () => {
       expect(p.revenueCredits).toBe(revenueCredits + 1);
       expect(p.reservedCards.map(c => c.id)).toEqual(['c1']);
       expect(p.cards).toEqual([]);
-      expect(res.historyEntries).toEqual([{ message: expect.stringMatching(/^réserve carte "Carte c1" et gagne /), playerId: P1, sequenceId: 'seq' }]);
+      expect(res.historyEntries).toEqual([{ message: expect.stringMatching(/^réserve "Carte c1" et gagne /), playerId: P1, sequenceId: 'seq' }]);
       expect(JSON.stringify(game)).toBe(snapshot);
     });
 
@@ -61,7 +61,7 @@ describe('Opérations du moteur utilisées par l\'interface', () => {
       const res = CardSystem.acquireCard(game, P1, rowCard.id, {}, 'seq');
       expect(getPlayer(res.updatedGame, P1).mediaCoverage).toBe(1);
       expect(getPlayer(res.updatedGame, P1).cards.some(c => c.id === rowCard.id)).toBe(true);
-      expect(res.historyEntries[0].message).toBe(`paye 3 médias pour acheter carte "${rowCard.name}" depuis la rangée`);
+      expect(res.historyEntries[0].message).toBe(`paye 3 médias pour acheter "${rowCard.name}" depuis la rangée`);
     });
 
     test('Subventions : la carte gagnée est révélée et son action gratuite appliquée, sans toucher la partie reçue', () => {
@@ -72,7 +72,7 @@ describe('Opérations du moteur utilisées par l\'interface', () => {
       const p = getPlayer(res.updatedGame, P1);
       expect(p.mediaCoverage).toBe(media + 1);
       expect(p.cards.find(c => c.id === 'sub')!.isRevealed).toBe(true);
-      expect(res.historyEntries[0].message).toBe('choisit carte "Carte sub" et gagne 1 Média');
+      expect(res.historyEntries[0].message).toBe('choisit "Carte sub" et gagne 1 Média');
       expect(game.decks.cardRow[0].isRevealed).toBe(false);
     });
 
