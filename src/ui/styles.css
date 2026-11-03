@@ -415,6 +415,12 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   50% { box-shadow: 0 0 14px rgba(76, 175, 80, 0.9); }
 }
 
+/* Infobulle d'un simple libellé (symbole) : à la taille du texte, centrée */
+.seti-tooltip:has(> .seti-tooltip-label) {
+  min-width: 0;
+  text-align: center;
+}
+
 /* Infobulle large (ex : cartes Exertiens des joueurs sur une ligne) : pas de largeur maximale */
 .seti-tooltip:has(> .seti-tooltip-wide) {
   max-width: 95vw;

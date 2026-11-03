@@ -24,7 +24,8 @@ export const HoverTooltip = ({ content, children, className, style, nested = fal
       onMouseLeave={() => setRect(null)}
     >
       {children}
-      {rect && content && <Tooltip content={content} targetRect={rect} disableCollision={nested} />}
+      {/* Texte seul (libellé d'un symbole) : infobulle à la taille du texte, centrée */}
+      {rect && content && <Tooltip content={typeof content === 'string' ? <div className="seti-tooltip-label">{content}</div> : content} targetRect={rect} disableCollision={nested} />}
     </span>
   );
 };
