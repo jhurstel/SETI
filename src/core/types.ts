@@ -220,6 +220,8 @@ export interface GameLogEntry {
   timestamp: number;
   playerId?: string;
   sequenceId?: string;
+  /** Première entrée de l'action principale du tour (barre de progression de l'historique) */
+  mainAction?: boolean;
   previousState?: Game;
 }
 
@@ -644,6 +646,8 @@ export interface HistoryEntry {
   previousPendingInteractions?: InteractionState[];
   timestamp?: number;
   sequenceId?: string;
+  /** Première entrée de l'action principale du tour (barre de progression de l'historique) */
+  mainAction?: boolean;
 }
 // ============================================================================
 // VALIDATION

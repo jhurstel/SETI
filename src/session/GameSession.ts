@@ -18,6 +18,7 @@ import { ResourceSystem } from '../systems/ResourceSystem';
 import { ScanSystem } from '../systems/ScanSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
+import { requirePlayer } from '../core/players';
 import { AIController } from '../ai/AIController';
 import { AIStep, AITurn } from '../ai/AITurn';
 import { getRandomState, setRandomState } from '../core/random';
@@ -43,6 +44,12 @@ const SKIPPABLE: InteractionState['type'][] = ['MOVING_PROBE', 'ACQUIRING_CARD',
 const FORCE_STACKING_CARDS = ['27', '28', '29', '30'];
 
 type Interaction<T extends InteractionState['type']> = Extract<InteractionState, { type: T }>;
+
+/** Marque la première entrée (hors séparateur) d'une action principale */
+const markMainAction = (entries: HistoryEntry[]): HistoryEntry[] => {
+  const index = entries.findIndex(e => !e.message.startsWith('---'));
+  return entries.map((e, i) => (i === index ? { ...e, mainAction: true } : e));
+};
 
 /** Entrées et annonces accumulées pendant une commande */
 class Outcome {
@@ -125,10 +132,14 @@ export class GameSession {
           updated = setup.updatedGame;
           break;
         }
-        case 'UPDATED':
-          outcome.add(step.historyEntries);
+        case 'UPDATED': {
+          // L'étape qui fait l'action principale du robot la marque (barre de progression de l'historique)
+          const robotId = game.players[game.currentPlayerIndex].id;
+          const playedMain = !requirePlayer(game, robotId).hasPerformedMainAction && requirePlayer(step.updatedGame, robotId).hasPerformedMainAction;
+          outcome.add(playedMain ? markMainAction(step.historyEntries) : step.historyEntries);
           updated = InteractionQueue.enqueue(step.updatedGame, step.humanInteractions || [], step.historyEntries[0]?.sequenceId);
           break;
+        }
         case 'END_TURN_DONE':
           outcome.add(step.end.historyEntries);
           outcome.notify(step.end.discoveryNotification?.message);
@@ -223,7 +234,7 @@ export class GameSession {
   private static mainAction(game: Game, action: BaseAction, outcome: Outcome, forceStacking = false): Game {
     const result = new GameEngine(game).executeAction(action);
     if (!result.success || !result.updatedState) refuse(result.error || 'Action impossible');
-    outcome.add(action.historyEntries);
+    outcome.add(markMainAction(action.historyEntries));
     return InteractionQueue.enqueue(result.updatedState!, action.newPendingInteractions, action.historyEntries[0]?.sequenceId, undefined, forceStacking);
   }
 

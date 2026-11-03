@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { InteractionState, Game, AlienBoardType, FinalScore, HistoryEntry } from '../../core/types';
 import { HistoryList } from '../HistoryBoardUI';
+import { HistoryProgressBar } from '../components/HistoryProgressBar';
+import { historyTimeline } from '../../core/historyTimeline';
 import { ScoreManager } from '../../core/ScoreManager';
 import { ResourceSystem } from '../../systems/ResourceSystem';
 import { CardSystem } from '../../systems/CardSystem';
@@ -304,6 +306,14 @@ const totalTooltip = (score: FinalScore) => {
 
 /** Fenêtre de fin de partie : décompte final, puis l'historique complet de la partie (défilant) */
 export const EndGameModal = ({ game, historyLog, setActiveTooltip }: { game: Game, historyLog: HistoryEntry[], setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void }) => {
+  const historyRef = useRef<HTMLDivElement>(null);
+  const timeline = useMemo(() => historyTimeline(historyLog), [historyLog]);
+  // Clic sur un trait de la barre : l'historique défile jusqu'au début du tour (ou de la manche)
+  const scrollToEntry = (entryIndex: number) => {
+    const container = historyRef.current;
+    const target = container?.querySelector<HTMLElement>(`[data-history-index="${entryIndex}"]`);
+    if (container && target) container.scrollTo({ top: container.scrollTop + target.getBoundingClientRect().top - container.getBoundingClientRect().top, behavior: 'smooth' });
+  };
   // Décompte calculé une fois par le moteur (TurnManager.endRound → ScoreManager.applyFinalScoring).
   // Anciennes sauvegardes sans décompte enregistré : seul le score final est connu.
   const emptyCategories = { missionEndGame: 0, objectiveTiles: 0, speciesBonuses: 0, exertienCards: 0, total: 0 };
@@ -357,7 +367,8 @@ export const EndGameModal = ({ game, historyLog, setActiveTooltip }: { game: Gam
 
         <div className="seti-endgame-history">
           <div className="seti-endgame-history-title">Historique de la partie</div>
-          <div className="seti-endgame-history-content">
+          <HistoryProgressBar rounds={timeline} maxRounds={game.maxRounds} players={game.players} onSelect={scrollToEntry} />
+          <div className="seti-endgame-history-content" ref={historyRef}>
             <HistoryList historyLog={historyLog} game={game} setActiveTooltip={setActiveTooltip} />
           </div>
         </div>

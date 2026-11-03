@@ -389,3 +389,13 @@
     animation: none !important;
   }
 }
+
+/* Carte « Continuer » : barre de progression de la partie sauvegardée */
+.seti-home-card-subtitle .seti-progress-bar {
+  width: 100%;
+  min-width: 160px;
+}
+
+.seti-home-card:has(.seti-progress-bar) .seti-home-card-text {
+  flex: 1;
+}

@@ -1,0 +1,69 @@
+/* Barre de progression de la partie (historique de fin de partie, accueil) */
+.seti-progress-bar {
+  position: relative;
+  width: 100%;
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  margin-bottom: 8px;
+  /* Dans une colonne flexible (fenêtre de fin de partie) : garde sa hauteur */
+  flex-shrink: 0;
+}
+
+.seti-progress-bar.compact {
+  height: 10px;
+  margin: 6px 0 0;
+}
+
+.seti-progress-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.seti-progress-hit {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding: 2px 1px;
+  margin: 0;
+  border: none;
+  background: none;
+  box-sizing: border-box;
+}
+
+button.seti-progress-hit {
+  cursor: pointer;
+}
+
+.seti-progress-hit > span {
+  flex: 1;
+  border-radius: 2px;
+  transition: filter 0.15s;
+}
+
+button.seti-progress-hit:hover > span,
+button.seti-progress-hit:focus-visible > span {
+  filter: brightness(1.4);
+}
+
+/* Début de manche : trait gris, plus haut, centré sur la limite des manches */
+.seti-progress-mark.round {
+  width: 8px !important;
+  margin-left: -4px;
+  top: -3px;
+  bottom: -3px;
+  z-index: 1;
+}
+
+.seti-progress-mark.round .seti-progress-hit {
+  padding: 0 2.5px;
+}
+
+.seti-progress-mark.round .seti-progress-hit > span {
+  background: #9a9a9a;
+}
+
+.seti-progress-bar.compact .seti-progress-hit {
+  padding: 1px 0.5px;
+}

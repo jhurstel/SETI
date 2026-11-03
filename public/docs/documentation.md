@@ -12,7 +12,7 @@ Ce document décrit comment jouer, les règles telles qu'elles sont appliquées,
 
 ### 1.1 Lancer une partie
 
-- **Accueil** : au lancement (et par ⚙️ en cours de partie), l'écran d'accueil propose de continuer la partie sauvegardée (avec sa manche et les scores), d'en commencer une nouvelle, de jouer en ligne, ainsi que la documentation, les règles et la FAQ.
+- **Accueil** : au lancement (et par ⚙️ en cours de partie), l'écran d'accueil propose de continuer la partie sauvegardée (sa barre de progression montre où elle en est : un trait gris par manche, un trait de la couleur du joueur par tour, l'action principale du tour au survol), d'en commencer une nouvelle, de jouer en ligne, ainsi que la documentation, les règles et la FAQ.
 - **Nouvelle partie** : choisir le nombre de robots (1 à 3), leur niveau (Débutant, Intermédiaire, Expert) et qui commence.
 - La partie se joue en **5 manches**. Chaque joueur commence avec 4 crédits, 3 énergies, 4 Médias et 5 cartes, puis **réserve** une carte sous son plateau (mise en place).
 - **Sauvegarde automatique** : l'état est enregistré dans le navigateur après chaque action (et quand la page est quittée). En rouvrant la page, la partie reprend où elle s'était arrêtée.
@@ -147,7 +147,7 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 
 ### 2.8 Fin de partie
 
-À la fin de la 5ᵉ manche, le décompte final ajoute : tuiles objectif, cartes Fin de partie, cartes Exertiens jouées, puis retire la pénalité de danger (Exertiens). Le détail s'affiche sur l'écran de fin, suivi de l'historique complet de la partie (défilant).
+À la fin de la 5ᵉ manche, le décompte final ajoute : tuiles objectif, cartes Fin de partie, cartes Exertiens jouées, puis retire la pénalité de danger (Exertiens). Le détail s'affiche sur l'écran de fin, suivi de l'historique complet de la partie (défilant). Au-dessus de l'historique, une barre de progression montre les manches (traits gris) et les tours de chaque joueur (traits de sa couleur, avec son action principale au survol) : un clic sur un trait fait défiler l'historique jusqu'à ce tour ou cette manche.
 
 ## 3. Les espèces Alien
 

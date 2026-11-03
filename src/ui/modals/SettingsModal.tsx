@@ -7,6 +7,8 @@ import './SettingsModal.css';
 import { versionLabel } from '../version';
 import { SpaceBackdrop } from '../components/SpaceBackdrop';
 import { GameSetup, SeatConfig } from '../../session/GameSetup';
+import { historyTimeline } from '../../core/historyTimeline';
+import { HistoryProgressBar } from '../components/HistoryProgressBar';
 
 /** API File System Access (Chrome, Edge) : absente des types DOM standards */
 type WindowWithSavePicker = Window & {
@@ -39,13 +41,14 @@ interface SettingsModalProps {
   onDocumentation?: () => void;
 }
 
-/** Résumé de la partie sauvegardée pour la carte « Continuer » : manche et scores */
-function autosaveSummary(json: string | null): string | null {
+/** Résumé de la partie sauvegardée pour la carte « Continuer » : barre de progression des manches et des tours */
+function autosaveSummary(json: string | null): React.ReactNode {
   if (!json) return null;
   try {
-    const save = JSON.parse(json) as { currentRound?: number; maxRounds?: number; players?: { name: string; score: number }[] };
-    const players = (save.players || []).map(p => `${p.name} ${p.score} PV`).join(' · ');
-    return `Manche ${save.currentRound ?? '?'}/${save.maxRounds ?? 5}${players ? ` — ${players}` : ''}`;
+    const save = JSON.parse(json) as { maxRounds?: number; players?: { id: string; name: string; color: string }[]; gameLog?: HistoryEntry[] };
+    const rounds = historyTimeline(save.gameLog ?? []);
+    if (rounds.length === 0) return null;
+    return <HistoryProgressBar rounds={rounds} maxRounds={save.maxRounds ?? 5} players={save.players ?? []} compact />;
   } catch {
     return null;
   }
@@ -83,7 +86,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const [newGameModalVisible, setNewGameModalVisible] = useState(false);
   const [hasAutosave, setHasAutosave] = useState(false);
-  const [savedSummary, setSavedSummary] = useState<string | null>(null);
+  const [savedSummary, setSavedSummary] = useState<React.ReactNode>(null);
 
   // Vérifier s'il y a une sauvegarde automatique au démarrage ou à l'ouverture
   useEffect(() => {
@@ -219,7 +222,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const canGoBack = !!(game || canClose);
-  const card = (key: string, icon: keyof typeof ICONS, title: string, subtitle: string, onClick: () => void, primary = false) => (
+  const card = (key: string, icon: keyof typeof ICONS, title: string, subtitle: React.ReactNode, onClick: () => void, primary = false) => (
     <button key={key} className={`seti-home-card ${primary ? 'primary' : ''}`} onClick={onClick}>
       <span className="seti-home-card-icon"><Icon path={ICONS[icon]} /></span>
       <span className="seti-home-card-text">

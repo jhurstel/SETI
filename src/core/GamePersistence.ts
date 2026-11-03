@@ -102,6 +102,7 @@ export function serializeGame(game: Game, historyLog: HistoryEntry[]): SavedGame
         timestamp: entry.timestamp ?? 0,
         playerId: entry.playerId,
         sequenceId: entry.sequenceId,
+        ...(entry.mainAction ? { mainAction: true } : {}),
         previousState: keepState ? (stripForSave(entry.previousState!) as Game) : undefined,
       };
     }),
@@ -133,6 +134,7 @@ export function deserializeGame(json: string): { game: Game; historyLog: History
     previousInteractionState: { type: 'IDLE' },
     previousPendingInteractions: [],
     sequenceId: log.sequenceId,
+    ...(log.mainAction ? { mainAction: true } : {}),
     previousState: log.previousState,
   }));
   return { game, historyLog };

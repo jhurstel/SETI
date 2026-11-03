@@ -300,7 +300,7 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
             {historyLog.map((entry, index) => {
                 if (entry.message.startsWith('---')) {
                     return (
-                        <div key={entry.id} className="seti-history-separator">
+                        <div key={entry.id} className="seti-history-separator" data-history-index={index}>
                             <div className="seti-history-separator-line"></div>
                             <div className="seti-history-separator-text">{entry.message.replace(/---/g, '').trim()}</div>
                             <div className="seti-history-separator-line"></div>
