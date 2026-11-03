@@ -55,9 +55,9 @@ describe('les cartes piochées face cachée ne sont nommées que pour leur propr
 
   test('carte gagnée ou achetée dans la pioche ; une carte de la rangée reste publique', () => {
     const free = CardSystem.acquireCard(game, P1, undefined, { isFree: true }, 's');
-    expect(revealText(free.historyEntries[0].message)).toMatch(/^gagne ".+" de la pioche$/);
+    expect(revealText(free.historyEntries[0].message)).toMatch(/^choisit ".+" de la pioche$/);
     // Les autres joueurs lisent « une carte » à la place du nom
-    expect(textFor(free.historyEntries[0].message, P2)).toBe('gagne une carte de la pioche');
+    expect(textFor(free.historyEntries[0].message, P2)).toBe('choisit une carte de la pioche');
     expectPrivate(free.historyEntries[0].message, P1, P2, drawnCards(game, free.updatedGame, P1));
 
     getPlayer(game, P1).mediaCoverage = 5;
@@ -91,7 +91,7 @@ describe('les cartes piochées face cachée ne sont nommées que pour leur propr
   test('carte Alien prise dans la pioche de l\'espèce', () => {
     const species = game.species[0];
     const res = InteractionChoices.acquireAlienCard(game, P1, { type: 'ACQUIRING_ALIEN_CARD', count: 1, speciesId: species.id, sequenceId: 's' }, 'deck');
-    expect(textFor(res.historyEntries[0].message, P2)).toBe('acquiert la carte Alien de la pioche');
+    expect(textFor(res.historyEntries[0].message, P2)).toBe('choisit la carte Alien de la pioche');
     expectPrivate(res.historyEntries[0].message, P1, P2, drawnCards(game, res.updatedGame, P1));
   });
 

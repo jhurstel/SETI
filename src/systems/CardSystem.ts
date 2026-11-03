@@ -164,7 +164,7 @@ export class CardSystem {
         const newPendingInteractions: InteractionState[] = [];
 
         let message = options.isFree
-            ? (cardId ? `gagne "${cardName}" de la rangée` : `gagne ${privateText(playerId, `"${cardName}"`, 'une carte')} de la pioche`)
+            ? (cardId ? `choisit "${cardName}" de la rangée` : `choisit ${privateText(playerId, `"${cardName}"`, 'une carte')} de la pioche`)
             : `paye 3 médias pour acheter ${cardId ? `"${cardName}" depuis la rangée` : `${privateText(playerId, `"${cardName}"`, 'une carte')} depuis la pioche`}`;
 
         if (options.triggerFreeAction && card) {

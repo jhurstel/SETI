@@ -47,7 +47,7 @@ describe('Cartes : cas limites et refus', () => {
       const res = CardSystem.acquireCard(game, P1, 'row', { isFree: true, triggerFreeAction: true }, 's');
 
       const after = getPlayer(res.updatedGame, P1);
-      expect(res.historyEntries[0].message).toBe(`gagne "Carte row" de la rangée${suffix}`);
+      expect(res.historyEntries[0].message).toBe(`choisit "Carte row" de la rangée${suffix}`);
       Object.entries(gains).forEach(([key, value]) => expect(after[key as 'score']).toBe(before[key as 'score'] + value));
       expect(after.cards.find(c => c.id === 'row')!.isRevealed).toBe(true);
       if (freeAction === FreeActionType.PV_MOVEMENT) expect(res.newPendingInteractions).toEqual([{ type: 'MOVING_PROBE', count: 1, sequenceId: 's' }]);

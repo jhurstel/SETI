@@ -87,7 +87,7 @@ export class InteractionChoices {
     const name = cardId === 'deck' ? privateText(playerId, `"${drawnCard.name}"`) : `"${drawnCard.name}"`;
     return {
       updatedGame,
-      historyEntries: [{ message: `acquiert la carte Alien ${name} ${cardId === 'deck' ? 'de la pioche' : 'de la rangée'}`, playerId, sequenceId }],
+      historyEntries: [{ message: `choisit la carte Alien ${name} ${cardId === 'deck' ? 'de la pioche' : 'de la rangée'}`, playerId, sequenceId }],
       // Plusieurs cartes à prendre : la même interaction reste en attente pour les suivantes
       newPendingInteractions: interaction.count > 1 ? [{ ...interaction, count: interaction.count - 1, sequenceId }] : [],
     };
