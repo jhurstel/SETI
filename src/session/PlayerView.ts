@@ -56,13 +56,9 @@ export function viewFor(game: Game, viewerId: string): Game {
     if (player.id === viewerId) return;
     player.cards = hideCards(player.cards, card => card.isRevealed && card.type !== CardType.EXERTIEN);
     player.playedCards = hideCards(player.playedCards, card => finalScoring || card.type !== CardType.EXERTIEN);
-    player.probes.forEach(probe => { if (probe.specimen) probe.specimen = { bonus: {} }; });
   });
 
-  // Spécimens Mascamites face cachée sur Jupiter et Saturne : leur gain n'est connu qu'une fois prélevé
-  view.board.planets.forEach(planet => {
-    if (planet.mascamiteTokens) planet.mascamiteTokens = planet.mascamiteTokens.map(() => ({ bonus: {} }));
-  });
+  // Spécimens Mascamites de Jupiter et Saturne (et des capsules) : face visible, rien à cacher
 
   view.species.forEach(species => {
     species.cards = hideCards(species.cards);

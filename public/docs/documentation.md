@@ -163,7 +163,7 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 
 ### 3.2 Mascamites
 
-- 7 jetons spécimen face cachée, mélangés à la découverte : 3 sur Jupiter, 3 sur Saturne, et le 7e sur la 3e case de la piste bleue. Celui-ci reste caché (« ? ») jusqu'à ce qu'une trace y soit posée : sa récompense est alors gagnée.
+- 7 jetons spécimen, mélangés à la découverte : 3 face visible sur Jupiter, 3 sur Saturne (récompense dans l'infobulle du jeton), et le 7e face cachée sur la 3e case de la piste bleue. Celui-ci reste caché (« ? ») jusqu'à ce qu'une trace y soit posée : sa récompense est alors gagnée.
 - Récompenses des 7 spécimens :
 
 | Spécimen | Récompense |
@@ -176,9 +176,9 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 | 6 | 3 PV + 1 carte au choix |
 | 7 | 7 PV |
 
-- Certaines cartes permettent de **prélever un spécimen** sur Jupiter, Saturne ou leurs lunes : le jeton part dans une **capsule**, qui se déplace comme une sonde (sans compter comme une sonde).
+- Certaines cartes permettent de **prélever un spécimen** sur Jupiter, Saturne ou leurs lunes : une fenêtre montre les spécimens restants de la planète et leur récompense ; le jeton choisi part dans une **capsule**, qui se déplace comme une sonde (sans compter comme une sonde). Les robots simulent chaque spécimen et gardent la meilleure récompense.
 - Une capsule arrivée sur la Terre (ou sur Mars pour ET.4) se réclame comme une mission : récompense de la carte plus celle du spécimen.
-- D'autres cartes permettent de **consulter** un spécimen (gagner son bonus sans le retirer).
+- D'autres cartes permettent de **consulter** un spécimen (gagner son bonus sans le retirer), choisi dans la même fenêtre.
 - Pas d'emplacement infini.
 
 ### 3.3 Anomalies
@@ -259,7 +259,7 @@ Une interaction peut viser un autre joueur que le joueur actif (par exemple le g
 - **Intermédiaire (MEDIUM)** : simule chaque action principale et chaque action gratuite avec le vrai moteur, note la position obtenue et garde la meilleure. Il passe quand rien n'améliore sa position.
 - **Expert (EXPERT)** : comme l'Intermédiaire, mais compte aussi les points du décompte final déjà acquis. Sur 72 parties contre l'Intermédiaire : 61 % de victoires, environ +11 PV.
 
-Pour les choix aléatoires (pioche, spécimen…), un robot compare 4 tirages et garde le meilleur. Chaque placement de trace de vie est simulé.
+Pour les choix aléatoires (pioche…), un robot compare 4 tirages et garde le meilleur. Chaque placement de trace de vie est simulé.
 Les robots jouent avec exactement les mêmes opérations que le joueur humain : mêmes vérifications, mêmes gains, mêmes messages dans l'historique (défausse pour une action gratuite, achat ou échange contre une carte à choisir dans la rangée ou la pioche, déplacements gratuits, colonne de l'ordinateur pour une technologie Informatique, réservation de mise en place). Une carte piochée face cachée (achat, échange) ne lui est connue qu'une fois en main : sa simulation compte les cartes de la main, pas leur identité ; il peut ensuite jouer la carte piochée, comme le joueur humain. Il ne transfère pas de donnée sur une case de réservation sans carte en main (le bonus serait perdu), sauf si sa réserve de données est pleine. Un robot choisit sa carte de fin de manche comme le joueur humain, une fois passé (il ne voit pas la pile avant) : l'Intermédiaire et l'Expert simulent chaque carte, le Débutant la tire au hasard.
 Un robot joue une étape toutes les 1,5 s ; le calcul tourne dans un Web Worker pour ne pas figer l'interface.
 
@@ -340,7 +340,7 @@ valeur = PV
 - Commandes (`session/commands.ts`) : `LAUNCH_PROBE`, `SCAN`, `ANALYZE`, `RESEARCH_TECH`, `ORBIT`, `LAND`, `PLAY_CARD`, `PASS`, `MOVE_PROBE`, `TRADE`, `BUY_CARD`, `DISCARD_FOR_FREE_ACTION`, `TRANSFER_DATA`, `CLAIM_MISSION`, `CHOOSE`, `SKIP`, `END_TURN`. Toutes sérialisables.
 - `InteractionQueue` : file d'interactions dans l'état (`game.interaction`, `game.pendingInteractions`).
 - `SessionJournal` : historique et annulation.
-- `viewFor(partie, joueur)` (`session/PlayerView.ts`) : ce qu'un joueur a le droit de voir. Elle masque la pioche, les mains adverses (sauf les cartes révélées), les cartes Exertiens adverses jusqu'au décompte, les spécimens, les espèces non découvertes, la graine et le détail des interactions d'un autre joueur. Les nombres restent visibles.
+- `viewFor(partie, joueur)` (`session/PlayerView.ts`) : ce qu'un joueur a le droit de voir. Elle masque la pioche, les mains adverses (sauf les cartes révélées), les cartes Exertiens adverses jusqu'au décompte, le 7e spécimen Mascamite (face cachée), les espèces non découvertes, la graine et le détail des interactions d'un autre joueur. Les nombres restent visibles.
 - Historique : un passage qu'un seul joueur peut lire (nom d'une carte piochée face cachée) est marqué par le moteur (`privateText` dans `core/historyText.ts`). Le jeu local affiche tout ; `viewEntries(entrées, joueur)` retire les passages des autres joueurs et les états d'annulation.
 
 ### 6.3 Principes

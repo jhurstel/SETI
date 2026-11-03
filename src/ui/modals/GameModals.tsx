@@ -16,6 +16,7 @@ import { Tooltip } from '../Tooltip';
 import { ResourceIcon, SignalGainIcon, ActionHexIcon, CentaurienMessageIcon, TrophyIcon } from '../components/GameIcons';
 import { SpeciesSystem } from '../../systems/SpeciesSystem';
 import { effectString } from '../../core/cardEffects';
+import { InteractionChoices } from '../../core/InteractionChoices';
 import { useCloseTooltipOnClick } from '../hooks/useCloseTooltipOnClick';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {
@@ -60,6 +61,39 @@ export const CentaurienRewardModal = ({ game, interactionState, onChoice }: { ga
           />
         );
       })}
+    </ChoiceModal>
+  );
+};
+
+/**
+ * Spécimen Mascamite à prélever ou à étudier : les spécimens restants (face visible) des planètes permises,
+ * avec leur récompense (gagnée à l'arrivée de la capsule en prélevant, tout de suite en étudiant).
+ */
+export const SpecimenModal = ({ game, interactionState, onChoice }: { game: Game, interactionState: InteractionState, onChoice: (planetId: string, tokenIndex: number) => void }) => {
+  if (interactionState.type !== 'COLLECTING_SPECIMEN' && interactionState.type !== 'CONSULTING_SPECIMEN') return null;
+  const collect = interactionState.type === 'COLLECTING_SPECIMEN';
+  const playerId = game.players[game.currentPlayerIndex].id;
+  const planets = InteractionChoices.specimenPlanets(game, playerId, interactionState)
+    .map(id => game.board.planets.find(p => p.id === id))
+    .filter((planet): planet is NonNullable<typeof planet> => !!planet?.mascamiteTokens?.length);
+  if (planets.length === 0) return null;
+
+  return (
+    <ChoiceModal
+      title={collect ? 'Prélever un spécimen Mascamite' : 'Étudier un spécimen Mascamite'}
+      subtitle={collect
+        ? 'Choisissez le spécimen à placer dans votre capsule : sa récompense est gagnée en le ramenant à destination.'
+        : 'Choisissez le spécimen à étudier : sa récompense est gagnée immédiatement, le spécimen reste sur la planète.'}
+    >
+      {planets.flatMap(planet => planet.mascamiteTokens!.map((token, index) => (
+        <ChoiceOption
+          key={`${planet.id}-${index}`}
+          icon={<BonusIcons bonus={token.bonus} size={26} />}
+          label={planets.length > 1 ? `${planet.name} : spécimen ${index + 1}` : `Spécimen ${index + 1}`}
+          detail={(ResourceSystem.formatBonus(token.bonus) || []).join(', ')}
+          onClick={() => onChoice(planet.id, index)}
+        />
+      )))}
     </ChoiceModal>
   );
 };

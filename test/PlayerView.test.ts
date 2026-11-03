@@ -86,14 +86,14 @@ describe('viewFor : vue de la partie pour un joueur', () => {
     expect(getPlayer(viewFor(game, A), B).playedCards[0].id).toBe('ET.1');
   });
 
-  test('cache les spécimens Mascamites sur les planètes et dans la capsule d\'un adversaire', () => {
+  test("montre les spécimens Mascamites (face visible) sur les planètes et dans la capsule d'un adversaire", () => {
     const jupiter = game.board.planets.find(p => p.id === 'jupiter')!;
     jupiter.mascamiteTokens = [{ bonus: { credits: 2 } }, { bonus: { media: 3 } }];
     getPlayer(game, B).probes = [{ ...makeProbe(B), specimen: { bonus: { energy: 2 } } }];
     getPlayer(game, A).probes = [{ ...makeProbe(A), specimen: { bonus: { media: 3 } } }];
     const view = viewFor(game, A);
-    expect(view.board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens).toEqual([{ bonus: {} }, { bonus: {} }]);
-    expect(getPlayer(view, B).probes[0].specimen).toEqual({ bonus: {} });
+    expect(view.board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens).toEqual([{ bonus: { credits: 2 } }, { bonus: { media: 3 } }]);
+    expect(getPlayer(view, B).probes[0].specimen).toEqual({ bonus: { energy: 2 } });
     expect(getPlayer(view, A).probes[0].specimen).toEqual({ bonus: { media: 3 } });
   });
 

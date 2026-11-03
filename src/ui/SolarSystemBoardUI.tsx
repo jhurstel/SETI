@@ -1022,7 +1022,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         )}
 
         {/* Mascamite Tokens */}
-        {planetData && planetData.mascamiteTokens && planetData.mascamiteTokens.map((_token, i) => {
+        {planetData && planetData.mascamiteTokens && planetData.mascamiteTokens.map((token, i) => {
           const count = planetData.mascamiteTokens!.length;
           const dist = count === 1 ? 0 : size * 0.35;
           const angle = (360 / count) * i - 90;
@@ -1061,7 +1061,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                   content: (
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontWeight: 'bold', color: '#ea80fc', marginBottom: '4px' }}>Spécimen Mascamite</div>
-                      <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus : Inconnu</div>
+                      <div style={{ fontSize: '0.9em', color: '#ccc' }}>Récompense : {(ResourceSystem.formatBonus(token.bonus) || []).join(', ') || 'aucune'}</div>
                     </div>
                   ),
                   rect

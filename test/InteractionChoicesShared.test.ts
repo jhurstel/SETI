@@ -136,6 +136,24 @@ describe('InteractionChoices : choix communs (cartes, signaux, spécimens, retra
     unchanged();
   });
 
+  test('robot : prélève et consulte le spécimen à la meilleure récompense (face visible), sans modifier la partie reçue', () => {
+    const jupiter = game.board.planets.find(p => p.id === 'jupiter')!;
+    jupiter.mascamiteTokens = [{ bonus: { media: 1 } }, { bonus: { pv: 5 } }, { bonus: { credits: 1 } }];
+    const player = getPlayer(game, P1);
+    freeze();
+
+    const collected = AIController.bestSpecimen(game, player, { type: 'COLLECTING_SPECIMEN', planetId: 'jupiter', sequenceId: 's' })!;
+    const capsule = getPlayer(collected.updatedGame, P1).probes.find(p => p.state === ProbeState.CAPSULE)!;
+    expect(capsule.specimen).toEqual({ bonus: { pv: 5 } });
+
+    const consulted = AIController.bestSpecimen(game, player, { type: 'CONSULTING_SPECIMEN', planetId: 'jupiter', sequenceId: 's' })!;
+    expect(getPlayer(consulted.updatedGame, P1).score).toBe(player.score + 5);
+    unchanged();
+
+    jupiter.mascamiteTokens = [];
+    expect(AIController.bestSpecimen(game, player, { type: 'COLLECTING_SPECIMEN', planetId: 'jupiter', sequenceId: 's' })).toBeNull();
+  });
+
   test('removeProbe : orbiteur du joueur retiré, celui d\'un adversaire refusé', () => {
     const mars = game.board.planets.find(p => p.id === 'mars')!;
     const mine = { ...probeAt('o1', P1, 'B', 1, 2, ProbeState.IN_ORBIT), planetId: 'mars', isOrbiter: true };

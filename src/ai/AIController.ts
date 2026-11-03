@@ -18,7 +18,7 @@ import { requirePlayer } from '../core/players';
 const RANDOM_CHOICE_INTERACTIONS: InteractionState['type'][] = [
     'SELECTING_SCAN_SECTOR', 'PLACING_OBJECTIVE_MARKER', 'RESERVING_CARD', 'ACQUIRING_CARD', 'MOVING_PROBE',
     'ACQUIRING_TECH', 'SELECTING_COMPUTER_SLOT', 'CHOOSING_OBS4_ACTION', 'ACQUIRING_ALIEN_CARD',
-    'CHOOSING_CENTAURIEN_REWARD', 'CHOOSING_MEDIA_OR_MOVE', 'DISCARDING_FOR_SIGNAL', 'CONSULTING_SPECIMEN',
+    'CHOOSING_CENTAURIEN_REWARD', 'CHOOSING_MEDIA_OR_MOVE', 'DISCARDING_FOR_SIGNAL',
 ];
 
 interface AIControllerResult {
@@ -159,6 +159,28 @@ export class AIController {
             }
         }
         return best!.result;
+    }
+
+    /**
+     * Spécimen Mascamite (face visible) : sur la planète prélevée, ou consultable (Étude de l'Écosystème : sonde
+     * présente ; ET.8 à ET.10 : au choix). Chaque spécimen est simulé avec sa récompense (gagnée tout de suite en
+     * consultant, à l'arrivée de la capsule en prélevant) et le mieux évalué est gardé. Null s'il n'y en a aucun.
+     */
+    static bestSpecimen(game: Game, player: Player, interaction: Extract<InteractionState, { type: 'COLLECTING_SPECIMEN' | 'CONSULTING_SPECIMEN' }>) {
+        const sequenceId = interaction.sequenceId || 'ai-specimen';
+        let best: { result: ReturnType<typeof InteractionChoices.takeSpecimen>; value: number } | null = null;
+        for (const planetId of InteractionChoices.specimenPlanets(game, player.id, interaction)) {
+            const tokens = game.board.planets.find(p => p.id === planetId)?.mascamiteTokens || [];
+            tokens.forEach((_token, tokenIndex) => {
+                const result = InteractionChoices.takeSpecimen(game, player.id, interaction, planetId, tokenIndex);
+                if (result.error) return;
+                const reward = SpeciesSystem.takeMascamiteSpecimen(game, player.id, planetId, tokenIndex, 'consult', sequenceId)!;
+                const followUp = this.processInteractionQueue(reward.updatedGame, reward.newPendingInteractions, sequenceId, player);
+                const value = AIEvaluator.evaluate(followUp.updatedGame, player.id);
+                if (!best || value > best.value) best = { result, value };
+            });
+        }
+        return best ? (best as { result: ReturnType<typeof InteractionChoices.takeSpecimen> }).result : null;
     }
 
     /** Mission déclenchée hors de son tour : recouvre le cercle (ou aucun) qui donne la meilleure position évaluée */
@@ -438,12 +460,8 @@ export class AIController {
             }
             case 'COLLECTING_SPECIMEN':
             case 'CONSULTING_SPECIMEN': {
-                // Planète prélevée, ou consultable (Étude de l'Écosystème : sonde présente ; ET.8 à ET.10 : au choix)
-                const options = InteractionChoices.specimenPlanets(updatedGame, player.id, interaction);
-                const planetId = options[Math.floor(random() * options.length)];
-                const tokenCount = planetId ? updatedGame.board.planets.find(p => p.id === planetId)?.mascamiteTokens?.length || 0 : 0;
-                const res = planetId && tokenCount > 0 ? InteractionChoices.takeSpecimen(updatedGame, player.id, { ...interaction, sequenceId }, planetId, Math.floor(random() * tokenCount)) : null;
-                if (res && !res.error) {
+                const res = this.bestSpecimen(updatedGame, player, { ...interaction, sequenceId });
+                if (res) {
                     updatedGame = res.updatedGame;
                     historyEntries.push(...res.historyEntries);
                     newPendingInteractions.push(...res.newPendingInteractions);
