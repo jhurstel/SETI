@@ -7,6 +7,7 @@ import { ScanSystem } from '../systems/ScanSystem';
 import { TurnManager } from '../core/TurnManager';
 import { PlayerComputer } from './components/PlayerComputer';
 import { HandCard } from './components/HandCard';
+import { CardBack } from './components/CardBack';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
@@ -804,7 +805,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   <div className="seti-player-list-empty">Aucune carte en main</div>
                 )
               ) : (
-                handCards.some(c => c.isRevealed) ? (
+                // Main d'un robot : cartes révélées face visible, les autres de dos
+                handCards.length > 0 ? (
                   <>
                     {handCards.filter(c => c.isRevealed).map(card => (
                       <HandCard
@@ -824,14 +826,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                         cardOrigin="hand"
                       />
                     ))}
-                    {handCards.filter(c => !c.isRevealed).length > 0 && (
-                      <div className="seti-player-list-empty" style={{ width: '100%', marginTop: '8px' }}>
-                        + {handCards.filter(c => !c.isRevealed).length} carte{handCards.filter(c => !c.isRevealed).length > 1 ? 's' : ''} masquée{handCards.filter(c => !c.isRevealed).length > 1 ? 's' : ''}
-                      </div>
-                    )}
+                    {handCards.filter(c => !c.isRevealed).map(card => (
+                      <CardBack key={card.id}
+                        onMouseEnter={e => handleTooltipHover(e, <SlotTooltip status="Carte masquée" statusColor="#9fb2da" note={`Main de ${currentPlayer.name}`} />)}
+                        onMouseLeave={handleTooltipLeave} />
+                    ))}
                   </>
                 ) : (
-                  <div className="seti-player-list-empty">{handCards.length} carte{handCards.length > 1 ? 's' : ''} en main (Masqué)</div>
+                  <div className="seti-player-list-empty">Aucune carte en main</div>
                 )
               )}
             </div>
