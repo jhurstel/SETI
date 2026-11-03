@@ -485,14 +485,8 @@
 
 /* ===== Barre Ressources / Revenus : tuiles symbole + valeur, actions dessous ===== */
 .seti-stats-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 5px;
-  margin-bottom: 6px;
-  border-radius: 8px;
-  background: rgba(10, 14, 30, 0.55);
-  border: 1px solid rgba(120, 160, 255, 0.15);
+  /* Simple regroupement : ses sections Ressources et Actions sont des sections du plateau */
+  display: contents;
 }
 
 .seti-stat-tile {
@@ -593,21 +587,30 @@
   max-width: 260px;
 }
 
-/* Ressources et revenus, sur une ligne */
+/* Ressources et revenus, sur une ligne, dans un cadre comme les pistes */
 .seti-stats-row {
   display: flex;
   align-items: stretch;
   gap: 4px;
+  padding: 6px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
 }
 
-/* Les 8 actions principales en hexagones (comme sur les pistes), puis la fin du tour, à part */
+/* Les 8 actions principales en hexagones (comme sur les pistes), puis la fin du tour : chacun dans son cadre, à sa taille */
+.seti-main-actions-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
 .seti-main-actions {
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 3px;
-  padding-top: 5px;
-  border-top: 1px solid rgba(120, 160, 255, 0.15);
+  gap: 2px;
+  padding: 5px 6px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
 }
 
 .seti-main-actions .obs-track-slot.hex {
@@ -615,12 +618,6 @@
   height: 38px;
 }
 
-.seti-main-actions-separator {
-  width: 1px;
-  height: 26px;
-  margin: 0 6px;
-  background: rgba(120, 160, 255, 0.3);
-}
 
 /* Infobulle d'une ressource : actions gratuites cliquables */
 .seti-stat-tile {

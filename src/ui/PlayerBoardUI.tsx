@@ -614,7 +614,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
       {/* Plateau du joueur */}
       <div className="seti-player-panel" style={{ borderTop: `4px solid ${currentPlayer.color || '#444'}`, borderTopLeftRadius: 0 }}>
         <div className="seti-player-layout-container">
-          {/* Ressources et revenus : une barre de tuiles (symbole + valeur), les actions liées juste dessous */}
+          {/* Sections Ressources (tuiles symbole + valeur, revenus) et Actions (actions principales, fin du tour) */}
           <div className="seti-stats-bar">
             {(() => {
               const flashClass = (flash: { type: string } | null) => (flash ? (flash.type === 'gain' ? 'flash-gain' : 'flash-loss') : '');
@@ -630,6 +630,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
               );
               return (
                 <>
+                  <div className="seti-player-section">
+                  <div className="seti-player-section-title">Ressources</div>
                   <div className="seti-stats-row">
                   {tile('score', scoreFlash, <VictoryPointsIcon amount={currentPlayer.score} size={32} />, <SlotTooltip status="Score" statusColor="#6fd8bf" note={`${currentPlayer.score} points de victoire`} />)}
                   {tile('credit', creditFlash, <ResourceIcon kind="credit" amount={currentPlayer.credits} size={30} />,
@@ -692,8 +694,9 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                     );
                   })()}
                   </div>
+                  </div>
 
-                  {/* Ligne des 8 actions principales en hexagones, puis la fin du tour à part */}
+                  {/* Les 8 actions principales en hexagones, puis la fin du tour dans son propre cadre */}
                   {!isRobot && (() => {
                     // Une interaction obligatoire en cours (ex : technologie à choisir) empêche de finir le tour ou de passer
                     const interactionBlocks = isInteractiveMode || TurnManager.blocksEndOfTurn(interactionState);
@@ -710,7 +713,10 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                       ['analyze', ActionType.ANALYZE_DATA], ['card', ActionType.PLAY_CARD], ['research', ActionType.RESEARCH_TECH], ['pass', ActionType.PASS],
                     ];
                     return (
-                      <div className="seti-main-actions">
+                      <div className="seti-player-section">
+                        <div className="seti-player-section-title">Actions</div>
+                        <div className="seti-main-actions-row">
+                        <div className="seti-main-actions">
                         {mainActions.map(([kind, actionType]) => {
                           const available = actionType === ActionType.PASS ? canPass : actionAvailability[actionType] && !isInteractiveMode;
                           return (
@@ -719,9 +725,12 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                               onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
                           );
                         })}
-                        <span className="seti-main-actions-separator" aria-hidden="true" />
-                        <TrackSlot icon={<EndTurnIcon size={36} />} hex label="Prochain joueur" tooltip={endTurnTooltip} clickable={canEndTurn} flash={canEndTurn}
-                          onClick={() => onNextPlayer && onNextPlayer()} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
+                        </div>
+                        <div className="seti-main-actions">
+                          <TrackSlot icon={<EndTurnIcon size={36} />} hex label="Prochain joueur" tooltip={endTurnTooltip} clickable={canEndTurn} flash={canEndTurn}
+                            onClick={() => onNextPlayer && onNextPlayer()} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
+                        </div>
+                        </div>
                       </div>
                     );
                   })()}
