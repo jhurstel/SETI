@@ -5,7 +5,9 @@ import { InteractionResolver } from '../src/core/InteractionResolver';
 import { InteractionChoices } from '../src/core/InteractionChoices';
 import { LandAction } from '../src/actions/LandAction';
 import { AIBehavior } from '../src/ai/AIBehavior';
-import { ActionType } from '../src/core/types';
+import { ActionType, FreeActionType } from '../src/core/types';
+import { CardSystem } from '../src/systems/CardSystem';
+import { getObjectPosition } from '../src/core/SolarSystemPosition';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -153,6 +155,40 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
       const moved = ProbeSystem.moveProbe(withCapsule, P1, capsule.id, 'C', 4, 0, 'seq');
       expect(getPlayer(moved.updatedGame, P1).probes.find(p => p.id === capsule.id)!.state).toBe(ProbeState.CAPSULE);
       expect(moved.historyEntries[0].message).toContain('déplacer une capsule');
+    });
+
+    test("défausser une carte Déplacement permet de déplacer une capsule (seule pièce du joueur dans le système solaire)", () => {
+      getPlayer(game, P1).probes = [];
+      expect(CardSystem.canDiscardFreeAction(game, P1, FreeActionType.MOVEMENT).canDiscard).toBe(false);
+
+      const capsule = ProbeSystem.createCapsule(game, P1, 'jupiter', { bonus: { pv: 3 } })!;
+      getPlayer(game, P1).energy = 0;
+      const before = JSON.stringify(game);
+      expect(CardSystem.canDiscardFreeAction(game, P1, FreeActionType.MOVEMENT).canDiscard).toBe(true);
+
+      const res = InteractionChoices.moveProbe(game, P1, { type: 'MOVING_PROBE', count: 1, sequenceId: 's' }, capsule.id, 'C', 4, 's');
+      expect(res.error).toBeUndefined();
+      expect(getPlayer(res.updatedGame, P1).probes.find(p => p.id === capsule.id)!.solarPosition).toMatchObject({ disk: 'C' });
+      expect(res.historyEntries[0].message).toContain('déplace une capsule gratuitement');
+      expect(JSON.stringify(game)).toBe(before);
+    });
+
+    test('une capsule déclenche les effets de déplacement d\'une sonde (visite d\'une planète : bonus de carte et Média)', () => {
+      const capsule = ProbeSystem.createCapsule(game, P1, 'jupiter', { bonus: { pv: 3 } })!;
+      const player = getPlayer(game, P1);
+      player.energy = 5;
+      const solar = game.board.solarSystem;
+      const jupiter = getObjectPosition('jupiter', solar.rotationAngleLevel1 || 0, solar.rotationAngleLevel2 || 0, solar.rotationAngleLevel3 || 0, solar.extraCelestialObjects)!;
+      const awaySector = (jupiter.absoluteSector % 8) + 1 as SectorNumber;
+      const away = ProbeSystem.moveProbe(game, P1, capsule.id, jupiter.disk, awaySector, 0, 's').updatedGame;
+      const p = getPlayer(away, P1);
+      p.activeBuffs = [...p.activeBuffs, { type: 'VISIT_BONUS', target: 'jupiter', value: 3, source: 'Test' }];
+      const { score, mediaCoverage } = p;
+
+      const back = ProbeSystem.moveProbe(away, P1, capsule.id, jupiter.disk, jupiter.absoluteSector, 0, 's');
+
+      expect(getPlayer(back.updatedGame, P1).score).toBe(score + 3);
+      expect(getPlayer(back.updatedGame, P1).mediaCoverage).toBe(mediaCoverage + 1);
     });
 
     test('ramener le spécimen sur Terre accomplit la mission : récompense de la carte + celle du spécimen, la capsule disparaît', () => {

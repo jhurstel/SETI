@@ -476,20 +476,23 @@
     max-height: calc(100vh - 50px);
 }
 
-/* 7e spécimen Mascamite, face cachée sur la piste bleue */
-.alien-hidden-specimen {
-  width: 70%;
-  height: 70%;
+/* 7e spécimen Mascamite, face visible sur la piste bleue : sa récompense est celle de la case */
+.alien-board-specimen {
+  width: 80%;
+  height: 80%;
   border-radius: 50%;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   background: radial-gradient(circle at 35% 30%, #6b5a3a, #2e2516);
   border: 1px solid #c9a96e;
-  color: #f1dfb5;
-  font-weight: bold;
-  font-size: 0.8rem;
   box-shadow: 0 0 4px rgba(201, 169, 110, 0.6);
+  overflow: hidden;
+}
+.alien-board-specimen > span {
+  gap: 0 !important;
+  justify-content: center;
 }
 
 /* Emplacement infini : points décoratifs (aucune trace) et traces posées (pastilles de la couleur du joueur) */

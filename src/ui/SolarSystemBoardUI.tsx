@@ -481,7 +481,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     if (highlightPlayerProbes) {
       const currentPlayer = game.players[game.currentPlayerIndex];
       const playerProbes = game.board.solarSystem.probes.filter(
-        p => p.ownerId === currentPlayer.id && p.state === ProbeState.IN_SOLAR_SYSTEM
+        p => p.ownerId === currentPlayer.id && (p.state === ProbeState.IN_SOLAR_SYSTEM || p.state === ProbeState.CAPSULE)
       );
 
       if (playerProbes.length === 1) {

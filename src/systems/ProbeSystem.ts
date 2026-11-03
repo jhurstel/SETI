@@ -282,6 +282,11 @@ export class ProbeSystem {
   /**
    * Vérifie si un déplacement est valide
    */
+  /** Le joueur a une sonde ou une capsule à déplacer dans le système solaire (les capsules se déplacent comme des sondes) */
+  static hasMovablePiece(player: { probes: Probe[] }): boolean {
+    return player.probes.some(p => (p.state === ProbeState.IN_SOLAR_SYSTEM || p.state === ProbeState.CAPSULE) && !!p.solarPosition);
+  }
+
   static canMoveProbe(
     game: Game,
     playerId: string,
@@ -372,7 +377,8 @@ export class ProbeSystem {
     const player = updatedGame.players.find(p => p.id === playerId)!;
     const probe = player.probes.find(p => p.id === probeId)!;
     const energySpent = validation.energyCost!;
-    // Une capsule gagne 1 Média sur les cases à microphone (comètes, planètes hors Terre), sans effets de sonde (visites, missions…)
+    // Une capsule se déplace comme une sonde : coût de sortie d'astéroïde, Médias des cases, Exploration II, carte 19,
+    // visites et missions déclenchées par un déplacement
     const isCapsule = probe.state === ProbeState.CAPSULE;
     const movedObject = isCapsule ? 'une capsule' : 'une sonde';
 
@@ -407,12 +413,12 @@ export class ProbeSystem {
       if (targetCell.hasComet) bonus.media = (bonus.media || 0) + 1;
       // La Terre ne donne pas de bonus de média
       if (targetCell.hasPlanet && targetCell.planetId !== 'earth') bonus.media = (bonus.media || 0) + 1;
-      if (!isCapsule && targetCell.hasAsteroid && player.technologies.some(t => t.id.startsWith('exploration-2'))) bonus.media = (bonus.media || 0) + 1;
+      if (targetCell.hasAsteroid && player.technologies.some(t => t.id.startsWith('exploration-2'))) bonus.media = (bonus.media || 0) + 1;
     }
 
     // Carte 19 (Assistance Gravitationnelle) : sur une planète, 1 Média ou 1 déplacement au choix (proposé plus bas)
     const hasChoiceBuff = player.activeBuffs.some(b => b.type === 'CHOICE_MEDIA_OR_MOVE');
-    const offersMediaOrMove = !isCapsule && hasChoiceBuff && !!targetCell?.hasPlanet && targetCell.planetId !== 'earth';
+    const offersMediaOrMove = hasChoiceBuff && !!targetCell?.hasPlanet && targetCell.planetId !== 'earth';
     if (offersMediaOrMove && bonus.media && bonus.media > 0) {
       bonus.media = (bonus.media || 0) - 1;
     }
@@ -434,7 +440,7 @@ export class ProbeSystem {
     }
 
     // Gestion des visites de planètes et bonus associés
-    if (!isCapsule && targetCell && targetCell.hasPlanet && targetCell.planetId) {
+    if (targetCell && targetCell.hasPlanet && targetCell.planetId) {
       const planetId = targetCell.planetId;
 
       const isNewVisit = !player.visitedPlanetsThisTurn.includes(planetId);
@@ -468,7 +474,7 @@ export class ProbeSystem {
     }
 
     // Gestion des visites d'astéroïdes (ex: Survol d'Astéroïdes)
-    if (!isCapsule && targetCell && targetCell.hasAsteroid) {
+    if (targetCell && targetCell.hasAsteroid) {
       const asteroidBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_ASTEROID');
       asteroidBuffs.forEach(buff => {
         bonus.data = (bonus.data || 0) + effectNumber(buff);
@@ -480,7 +486,7 @@ export class ProbeSystem {
     }
 
     // Gestion des visites de comètes (ex: Rencontre avec une Comète)
-    if (!isCapsule && targetCell && targetCell.hasComet) {
+    if (targetCell && targetCell.hasComet) {
       const cometBuffs = player.activeBuffs.filter(buff => buff.type === 'VISIT_COMET');
       cometBuffs.forEach(buff => {
         bonus.pv = (bonus.pv || 0) + effectNumber(buff);
@@ -492,7 +498,7 @@ export class ProbeSystem {
     }
 
     // Gestion du déplacement sur le même disque (ex: Correction de Trajectoire)
-    if (!isCapsule && targetDisk === probe.solarPosition.disk) {
+    if (targetDisk === probe.solarPosition.disk) {
       const sameDiskBuffs = player.activeBuffs.filter(buff => buff.type === 'SAME_DISK_MOVE');
       sameDiskBuffs.forEach(buff => {
         const gain = effectBonus(buff);
@@ -514,7 +520,7 @@ export class ProbeSystem {
     }
 
     // Traitement des missions conditionnelles (GAIN_ON_VISIT)
-    const hasFulfillable = !isCapsule && CardSystem.processMissionBuffs(player, buff => {
+    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
       // Planètes
       if (targetCell && targetCell.hasPlanet && targetCell.planetId) {
         if (buff.type === `GAIN_ON_VISIT_${targetCell.planetId.toUpperCase()}`) return true;

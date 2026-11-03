@@ -23,8 +23,8 @@ describe('Règles des cartes', () => {
       [FreeActionType.TWO_MEDIA, { mediaCoverage: GAME_CONSTANTS.MAX_MEDIA_COVERAGE }, 'Média au maximum'],
       [FreeActionType.DATA, { data: GAME_CONSTANTS.MAX_DATA }, 'Nécessite de transférer des données'],
       [FreeActionType.PV_DATA, { data: GAME_CONSTANTS.MAX_DATA }, 'Nécessite de transférer des données'],
-      [FreeActionType.MOVEMENT, { probes: [] }, 'Nécessite une sonde dans le système solaire'],
-      [FreeActionType.PV_MOVEMENT, { probes: [] }, 'Nécessite une sonde dans le système solaire'],
+      [FreeActionType.MOVEMENT, { probes: [] }, 'Nécessite une sonde ou une capsule dans le système solaire'],
+      [FreeActionType.PV_MOVEMENT, { probes: [] }, 'Nécessite une sonde ou une capsule dans le système solaire'],
     ])('%s : refusée quand le gain est impossible', (freeAction, blocked, reason) => {
       Object.assign(getPlayer(game, P1), blocked);
       expect(CardSystem.canDiscardFreeAction(game, P1, freeAction)).toEqual({ canDiscard: false, reason });

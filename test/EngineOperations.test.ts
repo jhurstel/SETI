@@ -72,7 +72,7 @@ describe('Opérations du moteur utilisées par l\'interface', () => {
       const p = getPlayer(res.updatedGame, P1);
       expect(p.mediaCoverage).toBe(media + 1);
       expect(p.cards.find(c => c.id === 'sub')!.isRevealed).toBe(true);
-      expect(res.historyEntries[0].message).toBe('choisit "Carte sub" et gagne 1 Média');
+      expect(res.historyEntries[0].message).toBe('gagne "Carte sub" de la rangée et gagne 1 Média');
       expect(game.decks.cardRow[0].isRevealed).toBe(false);
     });
 

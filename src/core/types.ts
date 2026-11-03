@@ -511,11 +511,6 @@ export interface Species {
   anomalie?: AnomalieToken[];
   message?: CentaurienToken[];
   specimen?: MascamitesToken[];
-  /**
-   * Mascamites : case de la piste bleue qui porte le 7e spécimen, face cachée jusqu'à ce qu'une trace y soit posée
-   * (sa récompense est le bonus de la case, gagné normalement)
-   */
-  hiddenSpecimenSlot?: number;
 }
 
 export interface Planet {

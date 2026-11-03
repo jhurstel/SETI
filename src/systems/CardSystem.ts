@@ -164,7 +164,7 @@ export class CardSystem {
         const newPendingInteractions: InteractionState[] = [];
 
         let message = options.isFree
-            ? (cardId ? `choisit "${cardName}"` : `pioche ${privateText(playerId, `"${cardName}"`, 'une carte')}`)
+            ? (cardId ? `gagne "${cardName}" de la rangée` : `gagne ${privateText(playerId, `"${cardName}"`, 'une carte')} de la pioche`)
             : `paye 3 médias pour acheter ${cardId ? `"${cardName}" depuis la rangée` : `${privateText(playerId, `"${cardName}"`, 'une carte')} depuis la pioche`}`;
 
         if (options.triggerFreeAction && card) {
@@ -256,8 +256,8 @@ export class CardSystem {
 
         const rule = FREE_ACTION_DISCARDS[freeAction];
         if (!rule) return { canDiscard: false, reason: "Cette carte n'a pas d'action gratuite" };
-        if (rule.needs === 'probe' && !player.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
-            return { canDiscard: false, reason: "Nécessite une sonde dans le système solaire" };
+        if (rule.needs === 'probe' && !ProbeSystem.hasMovablePiece(player)) {
+            return { canDiscard: false, reason: "Nécessite une sonde ou une capsule dans le système solaire" };
         }
         if (rule.needs === 'data' && player.data >= GAME_CONSTANTS.MAX_DATA) {
             return { canDiscard: false, reason: "Nécessite de transférer des données" };

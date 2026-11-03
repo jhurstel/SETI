@@ -163,7 +163,7 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 
 ### 3.2 Mascamites
 
-- 7 jetons spécimen, mélangés à la découverte : 3 face visible sur Jupiter, 3 sur Saturne (récompense dans l'infobulle du jeton), et le 7e face cachée sur la 3e case de la piste bleue. Celui-ci reste caché (« ? ») jusqu'à ce qu'une trace y soit posée : sa récompense est alors gagnée.
+- 7 jetons spécimen, mélangés à la découverte : 3 face visible sur Jupiter, 3 sur Saturne (récompense dans l'infobulle du jeton), et le 7e face visible sur la 3e case de la piste bleue : sa récompense est le gain de cette case, gagné en y posant une trace.
 - Récompenses des 7 spécimens :
 
 | Spécimen | Récompense |
@@ -176,7 +176,7 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 | 6 | 3 PV + 1 carte au choix |
 | 7 | 7 PV |
 
-- Certaines cartes permettent de **prélever un spécimen** sur Jupiter, Saturne ou leurs lunes : une fenêtre montre les spécimens restants de la planète et leur récompense ; le jeton choisi part dans une **capsule**, qui se déplace comme une sonde (sans compter comme une sonde). Les robots simulent chaque spécimen et gardent la meilleure récompense.
+- Certaines cartes permettent de **prélever un spécimen** sur Jupiter, Saturne ou leurs lunes : une fenêtre montre les spécimens restants de la planète et leur récompense ; le jeton choisi part dans une **capsule**, qui se déplace et se comporte comme une sonde : énergie ou déplacements gratuits (défausse d'une carte Déplacement, Observation IV…), coût de sortie d'un champ d'astéroïdes, Médias des cases, visites et missions déclenchées par un déplacement. Elle ne compte pas dans la limite de sondes et ne peut ni se mettre en orbite ni atterrir. Les robots simulent chaque spécimen et gardent la meilleure récompense.
 - Une capsule arrivée sur la Terre (ou sur Mars pour ET.4) se réclame comme une mission : récompense de la carte plus celle du spécimen.
 - D'autres cartes permettent de **consulter** un spécimen (gagner son bonus sans le retirer), choisi dans la même fenêtre.
 - Pas d'emplacement infini.
@@ -340,7 +340,7 @@ valeur = PV
 - Commandes (`session/commands.ts`) : `LAUNCH_PROBE`, `SCAN`, `ANALYZE`, `RESEARCH_TECH`, `ORBIT`, `LAND`, `PLAY_CARD`, `PASS`, `MOVE_PROBE`, `TRADE`, `BUY_CARD`, `DISCARD_FOR_FREE_ACTION`, `TRANSFER_DATA`, `CLAIM_MISSION`, `CHOOSE`, `SKIP`, `END_TURN`. Toutes sérialisables.
 - `InteractionQueue` : file d'interactions dans l'état (`game.interaction`, `game.pendingInteractions`).
 - `SessionJournal` : historique et annulation.
-- `viewFor(partie, joueur)` (`session/PlayerView.ts`) : ce qu'un joueur a le droit de voir. Elle masque la pioche, les mains adverses (sauf les cartes révélées), les cartes Exertiens adverses jusqu'au décompte, le 7e spécimen Mascamite (face cachée), les espèces non découvertes, la graine et le détail des interactions d'un autre joueur. Les nombres restent visibles.
+- `viewFor(partie, joueur)` (`session/PlayerView.ts`) : ce qu'un joueur a le droit de voir. Elle masque la pioche, les mains adverses (sauf les cartes révélées), les cartes Exertiens adverses jusqu'au décompte, les espèces non découvertes, la graine et le détail des interactions d'un autre joueur. Les nombres restent visibles.
 - Historique : un passage qu'un seul joueur peut lire (nom d'une carte piochée face cachée) est marqué par le moteur (`privateText` dans `core/historyText.ts`). Le jeu local affiche tout ; `viewEntries(entrées, joueur)` retire les passages des autres joueurs et les états d'annulation.
 
 ### 6.3 Principes

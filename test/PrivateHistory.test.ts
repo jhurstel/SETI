@@ -55,9 +55,9 @@ describe('les cartes piochées face cachée ne sont nommées que pour leur propr
 
   test('carte gagnée ou achetée dans la pioche ; une carte de la rangée reste publique', () => {
     const free = CardSystem.acquireCard(game, P1, undefined, { isFree: true }, 's');
-    expect(revealText(free.historyEntries[0].message)).toMatch(/^pioche ".+"$/);
+    expect(revealText(free.historyEntries[0].message)).toMatch(/^gagne ".+" de la pioche$/);
     // Les autres joueurs lisent « une carte » à la place du nom
-    expect(textFor(free.historyEntries[0].message, P2)).toBe('pioche une carte');
+    expect(textFor(free.historyEntries[0].message, P2)).toBe('gagne une carte de la pioche');
     expectPrivate(free.historyEntries[0].message, P1, P2, drawnCards(game, free.updatedGame, P1));
 
     getPlayer(game, P1).mediaCoverage = 5;

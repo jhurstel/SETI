@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType, LifeTrace } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { BonusIcons } from './components/BonusIcons';
-import { SpeciesSystem } from '../systems/SpeciesSystem';
+import { SpeciesSystem, MASCAMITE_BOARD_SPECIMEN_SLOT } from '../systems/SpeciesSystem';
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
 import { DeckPile } from './components/CardBack';
@@ -337,8 +337,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
 
         const trace = board.lifeTraces.find(t => t.location === LifeTraceLocation.SPECIES && t.type === type && t.slotIndex === index);
         const isFilled = !!trace;
-        // 7e spécimen Mascamite : face cachée tant que la case est libre (sa récompense se découvre en y posant une trace)
-        const hiddenSpecimen = !isFilled && !isInfinite && type === LifeTraceType.BLUE && species?.hiddenSpecimenSlot === index;
+        // 7e spécimen Mascamite, face visible sur sa case tant qu'elle est libre (sa récompense est celle de la case)
+        const specimenSlot = !isFilled && !isInfinite && type === LifeTraceType.BLUE && species?.name === AlienBoardType.MASCAMITES && index === MASCAMITE_BOARD_SPECIMEN_SLOT;
         // Coûts de l'emplacement (valeurs négatives : tokens, données), payés en y posant la trace (SpeciesSystem.placeLifeTrace)
         const tokenCost = bonus.token && bonus.token < 0 ? -bonus.token : 0;
         const dataCost = bonus.data && bonus.data < 0 ? -bonus.data : 0;
@@ -347,9 +347,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
         const isClickable = isInfinite ? isPlacing && !isFilled && isNext && canAfford : isPlacing && !isFilled && canAfford; // Note: Fixed slots logic simplified for Mascamites specific placement if needed, but standard logic applies
 
         const handleMouseEnter = (e: React.MouseEvent) => {
-            const bonusText = hiddenSpecimen
-                ? <span>spécimen face cachée, révélé en y posant une trace de vie</span>
-                : <BonusIcons bonus={{ ...bonus, token: tokenCost ? undefined : bonus.token, data: dataCost ? undefined : bonus.data }} />;
+            const bonusText = <BonusIcons bonus={{ ...bonus, token: tokenCost ? undefined : bonus.token, data: dataCost ? undefined : bonus.data }} />;
             const costSymbols = tokenCost || dataCost
                 ? <BonusIcons bonus={{ token: tokenCost || undefined, data: dataCost || undefined }} />
                 : null;
@@ -368,10 +366,6 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 status = 'Indisponible';
                 statusColor = SLOT_COLORS.unavailable;
                 note = tokenCost && (currentPlayer.tokens || 0) < tokenCost ? "Nécessite d'avoir suffisamment de tokens" : "Nécessite d'avoir suffisamment de données";
-            } else if (hiddenSpecimen) {
-                status = 'Disponible';
-                statusColor = SLOT_COLORS.available;
-                note = 'Placer une trace de vie pour découvrir le spécimen';
             } else if ((ResourceSystem.formatBonus(bonus) || []).length <= 0) {
                 status = 'Indisponible';
                 statusColor = SLOT_COLORS.unavailable;
@@ -420,8 +414,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={() => setActiveTooltip(null)}
             >
-                {hiddenSpecimen && <div className="alien-hidden-specimen">?</div>}
-                {!isFilled && !hiddenSpecimen && !!bonus.pv && <VictoryPointsIcon amount={bonus.pv} size={22} />}
+                {specimenSlot && <div className="alien-board-specimen"><BonusIcons bonus={bonus} size={(ResourceSystem.formatBonus(bonus) || []).length > 1 ? 9 : 14} /></div>}
+                {!isFilled && !specimenSlot && !!bonus.pv && <VictoryPointsIcon amount={bonus.pv} size={22} />}
             </div>
         );
     };

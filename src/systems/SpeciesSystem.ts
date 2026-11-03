@@ -11,7 +11,8 @@ import { privateText } from '../core/historyText';
 import { requirePlayer } from '../core/players';
 
 /** Mascamites : case de la piste bleue où est posé le 7e spécimen, face cachée */
-const MASCAMITE_BOARD_SPECIMEN_SLOT = 2;
+/** Case de la piste bleue des Mascamites qui porte le 7e spécimen (face visible, sa récompense est celle de la case) */
+export const MASCAMITE_BOARD_SPECIMEN_SLOT = 2;
 
 /** Annonce d'une découverte d'espèce (fenêtre « Découverte » de l'interface) */
 export const DISCOVERY_NOTICE = "Découverte d'une nouvelle espèce Alien !";
@@ -595,10 +596,9 @@ export class SpeciesSystem {
             const jupiter = game.board.planets.find(p => p.id === 'jupiter');
             if (jupiter) jupiter.mascamiteTokens = jupiterTokens;
 
-            // 7e spécimen : face cachée sur la piste bleue (3e case) ; sa récompense est celle de la case
+            // 7e spécimen : face visible sur la piste bleue (3e case) ; sa récompense est celle de la case
             if (boardToken) {
                 species.fixedSlots = { ...species.fixedSlots, bluelifetrace: species.fixedSlots.bluelifetrace.map((slot, i) => (i === MASCAMITE_BOARD_SPECIMEN_SLOT ? boardToken.bonus : slot)) };
-                species.hiddenSpecimenSlot = MASCAMITE_BOARD_SPECIMEN_SLOT;
             }
             logs.push("Les Mascamites sont découverts ! Des spécimens apparaissent sur Jupiter et Saturne.");
         }

@@ -152,14 +152,13 @@ describe('découverte d\'une espèce', () => {
     };
     const key = (bonus: object) => JSON.stringify(bonus);
 
-    test('3 sur Jupiter, 3 sur Saturne, le 7e face cachée sur la piste bleue (3e case)', () => {
+    test('3 sur Jupiter, 3 sur Saturne, le 7e face visible sur la piste bleue (3e case)', () => {
       const g = discoverMascamites();
       const species = g.species.find(s => s.name === AlienBoardType.MASCAMITES)!;
       const jupiter = g.board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens!;
       const saturn = g.board.planets.find(p => p.id === 'saturn')!.mascamiteTokens!;
       expect(jupiter).toHaveLength(3);
       expect(saturn).toHaveLength(3);
-      expect(species.hiddenSpecimenSlot).toBe(2);
       const onBoard = species.fixedSlots.bluelifetrace[2];
       expect(Object.keys(onBoard).length).toBeGreaterThan(0);
       // Les 7 jetons de l'espèce, chacun une fois
@@ -167,16 +166,10 @@ describe('découverte d\'une espèce', () => {
       expect(placed).toEqual(species.specimen!.map(t => key(t.bonus)).sort());
     });
 
-    test("vue d'un joueur : la récompense du 7e spécimen est cachée tant que sa case est libre", () => {
+    test("vue d'un joueur : la récompense du 7e spécimen est visible, la case libre", () => {
       const g = discoverMascamites();
-      const hidden = viewFor(g, P2).species.find(s => s.name === AlienBoardType.MASCAMITES)!;
-      expect(hidden.fixedSlots.bluelifetrace[2]).toEqual({});
-      expect(hidden.fixedSlots.bluelifetrace[0]).toEqual(g.species.find(s => s.name === AlienBoardType.MASCAMITES)!.fixedSlots.bluelifetrace[0]);
-
       const bonus = g.species.find(s => s.name === AlienBoardType.MASCAMITES)!.fixedSlots.bluelifetrace[2];
-      const placed = SpeciesSystem.placeLifeTrace(g, 0, LifeTraceType.BLUE, P2, 's', LifeTraceLocation.SPECIES, 2);
-      expect(placed.historyEntries[0].message).toContain('place une trace de vie Bleu');
-      expect(viewFor(placed.updatedGame, P1).species.find(s => s.name === AlienBoardType.MASCAMITES)!.fixedSlots.bluelifetrace[2]).toEqual(bonus);
+      expect(viewFor(g, P2).species.find(s => s.name === AlienBoardType.MASCAMITES)!.fixedSlots.bluelifetrace[2]).toEqual(bonus);
     });
   });
 });

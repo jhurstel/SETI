@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Game, ActionType, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, ProbeState, LifeTraceType, InteractionState, GamePhase, SignalType, getInteractionLabel, LifeTraceLocation } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, LifeTraceType, InteractionState, GamePhase, SignalType, getInteractionLabel, LifeTraceLocation } from '../core/types';
 import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, TokenDiscardModal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal, MissionRequirementModal, SpecimenModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
@@ -714,7 +714,7 @@ export const BoardUI: React.FC = () => {
       {/* Modale pour Observation 4 (Scanner un secteur) */}
       {interactionState.type === 'CHOOSING_OBS4_ACTION' && (() => {
         const canLaunch = currentPlayer.energy >= 1 && ProbeSystem.canLaunchProbe(game, currentPlayer.id, false).canLaunch;
-        const canMove = currentPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+        const canMove = ProbeSystem.hasMovablePiece(currentPlayer);
         return (
           <Observation4Modal onChoice={(choice: 'PROBE' | 'MOVE') => choose({ kind: 'OBS4', choice })} canLaunch={canLaunch} canMove={canMove} />
         );
