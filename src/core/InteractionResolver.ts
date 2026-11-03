@@ -81,10 +81,10 @@ export class InteractionResolver {
       newInteractions.push(...bonusRes.newPendingInteractions.map(i => ({ ...i, sequenceId })));
     }
 
-    // « couvre le secteur X et gagne … ; les joueurs présents (A et B) gagnent chacun 1 Média »
+    // « couvre le secteur X et gagne …, les joueurs présents (A et B) gagnent chacun 1 Média »
     const [coverLog, ...winnerGains] = coverageLogs;
     const coverageMessage = coverLog
-      ? [coverLog + (winnerGains.length > 0 ? ` et ${winnerGains.join(', ')}` : ''), ...(coverage.sharedLogs || [])].join(' ; ')
+      ? [coverLog + (winnerGains.length > 0 ? ` et ${winnerGains.join(', ')}` : ''), ...(coverage.sharedLogs || [])].join(', ')
       : '';
     if (coverageMessage) {
       historyEntries.push({ message: coverageMessage, playerId: coverage.winnerId || playerId, sequenceId });
@@ -124,7 +124,7 @@ export class InteractionResolver {
 
     return {
       updatedGame,
-      historyEntries: [{ message: `révèle "${drawnCard.name}" (${drawnCard.scanSector}) de la pioche`, playerId, sequenceId }],
+      historyEntries: [{ message: `révèle "${drawnCard.name}" de la pioche`, playerId, sequenceId }],
       newInteractions: [{
         type: 'SELECTING_SCAN_SECTOR',
         color: drawnCard.scanSector,

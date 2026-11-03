@@ -687,3 +687,14 @@ export const VictoryPointsIcon: React.FC<{ amount?: number; size?: number }> = (
     </svg>
   );
 };
+
+/** Couleurs des chevrons de rotation (anneau qui tourne : bleu, rouge, jaune), comme sur le plateau */
+export const ROTATION_CHEVRON_COLORS: Record<string, string> = { Bleu: '#4a9eff', Rouge: '#ff4747', Jaune: '#ffd700' };
+
+/** Chevron de rotation du Système Solaire, à la couleur de l'anneau qui tourne */
+export const RotationChevronIcon: React.FC<{ color: string; size?: number }> = ({ color, size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 20 20" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+    <path d="M6 3 L14 10 L6 17" fill="none" stroke="black" strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M6 3 L14 10 L6 17" fill="none" stroke={color} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);

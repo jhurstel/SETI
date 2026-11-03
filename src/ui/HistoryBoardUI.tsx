@@ -1,18 +1,21 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Card, Game, Technology, TechnologyCategory, CardType, Bonus, HistoryEntry } from '../core/types';
+import { Card, Game, Technology, TechnologyCategory, CardType, Bonus, HistoryEntry, SectorType } from '../core/types';
 import { CardTooltip } from '../ui/components/CardTooltip';
 import './HistoryBoardUI.css';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { ResourceIcon, ResourceIconKind, LifeTraceIcon, AnyLifeTraceIcon, VictoryPointsIcon, ActionHexIcon } from './components/GameIcons';
+import { ResourceIcon, ResourceIconKind, LifeTraceIcon, AnyLifeTraceIcon, VictoryPointsIcon, ActionHexIcon, RotationChevronIcon, ROTATION_CHEVRON_COLORS } from './components/GameIcons';
 import { LifeTraceColor } from './styles/lifeTraceColors';
 import { ReservationIcon, AnyTechIcon } from './components/ObjectiveSymbol';
-import { BonusIcons, Repeated } from './components/BonusIcons';
+import { BonusIcons, Repeated, SectorSignalIcon } from './components/BonusIcons';
 import { revealText } from '../core/historyText';
 
 // Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
 const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', CARD: 'card', DATA: 'data' };
 // Traces de vie (« 2 Traces Jaunes », « 1 trace de vie rouge », « 1 trace de vie (Rouge) », « 1 trace de vie (quelconque) »)
 const LIFE_TRACE_PATTERN = /[Tt]races? (?:de vie )?(?:\((?:[Rr]ouges?|[Jj]aunes?|[Bb]leu(?:es?|s)?|[Qq]uelconques?)\)|[Rr]ouges?|[Jj]aunes?|[Bb]leu(?:es?|s)?)/;
+// Signal d'une couleur de secteur (« marque un signal Jaune dans le secteur … ») et anneau qui tourne (« Système Solaire (Rouge) »)
+const SIGNAL_PATTERN = /[Ss]ignal (?:Rouge|Jaune|Bleu|Noir|Oumuamua)/;
+const ROTATION_PATTERN = /\((?:Bleu|Rouge|Jaune)\)/;
 const lifeTraceColor = (text: string): LifeTraceColor | undefined => /rouge/i.test(text) ? 'red' : /jaune/i.test(text) ? 'yellow' : /bleu/i.test(text) ? 'blue' : undefined;
 // Autres gains dessinés avec leur symbole du livret, après une quantité (« obtient 2 déplacements gratuits », « 1 Token »,
 // « 2 cartes Alien », « 1 Atterrissage ») ; testés avant les ressources (« carte Alien » avant « carte »)
@@ -162,7 +165,7 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
         const message = revealText(raw);
         const resourcePattern = Object.values(ResourceSystem.RESOURCE_CONFIG).map(c => c.regex.source).join('|');
         const symbolPattern = SYMBOL_ICONS.map(s => s.pattern.source).join('|');
-        const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${LIFE_TRACE_PATTERN.source}|${symbolPattern}|${resourcePattern}|"[^"]+")`, 'g');
+        const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${LIFE_TRACE_PATTERN.source}|${SIGNAL_PATTERN.source}|${ROTATION_PATTERN.source}|${symbolPattern}|${resourcePattern}|"[^"]+")`, 'g');
 
         const parts = message.split(splitRegex);
         // « 2 PV », « 3 Crédits » : le nombre est retiré du texte et dessiné dans l'icône (laurier, pastille, jeton) ;
@@ -175,8 +178,11 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
             const amount = takesAmount ? parts[index - 1].match(/(\d+)\s*$/) : null;
             return amount ? Number(amount[1]) : undefined;
         });
+        // Symbole sans quantité (trace de vie, signal) : « place une trace de vie Rouge » se lit « place <symbole> »
+        const isSingleSymbol = (part: string | undefined) => !!part && (matchesWhole(LIFE_TRACE_PATTERN, part) || matchesWhole(SIGNAL_PATTERN, part));
         return parts.map((part, index) => {
             if (amounts[index + 1] !== undefined) part = part.replace(/\d+\s*$/, '');
+            else if (isSingleSymbol(parts[index + 1])) part = part.replace(/(?:^|(?<= ))(?:une?|1) $/, '');
             if (part.startsWith('"') && part.endsWith('"')) {
                 const name = part.slice(1, -1);
                 if (!name) return part;
@@ -236,6 +242,14 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
             if (matchesWhole(LIFE_TRACE_PATTERN, part)) {
                 const color = lifeTraceColor(part);
                 return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: part, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}><Repeated amount={amounts[index] ?? 1}>{color ? <LifeTraceIcon color={color} size={15} /> : <AnyLifeTraceIcon size={15} />}</Repeated></span>;
+            }
+            if (matchesWhole(SIGNAL_PATTERN, part)) {
+                const sector = part.replace(/^[Ss]ignal /, '') as SectorType;
+                return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: `Signal ${sector}`, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}><SectorSignalIcon sector={sector} size={15} /></span>;
+            }
+            if (matchesWhole(ROTATION_PATTERN, part) && /Système Solaire $/.test(parts[index - 1] ?? '')) {
+                const ring = part.slice(1, -1);
+                return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: `Anneau ${ring}`, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}><RotationChevronIcon color={ROTATION_CHEVRON_COLORS[ring]} size={15} /></span>;
             }
             const symbol = afterAmount ? SYMBOL_ICONS.find(s => matchesWhole(s.pattern, part)) : undefined;
             if (symbol) {

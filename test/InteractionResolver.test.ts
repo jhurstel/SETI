@@ -77,7 +77,15 @@ describe('InteractionResolver', () => {
       markSignals(sector, [P1, P2, P1]);
       const res = InteractionResolver.resolve(game, P1, { type: 'RESOLVING_SECTOR', sectorId: sector.id, sequenceId: 'seq' });
       const message = res.historyEntries.find(e => e.message.startsWith('couvre le secteur'))!.message;
-      expect(message).toMatch(new RegExp(`^couvre le secteur ${sector.name} et gagne .+ ; les joueurs présents \\(.+ et .+\\) gagnent chacun`));
+      expect(message).toMatch(new RegExp(`^couvre le secteur ${sector.name} et gagne .+, les joueurs présents \\(.+ et .+\\) gagnent chacun`));
+    });
+
+    test('un seul joueur présent : il gagne, sans « chacun »', () => {
+      markSignals(sector, [P1, P1, P1]);
+      const res = InteractionResolver.resolve(game, P1, { type: 'RESOLVING_SECTOR', sectorId: sector.id, sequenceId: 'seq' });
+      const message = res.historyEntries.find(e => e.message.startsWith('couvre le secteur'))!.message;
+      expect(message).toMatch(/, le joueur présent \(.+\) gagne 1 Média$/);
+      expect(message).not.toContain('chacun');
     });
 
     test('gagnant humain d\'une autre couleur : son interaction lui est adressée (playerId)', () => {

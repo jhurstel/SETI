@@ -103,7 +103,7 @@ export class ScanSystem {
       signal.marked = true;
       signal.markedBy = playerId;
 
-      logs.push(`marque un signal dans le secteur "${sector.name}" (${sector.color})`);
+      logs.push(`marque un signal ${sector.color} dans le secteur ${sector.name}`);
 
       // Base gain: 1 Data (if type is DATA)
       if (signal.type === SignalType.DATA) {
@@ -232,7 +232,7 @@ export class ScanSystem {
           winnersText = `${others.join(', ')} et ${last}`;
         }
         const resource = sector.id === 'oumuamua' ? '1 Token' : ResourceSystem.formatResource(1, 'MEDIA');
-        sharedLogs.push(`${mediaWinners.length > 1 ? 'les joueurs présents' : 'le joueur présent'} (${winnersText}) gagn${mediaWinners.length > 1 ? 'ent' : 'e'} chacun ${resource}`);
+        sharedLogs.push(`${mediaWinners.length > 1 ? 'les joueurs présents' : 'le joueur présent'} (${winnersText}) ${mediaWinners.length > 1 ? 'gagnent chacun' : 'gagne'} ${resource}`);
       }
 
       // Bonus BONUS_IF_COVERED (Cartes 45, 46, 47)
@@ -613,7 +613,7 @@ export class ScanSystem {
         const { updatedGame: gameAfterRowDiscard, discardedCard } = CardSystem.discardFromRow(updatedGame, interaction.cardId);
         if (discardedCard) {
           updatedGame = gameAfterRowDiscard;
-          initialLogs.push(`utilise "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`);
+          initialLogs.push(`utilise "${discardedCard.name}" de la rangée`);
           cardProcessed = true;
         }
       }
@@ -629,7 +629,7 @@ export class ScanSystem {
         if (cardIndex !== -1) {
           const removedCard = source.cards.splice(cardIndex, 1)[0];
           updatedGame.decks.discardPile.push(removedCard);
-          initialLogs.push(`utilise "${removedCard.name}" (${removedCard.scanSector}) ${source.label}`);
+          initialLogs.push(`utilise "${removedCard.name}" ${source.label}`);
           cardProcessed = true;
         }
       }

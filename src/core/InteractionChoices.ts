@@ -222,7 +222,7 @@ export class InteractionChoices {
         sequenceId: interaction.sequenceId,
         cardId: discardedCard.id,
         cardProcessed: true,
-        message: `utilise "${discardedCard.name}" (${discardedCard.scanSector}) de la rangée`,
+        message: `utilise "${discardedCard.name}" de la rangée`,
       }],
     };
   }

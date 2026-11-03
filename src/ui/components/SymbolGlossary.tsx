@@ -1,6 +1,6 @@
 import React from 'react';
 import { TechnologyCategory } from '../../core/types';
-import { ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon } from './GameIcons';
+import { ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, ROTATION_CHEVRON_COLORS } from './GameIcons';
 import { ReservationIcon, TechCategoryIcon, AnyTechIcon, OrbiterOrLanderIcon } from './ObjectiveSymbol';
 import { LIFE_TRACE_COLORS } from '../styles/lifeTraceColors';
 
@@ -45,6 +45,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       { icon: <ResourceIcon kind="movement" size={28} />, name: 'Déplacement', text: 'Un déplacement gratuit de sonde (sans énergie).' },
       { icon: <ReservationIcon size={24} />, name: 'Réservation', text: 'Une carte de la main glissée sous les revenus : son revenu tout de suite, puis à chaque manche.' },
       { icon: <ResourceIcon kind="token" size={28} />, name: 'Jeton Oumuamua', text: 'Dépensé sur la piste d\'Oumuamua.' },
+      { icon: <span className="seti-glossary-icons">{Object.values(ROTATION_CHEVRON_COLORS).map(color => <RotationChevronIcon key={color} color={color} size={22} />)}</span>, name: 'Rotation', text: 'Le Système Solaire tourne : anneau bleu, rouge ou jaune, celui du chevron sur le plateau.' },
       { icon: <OrbiterOrLanderIcon size={26} />, name: 'Orbiteur ou atterrisseur', text: 'Une sonde mise en orbite ou posée (missions, objectifs).' },
     ],
   },

@@ -1,3 +1,4 @@
+import { ScanSystem } from '../src/systems/ScanSystem';
 import { InteractionChoices } from '../src/core/InteractionChoices';
 import { CardSystem } from '../src/systems/CardSystem';
 import { AIController } from '../src/ai/AIController';
@@ -66,6 +67,12 @@ describe('InteractionChoices : choix communs (cartes, signaux, spécimens, retra
     expect(res.updatedGame.decks.cardRow.map(c => c.id)).not.toContain(card.id);
     expect(res.updatedGame.decks.discardPile.map(c => c.id)).toContain(card.id);
     expect(res.newPendingInteractions).toEqual([expect.objectContaining({ type: 'SELECTING_SCAN_SECTOR', color: card.scanSector, cardId: card.id, cardProcessed: true, sequenceId: 's' })]);
+    // Historique : ni couleur de la carte ni couleur du secteur entre parenthèses, le signal nomme sa couleur (symbole)
+    const scan = res.newPendingInteractions[0] as Interaction<'SELECTING_SCAN_SECTOR'>;
+    expect(scan.message).toBe(`utilise "${card.name}" de la rangée`);
+    const target = res.updatedGame.board.sectors.find(s => ScanSystem.validateScanSectorSelection(res.updatedGame, P1, scan, s.id).valid)!;
+    const signal = ScanSystem.resolveScanSectorSelection(res.updatedGame, P1, scan, target.id, 's');
+    expect(signal.historyEntries[0].message).toMatch(new RegExp(`^utilise "${card.name}" de la rangée, marque un signal ${target.color} dans le secteur ${target.name}`));
     expect(InteractionChoices.selectScanCard(game, { type: 'SELECTING_SCAN_CARD' }, 'inconnue').error).toBeDefined();
     unchanged();
   });
