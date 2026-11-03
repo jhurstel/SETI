@@ -3,6 +3,7 @@ import { RowCardIcon } from './components/GameIcons';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { Game, InteractionState } from '../core/types';
 import { HandCard } from './components/HandCard';
+import { DeckPile } from './components/CardBack';
 import './CardRowUI.css';
 
 interface CardRowUIProps {
@@ -44,18 +45,15 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
             <div className="seti-foldable-content">
                 <div className="seti-card-row-content">
                     {/* Pile de pioche */}
-                    <div
+                    <DeckPile count={game.decks.cards.length}
+                        className={`seti-deck-card ${interactionState.type === 'ACQUIRING_CARD' ? 'active' : ''}`}
                         onClick={() => onCardClick(undefined)}
-                        className={`seti-common-card seti-deck-card ${interactionState.type === 'ACQUIRING_CARD' ? 'active' : ''}`}
                         onMouseEnter={(e) => {
                             const rect = e.currentTarget.getBoundingClientRect();
-                            setActiveTooltip({ content: <div>{game.decks.cards?.length || 0} cartes restantes</div>, rect });
+                            setActiveTooltip({ content: <div>{game.decks.cards.length} cartes restantes</div>, rect });
                         }}
                         onMouseLeave={handleTooltipLeave}
-                    >
-                        <div className="seti-deck-label">Pioche</div>
-                        <div className="seti-deck-count">{game.decks.cards.length || 0} cartes</div>
-                    </div>
+                    />
 
                     {/* Ligne de cartes */}
                     {game.decks.cardRow && game.decks.cardRow.map(card => (

@@ -18,7 +18,7 @@ const COMPUTING_BOTTOM: { roman: string; bonus: Bonus }[] = [
 const computingTooltip = (topSlot: ComputerSlot | undefined): React.ReactNode => {
   const level = topSlot?.technologyId?.match(/^computing-(\d)/)?.[1];
   const tech = level ? COMPUTING_BOTTOM[Number(level) - 1] : undefined;
-  const benefit = (bottom: React.ReactNode) => <>Haut : <ResourceSymbols bonus={{ pv: 2 }} />, bas : {bottom}</>;
+  const benefit = (bottom: React.ReactNode) => <>Haut : <ResourceSymbols bonus={{ pv: 2 }} />, Bas : {bottom}</>;
   return tech
     ? <TechTooltip name={`Informatique ${tech.roman}`} acquired base={null} benefit={benefit(<ResourceSymbols bonus={tech.bonus} />)} />
     : <TechTooltip name="Informatique" acquired={false} base="Ligne du bas fermée"

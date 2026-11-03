@@ -152,12 +152,6 @@
 .alien-small-card.default:hover {
     border-color: #777;
 }
-.alien-deck-label {
-    font-size: 1em;
-}
-.alien-deck-count {
-    font-size: 0.9em;
-}
 
 /* AlienBoardUI Main Container */
 .alien-board-container {

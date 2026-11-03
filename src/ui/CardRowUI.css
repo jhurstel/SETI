@@ -35,17 +35,6 @@
     transition: all 0.2s ease;
 }
 
-.seti-deck-label {
-    font-weight: bold;
-    color: #aaa;
-    text-align: center;
-}
-
-.seti-deck-count {
-    font-size: 0.8em;
-    color: #888;
-}
-
 .seti-row-card {
     border: 1px solid #555;
     cursor: default;

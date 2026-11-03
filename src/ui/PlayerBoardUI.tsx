@@ -11,7 +11,7 @@ import { CardBack } from './components/CardBack';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
-import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsIcon, EndTurnIcon } from './components/GameIcons';
+import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsIcon, EndTurnIcon, DocumentationIcon, SettingsIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
 import { ActionTooltip, TechTooltip, ResourceSymbols, PieceSymbol, ScanSymbol, BlueTraceSymbol, CardCostSymbol, TechSymbol, DiscardSymbol, AmountSymbol, ActionSymbol } from './components/BoardTooltips';
 import { ReservationIcon } from './components/ObjectiveSymbol';
@@ -594,23 +594,14 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
              </div>
            );
         })}
-        <button
-            onClick={onDocumentationClick}
-            className="seti-action-btn"
-            style={{ marginLeft: 'auto', marginRight: '2px', fontSize: '1.2rem', padding: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', alignSelf: 'center' }}
-            onMouseEnter={(e) => handleTooltipHover(e, 'Documentation')}
-            onMouseLeave={handleTooltipLeave}
-        >
-            📖
+        {/* Documentation et paramètres : icônes de même taille, alignées */}
+        <button type="button" onClick={onDocumentationClick} className="seti-header-icon-btn" aria-label="Documentation"
+            onMouseEnter={(e) => handleTooltipHover(e, <div className="seti-tooltip-content">Documentation</div>)} onMouseLeave={handleTooltipLeave}>
+            <DocumentationIcon />
         </button>
-        <button
-            onClick={onSettingsClick}
-            className="seti-action-btn"
-            style={{ marginRight: '8px', fontSize: '1.2rem', padding: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', alignSelf: 'center' }}
-            onMouseEnter={(e) => handleTooltipHover(e, 'Paramètres')}
-            onMouseLeave={handleTooltipLeave}
-        >
-            ⚙️
+        <button type="button" onClick={onSettingsClick} className="seti-header-icon-btn" aria-label="Paramètres"
+            onMouseEnter={(e) => handleTooltipHover(e, <div className="seti-tooltip-content">Paramètres</div>)} onMouseLeave={handleTooltipLeave}>
+            <SettingsIcon />
         </button>
       </div>
 

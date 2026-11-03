@@ -5,6 +5,7 @@ import { BonusIcons } from './components/BonusIcons';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
+import { DeckPile } from './components/CardBack';
 import { Tooltip } from './Tooltip';
 import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon } from './components/GameIcons';
 import { LIFE_TRACE_COLORS, LifeTraceColor } from './styles/lifeTraceColors';
@@ -102,18 +103,15 @@ const SpeciesCardArea: React.FC<{
     return (
         <div className="seti-card-row-content alien-species-card-area">
             {/* Deck */}
-            <div 
-                className={`seti-common-card seti-deck-card alien-small-card ${isAcquiring ? 'acquiring active' : 'default'}`}
+            <DeckPile count={deck.length}
+                className={`seti-deck-card alien-small-card ${isAcquiring ? 'acquiring active' : 'default'}`}
                 onClick={(e) => { e.stopPropagation(); onCardClick(species.id, 'deck'); }}
                 onMouseEnter={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     setActiveTooltip({ content: <div>{deck.length} cartes restantes</div>, rect });
                 }}
                 onMouseLeave={() => setActiveTooltip(null)}
-            >
-                <div className="seti-deck-label alien-deck-label">Pioche</div>
-                <div className="seti-deck-count alien-deck-count">{deck.length} cartes</div>
-            </div>
+            />
             {/* Row */}
             {row.map(card => (
                 <div key={card.id}

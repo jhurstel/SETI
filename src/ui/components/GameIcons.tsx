@@ -725,3 +725,19 @@ export const RotationTokenIcon: React.FC<{ size?: number }> = ({ size = 20 }) =>
     </svg>
   );
 };
+
+/** Documentation : livre ouvert (bouton à côté des paramètres) */
+export const DocumentationIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 5.5 Q7.5 3.5 12 6.5 Q16.5 3.5 21 5.5 V19 Q16.5 17 12 20 Q7.5 17 3 19 Z" />
+    <path d="M12 6.5 V20" />
+  </svg>
+);
+
+/** Paramètres : roue dentée (8 dents), même gabarit que l'icône de documentation */
+export const SettingsIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+    <circle cx={12} cy={12} r={8.6} strokeWidth={3} strokeDasharray={`${(Math.PI * 17.2) / 16} ${(Math.PI * 17.2) / 16}`} />
+    <circle cx={12} cy={12} r={5.6} strokeWidth={3} />
+  </svg>
+);
