@@ -1,7 +1,9 @@
 import { ComputerSystem } from '../src/systems/ComputerSystem';
 import { AITurn } from '../src/ai/AITurn';
-import { Game, Player } from '../src/core/types';
-import { createTestGame, getPlayer } from './helpers/gameFixture';
+import { ResourceSystem } from '../src/systems/ResourceSystem';
+import { cloneGame } from '../src/core/cloneGame';
+import { CardType, Game, Player } from '../src/core/types';
+import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
 const P1 = 'player_0';
 
@@ -37,6 +39,16 @@ describe('ComputerSystem.transferData', () => {
     const res = ComputerSystem.transferData(game, P1, '1a', 'seq');
 
     expect(res.newPendingInteractions).toEqual([]);
+    // La réservation perdue est signalée dans l'historique
+    expect(res.historyEntries[0].message).toBe("transfère 1 donnée vers l'ordinateur et gagne 1 Réservation (aucune carte en main : pas de réservation)");
+  });
+
+  test('réservation gagnée en bonus sans carte en main (une carte Exertien ne compte pas) : notée dans l\'historique', () => {
+    const player = getPlayer(game, P1);
+    player.cards = [makeCard('ex', { type: CardType.EXERTIEN })];
+    const res = ResourceSystem.processBonuses({ revenue: 1 }, cloneGame(game), P1, 'test', 'seq');
+    expect(res.newPendingInteractions).toEqual([]);
+    expect(res.logs).toContain("n'a aucune carte en main : pas de réservation");
   });
 
   test('case « réservation » : réservation d\'une carte de la main', () => {

@@ -20,6 +20,9 @@ import { uniqueId } from '../core/ids';
 import { CardSystem } from './CardSystem';
 import { requirePlayer } from '../core/players';
 
+/** Réservation gagnée sans carte en main : elle est perdue */
+export const NO_RESERVATION_NOTE = 'aucune carte en main : pas de réservation';
+
 export class ComputerSystem {
   static canAnalyzeData(game: Game, playerId: string): RuleCheck<'canAnalyze'> {
     const player = requirePlayer(game, playerId);
@@ -82,10 +85,12 @@ export class ComputerSystem {
     const player = requirePlayer(updatedGame, playerId);
 
     const newPendingInteractions: InteractionState[] = [];
+    let noReservation = false;
     bonusEffects.forEach(effect => {
       if (effect.type === 'reservation') {
         const count = Math.min(effect.amount, CardSystem.getHandCards(player).length);
         if (count > 0) newPendingInteractions.push({ type: 'RESERVING_CARD', count, selectedCards: [], sequenceId });
+        else noReservation = true;
       } else if (effect.type === 'anycard') {
         newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: effect.amount, isFree: true, sequenceId });
       }
@@ -93,6 +98,7 @@ export class ComputerSystem {
 
     let message = `transfère 1 donnée vers l'ordinateur${gains.length > 0 ? ` et gagne ${gains.join(', ')}` : ''}`;
     if (slotId === '6a') message += " et complète l'ordinateur";
+    if (noReservation) message += ` (${NO_RESERVATION_NOTE})`;
     return { updatedGame, historyEntries: [{ message, playerId, sequenceId }], newPendingInteractions };
   }
 

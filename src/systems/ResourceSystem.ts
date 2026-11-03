@@ -3,6 +3,7 @@ import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, Sect
 import { cloneGame } from '../core/cloneGame';
 import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
+import { NO_RESERVATION_NOTE } from './ComputerSystem';
 import { ScanSystem } from './ScanSystem';
 import { TechnologySystem } from './TechnologySystem';
 import { random } from '../core/random';
@@ -448,8 +449,9 @@ export class ResourceSystem {
     if (bonuses.revenue) {
       const player = updatedGame.players.find(p => p.id === playerId);
       if (player) {
-        const count = Math.min(bonuses.revenue, player.cards.length);
+        const count = Math.min(bonuses.revenue, CardSystem.getHandCards(player).length);
         if (count > 0) newPendingInteractions.push({ type: 'RESERVING_CARD', count: count, selectedCards: [], sequenceId });
+        else logs.push(`n'a ${NO_RESERVATION_NOTE}`);
       }
     }
 
