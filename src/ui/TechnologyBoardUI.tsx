@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { TechTileIcon, VictoryPointsIcon } from './components/GameIcons';
 import { BonusIcons } from './components/BonusIcons';
+import { HoverTooltip } from './components/HoverTooltip';
 import { AnyTechIcon, TechCategoryIcon } from './components/ObjectiveSymbol';
 import { Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
 import { TECHNOLOGY_STYLES } from './styles/celestialStyles';
@@ -57,10 +58,11 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
 
   const getCategoryIcon = (category: TechnologyCategory) => <TechCategoryIcon category={category} size={18} />;
 
-  const renderBonus = (bonus: Bonus, excludeExtraPv: boolean) => {
+  // Gains de la tuile ; sur le plateau (`tooltips`), chaque symbole a son infobulle
+  const renderBonus = (bonus: Bonus, excludeExtraPv: boolean, tooltips = false) => {
     let pv = bonus.pv || 0;
     if (excludeExtraPv) pv -= 2;
-    return <div className="seti-tech-bonus-container"><BonusIcons bonus={{ ...bonus, pv: pv > 0 ? pv : undefined }} size={15} empty={null} /></div>;
+    return <div className="seti-tech-bonus-container"><BonusIcons bonus={{ ...bonus, pv: pv > 0 ? pv : undefined }} size={15} empty={null} tooltips={tooltips} /></div>;
   };
 
   return (
@@ -159,7 +161,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                     >
                       {hasExtraPv && (
                         <div className="seti-tech-card-extra-pv" aria-label="2 PV">
-                          <VictoryPointsIcon amount={2} size={22} />
+                          <HoverTooltip content="2 PV" nested style={{ cursor: 'help' }}><VictoryPointsIcon amount={2} size={22} /></HoverTooltip>
                         </div>
                       )}
                       
@@ -186,7 +188,7 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
                         </div>
   
                         <div style={{ marginTop: 'auto', borderTop: '1px solid #555', paddingTop: '4px' }}>
-                          {renderBonus(topCard.bonus, hasExtraPv)}
+                          {renderBonus(topCard.bonus, hasExtraPv, true)}
                         </div>
                       </>
                     </div>
