@@ -207,7 +207,7 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 | 4 | 8 PV |
 
 - Les cartes Centauriens posent aussi un palier : en l'atteignant, l'effet **Réception** de la carte s'applique. Il n'y a rien à cliquer : l'étoile de la carte jouée reste grise jusqu'au palier (son infobulle en donne le score), puis devient dorée.
-- Piste : 15 PV pour 3 données ; emplacement infini : 6 PV pour 1 donnée.
+- Piste : 15 PV pour 3 données ; emplacement infini : 6 PV pour 1 donnée (il faut avoir ces données pour y poser la trace ; l'infobulle de l'emplacement affiche « Coût » avant « Bonus »).
 - Le symbole Message à côté du nom de l'espèce, sur son plateau, montre au survol, en symboles, les paliers de chaque joueur (PV, tuile Message ou carte, coche une fois pris) et les 4 tuiles Message sur une ligne (une tuile prise est grisée, bordée de la couleur du joueur) ; la souris peut entrer dans l'infobulle pour voir l'état et la récompense de chaque tuile.
 
 ### 3.6 Exertiens

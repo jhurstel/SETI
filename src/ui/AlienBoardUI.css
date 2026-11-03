@@ -383,29 +383,6 @@
 }
 
 /* Slot styles */
-.alien-slot-tooltip-container {
-    text-align: center;
-    padding: 4px;
-}
-.alien-slot-tooltip-status {
-    font-weight: bold;
-    margin-bottom: 4px;
-}
-.alien-slot-tooltip-details {
-    font-size: 0.9em;
-    color: #ccc;
-}
-.alien-slot-tooltip-cost {
-    color: #ff6b6b;
-}
-.alien-slot-tooltip-bonus {
-    color: #ffd700;
-}
-.alien-slot-tooltip-action {
-    font-size: 0.9em;
-    color: #aaa;
-    font-style: italic;
-}
 
 /* Mascamites : emplacements bleus du haut en triangle (colonnes de 1, 2 et 3 jetons).
    Verticalement, même pas que les colonnes (jeton 28px + écart 15px) : la base prolonge la colonne bleue

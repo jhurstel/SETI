@@ -4,6 +4,7 @@ import { SECTOR_STYLES } from '../styles/celestialStyles';
 import { ResourceIcon } from './GameIcons';
 import { BonusIcons, SectorSignalIcon } from './BonusIcons';
 import { freeActionBonus, revenueBonus } from './cardBonus';
+import { HoverTooltip } from './HoverTooltip';
 
 export const CardDescription: React.FC<{ description: string, type?: CardType, hideIntro?: boolean }> = ({ description, type, hideIntro }) => {
     if (!description) return null;
@@ -62,11 +63,16 @@ export const CardTooltip: React.FC<{ card: Card, hideIntro?: boolean, hideStats?
           </div>
         ) : (
           <div className="seti-card-tooltip-stats">
-            <div>Coût: <span style={{ color: '#ffd700', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '3px', verticalAlign: 'middle' }}><ResourceIcon kind={card.costType === CostType.ENERGY ? 'energy' : 'credit'} amount={card.cost} size={16} /></span></div>
+            {/* Symboles avec leur propre infobulle (l'infobulle de la carte est survolable sur les plateaux) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>Coût:<HoverTooltip nested content={card.costType === CostType.ENERGY ? 'Énergie' : 'Crédit'} style={{ alignItems: 'center', cursor: 'help' }}>
+              <ResourceIcon kind={card.costType === CostType.ENERGY ? 'energy' : 'credit'} amount={card.cost} size={16} />
+            </HoverTooltip></div>
             <div>Type: {card.type} ({card.id})</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>Action:<BonusIcons bonus={freeActionBonus(card.freeAction)} size={14} empty={<span style={{ color: '#aaffaa' }}>{card.freeAction}</span>} /></div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>Revenu:<BonusIcons bonus={revenueBonus(card.revenue)} size={14} empty={<span style={{ color: '#aaffaa' }}>{card.revenue}</span>} /></div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>Signal:<SectorSignalIcon sector={card.scanSector} size={15} /> <span style={{ color: `${SECTOR_STYLES[card.scanSector]?.color || '#fff'}` }}>{card.scanSector}</span></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>Action:<BonusIcons bonus={freeActionBonus(card.freeAction)} size={14} tooltips empty={<span style={{ color: '#aaffaa' }}>{card.freeAction}</span>} /></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>Revenu:<BonusIcons bonus={revenueBonus(card.revenue)} size={14} tooltips empty={<span style={{ color: '#aaffaa' }}>{card.revenue}</span>} /></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>Signal:<HoverTooltip nested content={`Signal dans un secteur ${card.scanSector.toLowerCase()}`} style={{ alignItems: 'center', cursor: 'help' }}>
+              <SectorSignalIcon sector={card.scanSector} size={15} />
+            </HoverTooltip> <span style={{ color: `${SECTOR_STYLES[card.scanSector]?.color || '#fff'}` }}>{card.scanSector}</span></div>
           </div>
         )
       )}

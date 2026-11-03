@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RowCardIcon } from './components/GameIcons';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
+import { useInteractiveTooltip, ActiveTooltip } from './hooks/useInteractiveTooltip';
 import { Game, InteractionState } from '../core/types';
 import { HandCard } from './components/HandCard';
 import { DeckPile } from './components/CardBack';
@@ -10,7 +11,7 @@ interface CardRowUIProps {
     game: Game;
     interactionState: InteractionState;
     onCardClick: (cardId?: string) => void;
-    setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
+    setActiveTooltip: (tooltip: ActiveTooltip | null) => void;
 }
 
 export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, onCardClick, setActiveTooltip }) => {
@@ -26,14 +27,8 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
 
     const currentPlayer = game.players[game.currentPlayerIndex];
 
-    const handleTooltipHover = (e: React.MouseEvent, content: React.ReactNode) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setActiveTooltip({ content, rect });
-    };
-
-    const handleTooltipLeave = () => {
-        setActiveTooltip(null);
-    };
+    // Infobulles des cartes : on peut y entrer pour survoler leurs symboles
+    const { show: handleTooltipHover, scheduleClose: handleTooltipLeave } = useInteractiveTooltip(setActiveTooltip);
 
     return (
         <div ref={panelRef} className={`seti-foldable-container seti-icon-panel seti-card-row-container ${isOpen ? 'open' : 'collapsed'} ${isActive ? 'active' : ''}`}

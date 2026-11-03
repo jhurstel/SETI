@@ -16,6 +16,7 @@ import { HoverTooltip } from './components/HoverTooltip';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
 import { CentaurienMessageTile } from './components/CentaurienMessageTile';
+import { useInteractiveTooltip, ActiveTooltip } from './hooks/useInteractiveTooltip';
 
 /** Couleur de chaque piste de traces de vie */
 const TRACK_COLORS: Record<LifeTraceType, string> = {
@@ -31,7 +32,7 @@ interface AlienBoardUIProps {
     interactionState: InteractionState;
     onPlaceLifeTrace: (boardIndex: number, color: LifeTraceType, slotType: LifeTraceLocation, slotIndex?: number) => void;
     onSpeciesCardClick: (speciesId: string, cardId: string) => void;
-    setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto' } | null) => void;
+    setActiveTooltip: (tooltip: ActiveTooltip | null) => void;
     forceOpen?: boolean;
 }
 
@@ -88,7 +89,7 @@ const SpeciesCardArea: React.FC<{
     species: Species;
     interactionState: InteractionState;
     onCardClick: (speciesId: string, cardId: string) => void;
-    setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
+    setActiveTooltip: (tooltip: ActiveTooltip | null) => void;
 }> = ({ species, interactionState, onCardClick, setActiveTooltip }) => {
     
     const deck = species.cards;
@@ -96,13 +97,9 @@ const SpeciesCardArea: React.FC<{
     
     const isAcquiring = interactionState.type === 'ACQUIRING_ALIEN_CARD' && interactionState.speciesId === species.id;
 
-    const handleCardHover = (e: React.MouseEvent, card: Card) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setActiveTooltip({
-            content: <CardTooltip card={card} />,
-            rect
-        });
-    };
+    // Infobulle d'une carte : on peut y entrer pour survoler ses symboles
+    const { show, scheduleClose } = useInteractiveTooltip(setActiveTooltip);
+    const handleCardHover = (e: React.MouseEvent, card: Card) => show(e, <CardTooltip card={card} />);
 
     return (
         <div className="seti-card-row-content alien-species-card-area">
@@ -121,7 +118,7 @@ const SpeciesCardArea: React.FC<{
                 <div key={card.id}
                     onClick={(e) => { e.stopPropagation(); onCardClick(species.id, card.id); }}
                     onMouseEnter={(e) => handleCardHover(e, card)}
-                    onMouseLeave={() => setActiveTooltip(null)}
+                    onMouseLeave={scheduleClose}
                     className={`seti-common-card seti-row-card alien-small-card ${isAcquiring ? 'acquiring' : 'default'}`}
                 >
                     {/* Même contenu que les cartes des joueurs, réduit à la taille des petites cartes */}
@@ -342,64 +339,53 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
         const isFilled = !!trace;
         // 7e spécimen Mascamite : face cachée tant que la case est libre (sa récompense se découvre en y posant une trace)
         const hiddenSpecimen = !isFilled && !isInfinite && type === LifeTraceType.BLUE && species?.hiddenSpecimenSlot === index;
-        const canAfford = !bonus.token || bonus.token >= 0 || (currentPlayer.tokens || 0) >= Math.abs(bonus.token);
+        // Coûts de l'emplacement (valeurs négatives : tokens, données), payés en y posant la trace (SpeciesSystem.placeLifeTrace)
+        const tokenCost = bonus.token && bonus.token < 0 ? -bonus.token : 0;
+        const dataCost = bonus.data && bonus.data < 0 ? -bonus.data : 0;
+        const canAfford = (currentPlayer.tokens || 0) >= tokenCost && currentPlayer.data >= dataCost;
         const isNext = index === 0 || (isInfinite && index === fixedSlotsLength) || !!board.lifeTraces.find(t => t.location === LifeTraceLocation.SPECIES && t.type === type && t.slotIndex === index - 1);
         const isClickable = isInfinite ? isPlacing && !isFilled && isNext && canAfford : isPlacing && !isFilled && canAfford; // Note: Fixed slots logic simplified for Mascamites specific placement if needed, but standard logic applies
 
         const handleMouseEnter = (e: React.MouseEvent) => {
             const bonusText = hiddenSpecimen
                 ? <span>spécimen face cachée, révélé en y posant une trace de vie</span>
-                : <BonusIcons bonus={{ ...bonus, token: bonus.token && bonus.token > 0 ? bonus.token : undefined }} />;
-
-            let costText = null;
-            if (bonus.token && bonus.token < 0) {
-                costText = `${Math.abs(bonus.token)} Token`;
-            }
+                : <BonusIcons bonus={{ ...bonus, token: tokenCost ? undefined : bonus.token, data: dataCost ? undefined : bonus.data }} />;
+            const costSymbols = tokenCost || dataCost
+                ? <BonusIcons bonus={{ token: tokenCost || undefined, data: dataCost || undefined }} />
+                : null;
             
-            let statusText = "";
-            let statusColor = "";
-            let actiontext = "";
-            let actionColor = "";
+            // Même infobulle que les autres emplacements : état, coût et bonus sur une ligne, puis l'action ou la raison
+            // (dans la couleur de l'état : rouge si indisponible)
+            let status: string;
+            let statusColor: string;
+            let note: string;
             if (isFilled) {
                 const player = game.players.find(p => p.id === trace?.playerId);
-                statusText = `Occupé par ${player?.name || 'Inconnu'}`;
+                status = `Occupé par ${player?.name || 'Inconnu'}`;
                 statusColor = player?.color || '#ccc';
+                note = '';
             } else if (!canAfford) {
-                statusText = "Indisponible";
-                statusColor = "#ff6b6b";
-                actiontext = "Nécessite d'avoir suffisamment de tokens";
+                status = 'Indisponible';
+                statusColor = SLOT_COLORS.unavailable;
+                note = tokenCost && (currentPlayer.tokens || 0) < tokenCost ? "Nécessite d'avoir suffisamment de tokens" : "Nécessite d'avoir suffisamment de données";
             } else if (hiddenSpecimen) {
-                statusText = "Disponible";
-                statusColor = "#4a9eff";
-                actiontext = "Placer une trace de vie pour découvrir le spécimen";
-                actionColor = "#4a9eff";
+                status = 'Disponible';
+                statusColor = SLOT_COLORS.available;
+                note = 'Placer une trace de vie pour découvrir le spécimen';
             } else if ((ResourceSystem.formatBonus(bonus) || []).length <= 0) {
-                statusText = "Indisponible";
-                statusColor = "#ff6b6b";
-                actiontext = "Nécessite un jeton";
-                actionColor = "#ff6b6b";
+                status = 'Indisponible';
+                statusColor = SLOT_COLORS.unavailable;
+                note = 'Nécessite un jeton';
             } else {
-                statusText = "Disponible";
-                statusColor = "#4a9eff";
-                actiontext = "Placer une trace de vie pour récupérer le bonus";
-                actionColor = "#4a9eff";
+                status = 'Disponible';
+                statusColor = SLOT_COLORS.available;
+                note = 'Placer une trace de vie pour récupérer le bonus';
             }
 
-            const rect = e.currentTarget.getBoundingClientRect();
-            setActiveTooltip({ content: (
-                <div className="alien-slot-tooltip-container">
-                    <div className="alien-slot-tooltip-status" style={{ color: statusColor }}>{statusText}</div>
-                    <div className="alien-slot-tooltip-details">
-                        {costText && (
-                            <>Coût: <span className="alien-slot-tooltip-cost">{costText}</span>, </>
-                        )}
-                        Bonus: <span className="alien-slot-tooltip-bonus">{bonusText}</span>
-                    </div>
-                    {actiontext && (
-                        <div className="alien-slot-tooltip-action" style={{ color: actionColor }}>{actiontext}</div>
-                    )}
-                </div>
-            ), rect });
+            setActiveTooltip({
+                content: <SlotTooltip status={status} statusColor={statusColor} cost={costSymbols} value={bonusText} note={note} />,
+                rect: e.currentTarget.getBoundingClientRect(),
+            });
         };
 
         const style: React.CSSProperties = {
@@ -470,11 +456,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
             const hidden = placed.length - shown.length;
             const showTraceTooltip = (e: React.MouseEvent, trace: LifeTrace) => {
                 const player = game.players.find(p => p.id === trace.playerId);
-                setActiveTooltip({ content: (
-                    <div className="alien-slot-tooltip-container">
-                        <div className="alien-slot-tooltip-status" style={{ color: player?.color || '#ccc' }}>Occupé par {player?.name || 'Inconnu'}</div>
-                    </div>
-                ), rect: e.currentTarget.getBoundingClientRect() });
+                setActiveTooltip({ content: <SlotTooltip status={`Occupé par ${player?.name || 'Inconnu'}`} statusColor={player?.color || '#ccc'} />, rect: e.currentTarget.getBoundingClientRect() });
             };
             return (
                 <div className="alien-infinite-slot">
