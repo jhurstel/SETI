@@ -307,6 +307,10 @@
   font-size: 0.8rem;
   color: #a9b8dc;
   line-height: 1.35;
+  /* Sur une seule ligne */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .seti-home-card.primary .seti-home-card-subtitle {

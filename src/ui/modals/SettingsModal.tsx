@@ -254,9 +254,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div className="seti-home-actions">
               {hasAutosave && card('continue', 'play', 'Continuer la partie', savedSummary || 'Reprendre la partie sauvegardée', handleContinue, true)}
-              {card('new', 'rocket', 'Nouvelle partie', 'Contre 1 à 3 robots, du Débutant à l\'Expert', handleNewGameRequest, !hasAutosave)}
+              {card('new', 'rocket', 'Nouvelle partie', 'Jouer en solo contre des bots', handleNewGameRequest, !hasAutosave)}
               {onResumeOnline && card('resume-online', 'resume', 'Reprendre en ligne', 'Retrouver votre place dans la salle', () => { setVisible(false); onResumeOnline(); })}
-              {onOnline && card('online', 'online', 'Partie en ligne', 'Créer une salle ou rejoindre des amis avec un code', () => { setVisible(false); onOnline(); })}
+              {onOnline && card('online', 'online', 'Partie en ligne', 'Créer une salle et jouer avec des amis', () => { setVisible(false); onOnline(); })}
               {onLeaveOnline && card('leave-online', 'leave', 'Quitter la partie en ligne', 'Votre place reste reprenable', onLeaveOnline)}
             </div>
 
