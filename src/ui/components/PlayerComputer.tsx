@@ -18,11 +18,11 @@ const COMPUTING_BOTTOM: { roman: string; bonus: Bonus }[] = [
 const computingTooltip = (topSlot: ComputerSlot | undefined): React.ReactNode => {
   const level = topSlot?.technologyId?.match(/^computing-(\d)/)?.[1];
   const tech = level ? COMPUTING_BOTTOM[Number(level) - 1] : undefined;
-  const benefit = (bottom: React.ReactNode) => <>Haut : <ResourceSymbols bonus={{ pv: 2 }} /> ; bas : {bottom}</>;
+  const benefit = (bottom: React.ReactNode) => <>Haut : <ResourceSymbols bonus={{ pv: 2 }} />, bas : {bottom}</>;
   return tech
     ? <TechTooltip name={`Informatique ${tech.roman}`} acquired base={null} benefit={benefit(<ResourceSymbols bonus={tech.bonus} />)} />
     : <TechTooltip name="Informatique" acquired={false} base="Ligne du bas fermée"
-        benefit={benefit(<>{COMPUTING_BOTTOM.map(t => <ResourceSymbols key={t.roman} bonus={t.bonus} />)} selon la technologie</>)} />;
+        benefit={benefit(<>{COMPUTING_BOTTOM.map((t, i) => <React.Fragment key={t.roman}>{i > 0 && ' / '}<ResourceSymbols bonus={t.bonus} /></React.Fragment>)}</>)} />;
 };
 
 export const PlayerComputer = ({ 

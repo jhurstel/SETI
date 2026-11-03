@@ -63,7 +63,17 @@
 
 /* Texte et symboles mêlés : flux de texte normal, symboles centrés sur la ligne */
 .seti-board-tooltip-rows dd.inline {
-  line-height: 24px;
+  line-height: 20px;
+}
+
+/* Technologie : chaque ligne tient sur une ligne (textes courts), l'infobulle s'élargit au besoin */
+.seti-board-tooltip.tech {
+  max-width: none;
+}
+
+.seti-board-tooltip.tech dt,
+.seti-board-tooltip.tech dd.inline {
+  white-space: nowrap;
 }
 
 .seti-board-tooltip-rows dd.inline .seti-board-tooltip-symbols {

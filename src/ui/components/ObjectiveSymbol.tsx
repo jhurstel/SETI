@@ -162,27 +162,35 @@ const CoveredSector = () => (
   </g>
 );
 
+/** Satellite blanc (corps et deux panneaux solaires), centré sur (x, y) */
+const SatelliteGlyph: React.FC<{ x: number; y: number; scale?: number }> = ({ x, y, scale = 1 }) => (
+  <g transform={`translate(${x} ${y}) scale(${scale}) rotate(-45)`} fill="#fff">
+    <rect x={-2.6} y={-3.2} width={5.2} height={6.4} rx={0.8} />
+    <rect x={-9.5} y={-2} width={6} height={4} rx={0.5} />
+    <rect x={3.5} y={-2} width={6} height={4} rx={0.5} />
+    <line x1={0} y1={3.2} x2={0} y2={5.5} stroke="#fff" strokeWidth={1.2} />
+  </g>
+);
+
+/** Atterrisseur blanc (caisse, antenne et trois roues), centré sur (x, y) */
+const LanderGlyph: React.FC<{ x: number; y: number; scale?: number }> = ({ x, y, scale = 1 }) => (
+  <g fill="#fff" transform={`translate(${x} ${y}) scale(${scale})`}>
+    <rect x={-5} y={-4} width={10} height={4.5} rx={1} />
+    <line x1={2.5} y1={-4} x2={4} y2={-7.5} stroke="#fff" strokeWidth={1.2} />
+    <circle cx={-4} cy={2.6} r={1.7} />
+    <circle cx={0} cy={2.6} r={1.7} />
+    <circle cx={4} cy={2.6} r={1.7} />
+  </g>
+);
+
 /** Orbiteur ou atterrisseur : disque coupé en diagonale, satellite (vert) en haut à gauche, atterrisseur (jaune) en bas à droite */
 const OrbiterOrLander = () => (
   <g>
     <circle cx={20} cy={20} r={17} fill={COLORS.lifeYellow} />
     <path d="M7.98 32.02 A17 17 0 0 1 32.02 7.98 Z" fill={COLORS.energy} />
     <line x1={7.98} y1={32.02} x2={32.02} y2={7.98} stroke="#fff" strokeWidth={1.2} />
-    {/* satellite : corps et deux panneaux solaires */}
-    <g transform="translate(14 14) rotate(-45)" fill="#fff">
-      <rect x={-2.6} y={-3.2} width={5.2} height={6.4} rx={0.8} />
-      <rect x={-9.5} y={-2} width={6} height={4} rx={0.5} />
-      <rect x={3.5} y={-2} width={6} height={4} rx={0.5} />
-      <line x1={0} y1={3.2} x2={0} y2={5.5} stroke="#fff" strokeWidth={1.2} />
-    </g>
-    {/* atterrisseur : caisse, antenne et trois roues */}
-    <g fill="#fff" transform="translate(26.5 25.5)">
-      <rect x={-5} y={-4} width={10} height={4.5} rx={1} />
-      <line x1={2.5} y1={-4} x2={4} y2={-7.5} stroke="#fff" strokeWidth={1.2} />
-      <circle cx={-4} cy={2.6} r={1.7} />
-      <circle cx={0} cy={2.6} r={1.7} />
-      <circle cx={4} cy={2.6} r={1.7} />
-    </g>
+    <SatelliteGlyph x={14} y={14} />
+    <LanderGlyph x={26.5} y={25.5} />
   </g>
 );
 
@@ -210,6 +218,22 @@ export const TechCategoryIcon: React.FC<{ category: TechnologyCategory; size?: n
 export const OrbiterOrLanderIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
   <svg width={size} height={size} viewBox="2 2 36 36" style={{ display: 'block' }}>
     <OrbiterOrLander />
+  </svg>
+);
+
+/** Orbiteur seul : disque vert et satellite, comme la moitié de l'icône du panneau des planètes */
+export const OrbiterIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="2 2 36 36" style={{ display: 'block' }}>
+    <circle cx={20} cy={20} r={17} fill={COLORS.energy} />
+    <SatelliteGlyph x={20} y={20} scale={1.5} />
+  </svg>
+);
+
+/** Atterrisseur seul : disque jaune et atterrisseur, comme la moitié de l'icône du panneau des planètes */
+export const LanderIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="2 2 36 36" style={{ display: 'block' }}>
+    <circle cx={20} cy={20} r={17} fill={COLORS.lifeYellow} />
+    <LanderGlyph x={20} y={21.5} scale={1.6} />
   </svg>
 );
 

@@ -115,12 +115,12 @@ const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, han
   // Les quatre emplacements de technologie Exploration, espacés régulièrement
   return (
     <div className="obs-track-container evenly">
-      {techSlot(<>1 <PieceSymbol kind="probe" label="Sonde" /> à la fois dans le système solaire</>,
+      {techSlot(<>1 <PieceSymbol kind="probe" label="Sonde" /> dans le système solaire</>,
         <>Jusqu'à 2 <PieceSymbol kind="probe" label="Sonde" /> dans le système solaire</>, 1, 'I')}
-      {techSlot(<>Quitter un champ d'astéroïdes coûte <ResourceSymbols bonus={{ movements: 1 }} /> de plus</>,
-        <><ResourceSymbols bonus={{ media: 1 }} /> en visitant un champ d'astéroïdes, qu'on quitte sans surcoût</>, 2, 'II')}
-      {techSlot(<>Atterrir coûte <ResourceSymbols bonus={{ energy: GAME_CONSTANTS.LAND_COST_ENERGY }} /> (1 de moins avec un orbiteur)</>,
-        <>Atterrir coûte <ResourceSymbols bonus={{ energy: 1 }} /> de moins</>, 3, 'III')}
+      {techSlot(<>Quitter un champ d'astéroïdes : <ResourceSymbols bonus={{ movements: 1 }} /> de plus</>,
+        <>Champ d'astéroïdes : <ResourceSymbols bonus={{ media: 1 }} />, sortie sans surcoût</>, 2, 'II')}
+      {techSlot(<>Atterrir : <ResourceSymbols bonus={{ energy: GAME_CONSTANTS.LAND_COST_ENERGY }} />, 1 de moins avec un orbiteur</>,
+        <>Atterrir : <ResourceSymbols bonus={{ energy: 1 }} /> de moins</>, 3, 'III')}
       {techSlot(<><PieceSymbol kind="lander" label="Atterrisseur" /> sur les planètes seulement</>,
         <><PieceSymbol kind="lander" label="Atterrisseur" /> aussi sur les lunes</>, 4, 'IV')}
     </div>
@@ -172,7 +172,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, han
       {/* Étape de la Terre : la pastille (sans Observation I) a l'infobulle de l'étape, le cadre celle de la technologie */}
       {(() => {
         const obs1Tooltip = obsTooltip('I', hasObs1, <><ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.EARTH }] }} /> dans le secteur de la Terre</>,
-          <><ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.EARTH }] }} /> dans le secteur de la Terre ou un secteur adjacent</>);
+          <><ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.EARTH }] }} /> Terre ou secteur adjacent</>);
         return hasObs1
           ? <TrackSlot icon={null} tooltip={obs1Tooltip} techFrame={{ acquired: true, tile: 'observation-1' }} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
           : <TrackSlot icon={<SignalIcon badge="earth" size={30} />} tooltip={stepTooltip('Terre', <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.EARTH }] }} />)}
@@ -182,13 +182,13 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, han
       {renderSlot(<SignalIcon badge="card" size={30} />, stepTooltip('Carte de la rangée', <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.ROW }] }} note="la carte est défaussée" />), false)}
       <div className="obs-track-connector into-right" />
       {renderSlot(null, obsTooltip('II', hasObs2, <>Pas de <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.MERCURY }] }} /></>,
-        <>Pour <ResourceSymbols bonus={{ media: 1 }} /> : <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.MERCURY }] }} /></>), false, undefined, false, false, false, { acquired: hasObs2, tile: 'observation-2' })}
+        <><ResourceSymbols bonus={{ media: 1 }} /> : <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.MERCURY }] }} /></>), false, undefined, false, false, false, { acquired: hasObs2, tile: 'observation-2' })}
       <div className="obs-track-connector into-left into-right" />
       {renderSlot(null, obsTooltip('III', hasObs3, 'Pas de signal pour une carte de la main',
-        <><DiscardSymbol /> : <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.ANY }] }} /> dans le secteur de la carte</>), false, undefined, false, false, false, { acquired: hasObs3, tile: 'observation-3' })}
+        <><DiscardSymbol /> : <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.ANY }] }} /> dans son secteur</>), false, undefined, false, false, false, { acquired: hasObs3, tile: 'observation-3' })}
       <div className="obs-track-connector into-left into-right" />
       {renderSlot(null, obsTooltip('IV', hasObs4, 'Rien de plus après les signaux',
-        <>Pour <ResourceSymbols bonus={{ energy: 1 }} /> : <PieceSymbol kind="probe" label="Sonde" />, ou <ResourceSymbols bonus={{ movements: 1 }} /></>), false, undefined, false, false, false, { acquired: hasObs4, tile: 'observation-4' })}
+        <><ResourceSymbols bonus={{ energy: 1 }} /> : <PieceSymbol kind="probe" label="Sonde" />, ou <ResourceSymbols bonus={{ movements: 1 }} /></>), false, undefined, false, false, false, { acquired: hasObs4, tile: 'observation-4' })}
     </div>
   );
 };

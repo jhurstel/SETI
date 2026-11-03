@@ -1,8 +1,8 @@
 import React from 'react';
 import { Bonus, LifeTraceType } from '../../core/types';
 import { BonusIcons } from './BonusIcons';
-import { ActionHexIcon, DiscardCardIcon, PieceIcon, PieceIconKind, ResourceIcon } from './GameIcons';
-import { AnyTechIcon } from './ObjectiveSymbol';
+import { ActionHexIcon, DiscardCardIcon, ResourceIcon } from './GameIcons';
+import { AnyTechIcon, OrbiterIcon, LanderIcon } from './ObjectiveSymbol';
 import { HoverTooltip } from './HoverTooltip';
 import './BoardTooltips.css';
 
@@ -18,18 +18,23 @@ const Symbols: React.FC<{ children: React.ReactNode; note?: string }> = ({ child
 
 /** Coût ou gain en ressources, avec les symboles du matériel */
 export const ResourceSymbols: React.FC<{ bonus: Bonus; note?: string }> = ({ bonus, note }) => (
-  <Symbols note={note}><BonusIcons bonus={bonus} size={20} tooltips /></Symbols>
+  <Symbols note={note}><BonusIcons bonus={bonus} size={16} tooltips /></Symbols>
 );
 
-/** Pièce posée par une action (sonde, orbiteur, atterrisseur) */
-export const PieceSymbol: React.FC<{ kind: PieceIconKind; label: string; note?: string }> = ({ kind, label, note }) => (
-  <Symbols note={note}><Sym label={label}><PieceIcon kind={kind} size={26} /></Sym></Symbols>
+/** Pièce posée par une action : sonde (hexagone du lancement), orbiteur et atterrisseur (disques du panneau des planètes) */
+const PIECE_ICONS = {
+  probe: <ActionHexIcon kind="launch" size={20} />,
+  orbiter: <OrbiterIcon size={18} />,
+  lander: <LanderIcon size={18} />,
+};
+export const PieceSymbol: React.FC<{ kind: keyof typeof PIECE_ICONS; label: string; note?: string }> = ({ kind, label, note }) => (
+  <Symbols note={note}><Sym label={label}>{PIECE_ICONS[kind]}</Sym></Symbols>
 );
 
 /** Bonus du scan : le symbole scan */
 export const ScanSymbol: React.FC = () => (
   <Symbols><Sym label="Scan">
-    <ActionHexIcon kind="scan" size={26} />
+    <ActionHexIcon kind="scan" size={20} />
   </Sym></Symbols>
 );
 
@@ -38,17 +43,17 @@ export const BlueTraceSymbol: React.FC = () => <ResourceSymbols bonus={{ lifetra
 
 /** Coût d'une carte : crédit marqué « ? » */
 export const CardCostSymbol: React.FC<{ note?: string }> = ({ note }) => (
-  <Symbols note={note}><Sym label="Le coût de la carte jouée, en crédits ou en énergie"><ResourceIcon kind="credit" amount="?" size={20} /></Sym></Symbols>
+  <Symbols note={note}><Sym label="Le coût de la carte jouée, en crédits ou en énergie"><ResourceIcon kind="credit" amount="?" size={16} /></Sym></Symbols>
 );
 
 /** Défausser une carte de la main */
 export const DiscardSymbol: React.FC = () => (
-  <Symbols><Sym label="Défausser une carte"><DiscardCardIcon size={22} /></Sym></Symbols>
+  <Symbols><Sym label="Défausser une carte"><DiscardCardIcon size={18} /></Sym></Symbols>
 );
 
 /** Bonus de la recherche : une technologie au choix */
 export const TechSymbol: React.FC<{ note?: string }> = ({ note }) => (
-  <Symbols note={note}><Sym label="Une technologie au choix, et le bonus de sa tuile"><AnyTechIcon size={24} /></Sym></Symbols>
+  <Symbols note={note}><Sym label="Une technologie au choix, et le bonus de sa tuile"><AnyTechIcon size={18} /></Sym></Symbols>
 );
 
 /**
@@ -84,7 +89,7 @@ export const TechTooltip: React.FC<{
   /** Ce que la technologie apporte (texte et symboles) */
   benefit: React.ReactNode;
 }> = ({ name, acquired, base, benefit }) => (
-  <div className="seti-board-tooltip">
+  <div className="seti-board-tooltip tech">
     <div className="seti-board-tooltip-title">
       {name}
       <span className={`seti-board-tooltip-badge ${acquired ? 'acquired' : ''}`}>{acquired ? 'Acquise' : 'À rechercher'}</span>

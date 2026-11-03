@@ -7,8 +7,7 @@ import { ProbeSystem } from '../systems/ProbeSystem';
 import { PlanetIcon } from './components/PlanetIcon';
 import { Tooltip } from './Tooltip';
 import { BonusIcons } from './components/BonusIcons';
-import { OrbiterOrLanderIcon } from './components/ObjectiveSymbol';
-import { ActionHexIcon } from './components/GameIcons';
+import { OrbiterOrLanderIcon, OrbiterIcon, LanderIcon } from './components/ObjectiveSymbol';
 import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../core/SolarSystemPosition';
 import './PlanetBoardUI.css';
 import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
@@ -308,7 +307,7 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
             <div className="planet-probe-owners">
                 {rows.map(row => (
                     <div key={row.kind} className="planet-probe-row" aria-label={`${row.label} : ${row.probes.map(p => game.players.find(pl => pl.id === p.ownerId)?.name).join(', ')}`}>
-                        <ActionHexIcon kind={row.kind} size={13} />
+                        {row.kind === 'orbit' ? <OrbiterIcon size={13} /> : <LanderIcon size={13} />}
                         {row.probes.map(probe => (
                             <span key={probe.id} className="planet-probe-dot" style={{ background: game.players.find(p => p.id === probe.ownerId)?.color ?? '#888' }} />
                         ))}
