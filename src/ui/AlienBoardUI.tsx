@@ -12,6 +12,14 @@ import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import './AlienBoardUI.css';
 import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
 
+/** Couleur de chaque piste de traces de vie */
+const TRACK_COLORS: Record<LifeTraceType, string> = {
+    [LifeTraceType.RED]: '#ff6b6b',
+    [LifeTraceType.YELLOW]: '#ffd700',
+    [LifeTraceType.BLUE]: '#4a9eff',
+    [LifeTraceType.ANY]: '#cccccc',
+};
+
 interface AlienBoardUIProps {
     game: Game;
     boardIndex: number;
@@ -282,8 +290,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
         return game.players.find(p => p.id === playerId)?.color || '#fff';
     };
 
-    const renderBoardSlot = (type: LifeTraceType, index: number, bonus: Bonus, isInfinite: boolean, fixedSlotsLength: number, opacity: number = 1, isInfiniteBottom: boolean = false) => {
-        const color = type === LifeTraceType.RED ? '#ff6b6b' : type === LifeTraceType.YELLOW ? '#ffd700' : '#4a9eff';
+    const renderBoardSlot = (type: LifeTraceType, index: number, bonus: Bonus, isInfinite: boolean, fixedSlotsLength: number) => {
+        const color = TRACK_COLORS[type];
         // Joueur qui pose la trace (il peut ne pas être le joueur actif : secteur couvert par un robot)
         const currentPlayer = game.players.find(p => p.id === interactionState.playerId) ?? game.players[game.currentPlayerIndex];
         const isPlacing = interactionState.type === 'PLACING_LIFE_TRACE' && (interactionState.color === type || interactionState.color === LifeTraceType.ANY) && isBoardAllowed;
@@ -354,7 +362,6 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
 
         const style: React.CSSProperties = {
             borderColor: color,
-            opacity: opacity,
             cursor: isClickable ? 'pointer' : 'help',
             transition: 'box-shadow 0.15s',
             pointerEvents: 'auto'
@@ -362,20 +369,12 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
 
         if (isInfinite) {
             style.zIndex = 1;
-            if (isInfiniteBottom) {
-                style.width = '28px';
-                style.height = '28px';
-                style.borderRadius = '50%';
-                style.border = `2px solid ${color}`;
-                style.background = isFilled ? getPlayerColor(trace!.playerId) : (isClickable ? '#32373c' : '#14171a');
-                if (isClickable) style.boxShadow = `0 0 8px ${color}`;
-            } else {
-                style.width = '8px';
-                style.height = '8px';
-                style.borderRadius = '50%';
-                style.background = isFilled ? getPlayerColor(trace!.playerId) : color;
-                style.border = 'none';
-            }
+            style.width = '28px';
+            style.height = '28px';
+            style.borderRadius = '50%';
+            style.border = `2px solid ${color}`;
+            style.background = isClickable ? '#32373c' : '#14171a';
+            if (isClickable) style.boxShadow = `0 0 8px ${color}`;
         } else {
             style.boxShadow = isClickable ? `0 0 8px ${color}` : 'none';
             style.backgroundColor = isFilled ? getPlayerColor(trace!.playerId) : (isClickable ? '#32373c' : '#14171a');
@@ -394,7 +393,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 onMouseLeave={() => setActiveTooltip(null)}
             >
                 {hiddenSpecimen && <div className="alien-hidden-specimen">?</div>}
-                {!isFilled && !hiddenSpecimen && !!bonus.pv && (!isInfinite || isInfiniteBottom) && <VictoryPointsIcon amount={bonus.pv} size={22} />}
+                {!isFilled && !hiddenSpecimen && !!bonus.pv && <VictoryPointsIcon amount={bonus.pv} size={22} />}
             </div>
         );
     };
@@ -416,25 +415,47 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
             infiniteSlot = species.infiniteSlots.bluelifetrace;
         }
 
-        // Emplacements infinis au-dessus de la piste (pas pour les Mascamites ni les Exertiens)
-        const infiniteSlots = SpeciesSystem.hasInfiniteSlot(species, type) && (
+        // Emplacement infini au-dessus de la piste (pas pour les Mascamites ni les Exertiens) : le cercle est toujours
+        // l'emplacement libre suivant, les traces déjà posées s'empilent au-dessus en pastilles (les 3 dernières, « +n » au-delà)
+        const renderInfiniteSlots = () => {
+            const placed = board.lifeTraces
+                .filter(t => t.location === LifeTraceLocation.SPECIES && t.type === type && t.slotIndex !== undefined && t.slotIndex >= fixedSlots.length)
+                .sort((a, b) => a.slotIndex! - b.slotIndex!);
+            const taken = new Set(placed.map(t => t.slotIndex));
+            let nextIndex = fixedSlots.length;
+            while (taken.has(nextIndex)) nextIndex++;
+            const shown = placed.slice(-3);
+            const hidden = placed.length - shown.length;
+            const showTraceTooltip = (e: React.MouseEvent, trace: LifeTrace) => {
+                const player = game.players.find(p => p.id === trace.playerId);
+                setActiveTooltip({ content: (
+                    <div className="alien-slot-tooltip-container">
+                        <div className="alien-slot-tooltip-status" style={{ color: player?.color || '#ccc' }}>Occupé par {player?.name || 'Inconnu'}</div>
+                    </div>
+                ), rect: e.currentTarget.getBoundingClientRect() });
+            };
+            return (
                 <div className="alien-infinite-slot">
-                    <div
-                        className="alien-infinite-corridor-container"
-                    >
-                        <div
-                            className="alien-infinite-corridor-bg"
-                        />
-                        {[0, 1, 2].map((idx) => {
-                            // De 0 (bas) à 2 (haut)
-                            const infTraceIndex = fixedSlots.length + idx;
-                            // Opacité diminue vers le haut (plus grand idx = plus haut)
-                            const opacity = [1, 0.6, 0.35][idx];
-                            return renderBoardSlot(type, infTraceIndex, infiniteSlot, true, fixedSlots.length, opacity, idx === 0);
-                        })}
+                    <div className="alien-infinite-corridor-container">
+                        <div className="alien-infinite-corridor-bg" />
+                        {renderBoardSlot(type, nextIndex, infiniteSlot, true, fixedSlots.length)}
+                        {shown.length === 0
+                            ? [0.6, 0.35].map((opacity, idx) => <div key={`dot-${idx}`} className="alien-infinite-dot" style={{ background: TRACK_COLORS[type], opacity }} />)
+                            : [...shown].reverse().map(trace => (
+                                <div
+                                    key={trace.id}
+                                    className="alien-infinite-trace"
+                                    style={{ background: getPlayerColor(trace.playerId) }}
+                                    onMouseEnter={e => showTraceTooltip(e, trace)}
+                                    onMouseLeave={() => setActiveTooltip(null)}
+                                />
+                            ))}
+                        {hidden > 0 && <div className="alien-infinite-more">+{hidden}</div>}
                     </div>
                 </div>
-        );
+            );
+        };
+        const infiniteSlots = SpeciesSystem.hasInfiniteSlot(species, type) && renderInfiniteSlots();
 
         return (
             <div className="alien-track-column">
@@ -611,7 +632,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                 </div>
                 <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
                     <span className="panel-icon">👽</span>
-                    <span className="panel-title">Alien Board</span>
+                    <span className="panel-title">Alien</span>
                 </div>
             </div>
         </div>

@@ -157,7 +157,7 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 - Deux espèces sont en jeu, face cachée. Chaque plateau a un triangle de découverte avec un emplacement par couleur (rouge, jaune, bleu).
 - Une espèce est **découverte** quand ses trois emplacements de découverte sont occupés. Le plateau se révèle et ses règles s'appliquent.
 - Le joueur qui a posé la première trace d'une couleur reçoit une **carte Alien** de l'espèce.
-- Après la découverte, les traces vont sur la **piste** de l'espèce (récompenses dans l'ordre), puis sur l'**emplacement infini** quand l'espèce en a un.
+- Après la découverte, les traces vont sur la **piste** de l'espèce (récompenses dans l'ordre), puis sur l'**emplacement infini** quand l'espèce en a un : les traces déjà posées s'y empilent en pastilles de la couleur de leur joueur (les 3 dernières, « +n » au-delà).
 
 ### 3.2 Mascamites
 

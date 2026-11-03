@@ -459,3 +459,30 @@
   font-size: 0.8rem;
   box-shadow: 0 0 4px rgba(201, 169, 110, 0.6);
 }
+
+/* Emplacement infini : points décoratifs (aucune trace) et traces posées (pastilles de la couleur du joueur) */
+.alien-infinite-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.alien-infinite-trace {
+    position: relative;
+    z-index: 1;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.6);
+    box-sizing: border-box;
+    cursor: help;
+}
+
+.alien-infinite-more {
+    position: relative;
+    z-index: 1;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #d5e3ff;
+}

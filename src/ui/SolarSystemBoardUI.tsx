@@ -1273,7 +1273,6 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
   return (
     <>
       <div className="seti-panel seti-solar-system-container">
-        <div className="seti-panel-title">Système solaire</div>
 
         {/* Conteneur pour positionner les éléments directement dans le panel */}
         <div
