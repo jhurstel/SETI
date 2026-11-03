@@ -33,6 +33,7 @@ export class ResearchTechAction extends BaseAction {
         // Faire tourner le systeme solaire
         const result = performRotation(updatedGame);
         result.logs.forEach(log => this.historyEntries.push({ message: log, playerId: this.playerId, sequenceId }));
+        result.pushes.forEach(push => this.historyEntries.push({ ...push, sequenceId }));
 
         this.newPendingInteractions.push({ type: 'ACQUIRING_TECH', sequenceId }, ...result.interactions)
         return result.updatedGame;

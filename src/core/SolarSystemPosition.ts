@@ -627,24 +627,14 @@ export function getAbsoluteSectorForProbe(
   return rotateSector(solarPosition.sector, levelAngle(rotationState, solarPosition.level));
 }
 
-// Helper pour formater les logs de rotation
-export function formatRotationLogs(baseMessage: string, rotationLogs: string[]) {
-  if (rotationLogs.length === 0) return baseMessage;
-
-  const details = rotationLogs.map(log => {
-    return log.replace(/^Sonde de /, '').replace(/ poussée vers /, ' -> ');
-  }).join(', ');
-
-  return `${baseMessage}. Poussée(s) : ${details}`;
-};
-
 // Helper pour effectuer une rotation du système solaire
 /**
  * Fait tourner l'anneau suivant du système solaire. Si la Terre arrive devant une anomalie (Anomalies découvertes),
  * le joueur dont le marqueur est le plus haut sur la piste de sa couleur gagne sa récompense ; `interactions` contient
- * les choix qu'elle ouvre (carte au choix…), pour ce joueur.
+ * les choix qu'elle ouvre (carte au choix…), pour ce joueur. `pushes` : une entrée par sonde poussée, au nom de son
+ * propriétaire, à inscrire après le message de la rotation.
  */
-export function performRotation(game: Game): { updatedGame: Game, logs: string[], interactions: InteractionState[] } {
+export function performRotation(game: Game): { updatedGame: Game, logs: string[], pushes: { playerId: string; message: string }[], interactions: InteractionState[] } {
   let updatedGame = cloneGame(game);
   const currentLevel = updatedGame.board.solarSystem.nextRingLevel;
   const oldRotationState = createRotationState(
@@ -675,7 +665,7 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
   updatedGame = rotationResult.game;
 
   const diskLevel: Record<number, string> = { 1: 'Bleu', 2: 'Rouge', 3: 'Jaune' };
-  const log = formatRotationLogs(`fait tourner le Système Solaire (${diskLevel[currentLevel]})`, rotationResult.logs);
+  const log = `fait tourner le Système Solaire (${diskLevel[currentLevel]})`;
 
   // Vérification des anomalies après rotation
   const earthPos = getObjectPosition('earth', newRotationState.level1Angle, newRotationState.level2Angle, newRotationState.level3Angle, updatedGame.board.solarSystem.extraCelestialObjects);
@@ -714,5 +704,5 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
     }
   }
 
-  return { updatedGame, logs: [log, ...anomalyLogs], interactions };
+  return { updatedGame, logs: [log, ...anomalyLogs], pushes: rotationResult.pushes, interactions };
 }

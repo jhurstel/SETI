@@ -310,6 +310,7 @@ export class ResourceSystem {
         const rotationResult = performRotation(updatedGame);
         updatedGame = rotationResult.updatedGame;
         logs.push(...rotationResult.logs);
+        historyEntries.push(...rotationResult.pushes.map(push => ({ ...push, sequenceId })));
         newPendingInteractions.push(...rotationResult.interactions);
       }
     }

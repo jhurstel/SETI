@@ -10,7 +10,8 @@ import {
   performRotation,
   RotationState,
 } from '../src/core/SolarSystemPosition';
-import { DiskName, Game, Probe, ProbeState, SectorNumber } from '../src/core/types';
+import { DiskName, Game, GamePhase, Probe, ProbeState, SectorNumber } from '../src/core/types';
+import { PassAction } from '../src/actions/PassAction';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 
@@ -256,7 +257,7 @@ describe('poussée des sondes recouvertes par un anneau', () => {
     const expected = ((from.sector - 1 + step + 8) % 8) + 1;
     expect(moved.solarPosition!.disk).toBe(from.disk);
     expect(getAbsoluteSectorForProbe(moved.solarPosition!, after)).toBe(expected);
-    expect(res.logs[0]).toMatch(new RegExp(`^Sonde de .+ poussée vers ${from.disk}${expected}`));
+    expect(res.pushes).toEqual([{ playerId: 'player_0', message: 'voit sa sonde poussée par la rotation' }]);
     expect(res.game.board.solarSystem.probes[0].solarPosition).toEqual(moved.solarPosition);
     expect(probe.solarPosition).toEqual(from);
   });
@@ -291,13 +292,31 @@ describe('poussée des sondes recouvertes par un anneau', () => {
 
     const res = ProbeSystem.updateProbesAfterRotation(game, NO_ROTATION, after, extra);
 
-    expect(res.logs[0]).toContain(`(${objectName ?? name}) et gagne 1 Média`);
+    expect(res.pushes).toEqual([{ playerId: 'player_0', message: `voit sa sonde poussée par la rotation (${objectName ?? `Visite de ${name}`}) et gagne 1 Média` }]);
     expect(getPlayer(res.game, 'player_0').mediaCoverage).toBe(1);
+  });
+
+  test("passe : la rotation a son message, chaque sonde poussée a sa propre entrée au nom de son propriétaire, sans case", () => {
+    Object.assign(game.board.solarSystem, { rotationAngleLevel1: 0, rotationAngleLevel2: 0, rotationAngleLevel3: 0, nextRingLevel: 3 });
+    coveredProbe(createRotationState(0, 0, -45));
+    game.phase = GamePhase.PLAYING;
+    game.currentPlayerIndex = 1;
+    getPlayer(game, 'player_0').hasPassed = false;
+    const action = new PassAction('player_1', getPlayer(game, 'player_1').cards.slice(0, 4).map(c => c.id));
+
+    action.execute(game);
+
+    const messages = action.historyEntries.map(e => [e.playerId, e.message]);
+    expect(messages).toContainEqual(['player_1', 'fait tourner le Système Solaire (Jaune)']);
+    const push = action.historyEntries.find(e => e.message.startsWith('voit sa sonde poussée'))!;
+    expect(push.playerId).toBe('player_0');
+    expect(push.sequenceId).toBe(action.historyEntries[0].sequenceId);
+    expect(push.message).not.toMatch(/[A-E][1-8]/);
   });
 
   test("sans changement d'angle : aucune poussée", () => {
     coveredProbe(createRotationState(0, 0, -45));
     const res = ProbeSystem.updateProbesAfterRotation(game, NO_ROTATION, NO_ROTATION, []);
-    expect(res.logs).toEqual([]);
+    expect(res.pushes).toEqual([]);
   });
 });

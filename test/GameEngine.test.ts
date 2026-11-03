@@ -62,7 +62,7 @@ describe('GameEngine Integration', () => {
       const updatedGame = { ...game };
       // On peut simuler un effet de la rotation si on veut tester ses conséquences
       updatedGame.board.solarSystem.rotationAngleLevel3 = -45;
-      return { updatedGame, logs: ['Rotation simulée !'], interactions: [] };
+      return { updatedGame, logs: ['Rotation simulée !'], pushes: [], interactions: [] };
     });
 
     const action = new PassAction('p1', []); // p1 passe sans garder de cartes    
@@ -86,7 +86,7 @@ describe('GameEngine Integration', () => {
       const updatedGame = { ...game };
       // On peut simuler un effet de la rotation si on veut tester ses conséquences
       updatedGame.board.solarSystem.rotationAngleLevel3 = -45;
-      return { updatedGame, logs: ['Rotation simulée !'], interactions: [] };
+      return { updatedGame, logs: ['Rotation simulée !'], pushes: [], interactions: [] };
     });
 
     const action = new PassAction('p1', []);

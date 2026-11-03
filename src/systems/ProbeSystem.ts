@@ -1065,9 +1065,10 @@ export class ProbeSystem {
     oldRotationState: RotationState,
     newRotationState: RotationState,
     extraObjects: import('../core/types').CelestialObject[]
-  ): { game: Game; logs: string[] } {
+  ): { game: Game; pushes: { playerId: string; message: string }[] } {
     const updatedGame = cloneGame(game);
-    const logs: string[] = [];
+    // Une entrée d'historique par sonde poussée, au nom de son propriétaire
+    const pushes: { playerId: string; message: string }[] = [];
 
     // Déterminer la direction de la poussée
     // Si l'angle diminue (rotation anti-horaire), les secteurs avancent (1->2->3)
@@ -1126,15 +1127,15 @@ export class ProbeSystem {
             let objectName = "";
             if (cell) {
               if (cell.hasComet) { mediaGain++; objectName = "Visite de Comète"; }
-              if (cell.hasPlanet && cell.planetId !== 'earth') { mediaGain++; objectName = cell.planetName || "Visite de Planète"; }
+              if (cell.hasPlanet && cell.planetId !== 'earth') { mediaGain++; objectName = `Visite de ${cell.planetName}`; }
               if (cell.hasAsteroid && player.technologies.some(t => t.id.startsWith('exploration-2'))) { mediaGain++; objectName = "Visite d'Astéroïdes"; }
             }
 
             if (mediaGain > 0) {
               playerMediaGain += mediaGain;
-              logs.push(`Sonde de ${player.name} poussée vers ${pos.disk}${newAbsoluteSector} (${objectName}) et gagne ${mediaGain} Média`);
+              pushes.push({ playerId: player.id, message: `voit sa sonde poussée par la rotation (${objectName}) et gagne ${ResourceSystem.formatResource(mediaGain, 'MEDIA')}` });
             } else {
-              logs.push(`Sonde de ${player.name} poussée vers ${pos.disk}${newAbsoluteSector}`);
+              pushes.push({ playerId: player.id, message: 'voit sa sonde poussée par la rotation' });
             }
 
             probe.solarPosition = {
@@ -1156,7 +1157,7 @@ export class ProbeSystem {
     // Mettre à jour les sondes du système solaire (copie de celles des joueurs)
     updatedGame.board.solarSystem.probes = updatedGame.players.flatMap(p => p.probes.filter(probe => probe.state === ProbeState.IN_SOLAR_SYSTEM || probe.state === ProbeState.CAPSULE));
 
-    return { game: updatedGame, logs };
+    return { game: updatedGame, pushes };
   }
 
   private static recalculateProbePosition(
