@@ -33,7 +33,8 @@ export const PlayerComputerSlot = ({
       media: { media: mediaAmount }, reservation: { revenue: 1 }, '2pv': { pv: 2 }, credit: { credits: 1 }, energy: { energy: 1 }, card: { card: 1 },
     };
     const slotBonus = slot.bonus ? SLOT_BONUSES[slot.bonus] : undefined;
-    const bonusText = slotBonus ? <ResourceSymbols bonus={slotBonus} /> : '';
+    // Sans gain : « Bonus : Aucun », comme les emplacements de signal en pointillé
+    const bonusText = slotBonus ? <ResourceSymbols bonus={slotBonus} /> : 'Aucun';
   
     let state: 'occupied' | 'clickable' | 'unavailable' = 'unavailable';
     if (isFilled) state = 'occupied';
