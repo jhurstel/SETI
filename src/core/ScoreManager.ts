@@ -566,7 +566,7 @@ export class ScoreManager {
       } else {
         const centaurienSpecies = updatedGame.species.find(s => s.name === AlienBoardType.CENTAURIENS);
         if (centaurienSpecies?.message?.some(m => m.isAvailable)) {
-          historyEntries.push({ message: `atteint son palier de message Centaurien et choisit une tuile Message.`, playerId });
+          // Le palier est écrit au choix de la tuile, sur une seule ligne avec la tuile et son gain
           return {
             updatedGame,
             newInteraction: { type: 'CHOOSING_CENTAURIEN_REWARD', markerId: marker.id },

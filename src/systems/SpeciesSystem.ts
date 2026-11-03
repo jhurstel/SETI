@@ -686,10 +686,10 @@ export class SpeciesSystem {
 
         const sequenceId = `centaurien-${uniqueId()}`;
         const res = ResourceSystem.processBonuses(token.bonus, updatedGame, playerId, 'centaurien_message', sequenceId);
-        const gains = res.logs.length > 0 ? ` : ${res.logs.join(', ')}` : '';
+        const gains = res.logs.length > 0 ? ` et ${res.logs.join(', ')}` : '';
         return {
             updatedGame: res.updatedGame,
-            historyEntries: [{ message: `déchiffre un message Centaurien et choisit « ${label} »${gains}`, playerId, sequenceId }, ...res.historyEntries],
+            historyEntries: [{ message: `atteint son palier de message Centaurien, choisit la tuile Message « ${label} »${gains}`, playerId, sequenceId }, ...res.historyEntries],
             newPendingInteractions: res.newPendingInteractions || [],
         };
     }
@@ -735,7 +735,7 @@ export class SpeciesSystem {
         player.playedCards = player.playedCards.filter(c => c.id !== card.id);
         updatedGame.decks.discardPile.push(card);
         const res = ResourceSystem.processBonuses(bonus, updatedGame, playerId, 'centaurien_reception', sequenceId);
-        const gains = res.logs.length > 0 ? ` : ${res.logs.join(', ')}` : '';
+        const gains = res.logs.length > 0 ? ` et ${res.logs.join(', ')}` : '';
         return {
             updatedGame: res.updatedGame,
             historyEntries: [{ message: `reçoit le message de la carte « ${cardName} »${gains}`, playerId, sequenceId }, ...res.historyEntries],

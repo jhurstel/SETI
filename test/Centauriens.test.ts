@@ -54,7 +54,7 @@ describe('Centauriens', () => {
       const kept = getPlayer(res.updatedGame, P1).centaurienMilestones;
       expect(kept).toHaveLength(1);
       expect(kept[0].resolved).toMatch(/^Message décodé : /);
-      expect(res.historyEntries[0].message).toMatch(/^déchiffre un message Centaurien et choisit « .+ » : gagne /);
+      expect(res.historyEntries[0].message).toMatch(/^atteint son palier de message Centaurien, choisit la tuile Message « .+ » et gagne /);
     });
 
     test('robot : il prend une tuile Message disponible au palier', () => {
