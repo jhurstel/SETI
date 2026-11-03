@@ -28,7 +28,7 @@ export const PieceSymbol: React.FC<{ kind: PieceIconKind; label: string; note?: 
 
 /** Bonus du scan : le symbole scan */
 export const ScanSymbol: React.FC = () => (
-  <Symbols><Sym label="Scan : signaux dans le secteur de la Terre et dans celui d'une carte de la rangée, plus ceux des technologies Observation acquises">
+  <Symbols><Sym label="Scan">
     <ActionHexIcon kind="scan" size={26} />
   </Sym></Symbols>
 );

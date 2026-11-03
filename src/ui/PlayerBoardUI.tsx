@@ -364,7 +364,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     switch (actionType) {
       case ActionType.LAUNCH_PROBE: {
         cost = <ResourceSymbols bonus={{ credits: GAME_CONSTANTS.PROBE_LAUNCH_COST }} />;
-        bonus = <PieceSymbol kind="probe" label="Une sonde sur la Terre" />;
+        bonus = <PieceSymbol kind="probe" label="Sonde" />;
         action = 'Cliquez pour lancer une sonde depuis la Terre';
         const launchCheck = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
         if (!launchCheck.canLaunch) reason = launchCheck.reason || 'Impossible de lancer une sonde';
@@ -373,7 +373,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
       case ActionType.ORBIT: {
         cost = <ResourceSymbols bonus={{ credits: GAME_CONSTANTS.ORBIT_COST_CREDITS, energy: GAME_CONSTANTS.ORBIT_COST_ENERGY }} />;
-        bonus = <PieceSymbol kind="orbiter" label="Un orbiteur autour de la planète, et le gain de sa case (plus celui du premier en orbite)" />;
+        bonus = <PieceSymbol kind="orbiter" label="Orbiteur" />;
         action = 'Cliquez pour mettre une sonde en orbite';
         const orbitProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
         if (!orbitProbe) reason = 'Nécessite une sonde dans le système solaire';
@@ -385,7 +385,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
       }
 
       case ActionType.LAND: {
-        bonus = <PieceSymbol kind="lander" label="Un atterrisseur sur la planète, et le gain de sa case (plus celui du premier à s'y poser)" />;
+        bonus = <PieceSymbol kind="lander" label="Atterrisseur" />;
         action = 'Cliquez pour poser une sonde sur une planète';
         // Coût courant : celui de la planète où se trouve la sonde, sinon le coût de base (réduit par Exploration III)
         const hasExploration3 = currentPlayer.technologies.some(t => t.id.startsWith('exploration-3'));
