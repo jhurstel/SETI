@@ -731,6 +731,9 @@ export class SpeciesSystem {
         const bonus = reception ? CardSystem.parseRewards(String(reception.value).split(':')) : {};
         const label = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'aucun effet';
         marker.resolved = `Réception (« ${cardName} ») : ${label}`;
+        // Sans revenu, la carte est défaussée une fois reçue (ce n'est pas une mission)
+        player.playedCards = player.playedCards.filter(c => c.id !== card.id);
+        updatedGame.decks.discardPile.push(card);
         const res = ResourceSystem.processBonuses(bonus, updatedGame, playerId, 'centaurien_reception', sequenceId);
         const gains = res.logs.length > 0 ? ` : ${res.logs.join(', ')}` : '';
         return {

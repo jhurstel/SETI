@@ -97,6 +97,17 @@ describe('Centauriens', () => {
       expect(check.newInteraction).toMatchObject({ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.RED });
     });
 
+    test('Réception sans revenu : la carte est défaussée (pas une mission)', () => {
+      const played = playAndReach(game, 'ET.34');
+      const check = ScoreManager.checkScoreMilestones(played, P1);
+      const p = getPlayer(check.updatedGame, P1);
+      expect(p.playedCards.some(c => c.id === 'ET.34')).toBe(false);
+      expect(p.reservedCards.some(c => c.id === 'ET.34')).toBe(false);
+      expect(check.updatedGame.decks.discardPile.some(c => c.id === 'ET.34')).toBe(true);
+      expect(p.centaurienMilestones[0].resolved).toMatch(/^Réception \(« /);
+      expect(getPlayer(played, P1).playedCards.some(c => c.id === 'ET.34')).toBe(true);
+    });
+
     test('Musique des Sphères : 1 Crédit et 1 trace de vie de n\'importe quelle couleur', () => {
       const played = playAndReach(game, 'ET.37');
       const credits = getPlayer(played, P1).credits;
