@@ -1,11 +1,12 @@
 import { DataLoader } from '../src/core/DataLoader';
 import { CardSystem } from '../src/systems/CardSystem';
 import { ScanSystem } from '../src/systems/ScanSystem';
+import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { InteractionChoices } from '../src/core/InteractionChoices';
 import { AIController } from '../src/ai/AIController';
 import { GameSession } from '../src/session/GameSession';
-import { AlienBoardType, Card, Game, InteractionState, SectorType } from '../src/core/types';
+import { AlienBoardType, Card, Game, InteractionState, Probe, ProbeState, SectorType } from '../src/core/types';
 import { createTestGame, getPlayer, mockFetchFromPublic } from './helpers/gameFixture';
 
 /**
@@ -181,5 +182,25 @@ describe('Cartes Oumuamua : signaux marqués sur Oumuamua', () => {
     expect((getPlayer(first.updatedGame, P1).tokens || 0) - (getPlayer(plain.updatedGame, P1).tokens || 0)).toBe(1);
     expect(getPlayer(first.updatedGame, P1).activeBuffs.some(b => b.type === 'OUMUAMUA_SIGNAL_BONUS')).toBe(false);
     expect(getPlayer(played.updatedGame, P1).tokens || 0).toBe(tokens);
+  });
+});
+
+describe('Cartes Oumuamua : visite', () => {
+  test('ET.27 : visiter Oumuamua rend le cercle de la mission réalisable', async () => {
+    const game = await gameWithCard('ET.27', 0);
+    const solarSystem = game.board.solarSystem;
+    solarSystem.rotationAngleLevel1 = 0;
+    solarSystem.rotationAngleLevel2 = 0;
+    solarSystem.rotationAngleLevel3 = 0;
+    const played = CardSystem.playCard(game, P1, 'ET.27').updatedGame;
+    // Sonde sur la case voisine d'Oumuamua (C3, anneau 1)
+    const probe: Probe = { id: 'p', ownerId: P1, position: { x: 0, y: 0 }, solarPosition: { disk: 'C', sector: 2, level: 1 }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false };
+    getPlayer(played, P1).probes = [probe];
+    played.board.solarSystem.probes = [structuredClone(probe)];
+
+    const moved = ProbeSystem.moveProbe(played, P1, 'p', 'C', 3, 1, 'seq');
+    const mission = getPlayer(moved.updatedGame, P1).missions.find(m => m.cardId === 'ET.27')!;
+    const visit = mission.requirements.find(r => r.type === 'GAIN_ON_VISIT_OUMUAMUA')!;
+    expect(mission.fulfillableRequirementIds).toContain(visit.id);
   });
 });

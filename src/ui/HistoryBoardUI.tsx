@@ -12,8 +12,8 @@ import { revealText } from '../core/historyText';
 // Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
 const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', CARD: 'card', DATA: 'data' };
 // Traces de vie (« 2 Traces Jaunes », « 1 trace de vie rouge », « 1 trace de vie (Rouge) », « 1 trace de vie (quelconque) »)
-const LIFE_TRACE_PATTERN = /[Tt]races? (?:de vie )?(?:\((?:[Rr]ouges?|[Jj]aunes?|[Bb]leues?|[Qq]uelconques?)\)|[Rr]ouges?|[Jj]aunes?|[Bb]leues?)/;
-const lifeTraceColor = (text: string): LifeTraceColor | undefined => /rouge/i.test(text) ? 'red' : /jaune/i.test(text) ? 'yellow' : /bleue/i.test(text) ? 'blue' : undefined;
+const LIFE_TRACE_PATTERN = /[Tt]races? (?:de vie )?(?:\((?:[Rr]ouges?|[Jj]aunes?|[Bb]leu(?:es?|s)?|[Qq]uelconques?)\)|[Rr]ouges?|[Jj]aunes?|[Bb]leu(?:es?|s)?)/;
+const lifeTraceColor = (text: string): LifeTraceColor | undefined => /rouge/i.test(text) ? 'red' : /jaune/i.test(text) ? 'yellow' : /bleu/i.test(text) ? 'blue' : undefined;
 // Autres gains dessinés avec leur symbole du livret, après une quantité (« obtient 2 déplacements gratuits », « 1 Token »,
 // « 2 cartes Alien », « 1 Atterrissage ») ; testés avant les ressources (« carte Alien » avant « carte »)
 const SYMBOL_ICONS: { label: string; pattern: RegExp; icon: (amount: number | undefined) => React.ReactNode }[] = [
@@ -232,7 +232,8 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
 
             // Une ressource devient une icône seulement après une quantité (« 2 Crédits ») : « la carte » reste en toutes lettres
             const afterAmount = index > 0 && (/\d\s*$/.test(parts[index - 1]) || amounts[index] !== undefined);
-            if (afterAmount && matchesWhole(LIFE_TRACE_PATTERN, part)) {
+            // Une trace de vie nomme toujours sa couleur : symbole avec ou sans quantité (« place une trace de vie Rouge »)
+            if (matchesWhole(LIFE_TRACE_PATTERN, part)) {
                 const color = lifeTraceColor(part);
                 return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: part, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}><Repeated amount={amounts[index] ?? 1}>{color ? <LifeTraceIcon color={color} size={15} /> : <AnyLifeTraceIcon size={15} />}</Repeated></span>;
             }
