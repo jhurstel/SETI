@@ -587,17 +587,14 @@
   max-width: 260px;
 }
 
-/* Ressources et revenus, sur une ligne, dans un cadre comme les pistes */
+/* Ressources et revenus, sur une ligne, sans cadre */
 .seti-stats-row {
   display: flex;
   align-items: stretch;
   gap: 4px;
-  padding: 6px;
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 6px;
 }
 
-/* Les 8 actions principales en hexagones (comme sur les pistes), puis la fin du tour : chacun dans son cadre, à sa taille */
+/* Les 8 actions principales en hexagones, puis la fin du tour dans son cadre : toute la largeur */
 .seti-main-actions-row {
   display: flex;
   align-items: stretch;
@@ -607,15 +604,30 @@
 .seti-main-actions {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 2px;
   padding: 5px 6px;
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 6px;
 }
 
+.seti-main-actions:first-child {
+  flex: 1 1 auto;
+}
+
 .seti-main-actions .obs-track-slot.hex {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
+}
+
+/* Une action n'est pas un emplacement : pas de cercle ni de fond rond, l'hexagone suffit */
+.seti-main-actions .obs-track-slot.hex.clickable {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.seti-main-actions .obs-track-slot.hex.clickable:hover {
+  background-color: transparent;
 }
 
 

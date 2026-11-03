@@ -1,0 +1,73 @@
+/* Infobulles des actions et des technologies du plateau joueur : titre, lignes libellé / valeur, aide en bas */
+.seti-board-tooltip {
+  min-width: 200px;
+  max-width: 280px;
+  text-align: left;
+}
+
+.seti-board-tooltip-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 5px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  font-weight: bold;
+  color: #78a0ff;
+}
+
+.seti-board-tooltip-badge {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.75em;
+  font-weight: 600;
+  color: #9fb2da;
+  border: 1px solid rgba(160, 180, 230, 0.35);
+}
+
+.seti-board-tooltip-badge.acquired {
+  color: #ffd700;
+  border-color: rgba(255, 215, 0, 0.55);
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.seti-board-tooltip-rows {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 10px;
+  margin: 0;
+  font-size: 0.88em;
+}
+
+.seti-board-tooltip-rows dt {
+  color: #8fa6d6;
+}
+
+.seti-board-tooltip-rows dd {
+  margin: 0;
+  color: #e8eefc;
+}
+
+.seti-board-tooltip-rows dd.cost {
+  color: #ffd700;
+}
+
+.seti-board-tooltip-rows dd.benefit {
+  color: #9fe0b0;
+}
+
+.seti-board-tooltip-hint {
+  margin-top: 6px;
+  font-size: 0.8em;
+  font-style: italic;
+}
+
+.seti-board-tooltip-hint.ok {
+  color: #7fd4ff;
+}
+
+.seti-board-tooltip-hint.blocked {
+  color: #ff8a8a;
+}

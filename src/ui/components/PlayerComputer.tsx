@@ -4,8 +4,7 @@ import { ComputerSystem } from '../../systems/ComputerSystem';
 import { PlayerComputerSlot } from './PlayerComputerSlot';
 import { TechSpot } from './TechSpot';
 import { ActionHexIcon } from './GameIcons';
-import { SlotTooltip } from './SlotTooltip';
-import { SLOT_COLORS } from '../styles/slotColors';
+import { ActionTooltip } from './BoardTooltips';
 import './PlayerComputer.css';
 
 export const PlayerComputer = ({ 
@@ -162,14 +161,14 @@ export const PlayerComputer = ({
                   }}
                   onClick={() => { if (isClickable && onAnalyzeClick) onAnalyzeClick(); }}
                   onMouseEnter={(e) => {
-                      const cost = `coût : ${GAME_CONSTANTS.ANALYZE_COST_ENERGY} Énergie`;
+                      const cost = `${GAME_CONSTANTS.ANALYZE_COST_ENERGY} Énergie et les données de la ligne du haut`;
                       let reason: string | null = null;
                       if (!is6aFilled) reason = 'Nécessite de remplir la ligne du haut';
-                      else if (!hasEnergy) reason = `Énergie insuffisante (${cost})`;
+                      else if (!hasEnergy) reason = `Énergie insuffisante (${GAME_CONSTANTS.ANALYZE_COST_ENERGY} requise)`;
 
                       onHover(e, reason
-                          ? <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} value="1 Trace Bleue" note={reason} />
-                          : <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} value="1 Trace Bleue" note={`Cliquez pour analyser les données (${cost})`} />);
+                          ? <ActionTooltip title="Analyser les données" cost={cost} bonus="Une trace de vie bleue" available={false} hint={reason} />
+                          : <ActionTooltip title="Analyser les données" cost={cost} bonus="Une trace de vie bleue" hint="Cliquez pour analyser les données" />);
                   }}
                   onMouseLeave={onLeave}
                 >

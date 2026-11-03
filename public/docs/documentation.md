@@ -24,7 +24,7 @@ Ce document décrit comment jouer, les règles telles qu'elles sont appliquées,
 - **Plateau du joueur** (gauche) : les onglets en haut affichent le plateau de chaque joueur. La section Ressources montre le score, les crédits, l'énergie, les cartes en main (4 gardées en passant), les Médias et les données (6 au plus), puis les revenus ; l'infobulle d'une ressource propose ses actions gratuites (échanges, achat d'une carte), cliquables. La section Actions montre les 8 actions principales en hexagones (lancer, orbite, atterrir, scanner, analyser, jouer une carte, rechercher, passer) et, dans son propre cadre, la fin du tour. Seul le plateau défile, sous les onglets. Dessous : exploration, observation, ordinateur de données, cartes en main (celles d'un robot qu'on n'a pas vues sont montrées de dos), missions et cartes jouées.
 - **Rangée de cartes**, **plateau des technologies**, **tuiles objectif**, **plateaux des espèces Alien** et **historique**.
 - **Panneau Planètes** : chaque planète, avec à côté une ligne par type de sonde présente (orbiteurs, atterrisseurs, lunes comprises) et une pastille de la couleur de chaque joueur, dans l'ordre d'arrivée. Son infobulle montre les cases de la planète ; chaque gain posé à côté d'une case a sa propre infobulle.
-- Les infobulles (survol) donnent le détail de chaque élément : coût, gain, raison d'une action indisponible.
+- Les infobulles (survol) donnent le détail de chaque élément. Une action (principale, fin du tour, étape du scan) montre son coût, son bonus, puis ce que fait un clic ou la raison qui l'empêche. Un emplacement de technologie montre si elle est acquise, le pouvoir actuel du joueur et le bénéfice de la technologie.
 
 ### 1.3 Le tour
 
