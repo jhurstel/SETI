@@ -3,7 +3,7 @@ import { Card, Game, Technology, TechnologyCategory, CardType, Bonus, HistoryEnt
 import { CardTooltip } from '../ui/components/CardTooltip';
 import './HistoryBoardUI.css';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { ResourceIcon, ResourceIconKind, LifeTraceIcon, VictoryPointsIcon, ActionHexIcon } from './components/GameIcons';
+import { ResourceIcon, ResourceIconKind, LifeTraceIcon, AnyLifeTraceIcon, VictoryPointsIcon, ActionHexIcon } from './components/GameIcons';
 import { LifeTraceColor } from './styles/lifeTraceColors';
 import { ReservationIcon, AnyTechIcon } from './components/ObjectiveSymbol';
 import { BonusIcons, Repeated } from './components/BonusIcons';
@@ -11,9 +11,18 @@ import { revealText } from '../core/historyText';
 
 // Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
 const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', CARD: 'card', DATA: 'data' };
-// Traces de vie d'une couleur (« 2 Traces Jaunes », « 1 trace de vie rouge »)
-const LIFE_TRACE_PATTERN = /[Tt]races? (?:de vie )?(?:[Rr]ouges?|[Jj]aunes?|[Bb]leues?)/;
-const lifeTraceColor = (text: string): LifeTraceColor => /rouge/i.test(text) ? 'red' : /jaune/i.test(text) ? 'yellow' : 'blue';
+// Traces de vie (« 2 Traces Jaunes », « 1 trace de vie rouge », « 1 trace de vie (Rouge) », « 1 trace de vie (quelconque) »)
+const LIFE_TRACE_PATTERN = /[Tt]races? (?:de vie )?(?:\((?:[Rr]ouges?|[Jj]aunes?|[Bb]leues?|[Qq]uelconques?)\)|[Rr]ouges?|[Jj]aunes?|[Bb]leues?)/;
+const lifeTraceColor = (text: string): LifeTraceColor | undefined => /rouge/i.test(text) ? 'red' : /jaune/i.test(text) ? 'yellow' : /bleue/i.test(text) ? 'blue' : undefined;
+// Autres gains dessinés avec leur symbole du livret, après une quantité (« obtient 2 déplacements gratuits », « 1 Token »,
+// « 2 cartes Alien », « 1 Atterrissage ») ; testés avant les ressources (« carte Alien » avant « carte »)
+const SYMBOL_ICONS: { label: string; pattern: RegExp; icon: (amount: number | undefined) => React.ReactNode }[] = [
+    { label: 'Déplacement', pattern: /[Dd]éplacements?(?: gratuits?)?|[Mm]ouvements? gratuits?/, icon: amount => <ResourceIcon kind="movement" amount={amount} size={15} /> },
+    { label: 'Token', pattern: /[Tt]okens?/, icon: amount => <ResourceIcon kind="token" amount={amount} size={15} /> },
+    { label: 'Carte Alien', pattern: /[Cc]artes? Alien/, icon: amount => <ResourceIcon kind="alienCard" amount={amount} size={15} /> },
+    { label: 'Atterrissage', pattern: /[Aa]tterrissages?|[Aa]tterrisseurs?/, icon: amount => <Repeated amount={amount ?? 1}><ActionHexIcon kind="land" size={15} /></Repeated> },
+];
+const matchesWhole = (pattern: RegExp, text: string) => new RegExp(`^(?:${pattern.source})$`).test(text);
 
 interface HistoryBoardUIProps {
     historyLog: HistoryEntry[];
@@ -160,14 +169,16 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         // Jeu local : les passages privés (cartes piochées) sont lisibles par le joueur humain
         const message = revealText(raw);
         const resourcePattern = Object.values(ResourceSystem.RESOURCE_CONFIG).map(c => c.regex.source).join('|');
-        const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${LIFE_TRACE_PATTERN.source}|${resourcePattern}|"[^"]+")`, 'g');
+        const symbolPattern = SYMBOL_ICONS.map(s => s.pattern.source).join('|');
+        const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${LIFE_TRACE_PATTERN.source}|${symbolPattern}|${resourcePattern}|"[^"]+")`, 'g');
 
         const parts = message.split(splitRegex);
         // « 2 PV », « 3 Crédits » : le nombre est retiré du texte et dessiné dans l'icône (laurier, pastille, jeton) ;
         // « 2 Traces rouges », « 2 Réservations » : l'icône est répétée
         const iconKeys = ['PV', 'RESERVATION', 'SONDE', 'TECH', ...Object.keys(RESOURCE_ICON_KINDS)];
         const amounts: (number | undefined)[] = parts.map((part, index) => {
-            const takesAmount = index > 0 && (new RegExp(`^${LIFE_TRACE_PATTERN.source}$`).test(part)
+            const takesAmount = index > 0 && (matchesWhole(LIFE_TRACE_PATTERN, part)
+                || SYMBOL_ICONS.some(s => matchesWhole(s.pattern, part))
                 || iconKeys.some(key => new RegExp(`^${ResourceSystem.RESOURCE_CONFIG[key].regex.source}$`).test(part)));
             const amount = takesAmount ? parts[index - 1].match(/(\d+)\s*$/) : null;
             return amount ? Number(amount[1]) : undefined;
@@ -229,8 +240,13 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
 
             // Une ressource devient une icône seulement après une quantité (« 2 Crédits ») : « la carte » reste en toutes lettres
             const afterAmount = index > 0 && (/\d\s*$/.test(parts[index - 1]) || amounts[index] !== undefined);
-            if (afterAmount && new RegExp(`^${LIFE_TRACE_PATTERN.source}$`).test(part)) {
-                return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: part, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}><Repeated amount={amounts[index] ?? 1}><LifeTraceIcon color={lifeTraceColor(part)} size={15} /></Repeated></span>;
+            if (afterAmount && matchesWhole(LIFE_TRACE_PATTERN, part)) {
+                const color = lifeTraceColor(part);
+                return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: part, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}><Repeated amount={amounts[index] ?? 1}>{color ? <LifeTraceIcon color={color} size={15} /> : <AnyLifeTraceIcon size={15} />}</Repeated></span>;
+            }
+            const symbol = afterAmount ? SYMBOL_ICONS.find(s => matchesWhole(s.pattern, part)) : undefined;
+            if (symbol) {
+                return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: symbol.label, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}>{symbol.icon(amounts[index])}</span>;
             }
             for (const [key, config] of Object.entries(ResourceSystem.RESOURCE_CONFIG)) {
                 if (afterAmount && new RegExp(`^${config.regex.source}$`).test(part)) {
