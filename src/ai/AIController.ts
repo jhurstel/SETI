@@ -122,6 +122,26 @@ export class AIController {
         return best!.result;
     }
 
+    /**
+     * Carte de fin de manche, une fois passé : le robot stratégique simule chaque carte de la pile et garde la
+     * meilleure position, le Débutant la tire au hasard, le niveau PASS des tests prend la première.
+     */
+    static bestRoundCard(game: Game, player: Player, interaction: Extract<InteractionState, { type: 'CHOOSING_ROUND_CARD' }>) {
+        const deck = game.decks.roundDecks[interaction.round] || [];
+        const difficulty = AIBehavior.getDifficulty(player);
+        if (difficulty === 'PASS' || !AIBehavior.isStrategic(player)) {
+            const card = difficulty === 'PASS' ? deck[0] : deck[Math.floor(random() * deck.length)];
+            return InteractionChoices.chooseRoundCard(game, player.id, interaction, card.id);
+        }
+        let best: { result: ReturnType<typeof InteractionChoices.chooseRoundCard>; value: number } | null = null;
+        for (const card of deck) {
+            const result = InteractionChoices.chooseRoundCard(game, player.id, interaction, card.id);
+            const value = AIEvaluator.evaluate(result.updatedGame, player.id);
+            if (!best || value > best.value) best = { result, value };
+        }
+        return best!.result;
+    }
+
     /** Mission déclenchée hors de son tour : recouvre le cercle (ou aucun) qui donne la meilleure position évaluée */
     static bestMissionRequirement(game: Game, player: Player, interaction: Extract<InteractionState, { type: 'CHOOSING_MISSION_REQUIREMENT' }>, sequenceId: string): AIControllerResult {
         const options: ({ missionId: string; requirementId: string } | undefined)[] = [...interaction.options, undefined];
@@ -307,6 +327,12 @@ export class AIController {
                 updatedGame = res.updatedGame;
                 historyEntries.push(...res.historyEntries.map(e => ({ ...e, sequenceId })));
                 newPendingInteractions.push(...res.newPendingInteractions);
+                break;
+            }
+            case 'CHOOSING_ROUND_CARD': {
+                const res = this.bestRoundCard(updatedGame, player, { ...interaction, sequenceId });
+                updatedGame = res.updatedGame;
+                historyEntries.push(...res.historyEntries);
                 break;
             }
             case 'CHOOSING_EXERTIEN_CARD': {

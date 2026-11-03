@@ -9,7 +9,7 @@ import { random, setRandomState } from '../src/core/random';
 import { createRotationState, getAllCells } from '../src/core/SolarSystemPosition';
 import { ActionType, AlienBoardType, CardType, CelestialObject, DiskName, FreeActionType, Game, GamePhase, LifeTraceLocation, LifeTraceType, Mission, Probe, ProbeState, SectorNumber, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
-import { revealText } from '../src/core/historyText';
+import { revealText, textFor } from '../src/core/historyText';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
@@ -291,22 +291,25 @@ describe('Robots : cas limites', () => {
       });
     });
 
-    test.each(['EXPERT', 'EASY'] as const)('passe (%s) : la carte de fin de manche est choisie dans la pile, et la session la donne', difficulty => {
+    test.each(['EXPERT', 'EASY', 'PASS'] as const)('passe (%s) : la carte de fin de manche est choisie une fois passé (pile cachée avant), son nom reste privé', difficulty => {
       const player = getPlayer(game, P1);
       player.aiDifficulty = difficulty;
       game.phase = GamePhase.PLAYING;
       const roundDeck = game.decks.roundDecks[game.currentRound];
       expect(roundDeck.length).toBeGreaterThan(1);
 
-      const step = AITurn['pass'](game, player);
-      expect(step.kind).toBe('PASS');
-      const roundCardId = step.kind === 'PASS' ? step.roundCardId : undefined;
-      expect(roundDeck.map(c => c.id)).toContain(roundCardId);
+      const step = AITurn['pass'](player);
+      expect(step).toEqual({ kind: 'PASS', cardsToKeep: expect.any(Array) });
 
       const applied = GameSession.applyRobotStep(game, step);
       expect(applied.error).toBeUndefined();
-      expect(getPlayer(applied.game, P1).cards.some(c => c.id === roundCardId)).toBe(true);
-      expect(applied.entries.map(e => e.message)).toContain(`choisit carte "${roundDeck.find(c => c.id === roundCardId)!.name}" de fin de manche`);
+      const taken = getPlayer(applied.game, P1).cards.find(c => roundDeck.some(r => r.id === c.id))!;
+      expect(taken).toBeDefined();
+      if (difficulty === 'PASS') expect(taken.id).toBe(roundDeck[0].id);
+      expect(applied.game.decks.roundDecks[game.currentRound]).toHaveLength(roundDeck.length - 1);
+      const message = applied.entries.map(e => e.message).find(m => m.includes('de fin de manche'))!;
+      expect(revealText(message)).toBe(`choisit carte "${taken.name}" de fin de manche`);
+      expect(textFor(message, P2)).not.toContain(taken.name);
     });
 
     test('robot Débutant : défausse pour « 2 Médias » avec l\'opération du moteur', () => {

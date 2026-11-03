@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Game, ActionType, Card, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, ProbeState, LifeTraceType, InteractionState, GamePhase, SignalType, getInteractionLabel, LifeTraceLocation } from '../core/types';
+import { Game, ActionType, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, ProbeState, LifeTraceType, InteractionState, GamePhase, SignalType, getInteractionLabel, LifeTraceLocation } from '../core/types';
 import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal, MissionRequirementModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
@@ -71,7 +71,6 @@ export const BoardUI: React.FC = () => {
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
   const [alienDiscoveryNotification, setAlienDiscoveryNotification] = useState<{ visible: boolean; message: string } | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null>(null);
-  const [passModalState, setPassModalState] = useState<{ visible: boolean; cards: Card[]; selectedCardId: string | null; cardsToKeep?: string[] }>({ visible: false, cards: [], selectedCardId: null });
   const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
   const [settingsVisible, setSettingsVisible] = useState(true); // Ouvert au lancement
   const [docVisible, setDocVisible] = useState(false);
@@ -184,7 +183,6 @@ export const BoardUI: React.FC = () => {
   const humanPlayerId = isOnline ? undefined : me;
   const resetInterface = () => {
     setLocalMode(null);
-    setPassModalState({ visible: false, cards: [], selectedCardId: null });
   };
   const handleUndoTurn = () => {
     if (!humanPlayerId) return;
@@ -207,7 +205,7 @@ export const BoardUI: React.FC = () => {
   // --- Robots ---
 
   // En ligne, les robots jouent sur le serveur
-  useAITurn(isOnline ? null : session.game, !!localMode || passModalState.visible, (step: RobotStep) => {
+  useAITurn(isOnline ? null : session.game, !!localMode, (step: RobotStep) => {
     const result = session.applyRobotStep(step);
     if (!result) return;
     if (result.error) {
@@ -231,15 +229,9 @@ export const BoardUI: React.FC = () => {
     }
   };
 
-  /** Passer : la main est ramenée à 4 cartes, puis la carte de manche est choisie s'il y en a */
+  /** Passer : la main est ramenée à 4 cartes ; la carte de fin de manche se choisit ensuite (pile cachée jusque-là) */
   const startPass = (cardsToKeep: string[]) => {
-    if (!game) return;
-    const roundDeck = game.decks.roundDecks[game.currentRound];
-    if (roundDeck && roundDeck.length > 0) {
-      setPassModalState({ visible: true, cards: roundDeck, selectedCardId: null, cardsToKeep });
-    } else {
-      run({ type: 'PASS', cardsToKeep });
-    }
+    run({ type: 'PASS', cardsToKeep });
   };
 
   // --- Sélection de cartes de la main ---
@@ -362,7 +354,12 @@ export const BoardUI: React.FC = () => {
           });
           return;
         }
-        startPass(CardSystem.getHandCards(currentPlayer).map(c => c.id));
+        setConfirmModalState({
+          visible: true,
+          cardId: null,
+          message: 'Passer définitivement ? Vous ne pourrez plus agir avant la prochaine manche.',
+          onConfirm: () => startPass(CardSystem.getHandCards(currentPlayer).map(c => c.id)),
+        });
         break;
       }
     }
@@ -598,17 +595,16 @@ export const BoardUI: React.FC = () => {
         />
       )}
 
-      {/* Modale de sélection de carte de fin de manche */}
-      <PassModal
-        visible={passModalState.visible}
-        cards={passModalState.cards}
-        onConfirm={(selectedCardId) => {
-          const cardsToKeep = passModalState.cardsToKeep || CardSystem.getHandCards(currentPlayer).map(c => c.id);
-          setPassModalState({ visible: false, cards: [], selectedCardId: null });
-          run({ type: 'PASS', cardsToKeep, roundCardId: selectedCardId });
-        }}
-        currentRound={game.currentRound}
-      />
+      {/* Carte de fin de manche, découverte et choisie une fois passé */}
+      {interactionState.type === 'CHOOSING_ROUND_CARD' && actingPlayer(game).type === 'human' && (
+        <PassModal
+          visible
+          cards={game.decks.roundDecks[interactionState.round] || []}
+          onConfirm={(cardId) => choose({ kind: 'CARD', cardId })}
+          currentRound={interactionState.round}
+          confirmLabel="Prendre la carte"
+        />
+      )}
 
       {/* Modale de réservation de carte (mise en place et bonus de réservation) */}
       {isReservationModalActive && interactionState.type === 'RESERVING_CARD' && (

@@ -4,8 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { GameFactory } from '../../src/core/GameFactory';
 import { TurnManager } from '../../src/core/TurnManager';
-import { GameEngine } from '../../src/core/Game';
-import { PassAction } from '../../src/actions/PassAction';
+import { GameSession } from '../../src/session/GameSession';
 import { CardSystem } from '../../src/systems/CardSystem';
 import { AITurn } from '../../src/ai/AITurn';
 import { AIEvaluator, EvaluatorWeights } from '../../src/ai/AIEvaluator';
@@ -34,10 +33,9 @@ async function playGame(seed: number, weights: EvaluatorWeights[]): Promise<numb
     else if (step.kind === 'UPDATED') game = step.updatedGame;
     else if (step.kind === 'END_TURN') game = AITurn.endTurn(game).updatedGame;
     else if (step.kind === 'PASS') {
-      const player = game.players[game.currentPlayerIndex];
-      const res = new GameEngine(game).executeAction(new PassAction(player.id, step.cardsToKeep, step.roundCardId));
-      if (!res.success || !res.updatedState) throw new Error(`Passe refusée : ${res.error}`);
-      game = res.updatedState;
+      const res = GameSession.applyRobotStep(game, step);
+      if (res.error) throw new Error(`Passe refusée : ${res.error}`);
+      game = res.game;
     } else throw new Error('Robot bloqué');
   }
   if (game.phase !== GamePhase.FINAL_SCORING) throw new Error('Partie non terminée');

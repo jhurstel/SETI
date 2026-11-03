@@ -43,7 +43,7 @@ Quand une action ouvre un choix (placer une trace de vie, choisir une carte, une
 | **Analyser les données** | 1 énergie | Possible quand la ligne du haut de l'ordinateur est pleine : vide l'ordinateur et donne une trace de vie **bleue**. |
 | **Rechercher une technologie** | 6 Médias | Prend une technologie sur le plateau (avec son bonus) et fait tourner le système solaire. |
 | **Jouer une carte** | Coût de la carte (crédits ou énergie) | Applique les gains de la carte ; une mission reste devant le joueur, une carte Fin de partie est décomptée à la fin. |
-| **Passer** | — | Garde au plus 4 cartes (défausse le reste). Le premier à passer fait tourner le système solaire et choisit une carte de fin de manche. |
+| **Passer** | — | Garde au plus 4 cartes (défausse le reste). Le premier à passer fait tourner le système solaire. Chaque joueur qui passe découvre ensuite la pile de fin de manche, cachée jusque-là, et y prend une carte. |
 
 #### Détail des étapes
 
@@ -52,7 +52,7 @@ Quand une action ouvre un choix (placer une trace de vie, choisir une carte, une
 - **Scanner** : (1) signal dans le secteur de la Terre (ou un secteur adjacent avec Observation I) ; (2) choix d'une carte de la rangée, signal dans le secteur de sa couleur ; (3) Observation II : payer 1 Média pour un signal sur Mercure ; Observation III : défausser une carte pour un signal de sa couleur ; Observation IV : payer 1 énergie pour lancer une sonde, ou gagner 1 déplacement.
 - Chaque signal pose un marqueur dans le secteur et, si le secteur le prévoit, rapporte une **donnée**. Un secteur dont toutes les cases sont remplies est **résolu** (voir 2.2).
 - **Rechercher une technologie** : une technologie par pile et par joueur. Les technologies Informatique se posent sur l'ordinateur et ajoutent un gain quand la colonne est remplie.
-- **Passer** : la carte de fin de manche choisie va dans la main. À la fin de la manche, chacun reçoit ses revenus (crédits, énergies, cartes).
+- **Passer** : la pile de fin de manche reste cachée tant qu'on n'a pas passé ; une fois la passe confirmée (elle ne s'annule plus), on la découvre et la carte choisie va dans la main. Les autres joueurs ne savent pas laquelle. À la fin de la manche, chacun reçoit ses revenus (crédits, énergies, cartes).
 
 ### 1.5 Actions gratuites
 
@@ -254,7 +254,7 @@ Une interaction peut viser un autre joueur que le joueur actif (par exemple le g
 - **Expert (EXPERT)** : comme l'Intermédiaire, mais compte aussi les points du décompte final déjà acquis. Sur 72 parties contre l'Intermédiaire : 61 % de victoires, environ +11 PV.
 
 Pour les choix aléatoires (pioche, spécimen…), un robot compare 4 tirages et garde le meilleur. Chaque placement de trace de vie est simulé.
-Les robots jouent avec exactement les mêmes opérations que le joueur humain : mêmes vérifications, mêmes gains, mêmes messages dans l'historique (défausse pour une action gratuite, achat ou échange contre une carte à choisir dans la rangée ou la pioche, déplacements gratuits, colonne de l'ordinateur pour une technologie Informatique, réservation de mise en place). En passant, un robot choisit sa carte de fin de manche comme le joueur humain : l'Intermédiaire et l'Expert simulent chaque carte, le Débutant la tire au hasard.
+Les robots jouent avec exactement les mêmes opérations que le joueur humain : mêmes vérifications, mêmes gains, mêmes messages dans l'historique (défausse pour une action gratuite, achat ou échange contre une carte à choisir dans la rangée ou la pioche, déplacements gratuits, colonne de l'ordinateur pour une technologie Informatique, réservation de mise en place). Un robot choisit sa carte de fin de manche comme le joueur humain, une fois passé (il ne voit pas la pile avant) : l'Intermédiaire et l'Expert simulent chaque carte, le Débutant la tire au hasard.
 Un robot joue une étape toutes les 1,5 s ; le calcul tourne dans un Web Worker pour ne pas figer l'interface.
 
 ### 5.2 Évaluation d'une position

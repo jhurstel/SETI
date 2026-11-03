@@ -40,6 +40,19 @@ describe('viewFor : vue de la partie pour un joueur', () => {
     expect(view.rngState).toBeUndefined();
   });
 
+  test('cache les piles de fin de manche, sauf au joueur qui a passé et choisit sa carte', () => {
+    const hidden = (view: Game, round: number) => view.decks.roundDecks[round].every(c => c.id.startsWith('hidden-'));
+    let view = viewFor(game, A);
+    expect(view.decks.roundDecks[1]).toHaveLength(game.decks.roundDecks[1].length);
+    expect(hidden(view, 1) && hidden(view, 2)).toBe(true);
+
+    game.interaction = { type: 'CHOOSING_ROUND_CARD', round: 1, playerId: A, sequenceId: 's' };
+    view = viewFor(game, A);
+    expect(view.decks.roundDecks[1]).toEqual(game.decks.roundDecks[1]);
+    expect(hidden(view, 2)).toBe(true);
+    expect(hidden(viewFor(game, B), 1)).toBe(true);
+  });
+
   test('ne modifie pas la partie reçue', () => {
     game.interaction = { type: 'PLACING_LIFE_TRACE', color: LifeTraceType.RED, playerId: B, sequenceId: 's' };
     const snapshot = cloneGame(game);

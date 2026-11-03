@@ -12,8 +12,7 @@ import { requirePlayer } from '../core/players';
 export class PassAction extends BaseAction {
   constructor(
     playerId: string,
-    public cardIdsToKeep: string[], // Cartes à garder (max 4)
-    public selectedCardId?: string // Carte du paquet de manche choisie
+    public cardIdsToKeep: string[] // Cartes à garder (max 4)
   ) {
     super(playerId, ActionType.PASS);
   }
@@ -35,17 +34,6 @@ export class PassAction extends BaseAction {
     );
     if (invalidCards.length > 0) {
       return { valid: false, errors: [{ code: 'INVALID_CARDS', message: 'Cartes à garder invalides' }], warnings: [] };
-    }
-
-    // Vérifier si une carte de manche doit être choisie
-    const currentRound = game.currentRound;
-    const roundDeck = game.decks.roundDecks[currentRound];
-
-    // Si le paquet existe et n'est pas vide, une carte doit être sélectionnée (sauf si géré automatiquement pour robot, mais l'action doit valider la cohérence)
-    if (roundDeck && roundDeck.length > 0 && this.selectedCardId) {
-      if (!roundDeck.some(c => c.id === this.selectedCardId)) {
-        return { valid: false, errors: [{ code: 'INVALID_CARDS', message: 'Carte sélectionnée invalides' }], warnings: [] };
-      }
     }
 
     return { valid: true, errors: [], warnings: [] };
@@ -73,24 +61,10 @@ export class PassAction extends BaseAction {
     updatedGame = CardSystem.discardToHandSize(updatedGame, this.playerId, this.cardIdsToKeep);
     const updatedPlayer = updatedGame.players[playerIndex];
 
-    // Gérer la carte de fin de manche
+    // Carte de fin de manche : la pile est cachée, le joueur la découvre et choisit une fois passé
     const currentRound = updatedGame.currentRound;
-    if (updatedGame.decks.roundDecks[currentRound] && updatedGame.decks.roundDecks[currentRound].length > 0) {
-      const deck = updatedGame.decks.roundDecks[currentRound];
-      let cardIndex = -1;
-
-      if (this.selectedCardId) {
-        cardIndex = deck.findIndex(c => c.id === this.selectedCardId);
-      } else {
-        // Aucune carte choisie (niveau PASS des tests) : la première
-        cardIndex = 0;
-      }
-
-      if (cardIndex !== -1) {
-        const [card] = deck.splice(cardIndex, 1);
-        updatedPlayer.cards.push(card);
-        this.historyEntries.push({ message: `choisit carte "${card.name}" de fin de manche`, playerId, sequenceId });
-      }
+    if ((updatedGame.decks.roundDecks[currentRound] || []).length > 0) {
+      this.newPendingInteractions.push({ type: 'CHOOSING_ROUND_CARD', round: currentRound, playerId, sequenceId });
     }
 
     // Marquer le joueur comme ayant passé

@@ -13,7 +13,6 @@ import { ResearchTechAction } from '../actions/ResearchTechAction';
 import { PlayCardAction } from '../actions/PlayCardAction';
 import { OrbitAction } from '../actions/OrbitAction';
 import { LandAction } from '../actions/LandAction';
-import { PassAction } from '../actions/PassAction';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -30,14 +29,14 @@ import { random } from '../core/random';
  * - SETUP_RESERVED : carte réservée pendant la mise en place → passer au joueur suivant du SETUP
  * - UPDATED : une action (gratuite ou principale) a été jouée, le robot continue son tour
  * - END_TURN : le robot a fini son tour
- * - PASS : le robot passe pour la manche (à exécuter via PassAction), avec la carte de fin de manche choisie
+ * - PASS : le robot passe pour la manche (à exécuter via PassAction) ; la carte de fin de manche se choisit ensuite
  */
 export type AIStep =
   | { kind: 'WAIT' }
   | { kind: 'SETUP_RESERVED'; updatedGame: Game; historyEntries: HistoryEntry[] }
   | { kind: 'UPDATED'; updatedGame: Game; historyEntries: HistoryEntry[]; humanInteractions?: InteractionState[] }
   | { kind: 'END_TURN' }
-  | { kind: 'PASS'; cardsToKeep: string[]; roundCardId?: string };
+  | { kind: 'PASS'; cardsToKeep: string[] };
 
 /** humanInteractions : interactions destinées à un joueur humain, à confier à l'interface. */
 type StepResult = { updatedGame: Game; historyEntries: HistoryEntry[]; humanInteractions?: InteractionState[] };
@@ -72,39 +71,26 @@ export class AITurn {
     if (strategic) {
       const best = this.chooseBestMainAction(game, player);
       if (best) return { kind: 'UPDATED', ...best };
-      return this.pass(game, player);
+      return this.pass(player);
     }
 
     if (AIBehavior.getDifficulty(player) === 'EASY') {
       const choice = this.chooseEasyMainAction(game, player);
       if (choice) return { kind: 'UPDATED', ...choice };
-      return this.pass(game, player);
+      return this.pass(player);
     }
 
     // Niveau PASS (tests) : le robot passe sans jouer d'action principale
-    return this.pass(game, player);
+    return this.pass(player);
   }
 
   /**
-   * Passe : cartes gardées, et carte de fin de manche choisie comme le joueur humain (parmi la pile de la manche).
-   * Un robot stratégique simule la passe avec chaque carte et garde la meilleure position ; le Débutant la tire
-   * au hasard ; le niveau PASS des tests prend la première.
+   * Passe : cartes gardées. Comme pour le joueur humain, la carte de fin de manche est choisie une fois passé
+   * (CHOOSING_ROUND_CARD, AIController) : le robot ne voit pas la pile avant.
    */
-  private static pass(game: Game, player: Player): AIStep {
+  private static pass(player: Player): AIStep {
     const decision = AIBehavior.createPassDecision(player);
-    const cardsToKeep = decision.action === ActionType.PASS ? decision.data.cardsToKeep : [];
-    const roundDeck = game.decks.roundDecks[game.currentRound] || [];
-    if (roundDeck.length === 0 || AIBehavior.getDifficulty(player) === 'PASS') return { kind: 'PASS', cardsToKeep };
-    if (!AIBehavior.isStrategic(player)) {
-      return { kind: 'PASS', cardsToKeep, roundCardId: roundDeck[Math.floor(random() * roundDeck.length)].id };
-    }
-    let best: { cardId: string; value: number } | null = null;
-    for (const card of roundDeck) {
-      const result = new GameEngine(game).executeAction(new PassAction(player.id, cardsToKeep, card.id));
-      const value = result.updatedState ? AIEvaluator.evaluate(result.updatedState, player.id) : -Infinity;
-      if (!best || value > best.value) best = { cardId: card.id, value };
-    }
-    return { kind: 'PASS', cardsToKeep, roundCardId: best?.cardId };
+    return { kind: 'PASS', cardsToKeep: decision.action === ActionType.PASS ? decision.data.cardsToKeep : [] };
   }
 
   /**

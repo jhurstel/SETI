@@ -19,15 +19,18 @@ describe('fin de manche par la dernière passe', () => {
     const passed = GameSession.dispatch(game, 'player_0', {
       type: 'PASS',
       cardsToKeep: CardSystem.getHandCards(alice).slice(0, 4).map(c => c.id),
-      roundCardId: game.decks.roundDecks[2]?.[0]?.id,
     });
+    // La carte de fin de manche 2 est choisie après la passe, une fois la manche 3 commencée
+    expect(passed.game.interaction).toEqual(expect.objectContaining({ type: 'CHOOSING_ROUND_CARD', round: 2 }));
+    const chosen = GameSession.dispatch(passed.game, 'player_0', { type: 'CHOOSE', choice: { kind: 'CARD', cardId: game.decks.roundDecks[2][0].id } });
     logSpy.mockRestore();
 
     expect(passed.error).toBeUndefined();
-    expect(passed.game.currentRound).toBe(3);
-    expect(passed.game.currentPlayerIndex).toBe(0);
-    expect(getPlayer(passed.game, 'player_0').hasPerformedMainAction).toBe(false);
-    const launched = GameSession.dispatch(passed.game, 'player_0', { type: 'LAUNCH_PROBE' });
+    expect(chosen.error).toBeUndefined();
+    expect(chosen.game.currentRound).toBe(3);
+    expect(chosen.game.currentPlayerIndex).toBe(0);
+    expect(getPlayer(chosen.game, 'player_0').hasPerformedMainAction).toBe(false);
+    const launched = GameSession.dispatch(chosen.game, 'player_0', { type: 'LAUNCH_PROBE' });
     expect(launched.error).toBeUndefined();
   });
 });

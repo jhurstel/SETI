@@ -21,7 +21,7 @@ export type Choice =
   | { kind: 'CENTAURIEN'; tokenIndex: number }
   /** CHOOSING_BONUS_ACTION */
   | { kind: 'MENU'; index: number }
-  /** ACQUIRING_CARD (absent : la pioche), SELECTING_SCAN_CARD */
+  /** ACQUIRING_CARD (absent : la pioche), SELECTING_SCAN_CARD, CHOOSING_ROUND_CARD */
   | { kind: 'CARD'; cardId?: string }
   /** RESERVING_CARD, DISCARDING_FOR_SIGNAL */
   | { kind: 'CARDS'; cardIds: string[] }
@@ -53,7 +53,7 @@ export type Command =
   | { type: 'ORBIT'; planetId: string }
   | { type: 'LAND'; planetId: string; slotIndex?: number }
   | { type: 'PLAY_CARD'; cardId: string }
-  | { type: 'PASS'; cardsToKeep: string[]; roundCardId?: string }
+  | { type: 'PASS'; cardsToKeep: string[] }
   // Actions gratuites (un pas de sonde à la fois ; avec des déplacements gratuits en cours, ils sont utilisés d'abord)
   | { type: 'MOVE_PROBE'; probeId: string; disk: DiskName; sector: SectorNumber }
   | { type: 'TRADE'; spend: string; gain: string; cardIds?: string[] }

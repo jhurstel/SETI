@@ -204,28 +204,27 @@ describe('PassAction', () => {
       expect(new PassAction(P1, ['inconnue']).validate(game).valid).toBe(false);
     });
 
-    test('refuse une carte de fin de manche absente du paquet', () => {
-      expect(new PassAction(P1, keepFirst(game, P1, 4), 'inconnue').validate(game).valid).toBe(false);
-    });
-
-    test('accepte une sélection valide', () => {
-      const roundCard = game.decks.roundDecks[1][0].id;
-      expect(new PassAction(P1, keepFirst(game, P1, 4), roundCard).validate(game).valid).toBe(true);
-    });
   });
 
   describe('execute', () => {
-    test('défausse à 4 cartes, prend la carte de manche choisie et passe la main', () => {
+    test('défausse à 4 cartes, passe la main, puis la carte de fin de manche est à choisir (pile intacte)', () => {
       const kept = keepFirst(game, P1, 4);
-      const roundCard = game.decks.roundDecks[1][1].id;
-      const action = new PassAction(P1, kept, roundCard);
+      const action = new PassAction(P1, kept);
       const updated = action.execute(game);
       const p1 = getPlayer(updated, P1);
 
       expect(p1.hasPassed).toBe(true);
-      expect(p1.cards.map(c => c.id)).toEqual([...kept, roundCard]);
-      expect(updated.decks.roundDecks[1].some(c => c.id === roundCard)).toBe(false);
+      expect(p1.cards.map(c => c.id)).toEqual(kept);
+      expect(updated.decks.roundDecks[1]).toHaveLength(game.decks.roundDecks[1].length);
+      expect(action.newPendingInteractions[0]).toEqual(expect.objectContaining({ type: 'CHOOSING_ROUND_CARD', round: 1, playerId: P1 }));
       expect(updated.currentPlayerIndex).toBe(1);
+    });
+
+    test('pile de fin de manche vide : rien à choisir', () => {
+      game.decks.roundDecks[1] = [];
+      const action = new PassAction(P1, keepFirst(game, P1, 4));
+      action.execute(game);
+      expect(action.newPendingInteractions.some(i => i.type === 'CHOOSING_ROUND_CARD')).toBe(false);
     });
 
     test('ne modifie pas la partie d\'origine', () => {
@@ -250,11 +249,6 @@ describe('PassAction', () => {
       expect(action.historyEntries[0].message).toContain('premier de la manche');
     });
 
-    test('un joueur sans carte de manche choisie (robot) prend la première', () => {
-      const first = game.decks.roundDecks[1][0].id;
-      const updated = new PassAction(P1, keepFirst(game, P1, 4)).execute(game);
-      expect(getPlayer(updated, P1).cards.some(c => c.id === first)).toBe(true);
-    });
   });
 
   describe('via GameEngine (manche complète)', () => {

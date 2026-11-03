@@ -1,9 +1,8 @@
 import { AITurn } from '../src/ai/AITurn';
 import * as randomModule from '../src/core/random';
-import { GameEngine } from '../src/core/Game';
 import { GameFactory } from '../src/core/GameFactory';
 import { TurnManager } from '../src/core/TurnManager';
-import { PassAction } from '../src/actions/PassAction';
+import { GameSession } from '../src/session/GameSession';
 import { CardSystem } from '../src/systems/CardSystem';
 import { ScanSystem } from '../src/systems/ScanSystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
@@ -52,10 +51,9 @@ function playRobotGame(initial: Game, maxSteps = 5000): { game: Game; steps: num
         game = AITurn.endTurn(game).updatedGame;
         break;
       case 'PASS': {
-        const player = game.players[game.currentPlayerIndex];
-        const result = new GameEngine(game).executeAction(new PassAction(player.id, step.cardsToKeep, step.roundCardId));
-        if (!result.success || !result.updatedState) throw new Error(`Passe refusée : ${result.error}`);
-        game = result.updatedState;
+        const result = GameSession.applyRobotStep(game, step);
+        if (result.error) throw new Error(`Passe refusée : ${result.error}`);
+        game = result.game;
         break;
       }
     }

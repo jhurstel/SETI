@@ -321,6 +321,18 @@ export class InteractionChoices {
       : ProbeSystem.removeLander(game, playerId, planetId, index, interaction.sequenceId);
   }
 
+  /** Carte de fin de manche prise après avoir passé (CHOOSING_ROUND_CARD) : son nom reste privé. */
+  static chooseRoundCard(game: Game, playerId: string, interaction: Interaction<'CHOOSING_ROUND_CARD'>, cardId: string): ChoiceResult {
+    const updatedGame = cloneGame(game);
+    const deck = updatedGame.decks.roundDecks[interaction.round] || [];
+    const index = deck.findIndex(c => c.id === cardId);
+    if (index === -1) return refused(game, 'Carte absente de la pile de fin de manche');
+    const [card] = deck.splice(index, 1);
+    requirePlayer(updatedGame, playerId).cards.push(card);
+    const message = `choisit carte ${privateText(playerId, `"${card.name}"`)} de fin de manche`;
+    return { updatedGame, historyEntries: [{ message, playerId, sequenceId: interaction.sequenceId || '' }], newPendingInteractions: [] };
+  }
+
   /** Carte Exertien jouée à un palier (cardId absent : le joueur renonce). */
   static playExertienCard(game: Game, playerId: string, interaction: Interaction<'CHOOSING_EXERTIEN_CARD'>, cardId?: string): ChoiceResult {
     const res = SpeciesSystem.playExertienCard(game, playerId, interaction.milestone, cardId);

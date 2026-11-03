@@ -207,9 +207,28 @@ describe('GameSession', () => {
     test('passer : la main garde 4 cartes au plus, et le joueur suivant joue', () => {
       const hand = CardSystem.getHandCards(getPlayer(game, P1));
       const keep = hand.slice(0, Math.min(4, hand.length)).map(c => c.id);
-      const res = run(game, { type: 'PASS', cardsToKeep: keep, roundCardId: game.decks.roundDecks[1]?.[0]?.id });
+      const res = run(game, { type: 'PASS', cardsToKeep: keep });
       expect(getPlayer(res.game, P1).hasPassed).toBe(true);
       expect(res.game.currentPlayerIndex).toBe(1);
+    });
+
+    test('carte de fin de manche : choisie par le joueur qui a passé, pas avant ; le joueur suivant attend', () => {
+      const keep = CardSystem.getHandCards(getPlayer(game, P1)).slice(0, 4).map(c => c.id);
+      const deck = game.decks.roundDecks[1];
+      const passed = run(game, { type: 'PASS', cardsToKeep: keep });
+      expect(passed.game.interaction).toEqual(expect.objectContaining({ type: 'CHOOSING_ROUND_CARD', round: 1, playerId: P1 }));
+      expect(getPlayer(passed.game, P1).cards.some(c => deck.some(r => r.id === c.id))).toBe(false);
+
+      // Le joueur suivant ne peut pas répondre, ni le joueur passer outre, ni prendre une carte d'ailleurs
+      expect(GameSession.dispatch(passed.game, P2, { type: 'CHOOSE', choice: { kind: 'CARD', cardId: deck[0].id } }).error).toBeDefined();
+      expect(GameSession.dispatch(passed.game, P1, { type: 'SKIP' }).error).toBeDefined();
+      expect(GameSession.dispatch(passed.game, P1, { type: 'CHOOSE', choice: { kind: 'CARD', cardId: 'inconnue' } }).error).toBe('Carte absente de la pile de fin de manche');
+      expect(GameSession.dispatch(passed.game, P1, { type: 'CHOOSE', choice: { kind: 'CARD' } }).error).toBeDefined();
+
+      const chosen = run(passed.game, { type: 'CHOOSE', choice: { kind: 'CARD', cardId: deck[2].id } });
+      expect(getPlayer(chosen.game, P1).cards.map(c => c.id)).toEqual([...keep, deck[2].id]);
+      expect(chosen.game.decks.roundDecks[1].map(c => c.id)).toEqual(deck.filter((_, i) => i !== 2).map(c => c.id));
+      expect(chosen.game.interaction).toBeUndefined();
     });
   });
 

@@ -739,6 +739,8 @@ type InteractionStateVariant =
   | { type: 'CONSULTING_SPECIMEN', planetId?: string, sequenceId?: string, anyPlanet?: boolean } // anyPlanet : Jupiter ou Saturne au choix, sans sonde (ET.8 à ET.10)
   /** Le joueur a atteint un palier Exertien : il peut jouer une de ses cartes Exertiens face cachée (ou y renoncer). */
   | { type: 'CHOOSING_EXERTIEN_CARD', milestone: number, sequenceId?: string }
+  /** Carte de la pile de fin de manche `round`, choisie après avoir passé (la pile est cachée jusque-là) */
+  | { type: 'CHOOSING_ROUND_CARD', round: number, playerId: string, sequenceId?: string }
   /**
    * Missions déclenchées pendant le tour d'un autre joueur : le joueur recouvre un des cercles `options`
    * (un seul, toutes cartes confondues) ou y renonce.
@@ -786,6 +788,7 @@ export const getInteractionLabel = (state: InteractionState): string => {
     case 'DISCARDING_DRAWN_CARD': return state.step === 'FREE_ACTION'
       ? "Défaussez une des cartes piochées pour son action gratuite."
       : "Défaussez une autre des cartes piochées pour gagner la ressource de son revenu.";
+    case 'CHOOSING_ROUND_CARD': return `Choisissez une carte de fin de manche ${state.round}.`;
     case 'CHOOSING_EXERTIEN_CARD': return state.milestone === 0
       ? 'Découverte des Exertiens : vous pouvez jouer une carte Exertien.'
       : `Palier Exertien (${state.milestone} PV) : vous pouvez jouer une carte Exertien.`;

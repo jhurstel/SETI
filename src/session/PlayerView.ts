@@ -32,7 +32,7 @@ function hideCards(cards: Card[] = [], keep: (card: Card) => boolean = () => fal
 
 /**
  * Vue de la partie pour un joueur (prérequis du jeu à distance) : ce que ce joueur a le droit de voir.
- * Masque l'ordre et le contenu des pioches (cartes et cartes Alien), les cartes en main des adversaires
+ * Masque l'ordre et le contenu des pioches (cartes, cartes Alien et piles de fin de manche), les cartes en main des adversaires
  * (sauf celles révélées), leurs cartes Exertiens (jouées face cachée jusqu'au décompte final), les spécimens
  * Mascamites non prélevés ou transportés par un adversaire, les espèces pas encore découvertes, la graine
  * et le générateur aléatoire, et le détail des interactions qui attendent un autre joueur.
@@ -46,6 +46,11 @@ export function viewFor(game: Game, viewerId: string): Game {
   const finalScoring = game.phase === GamePhase.FINAL_SCORING;
 
   view.decks.cards = hideCards(view.decks.cards);
+  // Piles de fin de manche cachées, sauf celle que le joueur découvre après avoir passé
+  const roundChoice = game.interaction?.type === 'CHOOSING_ROUND_CARD' && game.interaction.playerId === viewerId ? game.interaction.round : undefined;
+  for (const round in view.decks.roundDecks) {
+    if (Number(round) !== roundChoice) view.decks.roundDecks[round] = hideCards(view.decks.roundDecks[round]);
+  }
 
   view.players.forEach(player => {
     if (player.id === viewerId) return;

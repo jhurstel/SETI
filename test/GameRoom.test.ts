@@ -130,8 +130,12 @@ describe('GameRoom : salle de partie à distance', () => {
       const player = current(room);
       if (player.type === 'human') {
         const keep = CardSystem.getHandCards(player).slice(0, 4).map(c => c.id);
-        const roundCardId = room.game!.decks.roundDecks[room.game!.currentRound]?.[0]?.id;
-        expect(room.command(tokenOf(room, player.id), { type: 'PASS', cardsToKeep: keep, roundCardId }).error).toBeUndefined();
+        const round = room.game!.currentRound;
+        expect(room.command(tokenOf(room, player.id), { type: 'PASS', cardsToKeep: keep }).error).toBeUndefined();
+        const roundCardId = room.game!.decks.roundDecks[round]?.[0]?.id;
+        if (room.game!.interaction?.type === 'CHOOSING_ROUND_CARD') {
+          expect(room.command(tokenOf(room, player.id), { type: 'CHOOSE', choice: { kind: 'CARD', cardId: roundCardId } }).error).toBeUndefined();
+        }
       }
       const before = room.log.length;
       playRobots(room);
