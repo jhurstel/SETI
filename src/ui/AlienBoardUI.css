@@ -438,10 +438,10 @@
     cursor: help;
 }
 
-/* Infobulle des paliers Centauriens : une ligne par palier (score, origine, état), puis les tuiles Message */
+/* Infobulle des paliers Centauriens (symboles seuls) : une ligne par joueur, puis les tuiles Message sur une ligne */
 .alien-centaurien-tooltip {
     text-align: left;
-    min-width: 230px;
+    min-width: 200px;
 }
 
 .alien-centaurien-tooltip-title {
@@ -452,53 +452,62 @@
     color: #ffd700;
 }
 
-.alien-centaurien-tooltip-subtitle {
-    font-weight: bold;
-    margin: 6px 0 4px;
-    padding-top: 6px;
-    border-top: 1px solid #444;
-    color: #b9a8ff;
-}
-
 .alien-centaurien-tooltip-player {
-    margin-bottom: 6px;
-}
-
-.alien-centaurien-tooltip-row {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.85em;
+    margin-bottom: 5px;
     white-space: nowrap;
 }
 
-.alien-centaurien-tooltip-row em {
-    margin-left: auto;
-    font-style: normal;
+.alien-centaurien-tooltip-name {
+    font-weight: bold;
+    min-width: 60px;
 }
 
-.alien-centaurien-tooltip-row.available em {
-    color: #7fd4ff;
-}
-
-.alien-centaurien-tooltip-row.taken {
-    opacity: 0.7;
-}
-
-.alien-centaurien-tooltip-row.taken em {
-    color: #7fff7f;
-}
-
-.alien-centaurien-tooltip-bonus {
+.alien-centaurien-milestone {
     display: inline-flex;
     align-items: center;
     gap: 2px;
 }
 
+.alien-centaurien-milestone.taken {
+    opacity: 0.6;
+}
+
+.alien-centaurien-milestone-check {
+    color: #7fff7f;
+    font-weight: bold;
+}
+
 .alien-centaurien-tooltip-empty {
-    font-size: 0.8em;
     color: #888;
-    font-style: italic;
+}
+
+.alien-centaurien-tiles {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #444;
+}
+
+.alien-centaurien-tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 34px;
+    padding: 3px 5px;
+    border-radius: 5px;
+    border: 2px solid #b9a8ff;
+    background: rgba(91, 63, 196, 0.35);
+    white-space: nowrap;
+}
+
+.alien-centaurien-tile.taken {
+    opacity: 0.45;
 }
 
 /* Plateau ouvert : toute la hauteur disponible (la limite commune de 80vh faisait défiler le plateau Exertiens) */

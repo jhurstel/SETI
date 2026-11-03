@@ -176,7 +176,8 @@ const ExertienDangerTooltip: React.FC<{
     );
 };
 
-// Contenu de l'infobulle des Centauriens : paliers de chaque joueur (à atteindre ou déjà pris) et tuiles Message
+// Contenu de l'infobulle des Centauriens, en symboles : paliers de chaque joueur (PV à atteindre, message ou réception d'une carte,
+// coche une fois pris), puis les 4 tuiles Message sur une ligne (une tuile prise est grisée, au bord de la couleur du joueur)
 const CentaurienMilestonesTooltip: React.FC<{ game: Game; species?: Species }> = ({ game, species }) => (
     <div className="alien-centaurien-tooltip">
         <div className="alien-centaurien-tooltip-title">Paliers Centauriens</div>
@@ -184,32 +185,29 @@ const CentaurienMilestonesTooltip: React.FC<{ game: Game; species?: Species }> =
             const milestones = [...p.centaurienMilestones].sort((a, b) => a.score - b.score);
             return (
                 <div key={p.id} className="alien-centaurien-tooltip-player">
-                    <div style={{ color: p.color, fontWeight: 'bold' }}>{p.name}</div>
-                    {milestones.length === 0 ? (
-                        <div className="alien-centaurien-tooltip-empty">Aucun palier</div>
-                    ) : milestones.map(m => (
-                        <div key={m.id} className={`alien-centaurien-tooltip-row ${m.resolved ? 'taken' : 'available'}`}>
-                            <strong>{m.score} PV</strong>
-                            <span>{m.cardName ? `Réception « ${m.cardName} »` : 'Tuile Message'}</span>
-                            <em>{m.resolved ? `Pris : ${m.resolved}` : 'À atteindre'}</em>
-                        </div>
+                    <span className="alien-centaurien-tooltip-name" style={{ color: p.color }}>{p.name}</span>
+                    {milestones.length === 0 ? <span className="alien-centaurien-tooltip-empty">—</span> : milestones.map(m => (
+                        <span key={m.id} className={`alien-centaurien-milestone ${m.resolved ? 'taken' : ''}`}>
+                            <VictoryPointsIcon amount={m.score} size={20} />
+                            {m.cardId ? <ResourceIcon kind="card" size={16} /> : <CentaurienMessageIcon size={16} />}
+                            {m.resolved && <span className="alien-centaurien-milestone-check">✓</span>}
+                        </span>
                     ))}
                 </div>
             );
         })}
         {species?.message && species.message.length > 0 && (
-            <>
-                <div className="alien-centaurien-tooltip-subtitle">Tuiles Message</div>
+            <div className="alien-centaurien-tiles">
                 {species.message.map((tile, index) => {
                     const owner = tile.claimedBy ? game.players.find(p => p.id === tile.claimedBy) : undefined;
                     return (
-                        <div key={index} className={`alien-centaurien-tooltip-row ${tile.isAvailable ? 'available' : 'taken'}`}>
-                            <span className="alien-centaurien-tooltip-bonus"><BonusIcons bonus={tile.bonus} size={14} /></span>
-                            <em>{tile.isAvailable ? 'Disponible' : owner ? <>Prise par <span style={{ color: owner.color }}>{owner.name}</span></> : 'Prise'}</em>
-                        </div>
+                        <span key={index} className={`alien-centaurien-tile ${tile.isAvailable ? '' : 'taken'}`}
+                            style={owner ? { borderColor: owner.color } : undefined}>
+                            <BonusIcons bonus={tile.bonus} size={16} />
+                        </span>
                     );
                 })}
-            </>
+            </div>
         )}
     </div>
 );
