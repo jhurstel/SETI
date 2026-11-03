@@ -31,6 +31,16 @@ export const PieceSymbol: React.FC<{ kind: keyof typeof PIECE_ICONS; label: stri
   <Symbols note={note}><Sym label={label}>{PIECE_ICONS[kind]}</Sym></Symbols>
 );
 
+/** Ressource avec une quantité quelconque, zéro compris (que BonusIcons n'affiche pas) */
+export const AmountSymbol: React.FC<{ kind: 'media' | 'movement' | 'energy'; amount: number; label: string }> = ({ kind, amount, label }) => (
+  <Symbols><Sym label={label}><ResourceIcon kind={kind} amount={amount} size={16} /></Sym></Symbols>
+);
+
+/** Hexagone d'une action principale (ex : atterrir) */
+export const ActionSymbol: React.FC<{ kind: 'land' | 'orbit' | 'launch'; label: string }> = ({ kind, label }) => (
+  <Symbols><Sym label={label}><ActionHexIcon kind={kind} size={20} /></Sym></Symbols>
+);
+
 /** Bonus du scan : le symbole scan */
 export const ScanSymbol: React.FC = () => (
   <Symbols><Sym label="Scan">

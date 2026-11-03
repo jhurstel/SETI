@@ -13,7 +13,7 @@ import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
 import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsIcon, EndTurnIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
-import { ActionTooltip, TechTooltip, ResourceSymbols, PieceSymbol, ScanSymbol, BlueTraceSymbol, CardCostSymbol, TechSymbol, DiscardSymbol } from './components/BoardTooltips';
+import { ActionTooltip, TechTooltip, ResourceSymbols, PieceSymbol, ScanSymbol, BlueTraceSymbol, CardCostSymbol, TechSymbol, DiscardSymbol, AmountSymbol, ActionSymbol } from './components/BoardTooltips';
 import { ReservationIcon } from './components/ObjectiveSymbol';
 import { HoverTooltip } from './components/HoverTooltip';
 import './PlayerBoardUI.css';
@@ -113,15 +113,22 @@ const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, playerId, han
       techFrame={{ acquired: hasTech(level), tile: `exploration-${level}` }}
       onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
   );
+  // Champ d'astéroïdes : Médias gagnés en le visitant, déplacements pour le quitter
+  const asteroids = (media: number, movements: number) => (
+    <>Astéroïdes : visiter <AmountSymbol kind="media" amount={media} label={`${media} Média`} />, quitter <AmountSymbol kind="movement" amount={movements} label={`${movements} Déplacement${movements > 1 ? 's' : ''}`} /></>
+  );
+  // Coût réel d'un atterrissage, sans et avec un orbiteur sur la planète
+  const landCost = (alone: number, withOrbiter: number) => (
+    <><ActionSymbol kind="land" label="Atterrir" /> <AmountSymbol kind="energy" amount={alone} label={`${alone} Énergies`} />,{' '}
+      <PieceSymbol kind="orbiter" label="Avec un orbiteur" /> <AmountSymbol kind="energy" amount={withOrbiter} label={`${withOrbiter} Énergie${withOrbiter > 1 ? 's' : ''}`} /></>
+  );
   // Les quatre emplacements de technologie Exploration, espacés régulièrement
   return (
     <div className="obs-track-container evenly">
-      {techSlot(<>1 <PieceSymbol kind="probe" label="Sonde" /> dans le système solaire</>,
-        <>Jusqu'à 2 <PieceSymbol kind="probe" label="Sonde" /> dans le système solaire</>, 1, 'I')}
-      {techSlot(<>Quitter un champ d'astéroïdes : <ResourceSymbols bonus={{ movements: 1 }} /> de plus</>,
-        <>Champ d'astéroïdes : <ResourceSymbols bonus={{ media: 1 }} />, sortie sans surcoût</>, 2, 'II')}
-      {techSlot(<>Atterrir : <ResourceSymbols bonus={{ energy: GAME_CONSTANTS.LAND_COST_ENERGY }} />, 1 de moins avec un orbiteur</>,
-        <>Atterrir : <ResourceSymbols bonus={{ energy: 1 }} /> de moins</>, 3, 'III')}
+      {techSlot(<><PieceSymbol kind="probe" label="Sonde" /> maximum : 1</>, <><PieceSymbol kind="probe" label="Sonde" /> maximum : 2</>, 1, 'I')}
+      {techSlot(asteroids(0, 2), asteroids(1, 1), 2, 'II')}
+      {techSlot(landCost(GAME_CONSTANTS.LAND_COST_ENERGY, GAME_CONSTANTS.LAND_COST_ENERGY_WITH_ORBITER),
+        landCost(GAME_CONSTANTS.LAND_COST_ENERGY_WITH_TECHNOLOGY, GAME_CONSTANTS.LAND_COST_ENERGY_WITH_TECHNOLOGY_AND_ORBITER), 3, 'III')}
       {techSlot(<><PieceSymbol kind="lander" label="Atterrisseur" /> sur les planètes seulement</>,
         <><PieceSymbol kind="lander" label="Atterrisseur" /> aussi sur les lunes</>, 4, 'IV')}
     </div>
