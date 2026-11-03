@@ -77,7 +77,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
   {
     title: 'Espèces',
     entries: [
-      { icon: <CentaurienMessageIcon size={28} />, name: 'Message centaurien', text: 'Palier des Centauriens : une tuile Message à choisir, ou l\'effet Réception d\'une carte.' },
+      { icon: <CentaurienMessageIcon size={28} />, name: 'Message centaurien', text: 'Palier des Centauriens : une tuile Message à choisir, ou l\'effet Réception d\'une carte. Sur le plateau de l\'espèce, son infobulle liste les paliers et les tuiles Message.' },
     ],
   },
   {

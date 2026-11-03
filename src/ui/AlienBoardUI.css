@@ -433,8 +433,72 @@
 
 /* Icônes d'information de l'espèce (danger Exertien, tokens Oumuamua) : infobulle seulement */
 .alien-exertien-danger,
-.alien-oumuamua-token {
+.alien-oumuamua-token,
+.alien-centaurien-milestones {
     cursor: help;
+}
+
+/* Infobulle des paliers Centauriens : une ligne par palier (score, origine, état), puis les tuiles Message */
+.alien-centaurien-tooltip {
+    text-align: left;
+    min-width: 230px;
+}
+
+.alien-centaurien-tooltip-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid #555;
+    color: #ffd700;
+}
+
+.alien-centaurien-tooltip-subtitle {
+    font-weight: bold;
+    margin: 6px 0 4px;
+    padding-top: 6px;
+    border-top: 1px solid #444;
+    color: #b9a8ff;
+}
+
+.alien-centaurien-tooltip-player {
+    margin-bottom: 6px;
+}
+
+.alien-centaurien-tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+
+.alien-centaurien-tooltip-row em {
+    margin-left: auto;
+    font-style: normal;
+}
+
+.alien-centaurien-tooltip-row.available em {
+    color: #7fd4ff;
+}
+
+.alien-centaurien-tooltip-row.taken {
+    opacity: 0.7;
+}
+
+.alien-centaurien-tooltip-row.taken em {
+    color: #7fff7f;
+}
+
+.alien-centaurien-tooltip-bonus {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.alien-centaurien-tooltip-empty {
+    font-size: 0.8em;
+    color: #888;
+    font-style: italic;
 }
 
 /* Plateau ouvert : toute la hauteur disponible (la limite commune de 80vh faisait défiler le plateau Exertiens) */

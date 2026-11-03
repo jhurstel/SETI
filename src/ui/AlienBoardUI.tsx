@@ -7,7 +7,7 @@ import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
 import { DeckPile } from './components/CardBack';
 import { Tooltip } from './Tooltip';
-import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon } from './components/GameIcons';
+import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon, CentaurienMessageIcon } from './components/GameIcons';
 import { LIFE_TRACE_COLORS, LifeTraceColor } from './styles/lifeTraceColors';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import './AlienBoardUI.css';
@@ -175,6 +175,44 @@ const ExertienDangerTooltip: React.FC<{
         </div>
     );
 };
+
+// Contenu de l'infobulle des Centauriens : paliers de chaque joueur (à atteindre ou déjà pris) et tuiles Message
+const CentaurienMilestonesTooltip: React.FC<{ game: Game; species?: Species }> = ({ game, species }) => (
+    <div className="alien-centaurien-tooltip">
+        <div className="alien-centaurien-tooltip-title">Paliers Centauriens</div>
+        {game.players.map(p => {
+            const milestones = [...p.centaurienMilestones].sort((a, b) => a.score - b.score);
+            return (
+                <div key={p.id} className="alien-centaurien-tooltip-player">
+                    <div style={{ color: p.color, fontWeight: 'bold' }}>{p.name}</div>
+                    {milestones.length === 0 ? (
+                        <div className="alien-centaurien-tooltip-empty">Aucun palier</div>
+                    ) : milestones.map(m => (
+                        <div key={m.id} className={`alien-centaurien-tooltip-row ${m.resolved ? 'taken' : 'available'}`}>
+                            <strong>{m.score} PV</strong>
+                            <span>{m.cardName ? `Réception « ${m.cardName} »` : 'Tuile Message'}</span>
+                            <em>{m.resolved ? `Pris : ${m.resolved}` : 'À atteindre'}</em>
+                        </div>
+                    ))}
+                </div>
+            );
+        })}
+        {species?.message && species.message.length > 0 && (
+            <>
+                <div className="alien-centaurien-tooltip-subtitle">Tuiles Message</div>
+                {species.message.map((tile, index) => {
+                    const owner = tile.claimedBy ? game.players.find(p => p.id === tile.claimedBy) : undefined;
+                    return (
+                        <div key={index} className={`alien-centaurien-tooltip-row ${tile.isAvailable ? 'available' : 'taken'}`}>
+                            <span className="alien-centaurien-tooltip-bonus"><BonusIcons bonus={tile.bonus} size={14} /></span>
+                            <em>{tile.isAvailable ? 'Disponible' : owner ? <>Prise par <span style={{ color: owner.color }}>{owner.name}</span></> : 'Prise'}</em>
+                        </div>
+                    );
+                })}
+            </>
+        )}
+    </div>
+);
 
 /** Mascamites : nombre d'emplacements bleus du bas affichés en colonne (les suivants forment le triangle) */
 const MASCAMITE_BLUE_COLUMN = 3;
@@ -540,6 +578,14 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                         onMouseLeave={() => setActiveTooltip(null)}
                                     >
                                         <ResourceIcon kind="token" size={22} />
+                                    </div>
+                                )}
+                                {board.speciesId === AlienBoardType.CENTAURIENS && (
+                                    <div className="alien-centaurien-milestones"
+                                        onMouseEnter={(e) => setActiveTooltip({ content: <CentaurienMilestonesTooltip game={game} species={species} />, rect: e.currentTarget.getBoundingClientRect() })}
+                                        onMouseLeave={() => setActiveTooltip(null)}
+                                    >
+                                        <CentaurienMessageIcon size={22} />
                                     </div>
                                 )}
                                 {board.speciesId === AlienBoardType.EXERTIENS && (
