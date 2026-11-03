@@ -58,7 +58,7 @@
   color: #78a0ff;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .seti-player-resources {
@@ -151,11 +151,29 @@
 .seti-player-layout-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  /* Même écart entre les sections et sur les quatre bords (gouttière de défilement des deux côtés) */
+  gap: 6px;
   overflow-y: auto;
-  padding-right: 5px;
+  padding: 6px 0;
+  scrollbar-gutter: stable both-edges;
   flex: 1;
   min-height: 0;
+}
+
+/* Barre de défilement de 6 px : la gouttière (des deux côtés) fait la marge gauche et droite */
+.seti-player-layout-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.seti-player-layout-container::-webkit-scrollbar-thumb {
+  background: rgba(120, 160, 255, 0.35);
+  border-radius: 3px;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .seti-player-layout-container {
+    scrollbar-width: thin;
+  }
 }
 
 .seti-resources-row {
@@ -400,7 +418,7 @@
   padding: 8px;
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 6px;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .obs-track-slot {
@@ -636,6 +654,13 @@
   width: auto;
   height: auto;
   aspect-ratio: 1;
+}
+
+/* Mobile : les hexagones rétrécissent davantage pour tenir dans la largeur de l'écran */
+@media (max-width: 600px) {
+  .seti-main-actions .obs-track-slot.hex {
+    min-width: 26px;
+  }
 }
 
 .seti-main-actions .obs-track-slot.hex > svg {

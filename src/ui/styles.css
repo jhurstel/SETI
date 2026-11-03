@@ -249,6 +249,21 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   justify-content: center;
 }
 
+/* Mobile : le plateau joueur prend la largeur de l'écran, le plateau de jeu est à côté (glisser horizontalement) */
+@media (max-width: 600px) {
+  .seti-root-inner {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+
+  .seti-left-panel,
+  .seti-right-panel {
+    flex: 0 0 100%;
+    min-width: 0;
+    scroll-snap-align: start;
+  }
+}
+
 /* Panneaux génériques */
 .seti-panel {
   background: rgba(20, 25, 40, 0.8);
