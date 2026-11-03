@@ -1,4 +1,4 @@
-import { Game, ActionType, ValidationResult, GamePhase } from '../core/types';
+import { Game, ActionType, ValidationResult, GamePhase, HistoryEntry } from '../core/types';
 import { ScoreManager } from '../core/ScoreManager';
 import { BaseAction } from './Action';
 import { TurnManager } from '../core/TurnManager';
@@ -61,12 +61,6 @@ export class PassAction extends BaseAction {
     updatedGame = CardSystem.discardToHandSize(updatedGame, this.playerId, this.cardIdsToKeep);
     const updatedPlayer = updatedGame.players[playerIndex];
 
-    // Carte de fin de manche : la pile est cachée, le joueur la découvre et choisit une fois passé
-    const currentRound = updatedGame.currentRound;
-    if ((updatedGame.decks.roundDecks[currentRound] || []).length > 0) {
-      this.newPendingInteractions.push({ type: 'CHOOSING_ROUND_CARD', round: currentRound, playerId, sequenceId });
-    }
-
     // Marquer le joueur comme ayant passé
     updatedPlayer.hasPassed = true;
     updatedGame.players[playerIndex] = updatedPlayer;
@@ -84,10 +78,26 @@ export class PassAction extends BaseAction {
       this.historyEntries.unshift({ message: "<strong>passe son tour</strong>", playerId: updatedPlayer.id, sequenceId });
     }
 
+    // Carte de fin de manche : la pile est cachée, le joueur la découvre une fois passé et la choisit pendant
+    // son tour ; le tour passe ensuite (InteractionChoices.chooseRoundCard → finishPass)
+    const currentRound = updatedGame.currentRound;
+    if (updatedGame.decks.roundDecks[currentRound]?.length) {
+      this.newPendingInteractions.push({ type: 'CHOOSING_ROUND_CARD', round: currentRound, playerId, sequenceId });
+      return updatedGame;
+    }
+
+    const finished = PassAction.finishPass(updatedGame);
+    this.historyEntries.push(...finished.historyEntries);
+    return finished.updatedGame;
+  }
+
+  /** Fin de la passe : joueur suivant, ou fin de manche (revenus, décompte final après la dernière). */
+  static finishPass(game: Game): { updatedGame: Game; historyEntries: HistoryEntry[] } {
+    const historyEntries: HistoryEntry[] = [];
     // Passer au joueur suivant ou terminer la manche
-    updatedGame = TurnManager.nextPlayer(updatedGame);
+    const updatedGame = TurnManager.nextPlayer(game);
     if (updatedGame.isRoundEnd) {
-      this.historyEntries.push({ message: `--- FIN DE LA MANCHE ${game.currentRound} ---`, playerId: '', sequenceId: '' });
+      historyEntries.push({ message: `--- FIN DE LA MANCHE ${game.currentRound} ---`, playerId: '', sequenceId: '' });
 
       // Log des revenus pour chaque joueur
       updatedGame.players.forEach(player => {
@@ -95,26 +105,26 @@ export class PassAction extends BaseAction {
         if (player.revenueCredits > 0) gains.push(ResourceSystem.formatResource(player.revenueCredits, 'CREDIT'));
         if (player.revenueEnergy > 0) gains.push(ResourceSystem.formatResource(player.revenueEnergy, 'ENERGY'));
         if (player.revenueCards > 0) gains.push(ResourceSystem.formatResource(player.revenueCards, 'CARD'));
-        if (gains.length > 0) this.historyEntries.push({ message: `perçoit ses revenus : ${gains.join(', ')}`, playerId: player.id, sequenceId: '' });
+        if (gains.length > 0) historyEntries.push({ message: `perçoit ses revenus : ${gains.join(', ')}`, playerId: player.id, sequenceId: '' });
       });
 
       if (updatedGame.phase === GamePhase.FINAL_SCORING && updatedGame.finalScores) {
         // Dernière manche terminée : décompte final
-        this.historyEntries.push(...ScoreManager.describeFinalScores(updatedGame, updatedGame.finalScores).map(e => ({ ...e, sequenceId: '' })));
-        return updatedGame;
+        historyEntries.push(...ScoreManager.describeFinalScores(updatedGame, updatedGame.finalScores).map(e => ({ ...e, sequenceId: '' })));
+        return { updatedGame, historyEntries };
       }
 
       // Log du changement de premier joueur
-      this.historyEntries.push({ message: `devient le Premier Joueur`, playerId: updatedGame.players[updatedGame.firstPlayerIndex].id, sequenceId: '' });
+      historyEntries.push({ message: `devient le Premier Joueur`, playerId: updatedGame.players[updatedGame.firstPlayerIndex].id, sequenceId: '' });
 
       const firstPlayer = updatedGame.players[updatedGame.firstPlayerIndex];
-      this.historyEntries.push({ message: `--- Manche ${updatedGame.currentRound} / ${updatedGame.maxRounds} ---`, playerId: '', sequenceId: '' });
-      this.historyEntries.push({ message: `--- Tour de ${firstPlayer.name} ---`, playerId: firstPlayer.id, sequenceId: '' });
+      historyEntries.push({ message: `--- Manche ${updatedGame.currentRound} / ${updatedGame.maxRounds} ---`, playerId: '', sequenceId: '' });
+      historyEntries.push({ message: `--- Tour de ${firstPlayer.name} ---`, playerId: firstPlayer.id, sequenceId: '' });
     } else {
       const nextPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
-      this.historyEntries.push({ message: `--- Tour de ${nextPlayer.name} ---`, playerId: nextPlayer.id, sequenceId: '' });
+      historyEntries.push({ message: `--- Tour de ${nextPlayer.name} ---`, playerId: nextPlayer.id, sequenceId: '' });
     }
 
-    return updatedGame;
+    return { updatedGame, historyEntries };
   }
 }

@@ -207,8 +207,10 @@ describe('GameSession', () => {
     test('passer : la main garde 4 cartes au plus, et le joueur suivant joue', () => {
       const hand = CardSystem.getHandCards(getPlayer(game, P1));
       const keep = hand.slice(0, Math.min(4, hand.length)).map(c => c.id);
-      const res = run(game, { type: 'PASS', cardsToKeep: keep });
-      expect(getPlayer(res.game, P1).hasPassed).toBe(true);
+      const passed = run(game, { type: 'PASS', cardsToKeep: keep });
+      expect(getPlayer(passed.game, P1).hasPassed).toBe(true);
+      expect(passed.game.currentPlayerIndex).toBe(0);
+      const res = run(passed.game, { type: 'CHOOSE', choice: { kind: 'CARD', cardId: game.decks.roundDecks[1][0].id } });
       expect(res.game.currentPlayerIndex).toBe(1);
     });
 

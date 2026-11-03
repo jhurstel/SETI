@@ -52,7 +52,7 @@ Quand une action ouvre un choix (placer une trace de vie, choisir une carte, une
 - **Scanner** : (1) signal dans le secteur de la Terre (ou un secteur adjacent avec Observation I) ; (2) choix d'une carte de la rangée, signal dans le secteur de sa couleur ; (3) Observation II : payer 1 Média pour un signal sur Mercure ; Observation III : défausser une carte pour un signal de sa couleur ; Observation IV : payer 1 énergie pour lancer une sonde, ou gagner 1 déplacement.
 - Chaque signal pose un marqueur dans le secteur et, si le secteur le prévoit, rapporte une **donnée**. Un secteur dont toutes les cases sont remplies est **résolu** (voir 2.2).
 - **Rechercher une technologie** : une technologie par pile et par joueur. Les technologies Informatique se posent sur l'ordinateur et ajoutent un gain quand la colonne est remplie.
-- **Passer** : la pile de fin de manche reste cachée tant qu'on n'a pas passé ; une fois la passe confirmée (elle ne s'annule plus), on la découvre et la carte choisie va dans la main. Les autres joueurs ne savent pas laquelle. À la fin de la manche, chacun reçoit ses revenus (crédits, énergies, cartes).
+- **Passer** : la pile de fin de manche reste cachée tant qu'on n'a pas passé ; une fois la passe confirmée (elle ne s'annule plus), on la découvre et la carte choisie va dans la main, avant que le tour passe au joueur suivant. Les autres joueurs ne savent pas laquelle. À la fin de la manche, chacun reçoit ses revenus (crédits, énergies, cartes).
 
 ### 1.5 Actions gratuites
 

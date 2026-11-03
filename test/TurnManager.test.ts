@@ -1,7 +1,9 @@
 import { TurnManager } from '../src/core/TurnManager';
 import { GameEngine } from '../src/core/Game';
 import { PassAction } from '../src/actions/PassAction';
-import { CardType, Game, GamePhase, LifeTraceType } from '../src/core/types';
+import { CardType, Game, GamePhase, InteractionState, LifeTraceType } from '../src/core/types';
+import { InteractionChoices } from '../src/core/InteractionChoices';
+import { revealText } from '../src/core/historyText';
 import { ScoreManager } from '../src/core/ScoreManager';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 import { DISCOVERY_NOTICE } from '../src/systems/SpeciesSystem';
@@ -207,7 +209,7 @@ describe('PassAction', () => {
   });
 
   describe('execute', () => {
-    test('défausse à 4 cartes, passe la main, puis la carte de fin de manche est à choisir (pile intacte)', () => {
+    test('défausse à 4 cartes, puis la carte de fin de manche est à choisir pendant son tour (pile intacte)', () => {
       const kept = keepFirst(game, P1, 4);
       const action = new PassAction(P1, kept);
       const updated = action.execute(game);
@@ -217,7 +219,20 @@ describe('PassAction', () => {
       expect(p1.cards.map(c => c.id)).toEqual(kept);
       expect(updated.decks.roundDecks[1]).toHaveLength(game.decks.roundDecks[1].length);
       expect(action.newPendingInteractions[0]).toEqual(expect.objectContaining({ type: 'CHOOSING_ROUND_CARD', round: 1, playerId: P1 }));
-      expect(updated.currentPlayerIndex).toBe(1);
+      expect(updated.currentPlayerIndex).toBe(0);
+      expect(action.historyEntries.some(e => e.message.startsWith('--- Tour de'))).toBe(false);
+    });
+
+    test('la carte choisie, le tour passe au joueur suivant (choix inscrit dans le tour du joueur qui passe)', () => {
+      const action = new PassAction(P1, keepFirst(game, P1, 4));
+      const passed = action.execute(game);
+      const card = game.decks.roundDecks[1][1];
+      const chosen = InteractionChoices.chooseRoundCard(passed, P1, action.newPendingInteractions[0] as Extract<InteractionState, { type: 'CHOOSING_ROUND_CARD' }>, card.id);
+
+      expect(getPlayer(chosen.updatedGame, P1).cards.some(c => c.id === card.id)).toBe(true);
+      expect(chosen.updatedGame.currentPlayerIndex).toBe(1);
+      expect(chosen.historyEntries.map(e => revealText(e.message))).toEqual([`choisit carte "${card.name}" de fin de manche`, '--- Tour de Bob ---']);
+      expect(passed.currentPlayerIndex).toBe(0);
     });
 
     test('pile de fin de manche vide : rien à choisir', () => {
@@ -253,6 +268,8 @@ describe('PassAction', () => {
 
   describe('via GameEngine (manche complète)', () => {
     test('les deux joueurs passent : une seule rotation, puis fin de manche', () => {
+      // Pile de fin de manche vide : la passe termine aussitôt le tour (le choix de la carte est testé à part)
+      game.decks.roundDecks[1] = [];
       const engine = new GameEngine(game);
       const angle3 = game.board.solarSystem.rotationAngleLevel3;
 

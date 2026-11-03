@@ -11,6 +11,7 @@ import { ScoreManager } from './ScoreManager';
 import { uniqueId } from './ids';
 import { cloneGame } from './cloneGame';
 import { privateText } from './historyText';
+import { PassAction } from '../actions/PassAction';
 import { requirePlayer } from './players';
 
 /** Résultat d'un choix fait sur une interaction en attente. */
@@ -321,7 +322,7 @@ export class InteractionChoices {
       : ProbeSystem.removeLander(game, playerId, planetId, index, interaction.sequenceId);
   }
 
-  /** Carte de fin de manche prise après avoir passé (CHOOSING_ROUND_CARD) : son nom reste privé. */
+  /** Carte de fin de manche prise après avoir passé (CHOOSING_ROUND_CARD), son nom restant privé ; puis le tour passe. */
   static chooseRoundCard(game: Game, playerId: string, interaction: Interaction<'CHOOSING_ROUND_CARD'>, cardId: string): ChoiceResult {
     const updatedGame = cloneGame(game);
     const deck = updatedGame.decks.roundDecks[interaction.round] || [];
@@ -330,7 +331,8 @@ export class InteractionChoices {
     const [card] = deck.splice(index, 1);
     requirePlayer(updatedGame, playerId).cards.push(card);
     const message = `choisit carte ${privateText(playerId, `"${card.name}"`)} de fin de manche`;
-    return { updatedGame, historyEntries: [{ message, playerId, sequenceId: interaction.sequenceId || '' }], newPendingInteractions: [] };
+    const finished = PassAction.finishPass(updatedGame);
+    return { updatedGame: finished.updatedGame, historyEntries: [{ message, playerId, sequenceId: interaction.sequenceId || '' }, ...finished.historyEntries], newPendingInteractions: [] };
   }
 
   /** Carte Exertien jouée à un palier (cardId absent : le joueur renonce). */

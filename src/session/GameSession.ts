@@ -136,7 +136,7 @@ export class GameSession {
           break;
         case 'PASS': {
           const player = game.players[game.currentPlayerIndex];
-          updated = this.mainAction(game, new PassAction(player.id, step.cardsToKeep), outcome);
+          updated = this.mainAction(game, new PassAction(player.id, step.cardsToKeep), outcome, true);
           break;
         }
       }
@@ -188,7 +188,7 @@ export class GameSession {
       case 'PLAY_CARD':
         return this.mainAction(game, new PlayCardAction(playerId, command.cardId), outcome, FORCE_STACKING_CARDS.includes(command.cardId));
       case 'PASS':
-        return this.mainAction(game, new PassAction(playerId, command.cardsToKeep), outcome);
+        return this.mainAction(game, new PassAction(playerId, command.cardsToKeep), outcome, true);
       case 'MOVE_PROBE':
         return this.moveProbe(game, playerId, command, outcome);
       case 'TRADE':
