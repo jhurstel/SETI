@@ -189,6 +189,18 @@ describe('CardSystem', () => {
       expect(new PlayCardAction(P1, 'chere').validate(game)).toEqual(expect.objectContaining({ valid: false, errors: [expect.objectContaining({ code: 'INSUFFICIENT_CREDITS' })] }));
     });
 
+    test("une carte payée en énergie (ET.40, 2 énergies) se joue sans crédits, et est refusée sans assez d'énergie", () => {
+      const player = getPlayer(game, P1);
+      player.cards = [makeCard('et40', { cost: 2, costType: CostType.ENERGY })];
+      player.credits = 0;
+      player.energy = 2;
+      expect(new PlayCardAction(P1, 'et40').validate(game).valid).toBe(true);
+
+      player.energy = 1;
+      player.credits = 10;
+      expect(new PlayCardAction(P1, 'et40').validate(game)).toEqual(expect.objectContaining({ valid: false, errors: [expect.objectContaining({ code: 'INSUFFICIENT_ENERGY' })] }));
+    });
+
     test("les interactions d'une carte jouée (technologie) appartiennent à la séquence de la carte (historique indenté)", async () => {
       const fetchSpy = mockFetchFromPublic();
       const card = (await DataLoader.loadCards('cards/main.csv')).find(c => c.id === '61')!;

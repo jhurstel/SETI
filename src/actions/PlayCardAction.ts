@@ -1,5 +1,5 @@
 import { BaseAction } from './Action';
-import { Game, ActionType, ValidationResult } from '../core/types';
+import { Game, ActionType, ValidationResult, CostType } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 
 export class PlayCardAction extends BaseAction {
@@ -15,7 +15,12 @@ export class PlayCardAction extends BaseAction {
             return { valid: false, errors: [{ code: 'CARD_NOT_FOUND', message: 'Carte non trouvée' }], warnings: [] };
         }
 
-        if (player.credits < card.cost) {
+        // Coût en énergie (cartes Centauriens…) ou en crédits : même vérification que CardSystem.canPlayCard
+        if (card.costType === CostType.ENERGY) {
+            if (player.energy < card.cost) {
+                return { valid: false, errors: [{ code: 'INSUFFICIENT_ENERGY', message: `Énergie insuffisante (Requis: ${card.cost})` }], warnings: [] };
+            }
+        } else if (player.credits < card.cost) {
             return { valid: false, errors: [{ code: 'INSUFFICIENT_CREDITS', message: `Crédits insuffisants (Requis: ${card.cost})` }], warnings: [] };
         }
         return { valid: true, errors: [], warnings: [] };

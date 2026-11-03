@@ -333,6 +333,20 @@ export class SpeciesSystem {
             player.tokens = (player.tokens || 0) - cost;
             costText = ` et paye ${cost} token${cost > 1 ? 's' : ''}`;
         }
+        // Coût en données (Centauriens : 15 PV pour 3 données) : vérifié et payé ici, retiré du bonus appliqué
+        if (typeof bonusToApply.data === 'number' && bonusToApply.data < 0) {
+            const cost = -bonusToApply.data;
+            if (player.data < cost) {
+                return {
+                    updatedGame: game,
+                    historyEntries: [{ message: `Pas assez de données pour placer la trace.`, playerId, sequenceId }],
+                    newPendingInteractions: []
+                };
+            }
+            player.data -= cost;
+            costText = ` et paye ${ResourceSystem.formatResource(cost, 'DATA')}`;
+            bonusToApply = { ...bonusToApply, data: undefined };
+        }
 
         // Add the trace to the board and the player
         board.lifeTraces.push({

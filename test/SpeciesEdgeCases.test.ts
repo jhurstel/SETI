@@ -96,6 +96,26 @@ describe('SpeciesSystem : cas limites', () => {
   });
 
   describe('Centauriens', () => {
+    test("emplacement payé en données (15 PV pour 3 données) : refusé sans assez de données, sinon les données sont payées", () => {
+      discoveredBoard(game, AlienBoardType.CENTAURIENS);
+      const slots = game.species.find(s => s.name === AlienBoardType.CENTAURIENS)!.fixedSlots.redlifetrace;
+      const slotIndex = slots.findIndex(b => (b.data ?? 0) < 0);
+      const cost = -slots[slotIndex].data!;
+      const player = getPlayer(game, P1);
+      player.data = cost - 1;
+
+      const refused = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.SPECIES, slotIndex);
+      expect(refused.updatedGame).toBe(game);
+      expect(refused.historyEntries[0].message).toMatch(/Pas assez de données/);
+
+      player.data = cost;
+      const score = player.score;
+      const placed = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.SPECIES, slotIndex);
+      expect(getPlayer(placed.updatedGame, P1).data).toBe(0);
+      expect(getPlayer(placed.updatedGame, P1).score).toBe(score + slots[slotIndex].pv!);
+      expect(player.data).toBe(cost);
+    });
+
     test('premier palier d\'un joueur : la liste est créée, à son score + 15', () => {
       const player = getPlayer(game, P1);
       player.score = 12;
