@@ -21,7 +21,7 @@ Ce document décrit comment jouer, les règles telles qu'elles sont appliquées,
 ### 1.2 L'écran
 
 - **Système solaire** (centre) : 3 anneaux rotatifs, 8 secteurs, planètes, comètes, champs d'astéroïdes, sondes.
-- **Plateau du joueur** (bas) : ressources, revenus, ordinateur de données, technologies, cartes en main, missions et cartes jouées. Les onglets en haut affichent le plateau de chaque joueur.
+- **Plateau du joueur** (gauche) : les onglets en haut affichent le plateau de chaque joueur. La barre du haut montre le score, les crédits, l'énergie, les Médias, les cartes en main (4 gardées en passant) et les données (6 au plus), chacun avec ses actions dessous (échanges, recherche, achat, transfert d'une donnée), puis les revenus et, en colonne, Jouer une carte, Fin de tour et Passer. Dessous : exploration, observation, ordinateur de données, cartes en main, missions et cartes jouées.
 - **Rangée de cartes**, **plateau des technologies**, **tuiles objectif**, **plateaux des espèces Alien** et **historique**.
 - **Panneau Planètes** : chaque planète, avec à côté une ligne par type de sonde présente (orbiteurs, atterrisseurs, lunes comprises) et une pastille de la couleur de chaque joueur, dans l'ordre d'arrivée. Son infobulle montre les cases de la planète ; chaque gain posé à côté d'une case a sa propre infobulle.
 - Les infobulles (survol) donnent le détail de chaque élément : coût, gain, raison d'une action indisponible.
@@ -63,7 +63,7 @@ Quand une action ouvre un choix (placer une trace de vie, choisir une carte, une
 | **Échanger des ressources** | 2 crédits, 2 énergies ou 2 cartes | Contre 1 crédit, 1 énergie ou 1 carte. |
 | **Acheter une carte** | 3 Médias | Prend une carte de la rangée ou de la pioche. |
 | **Défausser pour l'action gratuite** | Une carte de la main | Effet du coin de la carte : 1 déplacement, 1 donnée ou 1 Média. |
-| **Transférer une donnée** | Une donnée en réserve | Place la donnée dans l'ordinateur ; certaines cases rapportent un bonus. |
+| **Transférer une donnée** | Une donnée en réserve | Place la donnée dans l'ordinateur (bouton sous les données : case suivante de la ligne du haut, sinon de la ligne du bas ; ou clic sur une case libre) ; certaines cases rapportent un bonus. |
 | **Réclamer une mission** | Condition remplie | Valide une condition d'une mission jouée et donne sa récompense (aussi pour les spécimens arrivés à destination). |
 
 Les déplacements gratuits reçus d'une carte (« 2 déplacements ») se dépensent sonde par sonde ; on peut renoncer à ceux qui restent.

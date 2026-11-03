@@ -10,7 +10,7 @@ import { HandCard } from './components/HandCard';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { TechSpot } from './components/TechSpot';
-import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsIcon, EndTurnIcon } from './components/GameIcons';
+import { ActionHexIcon, ActionIconKind, SignalIcon, ResourceIcon, VictoryPointsIcon, EndTurnIcon, TransferDataIcon } from './components/GameIcons';
 import { SlotTooltip } from './components/SlotTooltip';
 import { ReservationIcon } from './components/ObjectiveSymbol';
 import { SLOT_COLORS } from './styles/slotColors';
@@ -558,6 +558,17 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     );
   };
 
+  // Action gratuite « Transférer une donnée » : vers la case suivante de l'ordinateur (une autre case libre se choisit d'un clic dans l'ordinateur)
+  const renderTransferDataButton = () => {
+    const slotId = ComputerSystem.nextTransferSlot(currentPlayer);
+    const canTransfer = isCurrentTurn && !isInteractiveMode && !!slotId;
+    const lacking = (currentPlayer.data || 0) < 1 ? "Vous n'avez aucune donnée" : "Aucune case libre dans l'ordinateur";
+    const tooltip = canTransfer
+      ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} label="Coût" value="1 Donnée" note="Cliquez pour transférer une donnée sur la case suivante de l'ordinateur (ou cliquez une case libre de l'ordinateur)" />
+      : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} label="Coût" value="1 Donnée" note={!isCurrentTurn ? "Ce n'est pas votre tour" : isInteractiveMode ? "Terminez d'abord l'action en cours" : lacking} />;
+    return renderActionButton(<TransferDataIcon size={16} />, tooltip, () => slotId && handleComputerSlotClick(slotId), !canTransfer, '#6f9be0', {}, '', 'Transférer une donnée');
+  };
+
   return (
     <div className="seti-player-board-container">
       {/* Onglets des joueurs */}
@@ -607,34 +618,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
       {/* Plateau du joueur */}
       <div className="seti-player-panel" style={{ borderTop: `4px solid ${currentPlayer.color || '#444'}`, borderTopLeftRadius: 0 }}>
-        {/* Titre */}
-        <div className="seti-player-panel-title seti-player-panel-title-container">
-          <span>
-            {currentPlayer.name} {currentPlayer.type === 'robot' && !remoteHumanIds.includes(currentPlayer.id) ? '🤖' : '👤'}
-          </span>
-          <div className="seti-player-turn-buttons">
-            {!isRobot && (() => {
-              // Fin du tour (après l'action principale) et passe définitive, au format des boutons d'échange
-              // Une interaction obligatoire en cours (ex : technologie à choisir) empêche de finir le tour ou de passer
-              const interactionBlocks = isInteractiveMode || TurnManager.blocksEndOfTurn(interactionState);
-              const canEndTurn = isCurrentTurn && hasPerformedMainAction && !interactionBlocks;
-              let endTurnReason = "Terminez d'abord l'action en cours";
-              if (!isCurrentTurn) endTurnReason = "Ce n'est pas votre tour";
-              else if (!hasPerformedMainAction) endTurnReason = "Effectuez d'abord une action principale";
-              const endTurnTooltip = canEndTurn
-                ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} note="Cliquez pour terminer votre tour" />
-                : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} note={endTurnReason} />;
-              const canPass = actionAvailability[ActionType.PASS] && !interactionBlocks;
-              return (
-                <>
-                  {renderActionButton(<EndTurnIcon size={18} />, endTurnTooltip, () => onNextPlayer && onNextPlayer(), !canEndTurn, '#fff', {}, canEndTurn ? 'seti-flash-green' : '', 'Prochain joueur')}
-                  {renderActionButton(<ActionHexIcon kind="pass" size={18} />, getActionTooltip(ActionType.PASS, canPass), () => onAction(ActionType.PASS), !canPass, '#fff', {}, '', 'Passer définitivement')}
-                </>
-              );
-            })()}
-          </div>
-        </div>
-        
         <div className="seti-player-layout-container">
           {/* Ressources et revenus : une barre de tuiles (symbole + valeur), les actions liées juste dessous */}
           <div className="seti-stats-bar">
@@ -653,20 +636,20 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
               );
               return (
                 <>
-                  {tile('score', scoreFlash, <VictoryPointsIcon amount={currentPlayer.score} size={38} />, <SlotTooltip status="Score" statusColor="#6fd8bf" note={`${currentPlayer.score} points de victoire`} />)}
-                  {tile('credit', creditFlash, <ResourceIcon kind="credit" amount={currentPlayer.credits} size={34} />,
+                  {tile('score', scoreFlash, <VictoryPointsIcon amount={currentPlayer.score} size={32} />, <SlotTooltip status="Score" statusColor="#6fd8bf" note={`${currentPlayer.score} points de victoire`} />)}
+                  {tile('credit', creditFlash, <ResourceIcon kind="credit" amount={currentPlayer.credits} size={28} />,
                     <SlotTooltip status="Crédits" statusColor="#ffd700" note={`${currentPlayer.credits} crédit${currentPlayer.credits > 1 ? 's' : ''} : sondes, orbites, scans, cartes`} />,
                     !isRobot && <>
                       {renderDirectTradeButton('credit', 'energy', <ResourceIcon kind="energy" size={14} />, currentPlayer.credits >= 2)}
                       {renderDirectTradeButton('credit', 'card', <ResourceIcon kind="card" size={14} />, currentPlayer.credits >= 2)}
                     </>)}
-                  {tile('energy', energyFlash, <ResourceIcon kind="energy" amount={currentPlayer.energy} size={34} />,
+                  {tile('energy', energyFlash, <ResourceIcon kind="energy" amount={currentPlayer.energy} size={28} />,
                     <SlotTooltip status="Énergie" statusColor="#3daa3a" note={`${currentPlayer.energy} énergie${currentPlayer.energy > 1 ? 's' : ''} : déplacements, atterrissages, scans, analyse`} />,
                     !isRobot && <>
                       {renderDirectTradeButton('energy', 'credit', <ResourceIcon kind="credit" size={14} />, currentPlayer.energy >= 2)}
                       {renderDirectTradeButton('energy', 'card', <ResourceIcon kind="card" size={14} />, currentPlayer.energy >= 2)}
                     </>)}
-                  {tile('media', mediaFlash, <ResourceIcon kind="media" amount={currentPlayer.mediaCoverage} size={34} />,
+                  {tile('media', mediaFlash, <ResourceIcon kind="media" amount={currentPlayer.mediaCoverage} size={28} />,
                     <SlotTooltip status="Couverture médiatique" statusColor="#e5197e" note={`${currentPlayer.mediaCoverage} / ${GAME_CONSTANTS.MAX_MEDIA_COVERAGE} : technologies (6), achat d'une carte (3)`} />,
                     !isRobot && <>
                       {/* Action principale « Rechercher une technologie » (payée en Médias), en surbrillance quand elle est possible */}
@@ -677,6 +660,16 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                       {/* Achat d'une carte (action gratuite, 3 Médias) */}
                       {renderBuyCardButton(<ResourceIcon kind="card" size={14} />)}
                     </>)}
+                  {tile('cards', cardsFlash, <ResourceIcon kind="card" amount={handCards.length} size={28} />,
+                    <SlotTooltip status="Cartes en main" statusColor="#e8e8e8" note={`${handCards.length} / ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} : au-delà, défausse en passant`} />,
+                    !isRobot && <>
+                      {/* Échange de 2 cartes contre 1 Crédit ou 1 Énergie (action gratuite) */}
+                      {renderCardTradeButton('credit', <ResourceIcon kind="credit" size={14} />)}
+                      {renderCardTradeButton('energy', <ResourceIcon kind="energy" size={14} />)}
+                    </>)}
+                  {tile('data', dataFlash, <ResourceIcon kind="data" amount={currentPlayer.data || 0} size={28} />,
+                    <SlotTooltip status="Données" statusColor="#6f9be0" note={`${currentPlayer.data || 0} / ${GAME_CONSTANTS.MAX_DATA} : à transférer vers l'ordinateur`} />,
+                    !isRobot && renderTransferDataButton())}
 
                   {/* Revenus : bouton Réservation, revenus de chaque manche en miniature, détail en infobulle */}
                   {(() => {
@@ -721,8 +714,31 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                           <span className="seti-revenue-count">{reserved.length}</span>
                         </div>
                         <div className="seti-revenue-mini">
-                          {revenues.map(r => <ResourceIcon key={r.kind} kind={r.kind} amount={r.total} size={17} />)}
+                          {revenues.map(r => <ResourceIcon key={r.kind} kind={r.kind} amount={r.total} size={15} />)}
                         </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Actions du tour : Jouer une carte, puis Fin de tour et Passer */}
+                  {!isRobot && (() => {
+                    // Une interaction obligatoire en cours (ex : technologie à choisir) empêche de finir le tour ou de passer
+                    const interactionBlocks = isInteractiveMode || TurnManager.blocksEndOfTurn(interactionState);
+                    const canEndTurn = isCurrentTurn && hasPerformedMainAction && !interactionBlocks;
+                    let endTurnReason = "Terminez d'abord l'action en cours";
+                    if (!isCurrentTurn) endTurnReason = "Ce n'est pas votre tour";
+                    else if (!hasPerformedMainAction) endTurnReason = "Effectuez d'abord une action principale";
+                    const endTurnTooltip = canEndTurn
+                      ? <SlotTooltip status="Disponible" statusColor={SLOT_COLORS.available} note="Cliquez pour terminer votre tour" />
+                      : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} note={endTurnReason} />;
+                    const canPass = actionAvailability[ActionType.PASS] && !interactionBlocks;
+                    const canPlay = actionAvailability[ActionType.PLAY_CARD] && !isInteractiveMode;
+                    return (
+                      <div className="seti-turn-actions">
+                        {/* Action principale « Jouer une carte » : met en avant les cartes jouables de la main */}
+                        {renderActionButton(<ActionHexIcon kind="card" size={20} />, getActionTooltip(ActionType.PLAY_CARD, canPlay), () => onAction(ActionType.PLAY_CARD), !canPlay, '#4a9eff', {}, canPlay ? 'seti-flash-green' : '', ActionType.PLAY_CARD)}
+                        {renderActionButton(<EndTurnIcon size={20} />, endTurnTooltip, () => onNextPlayer && onNextPlayer(), !canEndTurn, '#fff', {}, canEndTurn ? 'seti-flash-green' : '', 'Prochain joueur')}
+                        {renderActionButton(<ActionHexIcon kind="pass" size={20} />, getActionTooltip(ActionType.PASS, canPass), () => onAction(ActionType.PASS), !canPass, '#fff', {}, '', 'Passer définitivement')}
                       </div>
                     );
                   })()}
@@ -761,16 +777,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
           {/* Informatique (ordinateur de données) */}
           <div className="seti-player-section">
-            <div className="seti-player-section-title seti-computer-header">
-              <span>Informatique</span>
-              <span 
-                key={dataFlash ? `data-${dataFlash.id}` : 'data-static'}
-                className={`seti-computer-data-badge ${dataFlash ? (dataFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-              >
-                {/* Données en réserve : symbole et quantité */}
-                <span aria-label={`${currentPlayer.data || 0} donnée(s)`}><ResourceIcon kind="data" amount={currentPlayer.data || 0} size={24} /></span>
-              </span>
-            </div>
+            <div className="seti-player-section-title">Informatique</div>
             <div className="seti-player-list seti-computer-list">
               <PlayerComputer 
                 player={currentPlayer} 
@@ -788,27 +795,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
           {/* Cartes */}
           <div className="seti-player-section">
-            <div className="seti-player-section-title seti-cards-header">
-              <span>Main</span>
-              <span 
-                key={cardsFlash ? `cards-${cardsFlash.id}` : 'cards-static'}
-                className={`seti-cards-badge ${cardsFlash ? (cardsFlash.type === 'gain' ? 'flash-gain' : 'flash-loss') : ''}`}
-              >
-                {/* Cartes en main : symbole et quantité */}
-                <span aria-label={`${handCards.length} carte(s) en main`}><ResourceIcon kind="card" amount={handCards.length} size={24} /></span>
-                {!isRobot && (
-                    <>
-                      {/* Action principale « Jouer une carte » : met en avant les cartes jouables de la main */}
-                      {(() => {
-                        const canPlay = actionAvailability[ActionType.PLAY_CARD] && !isInteractiveMode;
-                        return renderActionButton(<ActionHexIcon kind="card" size={18} />, getActionTooltip(ActionType.PLAY_CARD, canPlay), () => onAction(ActionType.PLAY_CARD), !canPlay, '#4a9eff', { marginLeft: '10px' }, canPlay ? 'seti-flash-green' : '', ActionType.PLAY_CARD);
-                      })()}
-                      {renderCardTradeButton('credit', <ResourceIcon kind="credit" size={15} />, { marginLeft: '10px' })}
-                      {renderCardTradeButton('energy', <ResourceIcon kind="energy" size={15} />)}
-                    </>
-                )}
-              </span>
-            </div>
+            <div className="seti-player-section-title">Main</div>
             <div className="seti-player-list seti-cards-list" ref={cardsListRef}>
               {!isRobot ? (
                 handCards.length > 0 ? (

@@ -103,3 +103,35 @@ describe('ComputerSystem : bonus des cases', () => {
     expect(res.historyEntries[0].message).toContain('1 Énergie');
   });
 });
+
+describe('ComputerSystem.nextTransferSlot (action gratuite « Transférer une donnée »)', () => {
+  let game: Game;
+
+  beforeEach(async () => {
+    game = await createTestGame();
+  });
+
+  test('case suivante de la ligne du haut', () => {
+    const player = getPlayer(game, P1);
+    player.data = 1;
+    expect(ComputerSystem.nextTransferSlot(player)).toBe('1a');
+    player.dataComputer.slots['1a'].filled = true;
+    expect(ComputerSystem.nextTransferSlot(player)).toBe('2');
+  });
+
+  test('ligne du haut pleine : première case libre de la ligne du bas sous une technologie', () => {
+    const player = getPlayer(game, P1);
+    player.data = 1;
+    Object.values(player.dataComputer.slots).filter(slot => slot.type === 'top').forEach(slot => { slot.filled = true; });
+    expect(ComputerSystem.nextTransferSlot(player)).toBeUndefined();
+    player.dataComputer.slots['5b'].bonus = 'media';
+    player.dataComputer.slots['3b'].bonus = 'energy';
+    expect(ComputerSystem.nextTransferSlot(player)).toBe('3b');
+  });
+
+  test('sans donnée : aucune case', () => {
+    const player = getPlayer(game, P1);
+    player.data = 0;
+    expect(ComputerSystem.nextTransferSlot(player)).toBeUndefined();
+  });
+});
