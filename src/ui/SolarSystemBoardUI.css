@@ -58,6 +58,8 @@
 
 .seti-board-inner {
     position: relative;
+    /* Remonté dans la marge vide au-dessus de l'anneau E (6 % du plateau) : plus de place pour le toast en bas */
+    top: -5%;
     transition: opacity 0.2s;
     flex-shrink: 0;
 }
