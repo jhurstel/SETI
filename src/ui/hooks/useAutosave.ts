@@ -18,8 +18,13 @@ export function readAutosave(): string | null {
 function writeAutosave(game: Game, historyLog: HistoryEntry[]): void {
   try {
     localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(serializeGame(game, historyLog)));
-  } catch (e) {
-    console.warn("Erreur lors de la sauvegarde automatique (QuotaExceededError probable) :", e);
+  } catch {
+    // Stockage plein (QuotaExceededError probable) : on garde la partie, avec un seul état d'annulation
+    try {
+      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(serializeGame(game, historyLog, 1)));
+    } catch (e) {
+      console.warn("Erreur lors de la sauvegarde automatique (QuotaExceededError probable) :", e);
+    }
   }
 }
 

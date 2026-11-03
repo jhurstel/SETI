@@ -98,8 +98,9 @@
 }
 
 .seti-left-panel-wrapper {
-  /* Ne rétrécit pas sous son contenu : c'est .seti-left-panel qui défile */
-  flex: 1 0 auto;
+  /* Occupe la hauteur du panneau : c'est le contenu du plateau joueur qui défile, sous les onglets */
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   position: static;

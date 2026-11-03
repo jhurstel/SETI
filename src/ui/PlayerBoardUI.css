@@ -22,7 +22,12 @@
 
 .seti-player-panel {
   border-top-left-radius: 0;
-  flex: 1 0 auto;
+  /* Seul le contenu du plateau défile (les onglets restent en place) */
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   max-height: none;
   background: rgba(20, 25, 40, 0.9);
   border: 2px solid rgba(100, 150, 255, 0.4);
@@ -119,7 +124,8 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  flex: 1 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .seti-player-tab.active {
@@ -480,8 +486,8 @@
 /* ===== Barre Ressources / Revenus : tuiles symbole + valeur, actions dessous ===== */
 .seti-stats-bar {
   display: flex;
-  align-items: stretch;
-  gap: 4px;
+  flex-direction: column;
+  gap: 5px;
   padding: 5px;
   margin-bottom: 6px;
   border-radius: 8px;
@@ -598,15 +604,31 @@
   max-width: 260px;
 }
 
-/* Actions du tour, en colonne à droite des revenus : Jouer une carte, Fin de tour, Passer */
+/* Ressources et revenus, sur une ligne */
+.seti-stats-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+/* Actions du tour, sur une ligne sous les ressources : Rechercher, Jouer une carte | Fin de tour, Passer */
 .seti-turn-actions {
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(120, 160, 255, 0.15);
 }
 
 .seti-turn-actions .seti-action-btn {
-  padding: 1px 3px;
+  width: 40px;
+  height: 26px;
+}
+
+.seti-turn-actions-separator {
+  width: 1px;
+  height: 18px;
+  margin: 0 6px;
+  background: rgba(120, 160, 255, 0.3);
 }

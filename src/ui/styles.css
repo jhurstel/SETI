@@ -229,10 +229,12 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-width: 350px;
+  /* Assez large pour la piste Exploration (3 actions et 4 technologies) sans débordement */
+  min-width: 450px;
   height: 100%;
   gap: 10px;
-  overflow-y: auto;
+  /* Le défilement est celui du plateau joueur (sous ses onglets) */
+  overflow: hidden;
 }
 
 .seti-right-panel {

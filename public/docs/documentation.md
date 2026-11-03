@@ -21,7 +21,7 @@ Ce document décrit comment jouer, les règles telles qu'elles sont appliquées,
 ### 1.2 L'écran
 
 - **Système solaire** (centre) : 3 anneaux rotatifs, 8 secteurs, planètes, comètes, champs d'astéroïdes, sondes.
-- **Plateau du joueur** (gauche) : les onglets en haut affichent le plateau de chaque joueur. La barre du haut montre le score, les crédits, l'énergie, les Médias, les cartes en main (4 gardées en passant) et les données (6 au plus), chacun avec ses actions dessous (échanges, recherche, achat, transfert d'une donnée), puis les revenus et, en colonne, Jouer une carte, Fin de tour et Passer. Dessous : exploration, observation, ordinateur de données, cartes en main, missions et cartes jouées.
+- **Plateau du joueur** (gauche) : les onglets en haut affichent le plateau de chaque joueur. La barre du haut montre le score, les crédits, l'énergie, les cartes en main (4 gardées en passant), les Médias et les données (6 au plus), chacun avec ses actions gratuites dessous (échanges, achat, transfert d'une donnée), puis les revenus ; la ligne suivante regroupe les actions du tour : Rechercher une technologie, Jouer une carte, Fin de tour et Passer. Seul le plateau défile, sous les onglets. Dessous : exploration, observation, ordinateur de données, cartes en main, missions et cartes jouées.
 - **Rangée de cartes**, **plateau des technologies**, **tuiles objectif**, **plateaux des espèces Alien** et **historique**.
 - **Panneau Planètes** : chaque planète, avec à côté une ligne par type de sonde présente (orbiteurs, atterrisseurs, lunes comprises) et une pastille de la couleur de chaque joueur, dans l'ordre d'arrivée. Son infobulle montre les cases de la planète ; chaque gain posé à côté d'une case a sa propre infobulle.
 - Les infobulles (survol) donnent le détail de chaque élément : coût, gain, raison d'une action indisponible.
@@ -73,6 +73,7 @@ Les déplacements gratuits reçus d'une carte (« 2 déplacements ») se dépens
 - **Annuler** revient avant la dernière action (toute la séquence : l'action et ses conséquences).
 - **Revenir au début du tour** rétablit l'état d'avant la première action du tour. Juste après le tour des robots, avant d'avoir rejoué, il ramène au début du tour qu'on vient de finir (le tour des robots est annulé lui aussi).
 - La mémoire est bornée : l'annulation ne remonte pas plus loin que le début de l'avant-dernier tour du joueur.
+- Après un rechargement de la page, la sauvegarde automatique garde les 8 dernières actions annulables (modifications des outils de débogage comprises) et le début du dernier tour.
 
 ### 1.7 Jouer en ligne
 

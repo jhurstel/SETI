@@ -1,4 +1,5 @@
 import { Game, GameLogEntry, HistoryEntry } from './types';
+import { findTurnUndoPoint } from './TurnUndo';
 
 /**
  * Version du format de sauvegarde. À incrémenter à chaque changement incompatible du modèle,
@@ -79,23 +80,33 @@ function stripForSave(state: Game): Omit<Game, 'gameLog'> {
   return rest;
 }
 
+/** Nombre de commandes annulables dont l'état est gardé par une sauvegarde (environ 160 Ko chacun) */
+export const SAVED_UNDO_STATES = 8;
+
 /**
  * Prépare une partie et son journal pour la sauvegarde (autosave ou fichier).
  *
- * Pour limiter la taille, l'état d'annulation (`previousState`) n'est conservé que pour la
- * dernière entrée et pour les entrées de la dernière séquence : on peut ainsi annuler
- * la dernière action après un rechargement.
+ * Pour limiter la taille, l'état d'annulation (`previousState`) n'est conservé que pour les `undoStates`
+ * dernières commandes annulables et, si on en garde plusieurs, pour le début du dernier tour de chaque
+ * joueur humain (« annuler le tour ») : après un rechargement, on peut encore annuler plusieurs actions de suite.
  */
-export function serializeGame(game: Game, historyLog: HistoryEntry[]): SavedGame {
-  const lastSequenceId = historyLog[historyLog.length - 1]?.sequenceId;
+export function serializeGame(game: Game, historyLog: HistoryEntry[], undoStates: number = SAVED_UNDO_STATES): SavedGame {
+  const kept = new Set<number>();
+  for (let i = historyLog.length - 1; i >= 0 && kept.size < undoStates; i--) {
+    if (historyLog[i].previousState) kept.add(i);
+  }
+  if (undoStates > 1) {
+    game.players.filter(p => p.type === 'human').forEach(p => {
+      const point = findTurnUndoPoint(historyLog, p.id);
+      if (point) kept.add(point.keepCount);
+    });
+  }
 
   return {
     ...stripForSave(game),
     saveVersion: SAVE_VERSION,
     gameLog: historyLog.map((entry, index) => {
-      const isLast = index === historyLog.length - 1;
-      const inLastSequence = !!lastSequenceId && entry.sequenceId === lastSequenceId;
-      const keepState = !!entry.previousState && (isLast || inLastSequence);
+      const keepState = kept.has(index);
       return {
         id: entry.id ?? '',
         message: entry.message,

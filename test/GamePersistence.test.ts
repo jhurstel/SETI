@@ -59,16 +59,22 @@ describe('GamePersistence', () => {
     expect(restored.players).toEqual(game.players);
   });
 
-  test('ne conserve l\'état d\'annulation que pour la dernière séquence', () => {
-    const log = [entry('ancien', 'seq-1'), entry('ancien 2', 'seq-1'), entry('dernier', 'seq-2'), entry('dernier bis', 'seq-2')];
-    const saved = serializeGame(game, log);
-
-    expect(saved.gameLog.map(e => !!e.previousState)).toEqual([false, false, true, true]);
+  test('ne conserve l\'état d\'annulation que pour les dernières commandes', () => {
+    const log = [entry('ancien'), entry('suite', 'seq-1', false), entry('avant-dernier'), entry('dernier')];
+    expect(serializeGame(game, log, 2).gameLog.map(e => !!e.previousState)).toEqual([false, false, true, true]);
+    expect(serializeGame(game, log, 1).gameLog.map(e => !!e.previousState)).toEqual([false, false, false, true]);
   });
 
-  test('la dernière entrée sans séquence garde son état d\'annulation', () => {
-    const saved = serializeGame(game, [entry('a'), entry('b')]);
-    expect(saved.gameLog.map(e => !!e.previousState)).toEqual([false, true]);
+  test('après un rechargement, plusieurs actions de suite s\'annulent, y compris les modifications de débogage (régression)', () => {
+    const log = [entry('--- Tour de Alice ---', undefined, false), entry('lance une sonde', 'seq-1'), entry('DEBUG : partie modifiée'), entry('DEBUG : partie modifiée')];
+    const { historyLog } = deserializeGame(JSON.stringify(serializeGame(game, log)));
+    expect(historyLog.map(e => !!e.previousState)).toEqual([false, true, true, true]);
+  });
+
+  test('le début du dernier tour d\'un joueur humain garde son état (« annuler le tour »)', () => {
+    game.players[0].type = 'human';
+    const log = [entry('--- Tour de Alice ---', undefined, false), entry('1re action'), entry('a'), entry('b'), entry('c')];
+    expect(serializeGame(game, log, 2).gameLog.map(e => !!e.previousState)).toEqual([false, true, false, true, true]);
   });
 
   test('les états sauvegardés ne contiennent pas le journal (pas de récursion)', () => {

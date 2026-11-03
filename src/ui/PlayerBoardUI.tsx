@@ -636,6 +636,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
               );
               return (
                 <>
+                  <div className="seti-stats-row">
                   {tile('score', scoreFlash, <VictoryPointsIcon amount={currentPlayer.score} size={32} />, <SlotTooltip status="Score" statusColor="#6fd8bf" note={`${currentPlayer.score} points de victoire`} />)}
                   {tile('credit', creditFlash, <ResourceIcon kind="credit" amount={currentPlayer.credits} size={28} />,
                     <SlotTooltip status="Crédits" statusColor="#ffd700" note={`${currentPlayer.credits} crédit${currentPlayer.credits > 1 ? 's' : ''} : sondes, orbites, scans, cartes`} />,
@@ -649,23 +650,18 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                       {renderDirectTradeButton('energy', 'credit', <ResourceIcon kind="credit" size={14} />, currentPlayer.energy >= 2)}
                       {renderDirectTradeButton('energy', 'card', <ResourceIcon kind="card" size={14} />, currentPlayer.energy >= 2)}
                     </>)}
-                  {tile('media', mediaFlash, <ResourceIcon kind="media" amount={currentPlayer.mediaCoverage} size={28} />,
-                    <SlotTooltip status="Couverture médiatique" statusColor="#e5197e" note={`${currentPlayer.mediaCoverage} / ${GAME_CONSTANTS.MAX_MEDIA_COVERAGE} : technologies (6), achat d'une carte (3)`} />,
-                    !isRobot && <>
-                      {/* Action principale « Rechercher une technologie » (payée en Médias), en surbrillance quand elle est possible */}
-                      {(() => {
-                        const canResearch = actionAvailability[ActionType.RESEARCH_TECH] && !isInteractiveMode;
-                        return renderActionButton(<ActionHexIcon kind="research" size={16} />, getActionTooltip(ActionType.RESEARCH_TECH, canResearch), () => onAction(ActionType.RESEARCH_TECH), !canResearch, '#4a9eff', { marginLeft: '4px' }, canResearch ? 'seti-flash-green' : '');
-                      })()}
-                      {/* Achat d'une carte (action gratuite, 3 Médias) */}
-                      {renderBuyCardButton(<ResourceIcon kind="card" size={14} />)}
-                    </>)}
                   {tile('cards', cardsFlash, <ResourceIcon kind="card" amount={handCards.length} size={28} />,
                     <SlotTooltip status="Cartes en main" statusColor="#e8e8e8" note={`${handCards.length} / ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} : au-delà, défausse en passant`} />,
                     !isRobot && <>
                       {/* Échange de 2 cartes contre 1 Crédit ou 1 Énergie (action gratuite) */}
                       {renderCardTradeButton('credit', <ResourceIcon kind="credit" size={14} />)}
                       {renderCardTradeButton('energy', <ResourceIcon kind="energy" size={14} />)}
+                    </>)}
+                  {tile('media', mediaFlash, <ResourceIcon kind="media" amount={currentPlayer.mediaCoverage} size={28} />,
+                    <SlotTooltip status="Couverture médiatique" statusColor="#e5197e" note={`${currentPlayer.mediaCoverage} / ${GAME_CONSTANTS.MAX_MEDIA_COVERAGE} : technologies (6), achat d'une carte (3)`} />,
+                    !isRobot && <>
+                      {/* Achat d'une carte (action gratuite, 3 Médias) */}
+                      {renderBuyCardButton(<ResourceIcon kind="card" size={14} />)}
                     </>)}
                   {tile('data', dataFlash, <ResourceIcon kind="data" amount={currentPlayer.data || 0} size={28} />,
                     <SlotTooltip status="Données" statusColor="#6f9be0" note={`${currentPlayer.data || 0} / ${GAME_CONSTANTS.MAX_DATA} : à transférer vers l'ordinateur`} />,
@@ -719,8 +715,9 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                       </div>
                     );
                   })()}
+                  </div>
 
-                  {/* Actions du tour : Jouer une carte, puis Fin de tour et Passer */}
+                  {/* Ligne des actions du tour, sous les ressources : Rechercher une technologie, Jouer une carte, puis Fin de tour et Passer */}
                   {!isRobot && (() => {
                     // Une interaction obligatoire en cours (ex : technologie à choisir) empêche de finir le tour ou de passer
                     const interactionBlocks = isInteractiveMode || TurnManager.blocksEndOfTurn(interactionState);
@@ -733,12 +730,16 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                       : <SlotTooltip status="Indisponible" statusColor={SLOT_COLORS.unavailable} note={endTurnReason} />;
                     const canPass = actionAvailability[ActionType.PASS] && !interactionBlocks;
                     const canPlay = actionAvailability[ActionType.PLAY_CARD] && !isInteractiveMode;
+                    const canResearch = actionAvailability[ActionType.RESEARCH_TECH] && !isInteractiveMode;
                     return (
                       <div className="seti-turn-actions">
-                        {/* Action principale « Jouer une carte » : met en avant les cartes jouables de la main */}
-                        {renderActionButton(<ActionHexIcon kind="card" size={20} />, getActionTooltip(ActionType.PLAY_CARD, canPlay), () => onAction(ActionType.PLAY_CARD), !canPlay, '#4a9eff', {}, canPlay ? 'seti-flash-green' : '', ActionType.PLAY_CARD)}
-                        {renderActionButton(<EndTurnIcon size={20} />, endTurnTooltip, () => onNextPlayer && onNextPlayer(), !canEndTurn, '#fff', {}, canEndTurn ? 'seti-flash-green' : '', 'Prochain joueur')}
-                        {renderActionButton(<ActionHexIcon kind="pass" size={20} />, getActionTooltip(ActionType.PASS, canPass), () => onAction(ActionType.PASS), !canPass, '#fff', {}, '', 'Passer définitivement')}
+                        {/* Actions principales payées en Médias et en cartes, en surbrillance quand elles sont possibles */}
+                        {renderActionButton(<ActionHexIcon kind="research" size={22} />, getActionTooltip(ActionType.RESEARCH_TECH, canResearch), () => onAction(ActionType.RESEARCH_TECH), !canResearch, '#4a9eff', {}, canResearch ? 'seti-flash-green' : '', 'Rechercher une technologie')}
+                        {/* « Jouer une carte » : met en avant les cartes jouables de la main */}
+                        {renderActionButton(<ActionHexIcon kind="card" size={22} />, getActionTooltip(ActionType.PLAY_CARD, canPlay), () => onAction(ActionType.PLAY_CARD), !canPlay, '#4a9eff', {}, canPlay ? 'seti-flash-green' : '', ActionType.PLAY_CARD)}
+                        <span className="seti-turn-actions-separator" aria-hidden="true" />
+                        {renderActionButton(<EndTurnIcon size={22} />, endTurnTooltip, () => onNextPlayer && onNextPlayer(), !canEndTurn, '#fff', {}, canEndTurn ? 'seti-flash-green' : '', 'Prochain joueur')}
+                        {renderActionButton(<ActionHexIcon kind="pass" size={22} />, getActionTooltip(ActionType.PASS, canPass), () => onAction(ActionType.PASS), !canPass, '#fff', {}, '', 'Passer définitivement')}
                       </div>
                     );
                   })()}
