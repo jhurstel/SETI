@@ -295,17 +295,18 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
         hoverTimeoutRef.current = setTimeout(() => setActiveTooltip(null), 300);
     };
 
-    // Orbiteurs et atterrisseurs (lunes comprises) : une ligne chacun, une pastille de la couleur du joueur par sonde, dans l'ordre d'arrivée
+    // Orbiteurs et atterrisseurs (lunes comprises) : une ligne chacun, une pastille de la couleur du joueur par sonde, dans l'ordre d'arrivée ;
+    // les atterrisseurs restent sur la 2e ligne, même sans orbiteur (ligne vide gardée)
     const renderProbeOwners = (planet: Planet) => {
         const landers = [...planet.landers, ...(planet.satellites || []).flatMap(s => s.landers || [])];
         const rows = [
             { kind: 'orbit' as const, label: 'Orbiteurs', probes: planet.orbiters },
             { kind: 'land' as const, label: 'Atterrisseurs', probes: landers },
-        ].filter(row => row.probes.length > 0);
-        if (rows.length === 0) return null;
+        ];
+        if (rows.every(row => row.probes.length === 0)) return null;
         return (
             <div className="planet-probe-owners">
-                {rows.map(row => (
+                {rows.map(row => row.probes.length === 0 ? <div key={row.kind} className="planet-probe-row empty" aria-hidden="true" /> : (
                     <div key={row.kind} className="planet-probe-row" aria-label={`${row.label} : ${row.probes.map(p => game.players.find(pl => pl.id === p.ownerId)?.name).join(', ')}`}>
                         {row.kind === 'orbit' ? <OrbiterIcon size={13} /> : <LanderIcon size={13} />}
                         {row.probes.map(probe => (

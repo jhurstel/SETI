@@ -55,6 +55,11 @@
     gap: 2px;
 }
 
+/* Ligne d'orbiteurs vide : garde sa place pour que les atterrisseurs restent sur la 2e ligne */
+.planet-probe-row.empty {
+    height: 13px;
+}
+
 .planet-probe-row > svg {
     margin-right: 1px;
 }
