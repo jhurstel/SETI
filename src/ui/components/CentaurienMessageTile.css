@@ -15,39 +15,6 @@
   cursor: help;
 }
 
-/* Choix au palier : tuiles plus grandes, cliquables */
-.seti-message-tile.large {
-  width: 110px;
-  height: 64px;
-  gap: 4px;
-  /* Repris ici : le style général des boutons (.seti-root button) l'emporterait sur .seti-message-tile */
-  background: rgba(91, 63, 196, 0.35);
-  border: 2px solid #b9a8ff;
-  border-radius: 10px;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
-}
-
-.seti-root button.seti-message-tile.large:hover:not(:disabled),
-button.seti-message-tile.large:hover:not(:disabled) {
-  background: rgba(91, 63, 196, 0.6);
-  box-shadow: 0 0 12px rgba(185, 168, 255, 0.7);
-  transform: translateY(-2px);
-}
-
 .seti-message-tile.taken {
   opacity: 0.45;
-}
-
-.seti-message-tile.large.taken {
-  cursor: not-allowed;
-}
-
-.seti-message-tile-row {
-  display: flex;
-  flex-wrap: nowrap;
-  justify-content: center;
-  gap: 12px;
 }

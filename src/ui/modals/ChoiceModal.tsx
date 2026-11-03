@@ -34,8 +34,9 @@ export const ChoiceModal = ({ title, subtitle, children, footer, wide = false }:
 };
 
 /**
- * Une option d'une fenêtre de choix. Indisponible, elle est grisée et son infobulle explique pourquoi
- * (ex : « Déjà choisi par R2-D2 »).
+ * Une option d'une fenêtre de choix : tuile de taille fixe qui montre seulement des symboles (`icon`),
+ * le texte (`label`, `detail`) étant dans son infobulle. Sans symbole, le libellé s'affiche dans la tuile.
+ * Indisponible, elle est grisée et son infobulle explique pourquoi (ex : « Déjà choisi par R2-D2 »).
  */
 export const ChoiceOption = ({ icon, label, detail, onClick, disabled = false, disabledReason, selected = false, done = false }: {
   icon?: React.ReactNode;
@@ -46,21 +47,24 @@ export const ChoiceOption = ({ icon, label, detail, onClick, disabled = false, d
   disabledReason?: React.ReactNode;
   selected?: boolean;
   done?: boolean;
-}) => {
-  const button = (
+}) => (
+  <HoverTooltip content={
+    <div className="seti-choice-option-tooltip">
+      <div className="seti-choice-option-label">{label}</div>
+      {detail && <div className="seti-choice-option-detail">{detail}</div>}
+      {disabled && disabledReason && <div className="seti-choice-option-reason">{disabledReason}</div>}
+    </div>
+  }>
     <button
       className={`seti-choice-option ${selected ? 'selected' : ''} ${done ? 'done' : ''}`}
       onClick={onClick}
       disabled={disabled || done}
     >
-      {icon && <span className="seti-choice-option-icon">{icon}</span>}
-      <span className="seti-choice-option-label">{label}</span>
-      {detail && <span className="seti-choice-option-detail">{detail}</span>}
+      {icon ? <span className="seti-choice-option-icon">{icon}</span> : <span className="seti-choice-option-text">{label}</span>}
       {done && <span className="seti-choice-option-check">✓</span>}
     </button>
-  );
-  return disabled && disabledReason ? <HoverTooltip content={disabledReason}>{button}</HoverTooltip> : button;
-};
+  </HoverTooltip>
+);
 
 /** Bouton d'action en pied de fenêtre (confirmer, passer, terminer…) */
 export const ChoiceFooterButton = ({ children, onClick, disabled = false, secondary = false }: {

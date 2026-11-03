@@ -348,55 +348,96 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
   gap: 10px;
   margin-top: 6px;
 }
+/* Option d'une fenêtre de choix : tuile de taille fixe, symboles seuls (le texte est dans l'infobulle) ;
+   les tuiles d'une fenêtre restent sur une ligne */
+.seti-choice-modal-options:has(.seti-choice-option) {
+  flex-wrap: nowrap;
+}
+/* Les tuiles restent sur une ligne : la fenêtre s'élargit pour toutes les montrer (défilement au-delà de l'écran) */
+.seti-choice-modal:has(.seti-choice-option) {
+  width: auto;
+  min-width: min(560px, 92vw);
+  max-width: 96vw;
+}
+.seti-choice-modal-options:has(.seti-choice-option) > * {
+  flex-shrink: 0;
+}
 .seti-choice-option {
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  min-width: 130px;
-  max-width: 220px;
-  padding: 14px 16px;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 110px;
+  height: 64px;
+  padding: 4px 6px;
   background: rgba(30, 36, 56, 0.95);
-  border: 1px solid rgba(100, 150, 255, 0.45);
-  border-radius: 8px;
+  border: 2px solid rgba(100, 150, 255, 0.45);
+  border-radius: 10px;
   color: #fff;
   font-weight: bold;
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
-.seti-choice-option:hover:not(:disabled) {
+.seti-root .seti-choice-option {
+  background: rgba(30, 36, 56, 0.95);
+  border: 2px solid rgba(100, 150, 255, 0.45);
+}
+.seti-root .seti-choice-option:hover:not(:disabled) {
   transform: translateY(-2px);
+  background: rgba(30, 36, 56, 0.95);
   border-color: #4a9eff;
   box-shadow: 0 0 12px rgba(74, 158, 255, 0.45);
 }
-.seti-choice-option.selected {
+.seti-root .seti-choice-option.selected {
   border-color: #4a9eff;
   background: rgba(74, 158, 255, 0.2);
 }
 .seti-choice-option:disabled {
   opacity: 0.45;
   cursor: not-allowed;
-  /* Un bouton désactivé n'émet pas d'événements de souris : l'enveloppe reçoit le survol (infobulle « Déjà choisi par ») */
+  /* Un bouton désactivé n'émet pas d'événements de souris : l'enveloppe reçoit le survol (infobulle) */
   pointer-events: none;
 }
 .seti-choice-option.done {
   opacity: 0.6;
 }
 .seti-choice-option-icon {
-  font-size: 1.8em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 1.6em;
 }
-.seti-choice-option-label {
+/* Sans symbole : le libellé, en petit, dans la tuile */
+.seti-choice-option-text {
+  font-size: 0.75em;
   color: #ffd700;
   text-align: center;
-}
-.seti-choice-option-detail {
-  font-size: 0.78em;
-  font-weight: normal;
-  color: #ccc;
-  text-align: center;
+  line-height: 1.2;
 }
 .seti-choice-option-check {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  font-size: 0.85em;
   color: #7fff7f;
+}
+.seti-choice-option-tooltip {
+  text-align: center;
+}
+.seti-choice-option-label {
+  font-weight: bold;
+  color: #ffd700;
+}
+.seti-choice-option-detail {
+  font-size: 0.85em;
+  color: #ccc;
+}
+.seti-choice-option-reason {
+  font-size: 0.85em;
+  font-style: italic;
+  color: #ff6b6b;
 }
 .seti-choice-footer-btn {
   padding: 10px 26px;

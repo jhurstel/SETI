@@ -8,7 +8,8 @@ import { ResourceSystem } from '../../systems/ResourceSystem';
 import { CardSystem } from '../../systems/CardSystem';
 import { ChoiceModal, ChoiceOption, ChoiceFooterButton } from './ChoiceModal';
 import { HoverTooltip } from '../components/HoverTooltip';
-import { CentaurienMessageTile } from '../components/CentaurienMessageTile';
+import { BonusIcons } from '../components/BonusIcons';
+import { interactionSymbol } from '../components/InteractionSymbol';
 import { ChoiceCardTile } from './CardPickModal';
 import { Tooltip } from '../Tooltip';
 import { ResourceIcon, SignalGainIcon, ActionHexIcon, CentaurienMessageIcon } from '../components/GameIcons';
@@ -43,16 +44,21 @@ export const CentaurienRewardModal = ({ game, interactionState, onChoice }: { ga
       title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}><CentaurienMessageIcon size={24} />Message Centaurien décodé</span>}
       subtitle="Choisissez une tuile Message encore disponible : sa récompense est gagnée immédiatement."
     >
-      {/* Les 4 tuiles sur une ligne, en symboles, de même taille (comme l'infobulle du plateau Centauriens) */}
-      <div className="seti-message-tile-row">
-        {species.message.map((token, index) => {
-          const owner = token.claimedBy ? game.players.find(p => p.id === token.claimedBy) : undefined;
-          const tile = <CentaurienMessageTile bonus={token.bonus} large taken={!token.isAvailable} takenColor={owner?.color} onClick={() => onChoice(index)} />;
-          return token.isAvailable ? <React.Fragment key={index}>{tile}</React.Fragment> : (
-            <HoverTooltip key={index} content={owner ? <span>Déjà choisie par <strong style={{ color: owner.color }}>{owner.name}</strong></span> : 'Déjà choisie'}>{tile}</HoverTooltip>
-          );
-        })}
-      </div>
+      {/* Les 4 tuiles sur une ligne, en symboles, de même taille que les autres choix */}
+      {species.message.map((token, index) => {
+        const owner = token.claimedBy ? game.players.find(p => p.id === token.claimedBy) : undefined;
+        return (
+          <ChoiceOption
+            key={index}
+            icon={<BonusIcons bonus={token.bonus} size={26} />}
+            label={`Tuile Message ${index + 1}`}
+            detail={(ResourceSystem.formatBonus(token.bonus) || []).join(', ')}
+            onClick={() => onChoice(index)}
+            disabled={!token.isAvailable}
+            disabledReason={owner ? <span>Déjà choisie par <strong style={{ color: owner.color }}>{owner.name}</strong></span> : 'Déjà choisie'}
+          />
+        );
+      })}
     </ChoiceModal>
   );
 };
@@ -75,6 +81,7 @@ export const MissionRequirementModal = ({ game, interactionState, onChoice }: { 
         return (
           <ChoiceOption
             key={`${missionId}-${requirementId}`}
+            icon={bonus ? <BonusIcons bonus={bonus} size={26} empty={null} /> : undefined}
             label={mission?.name ?? missionId}
             detail={bonus ? (ResourceSystem.formatBonus(bonus) || []).join(', ') : undefined}
             onClick={() => onChoice(missionId, requirementId)}
@@ -167,14 +174,14 @@ export const MediaOrMoveModal = ({ onChoice }: { onChoice: (choice: 'MEDIA' | 'M
 
 export const Observation2Modal = ({ onChoice }: { onChoice: (accepted: boolean) => void }) => (
   <ChoiceModal title="Observation II" subtitle="Défausser un Média pour marquer un signal supplémentaire dans le secteur de Mercure ?">
-    <ChoiceOption icon={<SignalGainIcon badge="mercury" size={24} />} label="Oui" detail="−1 Média, +1 signal (Mercure)" onClick={() => onChoice(true)} />
+    <ChoiceOption icon={<><ResourceIcon kind="media" size={22} /><span aria-hidden="true">→</span><SignalGainIcon badge="mercury" size={26} /></>} label="Oui" detail="−1 Média, +1 signal (Mercure)" onClick={() => onChoice(true)} />
     <ChoiceOption icon="✋" label="Non" onClick={() => onChoice(false)} />
   </ChoiceModal>
 );
 
 export const Observation3Modal = ({ onChoice }: { onChoice: (accepted: boolean) => void }) => (
   <ChoiceModal title="Observation III" subtitle="Défausser une carte de votre main pour marquer un signal supplémentaire ?">
-    <ChoiceOption icon={<SignalGainIcon badge="discard" size={24} />} label="Oui" detail="une carte de la main pour son signal" onClick={() => onChoice(true)} />
+    <ChoiceOption icon={<SignalGainIcon badge="discard" size={26} />} label="Oui" detail="une carte de la main pour son signal" onClick={() => onChoice(true)} />
     <ChoiceOption icon="✋" label="Non" onClick={() => onChoice(false)} />
   </ChoiceModal>
 );
@@ -204,7 +211,7 @@ export const BonusChoiceModal = ({ interactionState, onChoice, onFinish }: { int
       footer={allDone ? <ChoiceFooterButton onClick={onFinish}>Terminer</ChoiceFooterButton> : undefined}
     >
       {interactionState.choices.map((choice, idx) => (
-        <ChoiceOption key={choice.id} label={choice.label} onClick={() => onChoice(idx)} done={choice.done} />
+        <ChoiceOption key={choice.id} icon={interactionSymbol(choice.state)} label={choice.label} onClick={() => onChoice(idx)} done={choice.done} />
       ))}
     </ChoiceModal>
   );
