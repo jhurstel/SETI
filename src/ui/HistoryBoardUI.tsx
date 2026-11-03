@@ -278,14 +278,18 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
     const childParents: (string | undefined)[] = [];
     let headSequence: string | undefined;
     let headPlayer: string | undefined;
+    // Bilan de fin de manche (revenus de chaque joueur, premier joueur, décompte final) : écrit par la commande de la
+    // dernière passe, donc dans sa séquence, mais chaque ligne est indépendante (aucune n'est indentée)
+    let inRoundEnd = false;
     historyLog.forEach(entry => {
         if (entry.message.startsWith('---')) {
             headSequence = undefined;
+            inRoundEnd = entry.message.includes('FIN DE LA MANCHE');
             childFlags.push(false);
             childParents.push(undefined);
             return;
         }
-        const isChild = !!entry.sequenceId && entry.sequenceId === headSequence;
+        const isChild = !inRoundEnd && !!entry.sequenceId && entry.sequenceId === headSequence;
         if (!isChild) {
             headSequence = entry.sequenceId;
             headPlayer = entry.playerId;
