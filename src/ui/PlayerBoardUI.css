@@ -636,6 +636,20 @@
   gap: 4px;
 }
 
+/* Mobile : ressources sur deux lignes de trois, les revenus à droite sur les deux lignes */
+@media (max-width: 600px) {
+  .seti-stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.2fr);
+    grid-auto-rows: 1fr;
+  }
+
+  .seti-stats-row > .seti-revenue-tile {
+    grid-column: 4;
+    grid-row: 1 / span 2;
+  }
+}
+
 /* Les 8 actions principales en hexagones, puis la fin du tour dans son cadre : toute la largeur */
 .seti-main-actions-row {
   display: flex;

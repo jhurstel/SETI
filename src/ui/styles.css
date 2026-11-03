@@ -155,6 +155,11 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   filter: grayscale(0.6);
   pointer-events: none;
 }
+/* La tuile remplit son cadre (plus étroit dans l'ordinateur sur mobile) */
+.seti-tech-spot-tile > svg {
+  width: 100%;
+  height: 100%;
+}
 .seti-tech-spot-tile.acquired {
   opacity: 1;
   filter: none;
@@ -206,6 +211,8 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
 /* Layout principal */
 .seti-root {
   height: 100vh;
+  /* Hauteur visible (sur mobile, 100vh passe sous la barre du navigateur) */
+  height: 100dvh;
   width: 100vw;
   padding: 10px;
   background: linear-gradient(135deg, #0a0e1a 0%, #1a1f2e 100%);

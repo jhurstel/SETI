@@ -423,7 +423,7 @@ export const TechTileIcon: React.FC<{ techId: string; width?: number; height?: n
   const category = techId.startsWith('exploration') ? 'exploration' : techId.startsWith('observation') ? 'observation' : 'computing';
   const col = TILE_COLORS[category];
   return (
-    <svg width={width} height={height} viewBox="0 0 58 82" style={{ display: 'block' }}>
+    <svg width={width} height={height} viewBox="0 0 58 82" preserveAspectRatio="none" style={{ display: 'block' }}>
       <defs>
         <linearGradient id={`tile-${uid}`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor={col.light} />

@@ -76,18 +76,18 @@ export const PlayerComputer = ({
         const isSelectableColumn = isSelecting && hasBottom && !hasTech; // Only columns with 2 slots (1, 3, 5, 6) are selectable for computing tech
 
         // Calculate margins for separator to touch circles
-        let separatorLeftMargin = 0;
-        let separatorRightMargin = 0;
+        // (cadre de technologie : marge --computer-tech-inset, plus étroite sur mobile ; colonne simple : 4px)
+        let separatorLeftMargin = '0px';
+        let separatorRightMargin = '0px';
         
         if (index < columns.length - 1) {
-            const currentPadding = hasBottom ? 12 : 4;
+            const inset = (twoSlots: boolean) => twoSlots ? 'calc(-1 * var(--computer-tech-inset))' : '-4px';
             const nextCol = columns[index + 1];
             const nextColSlots = Object.values(slots).filter((s) => s.col === nextCol);
             const nextHasBottom = nextColSlots.length > 1;
-            const nextPadding = nextHasBottom ? 12 : 4;
             
-            separatorLeftMargin = -currentPadding;
-            separatorRightMargin = -nextPadding;
+            separatorLeftMargin = inset(hasBottom);
+            separatorRightMargin = inset(nextHasBottom);
         }
 
         return (

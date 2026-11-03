@@ -101,6 +101,24 @@
   pointer-events: none;
 }
 
+/* Mobile : les panneaux (objectifs, technologies, rangée, planètes) tiennent dans la largeur de l'écran,
+   leur contenu est réduit (zoom : les infobulles suivent) ; les en-têtes gardent leur taille */
+@media (max-width: 600px) {
+  .seti-side-panels-container {
+    width: calc(100% + 10px);
+    padding: 15px;
+  }
+
+  /* Panneau ouvert : au-dessus de l'historique, qui occupe aussi le haut de l'écran */
+  .seti-side-panels-container:hover {
+    z-index: 1001;
+  }
+
+  .seti-side-panels-container .seti-foldable-content {
+    zoom: 0.6;
+  }
+}
+
 .seti-side-panels-container.high-z-index {
   z-index: 1501;
 }

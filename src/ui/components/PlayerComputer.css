@@ -109,3 +109,24 @@
   opacity: 0.4;
   filter: grayscale(0.7);
 }
+
+/* Marge entre le bord d'un cadre de technologie et son emplacement : les lignes de séparation s'y arrêtent */
+.player-computer-container {
+  --computer-tech-inset: 12px;
+}
+
+/* Mobile : cadres de technologie plus étroits (emplacements de même taille) pour que l'ordinateur tienne dans la largeur */
+@media (max-width: 600px) {
+  .player-computer-container {
+    --computer-tech-inset: 5px;
+    padding: 12px 8px;
+  }
+
+  .player-computer-container .seti-tech-spot {
+    width: 44px;
+  }
+
+  .computer-separator {
+    min-width: 4px;
+  }
+}

@@ -178,6 +178,17 @@
     align-items: flex-end;
 }
 
+/* Mobile : les deux plateaux Alien tiennent côte à côte, contenu réduit comme les autres panneaux */
+@media (max-width: 600px) {
+  .alien-board-container {
+    width: calc(50% - 20px);
+  }
+
+  .alien-board-container .seti-foldable-content {
+    zoom: 0.6;
+  }
+}
+
 .alien-foldable-container {
     display: flex;
     pointer-events: auto;
