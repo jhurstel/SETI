@@ -69,8 +69,6 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
     }
   }
 
-  const hasExploration4 = currentPlayer.technologies.some(t => t.id.startsWith('exploration-4'));
-
   const renderSatellites = () => {
     if (!planetData || !planetData.satellites || planetData.satellites.length === 0) return null;
 
@@ -98,12 +96,12 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
 
       const isOccupied = !!player;
       const allowOccupiedLanding = interactionState.type === 'LANDING_PROBE' && interactionState.source === '16';
-      const allowSatelliteLanding = interactionState.type === 'LANDING_PROBE' && (interactionState.source === '12' || interactionState.ignoreSatelliteLimit);
+      const satelliteAllowed = ProbeSystem.canLandOnSatellite(game, currentPlayer.id, satellite.id, interactionState.type === 'LANDING_PROBE' && interactionState.ignoreSatelliteLimit).canLand;
       const isSatClickable =
         (!isOccupied || allowOccupiedLanding) &&
         canLand &&
         !!onLand &&
-        (hasExploration4 || allowSatelliteLanding);
+        satelliteAllowed;
 
       return (
         <div

@@ -173,6 +173,10 @@ export class InteractionChoices {
   static placeBonusProbe(game: Game, playerId: string, interaction: Interaction<'ORBITING_PROBE'> | Interaction<'LANDING_PROBE'>, planetId: string, slotIndex?: number): ChoiceResult {
     const found = ProbeSystem.findProbeAtPlanet(game, playerId, planetId);
     if (!found) return refused(game, 'Aucune de vos sondes sur cette planète');
+    if (interaction.type === 'LANDING_PROBE') {
+      const satellite = ProbeSystem.canLandOnSatellite(game, playerId, planetId, interaction.ignoreSatelliteLimit);
+      if (!satellite.canLand) return refused(game, satellite.reason);
+    }
     const sequenceId = interaction.sequenceId || `seq-${uniqueId()}`;
     const res = interaction.type === 'ORBITING_PROBE'
       ? ProbeSystem.orbitProbe(game, playerId, found.probe.id, planetId, sequenceId, true, interaction.source)

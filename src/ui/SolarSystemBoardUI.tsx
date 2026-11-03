@@ -36,6 +36,8 @@ interface SolarSystemBoardUIProps {
 
 /** Diamètre de l'anneau extérieur (E) rapporté au côté du plateau */
 const OUTER_RING_RATIO = 0.88;
+/** Taille (px) en dessous de laquelle le plateau est dessiné à cette taille puis réduit en entier (proportions gardées) */
+const MIN_BOARD_RENDER_SIZE = 700;
 
 export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, onBackgroundClick, onSectorClick, setActiveTooltip, onMascamiteClick, planetFocus }) => {
 
@@ -206,11 +208,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
       }
 
       if (satelliteData) {
-        const hasExploration4 = currentPlayer.technologies.some(t => t.id.startsWith('exploration-4'));
-        const allowSatelliteLanding = interactionState.type === 'LANDING_PROBE' && (interactionState.source === '12' || interactionState.ignoreSatelliteLimit);
-        if (!hasExploration4 && !allowSatelliteLanding) {
+        const satellite = ProbeSystem.canLandOnSatellite(game, currentPlayer.id, satelliteData.id, interactionState.type === 'LANDING_PROBE' && interactionState.ignoreSatelliteLimit);
+        if (!satellite.canLand) {
           canLand = false;
-          landReason = "Nécessite la technologie Exploration IV";
+          landReason = satellite.reason;
         }
       }
 
@@ -627,6 +628,11 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, []);
+
+  // Planètes, sondes, astéroïdes, comètes et chevrons ont une taille fixe en pixels : sur un petit écran (mobile),
+  // le plateau est dessiné à une taille minimale puis réduit en entier, pour garder leurs proportions
+  const renderSize = Math.max(boardSize, MIN_BOARD_RENDER_SIZE);
+  const boardScale = boardSize / renderSize;
 
   // Synchroniser les angles avec le jeu seulement lors du montage initial ou si le jeu change de manière significative
   // Utiliser une ref pour suivre les valeurs précédentes
@@ -1282,8 +1288,9 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
             ref={boardInnerRef}
             className="seti-board-inner"
             style={{
-              width: boardSize ? `${boardSize}px` : '0px',
-              height: boardSize ? `${boardSize}px` : '0px',
+              width: boardSize ? `${renderSize}px` : '0px',
+              height: boardSize ? `${renderSize}px` : '0px',
+              transform: boardScale < 1 ? `scale(${boardScale})` : undefined,
               opacity: boardSize ? 1 : 0,
               pointerEvents: removingItem ? 'none' : 'auto',
             }}>

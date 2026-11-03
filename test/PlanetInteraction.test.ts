@@ -2,6 +2,10 @@ import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { DiskName, Game, Mission, Probe, ProbeState, SectorNumber, Technology } from '../src/core/types';
 import { InteractionResolver } from '../src/core/InteractionResolver';
+import { InteractionChoices } from '../src/core/InteractionChoices';
+import { LandAction } from '../src/actions/LandAction';
+import { AIBehavior } from '../src/ai/AIBehavior';
+import { ActionType } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -202,6 +206,45 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
       Object.assign(getPlayer(game, P1), { credits: 5, energy: 5 });
       const res = ProbeSystem.orbitProbe(game, P1, 'p1', 'mars', 'seq');
       expect(res.historyEntries[0].message).toMatch(/^paye .+ pour <strong>Mettre en orbite<\/strong> une sonde autour de Mars$/);
+    });
+  });
+
+  describe('atterrissage sur une lune : Exploration IV ou carte qui le permet (non-régression : un robot y atterrissait sans)', () => {
+    const exploration4 = { id: 'exploration-4-x', name: 'Exploration IV', type: 'Exploration', effects: [], bonus: {}, description: '', shorttext: '' } as unknown as Technology;
+    let moonId: string;
+
+    beforeEach(() => {
+      moonId = game.board.planets.find(p => p.id === 'jupiter')!.satellites![0].id;
+      getPlayer(game, P1).probes = [probeAt('p1', 'C', 5, 1)];
+      game.board.solarSystem.probes = structuredClone(getPlayer(game, P1).probes);
+      getPlayer(game, P1).energy = 10;
+      game.currentPlayerIndex = 0;
+    });
+
+    test('sans la technologie : action refusée et absente des actions des robots ; la planète reste possible', () => {
+      const before = JSON.stringify(game);
+      expect(ProbeSystem.canLandOnSatellite(game, P1, moonId)).toEqual({ canLand: false, reason: 'Nécessite la technologie Exploration IV' });
+      expect(new LandAction(P1, 'p1', moonId).validate(game).errors[0]?.message).toBe('Nécessite la technologie Exploration IV');
+      expect(new LandAction(P1, 'p1', 'jupiter').validate(game).valid).toBe(true);
+      const lands = AIBehavior.listMainActions(game, getPlayer(game, P1)).filter(a => a.action === ActionType.LAND).map(a => (a.data as { planetId: string }).planetId);
+      expect(lands).toContain('jupiter');
+      expect(lands).not.toContain(moonId);
+      expect(JSON.stringify(game)).toBe(before);
+    });
+
+    test('avec Exploration IV : la lune est permise', () => {
+      getPlayer(game, P1).technologies.push(exploration4);
+      expect(new LandAction(P1, 'p1', moonId).validate(game).valid).toBe(true);
+      expect(AIBehavior.listMainActions(game, getPlayer(game, P1)).some(a => a.action === ActionType.LAND && (a.data as { planetId: string }).planetId === moonId)).toBe(true);
+    });
+
+    test('atterrissage gratuit : refusé sur une lune sans la technologie, permis si la carte lève la limite', () => {
+      const refused = InteractionChoices.placeBonusProbe(game, P1, { type: 'LANDING_PROBE', count: 1 }, moonId);
+      expect(refused.error).toBe('Nécessite la technologie Exploration IV');
+      expect(refused.updatedGame).toBe(game);
+      const allowed = InteractionChoices.placeBonusProbe(game, P1, { type: 'LANDING_PROBE', count: 1, ignoreSatelliteLimit: true }, moonId);
+      expect(allowed.error).toBeUndefined();
+      expect(getPlayer(allowed.updatedGame, P1).probes[0].state).toBe(ProbeState.LANDED);
     });
   });
 });

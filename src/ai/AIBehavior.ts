@@ -70,7 +70,7 @@ export class AIBehavior {
         });
         satelliteIds.forEach(satelliteId => {
             const found = ProbeSystem.findProbeAtPlanet(game, player.id, satelliteId);
-            if (found && ProbeSystem.canLand(game, player.id, found.probe.id).canLand) {
+            if (found && ProbeSystem.canLand(game, player.id, found.probe.id).canLand && ProbeSystem.canLandOnSatellite(game, player.id, satelliteId).canLand) {
                 actions.push({ action: ActionType.LAND, data: { probeId: found.probe.id, planetId: satelliteId } });
             }
         });

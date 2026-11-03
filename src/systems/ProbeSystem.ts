@@ -817,6 +817,17 @@ export class ProbeSystem {
   }
 
   /**
+   * Atterrir sur une lune demande la technologie Exploration IV, sauf gain d'une carte qui l'autorise
+   * (« même sans la technologie requise » : ignoreSatelliteLimit). Une planète n'est pas concernée.
+   */
+  static canLandOnSatellite(game: Game, playerId: string, planetId: string, ignoreSatelliteLimit: boolean = false): RuleCheck<'canLand'> {
+    const isSatellite = game.board.planets.some(p => p.satellites?.some(s => s.id === planetId));
+    if (!isSatellite || ignoreSatelliteLimit) return { canLand: true, reason: 'Atterrissage possible' };
+    const hasExploration4 = requirePlayer(game, playerId).technologies.some(t => t.id.startsWith('exploration-4'));
+    return hasExploration4 ? { canLand: true, reason: 'Atterrissage possible' } : { canLand: false, reason: 'Nécessite la technologie Exploration IV' };
+  }
+
+  /**
    * Fait atterrir une sonde
    */
   static landProbe(

@@ -194,11 +194,10 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
             }
 
             if (satelliteData) {
-                const hasExploration4 = currentPlayer.technologies.some(t => t.id.startsWith('exploration-4'));
-                const allowSatelliteLanding = interactionState.type === 'LANDING_PROBE' && (interactionState.source === '12' || interactionState.ignoreSatelliteLimit);
-                if (!hasExploration4 && !allowSatelliteLanding) {
+                const satellite = ProbeSystem.canLandOnSatellite(game, currentPlayer.id, satelliteData.id, interactionState.type === 'LANDING_PROBE' && interactionState.ignoreSatelliteLimit);
+                if (!satellite.canLand) {
                     canLand = false;
-                    landReason = "Nécessite la technologie Exploration IV";
+                    landReason = satellite.reason;
                 }
             }
 
