@@ -86,15 +86,27 @@ describe('viewFor : vue de la partie pour un joueur', () => {
     expect(getPlayer(viewFor(game, A), B).playedCards[0].id).toBe('ET.1');
   });
 
-  test("montre les spécimens Mascamites (face visible) sur les planètes et dans la capsule d'un adversaire", () => {
+  test("spécimens Mascamites face cachée : visibles seulement par qui les a regardés, celui d'une capsule par son propriétaire", () => {
     const jupiter = game.board.planets.find(p => p.id === 'jupiter')!;
-    jupiter.mascamiteTokens = [{ bonus: { credits: 2 } }, { bonus: { media: 3 } }];
-    getPlayer(game, B).probes = [{ ...makeProbe(B), specimen: { bonus: { energy: 2 } } }];
+    const tokens = [{ bonus: { credits: 2 } }, { bonus: { media: 3 } }];
+    jupiter.mascamiteTokens = tokens;
+    const capsuleB = { ...makeProbe(B), specimen: { bonus: { energy: 2 } } };
+    getPlayer(game, B).probes = [capsuleB];
+    game.board.solarSystem.probes = [capsuleB];
     getPlayer(game, A).probes = [{ ...makeProbe(A), specimen: { bonus: { media: 3 } } }];
+    const hidden = [{ bonus: {} }, { bonus: {} }];
+
     const view = viewFor(game, A);
-    expect(view.board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens).toEqual([{ bonus: { credits: 2 } }, { bonus: { media: 3 } }]);
-    expect(getPlayer(view, B).probes[0].specimen).toEqual({ bonus: { energy: 2 } });
+    expect(view.board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens).toEqual(hidden);
+    expect(getPlayer(view, B).probes[0].specimen).toEqual({ bonus: {} });
+    expect(view.board.solarSystem.probes[0].specimen).toEqual({ bonus: {} });
     expect(getPlayer(view, A).probes[0].specimen).toEqual({ bonus: { media: 3 } });
+    expect(viewFor(game, B).board.solarSystem.probes[0].specimen).toEqual({ bonus: { energy: 2 } });
+
+    // A a regardé les spécimens de Jupiter : il les voit, B non
+    jupiter.mascamiteSeenBy = [A];
+    expect(viewFor(game, A).board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens).toEqual(tokens);
+    expect(viewFor(game, B).board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens).toEqual(hidden);
   });
 
   test('une interaction qui attend un autre joueur ne montre que son type et ce joueur', () => {

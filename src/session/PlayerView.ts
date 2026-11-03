@@ -2,6 +2,7 @@ import { AlienBoardType, Card, CardType, CostType, FreeActionType, Game, GamePha
 import { textFor } from '../core/historyText';
 import { cloneGame } from '../core/cloneGame';
 import { InteractionQueue } from './InteractionQueue';
+import { SpeciesSystem } from '../systems/SpeciesSystem';
 
 /** Identifiant affiché à la place d'une espèce pas encore découverte (son plateau est face cachée) */
 export const HIDDEN_SPECIES = 'Inconnue' as AlienBoardType;
@@ -56,9 +57,17 @@ export function viewFor(game: Game, viewerId: string): Game {
     if (player.id === viewerId) return;
     player.cards = hideCards(player.cards, card => card.isRevealed && card.type !== CardType.EXERTIEN);
     player.playedCards = hideCards(player.playedCards, card => finalScoring || card.type !== CardType.EXERTIEN);
+    player.probes.forEach(probe => { if (probe.specimen) probe.specimen = { bonus: {} }; });
   });
 
-  // Spécimens Mascamites de Jupiter, Saturne, des capsules et de la piste bleue : face visible, rien à cacher
+  // Spécimens Mascamites face cachée sur Jupiter et Saturne : visibles seulement par un joueur qui les a regardés
+  // (en en prélevant ou en en étudiant un) ou qui est en train d'en choisir un ; celui d'une capsule, par son propriétaire
+  view.board.solarSystem.probes.forEach(probe => { if (probe.specimen && probe.ownerId !== viewerId) probe.specimen = { bonus: {} }; });
+  view.board.planets.forEach(planet => {
+    if (planet.mascamiteTokens && !SpeciesSystem.canSeeSpecimens(game, viewerId, planet.id)) {
+      planet.mascamiteTokens = planet.mascamiteTokens.map(() => ({ bonus: {} }));
+    }
+  });
 
   view.species.forEach(species => {
     species.cards = hideCards(species.cards);

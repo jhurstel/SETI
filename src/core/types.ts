@@ -527,7 +527,10 @@ export interface Planet {
   orbitSlots: Bonus[];
   landSlots: Bonus[];
   satellites?: Satellite[];
+  /** Spécimens Mascamites, face cachée */
   mascamiteTokens?: MascamitesToken[];
+  /** Joueurs qui ont regardé les spécimens de la planète (en en prélevant ou en en étudiant un) : ils les voient ensuite */
+  mascamiteSeenBy?: string[];
 }
 
 export interface Satellite {

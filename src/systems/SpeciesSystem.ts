@@ -88,6 +88,8 @@ export class SpeciesSystem {
         const planet = updatedGame.board.planets.find(p => p.id === planetId);
         const tokens = planet?.mascamiteTokens;
         if (!planet || !tokens || !tokens[tokenIndex]) return null;
+        // Le joueur a regardé les spécimens de la planète : il voit désormais ceux qui restent
+        if (!planet.mascamiteSeenBy?.includes(playerId)) planet.mascamiteSeenBy = [...(planet.mascamiteSeenBy || []), playerId];
 
         if (mode === 'collect') {
             const token = tokens.splice(tokenIndex, 1)[0];
@@ -126,6 +128,19 @@ export class SpeciesSystem {
         if (index === -1) return -1;
         species.fixedSlots = { ...species.fixedSlots, bluelifetrace: slots.map((bonus, i) => (i === index ? specimen.bonus : bonus)) };
         return index;
+    }
+
+    /**
+     * Le joueur voit les spécimens (face cachée) de la planète : il les a déjà regardés en en prélevant ou en en
+     * étudiant un, ou il est en train d'en choisir un sur cette planète
+     */
+    static canSeeSpecimens(game: Game, viewerId: string, planetId: string): boolean {
+        if (game.board.planets.find(p => p.id === planetId)?.mascamiteSeenBy?.includes(viewerId)) return true;
+        const interaction = game.interaction;
+        if (interaction?.type !== 'COLLECTING_SPECIMEN' && interaction?.type !== 'CONSULTING_SPECIMEN') return false;
+        // Un spécimen se prélève ou s'étudie pendant son tour
+        if (game.players[game.currentPlayerIndex].id !== viewerId) return false;
+        return interaction.type === 'COLLECTING_SPECIMEN' ? interaction.planetId === planetId : this.consultablePlanets(game, viewerId, interaction).includes(planetId);
     }
 
     /**

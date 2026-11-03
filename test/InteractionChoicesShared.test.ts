@@ -1,5 +1,6 @@
 import { ScanSystem } from '../src/systems/ScanSystem';
 import { InteractionChoices } from '../src/core/InteractionChoices';
+import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { CardSystem } from '../src/systems/CardSystem';
 import { AIController } from '../src/ai/AIController';
 import { DiskName, Game, InteractionState, Probe, ProbeState, SectorNumber, SignalType } from '../src/core/types';
@@ -115,6 +116,34 @@ describe('InteractionChoices : choix communs (cartes, signaux, spécimens, retra
     const move = InteractionChoices.chooseMediaOrMove(game, P1, interaction, 'MOVE');
     expect(move.nextInteraction).toEqual({ type: 'MOVING_PROBE', count: 2, sequenceId: 's' });
     unchanged();
+  });
+
+  test("spécimens face cachée : visibles par le joueur qui en choisit un, puis par lui seul une fois regardés", () => {
+    const jupiter = game.board.planets.find(p => p.id === 'jupiter')!;
+    jupiter.mascamiteTokens = [{ bonus: { media: 1 } }, { bonus: { pv: 2 } }];
+    game.currentPlayerIndex = 0;
+    const collect: Interaction<'COLLECTING_SPECIMEN'> = { type: 'COLLECTING_SPECIMEN', planetId: 'jupiter', sequenceId: 's' };
+    expect(SpeciesSystem.canSeeSpecimens(game, P1, 'jupiter')).toBe(false);
+
+    game.interaction = collect;
+    expect(SpeciesSystem.canSeeSpecimens(game, P1, 'jupiter')).toBe(true);
+    expect(SpeciesSystem.canSeeSpecimens(game, P1, 'saturn')).toBe(false);
+    expect(SpeciesSystem.canSeeSpecimens(game, P2, 'jupiter')).toBe(false);
+    freeze();
+
+    const res = InteractionChoices.takeSpecimen(game, P1, collect, 'jupiter', 0);
+    unchanged();
+    res.updatedGame.interaction = undefined;
+    expect(res.updatedGame.board.planets.find(p => p.id === 'jupiter')!.mascamiteSeenBy).toEqual([P1]);
+    expect(SpeciesSystem.canSeeSpecimens(res.updatedGame, P1, 'jupiter')).toBe(true);
+    expect(SpeciesSystem.canSeeSpecimens(res.updatedGame, P2, 'jupiter')).toBe(false);
+
+    // Étudier un spécimen : mêmes règles (Jupiter ou Saturne au choix pour ET.8 à ET.10)
+    game.interaction = { type: 'CONSULTING_SPECIMEN', anyPlanet: true, sequenceId: 's' };
+    expect(SpeciesSystem.canSeeSpecimens(game, P1, 'jupiter')).toBe(true);
+    // Déjà regardés une fois : pas de doublon
+    const again = InteractionChoices.takeSpecimen(res.updatedGame, P1, collect, 'jupiter', 0);
+    expect(again.updatedGame.board.planets.find(p => p.id === 'jupiter')!.mascamiteSeenBy).toEqual([P1]);
   });
 
   test('takeSpecimen : planète autorisée seulement ; plus de jeton : rien ne change', () => {

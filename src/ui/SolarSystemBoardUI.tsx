@@ -499,6 +499,11 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     return game.board.solarSystem.probes || [];
   }, [game.board.solarSystem.probes]);
 
+  // Joueur qui regarde le plateau (le joueur humain ; en ligne, les autres humains apparaissent comme robots) :
+  // les spécimens Mascamites, face cachée, ne lui sont montrés que s'il a le droit de les voir
+  const viewerId = game.players.find(p => p.type === 'human')?.id;
+  const specimenText = (bonus: Bonus, visible: boolean) => visible ? (ResourceSystem.formatBonus(bonus) || []).join(', ') : '';
+
   /** Sondes et capsules posées sur une case (position relative à son anneau) */
   const piecesOnCell = (disk: DiskName, sector: SectorNumber, level: number) => probesInSystem.filter(p =>
     p.solarPosition && p.solarPosition.disk === disk && p.solarPosition.sector === sector && (p.solarPosition.level || 0) === level);
@@ -515,7 +520,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
           const parts: string[] = [];
           if (probes > 0) parts.push(`${probes} sonde${probes > 1 ? 's' : ''}`);
           capsules.forEach(c => {
-            const reward = c.specimen ? (ResourceSystem.formatBonus(c.specimen.bonus) || []).join(', ') : '';
+            const reward = c.specimen ? specimenText(c.specimen.bonus, c.ownerId === viewerId) : '';
             parts.push(`1 capsule${reward ? ` (spécimen : ${reward})` : ''}`);
           });
           return (
@@ -1118,7 +1123,11 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                   content: (
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontWeight: 'bold', color: '#ea80fc', marginBottom: '4px' }}>Spécimen Mascamite</div>
-                      <div style={{ fontSize: '0.9em', color: '#ccc' }}>Récompense : {(ResourceSystem.formatBonus(token.bonus) || []).join(', ') || 'aucune'}</div>
+                      <div style={{ fontSize: '0.9em', color: '#ccc' }}>
+                        {viewerId && SpeciesSystem.canSeeSpecimens(game, viewerId, planetData.id)
+                          ? `Récompense : ${specimenText(token.bonus, true) || 'aucune'}`
+                          : 'Face cachée : visible en prélevant ou en étudiant un spécimen de cette planète'}
+                      </div>
                     </div>
                   ),
                   rect
@@ -1217,7 +1226,7 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
     const shouldHighlight = highlightPlayerProbes && isOwner;
     const isRobot = player?.type === 'robot';
     const isCapsule = probe.state === ProbeState.CAPSULE;
-    const specimenReward = probe.specimen ? (ResourceSystem.formatBonus(probe.specimen.bonus) || []).join(', ') : '';
+    const specimenReward = probe.specimen ? specimenText(probe.specimen.bonus, probe.ownerId === viewerId) : '';
 
     return (
       <div
