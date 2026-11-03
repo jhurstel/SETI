@@ -12,6 +12,9 @@ import { LIFE_TRACE_COLORS, LifeTraceColor } from './styles/lifeTraceColors';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import './AlienBoardUI.css';
 import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
+import { HoverTooltip } from './components/HoverTooltip';
+import { SlotTooltip } from './components/SlotTooltip';
+import { SLOT_COLORS } from './styles/slotColors';
 
 /** Couleur de chaque piste de traces de vie */
 const TRACK_COLORS: Record<LifeTraceType, string> = {
@@ -177,9 +180,10 @@ const ExertienDangerTooltip: React.FC<{
 };
 
 // Contenu de l'infobulle des Centauriens, en symboles : paliers de chaque joueur (PV à atteindre, message ou réception d'une carte,
-// coche une fois pris), puis les 4 tuiles Message sur une ligne (une tuile prise est grisée, au bord de la couleur du joueur)
-const CentaurienMilestonesTooltip: React.FC<{ game: Game; species?: Species }> = ({ game, species }) => (
-    <div className="alien-centaurien-tooltip">
+// coche une fois pris), puis les 4 tuiles Message sur une ligne (une tuile prise est grisée, au bord de la couleur du joueur).
+// La souris peut y entrer (onEnter / onLeave) : chaque tuile a sa propre infobulle (état, récompense)
+const CentaurienMilestonesTooltip: React.FC<{ game: Game; species?: Species; onEnter: () => void; onLeave: () => void }> = ({ game, species, onEnter, onLeave }) => (
+    <div className="alien-centaurien-tooltip" onMouseEnter={onEnter} onMouseLeave={onLeave}>
         <div className="alien-centaurien-tooltip-title">Paliers Centauriens</div>
         {game.players.map(p => {
             const milestones = [...p.centaurienMilestones].sort((a, b) => a.score - b.score);
@@ -200,11 +204,17 @@ const CentaurienMilestonesTooltip: React.FC<{ game: Game; species?: Species }> =
             <div className="alien-centaurien-tiles">
                 {species.message.map((tile, index) => {
                     const owner = tile.claimedBy ? game.players.find(p => p.id === tile.claimedBy) : undefined;
+                    const status = tile.isAvailable ? 'Disponible' : owner ? `Prise par ${owner.name}` : 'Prise';
                     return (
-                        <span key={index} className={`alien-centaurien-tile ${tile.isAvailable ? '' : 'taken'}`}
-                            style={owner ? { borderColor: owner.color } : undefined}>
-                            <BonusIcons bonus={tile.bonus} size={16} />
-                        </span>
+                        <HoverTooltip key={index} nested content={
+                            <SlotTooltip status={`Tuile Message ${index + 1} : ${status}`} statusColor={tile.isAvailable ? SLOT_COLORS.available : owner?.color ?? SLOT_COLORS.neutral}
+                                label="Récompense" value={<BonusIcons bonus={tile.bonus} size={16} />} />
+                        }>
+                            <span className={`alien-centaurien-tile ${tile.isAvailable ? '' : 'taken'}`}
+                                style={owner ? { borderColor: owner.color } : undefined}>
+                                <BonusIcons bonus={tile.bonus} size={16} />
+                            </span>
+                        </HoverTooltip>
                     );
                 })}
             </div>
@@ -240,8 +250,8 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
     const isBoardAllowed = interactionState.type !== 'PLACING_LIFE_TRACE' || !interactionState.boardIndices || interactionState.boardIndices.includes(boardIndex);
     const [isOpen, setIsOpen] = useState(isPlacingTrace || forceOpen);
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    // L'infobulle du danger Exertien est hors du plateau : le plateau reste ouvert tant qu'elle est affichée
-    const [isDangerTooltipOpen, setIsDangerTooltipOpen] = useState(false);
+    // Infobulles où la souris peut entrer (danger Exertien, paliers Centauriens) : le plateau reste ouvert tant qu'elles sont affichées
+    const [isPinnedTooltipOpen, setIsPinnedTooltipOpen] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
     useCloseOnOutsideClick(panelRef, !!isOpen, () => setIsOpen(false), !isPlacingTrace && !forceOpen);
 
@@ -254,7 +264,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
     const handleMouseLeaveWithDelay = () => {
         hoverTimeoutRef.current = setTimeout(() => {
             setActiveTooltip(null);
-            setIsDangerTooltipOpen(false);
+            setIsPinnedTooltipOpen(false);
         }, 200);
     };
 
@@ -529,7 +539,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
 
     return (
         <div className={`alien-board-container ${side}`}>
-            <div ref={panelRef} className={`seti-foldable-container seti-icon-panel alien-foldable-container ${isOpen || isDangerTooltipOpen ? 'open' : 'collapsed'}`}>
+            <div ref={panelRef} className={`seti-foldable-container seti-icon-panel alien-foldable-container ${isOpen || isPinnedTooltipOpen ? 'open' : 'collapsed'}`}>
                 <div className="seti-foldable-content alien-foldable-content">
                     {board.isDiscovered && (
                         <div className="alien-species-header">
@@ -580,8 +590,14 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                 )}
                                 {board.speciesId === AlienBoardType.CENTAURIENS && (
                                     <div className="alien-centaurien-milestones"
-                                        onMouseEnter={(e) => setActiveTooltip({ content: <CentaurienMilestonesTooltip game={game} species={species} />, rect: e.currentTarget.getBoundingClientRect() })}
-                                        onMouseLeave={() => setActiveTooltip(null)}
+                                        onMouseEnter={(e) => {
+                                            // Infobulle où la souris peut entrer (tuiles Message) ; le plateau reste ouvert tant qu'elle est affichée
+                                            handleMouseEnterClearDelay();
+                                            setIsPinnedTooltipOpen(true);
+                                            const content = <CentaurienMilestonesTooltip game={game} species={species} onEnter={handleMouseEnterClearDelay} onLeave={handleMouseLeaveWithDelay} />;
+                                            setActiveTooltip({ content, rect: e.currentTarget.getBoundingClientRect(), pointerEvents: 'auto' });
+                                        }}
+                                        onMouseLeave={handleMouseLeaveWithDelay}
                                     >
                                         <CentaurienMessageIcon size={22} />
                                     </div>
@@ -590,7 +606,7 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
                                     <div className="alien-exertien-danger"
                                         onMouseEnter={(e) => {
                                             handleMouseEnterClearDelay();
-                                            setIsDangerTooltipOpen(true);
+                                            setIsPinnedTooltipOpen(true);
                                             const rect = e.currentTarget.getBoundingClientRect();
                                             const content = (
                                                 <ExertienDangerTooltip
