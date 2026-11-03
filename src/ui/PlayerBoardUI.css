@@ -181,25 +181,10 @@
   gap: 6px;
   overflow-y: auto;
   padding: 6px 0;
+  /* Barre de 6 px (seti-thin-scroll) : la gouttière des deux côtés fait la marge gauche et droite */
   scrollbar-gutter: stable both-edges;
   flex: 1;
   min-height: 0;
-}
-
-/* Barre de défilement de 6 px : la gouttière (des deux côtés) fait la marge gauche et droite */
-.seti-player-layout-container::-webkit-scrollbar {
-  width: 6px;
-}
-
-.seti-player-layout-container::-webkit-scrollbar-thumb {
-  background: rgba(120, 160, 255, 0.35);
-  border-radius: 3px;
-}
-
-@supports not selector(::-webkit-scrollbar) {
-  .seti-player-layout-container {
-    scrollbar-width: thin;
-  }
 }
 
 .seti-resources-row {

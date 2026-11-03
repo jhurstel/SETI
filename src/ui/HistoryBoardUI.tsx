@@ -399,7 +399,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                         </button>
                     )}
                 </div>
-                <div className="seti-foldable-content seti-history-content" ref={historyContentRef}>
+                <div className="seti-foldable-content seti-history-content seti-thin-scroll" ref={historyContentRef}>
                     <HistoryList historyLog={historyLog} game={game} setActiveTooltip={setActiveTooltip} />
                 </div>
             </div>

@@ -1,22 +1,32 @@
+.seti-toast-bar {
+  /* Hauteur des onglets des joueurs (moins le bord partagé) : le plateau commence à la hauteur du plateau joueur */
+  flex: 0 0 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+/* Message sur une ligne, sur toute la largeur au-dessus du plateau (ne le recouvre pas) */
 .seti-toast {
-  position: absolute;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
+  box-sizing: border-box;
+  width: 100%;
+  text-align: center;
+  padding: 3px 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   background-color: rgba(0, 0, 0, 0.85);
   color: #4a9eff;
-  padding: 10px 20px;
-  /* Sur une ligne tant que le texte tient dans le panneau, sinon retour à la ligne */
-  width: max-content;
-  max-width: calc(100% - 20px);
-  text-align: center;
-  border-radius: 8px;
-  z-index: 9999;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
   border: 1px solid #4a9eff;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  font-size: 0.85rem;
   font-weight: bold;
   pointer-events: none;
-  transition: opacity 0.3s ease-in-out;
+  /* Visible au-dessus des fenêtres de choix (comme avant) */
+  position: relative;
+  z-index: 8000;
 }
 
 .seti-modal-overlay {

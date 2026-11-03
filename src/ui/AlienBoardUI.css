@@ -134,6 +134,11 @@
     font-size: 0.6em !important;
     padding: 3px !important;
 }
+/* Cartes visibles : aussi hautes que la pioche avec ses cartes empilées (décalage de 6 px, CardBack.css) */
+.alien-small-card.seti-row-card {
+    height: 139px !important;
+    min-height: 139px !important;
+}
 .alien-small-card.acquiring {
     cursor: pointer;
     border: 2px solid #ffd700;

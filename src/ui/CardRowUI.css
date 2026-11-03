@@ -115,3 +115,9 @@
     padding: 10px;
     text-align: center;
 }
+
+/* Cartes visibles de la rangée : aussi hautes que la pioche avec ses cartes empilées (décalage de 6 px, CardBack.css) */
+.seti-card-row-content .seti-row-card-wrapper > .seti-common-card {
+    height: 166px;
+    min-height: 166px;
+}

@@ -805,6 +805,13 @@ export const BoardUI: React.FC = () => {
           </div>
         </div>
         <div className="seti-right-panel">
+          {/* Message (toast) au-dessus du plateau, à la hauteur des onglets des joueurs */}
+          <div className="seti-toast-bar">
+            {toast && toast.visible && !settingsVisible && (
+              <div className="seti-toast">{toast.message}</div>
+            )}
+          </div>
+          <div className="seti-right-board">
           <SolarSystemBoardUI
             game={game}
             interactionState={interactionState}
@@ -818,13 +825,6 @@ export const BoardUI: React.FC = () => {
             onMascamiteClick={handleMascamiteClick}
             planetFocus={actionFocus === 'orbit' || actionFocus === 'land' ? actionFocus : null}
           />
-
-          {/* Toast Notification */}
-          {toast && toast.visible && !settingsVisible && (
-            <div className="seti-toast" style={{ zIndex: 8000 }}>
-              {toast.message}
-            </div>
-          )}
 
           {/* Plateaux annexes en haut à gauche */}
           <div className={`seti-side-panels-container ${(interactionState.type === 'ACQUIRING_TECH' || interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD') ? 'high-z-index' : ''}`}>
@@ -892,6 +892,7 @@ export const BoardUI: React.FC = () => {
             setActiveTooltip={setActiveTooltip}
             forceOpen={interactionState.type === 'ACQUIRING_ALIEN_CARD' && game.species.find(s => s.id === interactionState.speciesId)?.name === game.board.alienBoards[1].speciesId}
           />
+          </div>
         </div>
       </div>
     </div>

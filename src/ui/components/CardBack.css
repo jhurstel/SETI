@@ -36,6 +36,15 @@
     6px 6px 0 -1px #0a1026, 6px 6px 0 0 rgba(140, 170, 240, 0.3), 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
+/* Le décalage des cartes du dessous s'ajoute à l'écart avec la carte suivante (même écart visible qu'entre les cartes) */
+.seti-common-card.seti-deck-pile.stack-1 {
+  margin-right: 3px;
+}
+
+.seti-common-card.seti-deck-pile.stack-2 {
+  margin-right: 6px;
+}
+
 .seti-common-card.seti-deck-pile.empty {
   opacity: 0.4;
 }

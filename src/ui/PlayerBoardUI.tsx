@@ -607,7 +607,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
       {/* Plateau du joueur */}
       <div className="seti-player-panel" style={{ borderTop: `4px solid ${currentPlayer.color || '#444'}`, borderTopLeftRadius: 0 }}>
-        <div className="seti-player-layout-container">
+        <div className="seti-player-layout-container seti-thin-scroll">
           {/* Sections Ressources (tuiles symbole + valeur, revenus) et Actions (actions principales, fin du tour) */}
           <div className="seti-stats-bar">
             {(() => {
