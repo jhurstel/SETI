@@ -13,7 +13,7 @@ import { BonusIcons } from '../components/BonusIcons';
 import { interactionSymbol } from '../components/InteractionSymbol';
 import { ChoiceCardTile } from './CardPickModal';
 import { Tooltip } from '../Tooltip';
-import { ResourceIcon, SignalGainIcon, ActionHexIcon, CentaurienMessageIcon } from '../components/GameIcons';
+import { ResourceIcon, SignalGainIcon, ActionHexIcon, CentaurienMessageIcon, TrophyIcon } from '../components/GameIcons';
 import { SpeciesSystem } from '../../systems/SpeciesSystem';
 import { effectString } from '../../core/cardEffects';
 import { useCloseTooltipOnClick } from '../hooks/useCloseTooltipOnClick';
@@ -337,12 +337,6 @@ export const EndGameModal = ({ game, historyLog, setActiveTooltip }: { game: Gam
       <div className="seti-endgame-modal">
         <div className="seti-endgame-header">
           <h1>FIN DE PARTIE</h1>
-          <div className="seti-endgame-winner">
-            {winners.length > 1 ? 'Vainqueurs ex aequo' : 'Vainqueur'} :{' '}
-            {winners.map((w, i) => (
-              <span key={w.id} style={{ color: w.color }}>{i > 0 ? ', ' : ''}{w.name}</span>
-            ))}
-          </div>
         </div>
 
         <div className="seti-endgame-scores">
@@ -359,7 +353,9 @@ export const EndGameModal = ({ game, historyLog, setActiveTooltip }: { game: Gam
           {rows.map(({ score, player }, index) => (
             <div key={player.id} className="seti-endgame-row">
               <div className="col-rank">{index + 1}</div>
-              <div className="col-player" style={{ color: player.color }}><PlayerKindIcon player={player} /> {player.name}</div>
+              <div className="col-player" style={{ color: player.color }}><PlayerKindIcon player={player} /> {player.name}
+                {winners.some(w => w.id === player.id) && <HoverTooltip content={winners.length > 1 ? 'Vainqueur ex aequo' : 'Vainqueur'} className="seti-endgame-trophy"><TrophyIcon /></HoverTooltip>}
+              </div>
               <div className="col-score"><HoverTooltip content="Score avant le décompte final">{score.baseScore}</HoverTooltip></div>
               <div className="col-score"><HoverTooltip content={categoryTooltip('Tuiles objectif', score.details?.objectiveTiles, score.categories.objectiveTiles, objectiveLabel(game))}>{score.categories.objectiveTiles}</HoverTooltip></div>
               <div className="col-score"><HoverTooltip content={categoryTooltip('Cartes fin de partie', score.details?.missionEndGame, score.categories.missionEndGame)}>{score.categories.missionEndGame}</HoverTooltip></div>

@@ -741,3 +741,13 @@ export const SettingsIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
     <circle cx={12} cy={12} r={5.6} strokeWidth={3} />
   </svg>
 );
+
+/** Trophée doré : vainqueur de la partie (tableau de fin de partie) */
+export const TrophyIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M7 3 H17 V9 A5 5 0 0 1 7 9 Z" fill="#ffd700" />
+    <path d="M7 5 H4 V7 A4 4 0 0 0 8 11 M17 5 H20 V7 A4 4 0 0 1 16 11" fill="none" stroke="#ffd700" strokeWidth={1.8} />
+    <path d="M11 14 H13 V17 H11 Z" fill="#e0b800" />
+    <path d="M8 21 Q8 17.5 12 17.5 Q16 17.5 16 21 Z" fill="#e0b800" />
+  </svg>
+);

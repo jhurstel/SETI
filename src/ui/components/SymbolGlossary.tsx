@@ -1,8 +1,9 @@
 import React from 'react';
 import { TechnologyCategory } from '../../core/types';
-import { ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS } from './GameIcons';
+import { TrophyIcon, ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS } from './GameIcons';
 import { ReservationIcon, TechCategoryIcon, AnyTechIcon, OrbiterOrLanderIcon, OrbiterIcon, LanderIcon } from './ObjectiveSymbol';
 import { LIFE_TRACE_COLORS } from '../styles/lifeTraceColors';
+import { HumanIcon, LevelStrength } from './PlayerKindIcon';
 
 interface Entry {
   icon: React.ReactNode;
@@ -78,6 +79,14 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
     title: 'Espèces',
     entries: [
       { icon: <CentaurienMessageIcon size={28} />, name: 'Message centaurien', text: 'Palier des Centauriens : une tuile Message à choisir, ou l\'effet Réception d\'une carte. Sur le plateau de l\'espèce, son infobulle liste les paliers et les tuiles Message.' },
+    ],
+  },
+  {
+    title: 'Joueurs',
+    entries: [
+      { icon: <HumanIcon size={22} />, name: 'Joueur humain', text: "Devant le nom d'un joueur humain ; « / » suivi de ce symbole : par joueur (bonus de présence d'un secteur)." },
+      { icon: <LevelStrength value={2} />, name: "Niveau d'un robot", text: '1 à 3 barres : Débutant, Intermédiaire, Expert.' },
+      { icon: <TrophyIcon size={24} />, name: 'Vainqueur', text: 'Après le nom du ou des vainqueurs, en fin de partie.' },
     ],
   },
   {
