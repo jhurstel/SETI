@@ -50,6 +50,18 @@ describe('CardSystem.playCard : effets passifs', () => {
     expect(after.revenueEnergy).toBe(revenueBefore + 1);
     expect(after.energy).toBe(energyBefore + 1);
   });
+
+  test.each(['91', '92', '93'])('carte %s : glissée sous les revenus, elle compte parmi les cartes réservées (régression : défaussée, badge à 5 pour 6 revenus)', id => {
+    const card = giveCatalogCard(game, id);
+    const reserved = getPlayer(game, P1).reservedCards.length;
+
+    const { updatedGame } = CardSystem.playCard(game, P1, card.id);
+
+    expect(getPlayer(updatedGame, P1).reservedCards.map(c => c.id)).toContain(id);
+    expect(getPlayer(updatedGame, P1).reservedCards).toHaveLength(reserved + 1);
+    expect(updatedGame.decks.discardPile.some(c => c.id === id)).toBe(false);
+    expect(getPlayer(game, P1).reservedCards).toHaveLength(reserved);
+  });
 });
 
 describe('CardSystem.playCard : effets passifs conditionnels', () => {

@@ -71,16 +71,40 @@ export class AITurn {
     if (strategic) {
       const best = this.chooseBestMainAction(game, player);
       if (best) return { kind: 'UPDATED', ...best };
-      return this.pass(player);
+      return this.passAfterUsingExcessCards(game, player);
     }
 
     if (AIBehavior.getDifficulty(player) === 'EASY') {
       const choice = this.chooseEasyMainAction(game, player);
       if (choice) return { kind: 'UPDATED', ...choice };
-      return this.pass(player);
+      return this.passAfterUsingExcessCards(game, player);
     }
 
     // Niveau PASS (tests) : le robot passe sans jouer d'action principale
+    return this.pass(player);
+  }
+
+  /**
+   * Avant de passer avec plus de 4 cartes en main, les cartes que la passe ferait défausser servent d'abord :
+   * défausse pour leur action gratuite, ou échange de 2 d'entre elles contre 1 crédit, 1 énergie ou 1 carte.
+   * C'est toujours mieux que de les perdre : la meilleure option est jouée sans seuil, une carte à la fois
+   * (l'étape suivante peut encore trouver une action principale, ou passer).
+   */
+  private static passAfterUsingExcessCards(game: Game, player: Player): AIStep {
+    if (CardSystem.cardsToDiscardAtPass(player) > 0) {
+      const decision = AIBehavior.createPassDecision(player);
+      const kept = decision.action === ActionType.PASS ? decision.data.cardsToKeep : [];
+      const excess = CardSystem.getHandCards(player).map(c => c.id).filter(id => !kept.includes(id));
+      const candidates = this.discardForFreeActionOptions(game, player, excess);
+      if (excess.length >= 2) {
+        for (const gain of ['credit', 'energy', 'card']) {
+          const res = ResourceSystem.tradeResources(game, player.id, 'card', gain, excess.slice(0, 2));
+          if (!res.error) candidates.push({ updatedGame: res.updatedGame, historyEntries: res.historyEntries });
+        }
+      }
+      const best = this.pickBest(candidates, player.id, -Infinity);
+      if (best) return { kind: 'UPDATED', ...best };
+    }
     return this.pass(player);
   }
 
@@ -397,9 +421,9 @@ export class AITurn {
    * Défausse d'une carte de la main pour son action gratuite, avec l'opération du joueur humain
    * (CardSystem.discardFromHandForFreeAction). Le déplacement gagné est simulé case par case.
    */
-  private static discardForFreeActionOptions(game: Game, player: Player): StepResult[] {
+  private static discardForFreeActionOptions(game: Game, player: Player, cardIds?: string[]): StepResult[] {
     const options: StepResult[] = [];
-    for (const card of CardSystem.getHandCards(player)) {
+    for (const card of CardSystem.getHandCards(player).filter(c => !cardIds || cardIds.includes(c.id))) {
       const res = CardSystem.discardFromHandForFreeAction(game, player.id, card.id);
       if (res.error) continue;
       const sequenceId = res.historyEntries[0].sequenceId!;

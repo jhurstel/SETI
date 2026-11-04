@@ -320,6 +320,28 @@ describe('Robots : cas limites', () => {
       expect(textFor(message, P2)).not.toContain(taken.name);
     });
 
+    test.each(['EXPERT', 'EASY'] as const)('passe (%s) avec plus de 4 cartes : les cartes en trop servent d\'abord (défausse pour action gratuite ou échange), une à la fois', difficulty => {
+      const player = getPlayer(game, P1);
+      player.aiDifficulty = difficulty;
+      game.phase = GamePhase.PLAYING;
+      player.cards = Array.from({ length: 6 }, (_, i) => makeCard(`c${i}`, { freeAction: FreeActionType.DATA, cost: i }));
+      player.data = 0;
+
+      const step = AITurn['passAfterUsingExcessCards'](game, player);
+
+      expect(step.kind).toBe('UPDATED');
+      const after = getPlayer((step as Extract<typeof step, { kind: 'UPDATED' }>).updatedGame, P1);
+      expect(after.cards.length).toBeLessThan(6);
+      // Les cartes gardées pour la manche suivante ne sont pas touchées
+      const kept = (AIBehavior.createPassDecision(player).data as { cardsToKeep: string[] }).cardsToKeep;
+      kept.forEach(id => expect(after.cards.some(c => c.id === id)).toBe(true));
+      expect(player.cards).toHaveLength(6);
+
+      // Avec 4 cartes, le robot passe
+      player.cards = player.cards.slice(0, 4);
+      expect(AITurn['passAfterUsingExcessCards'](game, player)).toEqual({ kind: 'PASS', cardsToKeep: expect.any(Array) });
+    });
+
     test('robot Débutant : défausse pour « 2 Médias » avec l\'opération du moteur', () => {
       const player = getPlayer(game, P1);
       Object.assign(player, { aiDifficulty: 'EASY', mediaCoverage: 0 });
