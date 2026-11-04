@@ -751,7 +751,7 @@ export class ProbeSystem {
     const speciesId = species?.id;
     const result = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'orbit', currentSequenceId, speciesId);
 
-    // Message de l'action (joueur humain comme robot), puis les gains qui en découlent
+    // Message de l'action (joueur humain comme robot), puis la ligne des gains, puis leurs conséquences (signal marqué…)
     const orbitName = planet?.name || planetId;
     result.historyEntries.unshift({
       message: free
@@ -759,10 +759,7 @@ export class ProbeSystem {
         : `paye ${ResourceSystem.formatResource(GAME_CONSTANTS.ORBIT_COST_CREDITS, 'CREDIT')} et ${ResourceSystem.formatResource(GAME_CONSTANTS.ORBIT_COST_ENERGY, 'ENERGY')} pour <strong>Mettre en orbite</strong> une sonde autour de ${orbitName}`,
       playerId,
       sequenceId: currentSequenceId,
-    });
-    result.logs.forEach(log => {
-        result.historyEntries.push({ message: log, playerId, sequenceId: currentSequenceId });
-    });
+    }, ...result.logs.map(log => ({ message: log, playerId, sequenceId: currentSequenceId })));
 
     // Récupérer le joueur depuis l'état de jeu mis à jour (au cas où processBonuses aurait cloné le jeu)
     const updatedPlayer = result.updatedGame.players.find(p => p.id === playerId)!;
@@ -978,7 +975,7 @@ export class ProbeSystem {
     const speciesId = species?.id;
     const result = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'land', currentSequenceId, speciesId);
 
-    // Message de l'action (joueur humain comme robot), puis les gains qui en découlent
+    // Message de l'action (joueur humain comme robot), puis la ligne des gains, puis leurs conséquences (signal marqué…)
     const landName = targetBody?.name || planetId;
     const landCost = validation.energyCost || GAME_CONSTANTS.LAND_COST_ENERGY;
     result.historyEntries.unshift({
@@ -987,10 +984,7 @@ export class ProbeSystem {
         : `paye ${ResourceSystem.formatResource(landCost, 'ENERGY')} pour <strong>Poser une sonde</strong> sur ${landName}`,
       playerId,
       sequenceId: currentSequenceId,
-    });
-    result.logs.forEach(log => {
-        result.historyEntries.push({ message: log, playerId, sequenceId: currentSequenceId });
-    });
+    }, ...result.logs.map(log => ({ message: log, playerId, sequenceId: currentSequenceId })));
 
     // Récupérer le joueur depuis l'état de jeu mis à jour
     const updatedPlayer = result.updatedGame.players.find(p => p.id === playerId)!;
@@ -1056,12 +1050,8 @@ export class ProbeSystem {
     const currentSequenceId = sequenceId || `remove-orbiter-${uniqueId()}`;
     const res = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'atmospheric_entry', currentSequenceId);
 
-    // Convertir les logs de bonus en entrées d'historique
-    res.logs.forEach(log => {
-        res.historyEntries.push({ message: log, playerId, sequenceId: currentSequenceId });
-    });
-    
-    res.historyEntries.unshift({ message: `retire un orbiteur de ${planet.name}`, playerId, sequenceId: currentSequenceId });
+    // Message, ligne des gains, puis leurs conséquences
+    res.historyEntries.unshift({ message: `retire un orbiteur de ${planet.name}`, playerId, sequenceId: currentSequenceId }, ...res.logs.map(log => ({ message: log, playerId, sequenceId: currentSequenceId })));
 
     return {
       updatedGame: res.updatedGame,
@@ -1100,12 +1090,8 @@ export class ProbeSystem {
     const currentSequenceId = sequenceId || `remove-lander-${uniqueId()}`;
     const res = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'sample_return', currentSequenceId);
 
-    // Convertir les logs de bonus en entrées d'historique
-    res.logs.forEach(log => {
-        res.historyEntries.push({ message: log, playerId, sequenceId: currentSequenceId });
-    });
-    
-    res.historyEntries.unshift({ message: `retire un atterrisseur de ${planet.name}`, playerId, sequenceId: currentSequenceId });
+    // Message, ligne des gains, puis leurs conséquences
+    res.historyEntries.unshift({ message: `retire un atterrisseur de ${planet.name}`, playerId, sequenceId: currentSequenceId }, ...res.logs.map(log => ({ message: log, playerId, sequenceId: currentSequenceId })));
 
     return {
       updatedGame: res.updatedGame,

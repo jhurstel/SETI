@@ -1,6 +1,6 @@
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
-import { DiskName, Game, Mission, Probe, ProbeState, SectorNumber, Technology } from '../src/core/types';
+import { DiskName, Game, Mission, Probe, ProbeState, SectorNumber, SectorType, Technology } from '../src/core/types';
 import { InteractionResolver } from '../src/core/InteractionResolver';
 import { InteractionChoices } from '../src/core/InteractionChoices';
 import { LandAction } from '../src/actions/LandAction';
@@ -273,6 +273,23 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
       Object.assign(getPlayer(game, P1), { credits: 5, energy: 5 });
       const res = ProbeSystem.orbitProbe(game, P1, 'p1', 'mars', 'seq');
       expect(res.historyEntries[0].message).toMatch(/^paye .+ pour <strong>Mettre en orbite<\/strong> une sonde autour de Mars$/);
+    });
+
+    test("mise en orbite : la ligne des gains (signal du secteur de Mars et carte compris) d'abord, puis le signal ; réservation choisie avant la carte", () => {
+      getPlayer(game, P1).probes = [probeAt('p1', 'B', 1, 2)];
+      game.board.solarSystem.probes = structuredClone(getPlayer(game, P1).probes);
+      Object.assign(getPlayer(game, P1), { credits: 5, energy: 5 });
+      const mars = game.board.planets.find(p => p.id === 'mars')!;
+      mars.orbiters = [];
+      mars.orbitSlots = [{ pv: 3, revenue: 1, anycard: 1, signals: [{ amount: 1, scope: SectorType.MARS }] }, ...mars.orbitSlots.slice(1)];
+
+      const res = ProbeSystem.orbitProbe(game, P1, 'p1', 'mars', 'seq');
+
+      const messages = res.historyEntries.map(e => e.message);
+      expect(messages[0]).toMatch(/Mettre en orbite/);
+      expect(messages[1]).toMatch(/^gagne 3 PV, 1 Réservation, 1 Signal (Rouge|Jaune|Bleu|Noir) \(Mars\), 1 Carte$/);
+      expect(messages[2]).toMatch(/^marque /);
+      expect(res.newPendingInteractions.map(i => i.type)).toEqual(['RESERVING_CARD', 'ACQUIRING_CARD']);
     });
   });
 

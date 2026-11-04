@@ -304,6 +304,9 @@ export class ResourceSystem {
     if (bonuses.revenue) { const txt = ResourceSystem.formatResource(bonuses.revenue, 'REVENUE'); passiveGains.push(txt); }
     const gainsText = passiveGains.length > 0 ? `${passiveGains.join(', ')}` : '';
     if (gainsText) logs.push(`gagne ${gainsText}`);
+    // Gains résolus ensuite (signal d'un secteur imposé, carte à choisir) : annoncés sur la ligne des gains,
+    // avant les messages de leur résolution
+    const laterGains: string[] = [];
 
     // Effets immédiats
     if (bonuses.rotation) {
@@ -412,6 +415,8 @@ export class ResourceSystem {
           }
 
           if (targetSectorId) {
+            const sector = updatedGame.board.sectors.find(s => s.id === targetSectorId)!;
+            laterGains.push(`1 Signal ${sector.color} (${signalBonus.scope})`);
             const result = ScanSystem.performSignalAndCover(updatedGame, playerId, targetSectorId, [], bonuses.noData, sequenceId);
             updatedGame = result.updatedGame;
             historyEntries.push(...result.historyEntries);
@@ -442,10 +447,7 @@ export class ResourceSystem {
       }
     }
 
-    if (bonuses.anycard) {
-      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: bonuses.anycard, isFree: true, sequenceId });
-    }
-
+    // Ordre des choix qui suivent : signaux, réservation, carte, technologie, atterrissage, trace de vie…
     if (bonuses.revenue) {
       const player = updatedGame.players.find(p => p.id === playerId);
       if (player) {
@@ -453,6 +455,11 @@ export class ResourceSystem {
         if (count > 0) newPendingInteractions.push({ type: 'RESERVING_CARD', count: count, selectedCards: [], sequenceId });
         else logs.push(`n'a ${NO_RESERVATION_NOTE}`);
       }
+    }
+
+    if (bonuses.anycard) {
+      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: bonuses.anycard, isFree: true, sequenceId });
+      laterGains.push(ResourceSystem.formatResource(bonuses.anycard, 'CARD'));
     }
 
     if (bonuses.technologies) {
@@ -534,6 +541,12 @@ export class ResourceSystem {
       newPendingInteractions.push({ type: 'DISCARDING_FOR_SIGNAL', count: bonuses.gainSignalFromHand, selectedCards: [], sequenceId });
     }
     
+    if (laterGains.length > 0) {
+      const gainsIndex = logs.findIndex(log => log.startsWith('gagne '));
+      if (gainsIndex !== -1) logs[gainsIndex] += `, ${laterGains.join(', ')}`;
+      else logs.unshift(`gagne ${laterGains.join(', ')}`);
+    }
+
     // Chaque interaction désigne le joueur qui reçoit le bonus : il peut ne pas être le joueur actif
     // (gagnant d'un secteur couvert par un autre joueur, trace de vie posée pendant le tour d'un robot)
     return { updatedGame, newPendingInteractions: newPendingInteractions.map(i => ({ ...i, playerId })), logs, passiveGains, historyEntries };
