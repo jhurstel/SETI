@@ -1,3 +1,4 @@
+import { ScanSystem } from '../src/systems/ScanSystem';
 import { GameSession } from '../src/session/GameSession';
 import { Command, Choice } from '../src/session/commands';
 import { CardSystem } from '../src/systems/CardSystem';
@@ -61,7 +62,7 @@ describe('GameSession : commandes et aiguillage des choix', () => {
   });
 
   describe('commandes', () => {
-    test("signal dans le secteur d'une sonde : la sonde utilisée est retirée des signaux suivants de la même action", () => {
+    test("signaux dans le secteur d'une sonde (carte 28) : les signaux suivants de la même action vont dans le même secteur, avec une seule sonde (régression : le 2e signal était perdu)", () => {
       const s = game.board.solarSystem;
       Object.assign(s, { rotationAngleLevel1: 0, rotationAngleLevel2: 0, rotationAngleLevel3: 0 });
       const probe = probeAt('p1', 'A', 3, 0);
@@ -69,10 +70,29 @@ describe('GameSession : commandes et aiguillage des choix', () => {
       s.probes = [probe];
       const scan: InteractionState = { type: 'SELECTING_SCAN_SECTOR', color: SectorType.PROBE, onlyProbes: true, sequenceId: 'sc' };
 
-      const res = dispatch({ ...game, interaction: scan, pendingInteractions: [scan] }, { type: 'CHOOSE', choice: { kind: 'SECTOR', sectorId: 'sector_3' } });
+      const res = dispatch({ ...game, interaction: scan, pendingInteractions: [scan, { ...scan }] }, { type: 'CHOOSE', choice: { kind: 'SECTOR', sectorId: 'sector_3' } });
+
+      expect(res.error).toBeUndefined();
+      expect(res.game.interaction).toEqual({ ...scan, sectorId: 'sector_3' });
+      expect(ScanSystem.validateScanSectorSelection(res.game, P1, res.game.interaction as Extract<InteractionState, { type: 'SELECTING_SCAN_SECTOR' }>, 'sector_4').error).toBe('Les signaux de cette carte vont dans le même secteur.');
+      const second = dispatch(res.game, { type: 'CHOOSE', choice: { kind: 'SECTOR', sectorId: 'sector_3' } });
+      expect(second.error).toBeUndefined();
+      expect(second.game.board.sectors.find(s => s.id === 'sector_3')!.signals.filter(sig => sig.markedBy === P1)).toHaveLength(2);
+    });
+
+    test("carte 30 (sondes de tous les joueurs) : la sonde utilisée est retirée des signaux suivants de la même action", () => {
+      const s = game.board.solarSystem;
+      Object.assign(s, { rotationAngleLevel1: 0, rotationAngleLevel2: 0, rotationAngleLevel3: 0 });
+      const probe = probeAt('p1', 'A', 3, 0);
+      getPlayer(game, P1).probes = [probe];
+      s.probes = [probe];
+      const scan: InteractionState = { type: 'SELECTING_SCAN_SECTOR', color: SectorType.PROBE, onlyProbes: true, anyProbe: true, sequenceId: 'sc' };
+
+      const res = dispatch({ ...game, interaction: scan, pendingInteractions: [scan, { ...scan }] }, { type: 'CHOOSE', choice: { kind: 'SECTOR', sectorId: 'sector_3' } });
 
       expect(res.error).toBeUndefined();
       expect(res.game.interaction).toEqual({ ...scan, usedProbeIds: ['p1'] });
+      expect(dispatch(res.game, { type: 'CHOOSE', choice: { kind: 'SECTOR', sectorId: 'sector_3' } }).error).toBe('Cette sonde a déjà été sélectionnée pour cette action.');
     });
 
     test("déplacement gratuit interrompu par la carte 19 sur une planète : le choix passe avant, les déplacements restants ne sont pas remis", () => {

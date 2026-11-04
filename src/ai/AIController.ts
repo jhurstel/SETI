@@ -3,7 +3,7 @@ import { Game, InteractionState, Player, ProbeState, DiskName, SectorNumber, His
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { ScanSystem } from '../systems/ScanSystem';
+import { ScanFollowUp, ScanSystem } from '../systems/ScanSystem';
 import { InteractionResolver } from '../core/InteractionResolver';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
@@ -26,8 +26,8 @@ interface AIControllerResult {
     historyEntries: HistoryEntry[];
     /** Interactions destinées à un joueur humain (ex: gagnant d'un secteur couvert par le robot), à confier à l'interface. */
     newPendingInteractions: InteractionState[];
-    /** Sonde utilisée par un scan « secteur d'une sonde » : elle ne sert plus pour la suite de la séquence */
-    usedProbeId?: string;
+    /** Contrainte des scans suivants de la séquence après un scan « secteur d'une sonde » (ScanSystem.scanFollowUp) */
+    scanFollowUp?: ScanFollowUp;
 }
 
 export class AIController {
@@ -58,9 +58,9 @@ export class AIController {
             game = result.updatedGame;
             historyEntries.push(...result.historyEntries);
 
-            // Comme pour le joueur humain : la sonde utilisée ne sert plus pour les scans suivants de la séquence
-            if (interaction.type === 'SELECTING_SCAN_SECTOR' && result.usedProbeId) {
-                queue.splice(0, queue.length, ...InteractionChoices.markProbeUsed(queue, interaction, result.usedProbeId));
+            // Comme pour le joueur humain : contrainte des scans suivants de la séquence
+            if (interaction.type === 'SELECTING_SCAN_SECTOR' && result.scanFollowUp) {
+                queue.splice(0, queue.length, ...InteractionChoices.applyScanFollowUp(queue, interaction, result.scanFollowUp));
             }
 
             // Add new interactions to the front of the queue to be processed immediately
@@ -207,7 +207,7 @@ export class AIController {
         let updatedGame = cloneGame(game);
         const historyEntries: HistoryEntry[] = [];
         const newPendingInteractions: InteractionState[] = [];
-        let usedProbeId: string | undefined;
+        let scanFollowUp: ScanFollowUp | undefined;
 
         const addHistory = (message: string, playerId: string, previousState?: Game) => {
             historyEntries.push({ message, playerId, previousState, sequenceId });
@@ -225,7 +225,7 @@ export class AIController {
                     updatedGame = res.updatedGame;
                     historyEntries.push(...res.historyEntries);
                     newPendingInteractions.push(...res.newPendingInteractions);
-                    usedProbeId = res.usedProbeId;
+                    scanFollowUp = res.scanFollowUp;
                 }
                 break;
             }
@@ -538,6 +538,6 @@ export class AIController {
                 break;
         }
 
-        return { updatedGame, historyEntries, newPendingInteractions, usedProbeId };
+        return { updatedGame, historyEntries, newPendingInteractions, scanFollowUp };
     }
 }

@@ -411,14 +411,14 @@ export class GameSession {
     return updated;
   }
 
-  /** Signal dans le secteur choisi ; la sonde utilisée ne sert plus pour les scans suivants de la même action */
+  /** Signal dans le secteur choisi ; contrainte des scans suivants de la même action (ScanSystem.scanFollowUp) */
   private static scanSector(game: Game, playerId: string, active: Interaction<'SELECTING_SCAN_SECTOR'>, sectorId: string, outcome: Outcome): Game {
     const sequenceId = active.sequenceId || `scan-${uniqueId()}`;
     const res = ScanSystem.resolveScanSectorSelection(game, playerId, active, sectorId, sequenceId);
     if (res.error) refuse(res.error);
     outcome.add(res.historyEntries, sequenceId);
     let updated = res.updatedGame;
-    if (res.usedProbeId) updated = InteractionQueue.set(updated, undefined, InteractionChoices.markProbeUsed(InteractionQueue.pending(updated), active, res.usedProbeId));
+    if (res.scanFollowUp) updated = InteractionQueue.set(updated, undefined, InteractionChoices.applyScanFollowUp(InteractionQueue.pending(updated), active, res.scanFollowUp));
     return InteractionQueue.enqueue(updated, res.newPendingInteractions, sequenceId);
   }
 

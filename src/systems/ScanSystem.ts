@@ -9,6 +9,8 @@ import { uniqueId } from '../core/ids';
 import { requirePlayer } from '../core/players';
 
 type ScanSectorSelection = Extract<InteractionState, { type: 'SELECTING_SCAN_SECTOR' }>;
+/** Contrainte posée aux signaux suivants de la même séquence (voir ScanSystem.scanFollowUp) */
+export type ScanFollowUp = Pick<ScanSectorSelection, 'usedProbeIds' | 'sectorId'>;
 
 /** Planète désignée par une couleur de scan */
 const PLANET_SCOPES: Partial<Record<SectorType, string>> = {
@@ -521,6 +523,10 @@ export class ScanSystem {
     const sector = this.getSectorById(game, sectorId);
     const player = game.players.find(p => p.id === playerId);
     if (!sector || !player) return { valid: false, error: 'Secteur introuvable' };
+    // Signaux suivants d'une carte « N signaux dans un secteur où se trouve l'une de vos sondes » (28, 88, 118)
+    if (interaction.sectorId && sector.id !== interaction.sectorId) {
+      return { valid: false, error: 'Les signaux de cette carte vont dans le même secteur.' };
+    }
 
     const solarSystem = game.board.solarSystem;
     const extraObjects = solarSystem.extraCelestialObjects || [];
@@ -572,7 +578,7 @@ export class ScanSystem {
       }
       return getAbsoluteSectorForProbe(p.solarPosition, rotationState) === sectorNumber;
     });
-    // Une sonde ne sert qu'une fois dans la même séquence
+    // Carte 30 (sondes de tous les joueurs) : une sonde ne sert qu'une fois dans la même séquence
     const availableProbes = validProbes.filter(p => !(interaction.usedProbeIds || []).includes(p.id));
     if (availableProbes.length === 0) {
       if (validProbes.length > 0) return { valid: false, error: 'Cette sonde a déjà été sélectionnée pour cette action.' };
@@ -592,7 +598,7 @@ export class ScanSystem {
     interaction: ScanSectorSelection,
     sectorId: string,
     sequenceId: string
-  ): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[], usedProbeId?: string, error?: string } {
+  ): { updatedGame: Game, historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[], scanFollowUp?: ScanFollowUp, error?: string } {
     const validation = this.validateScanSectorSelection(game, playerId, interaction, sectorId);
     if (!validation.valid) {
       return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: validation.error };
@@ -666,7 +672,17 @@ export class ScanSystem {
       }
     }
 
-    return { updatedGame, historyEntries, newPendingInteractions, usedProbeId: validation.usedProbeId };
+    return { updatedGame, historyEntries, newPendingInteractions, scanFollowUp: this.scanFollowUp(interaction, sector.id, validation.usedProbeId) };
+  }
+
+  /**
+   * Contrainte des signaux suivants de la même carte « secteur d'une sonde » :
+   * carte 30 (une sonde par signal) : la sonde utilisée est retirée ; sinon (27, 28, 88, 118…) : tous dans le même secteur.
+   */
+  static scanFollowUp(interaction: ScanSectorSelection, sectorId: string, usedProbeId: string | undefined): ScanFollowUp | undefined {
+    if (!interaction.onlyProbes) return undefined;
+    if (interaction.anyProbe) return { usedProbeIds: [...(interaction.usedProbeIds || []), usedProbeId!] };
+    return { sectorId };
   }
 
   /**

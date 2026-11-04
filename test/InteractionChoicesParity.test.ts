@@ -1,3 +1,4 @@
+import { ScanSystem } from '../src/systems/ScanSystem';
 import { InteractionChoices } from '../src/core/InteractionChoices';
 import { TechnologySystem } from '../src/systems/TechnologySystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
@@ -133,11 +134,12 @@ describe('InteractionChoices : choix communs au joueur humain et aux robots', ()
     expect(InteractionChoices.placeBonusProbe(res.updatedGame, P1, res.nextInteraction as Extract<InteractionState, { type: 'ORBITING_PROBE' }>, 'mars').error).toBeDefined();
   });
 
-  test('markProbeUsed : seulement les scans de la même séquence', () => {
-    const scan = (sequenceId: string) => ({ type: 'SELECTING_SCAN_SECTOR' as const, color: SectorType.PROBE, onlyProbes: true, sequenceId });
+  test('applyScanFollowUp : seulement les scans de la même séquence', () => {
+    const scan = (sequenceId: string) => ({ type: 'SELECTING_SCAN_SECTOR' as const, color: SectorType.PROBE, onlyProbes: true, anyProbe: true, sequenceId });
     const queue: InteractionState[] = [scan('s'), scan('autre'), { type: 'MOVING_PROBE', count: 1, sequenceId: 's' }];
+    const active = { ...scan('s'), usedProbeIds: ['p0'] };
 
-    const marked = InteractionChoices.markProbeUsed(queue, { ...scan('s'), usedProbeIds: ['p0'] }, 'p1');
+    const marked = InteractionChoices.applyScanFollowUp(queue, active, ScanSystem.scanFollowUp(active, 'sector_1', 'p1')!);
 
     expect(marked[0]).toEqual({ ...scan('s'), usedProbeIds: ['p0', 'p1'] });
     expect(marked[1]).toEqual(scan('autre'));

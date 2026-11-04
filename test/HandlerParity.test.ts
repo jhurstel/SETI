@@ -33,9 +33,21 @@ describe('Même règle pour le joueur humain et les robots', () => {
     expect(mars.orbiters.filter(o => o.ownerId === P1)).toHaveLength(2);
   });
 
-  test('robot : une sonde ne sert qu\'une fois pour les signaux « secteur d\'une sonde » d\'une même action', () => {
-    placeProbes(game, [probeAt('p1', 'B', 1, 2)]);
+  test('robot : les signaux « secteur d\'une sonde » d\'une même carte (28) vont tous dans le même secteur, avec une seule sonde', () => {
+    placeProbes(game, [probeAt('p1', 'B', 1, 2), probeAt('p2', 'C', 5, 0)]);
     const scan = { type: 'SELECTING_SCAN_SECTOR' as const, color: SectorType.PROBE, onlyProbes: true, sequenceId: 's' };
+    const marked = (g: Game) => g.board.sectors.map(s => s.signals.filter(sig => sig.markedBy === P1).length);
+    const before = marked(game);
+
+    const res = AIController.processInteractionQueue(game, [scan, { ...scan }], 's', getPlayer(game, P1));
+
+    const gained = marked(res.updatedGame).map((n, i) => n - before[i]).filter(n => n > 0);
+    expect(gained).toEqual([2]);
+  });
+
+  test('robot : carte 30, une sonde ne sert qu\'une fois pour les signaux d\'une même action', () => {
+    placeProbes(game, [probeAt('p1', 'B', 1, 2)]);
+    const scan = { type: 'SELECTING_SCAN_SECTOR' as const, color: SectorType.PROBE, onlyProbes: true, anyProbe: true, sequenceId: 's' };
     const before = game.board.sectors.reduce((n, s) => n + s.signals.filter(sig => sig.markedBy === P1).length, 0);
 
     const res = AIController.processInteractionQueue(game, [scan, { ...scan }], 's', getPlayer(game, P1));

@@ -6,7 +6,7 @@ import { TechnologySystem } from '../systems/TechnologySystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { CardSystem } from '../systems/CardSystem';
-import { ScanSystem } from '../systems/ScanSystem';
+import { ScanFollowUp, ScanSystem } from '../systems/ScanSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { ScoreManager } from './ScoreManager';
 import { uniqueId } from './ids';
@@ -191,12 +191,11 @@ export class InteractionChoices {
   }
 
   /**
-   * Une sonde ne sert qu'une fois pour les signaux « secteur d'une sonde » d'une même action :
-   * après un scan qui l'a utilisée, les scans suivants de la séquence la notent comme prise.
+   * Signaux « secteur d'une sonde » d'une même action : après un scan, les scans suivants de la séquence reçoivent
+   * sa contrainte (ScanSystem.scanFollowUp : sonde déjà utilisée pour la carte 30, même secteur pour les autres).
    */
-  static markProbeUsed(queue: InteractionState[], scan: Interaction<'SELECTING_SCAN_SECTOR'>, probeId: string): InteractionState[] {
-    const usedProbeIds = [...(scan.usedProbeIds || []), probeId];
-    return queue.map(i => i.type === 'SELECTING_SCAN_SECTOR' && i.sequenceId === scan.sequenceId ? { ...i, usedProbeIds } : i);
+  static applyScanFollowUp(queue: InteractionState[], scan: Interaction<'SELECTING_SCAN_SECTOR'>, followUp: ScanFollowUp): InteractionState[] {
+    return queue.map(i => i.type === 'SELECTING_SCAN_SECTOR' && i.sequenceId === scan.sequenceId ? { ...i, ...followUp } : i);
   }
 
   /**

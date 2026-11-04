@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, ProbeState, GAME_CONSTANTS, SectorType, InteractionState, AlienBoardType, CelestialObject, GamePhase, LifeTraceType, Player, Satellite, Bonus } from '../core/types';
-import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getObjectPosition, getAbsoluteSectorForProbe, sectorToIndex, SolarSystemCell } from '../core/SolarSystemPosition';
+import { ScanSystem } from '../systems/ScanSystem';
+import { createRotationState, calculateReachableCellsWithEnergy, calculateAbsolutePosition, FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, getObjectPosition, sectorToIndex, SolarSystemCell } from '../core/SolarSystemPosition';
 import { polarToCartesian, describeArc, calculateObjectPosition } from './solarGeometry';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -274,21 +275,10 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
 
     if (interactionState.type === 'SELECTING_SCAN_SECTOR') {
       if (interactionState.onlyProbes) {
-        const rotationState = createRotationState(
-          game.board.solarSystem.rotationAngleLevel1 || 0,
-          game.board.solarSystem.rotationAngleLevel2 || 0,
-          game.board.solarSystem.rotationAngleLevel3 || 0
-        );
-        const sectorsWithProbes = new Set<string>();
-
-        const probesToCheck = interactionState.anyProbe ? (game.board.solarSystem.probes || []) : currentPlayer.probes;
-        probesToCheck.forEach(p => {
-          if (p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition) {
-            const absoluteSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
-            sectorsWithProbes.add(`sector_${absoluteSector}`);
-          }
-        });
-        sectors = Array.from(sectorsWithProbes);
+        // Secteurs d'une sonde encore utilisable (carte 30), ou secteur imposé des signaux suivants (28, 88, 118)
+        sectors = game.board.sectors
+          .filter(s => ScanSystem.validateScanSectorSelection(game, currentPlayer.id, interactionState, s.id).valid)
+          .map(s => s.id);
       } else if (interactionState.adjacents) {
         const rotationState = createRotationState(
           game.board.solarSystem.rotationAngleLevel1 || 0,
@@ -648,13 +638,14 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
         break;
       }
       case 'anomaly': {
-        const bonusText = obj.anomalyData ? <BonusIcons bonus={obj.anomalyData.bonus} /> : 'Inconnu';
+        const bonusText = obj.anomalyData ? <BonusIcons bonus={obj.anomalyData.bonus} tooltips /> : 'Inconnu';
         content = (
           <div>
             <div style={{ fontWeight: 'bold', color: obj.anomalyData?.color === LifeTraceType.YELLOW ? '#ffd700' : obj.anomalyData?.color === LifeTraceType.RED ? '#ff6b6b' : '#4a9eff' }}>{obj.name}</div>
             <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus: {bonusText}</div>
           </div>
         );
+        tooltipProps = hoverable;
         break;
       }
       default:
