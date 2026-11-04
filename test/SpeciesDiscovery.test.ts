@@ -1,4 +1,4 @@
-import { SpeciesSystem, DISCOVERY_NOTICE } from '../src/systems/SpeciesSystem';
+import { SpeciesSystem, DISCOVERY_NOTICE, discoveryNotice, noticedSpecies } from '../src/systems/SpeciesSystem';
 import { GameSession } from '../src/session/GameSession';
 import { InteractionChoices } from '../src/core/InteractionChoices';
 import { AlienBoardType, CardType, Game, GamePhase, LifeTraceLocation, LifeTraceType } from '../src/core/types';
@@ -131,7 +131,9 @@ describe('découverte d\'une espèce', () => {
 
     const ended = GameSession.dispatch(game, P1, { type: 'END_TURN' });
     expect(ended.error).toBeUndefined();
-    expect(ended.notifications).toContain(DISCOVERY_NOTICE);
+    // L'annonce nomme l'espèce découverte
+    expect(ended.notifications).toContain(discoveryNotice('Exertiens'));
+    expect(ended.notifications).not.toContain(DISCOVERY_NOTICE);
     // Le choix d'Alice (en tête de file) attend ; celui du robot Bob suit, puis le tour se termine
     expect(ended.game.interaction).toEqual({ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, playerId: P1 });
     expect(ended.game.pendingInteractions).toEqual([{ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, playerId: P2 }]);
@@ -171,5 +173,13 @@ describe('découverte d\'une espèce', () => {
       const bonus = g.species.find(s => s.name === AlienBoardType.MASCAMITES)!.fixedSlots.bluelifetrace[2];
       expect(viewFor(g, P2).species.find(s => s.name === AlienBoardType.MASCAMITES)!.fixedSlots.bluelifetrace[2]).toEqual(bonus);
     });
+  });
+});
+
+describe("annonce de découverte d'une espèce", () => {
+  test("l'annonce nomme l'espèce, et l'interface la retrouve", () => {
+    expect(noticedSpecies(discoveryNotice('Oumuamua'))).toBe('Oumuamua');
+    expect(noticedSpecies(DISCOVERY_NOTICE)).toBe('');
+    expect(noticedSpecies('Autre annonce')).toBeUndefined();
   });
 });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Game, ActionType, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, LifeTraceType, InteractionState, GamePhase, SignalType, getInteractionLabel, LifeTraceLocation } from '../core/types';
-import { ConfirmModal, AlienDiscoveryModal, MediaOrMoveModal, Observation2Modal, TokenDiscardModal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal, MissionRequirementModal, SpecimenModal } from './modals/GameModals';
+import { ConfirmModal, MediaOrMoveModal, Observation2Modal, TokenDiscardModal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal, MissionRequirementModal, SpecimenModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -11,7 +11,8 @@ import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ScanSystem } from '../systems/ScanSystem';
-import { DISCOVERY_NOTICE } from '../systems/SpeciesSystem';
+import { noticedSpecies } from '../systems/SpeciesSystem';
+import { Announcement, AnnouncementContent } from './components/Announcement';
 import { GameSession } from '../session/GameSession';
 import { Choice, Command } from '../session/commands';
 import { useAITurn } from './hooks/useAITurn';
@@ -70,7 +71,9 @@ export const BoardUI: React.FC = () => {
   // Action Orbite / Atterrissage / Jouer une carte choisie : planètes ou cartes jouables mises en avant
   const [actionFocus, setActionFocus] = useState<'orbit' | 'land' | 'card' | null>(null);
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
-  const [alienDiscoveryNotification, setAlienDiscoveryNotification] = useState<{ visible: boolean; message: string } | null>(null);
+  // Annonces au centre de l'écran : découverte d'une espèce (prioritaire), début de tour d'un joueur
+  const [discovery, setDiscovery] = useState<{ species: string; key: number } | null>(null);
+  const [turnAnnouncement, setTurnAnnouncement] = useState<AnnouncementContent | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null>(null);
   useCloseTooltipOnClick(() => setActiveTooltip(null));
   const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
@@ -99,7 +102,11 @@ export const BoardUI: React.FC = () => {
   // Message d'aide selon l'interaction en cours
   useEffect(() => {
     if (interactionState.type === 'IDLE') {
-      if (game && game.players[game.currentPlayerIndex].hasPerformedMainAction) {
+      const current = game?.players[game.currentPlayerIndex];
+      if (current && current.id !== me) {
+        // Tour d'un autre joueur : le bandeau du haut l'indique, le plateau reste consultable
+        setToast({ message: `Tour de ${current.name} : vous pouvez consulter le plateau en attendant.`, visible: true });
+      } else if (current?.hasPerformedMainAction) {
         setToast({ message: 'Action principale effectuée. Veuillez effectuer une action gratuite ou passer au prochain joueur.', visible: true });
       } else {
         setToast({ message: "Veuillez sélectionner une action gratuite ou votre action principale.", visible: true });
@@ -107,7 +114,7 @@ export const BoardUI: React.FC = () => {
     } else {
       setToast({ message: getInteractionLabel(interactionState), visible: true });
     }
-  }, [interactionState, game]);
+  }, [interactionState, game, me]);
 
   // Mise en place : le plateau du joueur humain qui réserve sa carte est affiché
   useEffect(() => {
@@ -127,12 +134,35 @@ export const BoardUI: React.FC = () => {
   // Sauvegarde automatique à chaque modification de la partie locale (une partie en ligne est gardée par le serveur)
   useAutosave(session.game, session.historyLog);
 
+  // Début de tour d'un joueur : annonce au centre (grande pour vous, réduite pour les autres). Le nombre de tours
+  // déjà commencés (lignes « --- Tour de … » de l'historique) distingue deux tours de suite d'un même joueur
+  const turnsStarted = historyLog.filter(e => e.message.startsWith('--- Tour de')).length;
+  const turnPlayer = realGame && realGame.phase === GamePhase.PLAYING ? realGame.players[realGame.currentPlayerIndex] : undefined;
+  const turnKey = turnPlayer ? `${realGame!.currentRound}-${turnsStarted}-${turnPlayer.id}` : null;
+  useEffect(() => {
+    if (!turnKey || !turnPlayer || !realGame) return;
+    const mine = turnPlayer.id === me;
+    setTurnAnnouncement({
+      key: turnKey,
+      kicker: `Manche ${realGame.currentRound}`,
+      title: mine ? 'À vous de jouer' : `Tour de ${turnPlayer.name}`,
+      subtitle: mine ? turnPlayer.name : turnPlayer.type === 'robot' ? 'Robot' : undefined,
+      color: turnPlayer.color,
+      size: mine ? 'large' : 'compact',
+      duration: mine ? 1800 : 1200,
+    });
+    // Seul le changement de tour relance l'annonce
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turnKey]);
+  const closeDiscovery = useCallback(() => setDiscovery(null), []);
+  const closeTurnAnnouncement = useCallback(() => setTurnAnnouncement(null), []);
+
   /** Annonces de la partie (découverte d'une espèce…) */
   const showNotifications = (notifications: string[]) => {
     notifications.forEach(message => {
-      if (message === DISCOVERY_NOTICE) {
-        setAlienDiscoveryNotification({ visible: true, message });
-        setTimeout(() => setAlienDiscoveryNotification(null), 4000);
+      const species = noticedSpecies(message);
+      if (species !== undefined) {
+        setDiscovery({ species, key: Date.now() });
       } else {
         setToast({ message, visible: true });
       }
@@ -151,7 +181,13 @@ export const BoardUI: React.FC = () => {
       if (error) setToast({ message: error, visible: true });
       return !error;
     }
-    const result = session.dispatch(playerId ?? actingPlayer(current).id, command);
+    const actor = playerId ?? actingPlayer(current).id;
+    // Pendant le tour d'un robot, le plateau reste consultable : un clic ne joue jamais à sa place
+    if (current.players.find(p => p.id === actor)?.type === 'robot') {
+      setToast({ message: "Ce n'est pas votre tour.", visible: true });
+      return false;
+    }
+    const result = session.dispatch(actor, command);
     if (result.error) {
       setToast({ message: result.error, visible: true });
       return false;
@@ -558,18 +594,42 @@ export const BoardUI: React.FC = () => {
   const realCurrent = realGame!.players[realGame!.currentPlayerIndex];
   const waitingText = waitingPlayer
     ? `En attente de ${waitingPlayer.name}`
-    : realCurrent.type === 'robot' ? `Tour de l'IA (${realCurrent.name})` : `Tour de ${realCurrent.name}`;
+    : realCurrent.type === 'robot' ? `Tour de ${realCurrent.name} (robot)` : `Tour de ${realCurrent.name}`;
+  const waitingColor = (waitingPlayer ?? realCurrent).color;
+  const isWaiting = (currentPlayer.type === 'robot' && interactionState.type === 'IDLE') || !!waitingPlayer;
+
+  // Découverte (prioritaire sur l'annonce de tour) : nom de l'espèce et joueurs qui ont un marqueur sur son plateau
+  const discoveryBoard = discovery ? game.board.alienBoards.find(b => b.speciesId === discovery.species) : undefined;
+  const discoverers = [...new Set((discoveryBoard?.lifeTraces || []).map(t => t.playerId))]
+    .map(id => realGame!.players.find(p => p.id === id)?.name)
+    .filter((name): name is string => !!name);
+  const announcement: AnnouncementContent | null = discovery
+    ? {
+        key: `discovery-${discovery.key}`,
+        kicker: 'Nouvelle espèce',
+        title: discovery.species || 'Espèce Alien découverte',
+        subtitle: discoverers.length > 0 ? `découverte par ${discoverers.join(', ').replace(/, ([^,]*)$/, ' et $1')}` : undefined,
+        color: '#3ddc84',
+        size: 'large',
+        duration: 3500,
+        icon: '👽',
+      }
+    : turnAnnouncement;
 
   return (
     <div className="seti-root">
-      {((currentPlayer.type === 'robot' && interactionState.type === 'IDLE') || waitingPlayer) && (
-        <div className="seti-ai-overlay">
-            <div className="seti-ai-spinner"></div>
-            <p className="seti-ai-text">
-                {waitingText}
-            </p>
+      {/* Tour d'un autre joueur : liseré et bandeau (en bas) à sa couleur, le plateau reste consultable (actions verrouillées) */}
+      {isWaiting && (
+        <div style={{ '--turn-color': waitingColor } as React.CSSProperties}>
+          <div className="seti-turn-frame" />
+          <div className="seti-turn-banner" role="status">
+            <span className="seti-turn-banner-spinner" />
+            <span>{waitingText}</span>
+            <span className="seti-turn-banner-hint">· plateau consultable</span>
+          </div>
         </div>
       )}
+      <Announcement announcement={announcement} onDone={discovery ? closeDiscovery : closeTurnAnnouncement} />
       {isOnline && online.state.status !== 'connected' && (
         <div className="seti-online-banner">
           {online.state.status === 'connecting' ? 'Connexion au serveur perdue, reconnexion…' : 'Déconnecté du serveur.'}
@@ -727,11 +787,6 @@ export const BoardUI: React.FC = () => {
         onFinish={() => run({ type: 'SKIP' })}
       />
 
-      {/* Alien Discovery Notification */}
-      <AlienDiscoveryModal
-        visible={alienDiscoveryNotification?.visible || false}
-        message={alienDiscoveryNotification?.message || ''}
-      />
 
       {/* Modal pour récompense Centaurienne */}
       <CentaurienRewardModal

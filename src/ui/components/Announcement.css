@@ -1,0 +1,128 @@
+/* Annonce au centre de l'écran (début de tour, découverte) : ne bloque pas le plateau */
+.seti-announcement-layer {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 9500;
+}
+
+.seti-announcement {
+  pointer-events: auto;
+  cursor: pointer;
+  width: min(720px, 92vw);
+  padding: 18px 24px;
+  text-align: center;
+  color: #fff;
+  background:
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--announce-color) 28%, #070a18 72%) 18%, color-mix(in srgb, var(--announce-color) 28%, #070a18 72%) 82%, transparent);
+  border-top: 2px solid var(--announce-color);
+  border-bottom: 2px solid var(--announce-color);
+  border-image: linear-gradient(90deg, transparent, var(--announce-color) 20%, var(--announce-color) 80%, transparent) 1;
+  box-shadow: 0 0 40px color-mix(in srgb, var(--announce-color) 35%, transparent);
+  animation: seti-announce var(--announce-duration) ease-in-out forwards;
+}
+
+.seti-announcement-compact {
+  width: min(460px, 86vw);
+  padding: 10px 20px;
+}
+
+.seti-announcement-icon {
+  font-size: 3rem;
+  line-height: 1;
+  margin-bottom: 6px;
+  animation: seti-announce-bounce 1s ease-in-out infinite alternate;
+}
+
+.seti-announcement-kicker {
+  font-size: 0.75rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--announce-color) 55%, #fff 45%);
+}
+
+.seti-announcement-title {
+  margin-top: 4px;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 18px var(--announce-color);
+}
+
+.seti-announcement-compact .seti-announcement-title {
+  font-size: 1.3rem;
+}
+
+.seti-announcement-subtitle {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+@keyframes seti-announce {
+  0% { opacity: 0; transform: translateX(-40px) scaleY(0.6); }
+  12% { opacity: 1; transform: translateX(0) scaleY(1); }
+  85% { opacity: 1; transform: translateX(0) scaleY(1); }
+  100% { opacity: 0; transform: translateX(40px) scaleY(0.9); }
+}
+
+@keyframes seti-announce-bounce {
+  from { transform: translateY(0); }
+  to { transform: translateY(-6px); }
+}
+
+/* Tour d'un autre joueur : liseré à sa couleur et bandeau en bas (le haut porte le menu et l'aide) ; le plateau reste consultable */
+.seti-turn-frame {
+  position: fixed;
+  inset: 0;
+  border: 3px solid var(--turn-color);
+  box-shadow: inset 0 0 24px color-mix(in srgb, var(--turn-color) 40%, transparent);
+  pointer-events: none;
+  z-index: 8999;
+}
+
+.seti-turn-banner {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 14px 5px;
+  font-size: 0.85rem;
+  color: #fff;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--turn-color) 30%, #0a0e1a 70%);
+  border: 1px solid var(--turn-color);
+  border-bottom: 0;
+  border-radius: 10px 10px 0 0;
+  pointer-events: none;
+  z-index: 9000;
+}
+
+.seti-turn-banner-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: seti-spin 1s linear infinite;
+}
+
+.seti-turn-banner-hint {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+@media (max-width: 600px) {
+  .seti-turn-banner-hint { display: none; }
+  .seti-announcement-title { font-size: 1.5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seti-announcement { animation: none; }
+  .seti-announcement-icon, .seti-turn-banner-spinner { animation: none; }
+}

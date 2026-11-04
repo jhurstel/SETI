@@ -25,7 +25,7 @@ import { getRandomState, setRandomState } from '../core/random';
 import { uniqueId } from '../core/ids';
 import { Choice, Command } from './commands';
 import { InteractionQueue } from './InteractionQueue';
-import { DISCOVERY_NOTICE } from '../systems/SpeciesSystem';
+import { DISCOVERY_NOTICE, discoveryNotice } from '../systems/SpeciesSystem';
 
 export interface DispatchResult {
   /** La partie après la commande (inchangée si refusée) */
@@ -73,6 +73,18 @@ class Outcome {
   }
 }
 
+/**
+ * Annonces renvoyées à l'interface : l'annonce générique de découverte devient celle de chaque espèce découverte
+ * pendant la commande (nom de l'espèce dans la fenêtre « Découverte »)
+ */
+const namedNotifications = (before: Game, after: Game, notifications: string[]): string[] => {
+  if (!notifications.includes(DISCOVERY_NOTICE)) return notifications;
+  const named = after.species
+    .filter(s => s.discovered && !before.species.find(b => b.name === s.name)?.discovered)
+    .map(s => discoveryNotice(s.name));
+  return notifications.flatMap(n => (n === DISCOVERY_NOTICE && named.length > 0 ? named : [n]));
+};
+
 class Refusal extends Error {}
 const refuse = (message: string): never => { throw new Refusal(message); };
 
@@ -90,7 +102,7 @@ export class GameSession {
       if (game.phase === GamePhase.FINAL_SCORING) refuse('La partie est terminée');
       const applied = this.apply(game, playerId, command, outcome);
       const settled = this.offerTriggeredMissions(game, this.settle(applied, outcome), outcome);
-      return { game: { ...settled, rngState: getRandomState() }, entries: outcome.entries, notifications: outcome.notifications };
+      return { game: { ...settled, rngState: getRandomState() }, entries: outcome.entries, notifications: namedNotifications(game, settled, outcome.notifications) };
     } catch (error) {
       if (!(error instanceof Refusal)) console.error('[Session]', error);
       return { game, entries: [], notifications: [], error: error instanceof Error ? error.message : String(error) };
@@ -152,7 +164,7 @@ export class GameSession {
         }
       }
       const settled = this.offerTriggeredMissions(game, this.settle(updated, outcome), outcome);
-      return { game: { ...settled, rngState: getRandomState() }, entries: outcome.entries, notifications: outcome.notifications };
+      return { game: { ...settled, rngState: getRandomState() }, entries: outcome.entries, notifications: namedNotifications(game, settled, outcome.notifications) };
     } catch (error) {
       return { game, entries: [], notifications: [], error: error instanceof Error ? error.message : String(error) };
     }

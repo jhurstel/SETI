@@ -169,37 +169,6 @@ export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: 
   );
 };
 
-export const AlienDiscoveryModal =({ visible, message }: { visible: boolean, message: string }) => {
-  if (!visible) return null;
-  return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.85)', zIndex: 10000,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
-      animation: 'fadeIn 0.5s ease-out', backdropFilter: 'blur(5px)'
-    }}>
-      <div style={{
-        fontSize: '2.5rem', fontWeight: 'bold', color: '#0f0',
-        textShadow: '0 0 10px #0f0, 0 0 20px #0f0, 0 0 30px #0f0',
-        textAlign: 'center',
-        animation: 'alien-discovery-appear 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-        padding: '40px 60px', border: '4px solid #0f0', borderRadius: '20px',
-        backgroundColor: 'rgba(0, 20, 0, 0.9)',
-        boxShadow: '0 0 50px rgba(0, 255, 0, 0.5), inset 0 0 30px rgba(0, 255, 0, 0.2)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px'
-      }}>
-        <div style={{ fontSize: '6rem', animation: 'alien-bounce 1s infinite alternate' }}>👽</div>
-        <div>{message}</div>
-      </div>
-      <style>{`
-        @keyframes alien-discovery-appear { 0% { transform: scale(0.5); opacity: 0; } 60% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
-        @keyframes alien-bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-      `}</style>
-    </div>
-  );
-};
-
 export const MediaOrMoveModal = ({ onChoice }: { onChoice: (choice: 'MEDIA' | 'MOVE') => void }) => (
   <ChoiceModal title="Assistance gravitationnelle" subtitle="En arrivant sur cette planète, choisissez votre bonus.">
     <ChoiceOption icon={<ResourceIcon kind="media" size={22} />} label="1 Média" onClick={() => onChoice('MEDIA')} />

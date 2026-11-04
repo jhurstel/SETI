@@ -16,6 +16,11 @@ export const MASCAMITE_BOARD_SPECIMEN_SLOT = 2;
 
 /** Annonce d'une découverte d'espèce (fenêtre « Découverte » de l'interface) */
 export const DISCOVERY_NOTICE = "Découverte d'une nouvelle espèce Alien !";
+/** Annonce de la découverte d'une espèce nommée (fenêtre « Découverte » de l'interface) */
+export const discoveryNotice = (speciesName: string): string => `Découverte d'une nouvelle espèce Alien : ${speciesName} !`;
+/** Espèce annoncée par une annonce de découverte (`DISCOVERY_NOTICE` seule : chaîne vide), sinon undefined */
+export const noticedSpecies = (message: string): string | undefined =>
+  message === DISCOVERY_NOTICE ? '' : message.match(/^Découverte d'une nouvelle espèce Alien : (.+) !$/)?.[1];
 
 /** Missions déclenchées par une trace de vie, selon sa couleur */
 const LIFE_TRACE_TRIGGERS: Partial<Record<LifeTraceType, string>> = {
