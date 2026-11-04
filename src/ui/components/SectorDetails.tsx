@@ -185,9 +185,9 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
                   et d'atterrisseurs, l'angle étant compté depuis l'extérieur de l'anneau (et non depuis le haut de l'écran) :
                   il reste dans la piste, entre la case et la suivante, sans toucher le nom du secteur */}
               {!player && signal.bonus && (() => {
-                const offset = polarToCartesian(0, 0, 3.3, angle + 135);
+                const offset = polarToCartesian(0, 0, 3.6, angle + 135);
                 return (
-                  <g transform={`translate(${offset.x} ${offset.y}) scale(0.15)`}>
+                  <g transform={`translate(${offset.x} ${offset.y}) scale(0.19)`}>
                     <SvgBonus bonus={signal.bonus} />
                   </g>
                 );

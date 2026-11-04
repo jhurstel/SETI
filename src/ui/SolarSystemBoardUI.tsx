@@ -12,6 +12,7 @@ import { PlanetIcon } from './components/PlanetIcon';
 import { RotationDiskSector } from './components/RotationDiskSector';
 import { SectorDetails, SectorTooltip } from './components/SectorDetails';
 import { SvgBonus } from './components/SvgBonus';
+import { ResourceIcon } from './components/GameIcons';
 import { PlanetGlobe, CometSvg, AsteroidFieldSvg, SunSvg, ProbeSvg, CapsuleSvg } from './components/CelestialBodies';
 import { SectorStars } from './components/SectorStars';
 import { SlotTooltip } from './components/SlotTooltip';
@@ -893,11 +894,21 @@ export const SolarSystemBoardUI: React.FC<SolarSystemBoardUIProps> = ({ game, in
                 )
               )}
               <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" />
-              {!player && signal.bonus && (
-                <g transform={`scale(0.2) rotate(${-rotationAngle1})`}>
-                  <SvgBonus bonus={signal.bonus} />
+              {/* 1 Donnée par signal, dans la case (comme les secteurs) */}
+              {!player && (
+                <g transform={`rotate(${-rotationAngle1}) translate(-1.7 -1.7)`} style={{ pointerEvents: 'none' }}>
+                  <ResourceIcon kind="data" size={3.4} />
                 </g>
               )}
+              {/* Bonus imprimé : posé contre la case à 135°, comme sur le cercle des secteurs */}
+              {!player && signal.bonus && (() => {
+                const offset = polarToCartesian(0, 0, 3.6, angle + 135);
+                return (
+                  <g transform={`translate(${offset.x} ${offset.y}) scale(0.19) rotate(${-rotationAngle1})`} style={{ pointerEvents: 'none' }}>
+                    <SvgBonus bonus={signal.bonus} />
+                  </g>
+                );
+              })()}
             </g>
           );
         })}
