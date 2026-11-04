@@ -5,6 +5,7 @@ import { Game, InteractionState, SignalType, GAME_CONSTANTS, Sector, Player } fr
 import { describeArc, polarToCartesian } from '../solarGeometry';
 import { BonusIcons } from './BonusIcons';
 import { SvgBonus } from './SvgBonus';
+import { ResourceIcon } from './GameIcons';
 import { HoverTooltip } from './HoverTooltip';
 import { HumanIcon } from './PlayerKindIcon';
 import { SECTOR_STYLES } from '../styles/celestialStyles';
@@ -174,11 +175,23 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
                 )
               )}
               <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" strokeDasharray={isLastSlot ? "1 1" : undefined} />
-              {!player && signal.bonus && (
-                <g transform="scale(0.25)">
-                  <SvgBonus bonus={signal.bonus} />
+              {/* 1 Donnée par signal (sauf emplacement blanc), dans la case */}
+              {!player && !isWhiteSlot && (
+                <g transform="translate(-1.7 -1.7)" style={{ pointerEvents: 'none' }}>
+                  <ResourceIcon kind="data" size={3.4} />
                 </g>
               )}
+              {/* Bonus imprimé (2 PV) : posé contre la case à 135°, comme les gains supplémentaires des cases d'orbiteurs
+                  et d'atterrisseurs, l'angle étant compté depuis l'extérieur de l'anneau (et non depuis le haut de l'écran) :
+                  il reste dans la piste, entre la case et la suivante, sans toucher le nom du secteur */}
+              {!player && signal.bonus && (() => {
+                const offset = polarToCartesian(0, 0, 3.3, angle + 135);
+                return (
+                  <g transform={`translate(${offset.x} ${offset.y}) scale(0.15)`}>
+                    <SvgBonus bonus={signal.bonus} />
+                  </g>
+                );
+              })()}
             </g>
           );
         });
