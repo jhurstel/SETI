@@ -70,7 +70,7 @@ Quand une action ouvre un choix (placer une trace de vie, choisir une carte, une
 
 Les déplacements gratuits reçus d'une carte (« 2 déplacements ») se dépensent sonde par sonde ; on peut renoncer à ceux qui restent.
 
-**Début de tour et tour des autres joueurs.** Chaque tour s'ouvre sur une annonce au centre de l'écran, à la couleur du joueur : « À vous de jouer » en grand pour votre tour, une bande plus petite pour celui d'un autre (un clic la ferme). Pendant le tour d'un robot ou d'un autre joueur, un liseré à sa couleur entoure l'écran et un bandeau en bas indique qui joue : vos actions sont verrouillées, mais le plateau reste consultable (infobulles, plateaux des autres joueurs, historique).
+**Début de tour et tour des autres joueurs.** Chaque tour s'ouvre sur une annonce au centre de l'écran, à la couleur du joueur : « À vous de jouer » en grand pour votre tour, une bande plus petite pour celui d'un autre (un clic la ferme). Pendant le tour d'un robot ou d'un autre joueur, le message au-dessus du plateau indique qui joue, et ce message et le cadre du plateau du système solaire prennent sa couleur : vos actions sont verrouillées, mais le plateau reste consultable (infobulles, plateaux des autres joueurs, historique).
 
 ### 1.6 Annuler
 
@@ -84,7 +84,7 @@ Les déplacements gratuits reçus d'une carte (« 2 déplacements ») se dépens
 - Menu principal → **Partie en ligne** (bouton présent quand un serveur est configuré).
 - **Créer une salle** : votre nom, puis les autres places (joueur humain ou robot, de 2 à 4 joueurs en tout). Le jeu donne un **code de 5 lettres** à transmettre aux autres joueurs.
 - **Rejoindre** : votre nom et le code de la salle. La partie commence dès que toutes les places humaines sont prises ; le premier joueur est tiré au hasard.
-- Pendant le tour d'un autre joueur, le bandeau du bas l'indique (« Tour de Bob », « En attente de Bob » s'il doit faire un choix) et le plateau reste consultable. Les robots jouent sur le serveur.
+- Pendant le tour d'un autre joueur, le message au-dessus du plateau l'indique (« Tour de Bob », « En attente de Bob » s'il doit faire un choix) et le plateau reste consultable. Les robots jouent sur le serveur.
 - Chacun ne voit que ce qu'il a le droit de voir : la main des autres, les cartes qu'ils piochent et leurs cartes Exertiens restent cachées.
 - **Reprise** : en cas de coupure, le jeu se reconnecte tout seul ; après un rechargement de la page, menu → **Reprendre la partie en ligne**. Le serveur gratuit s'endort après 15 min sans joueurs et met environ une minute à se réveiller ; un redémarrage du serveur efface les salles en cours.
 - Pas d'annulation en ligne. La partie solo (sauvegarde automatique) n'est pas touchée : **Continuer la partie** y revient.

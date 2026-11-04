@@ -7,6 +7,33 @@
   min-width: 0;
 }
 
+/* Tour d'un autre joueur : toast et cadre du plateau du système solaire à la couleur du joueur en cours */
+.seti-right-panel.seti-waiting .seti-toast {
+  color: #fff;
+  border-color: var(--turn-color);
+  background-color: color-mix(in srgb, var(--turn-color) 25%, rgba(0, 0, 0, 0.9));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.seti-right-panel.seti-waiting .seti-solar-system-container {
+  border-color: var(--turn-color);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--turn-color) 45%, transparent);
+}
+.seti-toast-spinner {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: seti-spin 1s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .seti-toast-spinner { animation: none; }
+}
+
 /* Message sur une ligne, sur toute la largeur au-dessus du plateau (ne le recouvre pas) */
 .seti-toast {
   box-sizing: border-box;

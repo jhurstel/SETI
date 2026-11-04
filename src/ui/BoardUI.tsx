@@ -102,11 +102,8 @@ export const BoardUI: React.FC = () => {
   // Message d'aide selon l'interaction en cours
   useEffect(() => {
     if (interactionState.type === 'IDLE') {
-      const current = game?.players[game.currentPlayerIndex];
-      if (current && current.id !== me) {
-        // Tour d'un autre joueur : le bandeau du haut l'indique, le plateau reste consultable
-        setToast({ message: `Tour de ${current.name} : vous pouvez consulter le plateau en attendant.`, visible: true });
-      } else if (current?.hasPerformedMainAction) {
+      // (tour d'un autre joueur : le message d'attente remplace celui-ci à l'affichage)
+      if (game?.players[game.currentPlayerIndex].hasPerformedMainAction) {
         setToast({ message: 'Action principale effectuée. Veuillez effectuer une action gratuite ou passer au prochain joueur.', visible: true });
       } else {
         setToast({ message: "Veuillez sélectionner une action gratuite ou votre action principale.", visible: true });
@@ -114,7 +111,7 @@ export const BoardUI: React.FC = () => {
     } else {
       setToast({ message: getInteractionLabel(interactionState), visible: true });
     }
-  }, [interactionState, game, me]);
+  }, [interactionState, game]);
 
   // Mise en place : le plateau du joueur humain qui réserve sa carte est affiché
   useEffect(() => {
@@ -618,17 +615,6 @@ export const BoardUI: React.FC = () => {
 
   return (
     <div className="seti-root">
-      {/* Tour d'un autre joueur : liseré et bandeau (en bas) à sa couleur, le plateau reste consultable (actions verrouillées) */}
-      {isWaiting && (
-        <div style={{ '--turn-color': waitingColor } as React.CSSProperties}>
-          <div className="seti-turn-frame" />
-          <div className="seti-turn-banner" role="status">
-            <span className="seti-turn-banner-spinner" />
-            <span>{waitingText}</span>
-            <span className="seti-turn-banner-hint">· plateau consultable</span>
-          </div>
-        </div>
-      )}
       <Announcement announcement={announcement} onDone={discovery ? closeDiscovery : closeTurnAnnouncement} />
       {isOnline && online.state.status !== 'connected' && (
         <div className="seti-online-banner">
@@ -866,10 +852,15 @@ export const BoardUI: React.FC = () => {
             />
           </div>
         </div>
-        <div className="seti-right-panel">
+        {/* Tour d'un autre joueur : le toast et le cadre du plateau prennent sa couleur ; le plateau reste consultable */}
+        <div className={`seti-right-panel${isWaiting ? ' seti-waiting' : ''}`} style={isWaiting ? { '--turn-color': waitingColor } as React.CSSProperties : undefined}>
           {/* Message (toast) au-dessus du plateau, à la hauteur des onglets des joueurs */}
           <div className="seti-toast-bar">
-            {toast && toast.visible && !settingsVisible && (
+            {isWaiting && !settingsVisible ? (
+              <div className="seti-toast" role="status">
+                <span className="seti-toast-spinner" />{waitingText} · plateau consultable
+              </div>
+            ) : toast && toast.visible && !settingsVisible && (
               <div className="seti-toast">{toast.message}</div>
             )}
           </div>
