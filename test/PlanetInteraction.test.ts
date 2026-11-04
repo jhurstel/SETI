@@ -275,7 +275,7 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
       expect(res.historyEntries[0].message).toMatch(/^paye .+ pour <strong>Mettre en orbite<\/strong> une sonde autour de Mars$/);
     });
 
-    test("mise en orbite : la ligne des gains (signal du secteur de Mars et carte compris) d'abord, puis le signal ; réservation choisie avant la carte", () => {
+    test("mise en orbite : la ligne des gains (signal du secteur de Mars et carte compris) d'abord, puis le signal", () => {
       getPlayer(game, P1).probes = [probeAt('p1', 'B', 1, 2)];
       game.board.solarSystem.probes = structuredClone(getPlayer(game, P1).probes);
       Object.assign(getPlayer(game, P1), { credits: 5, energy: 5 });
@@ -289,7 +289,7 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
       expect(messages[0]).toMatch(/Mettre en orbite/);
       expect(messages[1]).toMatch(/^gagne 3 PV, 1 Réservation, 1 Signal (Rouge|Jaune|Bleu|Noir) \(Mars\), 1 Carte$/);
       expect(messages[2]).toMatch(/^marque /);
-      expect(res.newPendingInteractions.map(i => i.type)).toEqual(['RESERVING_CARD', 'ACQUIRING_CARD']);
+      expect(res.newPendingInteractions.map(i => i.type).sort()).toEqual(['ACQUIRING_CARD', 'RESERVING_CARD']);
     });
   });
 

@@ -447,7 +447,11 @@ export class ResourceSystem {
       }
     }
 
-    // Ordre des choix qui suivent : signaux, réservation, carte, technologie, atterrissage, trace de vie…
+    if (bonuses.anycard) {
+      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: bonuses.anycard, isFree: true, sequenceId });
+      laterGains.push(ResourceSystem.formatResource(bonuses.anycard, 'CARD'));
+    }
+
     if (bonuses.revenue) {
       const player = updatedGame.players.find(p => p.id === playerId);
       if (player) {
@@ -455,11 +459,6 @@ export class ResourceSystem {
         if (count > 0) newPendingInteractions.push({ type: 'RESERVING_CARD', count: count, selectedCards: [], sequenceId });
         else logs.push(`n'a ${NO_RESERVATION_NOTE}`);
       }
-    }
-
-    if (bonuses.anycard) {
-      newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: bonuses.anycard, isFree: true, sequenceId });
-      laterGains.push(ResourceSystem.formatResource(bonuses.anycard, 'CARD'));
     }
 
     if (bonuses.technologies) {
