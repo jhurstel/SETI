@@ -601,11 +601,12 @@ export class CardSystem {
             bonuses.media = (bonuses.media || 0) + 2;
         }
 
-        // 2. Check for GAIN_ON_DISCARD buffs and mark mission as fulfillable
+        // 2. Missions « après avoir défaussé une carte pour gagner 1 Média / Donnée / Déplacement » (138) : déclenchées
+        // par toute action gratuite qui donne cette ressource, cartes Alien comprises (2 Médias, 1 PV + 1 Donnée…)
         const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
-            if (card.freeAction === FreeActionType.MEDIA && buff.type === 'GAIN_ON_DISCARD_MEDIA') return true;
-            if (card.freeAction === FreeActionType.DATA && buff.type === 'GAIN_ON_DISCARD_DATA') return true;
-            if (card.freeAction === FreeActionType.MOVEMENT && buff.type === 'GAIN_ON_DISCARD_MOVE') return true;
+            if (bonuses.media && buff.type === 'GAIN_ON_DISCARD_MEDIA') return true;
+            if (bonuses.data && buff.type === 'GAIN_ON_DISCARD_DATA') return true;
+            if (bonuses.movements && buff.type === 'GAIN_ON_DISCARD_MOVE') return true;
             return false;
         });
     

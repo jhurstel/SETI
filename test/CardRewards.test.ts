@@ -77,6 +77,10 @@ describe('cartes : revenus, actions gratuites et récompenses', () => {
     test.each([
       [FreeActionType.DATA, 'data'],
       [FreeActionType.MOVEMENT, 'move'],
+      // Régression : les actions gratuites des cartes Alien contiennent aussi la ressource de la mission
+      [FreeActionType.TWO_MEDIA, 'media'],
+      [FreeActionType.PV_DATA, 'data'],
+      [FreeActionType.PV_MOVEMENT, 'move'],
     ] as const)('Université Cornell (138) : défausser pour « %s » prépare le cercle correspondant', (freeAction, resource) => {
       const player = getPlayer(game, P1);
       player.credits = 10;
