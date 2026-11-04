@@ -438,6 +438,11 @@ export class ProbeSystem {
     } else {
       message = `déplace ${movedObject} gratuitement`;
     }
+    // Visite sans Média (carte 19 : Média ou déplacement au choix ; ET.12 ; Terre…) : la visite reste nommée
+    const isVisit = !!targetCell && (targetCell.hasPlanet || targetCell.hasComet || targetCell.hasAsteroid);
+    if (isVisit && !(bonus.media && bonus.media > 0)) {
+      message += ` (${objectName})`;
+    }
 
     // Gestion des visites de planètes et bonus associés
     if (targetCell && targetCell.hasPlanet && targetCell.planetId) {

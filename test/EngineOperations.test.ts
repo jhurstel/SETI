@@ -170,9 +170,13 @@ describe('Opérations du moteur utilisées par l\'interface', () => {
       const mars = getObjectPosition('mars', solar.rotationAngleLevel1, solar.rotationAngleLevel2, solar.rotationAngleLevel3, solar.extraCelestialObjects)!;
       const res = ProbeSystem.moveProbe(game, P1, 'p', mars.disk, mars.absoluteSector, 2, 'seq');
       expect(res.newPendingInteractions).toContainEqual({ type: 'CHOOSING_MEDIA_OR_MOVE', remainingMoves: 1, sequenceId: 'seq' });
+      // Sans Média, la visite reste nommée (régression : « déplace une sonde gratuitement » seul)
+      expect(res.historyEntries[0].message).toBe('déplace une sonde gratuitement (Visite de Mars) (1 mouvement gratuit restant)');
 
       getPlayer(game, P1).activeBuffs = [];
-      expect(ProbeSystem.moveProbe(game, P1, 'p', mars.disk, mars.absoluteSector, 2, 'seq').newPendingInteractions.some(i => i.type === 'CHOOSING_MEDIA_OR_MOVE')).toBe(false);
+      const plain = ProbeSystem.moveProbe(game, P1, 'p', mars.disk, mars.absoluteSector, 2, 'seq');
+      expect(plain.newPendingInteractions.some(i => i.type === 'CHOOSING_MEDIA_OR_MOVE')).toBe(false);
+      expect(plain.historyEntries[0].message).toBe('déplace une sonde gratuitement et gagne 1 média (Visite de Mars) (1 mouvement gratuit restant)');
     });
 
     test("analyse de données : l'action paie, vide l'ordinateur et donne une trace de vie Bleue", () => {
