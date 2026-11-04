@@ -20,6 +20,7 @@
 }
 
 .alien-slot {
+    position: relative;
     width: 28px;
     height: 28px;
     border: 2px solid #555;
@@ -531,4 +532,41 @@
     font-size: 0.65rem;
     font-weight: 700;
     color: #d5e3ff;
+}
+
+/* Gains d'une case de piste autres que les PV, et coûts barrés, contre la case à 135° */
+.alien-slot-gains {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 3px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.75);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 3;
+}
+.alien-slot-gains > span {
+  flex-wrap: nowrap !important;
+}
+.alien-slot-cost {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.alien-slot-cost-cross {
+  position: absolute;
+  inset: -2px;
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  overflow: visible;
+}
+.alien-slot-cost-cross path {
+  stroke: #ff1f1f;
+  stroke-linecap: round;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 0 1px #000);
 }

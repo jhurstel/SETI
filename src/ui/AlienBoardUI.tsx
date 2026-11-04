@@ -15,6 +15,7 @@ import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
 import { HoverTooltip } from './components/HoverTooltip';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
+import { atAngle, hasExtraGains } from './components/bonusLayout';
 import { CentaurienMessageTile } from './components/CentaurienMessageTile';
 import { useInteractiveTooltip, ActiveTooltip } from './hooks/useInteractiveTooltip';
 
@@ -348,6 +349,11 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
         const isNext = index === 0 || (isInfinite && index === fixedSlotsLength) || !!board.lifeTraces.find(t => t.location === LifeTraceLocation.SPECIES && t.type === type && t.slotIndex === index - 1);
         const isClickable = isInfinite ? isPlacing && !isFilled && isNext && canAfford : isPlacing && !isFilled && canAfford; // Note: Fixed slots logic simplified for Mascamites specific placement if needed, but standard logic applies
 
+        // Dessin de la case : PV au centre ; autres gains et coûts (barrés d'une croix rouge) contre la case à 135°
+        const hasCost = tokenCost > 0 || dataCost > 0;
+        const extraGains: Bonus = { ...bonus, pv: undefined, danger: undefined, token: tokenCost ? undefined : bonus.token, data: dataCost ? undefined : bonus.data };
+        const slotSize = 28;
+
         const handleMouseEnter = (e: React.MouseEvent) => {
             const bonusText = <BonusIcons bonus={{ ...bonus, token: tokenCost ? undefined : bonus.token, data: dataCost ? undefined : bonus.data }} />;
             const costSymbols = tokenCost || dataCost
@@ -418,6 +424,20 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
             >
                 {specimenSlot && <div className="alien-board-specimen"><BonusIcons bonus={bonus} size={(ResourceSystem.formatBonus(bonus) || []).length > 1 ? 9 : 14} /></div>}
                 {!isFilled && !specimenSlot && !!bonus.pv && <VictoryPointsIcon amount={bonus.pv} size={22} />}
+                {!isFilled && !specimenSlot && (hasCost || hasExtraGains(extraGains)) && (
+                    // Gains autres que les PV et coûts barrés, à 135° (en bas à droite) comme les cases du système solaire
+                    <div className="alien-slot-gains" style={{ left: `${slotSize / 2 + atAngle(slotSize / 2, 135).x - 4}px`, top: `${slotSize / 2 + atAngle(slotSize / 2, 135).y - 4}px` }}>
+                        {hasCost && (
+                            <span className="alien-slot-cost">
+                                <BonusIcons bonus={{ token: tokenCost || undefined, data: dataCost || undefined }} size={12} empty={null} />
+                                <svg className="alien-slot-cost-cross" viewBox="0 0 10 10" preserveAspectRatio="none" aria-hidden="true">
+                                    <path d="M1 1 L9 9 M9 1 L1 9" />
+                                </svg>
+                            </span>
+                        )}
+                        {hasExtraGains(extraGains) && <BonusIcons bonus={extraGains} size={12} empty={null} />}
+                    </div>
+                )}
             </div>
         );
     };
