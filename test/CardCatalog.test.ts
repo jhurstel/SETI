@@ -159,7 +159,7 @@ describe('Cartes corrigées', () => {
     expect(ProbeSystem.shouldCollectSpecimen(played.updatedGame, moonId, 'ET.1')).toBe(true);
   });
 
-  describe('missions Oumuamua', () => {
+  describe('missions conditionnelles des espèces', () => {
     const claim = (game: Game, cardId: string) => {
       const mission = getPlayer(game, P1).missions.find(m => m.cardId === cardId)!;
       const requirement = mission.requirements.find(r => r.type.startsWith('GAIN_IF_'))!;
@@ -202,6 +202,23 @@ describe('Cartes corrigées', () => {
       expect(claim(game, 'ET.30').error).toBeDefined();
       board.lifeTraces.push({ id: 't2', type: LifeTraceType.BLUE, playerId: P1, location: LifeTraceLocation.TRIANGLE });
       expect(claim(game, 'ET.30').error).toBeUndefined();
+    });
+
+    test("ET.17 Sommes-Nous Observés ? : mission conditionnelle, 3 PV et 2 Médias avec une trace de chaque couleur pour les Anomalies", async () => {
+      expect(card('ET.17').type).toBe(CardType.CONDITIONAL_MISSION);
+      const game = CardSystem.playCard(await gameWithCard('ET.17'), P1, 'ET.17').updatedGame;
+      const mission = getPlayer(game, P1).missions.find(m => m.cardId === 'ET.17')!;
+      expect(mission.requirements.map(r => r.type)).toEqual(['GAIN_IF_LIFETRACES_ALL_COLORS']);
+      const board = game.board.alienBoards[0];
+      board.speciesId = AlienBoardType.ANOMALIES;
+      board.lifeTraces = [LifeTraceType.RED, LifeTraceType.YELLOW].map((type, i) => ({ id: `t${i}`, type, playerId: P1, location: LifeTraceLocation.TRIANGLE }));
+      expect(claim(game, 'ET.17').error).toBeDefined();
+      board.lifeTraces.push({ id: 't2', type: LifeTraceType.BLUE, playerId: P1, location: LifeTraceLocation.TRIANGLE });
+      const { score, mediaCoverage } = getPlayer(game, P1);
+      const res = claim(game, 'ET.17');
+      expect(res.error).toBeUndefined();
+      expect(getPlayer(res.updatedGame, P1).score).toBe(score + 3);
+      expect(getPlayer(res.updatedGame, P1).mediaCoverage).toBe(Math.min(mediaCoverage + 2, 10));
     });
   });
 
