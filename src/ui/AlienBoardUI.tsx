@@ -410,9 +410,13 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
             style.backgroundColor = isFilled ? getPlayerColor(trace!.playerId) : (isClickable ? '#32373c' : '#14171a');
         }
 
+        const costBonus: Bonus = { token: tokenCost || undefined, data: dataCost || undefined };
+        const showGains = !isFilled && !specimenSlot && (hasCost || hasExtraGains(extraGains));
+
+        // Le badge des gains est à côté de la case (et non dedans) : son infobulle ne se mêle pas à celle de la case
         return (
+            <div key={`${isInfinite ? 'inf' : 'fixed'}-${index}`} className="alien-slot-wrap">
             <div
-                key={`${isInfinite ? 'inf' : 'fixed'}-${index}`}
                 className={`alien-slot ${isInfinite ? 'infinite' : 'fixed'} ${isFilled ? 'filled' : ''} ${isClickable ? 'clickable' : ''}`}
                 style={style}
                 onClick={(e) => {
@@ -424,20 +428,21 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
             >
                 {specimenSlot && <div className="alien-board-specimen"><BonusIcons bonus={bonus} size={(ResourceSystem.formatBonus(bonus) || []).length > 1 ? 9 : 14} /></div>}
                 {!isFilled && !specimenSlot && !!bonus.pv && <VictoryPointsIcon amount={bonus.pv} size={22} />}
-                {!isFilled && !specimenSlot && (hasCost || hasExtraGains(extraGains)) && (
-                    // Gains autres que les PV et coûts barrés, à 135° (en bas à droite) comme les cases du système solaire
-                    <div className="alien-slot-gains" style={{ left: `${slotSize / 2 + atAngle(slotSize / 2, 135).x - 4}px`, top: `${slotSize / 2 + atAngle(slotSize / 2, 135).y - 4}px` }}>
-                        {hasCost && (
-                            <span className="alien-slot-cost">
-                                <BonusIcons bonus={{ token: tokenCost || undefined, data: dataCost || undefined }} size={12} empty={null} />
-                                <svg className="alien-slot-cost-cross" viewBox="0 0 10 10" preserveAspectRatio="none" aria-hidden="true">
-                                    <path d="M1 1 L9 9 M9 1 L1 9" />
-                                </svg>
-                            </span>
-                        )}
-                        {hasExtraGains(extraGains) && <BonusIcons bonus={extraGains} size={12} empty={null} />}
-                    </div>
-                )}
+            </div>
+            {showGains && (
+                // Gains autres que les PV et coûts barrés, à 135° (en bas à droite) comme les cases du système solaire
+                <div className="alien-slot-gains" style={{ left: `${slotSize / 2 + atAngle(slotSize / 2, 135).x - 4}px`, top: `${slotSize / 2 + atAngle(slotSize / 2, 135).y - 4}px` }}>
+                    {hasCost && (
+                        <HoverTooltip content={`Coût : ${(ResourceSystem.formatBonus(costBonus) || []).join(', ')} (payé en posant la trace)`} className="alien-slot-cost">
+                            <BonusIcons bonus={costBonus} size={12} empty={null} />
+                            <svg className="alien-slot-cost-cross" viewBox="0 0 10 10" preserveAspectRatio="none" aria-hidden="true">
+                                <path d="M1 1 L9 9 M9 1 L1 9" />
+                            </svg>
+                        </HoverTooltip>
+                    )}
+                    {hasExtraGains(extraGains) && <BonusIcons bonus={extraGains} size={12} empty={null} tooltips />}
+                </div>
+            )}
             </div>
         );
     };

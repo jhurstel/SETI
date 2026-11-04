@@ -20,7 +20,6 @@
 }
 
 .alien-slot {
-    position: relative;
     width: 28px;
     height: 28px;
     border: 2px solid #555;
@@ -202,6 +201,8 @@
 .alien-foldable-content {
     display: flex;
     flex-direction: column;
+    /* Les badges de gains de la colonne de droite débordent un peu : pas de barre de défilement horizontale */
+    overflow-x: hidden;
 }
 
 .alien-species-header {
@@ -534,7 +535,14 @@
     color: #d5e3ff;
 }
 
-/* Gains d'une case de piste autres que les PV, et coûts barrés, contre la case à 135° */
+/* Case de piste et son badge de gains (à côté de la case, pour garder des infobulles séparées) */
+.alien-slot-wrap {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* Gains d'une case de piste autres que les PV, et coûts barrés, contre la case à 135° (infobulle de chaque symbole) */
 .alien-slot-gains {
   position: absolute;
   display: flex;
@@ -544,19 +552,24 @@
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.75);
   white-space: nowrap;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: help;
   z-index: 3;
 }
+/* Symboles empilés : le badge reste étroit et ne déborde pas du plateau sur la colonne de droite */
+.alien-slot-gains,
 .alien-slot-gains > span {
+  flex-direction: column;
   flex-wrap: nowrap !important;
+  gap: 1px !important;
 }
 .alien-slot-cost {
   position: relative;
-  display: inline-flex;
   align-items: center;
 }
 .alien-slot-cost-cross {
   position: absolute;
+  pointer-events: none;
   inset: -2px;
   width: calc(100% + 4px);
   height: calc(100% + 4px);
