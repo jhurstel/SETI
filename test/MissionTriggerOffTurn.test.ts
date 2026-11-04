@@ -79,7 +79,8 @@ describe('missions déclenchées hors du tour de leur joueur', () => {
   test('deux cartes déclenchées : un seul cercle, toutes cartes confondues', () => {
     const offered = traceDuringOtherTurn(['77', 'ET.29']);
     if (offered.interaction?.type !== 'CHOOSING_MISSION_REQUIREMENT') throw new Error('choix attendu');
-    expect(offered.interaction.options).toHaveLength(2);
+    // 1 cercle de la carte 77 et les 3 d'ET.29 (récompenses différentes, au choix)
+    expect(offered.interaction.options).toHaveLength(4);
     const nasa = offered.interaction.options.find(o => getPlayer(offered, P2).missions.find(m => m.id === o.missionId)!.cardId === '77')!;
 
     const res = GameSession.dispatch(offered, P2, { type: 'CHOOSE', choice: { kind: 'MISSION', ...nasa } });

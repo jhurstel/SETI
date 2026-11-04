@@ -722,19 +722,24 @@ export class CardSystem {
         shouldTrigger: (buff: CardEffect) => boolean
     ): boolean {
         let atLeastOneFulfillable = false;
-        // Règles : un même déclencheur ne recouvre qu'un cercle à la fois ; ici, un cercle par carte
-        // (le premier non recouvert), pour que les 3 cercles d'ET.29 demandent 3 traces de vie
-        const triggeredMissions = new Set<string>();
+        // Règles et FAQ (Q28) : un même déclencheur ne recouvre qu'un cercle, au choix du joueur et dans l'ordre de son
+        // choix. Les cercles qu'il peut recouvrir sont tous proposés (107 : 2 Médias ou 4 PV ; ET.29 : donnée, Média ou
+        // 3 PV), un seul par récompense identique sur une carte (129 : 3 fois 1 donnée) ; en recouvrir un vide les autres
+        // cercles du même déclencheur (InteractionResolver.claimMissionRequirement), donc il faut un déclenchement par cercle.
         // Chaque appel est un déclencheur : recouvrir un de ses cercles n'efface pas ceux d'un autre déclencheur
         const triggerId = uniqueId();
+        const offered = new Set<string>();
         player.permanentBuffs.forEach(buff => {
-            if (!shouldTrigger(buff) || !buff.id || !buff.source || triggeredMissions.has(buff.source)) return;
+            if (!shouldTrigger(buff) || !buff.id || !buff.source) return;
             const mission = player.missions.find(m => m.name === buff.source);
             if (!mission || mission.completedRequirementIds.includes(buff.id)) return;
+            // Cercle déjà proposé par un autre déclencheur : le suivant de même récompense reste disponible pour celui-ci
             if (mission.fulfillableRequirementIds.includes(buff.id)) return;
+            const sameReward = `${buff.source}|${JSON.stringify(buff.value)}`;
+            if (offered.has(sameReward)) return;
+            offered.add(sameReward);
             mission.fulfillableRequirementIds.push(buff.id);
             mission.fulfillableTriggers = { ...mission.fulfillableTriggers, [buff.id]: triggerId };
-            triggeredMissions.add(buff.source);
             atLeastOneFulfillable = true;
         });
         return atLeastOneFulfillable;
