@@ -313,8 +313,8 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
-  /* Debug: montrer le conteneur */
-  border: 2px solid yellow;
+  /* Bleu comme le toast ; à la couleur du joueur en cours pendant le tour d'un autre joueur (.seti-waiting) */
+  border: 2px solid #4a9eff;
 }
 
 .seti-panel-title {
