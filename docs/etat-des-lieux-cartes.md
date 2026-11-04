@@ -19,6 +19,9 @@ Dernière mise à jour : octobre 2026. Ce document résume l'audit de toutes les
 | ET.1, ET.3, ET.5, ET.6 (Mascamites) | Effets `GAIN_SATELLITE_LANDING_AND_SPECIMEN`, `GAIN_ORBIT_OR_LAND_AND_SPECIMEN`, `GAIN_SPECIMEN_BONUS` traités par le moteur mais jamais lus dans le CSV ; la carte jouée (devenue mission) n'était pas retrouvée pour proposer le spécimen | Lecture des effets ; recherche de la carte source dans les missions |
 | ET.21, ET.22, ET.23, ET.27 (Oumuamua) | Conditions de mission `GAIN_IF_PAY_FOR_LIFETRACE`, `GAIN_IF_LANDER`, `GAIN_IF_3_TOKEN`, `GAIN_IF_SIGNAL` non traitées | Conditions implémentées ; le coût en Tokens d'ET.23 est payé (avant : 11 PV gratuits) |
 | ET.30 Rover d'Excavation | `GAIN_ON_LAND:oumuamua:pv:3` non lu ; seconde mission absente du CSV | Lecture du format à 4 éléments (limité à Oumuamua) ; ajout de `GAIN_IF_LIFETRACES_ALL_COLORS:oumuamua:token:1` |
+| ET.13 Populations Inquiètes | Ses 3 missions (« après avoir acquis une technologie ») absentes du CSV : 3 cercles jamais réalisables | `GAIN_ON_TECH:any:…` (`GAIN_ON_ANY_TECH`) : toute technologie acquise les déclenche |
+| ET.17 Sommes-Nous Observés ? | Mission conditionnelle absente du CSV : cercle jamais réalisable | Ajout de `GAIN_IF_LIFETRACES_ALL_COLORS:anomalies:pv:3:media:2` |
+| ET.27 Synchronisation Parfaite | « Si vous visitez Oumuamua ce tour-ci » lu comme un cercle de mission permanent | Bonus de visite du tour (`VISIT_PLANET:oumuamua:token:1`, `VISIT_BONUS` à gains) ; la mission reste `GAIN_IF_SIGNAL` |
 | 75 Étude sur les Extrêmophiles | Élément `GAIN_LIFETRACE:any:1` redondant avec le gain « 1 Trace » | Retiré du CSV |
 
 ## Opérations des robots corrigées

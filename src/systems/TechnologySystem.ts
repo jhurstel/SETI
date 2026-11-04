@@ -132,7 +132,7 @@ export class TechnologySystem {
     historyEntries.push(...probeEntries);
 
     // Traitement des missions conditionnelles (GAIN_ON_TECH)
-    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => buff.type === TECH_TRIGGERS[tech.type]);
+    const hasFulfillable = CardSystem.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_ANY_TECH' || buff.type === TECH_TRIGGERS[tech.type]);
     if (hasFulfillable) {
       historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId: ''});
     }

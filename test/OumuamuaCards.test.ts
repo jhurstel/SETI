@@ -186,7 +186,7 @@ describe('Cartes Oumuamua : signaux marqués sur Oumuamua', () => {
 });
 
 describe('Cartes Oumuamua : visite', () => {
-  test('ET.27 : visiter Oumuamua rend le cercle de la mission réalisable', async () => {
+  test('ET.27 : visiter Oumuamua ce tour-ci donne 1 Token, une seule fois (bonus du tour, pas un cercle de mission)', async () => {
     const game = await gameWithCard('ET.27', 0);
     const solarSystem = game.board.solarSystem;
     solarSystem.rotationAngleLevel1 = 0;
@@ -198,9 +198,16 @@ describe('Cartes Oumuamua : visite', () => {
     getPlayer(played, P1).probes = [probe];
     played.board.solarSystem.probes = [structuredClone(probe)];
 
+    const tokens = getPlayer(played, P1).tokens || 0;
+
     const moved = ProbeSystem.moveProbe(played, P1, 'p', 'C', 3, 1, 'seq');
-    const mission = getPlayer(moved.updatedGame, P1).missions.find(m => m.cardId === 'ET.27')!;
-    const visit = mission.requirements.find(r => r.type === 'GAIN_ON_VISIT_OUMUAMUA')!;
-    expect(mission.fulfillableRequirementIds).toContain(visit.id);
+    expect(getPlayer(moved.updatedGame, P1).tokens).toBe(tokens + 1);
+    expect(moved.historyEntries.map(e => e.message).join()).toContain('1 Token ("Synchronisation Parfaite")');
+    expect(getPlayer(moved.updatedGame, P1).missions.find(m => m.cardId === 'ET.27')!.fulfillableRequirementIds).toEqual([]);
+
+    // Revenir sur Oumuamua le même tour ne redonne rien
+    const away = ProbeSystem.moveProbe(moved.updatedGame, P1, 'p', 'C', 2, 1, 'seq');
+    const back = ProbeSystem.moveProbe(away.updatedGame, P1, 'p', 'C', 3, 1, 'seq');
+    expect(getPlayer(back.updatedGame, P1).tokens).toBe(tokens + 1);
   });
 });

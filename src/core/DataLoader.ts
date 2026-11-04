@@ -223,11 +223,13 @@ export class DataLoader {
         }
       }
 
-      // Gestion du format VISIT_PLANET:mars:4 (4 PV)
+      // Gestion du format VISIT_PLANET:mars:4 (4 PV) ou VISIT_PLANET:oumuamua:token:1 (autre gain)
       else if (passive.startsWith('VISIT_PLANET:')) {
         const parts = passive.split(':');
         if (parts.length === 3) {
           effects.push({ type: 'VISIT_BONUS', target: parts[1], value: parseInt(parts[2], 10) });
+        } else if (parts.length === 4) {
+          effects.push({ type: 'VISIT_BONUS', target: parts[1], value: { [parts[2]]: parseInt(parts[3], 10) } });
         }
       }
 
@@ -626,6 +628,7 @@ export class DataLoader {
           if (parts[1] === 'yellow') effects.push({ type: 'GAIN_ON_YELLOW_TECH', target: parts[2], value: permanent });
           else if (parts[1] === 'red') effects.push({ type: 'GAIN_ON_RED_TECH', target: parts[2], value: permanent });
           else if (parts[1] === 'blue') effects.push({ type: 'GAIN_ON_BLUE_TECH', target: parts[2], value: permanent });
+          else if (parts[1] === 'any') effects.push({ type: 'GAIN_ON_ANY_TECH', target: parts[2], value: permanent });
         }
       }
 
@@ -652,7 +655,6 @@ export class DataLoader {
           else if (parts[1] === 'neptune') effects.push({ type: 'GAIN_ON_VISIT_NEPTUNE', target: parts[2], value: permanent });
           else if (parts[1] === 'planet') effects.push({ type: 'GAIN_ON_VISIT_PLANET', target: parts[2], value: permanent }); // excluding earth
           else if (parts[1] === 'asteroid') effects.push({ type: 'GAIN_ON_VISIT_ASTEROID', target: parts[2], value: permanent });
-          else if (parts[1] === 'oumuamua') effects.push({ type: 'GAIN_ON_VISIT_OUMUAMUA', target: parts[2], value: permanent });
         }
       }
 

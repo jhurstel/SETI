@@ -183,12 +183,13 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
       const awaySector = (jupiter.absoluteSector % 8) + 1 as SectorNumber;
       const away = ProbeSystem.moveProbe(game, P1, capsule.id, jupiter.disk, awaySector, 0, 's').updatedGame;
       const p = getPlayer(away, P1);
-      p.activeBuffs = [...p.activeBuffs, { type: 'VISIT_BONUS', target: 'jupiter', value: 3, source: 'Test' }];
-      const { score, mediaCoverage } = p;
+      p.activeBuffs = [...p.activeBuffs, { type: 'VISIT_BONUS', target: 'jupiter', value: 3, source: 'Test' }, { type: 'VISIT_BONUS', target: 'jupiter', value: { token: 1 }, source: 'Test' }];
+      const { score, mediaCoverage, tokens = 0 } = p;
 
       const back = ProbeSystem.moveProbe(away, P1, capsule.id, jupiter.disk, jupiter.absoluteSector, 0, 's');
 
       expect(getPlayer(back.updatedGame, P1).score).toBe(score + 3);
+      expect(getPlayer(back.updatedGame, P1).tokens).toBe(tokens + 1);
       expect(getPlayer(back.updatedGame, P1).mediaCoverage).toBe(mediaCoverage + 1);
     });
 

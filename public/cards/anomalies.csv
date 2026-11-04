@@ -1,7 +1,7 @@
 ﻿Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
 ET.11;Signes de Vie;Action;Gagnez 1 Sonde. S'il s'agissait d'un secteur avec une Anomalie, gagnez 1 Déplacement.;2 Médias;Bleu;Pioche;1 Crédit;1 Sonde;GAIN_MOVE_IF_ANOMALY
 ET.12;Vue Rapprochée;Action;Gagnez 5 Déplacements. Ne gagnez aucun Média quand vous déplacez des sondes ce tour-ci.;2 Médias;Rouge;Crédit;1 Crédit;5 Déplacements;NO_MEDIA
-ET.13;Populations Inquiètes;Mission déclenchables;Gagnez 1 Média. Mission: Gagnez 1 Energie après avoir acquis une technologie. Mission: Gagnez 1 Carte après avoir acquis une technologie. Mission: Gagnez 3 PV après avoir acquis une technologie.;1 PV + 1 Data;Jaune;Crédit;1 Crédit;1 Média;
+ET.13;Populations Inquiètes;Mission déclenchables;Gagnez 1 Média. Mission: Gagnez 1 Energie après avoir acquis une technologie. Mission: Gagnez 1 Carte après avoir acquis une technologie. Mission: Gagnez 3 PV après avoir acquis une technologie.;1 PV + 1 Data;Jaune;Crédit;1 Crédit;1 Média;GAIN_ON_TECH:any:energy:1 + GAIN_ON_TECH:any:card:1 + GAIN_ON_TECH:any:pv:3
 ET.14;Ecoute Attentive;Action;Gagnez 1 Scan. De plus, marquez 1 Signal dans le secteur de la prochaine Anomalie qui sera déclenchée.;1 PV + 1 Déplacement;Rouge;Pioche;2 Crédits;1 Scan + 1 Signal Anomalie;
 ET.15;Vie Quotidienne;Action;Gagnez 3 Pioches. Défaussez l'une d'elles pour l'effet Action gratuite, puis défaussez-en une autre pour gagner une ressource correspondant à son revenu.;1 PV + 1 Déplacement;Bleu;Energie;1 Crédit;3 Pioche;DISCARD_DRAWN_FOR_ACTION_AND_REVENUE
 ET.16;Saturation de l'Espace Médiatique;Action;Piochez les 3 Cartes de la rangée de cartes.;1 PV + 1 Donnée;Rouge;Crédit;1 Crédit;;TAKE_CARD_ROW

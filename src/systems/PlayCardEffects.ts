@@ -1,4 +1,4 @@
-import { effectNumber, effectAmount } from '../core/cardEffects';
+import { effectNumber, effectAmount, effectPvOrBonus } from '../core/cardEffects';
 import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, InteractionState, LifeTraceType, Player, CardEffect, SectorType, SectorNumber, TechnologyCategory, CelestialObject } from '../core/types';
 import { createRotationState, calculateAbsolutePosition, getCell, getAdjacentCells, getObjectPosition, getAllCelestialObjects, getAbsoluteSectorForProbe, RotationState } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
@@ -131,7 +131,7 @@ const PASSIVE_HANDLERS: Record<string, PassiveHandler> = {
     // Si la planète a DÉJÀ été visitée ce tour-ci, le bonus s'applique immédiatement (PV ajoutés par
     // processBonuses), sinon pour le reste du tour
     if (player.visitedPlanetsThisTurn.includes(effect.target!)) {
-      add(bonuses, 'pv', effectNumber(effect));
+      ResourceSystem.accumulateBonus(effectPvOrBonus(effect), bonuses);
     } else {
       player.activeBuffs.push({ ...effect, source: card.name });
     }

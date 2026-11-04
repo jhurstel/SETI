@@ -20,6 +20,11 @@ export function effectAmount<S>(effect: CardEffect): EffectAmount<S> {
   return { amount: typeof value === 'number' ? value : 0, scope: undefined as S };
 }
 
+/** Gain écrit soit en nombre de PV (VISIT_PLANET:mars:4), soit en gains (VISIT_PLANET:oumuamua:token:1) */
+export function effectPvOrBonus(effect: CardEffect): Bonus {
+  return typeof effect.value === 'number' ? { pv: effect.value } : effectBonus(effect);
+}
+
 export function effectBonus(effect: CardEffect): Bonus {
   const value = effect.value;
   return typeof value === 'object' && value !== null && !('amount' in value) ? value : {};

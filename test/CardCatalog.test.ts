@@ -8,6 +8,7 @@ import { InteractionResolver } from '../src/core/InteractionResolver';
 import { AlienBoardType, Card, CardType, Game, LifeTraceLocation, LifeTraceType, ObjectiveCategory, ProbeState, Technology, TechnologyCategory } from '../src/core/types';
 import { ScoreManager } from '../src/core/ScoreManager';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
+import { TechnologySystem } from '../src/systems/TechnologySystem';
 import { createTestGame, getPlayer, makeCard, mockFetchFromPublic } from './helpers/gameFixture';
 
 /**
@@ -202,6 +203,26 @@ describe('Cartes corrigées', () => {
       expect(claim(game, 'ET.30').error).toBeDefined();
       board.lifeTraces.push({ id: 't2', type: LifeTraceType.BLUE, playerId: P1, location: LifeTraceLocation.TRIANGLE });
       expect(claim(game, 'ET.30').error).toBeUndefined();
+    });
+
+    test("ET.13 Populations Inquiètes : chaque technologie acquise, quelle que soit sa couleur, propose les 3 cercles", async () => {
+      const game = CardSystem.playCard(await gameWithCard('ET.13'), P1, 'ET.13').updatedGame;
+      const mission = getPlayer(game, P1).missions.find(m => m.cardId === 'ET.13')!;
+      expect(mission.requirements.map(r => r.type)).toEqual(['GAIN_ON_ANY_TECH', 'GAIN_ON_ANY_TECH', 'GAIN_ON_ANY_TECH']);
+      const tech = game.board.technologyBoard.available.find(t => t.type === TechnologyCategory.EXPLORATION)!;
+      const res = TechnologySystem.acquireTechnology(game, P1, tech);
+      expect(getPlayer(res.updatedGame, P1).missions.find(m => m.cardId === 'ET.13')!.fulfillableRequirementIds).toEqual(mission.requirements.map(r => r.id));
+      expect(mission.fulfillableRequirementIds).toEqual([]);
+    });
+
+    test("ET.27 Synchronisation Parfaite : visiter Oumuamua ce tour-ci donne 1 Token (pas un cercle de mission)", async () => {
+      expect(card('ET.27').passiveEffects).toContainEqual({ type: 'VISIT_BONUS', target: 'oumuamua', value: { token: 1 } });
+      const start = await gameWithCard('ET.27');
+      getPlayer(start, P1).visitedPlanetsThisTurn = ['oumuamua'];
+      const { tokens } = getPlayer(start, P1);
+      const game = CardSystem.playCard(start, P1, 'ET.27').updatedGame;
+      expect(getPlayer(game, P1).tokens).toBe(tokens! + 1);
+      expect(getPlayer(game, P1).missions.find(m => m.cardId === 'ET.27')!.requirements.map(r => r.type)).toEqual(['GAIN_IF_SIGNAL']);
     });
 
     test("ET.17 Sommes-Nous Observés ? : mission conditionnelle, 3 PV et 2 Médias avec une trace de chaque couleur pour les Anomalies", async () => {

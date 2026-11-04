@@ -9,7 +9,7 @@
  * - Limites (max 1 sonde dans le système solaire sans technologie)
  */
 
-import { effectNumber, effectBonus } from '../core/cardEffects';
+import { effectNumber, effectBonus, effectPvOrBonus } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
 import { Game, Probe, ProbeState, Planet, Satellite, Bonus, GAME_CONSTANTS, DiskName, SectorNumber, HistoryEntry, AlienBoardType, InteractionState, LifeTraceType, MascamitesToken, RuleCheck } from '../core/types';
 import { getObjectPosition, createRotationState, getVisibleLevel, getCell, rotateSector, RotationState, getAbsoluteSectorForProbe, getAllCelestialObjects, levelAngle } from '../core/SolarSystemPosition';
@@ -454,8 +454,9 @@ export class ProbeSystem {
       const buffsToTrigger = player.activeBuffs.filter(buff => buff.type === 'VISIT_BONUS' && buff.target === planetId);
 
       buffsToTrigger.forEach(buff => {
-        bonus.pv = (bonus.pv || 0) + effectNumber(buff);
-        message += ` et gagne ${ResourceSystem.formatResource(effectNumber(buff), 'PV')} ("${buff.source}")`;
+        const gain = effectPvOrBonus(buff);
+        ResourceSystem.accumulateBonus(gain, bonus);
+        message += ` et gagne ${ResourceSystem.formatBonus(gain)!.join(', ')} ("${buff.source}")`;
       });
 
       // Retirer les buffs consommés (pour ne pas gagner 2x les points si on revient sur la planète)
