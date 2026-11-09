@@ -1,4 +1,4 @@
-import { Game, GamePhase, HistoryEntry, InteractionState } from '../core/types';
+import { acceptsChoice, ChoiceFor, ChoiceInteractionType, Game, GamePhase, HistoryEntry, Interaction, InteractionState, InteractionType, isAutomaticInteraction, isSkippable } from '../core/types';
 import { GameEngine } from '../engine/Game';
 import { BaseAction } from '../actions/Action';
 import { LaunchProbeAction } from '../actions/LaunchProbeAction';
@@ -10,7 +10,7 @@ import { LandAction } from '../actions/LandAction';
 import { PlayCardAction } from '../actions/PlayCardAction';
 import { PassAction } from '../actions/PassAction';
 import { InteractionChoices, ChoiceResult } from '../engine/InteractionChoices';
-import { InteractionResolver, isAutomaticInteraction } from '../engine/InteractionResolver';
+import { InteractionResolver } from '../engine/InteractionResolver';
 import { TurnManager } from '../engine/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
@@ -38,12 +38,8 @@ export interface DispatchResult {
   error?: string;
 }
 
-/** Interactions auxquelles le joueur peut renoncer (déplacements gratuits, achat de carte, reste du menu de bonus) */
-const SKIPPABLE: InteractionState['type'][] = ['MOVING_PROBE', 'ACQUIRING_CARD', 'CHOOSING_BONUS_ACTION'];
 /** Cartes dont les gains se résolvent dans l'ordre de la carte, sans menu de choix */
 const FORCE_STACKING_CARDS = ['27', '28', '29', '30'];
-
-type Interaction<T extends InteractionState['type']> = Extract<InteractionState, { type: T }>;
 
 /** Marque la première entrée (hors séparateur) d'une action principale */
 const markMainAction = (entries: HistoryEntry[]): HistoryEntry[] => {
@@ -87,6 +83,85 @@ const namedNotifications = (before: Game, after: Game, notifications: string[]):
 
 class Refusal extends Error {}
 const refuse = (message: string): never => { throw new Refusal(message); };
+
+// --- Choix sur l'interaction en cours ---
+
+/** Contexte d'un choix : la partie sans l'interaction en cours (`base`), la partie reçue, le joueur, l'historique */
+interface ChoiceContext {
+  base: Game;
+  game: Game;
+  playerId: string;
+  outcome: Outcome;
+}
+
+/** Un choix appliqué : le résultat d'une opération de InteractionChoices (file mise à jour ensuite), ou la partie prête */
+type ChoiceOutcome = ChoiceResult | { game: Game };
+type ChoiceHandler<T extends InteractionType> = (c: ChoiceContext, active: Interaction<T>, choice: ChoiceFor<T>) => ChoiceOutcome;
+/** Interactions auxquelles répond une commande CHOOSE (MOVING_PROBE, par exemple, répond à MOVE_PROBE) */
+type ChosenInteractionType = { [T in ChoiceInteractionType]: [ChoiceFor<T>] extends [never] ? never : T }[ChoiceInteractionType];
+
+const wrongChoice = (): never => refuse('Choix sans rapport avec l\'action en cours');
+
+/** Signal dans le secteur choisi ; contrainte des scans suivants de la même action (ScanSystem.scanFollowUp) */
+function scanSector(game: Game, playerId: string, active: Interaction<'SELECTING_SCAN_SECTOR'>, sectorId: string, outcome: Outcome): Game {
+  const sequenceId = active.sequenceId || `scan-${uniqueId()}`;
+  const res = ScanSystem.resolveScanSectorSelection(game, playerId, active, sectorId, sequenceId);
+  if (res.error) refuse(res.error);
+  outcome.add(res.historyEntries, sequenceId);
+  let updated = res.updatedGame;
+  if (res.scanFollowUp) updated = InteractionQueue.set(updated, undefined, InteractionChoices.applyScanFollowUp(InteractionQueue.pending(updated), active, res.scanFollowUp));
+  return InteractionQueue.enqueue(updated, res.newPendingInteractions, sequenceId);
+}
+
+/**
+ * Opération appliquée pour chaque interaction à choix (les genres de choix acceptés sont dans `INTERACTIONS`) :
+ * un type d'interaction oublié est une erreur de compilation.
+ */
+const CHOICE_HANDLERS: { [T in ChosenInteractionType]: ChoiceHandler<T> } = {
+  PLACING_LIFE_TRACE: (c, active, choice) => InteractionChoices.placeLifeTrace(c.base, c.playerId, active, choice.boardIndex, choice.color, choice.slotType, choice.slotIndex),
+  ACQUIRING_ALIEN_CARD: (c, active, choice) => InteractionChoices.acquireAlienCard(c.base, c.playerId, active, choice.cardId),
+  PLACING_OBJECTIVE_MARKER: (c, active, choice) => InteractionChoices.placeObjectiveMarker(c.base, c.playerId, active, choice.tileId),
+  ACQUIRING_TECH: (c, active, choice) => {
+    const tech = TechnologySystem.acquirableTechs(c.base, c.playerId, { categories: active.categories, sharedOnly: active.sharedOnly }).find(t => t.id === choice.techId)
+      ?? refuse('Cette technologie ne peut pas être prise pour ce gain');
+    return InteractionChoices.acquireTech(c.base, c.playerId, active, tech);
+  },
+  SELECTING_COMPUTER_SLOT: (c, active, choice) => InteractionChoices.acquireTech(c.base, c.playerId, active, active.tech, choice.column),
+  ORBITING_PROBE: (c, active, choice) => InteractionChoices.placeBonusProbe(c.base, c.playerId, active, choice.planetId, choice.slotIndex),
+  LANDING_PROBE: (c, active, choice) => InteractionChoices.placeBonusProbe(c.base, c.playerId, active, choice.planetId, choice.slotIndex),
+  REMOVING_ORBITER: (c, active, choice) => InteractionChoices.removeProbe(c.base, c.playerId, active, choice.planetId, choice.slotIndex),
+  REMOVING_LANDER: (c, active, choice) => InteractionChoices.removeProbe(c.base, c.playerId, active, choice.planetId, choice.slotIndex),
+  CHOOSING_CENTAURIEN_REWARD: (c, active, choice) => InteractionChoices.claimCentaurienReward(c.base, c.playerId, active, choice.tokenIndex),
+  CHOOSING_BONUS_ACTION: (c, active, choice) => {
+    const chosen = InteractionChoices.chooseBonusAction(active, choice.index) ?? refuse('Choix indisponible');
+    // L'action choisie devient active, le menu mis à jour revient ensuite
+    return { game: InteractionQueue.set(c.base, chosen.next, [...(chosen.menu ? [chosen.menu] : []), ...InteractionQueue.pending(c.base)]) };
+  },
+  ACQUIRING_CARD: (c, active, choice) => InteractionChoices.acquireCard(c.base, c.playerId, active, choice.cardId),
+  SELECTING_SCAN_CARD: (c, active, choice) => InteractionChoices.selectScanCard(c.base, active, choice.cardId ?? wrongChoice()),
+  RESERVING_CARD: (c, active, choice) => {
+    const result = InteractionChoices.reserveCards(c.base, c.playerId, active, choice.cardIds);
+    if (result.error || c.game.phase !== GamePhase.SETUP) return result;
+    // Mise en place : la réservation faite, au joueur suivant
+    c.outcome.add(result.historyEntries);
+    const setup = TurnManager.advanceSetup(result.updatedGame);
+    c.outcome.add(setup.historyEntries);
+    return { game: setup.updatedGame };
+  },
+  CHOOSING_ROUND_CARD: (c, active, choice) => InteractionChoices.chooseRoundCard(c.base, c.playerId, active, choice.cardId ?? wrongChoice()),
+  DISCARDING_DRAWN_CARD: (c, active, choice) => InteractionChoices.discardDrawnCard(c.base, c.playerId, active, choice.cardId ?? wrongChoice()),
+  DISCARDING_FOR_SIGNAL: (c, active, choice) => InteractionChoices.discardForSignals(c.base, c.playerId, active, choice.cardIds),
+  CHOOSING_MEDIA_OR_MOVE: (c, active, choice) => InteractionChoices.chooseMediaOrMove(c.base, c.playerId, active, choice.choice),
+  COLLECTING_SPECIMEN: (c, active, choice) => InteractionChoices.takeSpecimen(c.base, c.playerId, active, choice.planetId, choice.tokenIndex),
+  CONSULTING_SPECIMEN: (c, active, choice) => InteractionChoices.takeSpecimen(c.base, c.playerId, active, choice.planetId, choice.tokenIndex),
+  CHOOSING_EXERTIEN_CARD: (c, active, choice) => InteractionChoices.playExertienCard(c.base, c.playerId, active, choice.cardId),
+  CHOOSING_MISSION_REQUIREMENT: (c, active, choice) => InteractionChoices.chooseMissionRequirement(c.base, c.playerId, active, choice.missionId, choice.requirementId),
+  DISCARDING_TOKEN: (c, active, choice) => InteractionChoices.discardToken(c.base, c.playerId, active, choice.accepted),
+  CHOOSING_OBS2_ACTION: (c, active, choice) => InteractionChoices.observation2(c.base, c.playerId, active, choice.accepted),
+  CHOOSING_OBS3_ACTION: (c, active, choice) => InteractionChoices.observation3(c.base, active, choice.accepted),
+  CHOOSING_OBS4_ACTION: (c, active, choice) => InteractionChoices.observation4(c.base, c.playerId, active, choice.choice),
+  SELECTING_SCAN_SECTOR: (c, active, choice) => ({ game: scanSector(c.base, c.playerId, active, choice.sectorId, c.outcome) }),
+};
 
 /**
  * Session de jeu : tout ce que les joueurs demandent à la partie passe par `dispatch`, sur un poste comme sur un serveur.
@@ -278,148 +353,22 @@ export class GameSession {
   }
 
   private static skip(game: Game, active: InteractionState): Game {
-    if (!SKIPPABLE.includes(active.type) || (active.type === 'ACQUIRING_CARD' && active.isFree)) refuse('Cette action ne peut pas être abandonnée');
+    if (!isSkippable(active)) refuse('Cette action ne peut pas être abandonnée');
     return InteractionQueue.clear(game);
   }
 
-  // --- Choix sur l'interaction en cours ---
-
   private static choose(game: Game, playerId: string, active: InteractionState, choice: Choice, outcome: Outcome): Game {
-    const wrong = (): never => refuse('Choix sans rapport avec l\'action en cours');
-    const base = InteractionQueue.clear(game);
-    let result: ChoiceResult;
-
-    switch (active.type) {
-      case 'PLACING_LIFE_TRACE':
-        if (choice.kind !== 'LIFE_TRACE') return wrong();
-        result = InteractionChoices.placeLifeTrace(base, playerId, active, choice.boardIndex, choice.color, choice.slotType, choice.slotIndex);
-        break;
-      case 'ACQUIRING_ALIEN_CARD':
-        if (choice.kind !== 'ALIEN_CARD') return wrong();
-        result = InteractionChoices.acquireAlienCard(base, playerId, active, choice.cardId);
-        break;
-      case 'PLACING_OBJECTIVE_MARKER':
-        if (choice.kind !== 'OBJECTIVE') return wrong();
-        result = InteractionChoices.placeObjectiveMarker(base, playerId, active, choice.tileId);
-        break;
-      case 'ACQUIRING_TECH': {
-        if (choice.kind !== 'TECH') return wrong();
-        const tech = TechnologySystem.acquirableTechs(base, playerId, { categories: active.categories, sharedOnly: active.sharedOnly }).find(t => t.id === choice.techId)
-          ?? refuse('Cette technologie ne peut pas être prise pour ce gain');
-        result = InteractionChoices.acquireTech(base, playerId, active, tech);
-        break;
-      }
-      case 'SELECTING_COMPUTER_SLOT':
-        if (choice.kind !== 'COMPUTER_COLUMN') return wrong();
-        result = InteractionChoices.acquireTech(base, playerId, active, active.tech, choice.column);
-        break;
-      case 'ORBITING_PROBE':
-      case 'LANDING_PROBE':
-        if (choice.kind !== 'PLANET') return wrong();
-        result = InteractionChoices.placeBonusProbe(base, playerId, active, choice.planetId, choice.slotIndex);
-        break;
-      case 'REMOVING_ORBITER':
-      case 'REMOVING_LANDER':
-        if (choice.kind !== 'PLANET') return wrong();
-        result = InteractionChoices.removeProbe(base, playerId, active, choice.planetId, choice.slotIndex);
-        break;
-      case 'CHOOSING_CENTAURIEN_REWARD':
-        if (choice.kind !== 'CENTAURIEN') return wrong();
-        result = InteractionChoices.claimCentaurienReward(base, playerId, active, choice.tokenIndex);
-        break;
-      case 'CHOOSING_BONUS_ACTION': {
-        if (choice.kind !== 'MENU') return wrong();
-        const chosen = InteractionChoices.chooseBonusAction(active, choice.index) ?? refuse('Choix indisponible');
-        // L'action choisie devient active, le menu mis à jour revient ensuite
-        return InteractionQueue.set(base, chosen.next, [...(chosen.menu ? [chosen.menu] : []), ...InteractionQueue.pending(base)]);
-      }
-      case 'ACQUIRING_CARD':
-        if (choice.kind !== 'CARD') return wrong();
-        result = InteractionChoices.acquireCard(base, playerId, active, choice.cardId);
-        break;
-      case 'SELECTING_SCAN_CARD':
-        if (choice.kind !== 'CARD' || !choice.cardId) return wrong();
-        result = InteractionChoices.selectScanCard(base, active, choice.cardId);
-        break;
-      case 'RESERVING_CARD':
-        if (choice.kind !== 'CARDS') return wrong();
-        result = InteractionChoices.reserveCards(base, playerId, active, choice.cardIds);
-        if (!result.error && game.phase === GamePhase.SETUP) {
-          // Mise en place : la réservation faite, au joueur suivant
-          outcome.add(result.historyEntries);
-          const setup = TurnManager.advanceSetup(result.updatedGame);
-          outcome.add(setup.historyEntries);
-          return setup.updatedGame;
-        }
-        break;
-      case 'CHOOSING_ROUND_CARD':
-        if (choice.kind !== 'CARD' || !choice.cardId) return wrong();
-        result = InteractionChoices.chooseRoundCard(base, playerId, active, choice.cardId);
-        break;
-      case 'DISCARDING_DRAWN_CARD':
-        if (choice.kind !== 'CARD' || !choice.cardId) return wrong();
-        result = InteractionChoices.discardDrawnCard(base, playerId, active, choice.cardId);
-        break;
-      case 'DISCARDING_FOR_SIGNAL':
-        if (choice.kind !== 'CARDS') return wrong();
-        result = InteractionChoices.discardForSignals(base, playerId, active, choice.cardIds);
-        break;
-      case 'CHOOSING_MEDIA_OR_MOVE':
-        if (choice.kind !== 'MEDIA_OR_MOVE') return wrong();
-        result = InteractionChoices.chooseMediaOrMove(base, playerId, active, choice.choice);
-        break;
-      case 'COLLECTING_SPECIMEN':
-      case 'CONSULTING_SPECIMEN':
-        if (choice.kind !== 'SPECIMEN') return wrong();
-        result = InteractionChoices.takeSpecimen(base, playerId, active, choice.planetId, choice.tokenIndex);
-        break;
-      case 'CHOOSING_EXERTIEN_CARD':
-        if (choice.kind !== 'EXERTIEN') return wrong();
-        result = InteractionChoices.playExertienCard(base, playerId, active, choice.cardId);
-        break;
-      case 'CHOOSING_MISSION_REQUIREMENT':
-        if (choice.kind !== 'MISSION') return wrong();
-        result = InteractionChoices.chooseMissionRequirement(base, playerId, active, choice.missionId, choice.requirementId);
-        break;
-      case 'DISCARDING_TOKEN':
-        if (choice.kind !== 'ACCEPT') return wrong();
-        result = InteractionChoices.discardToken(base, playerId, active, choice.accepted);
-        break;
-      case 'CHOOSING_OBS2_ACTION':
-        if (choice.kind !== 'ACCEPT') return wrong();
-        result = InteractionChoices.observation2(base, playerId, active, choice.accepted);
-        break;
-      case 'CHOOSING_OBS3_ACTION':
-        if (choice.kind !== 'ACCEPT') return wrong();
-        result = InteractionChoices.observation3(base, active, choice.accepted);
-        break;
-      case 'CHOOSING_OBS4_ACTION':
-        if (choice.kind !== 'OBS4') return wrong();
-        result = InteractionChoices.observation4(base, playerId, active, choice.choice);
-        break;
-      case 'SELECTING_SCAN_SECTOR':
-        if (choice.kind !== 'SECTOR') return wrong();
-        return this.scanSector(base, playerId, active, choice.sectorId, outcome);
-      default:
-        return wrong();
-    }
+    if (!acceptsChoice(active, choice)) return wrongChoice();
+    // acceptsChoice : l'interaction a une opération dans la table, et le choix est d'un genre qu'elle accepte
+    const handler = CHOICE_HANDLERS[active.type as ChosenInteractionType] as ChoiceHandler<InteractionType>;
+    const result = handler({ base: InteractionQueue.clear(game), game, playerId, outcome }, active, choice);
+    if ('game' in result) return result.game;
 
     if (result.error) refuse(result.error);
     outcome.add(result.historyEntries, active.sequenceId);
     let updated = InteractionQueue.enqueue(result.updatedGame, result.newPendingInteractions, active.sequenceId);
     if (result.nextInteraction) updated = InteractionQueue.pushFront(updated, result.nextInteraction);
     return updated;
-  }
-
-  /** Signal dans le secteur choisi ; contrainte des scans suivants de la même action (ScanSystem.scanFollowUp) */
-  private static scanSector(game: Game, playerId: string, active: Interaction<'SELECTING_SCAN_SECTOR'>, sectorId: string, outcome: Outcome): Game {
-    const sequenceId = active.sequenceId || `scan-${uniqueId()}`;
-    const res = ScanSystem.resolveScanSectorSelection(game, playerId, active, sectorId, sequenceId);
-    if (res.error) refuse(res.error);
-    outcome.add(res.historyEntries, sequenceId);
-    let updated = res.updatedGame;
-    if (res.scanFollowUp) updated = InteractionQueue.set(updated, undefined, InteractionChoices.applyScanFollowUp(InteractionQueue.pending(updated), active, res.scanFollowUp));
-    return InteractionQueue.enqueue(updated, res.newPendingInteractions, sequenceId);
   }
 
   // --- Après chaque commande ---

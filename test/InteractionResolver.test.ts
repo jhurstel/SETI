@@ -1,4 +1,5 @@
-import { InteractionResolver, isAutomaticInteraction } from '../src/engine/InteractionResolver';
+import { InteractionResolver } from '../src/engine/InteractionResolver';
+import { isAutomaticInteraction } from '../src/core/types';
 import { AIController } from '../src/ai/AIController';
 import { ResourceSystem } from '../src/systems/ResourceSystem';
 import { Game, LifeTraceLocation, LifeTraceType, Mission, Sector } from '../src/core/types';

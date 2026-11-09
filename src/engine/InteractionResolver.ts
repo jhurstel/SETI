@@ -1,5 +1,5 @@
 import { effectString } from '../core/cardEffects';
-import { Bonus, Game, HistoryEntry, InteractionState } from '../core/types';
+import { AutomaticInteraction, Bonus, Game, HistoryEntry, InteractionState } from '../core/types';
 import { cloneGame } from '../core/cloneGame';
 import { ScanSystem } from '../systems/ScanSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -8,15 +8,6 @@ import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { uniqueId } from '../core/ids';
 import { requirePlayer } from '../core/players';
-
-/** Interactions résolues sans choix du joueur (effets de carte, résolution de secteur, validation de mission…). */
-export type AutomaticInteraction = Extract<InteractionState, { type: 'TRIGGER_CARD_EFFECT' | 'RESOLVING_SECTOR' | 'DRAW_AND_SCAN' | 'CLAIMING_MISSION_REQUIREMENT' }>;
-
-const AUTOMATIC_TYPES: ReadonlyArray<InteractionState['type']> = ['TRIGGER_CARD_EFFECT', 'RESOLVING_SECTOR', 'DRAW_AND_SCAN', 'CLAIMING_MISSION_REQUIREMENT'];
-
-export function isAutomaticInteraction(interaction: InteractionState): interaction is AutomaticInteraction {
-  return AUTOMATIC_TYPES.includes(interaction.type);
-}
 
 export interface AutomaticResolution {
   updatedGame: Game;

@@ -1,44 +1,7 @@
-import { DiskName, LifeTraceLocation, LifeTraceType, SectorNumber } from '../core/types';
+import { Choice, DiskName, SectorNumber } from '../core/types';
 
-/**
- * Réponse du joueur à l'interaction en cours (`game.interaction`).
- * Chaque genre ne répond qu'aux interactions indiquées (vérifié par GameSession).
- */
-export type Choice =
-  /** PLACING_LIFE_TRACE */
-  | { kind: 'LIFE_TRACE'; boardIndex: number; color: LifeTraceType; slotType: LifeTraceLocation; slotIndex?: number }
-  /** ACQUIRING_ALIEN_CARD : carte de la rangée de l'espèce, ou 'deck' */
-  | { kind: 'ALIEN_CARD'; cardId: string }
-  /** PLACING_OBJECTIVE_MARKER */
-  | { kind: 'OBJECTIVE'; tileId: string }
-  /** ACQUIRING_TECH */
-  | { kind: 'TECH'; techId: string }
-  /** SELECTING_COMPUTER_SLOT */
-  | { kind: 'COMPUTER_COLUMN'; column: number }
-  /** ORBITING_PROBE, LANDING_PROBE, REMOVING_ORBITER, REMOVING_LANDER */
-  | { kind: 'PLANET'; planetId: string; slotIndex?: number }
-  /** CHOOSING_CENTAURIEN_REWARD */
-  | { kind: 'CENTAURIEN'; tokenIndex: number }
-  /** CHOOSING_BONUS_ACTION */
-  | { kind: 'MENU'; index: number }
-  /** ACQUIRING_CARD (absent : la pioche), SELECTING_SCAN_CARD, CHOOSING_ROUND_CARD */
-  | { kind: 'CARD'; cardId?: string }
-  /** RESERVING_CARD, DISCARDING_FOR_SIGNAL */
-  | { kind: 'CARDS'; cardIds: string[] }
-  /** CHOOSING_MEDIA_OR_MOVE */
-  | { kind: 'MEDIA_OR_MOVE'; choice: 'MEDIA' | 'MOVE' }
-  /** COLLECTING_SPECIMEN, CONSULTING_SPECIMEN */
-  | { kind: 'SPECIMEN'; planetId: string; tokenIndex: number }
-  /** CHOOSING_EXERTIEN_CARD (absent : renoncer) */
-  | { kind: 'EXERTIEN'; cardId?: string }
-  /** CHOOSING_MISSION_REQUIREMENT (absent : renoncer) */
-  | { kind: 'MISSION'; missionId?: string; requirementId?: string }
-  /** CHOOSING_OBS2_ACTION, CHOOSING_OBS3_ACTION, DISCARDING_TOKEN */
-  | { kind: 'ACCEPT'; accepted: boolean }
-  /** CHOOSING_OBS4_ACTION */
-  | { kind: 'OBS4'; choice: 'PROBE' | 'MOVE' }
-  /** SELECTING_SCAN_SECTOR */
-  | { kind: 'SECTOR'; sectorId: string };
+/** Réponse du joueur à l'interaction en cours : défini avec les interactions (core/model/interactions.ts, INTERACTIONS) */
+export type { Choice };
 
 /**
  * Tout ce qu'un joueur peut demander à la partie (GameSession.dispatch) : sérialisable, donc transmissible

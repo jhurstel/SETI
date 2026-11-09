@@ -1,4 +1,4 @@
-import { Bonus, DiskName, Game, HistoryEntry, InteractionState, LifeTraceLocation, LifeTraceType, SectorNumber, Technology, TechnologyCategory } from '../core/types';
+import { Bonus, DiskName, Game, HistoryEntry, Interaction, InteractionState, LifeTraceLocation, LifeTraceType, SectorNumber, Technology, TechnologyCategory } from '../core/types';
 import { GameEngine } from './Game';
 import { MoveProbeAction } from '../actions/MoveProbeAction';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
@@ -25,7 +25,6 @@ export interface ChoiceResult {
   error?: string;
 }
 
-type Interaction<T extends InteractionState['type']> = Extract<InteractionState, { type: T }>;
 
 const refused = (game: Game, error: string): ChoiceResult => ({ updatedGame: game, historyEntries: [], newPendingInteractions: [], error });
 

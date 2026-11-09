@@ -1,7 +1,7 @@
 /** Interactions en cours (union discriminée InteractionState) et leurs libellés */
 import type { Technology } from './board';
 import type { Bonus } from './cards';
-import { LifeTraceType, SectorType, TechnologyCategory } from './enums';
+import { LifeTraceLocation, LifeTraceType, SectorType, TechnologyCategory } from './enums';
 
 /**
  * Représente les différents états d'interaction possibles pour le joueur.
@@ -94,57 +94,155 @@ type InteractionStateVariant =
  */
 export type InteractionState = InteractionStateVariant & { playerId?: string };
 
-  // Helper pour les libellés des interactions
-export const getInteractionLabel = (state: InteractionState): string => {
-  switch (state.type) {
-    case 'RESERVING_CARD': return `Veuillez réserver ${state.count} carte${state.count > 1 ? 's' : ''}.`;
-    case 'DISCARDING_CARD': return `Veuillez défausser ${state.count} carte${state.count > 1 ? 's' : ''}.`;
-    case 'TRADING_CARD': return `Veuillez échanger ${state.count} carte${state.count > 1 ? 's' : ''} pour gagner ${state.targetGain}.`;
-    case 'ACQUIRING_CARD': return state.isFree ? `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''}.` : `Veuillez acheter ${state.count} carte${state.count > 1 ? 's' : ''}.`;
-    case 'MOVING_PROBE': return `Veuillez déplacer une sonde gratuitement (${state.count} déplacement${state.count > 1 ? 's' : ''}).`;
-    case 'ORBITING_PROBE': return `Veuillez mettre une sonde en orbite gratuitement.`;
-    case 'LANDING_PROBE': return `Veuillez poser une sonde gratuitement.`;
-    case 'ACQUIRING_TECH': return state.isBonus ? `Veuillez sélectionner une technologie ${state.categories ? state.categories.join(' ou ') : ''}.` : `Veuillez acheter une technologie.`;
-    case 'SELECTING_COMPUTER_SLOT': return `Veuillez sélectionner un emplacement d'ordinateur pour technologie ${state.tech.shorttext}.`;
-    case 'ANALYZING': return `Analyse en cours...`;
-    case 'PLACING_LIFE_TRACE': return `Veuillez placer trace de vie (${state.color}).`;
-    case 'PLACING_OBJECTIVE_MARKER': return `Veuillez placer un marqueur d'objectif pour avoir dépassé ${state.milestone} PV.`;
-    case 'SELECTING_SCAN_CARD': return `Veuillez sélectionner une carte de la rangée pour marquer un signal.`;
-    case 'SELECTING_SCAN_SECTOR': return state.adjacents ? `Veuillez sélectionner un secteur adjacent à la Terre pour marquer un signal.` : `Veuillez sélectionner un secteur ${state.color} pour marquer un signal.`;
-    case 'CHOOSING_MEDIA_OR_MOVE': return `Veuillez sélectionner le bonus de la carte 19.`;
-    case 'CHOOSING_OBS2_ACTION': return `Veuillez sélectionner le bonus de technologie Observation II.`;
-    case 'CHOOSING_OBS3_ACTION': return `Veuillez sélectionner le bonus de technologie Observation III.`;
-    case 'CHOOSING_OBS4_ACTION': return `Veuillez sélectionner le bonus de technologie Observation IV.`;
-    case 'DISCARDING_FOR_SIGNAL': return `Veuillez défausser ${state.count} carte${state.count > 1 ? 's' : ''} pour marquer un signal.`;
-    case 'REMOVING_ORBITER': return "Veuillez retirer un orbiteur (bonus carte 15).";
-    case 'REMOVING_LANDER': return "Veuillez retirer un atterrisseur (bonus carte 84).";
-    case 'CHOOSING_BONUS_ACTION': return `Veuillez choisir la prochaine action.`;
-    case 'RESOLVING_SECTOR': return `Résolution du secteur complété...`;
-    case 'DRAW_AND_SCAN': return `Pioche d'une carte pour signal...`;
-    case 'CLAIMING_MISSION_REQUIREMENT': return `Validation d'une mission...`;
-    case 'ACQUIRING_ALIEN_CARD': return `Veuillez choisir ${state.count} carte${state.count > 1 ? 's' : ''} Alien (Pioche ou Rangée).`;
-    case 'CHOOSING_CENTAURIEN_REWARD': return `Veuillez choisir une récompense Centaurien.`;
-    case 'COLLECTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour le prélever.`;
-    case 'CONSULTING_SPECIMEN': return `Veuillez cliquer sur un spécimen Mascamite pour l'étudier.`;
-    case 'DISCARDING_DRAWN_CARD': return state.step === 'FREE_ACTION'
-      ? "Défaussez une des cartes piochées pour son action gratuite."
-      : "Défaussez une autre des cartes piochées pour gagner la ressource de son revenu.";
-    case 'CHOOSING_ROUND_CARD': return `Choisissez une carte de fin de manche ${state.round}.`;
-    case 'DISCARDING_TOKEN': return `Défausser 1 Token pour gagner ${state.rewardText} ("${state.cardName}") ?`;
-    case 'CHOOSING_EXERTIEN_CARD': return state.milestone === 0
+/** Type d'une interaction, et la variante correspondante */
+export type InteractionType = InteractionState['type'];
+export type Interaction<T extends InteractionType> = Extract<InteractionState, { type: T }>;
+
+/**
+ * Réponse du joueur à l'interaction en cours (`game.interaction`), transmise par la commande CHOOSE.
+ * Les genres acceptés par chaque interaction sont dans `INTERACTIONS` (vérifiés par GameSession).
+ */
+export type Choice =
+  | { kind: 'LIFE_TRACE'; boardIndex: number; color: LifeTraceType; slotType: LifeTraceLocation; slotIndex?: number }
+  /** Carte de la rangée de l'espèce, ou 'deck' */
+  | { kind: 'ALIEN_CARD'; cardId: string }
+  | { kind: 'OBJECTIVE'; tileId: string }
+  | { kind: 'TECH'; techId: string }
+  | { kind: 'COMPUTER_COLUMN'; column: number }
+  | { kind: 'PLANET'; planetId: string; slotIndex?: number }
+  | { kind: 'CENTAURIEN'; tokenIndex: number }
+  | { kind: 'MENU'; index: number }
+  /** Absent : la pioche (achat de carte) */
+  | { kind: 'CARD'; cardId?: string }
+  | { kind: 'CARDS'; cardIds: string[] }
+  | { kind: 'MEDIA_OR_MOVE'; choice: 'MEDIA' | 'MOVE' }
+  | { kind: 'SPECIMEN'; planetId: string; tokenIndex: number }
+  /** Absent : renoncer */
+  | { kind: 'EXERTIEN'; cardId?: string }
+  /** Absents : renoncer */
+  | { kind: 'MISSION'; missionId?: string; requirementId?: string }
+  | { kind: 'ACCEPT'; accepted: boolean }
+  | { kind: 'OBS4'; choice: 'PROBE' | 'MOVE' }
+  | { kind: 'SECTOR'; sectorId: string };
+export type ChoiceKind = Choice['kind'];
+
+/**
+ * Description d'une interaction :
+ * - `label` : message affiché au joueur ;
+ * - `resolution` : `choice` (le joueur choisit, par une commande CHOOSE d'un des genres `choices`, ou par une action
+ *   gratuite pour MOVING_PROBE ; les robots par AIController), `automatic` (règle sans choix, InteractionResolver),
+ *   `local` (mode de sélection de l'interface, jamais dans la file de la partie) ;
+ * - `skippable` : le joueur peut y renoncer (commande SKIP).
+ * Les tables qui traitent les interactions (GameSession, AIController) sont indexées par `InteractionType` :
+ * le compilateur signale un type oublié.
+ */
+interface InteractionDescriptor<T extends InteractionType> {
+  label: (state: Interaction<T>) => string;
+  resolution: 'choice' | 'automatic' | 'local';
+  choices: readonly ChoiceKind[];
+  skippable?: (state: Interaction<T>) => boolean;
+}
+
+const plural = (count: number) => (count > 1 ? 's' : '');
+const choice = <const K extends readonly ChoiceKind[]>(...choices: K) => ({ resolution: 'choice' as const, choices });
+const automatic = { resolution: 'automatic' as const, choices: [] as const };
+const local = { resolution: 'local' as const, choices: [] as const };
+const always = () => true;
+
+export const INTERACTIONS = {
+  IDLE: { ...local, label: () => 'Aucune action en cours.' },
+  ANALYZING: { ...local, label: () => 'Analyse en cours...' },
+  DISCARDING_CARD: { ...local, label: s => `Veuillez défausser ${s.count} carte${plural(s.count)}.` },
+  TRADING_CARD: { ...local, label: s => `Veuillez échanger ${s.count} carte${plural(s.count)} pour gagner ${s.targetGain}.` },
+
+  RESOLVING_SECTOR: { ...automatic, label: () => 'Résolution du secteur complété...' },
+  DRAW_AND_SCAN: { ...automatic, label: () => "Pioche d'une carte pour signal..." },
+  CLAIMING_MISSION_REQUIREMENT: { ...automatic, label: () => "Validation d'une mission..." },
+  TRIGGER_CARD_EFFECT: {
+    ...automatic,
+    label: s => (s.effectType === 'SCORE_PER_MEDIA' ? `Gagner ${s.value} PV par niveau de Média (PIXL).` : "Appliquer l'effet de la carte."),
+  },
+
+  RESERVING_CARD: { ...choice('CARDS'), label: s => `Veuillez réserver ${s.count} carte${plural(s.count)}.` },
+  ACQUIRING_CARD: {
+    ...choice('CARD'),
+    label: s => (s.isFree ? `Veuillez choisir ${s.count} carte${plural(s.count)}.` : `Veuillez acheter ${s.count} carte${plural(s.count)}.`),
+    // Une carte gagnée en bonus doit être prise ; un achat peut être abandonné
+    skippable: s => !s.isFree,
+  },
+  MOVING_PROBE: { ...choice(), label: s => `Veuillez déplacer une sonde gratuitement (${s.count} déplacement${plural(s.count)}).`, skippable: always },
+  ORBITING_PROBE: { ...choice('PLANET'), label: () => 'Veuillez mettre une sonde en orbite gratuitement.' },
+  LANDING_PROBE: { ...choice('PLANET'), label: () => 'Veuillez poser une sonde gratuitement.' },
+  ACQUIRING_TECH: {
+    ...choice('TECH'),
+    label: s => (s.isBonus ? `Veuillez sélectionner une technologie ${s.categories ? s.categories.join(' ou ') : ''}.` : 'Veuillez acheter une technologie.'),
+  },
+  SELECTING_COMPUTER_SLOT: { ...choice('COMPUTER_COLUMN'), label: s => `Veuillez sélectionner un emplacement d'ordinateur pour technologie ${s.tech.shorttext}.` },
+  PLACING_LIFE_TRACE: { ...choice('LIFE_TRACE'), label: s => `Veuillez placer trace de vie (${s.color}).` },
+  PLACING_OBJECTIVE_MARKER: { ...choice('OBJECTIVE'), label: s => `Veuillez placer un marqueur d'objectif pour avoir dépassé ${s.milestone} PV.` },
+  SELECTING_SCAN_CARD: { ...choice('CARD'), label: () => 'Veuillez sélectionner une carte de la rangée pour marquer un signal.' },
+  SELECTING_SCAN_SECTOR: {
+    ...choice('SECTOR'),
+    label: s => (s.adjacents ? 'Veuillez sélectionner un secteur adjacent à la Terre pour marquer un signal.' : `Veuillez sélectionner un secteur ${s.color} pour marquer un signal.`),
+  },
+  CHOOSING_MEDIA_OR_MOVE: { ...choice('MEDIA_OR_MOVE'), label: () => 'Veuillez sélectionner le bonus de la carte 19.' },
+  CHOOSING_OBS2_ACTION: { ...choice('ACCEPT'), label: () => 'Veuillez sélectionner le bonus de technologie Observation II.' },
+  CHOOSING_OBS3_ACTION: { ...choice('ACCEPT'), label: () => 'Veuillez sélectionner le bonus de technologie Observation III.' },
+  CHOOSING_OBS4_ACTION: { ...choice('OBS4'), label: () => 'Veuillez sélectionner le bonus de technologie Observation IV.' },
+  DISCARDING_DRAWN_CARD: {
+    ...choice('CARD'),
+    label: s => (s.step === 'FREE_ACTION'
+      ? 'Défaussez une des cartes piochées pour son action gratuite.'
+      : 'Défaussez une autre des cartes piochées pour gagner la ressource de son revenu.'),
+  },
+  DISCARDING_FOR_SIGNAL: { ...choice('CARDS'), label: s => `Veuillez défausser ${s.count} carte${plural(s.count)} pour marquer un signal.` },
+  REMOVING_ORBITER: { ...choice('PLANET'), label: () => 'Veuillez retirer un orbiteur (bonus carte 15).' },
+  REMOVING_LANDER: { ...choice('PLANET'), label: () => 'Veuillez retirer un atterrisseur (bonus carte 84).' },
+  CHOOSING_BONUS_ACTION: { ...choice('MENU'), label: () => 'Veuillez choisir la prochaine action.', skippable: always },
+  ACQUIRING_ALIEN_CARD: { ...choice('ALIEN_CARD'), label: s => `Veuillez choisir ${s.count} carte${plural(s.count)} Alien (Pioche ou Rangée).` },
+  CHOOSING_CENTAURIEN_REWARD: { ...choice('CENTAURIEN'), label: () => 'Veuillez choisir une récompense Centaurien.' },
+  COLLECTING_SPECIMEN: { ...choice('SPECIMEN'), label: () => 'Veuillez cliquer sur un spécimen Mascamite pour le prélever.' },
+  CONSULTING_SPECIMEN: { ...choice('SPECIMEN'), label: () => "Veuillez cliquer sur un spécimen Mascamite pour l'étudier." },
+  CHOOSING_EXERTIEN_CARD: {
+    ...choice('EXERTIEN'),
+    label: s => (s.milestone === 0
       ? 'Découverte des Exertiens : vous pouvez jouer une carte Exertien.'
-      : `Palier Exertien (${state.milestone} PV) : vous pouvez jouer une carte Exertien.`;
-    case 'CHOOSING_MISSION_REQUIREMENT': return `Mission déclenchée : vous pouvez recouvrir un cercle.`;
-    case 'TRIGGER_CARD_EFFECT':
-      return state.effectType === 'SCORE_PER_MEDIA'
-        ? `Gagner ${state.value} PV par niveau de Média (PIXL).`
-        : `Appliquer l'effet de la carte.`;
-    case 'IDLE': return `Aucune action en cours.`;
-    default: {
-      // Chaque type d'interaction doit avoir un libellé : erreur de compilation si un cas manque.
-      // Reste possible à l'exécution pour une interaction d'une sauvegarde plus ancienne.
-      const missing: never = state;
-      return `Interaction en cours (${(missing as { type: string }).type}).`;
-    }
-  }
-};
+      : `Palier Exertien (${s.milestone} PV) : vous pouvez jouer une carte Exertien.`),
+  },
+  CHOOSING_ROUND_CARD: { ...choice('CARD'), label: s => `Choisissez une carte de fin de manche ${s.round}.` },
+  DISCARDING_TOKEN: { ...choice('ACCEPT'), label: s => `Défausser 1 Token pour gagner ${s.rewardText} ("${s.cardName}") ?` },
+  CHOOSING_MISSION_REQUIREMENT: { ...choice('MISSION'), label: () => 'Mission déclenchée : vous pouvez recouvrir un cercle.' },
+} as const satisfies { [T in InteractionType]: InteractionDescriptor<T> };
+
+/** Types d'interaction selon leur résolution */
+type TypesResolvedBy<R extends InteractionDescriptor<InteractionType>['resolution']> =
+  { [T in InteractionType]: (typeof INTERACTIONS)[T]['resolution'] extends R ? T : never }[InteractionType];
+export type ChoiceInteractionType = TypesResolvedBy<'choice'>;
+export type AutomaticInteraction = Interaction<TypesResolvedBy<'automatic'>>;
+
+/** Choix acceptés par une interaction */
+export type ChoiceFor<T extends InteractionType> = Extract<Choice, { kind: (typeof INTERACTIONS)[T]['choices'][number] }>;
+
+/** Description d'une interaction (non typée par variante) ; absente pour une interaction d'une sauvegarde plus ancienne */
+function describe(state: InteractionState): InteractionDescriptor<InteractionType> | undefined {
+  return (INTERACTIONS as Partial<Record<string, InteractionDescriptor<InteractionType>>>)[state.type];
+}
+
+/** Interaction résolue par le moteur seul (InteractionResolver) */
+export function isAutomaticInteraction(state: InteractionState): state is AutomaticInteraction {
+  return describe(state)?.resolution === 'automatic';
+}
+
+/** Le joueur peut renoncer à l'interaction (commande SKIP) */
+export function isSkippable(state: InteractionState): boolean {
+  return describe(state)?.skippable?.(state) ?? false;
+}
+
+/** Le choix répond-il à l'interaction ? */
+export function acceptsChoice<T extends InteractionType>(state: Interaction<T>, choice: Choice): choice is ChoiceFor<T> {
+  return describe(state)?.choices.includes(choice.kind) ?? false;
+}
+
+/** Message affiché au joueur pour l'interaction en cours */
+export const getInteractionLabel = (state: InteractionState): string =>
+  describe(state)?.label(state) ?? `Interaction en cours (${state.type}).`;

@@ -3,14 +3,13 @@ import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { CardSystem } from '../src/systems/CardSystem';
 import { AIController } from '../src/ai/AIController';
-import { DiskName, Game, InteractionState, Probe, ProbeState, SectorNumber, SignalType } from '../src/core/types';
+import { DiskName, Game, Interaction, Probe, ProbeState, SectorNumber, SignalType } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 import { getObjectPosition } from '../src/core/SolarSystemPosition';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
 
-type Interaction<T extends InteractionState['type']> = Extract<InteractionState, { type: T }>;
 
 const probeAt = (id: string, ownerId: string, disk: DiskName, sector: SectorNumber, level: number, state = ProbeState.IN_SOLAR_SYSTEM): Probe => ({
   id, ownerId, position: { x: 0, y: 0 }, solarPosition: { disk, sector, level }, state, isOrbiter: false, isLander: false,
