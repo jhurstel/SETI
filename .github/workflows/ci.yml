@@ -20,7 +20,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test
+      # Tests et seuils de couverture du moteur (jest.config.ts) : une instruction non couverte fait échouer la CI
+      - run: npm run test:coverage
       - run: npx vite build
 
   e2e:

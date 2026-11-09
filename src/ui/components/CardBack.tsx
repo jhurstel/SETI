@@ -10,8 +10,8 @@ const CardBackFace: React.FC = () => (
 );
 
 /** Dos d'une carte (main d'un autre joueur, carte masquée) : même gabarit que les cartes de la main */
-export const CardBack: React.FC<{ onMouseEnter?: (e: React.MouseEvent) => void; onMouseLeave?: () => void }> = ({ onMouseEnter, onMouseLeave }) => (
-  <div className="seti-common-card seti-card-back" aria-label="Carte masquée" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+export const CardBack: React.FC<{ className?: string; onMouseEnter?: (e: React.MouseEvent) => void; onMouseLeave?: () => void }> = ({ className = '', onMouseEnter, onMouseLeave }) => (
+  <div className={`seti-common-card seti-card-back ${className}`} aria-label="Carte masquée" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
     <CardBackFace />
   </div>
 );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, CardType, SectorType, Bonus } from '../core/types';
+import { Game, GamePhase, ActionType, GAME_CONSTANTS, ProbeState, Card, Mission, InteractionState, CardType, SectorType, Bonus } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
@@ -225,6 +225,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
 
 
   const handCards = currentPlayer.cards.filter(c => c.type !== CardType.EXERTIEN);
+  // Joueur de cet écran : le seul humain de la partie affichée (en ligne, les autres humains y sont des robots)
+  const viewerId = game.players.find(p => p.type === 'human')?.id;
   const playableCardIds = highlightPlayableCards ? CardSystem.getPlayableCardIds(game, currentPlayer.id) : [];
   // Action « Jouer une carte » choisie : la main est ramenée à l'écran
   const cardsListRef = useRef<HTMLDivElement>(null);
@@ -881,7 +883,12 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                 ))}
                 {/* Fin de jeu et Centaurien */}
                 {(currentPlayer.playedCards || []).map((card: Card) => (
-                  <PlayedMissionCard
+                  // Carte Exertien d'un adversaire : jouée face cachée jusqu'au décompte final (règles)
+                  card.type === CardType.EXERTIEN && currentPlayer.id !== viewerId && game.phase !== GamePhase.FINAL_SCORING ? (
+                    <CardBack key={card.id}
+                      onMouseEnter={e => handleTooltipHover(e, <SlotTooltip status="Carte Exertien face cachée" statusColor="#9fb2da" note="Révélée au décompte final" />)}
+                      onMouseLeave={handleTooltipLeave} />
+                  ) : <PlayedMissionCard
                     key={card.id}
                     card={card}
                     centaurienMarker={currentPlayer.centaurienMilestones.find(m => m.cardId === card.id)}

@@ -42,6 +42,20 @@ export class SpeciesSystem {
         return milestone > 0 && milestone === game.exertienMilestones?.[1] ? 1 : 0;
     }
 
+    /**
+     * Avertissement avant de finir son tour : le joueur a atteint un palier Exertien payant (2e palier) avec une carte
+     * Exertien à jouer, mais pas de quoi payer. Le palier serait consommé sans rien jouer (ScoreManager.checkMilestones).
+     * Null s'il n'y a rien à signaler.
+     */
+    static exertienMilestoneWarning(game: Game, playerId: string): string | null {
+        const player = requirePlayer(game, playerId);
+        const milestone = game.exertienMilestones?.find(m => player.score >= m && !(player.claimedExertienMilestones || []).includes(m));
+        if (milestone === undefined || !player.cards.some(c => CardSystem.isExertienCard(c))) return null;
+        const cost = this.exertienCardCost(game, milestone);
+        if (player.credits >= cost) return null;
+        return `Vous atteignez le palier Exertien de ${milestone} PV, mais y jouer une carte Exertien coûte ${cost} crédit et vous n'en avez pas : le palier sera perdu. Terminer le tour quand même ?`;
+    }
+
     /** Libellé d'un palier Exertien pour l'historique et les fenêtres */
     static exertienMilestoneLabel(milestone: number): string {
         return milestone === 0 ? 'découverte des Exertiens' : `palier ${milestone} PV`;

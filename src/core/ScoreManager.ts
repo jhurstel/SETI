@@ -18,6 +18,7 @@ import { effectNumber, effectString } from './cardEffects';
 import { cloneGame } from './cloneGame';
 import {
   Game,
+  GamePhase,
   Player,
   ScoreCategories,
   LifeTraceType,
@@ -378,7 +379,24 @@ export class ScoreManager {
     const exertienCards = (player.playedCards || []).filter(c => c.type === CardType.EXERTIEN);
     exertienCards.forEach(c => details?.push(`Carte ${c.name} : danger ${c.danger || 0}`));
     const cardsDanger = exertienCards.reduce((sum, c) => sum + (c.danger || 0), 0);
+    return cardsDanger + this.exertienTrackDanger(game, player, details);
+  }
 
+  /**
+   * Danger que les autres joueurs peuvent voir : celui des marqueurs sur la piste Exertiens. Les cartes Exertiens
+   * se jouent face cachée jusqu'au décompte final (règles) : leur danger reste caché, `hidden` signale qu'il y en a.
+   * Le joueur lui-même, et tout le monde au décompte final, voit son danger complet.
+   */
+  static visibleExertienDanger(game: Game, player: Player, viewerId: string | undefined): { danger: number; hidden: boolean } {
+    if (player.id === viewerId || game.phase === GamePhase.FINAL_SCORING) return { danger: player.danger || 0, hidden: false };
+    return {
+      danger: this.exertienTrackDanger(game, player),
+      hidden: player.playedCards.some(c => c.type === CardType.EXERTIEN),
+    };
+  }
+
+  /** Danger des emplacements occupés par les marqueurs du joueur sur la piste d'espèce Exertiens (public) */
+  static exertienTrackDanger(game: Game, player: Player, details?: string[]): number {
     const board = game.board.alienBoards.find(b => b.speciesId === AlienBoardType.EXERTIENS);
     const species = game.species.find(s => s.name === AlienBoardType.EXERTIENS);
     let markersDanger = 0;
@@ -397,7 +415,7 @@ export class ScoreManager {
           if (slotDanger > 0) details?.push(`Marqueur ${t.type.toLowerCase()} : danger ${slotDanger}`);
         });
     }
-    return cardsDanger + markersDanger;
+    return markersDanger;
   }
 
   /**

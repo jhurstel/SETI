@@ -11,7 +11,7 @@ import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ScanSystem } from '../systems/ScanSystem';
-import { noticedSpecies } from '../systems/SpeciesSystem';
+import { SpeciesSystem, noticedSpecies } from '../systems/SpeciesSystem';
 import { Announcement, AnnouncementContent } from './components/Announcement';
 import { GameSession } from '../session/GameSession';
 import { Choice, Command } from '../session/commands';
@@ -294,9 +294,18 @@ export const BoardUI: React.FC = () => {
       return;
     }
     const before = game.currentPlayerIndex;
-    if (await run({ type: 'END_TURN' }) && gameRef.current?.currentPlayerIndex !== before) {
-      setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
+    const endTurn = async () => {
+      if (await run({ type: 'END_TURN' }) && gameRef.current?.currentPlayerIndex !== before) {
+        setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
+      }
+    };
+    // 2e palier Exertien atteint sans crédit pour y jouer sa carte : confirmation, comme les autres gains perdus
+    const warning = SpeciesSystem.exertienMilestoneWarning(game, game.players[before].id);
+    if (warning) {
+      setConfirmModalState({ visible: true, cardId: null, message: warning, onConfirm: () => { endTurn(); } });
+      return;
     }
+    await endTurn();
   };
 
   /** Passer : la main est ramenée à 4 cartes ; la carte de fin de manche se choisit ensuite (pile cachée jusque-là) */

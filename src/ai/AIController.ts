@@ -172,8 +172,8 @@ export class AIController {
         for (const planetId of InteractionChoices.specimenPlanets(game, player.id, interaction)) {
             const tokens = game.board.planets.find(p => p.id === planetId)?.mascamiteTokens || [];
             tokens.forEach((_token, tokenIndex) => {
+                // Planète tirée de specimenPlanets : le choix est toujours autorisé
                 const result = InteractionChoices.takeSpecimen(game, player.id, interaction, planetId, tokenIndex);
-                if (result.error) return;
                 const reward = SpeciesSystem.takeMascamiteSpecimen(game, player.id, planetId, tokenIndex, 'consult', sequenceId)!;
                 const followUp = this.processInteractionQueue(reward.updatedGame, reward.newPendingInteractions, sequenceId, player);
                 const value = AIEvaluator.evaluate(followUp.updatedGame, player.id);

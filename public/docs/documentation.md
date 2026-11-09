@@ -218,7 +218,8 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 
 - À la découverte, chaque joueur reçoit 3 cartes Exertiens (en plus des cartes des premiers marqueurs). Elles ne sont pas en main : ni défaussées, ni réservées, ni jouées normalement.
 - Chaque joueur qui a un marqueur sur les emplacements de découverte peut **jouer tout de suite** une carte Exertien face cachée (ou y renoncer).
-- Des **paliers Exertiens** apparaissent au meilleur score + 20 et + 40. À chaque palier, chaque joueur peut jouer une carte Exertien face cachée (une par palier) ; au **2e palier**, jouer sa carte coûte **1 crédit**.
+- Des **paliers Exertiens** apparaissent au meilleur score + 20 et + 40. À chaque palier, chaque joueur peut jouer une carte Exertien face cachée (une par palier) ; au **2e palier**, jouer sa carte coûte **1 crédit**. Sans crédit, « Prochain joueur » demande confirmation : le palier serait perdu.
+- **Cartes cachées** : les cartes Exertiens des adversaires (en main ou jouées) restent face cachée jusqu'au décompte final, sur leur plateau comme dans l'infobulle ☣️ du plateau des Exertiens ; leur danger n'y montre que celui de leurs marqueurs sur la piste, suivi de « + ? » s'ils ont joué une carte. Votre propre danger est complet.
 - Les cases de la piste rapportent PV et ressources, mais ajoutent du **danger** (3, 3, 2, 2, 1). Pas d'emplacement infini.
 - Fin de partie : les conditions des cartes jouées sont révélées (PV si remplies). Le joueur le plus exposé (somme du danger de ses cartes et de ses cases, ex aequo compris) perd **10 %** de son total, arrondi à l'inférieur. Aucune pénalité si personne n'a de danger.
 
@@ -343,7 +344,7 @@ valeur = PV
 - Commandes (`session/commands.ts`) : `LAUNCH_PROBE`, `SCAN`, `ANALYZE`, `RESEARCH_TECH`, `ORBIT`, `LAND`, `PLAY_CARD`, `PASS`, `MOVE_PROBE`, `TRADE`, `BUY_CARD`, `DISCARD_FOR_FREE_ACTION`, `TRANSFER_DATA`, `CLAIM_MISSION`, `CHOOSE`, `SKIP`, `END_TURN`. Toutes sérialisables.
 - `InteractionQueue` : file d'interactions dans l'état (`game.interaction`, `game.pendingInteractions`).
 - `SessionJournal` : historique et annulation.
-- `viewFor(partie, joueur)` (`session/PlayerView.ts`) : ce qu'un joueur a le droit de voir. Elle masque la pioche, les mains adverses (sauf les cartes révélées), les cartes Exertiens adverses jusqu'au décompte, les spécimens Mascamites que le joueur n'a pas regardés et ceux des capsules adverses, les espèces non découvertes, la graine et le détail des interactions d'un autre joueur. Les nombres restent visibles.
+- `viewFor(partie, joueur)` (`session/PlayerView.ts`) : ce qu'un joueur a le droit de voir. Elle masque la pioche, les mains adverses (sauf les cartes révélées), les cartes Exertiens adverses et le danger qu'elles ajoutent (seul celui de la piste reste) jusqu'au décompte, les spécimens Mascamites que le joueur n'a pas regardés et ceux des capsules adverses, les espèces non découvertes, la graine et le détail des interactions d'un autre joueur. Les nombres restent visibles.
 - Historique : un passage qu'un seul joueur peut lire (nom d'une carte piochée face cachée) est marqué par le moteur (`privateText` dans `core/historyText.ts`). Le jeu local affiche tout ; `viewEntries(entrées, joueur)` retire les passages des autres joueurs et les états d'annulation.
 
 ### 6.3 Principes

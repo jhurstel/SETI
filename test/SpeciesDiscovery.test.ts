@@ -1,4 +1,4 @@
-import { SpeciesSystem, DISCOVERY_NOTICE, discoveryNotice, noticedSpecies } from '../src/systems/SpeciesSystem';
+import { SpeciesSystem, DISCOVERY_MESSAGE, DISCOVERY_NOTICE, discoveryNotice, noticedSpecies } from '../src/systems/SpeciesSystem';
 import { GameSession } from '../src/session/GameSession';
 import { InteractionChoices } from '../src/core/InteractionChoices';
 import { AlienBoardType, CardType, Game, GamePhase, LifeTraceLocation, LifeTraceType } from '../src/core/types';
@@ -118,6 +118,22 @@ describe('découverte d\'une espèce', () => {
     const turn = GameSession.start(discovered);
     expect(turn.game.interaction?.type).not.toBe('CHOOSING_EXERTIEN_CARD');
     expect(getPlayer(turn.game, P1).claimedExertienMilestones).toContain(second);
+  });
+
+  test("découverte par une trace placée par le joueur (commande) : annonce nommée et historique dans l'ordre", () => {
+    exertienBoard(game);
+    game.currentPlayerIndex = 0;
+    game.interaction = { type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE, sequenceId: 'trace' };
+    game.pendingInteractions = [];
+
+    const res = GameSession.dispatch(game, P1, { type: 'CHOOSE', choice: { kind: 'LIFE_TRACE', boardIndex: 0, color: LifeTraceType.BLUE, slotType: LifeTraceLocation.TRIANGLE } });
+
+    expect(res.error).toBeUndefined();
+    expect(res.notifications).toContain(discoveryNotice('Exertiens'));
+    const messages = res.entries.map(e => e.message);
+    expect(messages[0]).toMatch(/^place une trace de vie Bleu/);
+    expect(messages[1]).toBe(DISCOVERY_MESSAGE);
+    expect(game.board.alienBoards[0].isDiscovered).toBe(false);
   });
 
   test('régression : une découverte par un palier neutre ouvre la fenêtre « Découverte » et les choix Exertiens', () => {

@@ -3,6 +3,7 @@ import { textFor } from '../core/historyText';
 import { cloneGame } from '../core/cloneGame';
 import { InteractionQueue } from './InteractionQueue';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
+import { ScoreManager } from '../core/ScoreManager';
 
 /** Identifiant affiché à la place d'une espèce pas encore découverte (son plateau est face cachée) */
 export const HIDDEN_SPECIES = 'Inconnue' as AlienBoardType;
@@ -56,6 +57,8 @@ export function viewFor(game: Game, viewerId: string): Game {
   view.players.forEach(player => {
     if (player.id === viewerId) return;
     player.cards = hideCards(player.cards, card => card.isRevealed && card.type !== CardType.EXERTIEN);
+    // Danger : seul celui de la piste Exertiens est public (celui des cartes jouées face cachée s'y ajoute au décompte)
+    if (!finalScoring) player.danger = ScoreManager.exertienTrackDanger(game, player);
     player.playedCards = hideCards(player.playedCards, card => finalScoring || card.type !== CardType.EXERTIEN);
     player.probes.forEach(probe => { if (probe.specimen) probe.specimen = { bonus: {} }; });
   });

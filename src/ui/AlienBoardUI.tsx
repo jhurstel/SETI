@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Game, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType, LifeTrace } from '../core/types';
+import { Game, GamePhase, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType, LifeTrace } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { BonusIcons } from './components/BonusIcons';
 import { SpeciesSystem, MASCAMITE_BOARD_SPECIMEN_SLOT } from '../systems/SpeciesSystem';
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
-import { DeckPile } from './components/CardBack';
+import { CardBack, DeckPile } from './components/CardBack';
+import { ScoreManager } from '../core/ScoreManager';
 import { Tooltip } from './Tooltip';
 import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon, CentaurienMessageIcon } from './components/GameIcons';
 import { LIFE_TRACE_COLORS, LifeTraceColor } from './styles/lifeTraceColors';
@@ -131,7 +132,8 @@ const SpeciesCardArea: React.FC<{
 };
 
 // Contenu de l'infobulle du danger Exertien : cartes de chaque joueur sur une ligne ; le détail de la carte survolée
-// s'affiche dans sa propre infobulle, qui peut recouvrir celle-ci
+// s'affiche dans sa propre infobulle, qui peut recouvrir celle-ci. Les cartes Exertiens des adversaires restent cachées
+// (jouées face cachée jusqu'au décompte final) : dos des cartes jouées, et seul le danger de la piste (+ ? s'ils en ont joué)
 const ExertienDangerTooltip: React.FC<{
     game: Game;
     onEnter: () => void;
@@ -149,14 +151,27 @@ const ExertienDangerTooltip: React.FC<{
         >
             <div style={{ fontWeight: 'bold', marginBottom: '8px', borderBottom: '1px solid #555', paddingBottom: '4px', color: '#ffd700' }}>Niveau de danger</div>
             {game.players.map(p => {
-                const exertienCards = [...(p.cards || []), ...(p.playedCards || [])].filter(c => c.type === CardType.EXERTIEN);
+                // Joueur de cet écran : le seul humain de la partie affichée (en ligne, les autres humains y sont des robots)
+                const viewerId = game.players.find(player => player.type === 'human')?.id;
+                const visible = ScoreManager.visibleExertienDanger(game, p, viewerId);
+                const hidden = p.id !== viewerId && game.phase !== GamePhase.FINAL_SCORING;
+                const exertienCards = hidden
+                    ? []
+                    : [...(p.cards || []), ...(p.playedCards || [])].filter(c => c.type === CardType.EXERTIEN);
+                const hiddenPlayed = hidden ? p.playedCards.filter(c => c.type === CardType.EXERTIEN) : [];
                 return (
                     <div key={p.id} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #333' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', marginBottom: '4px' }}>
                             <span style={{ color: p.color, fontWeight: 'bold' }}>{p.name}</span>
-                            <span style={{ backgroundColor: '#333', padding: '0 6px', borderRadius: '4px' }}>{p.danger || 0}</span>
+                            <span style={{ backgroundColor: '#333', padding: '0 6px', borderRadius: '4px' }}>{visible.danger}{visible.hidden ? ' + ?' : ''}</span>
                         </div>
-                        {exertienCards.length > 0 ? (
+                        {hiddenPlayed.length > 0 ? (
+                            <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '5px', marginTop: '8px' }}>
+                                {hiddenPlayed.map(card => <CardBack key={card.id} className="alien-danger-card" />)}
+                            </div>
+                        ) : hidden ? (
+                            <div style={{ fontSize: '0.8em', color: '#888', fontStyle: 'italic' }}>Aucune carte Exertien jouée</div>
+                        ) : exertienCards.length > 0 ? (
                             <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '5px', marginTop: '8px' }}>
                                 {exertienCards.map(card => (
                                     <div key={card.id} className="seti-common-card alien-danger-card"

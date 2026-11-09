@@ -1,8 +1,8 @@
 import { ScoreManager } from '../src/core/ScoreManager';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { createRotationState, getAbsoluteSectorForProbe, getCell } from '../src/core/SolarSystemPosition';
-import { DiskName, Game, ObjectiveCategory, ProbeState, SectorNumber, TechnologyCategory } from '../src/core/types';
-import { createTestGame, getPlayer, giveCard } from './helpers/gameFixture';
+import { CardType, DiskName, GAME_CONSTANTS, Game, LifeTraceType, Mission, ObjectiveCategory, ProbeState, SectorNumber, TechnologyCategory } from '../src/core/types';
+import { createTestGame, getPlayer, giveCard, makeCard } from './helpers/gameFixture';
 
 const P1 = 'player_0';
 
@@ -95,5 +95,56 @@ describe('Décompte final : tuile objectif Technologie', () => {
     player.technologies.push(...game.board.technologyBoard.available.slice(0, 5));
 
     expect(ScoreManager.objectiveTileSeries(player, game.board, tile)).toBe(2);
+  });
+});
+
+describe('Décompte final : tuiles objectif Missions, Revenus et Autres (faces A et B)', () => {
+  /** Tuile de la catégorie, sur la face demandée (la mise en place tire une face au hasard) */
+  const tileOf = (game: Game, category: ObjectiveCategory, side: 'A' | 'B') =>
+    ({ ...game.board.objectiveTiles.find(t => t.category === category)!, side });
+  const mission = (id: string, completed: boolean): Mission =>
+    ({ id, cardId: id, name: id, description: '', ownerId: P1, requirements: [], completedRequirementIds: [], fulfillableRequirementIds: [], completed });
+
+  test('Missions A : une série par mission accomplie ; B : une par paire mission accomplie / carte Fin de partie', async () => {
+    const game = await createTestGame();
+    const player = getPlayer(game, P1);
+    player.missions = [mission('m1', true), mission('m2', true), mission('m3', false)];
+    expect(ScoreManager.objectiveTileSeries(player, game.board, tileOf(game, ObjectiveCategory.MISSION, 'A'))).toBe(2);
+
+    const sideB = tileOf(game, ObjectiveCategory.MISSION, 'B');
+    expect(ScoreManager.objectiveTileSeries(player, game.board, sideB)).toBe(1);
+    player.playedCards = [...player.playedCards, makeCard('fin-1', { type: CardType.END_GAME }), makeCard('fin-2', { type: CardType.END_GAME })];
+    expect(ScoreManager.objectiveTileSeries(player, game.board, sideB)).toBe(2);
+  });
+
+  test('Revenus A : une série par lot crédit + énergie + carte réservés ; B : le type le plus réservé', async () => {
+    const game = await createTestGame();
+    const player = getPlayer(game, P1);
+    player.revenueCredits = GAME_CONSTANTS.INITIAL_REVENUE_CREDITS + 2;
+    player.revenueEnergy = GAME_CONSTANTS.INITIAL_REVENUE_ENERGY + 1;
+    player.revenueCards = GAME_CONSTANTS.INITIAL_REVENUE_CARDS + 3;
+    expect(ScoreManager.objectiveTileSeries(player, game.board, tileOf(game, ObjectiveCategory.REVENUE, 'A'))).toBe(1);
+    expect(ScoreManager.objectiveTileSeries(player, game.board, tileOf(game, ObjectiveCategory.REVENUE, 'B'))).toBe(3);
+  });
+
+  test('Autres A : une série par lot de 3 couleurs de traces de vie ; B : une par paire secteur couvert / orbiteur ou atterrisseur', async () => {
+    const game = await createTestGame();
+    const player = getPlayer(game, P1);
+    const trace = (type: LifeTraceType, i: number) => ({ id: `t${i}`, type, playerId: P1 });
+    player.lifeTraces = [trace(LifeTraceType.RED, 1), trace(LifeTraceType.YELLOW, 2), trace(LifeTraceType.BLUE, 3), trace(LifeTraceType.RED, 4)];
+    expect(ScoreManager.objectiveTileSeries(player, game.board, tileOf(game, ObjectiveCategory.OTHER, 'A'))).toBe(1);
+
+    const sideB = tileOf(game, ObjectiveCategory.OTHER, 'B');
+    game.board.sectors[0].coveredBy = [P1, 'player_1'];
+    game.board.sectors[1].coveredBy = [P1];
+    game.board.sectors[2].coveredBy = [P1];
+    // Trois secteurs couverts, mais une seule sonde en orbite ou posée (une sonde en vol ne compte pas)
+    player.probes = [
+      { id: 'o1', ownerId: P1, state: ProbeState.IN_ORBIT },
+      { id: 'v1', ownerId: P1, state: ProbeState.IN_SOLAR_SYSTEM },
+    ] as typeof player.probes;
+    expect(ScoreManager.objectiveTileSeries(player, game.board, sideB)).toBe(1);
+    player.probes = [...player.probes, { id: 'l1', ownerId: P1, state: ProbeState.LANDED }] as typeof player.probes;
+    expect(ScoreManager.objectiveTileSeries(player, game.board, sideB)).toBe(2);
   });
 });

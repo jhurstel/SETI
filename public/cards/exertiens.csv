@@ -12,5 +12,5 @@ ET.50;Déploiement d'Engins;Exertiens;DANGER 2. Fin de jeu: Gagnez 10 PV si vous
 ET.51;Extracteur;Exertiens;DANGER 8. Fin de jeu: Gagnez 18 PV si vous avez glissé 8 cartes sous vos revenus.;;;;;;DANGER:8 + END_CONDITION:RESERVED:any:8:18
 ET.52;Laboratoire Automatisé;Exertiens;DANGER 0. Fin de jeu: Gagnez 7 PV si vous avez acquis 6 Traces de Vie pour cette espèce.;;;;;;DANGER:0 + END_CONDITION:TRACES_SPECIES:this:6:7
 ET.53;Neurolab;Exertiens;DANGER 9. Fin de jeu: Gagnez 20 PV si vous avez acquis 6 Traces de Vie pour les autres espèces.;;;;;;DANGER:9 + END_CONDITION:TRACES_SPECIES:other:6:20
-ET.54;Nœud Nanostructurel;Exertiens;DANGER 1. Fin de jeu: Gagnez 8 PV so vous avez acquis 5 Traces de Vie de la même couleur.;;;;;;DANGER:1 + END_CONDITION:TRACES_SAME_COLOR:any:5:8
+ET.54;Nœud Nanostructurel;Exertiens;DANGER 1. Fin de jeu: Gagnez 8 PV si vous avez acquis 5 Traces de Vie de la même couleur.;;;;;;DANGER:1 + END_CONDITION:TRACES_SAME_COLOR:any:5:8
 ET.55;Stratoélévateur;Exertiens;DANGER 4. Fin de jeu: Gagnez 12 PV si vous avez accomplit 5 missions.;;;;;;DANGER:4 + END_CONDITION:MISSIONS:any:5:12
