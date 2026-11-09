@@ -17,7 +17,7 @@ interface OnlineModalProps {
 
 /** Cadre commun des écrans en ligne : verre sur le ciel de l'accueil, titre et sous-titre ; clic à l'extérieur : `onDismiss` */
 const Frame: React.FC<{ title: string; subtitle?: React.ReactNode; onDismiss?: () => void; children: React.ReactNode }> = ({ title, subtitle, onDismiss, children }) => (
-  <div className="seti-modal-overlay" style={{ zIndex: 2000 }} onClick={onDismiss}>
+  <div className="seti-modal-overlay seti-modal-overlay--online" onClick={onDismiss}>
     <div className="seti-modal-content seti-newgame-modal seti-online-modal" role="dialog" aria-modal="true" aria-labelledby="seti-online-title" onClick={e => e.stopPropagation()}>
       <header className="seti-newgame-header">
         <h2 id="seti-online-title">{title}</h2>

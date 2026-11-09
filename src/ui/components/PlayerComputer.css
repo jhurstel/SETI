@@ -130,3 +130,19 @@
     min-width: 4px;
   }
 }
+
+/* Anciens styles en ligne de PlayerComputer.tsx */
+.player-computer-column {
+  flex: 1;
+  position: relative;
+  align-self: flex-start;
+}
+
+/* Posée avec .player-computer-container : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.player-computer-container.player-computer-body {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+}

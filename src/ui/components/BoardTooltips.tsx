@@ -8,7 +8,7 @@ import './BoardTooltips.css';
 
 /** Symbole avec sa propre infobulle (le gain ou le coût en toutes lettres), dans une autre infobulle */
 export const Sym: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <HoverTooltip content={label} nested style={{ alignItems: 'center', cursor: 'help' }}>{children}</HoverTooltip>
+  <HoverTooltip content={label} nested className="symbol-help">{children}</HoverTooltip>
 );
 
 /** Ligne de symboles (coût ou bonus), chacun avec son infobulle ; `note` en petit à la suite */

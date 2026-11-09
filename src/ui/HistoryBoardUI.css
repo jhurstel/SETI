@@ -156,3 +156,35 @@
     left: 0.42em;
     top: 0.32em;
 }
+
+/* Anciens styles en ligne de HistoryBoardUI.tsx */
+.history-tech-tooltip-gains-label {
+  color: #aaa;
+  margin-bottom: 2px;
+}
+
+.history-tech-tooltip-gains {
+  font-size: 0.8em;
+}
+
+.history-tech-tooltip-desc {
+  font-size: 0.9em;
+  margin-bottom: 8px;
+  color: #ccc;
+}
+
+.history-tech-tooltip-header {
+  border-bottom: 1px solid #555;
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+
+.history-tech-tooltip {
+  text-align: center;
+  min-width: 200px;
+}
+
+.history-tech-bonus {
+  display: flex;
+  justify-content: center;
+}

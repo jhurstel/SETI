@@ -121,7 +121,7 @@ Bundle de production : `index` 531 Ko (minifié), `vendor` 222 Ko, worker des ro
 1. **Le seuil de couverture échoue sur `main`.** `npm run test:coverage` exige 100 % des instructions, lignes et fonctions, et ne passe pas : il manque 9 instructions et 3 fonctions, dans `ScoreManager` (tuile objectif « Autres », face B, lignes 261-266), `GameSession` et `AIController`. Ces lignes n'étaient couvertes que par hasard, par les parties entre robots : quand le comportement d'un robot change, une tuile ou un chemin n'est plus tiré et la couverture tombe.
 2. **La couverture n'est pas en CI.** La CI lance `npm test`, pas `test:coverage`, donc la dérive passe inaperçue.
 3. **Branches les moins couvertes** (nombre de branches non couvertes) : `ProbeSystem` 52, `CardSystem` 49, `SpeciesSystem` 44, `DataLoader` 37, `ScoreManager` 33 (84,7 %), `AIController` 31.
-4. **Interface quasi non testée** : un seul scénario Playwright (un tour humain contre un robot). Le jeu en ligne, l'annulation, la reprise après rechargement, la fin de partie et les fenêtres de choix ne sont testés que dans le moteur.
+4. **Interface quasi non testée** : un seul scénario Playwright (un tour humain contre un robot). Le jeu en ligne, l'annulation, la reprise après rechargement, la fin de partie et les fenêtres de choix ne sont testés que dans le moteur. Tests de composants : **fait** (Testing Library et jsdom dans Jest, `test/components/` : fenêtres de choix, places, nouvelle partie).
 
 ### Recommandations
 
@@ -134,13 +134,13 @@ Bundle de production : `index` 531 Ko (minifié), `vendor` 222 Ko, worker des ro
 
 - **Très bonne discipline TypeScript** : `strict`, 0 `any`, 0 `@ts-ignore`, 2 `eslint-disable`, 3 avertissements ESLint (refresh rapide de React) et aucune erreur.
 - **Conventions claires et suivies** : `RuleCheck` avec raison obligatoire, `requirePlayer`, accesseurs `cardEffects`, `privateText` pour l'historique privé.
-- **Documentation interne abondante** : `CLAUDE.md` et `documentation.md` sont détaillés et à jour sur les règles. Quelques passages sont périmés : `BoardUI` y est donné à « ~650 lignes » (1 013 en réalité) et `PlayerView` y est encore décrit « pour le futur serveur ». `CLAUDE.md` dépasse 30 000 caractères : un sommaire, ou un découpage par thème, le rendrait plus facile à parcourir.
-- **Traces `console.log`** : 5 dans le moteur, volontaires (débogage des robots). Les passer par `Logger.ts` avec un niveau permettrait de les couper en production et sur le serveur.
+- **Documentation interne abondante** : `CLAUDE.md` et `documentation.md` sont détaillés et à jour sur les règles. Quelques passages sont périmés : `BoardUI` y est donné à « ~650 lignes » (1 013 en réalité) et `PlayerView` y est encore décrit « pour le futur serveur ». `CLAUDE.md` dépasse 30 000 caractères : un sommaire, ou un découpage par thème, le rendrait plus facile à parcourir. **Fait** : sommaire, et conventions rangées en sous-sections (moteur, robots, règles particulières, interface, jeu en ligne, données et tests).
+- **Traces `console.log`** : 5 dans le moteur, volontaires (débogage des robots). Les passer par `Logger.ts` avec un niveau permettrait de les couper en production et sur le serveur. **Fait** : `core/trace.ts` (niveau `warn` par défaut, `info` en développement) ; `Logger.ts`, journal de partie, est resté à part.
 
 ## 5. Interface (React)
 
 - **Composants trop gros** : `SolarSystemBoardUI` 1 733 lignes, `BoardUI` 1 013 lignes (15 `useState`, 8 `useEffect`), `PlayerBoardUI` 910 lignes.
-- **299 objets `style={{…}}` en ligne**, à côté de 5 700 lignes de CSS. Deux systèmes de style coexistent, ce qui complique le thème (les couleurs de joueur ont dû passer par des variables CSS).
+- **299 objets `style={{…}}` en ligne**, à côté de 5 700 lignes de CSS. Deux systèmes de style coexistent, ce qui complique le thème (les couleurs de joueur ont dû passer par des variables CSS). **Fait** : les 181 styles fixes restants sont devenus 116 classes (`ui/styles/components.css` et feuilles des composants), vérifiées propriété par propriété contre le style en ligne ; restent en ligne les styles calculés (118). La vérification a révélé un bug : le BOM des CSV, gardé par une lecture sur disque, faisait lire l'en-tête comme une carte « Nom » sur le serveur en ligne (corrigé, testé).
 - **Presque pas de mémoïsation** : seuls 2 fichiers utilisent `React.memo`. Chaque changement d'état (160 Ko) redessine tous les plateaux, y compris le SVG du système solaire. Ce n'est pas mesuré ici : un passage au Profiler de React dira si c'est perceptible.
 - **Bonne frontière avec le moteur** : les handlers envoient des commandes et ne calculent pas de règles. Les vérifications d'affichage (coûts, cases jouables) lisent les systèmes sans rien modifier.
 
@@ -150,7 +150,7 @@ Bundle de production : `index` 531 Ko (minifié), `vendor` 222 Ko, worker des ro
 
 1. Sortir de `BoardUI` des hooks par sujet (sélection locale, annonces et tirage, annulation, en ligne) et des sous-composants par panneau.
 2. Découper `SolarSystemBoardUI` en couches (disques, sondes, secteurs, surbrillances), chacune mémoïsée sur la partie de l'état qu'elle lit.
-3. Remplacer progressivement les styles en ligne par des classes CSS.
+3. ~~Remplacer progressivement les styles en ligne par des classes CSS.~~ **Fait**.
 
 ## 6. Serveur et jeu en ligne
 

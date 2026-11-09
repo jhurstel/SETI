@@ -138,37 +138,37 @@ export const DebugPanel: React.FC<DebugPanelProps> = ({
     >
       <div 
         data-drag-handle="true"
-        style={{ cursor: 'move', paddingBottom: '10px', borderBottom: '1px solid #555', marginBottom: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        className="debug-header"
         onMouseDown={handleMouseDown}
       >
         <strong>Debug Panel</strong>
-        <button onClick={onClose} style={{background: 'none', border: '1px solid #777', borderRadius: '4px', color: 'white', cursor: 'pointer', padding: '2px 6px'}}>X</button>
+        <button onClick={onClose} className="debug-close">X</button>
       </div>
       
-      <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+      <div className="debug-body">
         <div>
           <label>Amount: </label>
-          <input type="number" value={amount} onChange={e => setAmount(parseInt(e.target.value, 10) || 0)} style={{width: '60px', background: '#222', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '4px'}} />
+          <input type="number" value={amount} onChange={e => setAmount(parseInt(e.target.value, 10) || 0)} className="debug-amount" />
         </div>
-        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px'}}>
+        <div className="debug-grid">
           <button onClick={() => handleAddResource('credits')}>+ Credits</button>
           <button onClick={() => handleAddResource('energy')}>+ Energy</button>
           <button onClick={() => handleAddResource('mediaCoverage')}>+ Media</button>
           <button onClick={() => handleAddResource('data')}>+ Data</button>
         </div>
         <div>
-          <input type="text" value={cardId} onChange={e => setCardId(e.target.value)} placeholder="Card ID/Name" style={{width: '100%', boxSizing: 'border-box', background: '#222', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '4px', marginTop: '4px'}} />
-          <button onClick={handleAddCard} style={{width: '100%', marginTop: '5px'}}>Add Card to Hand</button>
+          <input type="text" value={cardId} onChange={e => setCardId(e.target.value)} placeholder="Card ID/Name" className="debug-input" />
+          <button onClick={handleAddCard} className="debug-full-button">Add Card to Hand</button>
         </div>
         <div>
-          <input type="text" value={techId} onChange={e => setTechId(e.target.value)} placeholder="Tech ID/Name" style={{width: '100%', boxSizing: 'border-box', background: '#222', color: 'white', border: '1px solid #555', borderRadius: '4px', padding: '4px', marginTop: '4px'}} />
-          <button onClick={handleAddTech} style={{width: '100%', marginTop: '5px'}}>Add Tech</button>
+          <input type="text" value={techId} onChange={e => setTechId(e.target.value)} placeholder="Tech ID/Name" className="debug-input" />
+          <button onClick={handleAddTech} className="debug-full-button">Add Tech</button>
         </div>
-        <div style={{ marginTop: '10px', borderTop: '1px solid #555', paddingTop: '5px' }}>
-          <div style={{ fontSize: '0.8em', color: '#aaa' }}>Interaction State:</div>
-          <div style={{ color: '#4a9eff', fontWeight: 'bold', fontSize: '0.9em' }}>{interactionState.type}</div>
+        <div className="debug-state">
+          <div className="debug-state-label">Interaction State:</div>
+          <div className="debug-state-type">{interactionState.type}</div>
           {interactionState.type !== 'IDLE' && (
-             <pre style={{ fontSize: '0.7em', color: '#ccc', overflowX: 'auto', whiteSpace: 'pre-wrap', maxHeight: '100px', overflowY: 'auto', margin: '5px 0 0 0' }}>
+             <pre className="debug-state-json">
                {JSON.stringify(interactionState, (k, v) => k === 'type' ? undefined : v, 2)}
              </pre>
           )}

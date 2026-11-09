@@ -1,6 +1,7 @@
 import { Game, MAIN_ACTION_TYPES } from '../core/types';
 import { BaseAction } from '../actions/Action';
 import { ActionValidator } from './ActionValidator';
+import { trace } from '../core/trace';
 
 export class GameEngine {
   private state: Game;
@@ -35,7 +36,7 @@ export class GameEngine {
 
     const previousPlayerIndex = this.state.currentPlayerIndex;
     const previousRound = this.state.currentRound;
-    console.log(`[Game] Executing action ${action.type} for player index ${previousPlayerIndex}`);
+    trace.info(`[Game] Executing action ${action.type} for player index ${previousPlayerIndex}`);
 
     try {
       // Exécuter l'action

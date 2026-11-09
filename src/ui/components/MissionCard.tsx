@@ -45,19 +45,19 @@ export const MissionCard: React.FC<MissionCardProps> = ({
           const icon = isCompleted ? '✅' : (isConditional ? '⬜' : '⚪');
 
           return (
-            <div key={index} style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '4px' }}>
+            <div key={index} className="mission-requirement-line">
               <span style={{ marginRight: '8px', color: isCompleted ? '#4caf50' : '#aaa', fontSize: '1.2em', lineHeight: '1' }}>
                 {icon}
               </span>
               <span>
-                <span style={{ fontWeight: 'bold' }}>Mission:</span> {text.trim()}
+                <span className="mission-label">Mission:</span> {text.trim()}
               </span>
             </div>
           );
         })}
       </div>
       {mission.completed && (
-        <div className="seti-card-tooltip-stats" style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#4caf50', fontWeight: 'bold', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #555' }}>
+        <div className="seti-card-tooltip-stats mission-complete">
           MISSION ACCOMPLIE
         </div>
       )}
@@ -66,8 +66,8 @@ export const MissionCard: React.FC<MissionCardProps> = ({
 
   return (
     <div
-      className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''}`}
-      style={{ cursor: 'help' }}
+      className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''} help-cursor`}
+     
       onMouseEnter={e => { handleTooltipHover(e, renderTooltipContent()); }}
       onMouseLeave={handleTooltipLeave}
     >
@@ -83,7 +83,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
         </div>
       )}
 
-      <div className="seti-mission-requirements-row" style={{ display: 'flex', width: '100%', padding: '8px 0 4px 0', marginTop: 'auto', justifyContent: 'space-evenly' }}>
+      <div className="seti-mission-requirements-row mission-rewards">
         {displayItems.map((_, index) => {
           const requirement = mission.requirements[index];
           const isCompleted = requirement && requirement.id ? (mission.completedRequirementIds || []).includes(requirement.id) : false;
@@ -127,7 +127,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
               }}
               onMouseEnter={(e) => {
                 e.stopPropagation();
-                handleTooltipHover(e, <div style={{ padding: '4px', maxWidth: '200px' }}>{text.trim()}</div>);
+                handleTooltipHover(e, <div className="mission-requirement-tooltip">{text.trim()}</div>);
               }}
               onMouseLeave={(e) => {
                 e.stopPropagation();

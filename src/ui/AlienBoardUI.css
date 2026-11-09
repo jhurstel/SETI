@@ -582,3 +582,88 @@
   stroke-width: 1.4px;
   filter: drop-shadow(0 0 1px #000);
 }
+
+/* Anciens styles en ligne de AlienBoardUI.tsx */
+.count-badge {
+  background-color: #333;
+  padding: 0 6px;
+  border-radius: 4px;
+}
+
+.alien-tokens-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.alien-tokens-title {
+  font-weight: bold;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #555;
+  padding-bottom: 2px;
+  color: #ffd700;
+}
+
+.alien-tokens-tooltip {
+  text-align: left;
+  min-width: 120px;
+}
+
+.alien-species-description {
+  font-size: 0.9em;
+  line-height: 1.4;
+  color: #ddd;
+}
+
+.alien-species-name {
+  font-weight: bold;
+  margin-bottom: 5px;
+  color: #ffd700;
+}
+
+.alien-species-tooltip {
+  max-width: 300px;
+  text-align: left;
+}
+
+.alien-empty-note {
+  font-size: 0.8em;
+  color: #888;
+  font-style: italic;
+}
+
+.alien-danger-cards {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.alien-danger-player-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.alien-danger-player {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #333;
+}
+
+.alien-tooltip-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #555;
+  padding-bottom: 4px;
+  color: #ffd700;
+}
+
+/* Posée avec .seti-tooltip-wide : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.seti-tooltip-wide.alien-danger-tooltip {
+  text-align: left;
+  min-width: 250px;
+}

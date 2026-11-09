@@ -23,12 +23,12 @@ export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visibl
   if (!visible) return null;
   return (
     <div className="seti-modal-overlay">
-      <div className="seti-modal-content-small" style={{ border: '1px solid #ff6b6b' }}>
-        <h3 style={{ color: '#ff6b6b', marginTop: 0 }}>Attention</h3>
-        <p style={{ color: '#ddd', marginBottom: '20px' }}>{message}</p>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-          <button onClick={onCancel} style={{ padding: '8px 16px', backgroundColor: '#555', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Annuler</button>
-          <button onClick={onConfirm} style={{ padding: '8px 16px', backgroundColor: '#ff6b6b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Continuer quand même</button>
+      <div className="seti-modal-content-small confirm-modal">
+        <h3 className="confirm-modal-title">Attention</h3>
+        <p className="confirm-modal-message">{message}</p>
+        <div className="confirm-modal-actions">
+          <button onClick={onCancel} className="confirm-modal-cancel">Annuler</button>
+          <button onClick={onConfirm} className="confirm-modal-confirm">Continuer quand même</button>
         </div>
       </div>
     </div>
@@ -43,7 +43,7 @@ export const CentaurienRewardModal = ({ game, interactionState, onChoice }: { ga
 
   return (
     <ChoiceModal
-      title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}><CentaurienMessageIcon size={24} />Message Centaurien décodé</span>}
+      title={<span className="centaurien-reward-label"><CentaurienMessageIcon size={24} />Message Centaurien décodé</span>}
       subtitle="Choisissez une tuile Message encore disponible : sa récompense est gagnée immédiatement."
     >
       {/* Les 4 tuiles sur une ligne, en symboles, de même taille que les autres choix */}
@@ -293,7 +293,7 @@ const speciesTooltip = (score: FinalScore) => {
     return { label: type === 'Carte' ? 'Carte' : type ? 'Marqueur' : '', detail: /piste Exertiens/.test(name) ? 'Plateau Exertien' : name, value: r.value.replace(/^danger\s*/, '') };
   });
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+    <div className="endgame-score-details">
       {(dangerRows.length > 0 || score.danger > 0) && (
         <ScoreTable title="Danger Exertien" rows={dangerRows} typeColumn total={`Danger ${score.danger}`} />
       )}

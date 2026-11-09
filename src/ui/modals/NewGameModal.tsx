@@ -47,7 +47,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({ visible, onConfirm, 
   const levels = robots.map(r => ROBOT_LEVELS.find(l => l.id === r)?.name).join(', ');
 
   return (
-    <div className="seti-modal-overlay" style={{ zIndex: 2001 }} onClick={onCancel}>
+    <div className="seti-modal-overlay seti-modal-overlay--newgame" onClick={onCancel}>
       <div className="seti-modal-content seti-newgame-modal" role="dialog" aria-modal="true" aria-labelledby="seti-newgame-title" onClick={e => e.stopPropagation()}>
         <header className="seti-newgame-header">
           <h2 id="seti-newgame-title">Nouvelle partie</h2>

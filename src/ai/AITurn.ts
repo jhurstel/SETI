@@ -22,6 +22,7 @@ import { AIController } from './AIController';
 import { AIEvaluator } from './AIEvaluator';
 import { uniqueId } from '../core/ids';
 import { random } from '../core/random';
+import { trace } from '../core/trace';
 
 /**
  * Résultat d'une étape de jeu d'un robot.
@@ -143,7 +144,7 @@ export class AITurn {
       current = res.updatedGame;
     }
 
-    console.warn(`[AI] ${player.name} : palier non résolu, passage forcé au joueur suivant`);
+    trace.warn(`[AI] ${player.name} : palier non résolu, passage forcé au joueur suivant`);
     const updatedGame = TurnManager.nextPlayer(current);
     const next = updatedGame.players[updatedGame.currentPlayerIndex];
     historyEntries.push({ message: `--- Tour de ${next.name} ---`, playerId: next.id });
@@ -177,7 +178,7 @@ export class AITurn {
     try {
       result = new GameEngine(game).executeAction(action);
     } catch (error) {
-      console.warn(`[AI] ${player.name} : action ${decision.action} impossible`, error);
+      trace.warn(`[AI] ${player.name} : action ${decision.action} impossible`, error);
       return null;
     }
     if (!result.success || !result.updatedState) return null;
@@ -263,10 +264,10 @@ export class AITurn {
     }
 
     if (!best || best.gain <= MAIN_ACTION_MIN_GAIN) {
-      console.log(`[AI] ${player.name} : aucune action rentable, passe`);
+      trace.info(`[AI] ${player.name} : aucune action rentable, passe`);
       return null;
     }
-    console.log(`[AI] ${player.name} chose:`, best.decision.action, `(gain estimé ${best.gain.toFixed(2)})`);
+    trace.info(`[AI] ${player.name} chose:`, best.decision.action, `(gain estimé ${best.gain.toFixed(2)})`);
     return best.result;
   }
 
@@ -285,12 +286,12 @@ export class AITurn {
       if (gain > MAIN_ACTION_MIN_GAIN) options.push({ result, gain, decision });
     }
     if (options.length === 0) {
-      console.log(`[AI] ${player.name} : aucune action utile, passe`);
+      trace.info(`[AI] ${player.name} : aucune action utile, passe`);
       return null;
     }
     const top = options.sort((a, b) => b.gain - a.gain).slice(0, EASY_TOP_CHOICES);
     const chosen = top[Math.floor(random() * top.length)];
-    console.log(`[AI] ${player.name} chose:`, chosen.decision.action, `(gain estimé ${chosen.gain.toFixed(2)})`);
+    trace.info(`[AI] ${player.name} chose:`, chosen.decision.action, `(gain estimé ${chosen.gain.toFixed(2)})`);
     return chosen.result;
   }
 

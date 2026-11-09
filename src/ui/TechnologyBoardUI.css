@@ -188,3 +188,49 @@
   align-items: center;
   justify-content: center;
 }
+
+/* Anciens styles en ligne de TechnologyBoardUI.tsx */
+.tech-tooltip-footer {
+  margin-top: auto;
+  border-top: 1px solid #555;
+  padding-top: 4px;
+}
+
+.tech-tooltip-desc {
+  font-size: 0.7em;
+  color: #ccc;
+  line-height: 1.2;
+  flex: 1;
+}
+
+.tech-tooltip-badge {
+  font-size: 0.6em;
+  background-color: #444;
+  padding: 1px 5px;
+  border-radius: 10px;
+  color: #aaa;
+}
+
+.tech-tooltip-name {
+  font-weight: bold;
+  color: #fff;
+  font-size: 0.9em;
+  flex: 1;
+}
+
+.tech-tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+}
+
+.tech-tooltip-gains-label {
+  font-size: 0.7em;
+  color: #aaa;
+  margin-bottom: 2px;
+}
+
+.tech-category-icon {
+  font-size: 1.2em;
+}

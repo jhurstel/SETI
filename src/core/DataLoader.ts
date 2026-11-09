@@ -1,4 +1,5 @@
 import { Card, CardType, FreeActionType, SectorType, RevenueType, CardEffect, TechnologyCategory, LifeTraceType, CostType } from './types';
+import { trace } from './trace';
 
 /** Lit un fichier de données (chemin relatif à public/, ex. « cards/main.csv ») */
 export type TextReader = (path: string) => Promise<string>;
@@ -28,7 +29,7 @@ export class DataLoader {
       const csvContent = await this.readText(path);
       return this.parseCSV(csvContent);
     } catch (error) {
-      console.error(`Impossible de charger les cartes depuis ${path}`, error);
+      trace.error(`Impossible de charger les cartes depuis ${path}`, error);
       return [];
     }
   }
@@ -38,7 +39,9 @@ export class DataLoader {
    */
   private static parseCSV(csvContent: string): Card[] {
     const cards: Card[] = [];
-    const lines = csvContent.split('\n');
+    // Les CSV commencent par un BOM UTF-8 : fetch().text() le retire, pas une lecture sur disque (serveur, outils) ;
+    // gardé, il empêchait de reconnaître l'en-tête, lu alors comme une carte « Nom »
+    const lines = csvContent.replace(/^\uFEFF/, '').split('\n');
 
     // Ignorer l'en-tête si présent
     const startIndex = lines.length > 0 && lines[0].toLowerCase().startsWith('id') ? 1 : 0;

@@ -1,0 +1,411 @@
+/* Styles des composants qui n'ont pas leur propre feuille, et classes partagées entre composants
+   (anciens styles en ligne, voir CLAUDE.md : Rendu) */
+.help-cursor {
+  cursor: help;
+}
+
+.tooltip-caption {
+  font-size: 0.8em;
+  color: #aaa;
+  margin-bottom: 2px;
+}
+
+.pointer-auto {
+  pointer-events: auto;
+}
+
+.debug-state-json {
+  font-size: 0.7em;
+  color: #ccc;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  max-height: 100px;
+  overflow-y: auto;
+  margin: 5px 0 0 0;
+}
+
+.debug-state-type {
+  color: #4a9eff;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+
+.debug-state-label {
+  font-size: 0.8em;
+  color: #aaa;
+}
+
+.debug-state {
+  margin-top: 10px;
+  border-top: 1px solid #555;
+  padding-top: 5px;
+}
+
+.debug-full-button {
+  width: 100%;
+  margin-top: 5px;
+}
+
+.debug-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #222;
+  color: white;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 4px;
+  margin-top: 4px;
+}
+
+.debug-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.debug-amount {
+  width: 60px;
+  background: #222;
+  color: white;
+  border: 1px solid #555;
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.debug-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.debug-close {
+  background: none;
+  border: 1px solid #777;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.debug-header {
+  cursor: move;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #555;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.planet-window-body {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+  margin-top: 50px;
+  min-height: 220px;
+  align-items: center;
+}
+
+.planet-window-title {
+  font-weight: bold;
+  font-size: 1.2em;
+  color: #78a0ff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+.planet-window-header {
+  border-bottom: 1px solid #444;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  text-align: left;
+}
+
+.planet-window {
+  width: 314px;
+}
+
+.no-pointer {
+  pointer-events: none;
+}
+
+.symbol-help {
+  align-items: center;
+  cursor: help;
+}
+
+.bonus-icons {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  vertical-align: middle;
+}
+
+.bonus-repeated {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.icon-block-visible {
+  overflow: visible;
+  display: block;
+}
+
+.icon-inline {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.icon-block {
+  display: block;
+}
+
+.mission-requirement-tooltip {
+  padding: 4px;
+  max-width: 200px;
+}
+
+/* Posée avec .seti-mission-requirements-row : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.seti-mission-requirements-row.mission-rewards {
+  display: flex;
+  width: 100%;
+  padding: 8px 0 4px 0;
+  margin-top: auto;
+  justify-content: space-evenly;
+}
+
+/* Posée avec .seti-card-tooltip-stats : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.seti-card-tooltip-stats.mission-complete {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: #4caf50;
+  font-weight: bold;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #555;
+}
+
+.mission-label {
+  font-weight: bold;
+}
+
+.mission-requirement-line {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.svg-visible {
+  overflow: visible;
+}
+
+.planet-icon-name {
+  position: absolute;
+  top: -16px;
+  width: 120px;
+  text-align: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  text-shadow: 0 0 3px #000;
+  pointer-events: none;
+}
+
+/* Posée avec .seti-mission-requirements-row : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.seti-mission-requirements-row.played-mission-rewards {
+  display: flex;
+  width: 100%;
+  padding: 4px 0;
+  margin-top: auto;
+  justify-content: center;
+}
+
+.sector-marker-dot {
+  text-shadow: 0 0 1px black;
+  font-size: 2em;
+}
+
+.sector-arc-hit {
+  pointer-events: stroke;
+  cursor: help;
+}
+
+/* Posée avec .alien-tooltip-bonus-value : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.alien-tooltip-bonus-value.sector-presence-gain {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.slot-tooltip-empty {
+  font-size: 0.9em;
+  color: #ccc;
+}
+
+.slot-tooltip-line {
+  font-size: 0.9em;
+  color: #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.slot-tooltip {
+  text-align: center;
+}
+
+.svg-bonus-object {
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Posée avec .seti-modal-overlay : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.seti-modal-overlay.seti-modal-overlay--docs {
+  z-index: 2100;
+}
+
+.endgame-score-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.centaurien-reward-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confirm-modal-confirm {
+  padding: 8px 16px;
+  background-color: #ff6b6b;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.confirm-modal-cancel {
+  padding: 8px 16px;
+  background-color: #555;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.confirm-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.confirm-modal-message {
+  color: #ddd;
+  margin-bottom: 20px;
+}
+
+.confirm-modal-title {
+  color: #ff6b6b;
+  margin-top: 0;
+}
+
+/* Posée avec .seti-modal-content-small : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.seti-modal-content-small.confirm-modal {
+  border: 1px solid #ff6b6b;
+}
+
+/* Posée avec .seti-modal-overlay : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.seti-modal-overlay.seti-modal-overlay--newgame {
+  z-index: 2001;
+}
+
+/* Posée avec .seti-modal-overlay : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.seti-modal-overlay.seti-modal-overlay--online {
+  z-index: 2000;
+}
+
+/* Posée avec .seti-card-details : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.seti-card-details.hand-card-details {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  margin-top: auto;
+  font-size: 0.7em;
+  background-color: rgba(0,0,0,0.2);
+  padding: 2px;
+  border-radius: 4px;
+  justify-content: space-between;
+}
+
+/* Posée avec .seti-card-description : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.seti-card-description.hand-card-description {
+  font-size: 0.7em;
+  color: #ccc;
+  font-style: italic;
+  line-height: 1.2;
+  flex: 1;
+  margin: 4px 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+}
+
+.hand-card-type {
+  color: #aaa;
+  font-size: 0.9em;
+}
+
+.hand-card-cost {
+  background-color: rgba(0,0,0,0.3);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.hand-card-meta {
+  font-size: 0.75em;
+  margin-top: 2px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Posée avec .seti-card-name : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.seti-card-name.hand-card-name {
+  font-size: 0.75rem;
+  line-height: 1.1;
+  margin-bottom: 4px;
+  height: 2.2em;
+  overflow: hidden;
+}
+
+.card-attribute {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.card-tooltip-attribute {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.card-tooltip-value {
+  color: #aaffaa;
+}
+
+.card-tooltip-danger {
+  color: #ff6b6b;
+  font-weight: bold;
+}
+
+.card-tooltip-empty {
+  font-style: italic;
+  color: #aaa;
+}

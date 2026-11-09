@@ -270,13 +270,13 @@ const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionStat
         setActiveTooltip({
             rect,
             content: (
-                <div style={{ width: '314px' }}>
-                    <div style={{ borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '12px', textAlign: 'left' }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '1.2em', color: '#78a0ff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                <div className="planet-window">
+                    <div className="planet-window-header">
+                        <div className="planet-window-title">
                             {planet.name}
                         </div>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px', minHeight: '220px', alignItems: 'center' }}>
+                    <div className="planet-window-body">
                         <PlanetIcon id={planet.id} size={planet.id === 'oumuamua' ? 80 : 220} planetData={planet} game={game} interactionState={interactionState} onOrbit={onOrbit} onLand={onLand} handleSlotClick={handleSlotClick} removingItem={removingItem} hoverTimeoutRef={hoverTimeoutRef} setHoveredSlot={setHoveredSlot} />
                     </div>
                 </div>
@@ -331,10 +331,10 @@ const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionStat
     return (
         <div 
             ref={panelRef}
-            className={`seti-foldable-container seti-icon-panel seti-planet-board ${isOpen ? 'open' : 'collapsed'} ${canOrbitOrLand && !isOpen ? 'seti-flash-green' : ''}`}
+            className={`seti-foldable-container seti-icon-panel seti-planet-board ${isOpen ? 'open' : 'collapsed'} ${canOrbitOrLand && !isOpen ? 'seti-flash-green' : ''} pointer-auto`}
             onMouseEnter={handlePanelMouseEnter}
             onMouseLeave={handlePanelMouseLeave}
-            style={{ pointerEvents: 'auto' }}
+           
         >
             <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
                 <span className={`panel-icon ${canOrbitOrLand ? 'seti-flash-green-icon' : ''}`}><OrbiterOrLanderIcon size={24} /></span>

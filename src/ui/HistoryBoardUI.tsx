@@ -148,17 +148,17 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
         const displayName = level ? `${tech.type} ${level}` : tech.name;
 
         const renderBonus = (bonus: Bonus) => {
-            return <div style={{ display: 'flex', justifyContent: 'center' }}><BonusIcons bonus={bonus} size={15} /></div>;
+            return <div className="history-tech-bonus"><BonusIcons bonus={bonus} size={15} /></div>;
         };
 
         return (
-            <div style={{ textAlign: 'center', minWidth: '200px' }}>
-                <div style={{ borderBottom: '1px solid #555', paddingBottom: '4px', marginBottom: '4px' }}>
+            <div className="history-tech-tooltip">
+                <div className="history-tech-tooltip-header">
                     <span style={{ fontWeight: 'bold', color: categoryColor, fontSize: '1.1em' }}>{displayName}</span>
                 </div>
-                <div style={{ fontSize: '0.9em', marginBottom: '8px', color: '#ccc' }}>{tech.description || tech.shorttext}</div>
-                <div style={{ fontSize: '0.8em' }}>
-                    <div style={{ color: '#aaa', marginBottom: '2px' }}>Gains immédiats :</div>
+                <div className="history-tech-tooltip-desc">{tech.description || tech.shorttext}</div>
+                <div className="history-tech-tooltip-gains">
+                    <div className="history-tech-tooltip-gains-label">Gains immédiats :</div>
                     {renderBonus(tech.bonus)}
                 </div>
             </div>

@@ -121,21 +121,11 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
             alignItems: 'center'
           }}
         >
-          <div style={{
-            position: 'absolute',
-            top: '-16px',
-            width: '120px',
-            textAlign: 'center',
-            color: '#fff',
-            fontSize: '12px',
-            fontWeight: 'bold',
-            textShadow: '0 0 3px #000',
-            pointerEvents: 'none'
-          }}>
+          <div className="planet-icon-name">
             {satellite.name}
           </div>
 
-          <svg width="100%" height="100%" viewBox="0 0 40 40" style={{ overflow: 'visible' }}>
+          <svg width="100%" height="100%" viewBox="0 0 40 40" className="svg-visible">
             <g transform="translate(20, 20)" style={{ cursor: isSatClickable ? 'pointer' : 'help', pointerEvents: 'auto' }} onClick={(e) => {
               if (isSatClickable && onLand) { e.stopPropagation(); onLand(satellite.id, 0); }
             }}

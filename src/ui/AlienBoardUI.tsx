@@ -40,8 +40,8 @@ interface AlienBoardUIProps {
 
 const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseEnter, onMouseLeave }: { color: LifeTraceColor, traces: LifeTrace[], game: Game, onClick?: () => void, isClickable?: boolean, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
   <div
-    className={`alien-triangle-slot ${isClickable ? 'clickable' : 'help'}`}
-    style={{ pointerEvents: 'auto' }}
+    className={`alien-triangle-slot ${isClickable ? 'clickable' : 'help'} pointer-auto`}
+   
     onMouseEnter={onMouseEnter}
     onMouseLeave={onMouseLeave}
     onClick={(e) => { e.stopPropagation(); if (isClickable && onClick) { onClick(); } }}
@@ -144,12 +144,12 @@ const ExertienDangerTooltip: React.FC<{
 
     return (
         <div
-            className="seti-tooltip-wide"
-            style={{ textAlign: 'left', minWidth: '250px' }}
+            className="seti-tooltip-wide alien-danger-tooltip"
+           
             onMouseEnter={onEnter}
             onMouseLeave={onLeave}
         >
-            <div style={{ fontWeight: 'bold', marginBottom: '8px', borderBottom: '1px solid #555', paddingBottom: '4px', color: '#ffd700' }}>Niveau de danger</div>
+            <div className="alien-tooltip-title">Niveau de danger</div>
             {game.players.map(p => {
                 // Joueur de cet écran : le seul humain de la partie affichée (en ligne, les autres humains y sont des robots)
                 const viewerId = game.players.find(player => player.type === 'human')?.id;
@@ -160,19 +160,19 @@ const ExertienDangerTooltip: React.FC<{
                     : [...(p.cards || []), ...(p.playedCards || [])].filter(c => c.type === CardType.EXERTIEN);
                 const hiddenPlayed = hidden ? p.playedCards.filter(c => c.type === CardType.EXERTIEN) : [];
                 return (
-                    <div key={p.id} style={{ marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #333' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', marginBottom: '4px' }}>
+                    <div key={p.id} className="alien-danger-player">
+                        <div className="alien-danger-player-header">
                             <span style={{ color: p.color, fontWeight: 'bold' }}>{p.name}</span>
-                            <span style={{ backgroundColor: '#333', padding: '0 6px', borderRadius: '4px' }}>{visible.danger}{visible.hidden ? ' + ?' : ''}</span>
+                            <span className="count-badge">{visible.danger}{visible.hidden ? ' + ?' : ''}</span>
                         </div>
                         {hiddenPlayed.length > 0 ? (
-                            <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '5px', marginTop: '8px' }}>
+                            <div className="alien-danger-cards">
                                 {hiddenPlayed.map(card => <CardBack key={card.id} className="alien-danger-card" />)}
                             </div>
                         ) : hidden ? (
-                            <div style={{ fontSize: '0.8em', color: '#888', fontStyle: 'italic' }}>Aucune carte Exertien jouée</div>
+                            <div className="alien-empty-note">Aucune carte Exertien jouée</div>
                         ) : exertienCards.length > 0 ? (
-                            <div style={{ display: 'flex', flexWrap: 'nowrap', gap: '5px', marginTop: '8px' }}>
+                            <div className="alien-danger-cards">
                                 {exertienCards.map(card => (
                                     <div key={card.id} className="seti-common-card alien-danger-card"
                                         onMouseEnter={(e) => setHoveredCard({ card, rect: e.currentTarget.getBoundingClientRect() })}
@@ -183,7 +183,7 @@ const ExertienDangerTooltip: React.FC<{
                                 ))}
                             </div>
                         ) : (
-                            <div style={{ fontSize: '0.8em', color: '#888', fontStyle: 'italic' }}>Aucune carte Exertien</div>
+                            <div className="alien-empty-note">Aucune carte Exertien</div>
                         )}
                     </div>
                 );
@@ -311,7 +311,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
 
                 {traces.length > 0 ? (
                     <div className="alien-tooltip-players">
-                        <div style={{ fontSize: '0.8em', color: '#aaa', marginBottom: '2px' }}>Découvert par :</div>
+                        <div className="tooltip-caption">Découvert par :</div>
                         {traces.map((trace, idx) => {
                             const player = game.players.find(p => p.id === trace.playerId);
                             return (
@@ -561,16 +561,16 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                         <div className="alien-species-header">
                             <div className="alien-species-title-row">
                                 <div 
-                                    className="alien-species-id"
-                                    style={{ cursor: 'help' }}
+                                    className="alien-species-id help-cursor"
+                                   
                                     onMouseEnter={(e) => {
                                         if (species && species.description) {
                                             const rect = e.currentTarget.getBoundingClientRect();
                                             setActiveTooltip({
                                                 content: (
-                                                    <div style={{ maxWidth: '300px', textAlign: 'left' }}>
-                                                        <div style={{ fontWeight: 'bold', marginBottom: '5px', color: '#ffd700' }}>{species.name}</div>
-                                                        <div style={{ fontSize: '0.9em', lineHeight: '1.4', color: '#ddd' }}>{species.description}</div>
+                                                    <div className="alien-species-tooltip">
+                                                        <div className="alien-species-name">{species.name}</div>
+                                                        <div className="alien-species-description">{species.description}</div>
                                                     </div>
                                                 ),
                                                 rect
@@ -587,12 +587,12 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                                         onMouseEnter={(e) => {
                                             const rect = e.currentTarget.getBoundingClientRect();
                                             const content = (
-                                                <div style={{ textAlign: 'left', minWidth: '120px' }}>
-                                                    <div style={{ fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #555', paddingBottom: '2px', color: '#ffd700' }}>Tokens</div>
+                                                <div className="alien-tokens-tooltip">
+                                                    <div className="alien-tokens-title">Tokens</div>
                                                     {game.players.map(p => (
-                                                        <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center' }}>
+                                                        <div key={p.id} className="alien-tokens-row">
                                                             <span style={{ color: p.color, fontWeight: 'bold' }}>{p.name}</span>
-                                                            <span style={{ backgroundColor: '#333', padding: '0 6px', borderRadius: '4px' }}>{p.tokens || 0}</span>
+                                                            <span className="count-badge">{p.tokens || 0}</span>
                                                         </div>
                                                     ))}
                                                 </div>

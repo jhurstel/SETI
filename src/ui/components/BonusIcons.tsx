@@ -39,7 +39,7 @@ export const SectorSignalIcon: React.FC<{ sector: SectorType; size?: number }> =
 
 /** Icône sans emplacement pour un nombre (trace, réservation) : répétée autant de fois que la quantité */
 export const Repeated: React.FC<{ amount: number; children: React.ReactNode }> = ({ amount, children }) => (
-  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
+  <span className="bonus-repeated">
     {Array.from({ length: Math.max(1, amount) }, (_, i) => <React.Fragment key={i}>{children}</React.Fragment>)}
   </span>
 );
@@ -82,12 +82,12 @@ const LIFE_TRACE_NAMES: Record<LifeTraceType, string> = {
 export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?: React.ReactNode; tooltips?: boolean }> = ({ bonus, size = 16, empty = 'Aucun', tooltips = false }) => {
   const items: React.ReactNode[] = [];
   const withTooltip = (key: string, node: React.ReactNode, label: string) => (tooltips
-    ? <HoverTooltip key={key} content={label} nested style={{ alignItems: 'center', cursor: 'help' }}>{node}</HoverTooltip>
+    ? <HoverTooltip key={key} content={label} nested className="symbol-help">{node}</HoverTooltip>
     : <React.Fragment key={key}>{node}</React.Fragment>);
   const add = (key: string, node: React.ReactNode, label: string) => items.push(withTooltip(key, node, label));
   // Symbole répété autant de fois que la quantité (sans chiffre) : une infobulle par exemplaire
   const addRepeated = (key: string, amount: number, node: React.ReactNode, label: string) => items.push(
-    <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: '1px' }}>
+    <span key={key} className="bonus-repeated">
       {Array.from({ length: Math.max(1, amount) }, (_, i) => withTooltip(`${key}-${i}`, node, label))}
     </span>
   );
@@ -128,5 +128,5 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
     (ResourceSystem.formatBonus(rest) || []).forEach((text, i) => items.push(<span key={`text-${i}`}>{text}</span>));
   }
   if (items.length === 0) return <>{empty}</>;
-  return <span style={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px', verticalAlign: 'middle' }}>{items}</span>;
+  return <span className="bonus-icons">{items}</span>;
 };

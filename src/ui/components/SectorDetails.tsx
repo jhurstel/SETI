@@ -28,7 +28,7 @@ export const SectorTooltip: React.FC<{ sector: Sector, color: string, coveredBy:
       <div className="alien-tooltip-header" style={{ color }}>{sector.name}</div>
       {coveredBy.length > 0 ? (
         <div className="alien-tooltip-players">
-          <div style={{ fontSize: '0.8em', color: '#aaa', marginBottom: '2px' }}>Couvert par :</div>
+          <div className="tooltip-caption">Couvert par :</div>
           {coveredBy.map((p, i) => <div key={`${p.id}-${i}`} className="alien-tooltip-player-row" style={{ color: p.color }}>{p.name}</div>)}
         </div>
       ) : (
@@ -37,7 +37,7 @@ export const SectorTooltip: React.FC<{ sector: Sector, color: string, coveredBy:
       <div className="alien-tooltip-bonuses">
         <div className="alien-tooltip-bonus-row mb">
           <span>Bonus présence :</span>
-          <span className="alien-tooltip-bonus-value" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>{presenceGain} / <HoverTooltip content="Par joueur présent" nested><HumanIcon size={14} /></HoverTooltip></span>
+          <span className="alien-tooltip-bonus-value sector-presence-gain">{presenceGain} / <HoverTooltip content="Par joueur présent" nested><HumanIcon size={14} /></HoverTooltip></span>
         </div>
         <div className="alien-tooltip-bonus-row mb">
           <span>Bonus couverture :</span>
@@ -177,7 +177,7 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
               <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" strokeDasharray={isLastSlot ? "1 1" : undefined} />
               {/* 1 Donnée par signal (sauf emplacement blanc), dans la case */}
               {!player && !isWhiteSlot && (
-                <g transform="translate(-1.7 -1.7)" style={{ pointerEvents: 'none' }}>
+                <g transform="translate(-1.7 -1.7)" className="no-pointer">
                   <ResourceIcon kind="data" size={3.4} />
                 </g>
               )}
@@ -200,19 +200,19 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
 
         return (
           <g key={sector.id}
-            style={{ pointerEvents: 'none' }}>
+            className="no-pointer">
             {/* Zone de survol : toute la couronne du secteur (nom et couloir), les slots gardent leur infobulle */}
             <path d={describeArc(100, 100, (textRadius - 1.5 + slotRadius + 3.5) / 2, startAngle, endAngle, false)} fill="none" stroke="transparent"
-              strokeWidth={slotRadius + 3.5 - (textRadius - 1.5)} style={{ pointerEvents: 'stroke', cursor: 'help' }}
+              strokeWidth={slotRadius + 3.5 - (textRadius - 1.5)} className="sector-arc-hit"
               onMouseEnter={showSectorTooltip} onMouseLeave={() => setActiveTooltip(null)} />
             <defs>
               <path id={textPathId} d={textArc} />
             </defs>
-            <text fill={color} fontSize="2.5" fontWeight="bold" letterSpacing="0.5" opacity="0.9" style={{ pointerEvents: 'none' }}>
+            <text fill={color} fontSize="2.5" fontWeight="bold" letterSpacing="0.5" opacity="0.9" className="no-pointer">
               <textPath href={`#${textPathId}`} startOffset="50%" textAnchor="middle">
                 {sector.name.toUpperCase()}
                 {coveredByPlayers.map((p, playerIndex) => (
-                  <tspan key={playerIndex} fill={p.color} dx={playerIndex === 0 ? "2" : "0.1"} dy={playerIndex === 0 ? "0.9" : "0"} style={{ textShadow: '0 0 1px black', fontSize: '2em' }}>●</tspan>
+                  <tspan key={playerIndex} fill={p.color} dx={playerIndex === 0 ? "2" : "0.1"} dy={playerIndex === 0 ? "0.9" : "0"} className="sector-marker-dot">●</tspan>
                 ))}
               </textPath>
             </text>

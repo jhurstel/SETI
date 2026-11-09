@@ -20,15 +20,15 @@ interface SlotTooltipProps {
  * gain en doré, puis l'action ou la raison dans la couleur de l'état.
  */
 export const SlotTooltip: React.FC<SlotTooltipProps> = ({ status, statusColor, label = 'Bonus', value, cost, note, noteColor }) => (
-  <div style={{ textAlign: 'center' }}>
+  <div className="slot-tooltip">
     <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>{status}</div>
     {value !== undefined && value !== null && value !== '' ? (
-      <div style={{ fontSize: '0.9em', color: '#ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+      <div className="slot-tooltip-line">
         {cost && <>Coût :<span style={{ color: SLOT_COLORS.unavailable, display: 'inline-flex', alignItems: 'center', marginRight: '6px' }}>{cost}</span></>}
         {label} :<span style={{ color: SLOT_COLORS.bonus, display: 'inline-flex', alignItems: 'center' }}>{value}</span>
       </div>
     ) : label === 'Bonus' && value !== undefined ? (
-      <div style={{ fontSize: '0.9em', color: '#ccc' }}>Aucun bonus</div>
+      <div className="slot-tooltip-empty">Aucun bonus</div>
     ) : null}
     {note && <div style={{ fontSize: '0.8em', color: noteColor ?? statusColor, marginTop: '4px', fontStyle: 'italic' }}>{note}</div>}
   </div>

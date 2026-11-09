@@ -166,7 +166,7 @@ const PlanetGlobeBase: React.FC<{ id: string; size: number }> = ({ id, size }) =
   const look = LOOKS[id] ?? { light: '#bbb', base: '#888', dark: '#333' };
   const clip = `clip-${uid}`;
   return (
-    <svg width={size} height={size} viewBox="-50 -50 100 100" style={{ overflow: 'visible', display: 'block' }}>
+    <svg width={size} height={size} viewBox="-50 -50 100 100" className="icon-block-visible">
       <defs>
         <radialGradient id={`body-${uid}`} cx="35%" cy="32%" r="75%">
           <stop offset="0%" stopColor={look.light} />
@@ -289,7 +289,7 @@ const AsteroidFieldSvgBase: React.FC<{ width: number; height: number; count: num
     r: 0.4 + seeded(seed + i + 500) * 0.8,
   }));
   return (
-    <svg width={width} height={height} viewBox={`${-width / 2} ${-height / 2} ${width} ${height}`} style={{ overflow: 'visible', display: 'block' }}>
+    <svg width={width} height={height} viewBox={`${-width / 2} ${-height / 2} ${width} ${height}`} className="icon-block-visible">
       <defs>
         <radialGradient id={`rock-${uid}`} cx="35%" cy="30%" r="80%">
           <stop offset="0%" stopColor="#b6a796" />
@@ -320,7 +320,7 @@ const SunSvgBase: React.FC = () => {
   // Protubérances : arcs lumineux au bord du disque
   const prominences = [20, 140, 255];
   return (
-    <svg width="100%" height="100%" viewBox="-50 -50 100 100" style={{ overflow: 'visible', display: 'block' }}>
+    <svg width="100%" height="100%" viewBox="-50 -50 100 100" className="icon-block-visible">
       <defs>
         <radialGradient id={`sun-corona-${uid}`} r="50%">
           <stop offset="45%" stopColor="#ffcf5a" stopOpacity={0.55} />
@@ -364,7 +364,7 @@ const SunSvgBase: React.FC = () => {
 const ProbeSvgBase: React.FC<{ color: string }> = ({ color }) => {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   return (
-    <svg width="100%" height="100%" viewBox="-12 -12 24 24" style={{ overflow: 'visible', display: 'block' }}>
+    <svg width="100%" height="100%" viewBox="-12 -12 24 24" className="icon-block-visible">
       <defs>
         <radialGradient id={`dish-${uid}`} cx="40%" cy="35%" r="70%">
           <stop offset="0%" stopColor="#ffffff" />
@@ -407,7 +407,7 @@ const ProbeSvgBase: React.FC<{ color: string }> = ({ color }) => {
 const CapsuleSvgBase: React.FC<{ color: string }> = ({ color }) => {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
   return (
-    <svg width="100%" height="100%" viewBox="-12 -12 24 24" style={{ overflow: 'visible', display: 'block' }}>
+    <svg width="100%" height="100%" viewBox="-12 -12 24 24" className="icon-block-visible">
       <defs>
         <linearGradient id={`hull-${uid}`} x1="0" x2="1">
           <stop offset="0%" stopColor="#f1f3f5" />

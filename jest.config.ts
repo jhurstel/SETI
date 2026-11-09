@@ -3,6 +3,8 @@ module.exports = {
     testEnvironment: 'node',
     roots: ['<rootDir>/test'],
     moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+    // Tests de composants (test/components, environnement jsdom) : les feuilles de style importées sont ignorées
+    moduleNameMapper: { '\\.css$': '<rootDir>/test/helpers/styleStub.ts' },
     transform: {
       '^.+\\.tsx?$': ['ts-jest', { tsconfig: '<rootDir>/test/tsconfig.json' }],
     },

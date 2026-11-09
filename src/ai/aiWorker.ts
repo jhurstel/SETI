@@ -2,6 +2,11 @@
 import { AITurn } from './AITurn';
 import { getRandomState, setRandomState } from '../core/random';
 import type { AIWorkerRequest, AIWorkerResponse } from './aiWorkerProtocol';
+import { setTraceLevel } from '../core/trace';
+
+/** Injecté par Vite : vrai en développement (traces des robots affichées) */
+declare const __DEBUG_TOOLS__: boolean | undefined;
+if (typeof __DEBUG_TOOLS__ === 'boolean' && __DEBUG_TOOLS__) setTraceLevel('info');
 
 /**
  * Web Worker des robots : calcule une étape (AITurn.playStep) ou une fin de tour (AITurn.endTurn)

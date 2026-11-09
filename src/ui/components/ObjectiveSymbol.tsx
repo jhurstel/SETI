@@ -145,7 +145,7 @@ const RevenueMark: React.FC<{ x: number; y: number }> = ({ x, y }) => {
 
 /** Symbole « réservation » (revenu) seul, pour les emplacements qui en donnent une */
 export const ReservationIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="-9 -9 18 18" style={{ display: 'block' }}>
+  <svg width={size} height={size} viewBox="-9 -9 18 18" className="icon-block">
     <RevenueMark x={0} y={0} />
   </svg>
 );
@@ -198,7 +198,7 @@ const OrbiterOrLander = () => (
 export const TechCategoryIcon: React.FC<{ category: TechnologyCategory; size?: number }> = ({ category, size = 22 }) => {
   const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, '');
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+    <svg width={size} height={size} viewBox="0 0 40 40" className="icon-inline">
       {category === TechnologyCategory.EXPLORATION && <Chip fill={COLORS.exploration}><Rocket /></Chip>}
       {category === TechnologyCategory.OBSERVATION && <Chip fill={COLORS.observation}><Dish /></Chip>}
       {category === TechnologyCategory.COMPUTING && <Chip fill={COLORS.computing}><Server /></Chip>}
@@ -216,14 +216,14 @@ export const TechCategoryIcon: React.FC<{ category: TechnologyCategory; size?: n
 
 /** Orbiteur ou atterrisseur seul (icône du panneau des planètes) */
 export const OrbiterOrLanderIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
-  <svg width={size} height={size} viewBox="2 2 36 36" style={{ display: 'block' }}>
+  <svg width={size} height={size} viewBox="2 2 36 36" className="icon-block">
     <OrbiterOrLander />
   </svg>
 );
 
 /** Orbiteur seul : disque vert et satellite, comme la moitié de l'icône du panneau des planètes */
 export const OrbiterIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
-  <svg width={size} height={size} viewBox="2 2 36 36" style={{ display: 'block' }}>
+  <svg width={size} height={size} viewBox="2 2 36 36" className="icon-block">
     <circle cx={20} cy={20} r={17} fill={COLORS.energy} />
     <SatelliteGlyph x={20} y={20} scale={1.5} />
   </svg>
@@ -231,7 +231,7 @@ export const OrbiterIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
 
 /** Atterrisseur seul : disque jaune et atterrisseur, comme la moitié de l'icône du panneau des planètes */
 export const LanderIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
-  <svg width={size} height={size} viewBox="2 2 36 36" style={{ display: 'block' }}>
+  <svg width={size} height={size} viewBox="2 2 36 36" className="icon-block">
     <circle cx={20} cy={20} r={17} fill={COLORS.lifeYellow} />
     <LanderGlyph x={20} y={21.5} scale={1.6} />
   </svg>
@@ -241,7 +241,7 @@ export const LanderIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
 export const AnyTechIcon: React.FC<{ size?: number }> = ({ size = 22 }) => {
   const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, '');
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" style={{ display: 'block' }}>
+    <svg width={size} height={size} viewBox="0 0 40 40" className="icon-block">
       <AnyTech id={`anytech-${uid}`} />
     </svg>
   );

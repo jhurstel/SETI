@@ -85,7 +85,7 @@ const TechnologyBoardUIView: React.FC<TechnologyBoardUIProps> = ({ game, interac
           return (
             <div key={slot.category} className="seti-tech-category">
               <div className="seti-tech-category-title" style={{ color: techStyle.color, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '1.2em' }}>{getCategoryIcon(slot.category)}</span>
+                <span className="tech-category-icon">{getCategoryIcon(slot.category)}</span>
                 {slot.category}
               </div>
               <div className="seti-tech-slots">
@@ -141,7 +141,7 @@ const TechnologyBoardUIView: React.FC<TechnologyBoardUIProps> = ({ game, interac
                           {hasTech && <div className="seti-tech-tooltip-acquired">Déjà acquis</div>}
                           <div className="seti-tech-tooltip-desc">{topCard.description || topCard.shorttext}</div>
                           <div className="seti-tech-tooltip-bonus">
-                            <div style={{ fontSize: '0.7em', color: '#aaa', marginBottom: '2px' }}>Gains immédiats :</div>
+                            <div className="tech-tooltip-gains-label">Gains immédiats :</div>
                             {renderBonus(topCard.bonus, false)}
                           </div>
                           <div className="seti-tech-tooltip-count">
@@ -161,33 +161,27 @@ const TechnologyBoardUIView: React.FC<TechnologyBoardUIProps> = ({ game, interac
                     >
                       {hasExtraPv && (
                         <div className="seti-tech-card-extra-pv" aria-label="2 PV">
-                          <HoverTooltip content="2 PV" nested style={{ cursor: 'help' }}><VictoryPointsIcon amount={2} size={22} /></HoverTooltip>
+                          <HoverTooltip content="2 PV" nested className="help-cursor"><VictoryPointsIcon amount={2} size={22} /></HoverTooltip>
                         </div>
                       )}
                       
                       <>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '4px' }}>
+                        <div className="tech-tooltip-header">
                           {/* Tuile du matériel (livret p. 17) */}
                           <TechTileIcon techId={baseId} width={22} height={31} />
-                          <span style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.9em', flex: 1 }}>
+                          <span className="tech-tooltip-name">
                             {topCard.name}
                           </span>
-                          <span style={{ 
-                            fontSize: '0.6em', 
-                            backgroundColor: '#444', 
-                            padding: '1px 5px', 
-                            borderRadius: '10px',
-                            color: '#aaa'
-                          }}>
+                          <span className="tech-tooltip-badge">
                             x{count}
                           </span>
                         </div>
                         
-                        <div style={{ fontSize: '0.7em', color: '#ccc', lineHeight: '1.2', flex: 1 }}>
+                        <div className="tech-tooltip-desc">
                           {topCard.shorttext}
                         </div>
   
-                        <div style={{ marginTop: 'auto', borderTop: '1px solid #555', paddingTop: '4px' }}>
+                        <div className="tech-tooltip-footer">
                           {renderBonus(topCard.bonus, hasExtraPv, true)}
                         </div>
                       </>

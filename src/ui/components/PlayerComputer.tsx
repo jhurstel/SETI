@@ -42,7 +42,7 @@ export const PlayerComputer = ({
   const hasData = (player.data || 0) > 0;
 
   return (
-    <div className={`player-computer-container ${isAnalyzing ? 'analyzing-container' : ''}`} style={{ position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'flex-start', width: '100%' }}>
+    <div className={`player-computer-container ${isAnalyzing ? 'analyzing-container' : ''} player-computer-body`}>
       {/* Animation de scan */}
       {isAnalyzing && (
         <style>
@@ -126,7 +126,7 @@ export const PlayerComputer = ({
               );
             })()}
             {index < columns.length - 1 && (
-              <div style={{ flex: 1, position: 'relative', alignSelf: 'flex-start' }}>
+              <div className="player-computer-column">
                 <div 
                   className="computer-separator"
                   style={{

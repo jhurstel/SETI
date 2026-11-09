@@ -29,7 +29,7 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
 
     // Infobulle d'un palier ou d'une tuile : nom en gras, effet en italique (même format que les astéroïdes et comètes)
     const showInfoTooltip = (e: React.MouseEvent, title: string, effect: string, titleColor?: string, effectColor = '#aaa') => setActiveTooltip({
-        content: <div style={{ maxWidth: '240px', textAlign: 'center' }}><div style={{ fontWeight: 'bold', color: titleColor }}>{title}</div><div style={{ fontSize: '0.8em', marginTop: '4px', color: effectColor, fontStyle: 'italic' }}>{effect}</div></div>,
+        content: <div className="objective-tooltip"><div style={{ fontWeight: 'bold', color: titleColor }}>{title}</div><div style={{ fontSize: '0.8em', marginTop: '4px', color: effectColor, fontStyle: 'italic' }}>{effect}</div></div>,
         rect: e.currentTarget.getBoundingClientRect()
     });
     const neutralEffect = (m: number) => {
@@ -59,8 +59,8 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
                             : "Personne n'a encore passé"}
                     </span>
                 </div>
-                <div className="seti-score-track" style={{ padding: '30px 15px 40px 15px', position: 'relative', borderBottom: '1px solid #444', marginBottom: '10px' }}>
-                    <div style={{ height: '4px', background: 'linear-gradient(90deg, #444, #666)', borderRadius: '2px', position: 'relative' }}>
+                <div className="seti-score-track score-track-frame">
+                    <div className="score-track-bar">
                         {/* Ticks */}
                         {Array.from({ length: trackMax / 5 + 1 }).map((_, i) => {
                             const score = i * 5;
@@ -68,7 +68,7 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
                             if (score > trackMax) return null;
                             return (
                                 <div key={`tick-${score}`} style={{ position: 'absolute', left: `${getPosition(score)}%`, top: '4px', width: '1px', height: isMajor ? '8px' : '4px', background: isMajor ? '#999' : '#666' }}>
-                                    {isMajor && <div style={{ position: 'absolute', top: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.8em', color: '#999' }}>{score}</div>}
+                                    {isMajor && <div className="score-track-label">{score}</div>}
                                 </div>
                             );
                         })}
@@ -79,8 +79,8 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
                                 onMouseEnter={(e) => showInfoTooltip(e, `Palier neutre : ${m} PV`, neutralEffect(m))}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
-                                <svg width="14" height="14" viewBox="0 0 24 24" style={{ fill: '#aaa', filter: 'drop-shadow(0 0 2px #555)' }}><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg>
-                                <div style={{ position: 'absolute', top: '-16px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: '#aaa', background: 'rgba(30,30,30,0.8)', padding: '0 3px', borderRadius: '2px' }}>{m}</div>
+                                <svg width="14" height="14" viewBox="0 0 24 24" className="score-milestone-neutral-icon"><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg>
+                                <div className="score-milestone-neutral-label">{m}</div>
                             </div>
                         ))}
                         {/* Paliers Objectifs */}
@@ -89,8 +89,8 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
                                 onMouseEnter={(e) => showInfoTooltip(e, `Palier objectif : ${m} PV`, "Chaque joueur qui l'atteint place, à la fin de son tour, un marqueur sur une tuile objectif où il n'en a pas encore : ses PV sont comptés en fin de partie")}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
-                                <svg width="16" height="16" viewBox="0 0 24 24" style={{ fill: '#ffd700', filter: 'drop-shadow(0 0 3px #ffd700)' }}><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                                <div style={{ position: 'absolute', top: '-18px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: '#ffd700', background: 'rgba(30,30,30,0.8)', padding: '0 3px', borderRadius: '2px' }}>{m}</div>
+                                <svg width="16" height="16" viewBox="0 0 24 24" className="score-milestone-golden-icon"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
+                                <div className="score-milestone-golden-label">{m}</div>
                             </div>
                         ))}
                         {/* Paliers Centauriens */}
@@ -115,8 +115,8 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
                                 onMouseEnter={(e) => showInfoTooltip(e, `Palier Exertien : ${m} PV`, "Chaque joueur qui l'atteint peut jouer une de ses cartes Exertien")}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
-                                <span style={{ fontSize: '12px', filter: 'drop-shadow(0 0 2px #fff)' }}>☣️</span>
-                                <div style={{ position: 'absolute', top: '-20px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: '#aaa', background: 'rgba(30,30,30,0.8)', padding: '0 3px', borderRadius: '2px' }}>{m}</div>
+                                <span className="score-milestone-exertien-icon">☣️</span>
+                                <div className="score-milestone-exertien-label">{m}</div>
                             </div>
                         ))}
                         {/* Joueurs */}

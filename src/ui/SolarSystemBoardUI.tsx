@@ -143,7 +143,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
   const piecesSummary = (pieces: Probe[]) => {
     if (pieces.length === 0) return null;
     return (
-      <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+      <div className="solar-pieces-summary">
         {game.players.filter(pl => pieces.some(p => p.ownerId === pl.id)).map(pl => {
           const mine = pieces.filter(p => p.ownerId === pl.id);
           const probes = mine.filter(p => p.state !== ProbeState.CAPSULE).length;
@@ -155,7 +155,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
             parts.push(`1 capsule${reward ? ` (spécimen : ${reward})` : ''}`);
           });
           return (
-            <div key={pl.id} style={{ fontSize: '0.85em' }}>
+            <div key={pl.id} className="solar-pieces-line">
               <strong style={{ color: pl.color }}>{pl.name}</strong> : {parts.join(', ')}
             </div>
           );
@@ -216,14 +216,14 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
         const planetData = getPlanetData(obj.id);
         if (planetData) {
           content = (
-            <div style={{ width: '314px' }}>
-              <div style={{ borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '12px', textAlign: 'left' }}>
-                <div style={{ fontWeight: 'bold', fontSize: '1.2em', color: '#78a0ff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+            <div className="planet-window">
+              <div className="planet-window-header">
+                <div className="planet-window-title">
                   {planetData.name}
                 </div>
                 {visitMedia}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px', minHeight: '220px', alignItems: 'center' }}>
+              <div className="planet-window-body">
                 <PlanetIcon id={planetData.id} size={planetData.id === 'oumuamua' ? 80 : 220} planetData={planetData} game={game} interactionState={interactionState} onOrbit={onOrbit} onLand={onLand} handleSlotClick={handleSlotClick} removingItem={removingItem} hoverTimeoutRef={hoverTimeoutRef} setHoveredSlot={setHoveredSlot} />
               </div>
             </div>
@@ -259,12 +259,12 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
             subContent = visitMedia;
             tooltipProps = hoverable;
           }
-          content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{subContent}</>;
+          content = <><div className="solar-tooltip-title">{obj.name}</div>{subContent}</>;
         }
         break;
       }
       case 'comet': {
-        content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{visitMedia}</>;
+        content = <><div className="solar-tooltip-title">{obj.name}</div>{visitMedia}</>;
         tooltipProps = hoverable;
         break;
       }
@@ -273,7 +273,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
         const subContent = hasTech
           ? visitMedia
           : <div style={subtitleStyle}>Quitter nécessite <BonusIcons bonus={{ movements: 1 }} size={14} tooltips /> supplémentaire</div>;
-        content = <><div style={{ fontWeight: 'bold' }}>{obj.name}</div>{subContent}</>;
+        content = <><div className="solar-tooltip-title">{obj.name}</div>{subContent}</>;
         tooltipProps = hoverable;
         break;
       }
@@ -282,14 +282,14 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
         content = (
           <div>
             <div style={{ fontWeight: 'bold', color: obj.anomalyData?.color === LifeTraceType.YELLOW ? '#ffd700' : obj.anomalyData?.color === LifeTraceType.RED ? '#ff6b6b' : '#4a9eff' }}>{obj.name}</div>
-            <div style={{ fontSize: '0.9em', color: '#ccc' }}>Bonus: {bonusText}</div>
+            <div className="solar-tooltip-bonus">Bonus: {bonusText}</div>
           </div>
         );
         tooltipProps = hoverable;
         break;
       }
       default:
-        content = <div style={{ fontWeight: 'bold' }}>{obj.name}</div>;
+        content = <div className="solar-tooltip-title">{obj.name}</div>;
         break;
     }
 
@@ -457,10 +457,10 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
     const sectorTooltipContent = <SectorTooltip sector={sector} color="#ffffff" coveredBy={coveredByPlayers} presenceGain={<BonusIcons bonus={{ token: 1 }} />} />;
 
     return (
-      <g key="oumuamua-signals" style={{ pointerEvents: 'auto' }}>
-        <path className="oumuamua-corridor" d={corridorPath} fill="none" stroke="#ffffff" opacity="0.15" strokeLinecap="round" style={{ pointerEvents: 'auto', cursor: 'default', strokeWidth: 7 }} />
+      <g key="oumuamua-signals" className="solar-oumuamua-signals">
+        <path className="oumuamua-corridor solar-oumuamua-corridor" d={corridorPath} fill="none" stroke="#ffffff" opacity="0.15" strokeLinecap="round" />
         <defs><path id={textPathId} d={textArcPath} /></defs>
-        <text fill="#ffffff" fontSize="2" fontWeight="bold" letterSpacing="0.5" opacity="0.9" style={{ pointerEvents: 'auto', cursor: 'help' }}
+        <text fill="#ffffff" fontSize="2" fontWeight="bold" letterSpacing="0.5" opacity="0.9" className="solar-oumuamua-label"
           onMouseEnter={(e) => { setActiveTooltip({ content: sectorTooltipContent, rect: e.currentTarget.getBoundingClientRect() }); }}
           onMouseLeave={() => setActiveTooltip(null)}
         >
@@ -527,7 +527,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
               <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" />
               {/* 1 Donnée par signal, dans la case (comme les secteurs) */}
               {!player && (
-                <g transform={`rotate(${-rotationAngle1}) translate(-1.7 -1.7)`} style={{ pointerEvents: 'none' }}>
+                <g transform={`rotate(${-rotationAngle1}) translate(-1.7 -1.7)`} className="no-pointer">
                   <ResourceIcon kind="data" size={3.4} />
                 </g>
               )}
@@ -535,7 +535,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
               {!player && signal.bonus && (() => {
                 const offset = polarToCartesian(0, 0, 3.6, angle + 135);
                 return (
-                  <g transform={`translate(${offset.x} ${offset.y}) scale(0.19) rotate(${-rotationAngle1})`} style={{ pointerEvents: 'none' }}>
+                  <g transform={`translate(${offset.x} ${offset.y}) scale(0.19) rotate(${-rotationAngle1})`} className="no-pointer">
                     <SvgBonus bonus={signal.bonus} />
                   </g>
                 );
@@ -589,7 +589,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
-        <svg viewBox="0 0 40 40" width="34" height="34" style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+        <svg viewBox="0 0 40 40" width="34" height="34" className="solar-anomaly-svg">
           <defs>
             <radialGradient id={gradientId}>
               <stop offset="0%" stopColor="#05060f" />
@@ -605,7 +605,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
           </g>
           <circle cx="20" cy="20" r="11" fill="#05060f" stroke="#ffffff" strokeOpacity="0.35" strokeWidth="0.6" />
         </svg>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: 'scale(0.85)' }}>
+        <div className="solar-anomaly-token">
           <BonusIcons bonus={obj.anomalyData.bonus} size={11} empty={null} />
         </div>
       </div>
@@ -763,9 +763,9 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
                 const rect = e.currentTarget.getBoundingClientRect();
                 setActiveTooltip({
                   content: (
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontWeight: 'bold', color: '#ea80fc', marginBottom: '4px' }}>Spécimen Mascamite</div>
-                      <div style={{ fontSize: '0.9em', color: '#ccc' }}>
+                    <div className="solar-specimen-tooltip">
+                      <div className="solar-specimen-title">Spécimen Mascamite</div>
+                      <div className="solar-tooltip-bonus">
                         {viewerId && SpeciesSystem.canSeeSpecimens(game, viewerId, planetData.id)
                           ? `Récompense : ${specimenText(token.bonus, true) || 'aucune'}`
                           : 'Face cachée : visible en prélevant ou en étudiant un spécimen de cette planète'}
@@ -777,7 +777,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
               }}
               onMouseLeave={() => setActiveTooltip(null)}
             >
-              <span style={{ fontSize: '5px', color: '#fff', fontWeight: 'bold' }}>M</span>
+              <span className="solar-specimen-mark">M</span>
             </div>
           );
         })}
@@ -893,24 +893,24 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
           const here = piecesOnCell(probe.solarPosition.disk, probe.solarPosition.sector, probe.solarPosition.level || 0);
           const content = here.length > 1 ? (
             <>
-              <div style={{ fontWeight: 'bold' }}>{here.length} pièces sur cette case</div>
+              <div className="solar-tooltip-title">{here.length} pièces sur cette case</div>
               {piecesSummary(here)}
               {(() => {
                 const currentPlayer = game.players[game.currentPlayerIndex];
                 const ownHere = currentPlayer.type !== 'robot' && here.some(p => p.ownerId === currentPlayer.id);
-                return ownHere && <div style={{ fontSize: '0.8em', color: '#ccc', marginTop: '4px' }}>Cliquer pour sélectionner votre {isOwner && isCapsule ? 'capsule' : 'sonde'}</div>;
+                return ownHere && <div className="solar-probe-hint">Cliquer pour sélectionner votre {isOwner && isCapsule ? 'capsule' : 'sonde'}</div>;
               })()}
             </>
           ) : (
             <>
-              <div style={{ fontWeight: 'bold' }}>{playerName}</div>
+              <div className="solar-tooltip-title">{playerName}</div>
               {isCapsule ? (
                 <>
-                  <div style={{ fontSize: '0.85em', color: '#7fff7f', marginTop: '2px' }}>Capsule : spécimen Mascamite{specimenReward ? ` (${specimenReward})` : ''}</div>
-                  <div style={{ fontSize: '0.8em', color: '#ccc', marginTop: '2px' }}>Déplacer la capsule (énergie ou déplacements) jusqu'à sa destination pour réclamer la mission</div>
+                  <div className="solar-capsule-label">Capsule : spécimen Mascamite{specimenReward ? ` (${specimenReward})` : ''}</div>
+                  <div className="solar-probe-note">Déplacer la capsule (énergie ou déplacements) jusqu'à sa destination pour réclamer la mission</div>
                 </>
               ) : (
-                <div style={{ fontSize: '0.8em', color: '#ccc', marginTop: '2px' }}>Déplacer la sonde</div>
+                <div className="solar-probe-note">Déplacer la sonde</div>
               )}
             </>
           );
@@ -1159,7 +1159,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
               })}
 
               {/* Signaux d'Oumuamua (attachés au plateau niveau 1) */}
-              <svg className="seti-rotating-sector-svg" style={{ zIndex: 20, overflow: 'visible' }} viewBox="0 0 200 200">{renderOumuamuaSignals()}</svg>
+              <svg className="seti-rotating-sector-svg solar-oumuamua-layer" viewBox="0 0 200 200">{renderOumuamuaSignals()}</svg>
 
               {/* Sondes sur les disques A, B, C (niveau 1) */}
               {probesInSystem
@@ -1336,13 +1336,13 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
               if (!planetData) return null;
 
               const content = (
-                <div style={{ width: '314px' }}>
-                  <div style={{ borderBottom: '1px solid #444', paddingBottom: '8px', marginBottom: '12px', textAlign: 'left' }}>
-                    <div style={{ fontWeight: 'bold', fontSize: '1.2em', color: '#78a0ff', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                <div className="planet-window">
+                  <div className="planet-window-header">
+                    <div className="planet-window-title">
                       {planetData.name}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px', marginTop: '50px', minHeight: '220px', alignItems: 'center' }}>
+                  <div className="planet-window-body">
                     <PlanetIcon id={planetData.id} size={planetData.id === 'oumuamua' ? 80 : 220} planetData={planetData} game={game} interactionState={interactionState} onOrbit={onOrbit} onLand={onLand} handleSlotClick={handleSlotClick} removingItem={removingItem} hoverTimeoutRef={hoverTimeoutRef} setHoveredSlot={setHoveredSlot} />
                   </div>
                 </div>

@@ -50,7 +50,7 @@ export const PlayedMissionCard: React.FC<PlayedMissionCardProps> = ({ card, cent
         </div>
       )}
       {isCentaurien && (
-        <div className="seti-mission-requirements-row" style={{ display: 'flex', width: '100%', padding: '4px 0', marginTop: 'auto', justifyContent: 'center' }}>
+        <div className="seti-mission-requirements-row played-mission-rewards">
             <HoverTooltip nested content={isCompleted
               ? <SlotTooltip status="Message reçu" statusColor="#ffd700" note={centaurienMarker?.resolved} />
               : <SlotTooltip status={centaurienMarker ? `Réception à ${centaurienMarker.score} PV` : 'Réception'} statusColor={SLOT_COLORS.neutral}

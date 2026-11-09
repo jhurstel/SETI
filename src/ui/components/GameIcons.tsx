@@ -124,7 +124,7 @@ export const ActionHexIcon: React.FC<{ kind: ActionIconKind; size?: number }> = 
   const st = ACTION_STYLES[kind];
   const isResearch = kind === 'research';
   return (
-    <svg width={size} height={size} viewBox="-50 -50 100 100" style={{ display: 'block' }}>
+    <svg width={size} height={size} viewBox="-50 -50 100 100" className="icon-block">
       <defs>
         <radialGradient id={`hex-in-${uid}`} cx="50%" cy="40%" r="65%">
           <stop offset="0%" stopColor={st.inner} stopOpacity={isResearch ? 1 : 0.75} />
@@ -147,7 +147,7 @@ export const ActionHexIcon: React.FC<{ kind: ActionIconKind; size?: number }> = 
 
 /** Défausser une carte (pour son action gratuite) : carte blanche inclinée et flèche orange qui l'emmène vers le bas */
 export const DiscardCardIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 40 40" style={{ display: 'block' }}>
+  <svg width={size} height={size} viewBox="0 0 40 40" className="icon-block">
     <g transform="rotate(-14 16 18)">
       <rect x={7} y={5} width={18} height={25} rx={2.5} fill="#f4f4f4" stroke="#2a2a2a" strokeWidth={1.5} />
       <path d="M11 11 H21 M11 15 H19" stroke="#9aa0ad" strokeWidth={1.6} strokeLinecap="round" />
@@ -159,7 +159,7 @@ export const DiscardCardIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
 
 /** Message des Centauriens (tuile Message, palier) : tuile violette, point d'émission et ondes radio */
 export const CentaurienMessageIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 40 40" style={{ display: 'block' }}>
+  <svg width={size} height={size} viewBox="0 0 40 40" className="icon-block">
     <rect x={3} y={3} width={34} height={34} rx={8} fill="#5b3fc4" stroke="#b9a8ff" strokeWidth={2} />
     <circle cx={12} cy={28} r={3.4} fill="#fff" />
     <g fill="none" stroke="#fff" strokeLinecap="round">
@@ -174,7 +174,7 @@ export const CentaurienMessageIcon: React.FC<{ size?: number }> = ({ size = 20 }
 export const EndTurnIcon: React.FC<{ size?: number }> = ({ size = 28 }) => {
   const uid = useUid();
   return (
-    <svg width={size} height={size} viewBox="-50 -50 100 100" style={{ display: 'block' }}>
+    <svg width={size} height={size} viewBox="-50 -50 100 100" className="icon-block">
       <defs>
         <radialGradient id={`hex-end-${uid}`} cx="50%" cy="40%" r="65%">
           <stop offset="0%" stopColor="#3ccf7a" stopOpacity={0.75} />
@@ -282,14 +282,14 @@ const signalBadge = (badge: SignalBadge): React.ReactNode => {
 
 /** Carte de la rangée seule (carte blanche au coin haut droit noir), comme sur la piste d'observation */
 export const RowCardIcon: React.FC<{ size?: number }> = ({ size = 22 }) => (
-  <svg width={size} height={size} viewBox="4 2 32 32" style={{ display: 'block' }}>
+  <svg width={size} height={size} viewBox="4 2 32 32" className="icon-block">
     {signalBadge('card')}
   </svg>
 );
 
 /** Symbole « signal », avec un badge précisant le secteur (Terre, carte de la rangée, Mercure, carte défaussée) */
 export const SignalIcon: React.FC<{ badge?: SignalBadge; size?: number }> = ({ badge, size = 28 }) => (
-  <svg width={size} height={size} viewBox="-30 -30 60 60" style={{ display: 'block', overflow: 'visible' }}>
+  <svg width={size} height={size} viewBox="-30 -30 60 60" className="icon-block-visible">
     <circle r={24} fill="#b8b8b8" />
     <SignalBars />
     {badge && <g transform="scale(0.8)">{signalBadge(badge)}</g>}
@@ -298,7 +298,7 @@ export const SignalIcon: React.FC<{ badge?: SignalBadge; size?: number }> = ({ b
 
 /** Signal gagné : disque à la couleur du secteur (gris pour un secteur quelconque) et badge éventuel, sans débordement */
 export const SignalGainIcon: React.FC<{ color?: string; badge?: SignalBadge; size?: number }> = ({ color = '#b8b8b8', badge, size = 20 }) => (
-  <svg width={size} height={size} viewBox={badge ? '-25 -25 58 58' : '-25 -25 50 50'} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+  <svg width={size} height={size} viewBox={badge ? '-25 -25 58 58' : '-25 -25 50 50'} className="icon-inline">
     <circle r={24} fill={color} />
     <SignalBars />
     {badge && <g transform="scale(0.8)">{signalBadge(badge)}</g>}
@@ -423,7 +423,7 @@ export const TechTileIcon: React.FC<{ techId: string; width?: number; height?: n
   const category = techId.startsWith('exploration') ? 'exploration' : techId.startsWith('observation') ? 'observation' : 'computing';
   const col = TILE_COLORS[category];
   return (
-    <svg width={width} height={height} viewBox="0 0 58 82" preserveAspectRatio="none" style={{ display: 'block' }}>
+    <svg width={width} height={height} viewBox="0 0 58 82" preserveAspectRatio="none" className="icon-block">
       <defs>
         <linearGradient id={`tile-${uid}`} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor={col.light} />
@@ -585,7 +585,7 @@ const Revenue = () => {
 export const ResourceIcon: React.FC<{ kind: ResourceIconKind; amount?: number | string; size?: number }> = ({ kind, amount, size = 24 }) => {
   const wide = kind !== 'revenue' && amount !== undefined;
   return (
-    <svg width={wide ? size * 1.5 : size} height={size} viewBox={wide ? '-36 -24 72 48' : '-24 -24 48 48'} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+    <svg width={wide ? size * 1.5 : size} height={size} viewBox={wide ? '-36 -24 72 48' : '-24 -24 48 48'} className="icon-inline">
       {kind === 'data' ? <DataToken amount={amount} /> : kind === 'token' ? <OumuamuaToken amount={amount} /> : kind === 'movement' ? <Movement amount={amount} /> : kind === 'revenue' ? <Revenue /> : <ArrowResource kind={kind} amount={amount} />}
     </svg>
   );
@@ -645,7 +645,7 @@ export const AnyLifeTraceIcon: React.FC<{ size?: number }> = ({ size = 20 }) => 
   const uid = useUid();
   const shape = LIFE_TRACE_PATH;
   return (
-    <svg width={size} height={size} viewBox={LIFE_TRACE_VIEWBOX} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+    <svg width={size} height={size} viewBox={LIFE_TRACE_VIEWBOX} className="icon-inline">
       <defs><clipPath id={`anytrace-${uid}`}><path d={shape} /></clipPath></defs>
       <g clipPath={`url(#anytrace-${uid})`}>
         <rect x={0} y={0} width={40} height={40} fill={LIFE_TRACE_COLORS.yellow} />
@@ -659,7 +659,7 @@ export const AnyLifeTraceIcon: React.FC<{ size?: number }> = ({ size = 20 }) => 
 
 /** Trace de vie seule, à la taille voulue */
 export const LifeTraceIcon: React.FC<{ color: LifeTraceColor; size?: number }> = ({ color, size = 20 }) => (
-  <svg width={size} height={size} viewBox={LIFE_TRACE_VIEWBOX} style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+  <svg width={size} height={size} viewBox={LIFE_TRACE_VIEWBOX} className="icon-inline">
     <LifeTraceShape color={color} />
   </svg>
 );
@@ -669,7 +669,7 @@ export const VictoryPointsIcon: React.FC<{ amount?: number; size?: number }> = (
   const leaves = [0, 1, 2, 3, 4];
   const text = amount === undefined ? 'PV' : String(amount);
   return (
-    <svg width={size} height={size} viewBox="-20 -20 40 40" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+    <svg width={size} height={size} viewBox="-20 -20 40 40" className="icon-inline">
       <path d="M0 -19 C11 -19 19 -12 19 -1 C19 10 10 17 0 19.5 C-10 17 -19 10 -19 -1 C-19 -12 -11 -19 0 -19 Z" fill="#14705c" />
       {/* Laurier : feuilles le long de deux arcs, de la base vers le haut */}
       {[-1, 1].map(side => (
@@ -693,7 +693,7 @@ export const ROTATION_CHEVRON_COLORS: Record<string, string> = { Bleu: '#4a9eff'
 
 /** Chevron de rotation du Système Solaire, à la couleur de l'anneau qui tourne */
 export const RotationChevronIcon: React.FC<{ color: string; size?: number }> = ({ color, size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 20 20" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+  <svg width={size} height={size} viewBox="0 0 20 20" className="icon-inline">
     <path d="M6 3 L14 10 L6 17" fill="none" stroke="black" strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" />
     <path d="M6 3 L14 10 L6 17" fill="none" stroke={color} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" />
   </svg>
@@ -706,7 +706,7 @@ export const RotationChevronIcon: React.FC<{ color: string; size?: number }> = (
 export const RotationTokenIcon: React.FC<{ size?: number }> = ({ size = 20 }) => {
   const uid = useUid();
   return (
-    <svg width={size} height={size} viewBox="-20 -20 40 40" style={{ display: 'inline-block', verticalAlign: 'middle' }}>
+    <svg width={size} height={size} viewBox="-20 -20 40 40" className="icon-inline">
       <defs>
         <radialGradient id={`rot-${uid}`} cx="40%" cy="35%" r="70%">
           <stop offset="0%" stopColor="#ffffff" />

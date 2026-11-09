@@ -49,7 +49,7 @@ export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible,
   };
 
   return (
-    <div className="seti-modal-overlay" style={{ zIndex: 2100 }} onClick={onClose}>
+    <div className="seti-modal-overlay seti-modal-overlay--docs" onClick={onClose}>
       <div className="seti-doc-modal" onClick={e => e.stopPropagation()} role="dialog" aria-label="Documentation">
         <div className="seti-doc-header">
           <h2 className="seti-modal-title seti-doc-title">

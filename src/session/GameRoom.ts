@@ -8,6 +8,7 @@ import { GameSetup, SeatConfig } from './GameSetup';
 import { Command } from './commands';
 import { viewEntries, viewFor } from './PlayerView';
 import { FirstPlayerChoice, RoomInfo, RoomStatus, RoomSummary, SeatRequest, UndoAvailability } from './protocol';
+import { trace } from '../core/trace';
 
 /** Une place de la salle : sa configuration et, pour une place humaine, le jeton de celui qui l'occupe */
 export interface RoomSeat extends SeatConfig {
@@ -245,7 +246,7 @@ export class GameRoom {
       result = GameSession.applyRobotStep(game, step);
     }
     if (result.error) {
-      console.error(`[Salle ${this.code}] étape de robot refusée :`, result.error);
+      trace.error(`[Salle ${this.code}] étape de robot refusée :`, result.error);
       return { played: false, notifications: [] };
     }
     // Un robot a joué : plus d'annulation possible pour le joueur précédent

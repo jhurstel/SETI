@@ -27,8 +27,8 @@ export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue'
     if (card.revenue && REVENUE_STYLES[card.revenue]) bottomStyle = REVENUE_STYLES[card.revenue];
     details = (
       <>
-        {card.freeAction && <div style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>Action:<BonusIcons bonus={freeActionBonus(card.freeAction)} size={12} empty={card.freeAction} /></div>}
-        {card.scanSector && <div style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>Signal:<SectorSignalIcon sector={card.scanSector} size={13} /></div>}
+        {card.freeAction && <div className="card-attribute">Action:<BonusIcons bonus={freeActionBonus(card.freeAction)} size={12} empty={card.freeAction} /></div>}
+        {card.scanSector && <div className="card-attribute">Signal:<SectorSignalIcon sector={card.scanSector} size={13} /></div>}
       </>
     );
   } else if (highlightedAttribute === 'scan') {
@@ -39,8 +39,8 @@ export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue'
     if (card.scanSector && SECTOR_STYLES[card.scanSector]) bottomStyle = SECTOR_STYLES[card.scanSector];
     details = (
       <>
-        {card.freeAction && <div style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>Action:<BonusIcons bonus={freeActionBonus(card.freeAction)} size={12} empty={card.freeAction} /></div>}
-        {card.revenue && <div style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>Revenu:<BonusIcons bonus={revenueBonus(card.revenue)} size={12} empty={card.revenue} /></div>}
+        {card.freeAction && <div className="card-attribute">Action:<BonusIcons bonus={freeActionBonus(card.freeAction)} size={12} empty={card.freeAction} /></div>}
+        {card.revenue && <div className="card-attribute">Revenu:<BonusIcons bonus={revenueBonus(card.revenue)} size={12} empty={card.revenue} /></div>}
       </>
     );
   } else {
@@ -51,8 +51,8 @@ export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue'
     if (card.freeAction && FREE_ACTION_STYLES[card.freeAction]) bottomStyle = FREE_ACTION_STYLES[card.freeAction];
     details = (
       <>
-        {card.revenue && <div style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>Revenu:<BonusIcons bonus={revenueBonus(card.revenue)} size={12} empty={card.revenue} /></div>}
-        {card.scanSector && <div style={{ display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>Signal:<SectorSignalIcon sector={card.scanSector} size={13} /></div>}
+        {card.revenue && <div className="card-attribute">Revenu:<BonusIcons bonus={revenueBonus(card.revenue)} size={12} empty={card.revenue} /></div>}
+        {card.scanSector && <div className="card-attribute">Signal:<SectorSignalIcon sector={card.scanSector} size={13} /></div>}
       </>
     );
   }
@@ -61,15 +61,15 @@ export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue'
 
   return (
     <>
-      <div className="seti-card-name" style={{ fontSize: '0.75rem', lineHeight: '1.1', marginBottom: '4px', height: '2.2em', overflow: 'hidden' }}><span>{card.name}</span></div>
-      <div style={{ fontSize: '0.75em', marginTop: '2px', display: 'flex', justifyContent: 'space-between' }}>
+      <div className="seti-card-name hand-card-name"><span>{card.name}</span></div>
+      <div className="hand-card-meta">
         {/* Une carte Exertien se joue gratuitement à un palier : pas de coût */}
-        {card.type === CardType.EXERTIEN ? <span /> : <span style={{ backgroundColor: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: '4px' }}>Coût: <span style={{ color: card.costType === CostType.ENERGY ? '#4caf50' : '#ffd700', display: 'inline-flex', alignItems: 'center', gap: '2px', verticalAlign: 'middle' }}><ResourceIcon kind={card.costType === CostType.ENERGY ? 'energy' : 'credit'} amount={card.cost} size={14} /></span></span>}
-        <span style={{ color: '#aaa', fontSize: '0.9em' }}>{card.type === CardType.ACTION ? 'ACT' : card.type === CardType.END_GAME ? 'FIN' : card.type === CardType.EXERTIEN ? 'EXE' : 'MIS'}</span>
+        {card.type === CardType.EXERTIEN ? <span /> : <span className="hand-card-cost">Coût: <span style={{ color: card.costType === CostType.ENERGY ? '#4caf50' : '#ffd700', display: 'inline-flex', alignItems: 'center', gap: '2px', verticalAlign: 'middle' }}><ResourceIcon kind={card.costType === CostType.ENERGY ? 'energy' : 'credit'} amount={card.cost} size={14} /></span></span>}
+        <span className="hand-card-type">{card.type === CardType.ACTION ? 'ACT' : card.type === CardType.END_GAME ? 'FIN' : card.type === CardType.EXERTIEN ? 'EXE' : 'MIS'}</span>
       </div>
-      {card.description && <div className="seti-card-description" style={{ fontSize: '0.7em', color: '#ccc', fontStyle: 'italic', lineHeight: '1.2', flex: 1, margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', textOverflow: 'ellipsis' }}>{card.description}</div>}
+      {card.description && <div className="seti-card-description hand-card-description">{card.description}</div>}
       {details && (
-        <div className="seti-card-details" style={{ display: 'flex', flexDirection: 'row', gap: '8px', marginTop: 'auto', fontSize: '0.7em', backgroundColor: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '4px', justifyContent: 'space-between' }}>
+        <div className="seti-card-details hand-card-details">
           {details}
         </div>
       )}

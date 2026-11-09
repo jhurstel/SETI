@@ -26,6 +26,7 @@ import { uniqueId } from '../core/ids';
 import { Choice, Command } from './commands';
 import { InteractionQueue } from './InteractionQueue';
 import { DISCOVERY_MESSAGE, DISCOVERY_NOTICE, discoveryNotice } from '../systems/SpeciesSystem';
+import { trace } from '../core/trace';
 
 export interface DispatchResult {
   /** La partie après la commande (inchangée si refusée) */
@@ -103,7 +104,7 @@ export class GameSession {
       const settled = this.offerTriggeredMissions(game, this.settle(applied, outcome), outcome);
       return { game: { ...settled, rngState: getRandomState() }, entries: outcome.entries, notifications: namedNotifications(game, settled, outcome.notifications) };
     } catch (error) {
-      if (!(error instanceof Refusal)) console.error('[Session]', error);
+      if (!(error instanceof Refusal)) trace.error('[Session]', error);
       return { game, entries: [], notifications: [], error: error instanceof Error ? error.message : String(error) };
     }
   }

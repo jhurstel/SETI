@@ -133,3 +133,84 @@
 .seti-round-passed {
     margin-left: 6px;
 }
+
+/* Anciens styles en ligne de ObjectiveBoardUI.tsx */
+.score-milestone-exertien-label {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7em;
+  color: #aaa;
+  background: rgba(30,30,30,0.8);
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.score-milestone-exertien-icon {
+  font-size: 12px;
+  filter: drop-shadow(0 0 2px #fff);
+}
+
+.score-milestone-golden-label {
+  position: absolute;
+  top: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7em;
+  color: #ffd700;
+  background: rgba(30,30,30,0.8);
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.score-milestone-golden-icon {
+  fill: #ffd700;
+  filter: drop-shadow(0 0 3px #ffd700);
+}
+
+.score-milestone-neutral-label {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7em;
+  color: #aaa;
+  background: rgba(30,30,30,0.8);
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.score-milestone-neutral-icon {
+  fill: #aaa;
+  filter: drop-shadow(0 0 2px #555);
+}
+
+.score-track-label {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.8em;
+  color: #999;
+}
+
+.score-track-bar {
+  height: 4px;
+  background: linear-gradient(90deg, #444, #666);
+  border-radius: 2px;
+  position: relative;
+}
+
+/* Posée avec .seti-score-track : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
+.seti-score-track.score-track-frame {
+  padding: 30px 15px 40px 15px;
+  position: relative;
+  border-bottom: 1px solid #444;
+  margin-bottom: 10px;
+}
+
+.objective-tooltip {
+  max-width: 240px;
+  text-align: center;
+}
