@@ -20,28 +20,28 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
   let updatedGame = cloneGame(game);
   const currentLevel = updatedGame.board.solarSystem.nextRingLevel;
   const oldRotationState = createRotationState(
-    updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-    updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-    updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+    updatedGame.board.solarSystem.rotationAngleLevel1,
+    updatedGame.board.solarSystem.rotationAngleLevel2,
+    updatedGame.board.solarSystem.rotationAngleLevel3
   );
 
   if (currentLevel === 1) { // Bleu
-    updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1 || 0) - 45;
-    updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-    updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+    updatedGame.board.solarSystem.rotationAngleLevel1 = (updatedGame.board.solarSystem.rotationAngleLevel1) - 45;
+    updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2) - 45;
+    updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3) - 45;
   } else if (currentLevel === 2) { // Rouge
-    updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2 || 0) - 45;
-    updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
-  } else if (currentLevel === 3) { // Jaune
-    updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3 || 0) - 45;
+    updatedGame.board.solarSystem.rotationAngleLevel2 = (updatedGame.board.solarSystem.rotationAngleLevel2) - 45;
+    updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3) - 45;
+  } else { // Jaune (anneau 3)
+    updatedGame.board.solarSystem.rotationAngleLevel3 = (updatedGame.board.solarSystem.rotationAngleLevel3) - 45;
   }
 
   updatedGame.board.solarSystem.nextRingLevel = currentLevel === 1 ? 3 : currentLevel - 1;
 
   const newRotationState = createRotationState(
-    updatedGame.board.solarSystem.rotationAngleLevel1 || 0,
-    updatedGame.board.solarSystem.rotationAngleLevel2 || 0,
-    updatedGame.board.solarSystem.rotationAngleLevel3 || 0
+    updatedGame.board.solarSystem.rotationAngleLevel1,
+    updatedGame.board.solarSystem.rotationAngleLevel2,
+    updatedGame.board.solarSystem.rotationAngleLevel3
   );
   const rotationResult = ProbeSystem.updateProbesAfterRotation(updatedGame, oldRotationState, newRotationState, updatedGame.board.solarSystem.extraCelestialObjects || []);
   updatedGame = rotationResult.game;
@@ -75,7 +75,7 @@ export function performRotation(game: Game): { updatedGame: Game, logs: string[]
             const res = ResourceSystem.processBonuses(bonus, updatedGame, player.id, 'anomaly', `anomaly-${uniqueId()}`);
             updatedGame = res.updatedGame;
             // Les journaux de processBonuses commencent déjà par leur verbe (« gagne 1 Crédit », « pioche carte… »)
-            const gains = res.logs.length > 0 ? res.logs.join(', ') : `gagne ${ResourceSystem.formatBonus(bonus)?.join(', ') || 'sa récompense'}`;
+            const gains = res.logs.length > 0 ? res.logs.join(', ') : `gagne ${ResourceSystem.formatBonus(bonus).join(', ') || 'sa récompense'}`;
             anomalyLogs.push(`Anomalie ${color} activée : ${player.name} ${gains}`);
             interactions.push(...res.newPendingInteractions.map(i => ({ ...i, playerId: player.id })));
           } else {

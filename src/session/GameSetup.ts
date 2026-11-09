@@ -37,7 +37,7 @@ export class GameSetup {
         ? (seats.length > 1 ? 1 + Math.floor(random() * (seats.length - 1)) : 0)
         : firstPlayer);
     const game = GameFactory.initializeGame({ ...GameFactory.setFirstPlayer(created, drawn.result), rngState: drawn.rngState });
-    const entries: HistoryEntry[] = (game.gameLog || []).map(log => ({
+    const entries: HistoryEntry[] = game.gameLog.map(log => ({
       id: log.id,
       message: log.message,
       playerId: log.playerId ?? '',

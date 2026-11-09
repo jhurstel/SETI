@@ -14,6 +14,6 @@ module.exports = {
     // Tout le moteur est exécuté par les tests : une instruction non couverte fait échouer test:coverage
     // (la tester, ou la retirer si elle est inatteignable). Les branches suivent le niveau atteint.
     coverageThreshold: {
-      global: { statements: 100, lines: 100, functions: 100, branches: 91 },
+      global: { statements: 100, lines: 100, functions: 100, branches: 93 },
     },
   };

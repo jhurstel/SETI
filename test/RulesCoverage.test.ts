@@ -35,10 +35,10 @@ describe('Règles du moteur peu couvertes', () => {
         signals: [{ amount: 1, scope: SectorType.RED }],
         technologies: [{ amount: 1, scope: [TechnologyCategory.EXPLORATION, TechnologyCategory.OBSERVATION] as never }],
       };
-      const labels = ResourceSystem.formatBonus(bonus)!;
+      const labels = ResourceSystem.formatBonus(bonus);
       ['2 Pioche', '1 Donnée', '1 Signal (Rouge)', '1 Scan', '1 Réservation', '1 Carte', '1 Tech Exploration ou Observation', '1 Sonde', '1 Atterrisseur', '2 Déplacement', '1 Token']
         .forEach(label => expect(labels).toContain(label));
-      expect(ResourceSystem.formatBonus(undefined as unknown as Bonus)).toBeNull();
+      expect(ResourceSystem.formatBonus({})).toEqual([]);
     });
 
     test('processBonuses : la trace de vie est sur la ligne des autres gains', () => {

@@ -83,102 +83,100 @@ export class ScoreManager {
    */
   private static calculateMissionEndGame(player: Player, game: Game, details?: string[]): number {
     let bonus = 0;
-    const endGameCards: Card[] = (player.playedCards || []).filter(c => c.type === CardType.END_GAME);
+    const endGameCards: Card[] = player.playedCards.filter(c => c.type === CardType.END_GAME);
 
     endGameCards.forEach(card => {
       const bonusBefore = bonus;
       // Traitement des règles de scoring définies dans passiveEffects
-      if (card.passiveEffects) {
-        card.passiveEffects.forEach(effect => {
-          if (effect.type === 'SCORE_PER_ORBITER_LANDER') {
-            const planetId = effect.target;
-            if (planetId) {
-              const planet = game.board.planets.find(p => p.id === planetId);
-              if (planet) {
-                let count = 0;
-                // Orbiteurs sur la planète
-                count += planet.orbiters.filter(p => p.ownerId === player.id).length;
-                // Atterrisseurs sur la planète
-                count += planet.landers.filter(p => p.ownerId === player.id).length;
-                // Satellites
-                if (planet.satellites) {
-                  planet.satellites.forEach(sat => {
-                    count += sat.landers.filter(p => p.ownerId === player.id).length;
-                  });
-                }
-                bonus += count * effectNumber(effect);
-              }
-            }
-          } else if (effect.type === 'SCORE_PER_COVERED_SECTOR') {
-            const colorStr = effect.target;
-            let color: SectorType | undefined;
-            if (colorStr === 'red') color = SectorType.RED;
-            else if (colorStr === 'blue') color = SectorType.BLUE;
-            else if (colorStr === 'yellow') color = SectorType.YELLOW;
-            else if (colorStr === 'black') color = SectorType.BLACK;
-
-            if (color) {
+      card.passiveEffects.forEach(effect => {
+        if (effect.type === 'SCORE_PER_ORBITER_LANDER') {
+          const planetId = effect.target;
+          if (planetId) {
+            const planet = game.board.planets.find(p => p.id === planetId);
+            if (planet) {
               let count = 0;
-              game.board.sectors.forEach(s => {
-                if (s.color === color) {
-                  count += s.coveredBy.filter(id => id === player.id).length;
-                }
-              });
+              // Orbiteurs sur la planète
+              count += planet.orbiters.filter(p => p.ownerId === player.id).length;
+              // Atterrisseurs sur la planète
+              count += planet.landers.filter(p => p.ownerId === player.id).length;
+              // Satellites
+              if (planet.satellites) {
+                planet.satellites.forEach(sat => {
+                  count += sat.landers.filter(p => p.ownerId === player.id).length;
+                });
+              }
               bonus += count * effectNumber(effect);
             }
-          } else if (effect.type === 'SCORE_PER_LIFETRACE') {
-            const colorStr = effect.target;
-            let type: LifeTraceType | undefined;
-            if (colorStr === 'red') type = LifeTraceType.RED;
-            else if (colorStr === 'blue') type = LifeTraceType.BLUE;
-            else if (colorStr === 'yellow') type = LifeTraceType.YELLOW;
+          }
+        } else if (effect.type === 'SCORE_PER_COVERED_SECTOR') {
+          const colorStr = effect.target;
+          let color: SectorType | undefined;
+          if (colorStr === 'red') color = SectorType.RED;
+          else if (colorStr === 'blue') color = SectorType.BLUE;
+          else if (colorStr === 'yellow') color = SectorType.YELLOW;
+          else if (colorStr === 'black') color = SectorType.BLACK;
 
-            if (type) {
-              const count = player.lifeTraces.filter(t => t.type === type).length;
-              bonus += count * effectNumber(effect);
-            }
-          } else if (effect.type === 'SCORE_PER_SIGNAL') {
-            const count = game.board.sectors.filter(s => s.signals.some(sig => sig.markedBy === player.id)).length;
-            bonus += count * effectNumber(effect);
-          } else if (effect.type === 'SCORE_PER_TECH_CATEGORY') {
-            const catStr = effect.target;
-            let category: TechnologyCategory | undefined;
-            if (catStr === 'computing') category = TechnologyCategory.COMPUTING;
-            else if (catStr === 'exploration') category = TechnologyCategory.EXPLORATION;
-            else if (catStr === 'observation') category = TechnologyCategory.OBSERVATION;
-
-            if (category) {
-              const count = player.technologies.filter(t => t.type === category).length;
-              bonus += count * effectNumber(effect);
-            }
-          } else if (effect.type === 'SCORE_IF_PROBE_ON_ASTEROID') {
-            const rotationState = createRotationState(
-              game.board.solarSystem.rotationAngleLevel1 || 0,
-              game.board.solarSystem.rotationAngleLevel2 || 0,
-              game.board.solarSystem.rotationAngleLevel3 || 0
-            );
-            const hasProbe = player.probes.some(p => {
-              if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
-              const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
-              const cell = getCell(p.solarPosition.disk, absSector, rotationState, game.board.solarSystem.extraCelestialObjects);
-              return cell?.hasAsteroid;
+          if (color) {
+            let count = 0;
+            game.board.sectors.forEach(s => {
+              if (s.color === color) {
+                count += s.coveredBy.filter(id => id === player.id).length;
+              }
             });
-            if (hasProbe) {
-              bonus += effectNumber(effect);
-            }
-          } else if (effect.type === 'SCORE_SOLVAY') {
-            // Congrès Solvay : décompter, avec la case la plus à droite, la meilleure tuile Score dorée sans marqueur du joueur
-            const best = (game.board.objectiveTiles || [])
-              .filter(tile => !tile.markers.includes(player.id))
-              .reduce((max, tile) => Math.max(max, this.objectiveTileSeries(player, game.board, tile) * tile.rewards.others), 0);
-            bonus += best;
-          } else if (effect.type === 'SCORE_PER_SPECIES_LIFETRACE') {
-            // ET.5, ET.24 : PV par trace de vie marquée pour l'espèce de la carte
-            const count = effect.target ? SpeciesSystem.playerTracesForSpecies(game, player.id, effect.target).length : 0;
             bonus += count * effectNumber(effect);
           }
-        });
-      }
+        } else if (effect.type === 'SCORE_PER_LIFETRACE') {
+          const colorStr = effect.target;
+          let type: LifeTraceType | undefined;
+          if (colorStr === 'red') type = LifeTraceType.RED;
+          else if (colorStr === 'blue') type = LifeTraceType.BLUE;
+          else if (colorStr === 'yellow') type = LifeTraceType.YELLOW;
+
+          if (type) {
+            const count = player.lifeTraces.filter(t => t.type === type).length;
+            bonus += count * effectNumber(effect);
+          }
+        } else if (effect.type === 'SCORE_PER_SIGNAL') {
+          const count = game.board.sectors.filter(s => s.signals.some(sig => sig.markedBy === player.id)).length;
+          bonus += count * effectNumber(effect);
+        } else if (effect.type === 'SCORE_PER_TECH_CATEGORY') {
+          const catStr = effect.target;
+          let category: TechnologyCategory | undefined;
+          if (catStr === 'computing') category = TechnologyCategory.COMPUTING;
+          else if (catStr === 'exploration') category = TechnologyCategory.EXPLORATION;
+          else if (catStr === 'observation') category = TechnologyCategory.OBSERVATION;
+
+          if (category) {
+            const count = player.technologies.filter(t => t.type === category).length;
+            bonus += count * effectNumber(effect);
+          }
+        } else if (effect.type === 'SCORE_IF_PROBE_ON_ASTEROID') {
+          const rotationState = createRotationState(
+            game.board.solarSystem.rotationAngleLevel1,
+            game.board.solarSystem.rotationAngleLevel2,
+            game.board.solarSystem.rotationAngleLevel3
+          );
+          const hasProbe = player.probes.some(p => {
+            if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+            const absSector = getAbsoluteSectorForProbe(p.solarPosition, rotationState);
+            const cell = getCell(p.solarPosition.disk, absSector, rotationState, game.board.solarSystem.extraCelestialObjects);
+            return cell?.hasAsteroid;
+          });
+          if (hasProbe) {
+            bonus += effectNumber(effect);
+          }
+        } else if (effect.type === 'SCORE_SOLVAY') {
+          // Congrès Solvay : décompter, avec la case la plus à droite, la meilleure tuile Score dorée sans marqueur du joueur
+          const best = game.board.objectiveTiles
+            .filter(tile => !tile.markers.includes(player.id))
+            .reduce((max, tile) => Math.max(max, this.objectiveTileSeries(player, game.board, tile) * tile.rewards.others), 0);
+          bonus += best;
+        } else if (effect.type === 'SCORE_PER_SPECIES_LIFETRACE') {
+          // ET.5, ET.24 : PV par trace de vie marquée pour l'espèce de la carte
+          const count = effect.target ? SpeciesSystem.playerTracesForSpecies(game, player.id, effect.target).length : 0;
+          bonus += count * effectNumber(effect);
+        }
+      });
       details?.push(`${card.name} : ${bonus - bonusBefore} PV`);
     });
 
@@ -227,7 +225,7 @@ export class ScoreManager {
         } else {
           // Paire Mission / Fin de partie
           const completedMissions = player.missions.filter(m => m.completed).length;
-          const endGameCards = (player.playedCards || []).filter(c => c.type === CardType.END_GAME).length;
+          const endGameCards = player.playedCards.filter(c => c.type === CardType.END_GAME).length;
           count = Math.floor((completedMissions + endGameCards) / 2);
         }
         break;
@@ -313,7 +311,7 @@ export class ScoreManager {
    * Chaque carte rapporte ses PV une seule fois si sa condition (END_CONDITION) est remplie (FAQ Q45).
    */
   static revealExertienCards(game: Game, player: Player): RevealedExertienCard[] {
-    return (player.playedCards || [])
+    return player.playedCards
       .filter(card => card.type === CardType.EXERTIEN)
       .map(card => {
         const progress = this.exertienCardProgress(game, player, card);
@@ -376,7 +374,7 @@ export class ScoreManager {
    * + danger des emplacements occupés par ses marqueurs sur la piste d'espèce Exertiens.
    */
   static calculateExertienDanger(game: Game, player: Player, details?: string[]): number {
-    const exertienCards = (player.playedCards || []).filter(c => c.type === CardType.EXERTIEN);
+    const exertienCards = player.playedCards.filter(c => c.type === CardType.EXERTIEN);
     exertienCards.forEach(c => details?.push(`Carte ${c.name} : danger ${c.danger || 0}`));
     const cardsDanger = exertienCards.reduce((sum, c) => sum + (c.danger || 0), 0);
     return cardsDanger + this.exertienTrackDanger(game, player, details);
@@ -388,7 +386,7 @@ export class ScoreManager {
    * Le joueur lui-même, et tout le monde au décompte final, voit son danger complet.
    */
   static visibleExertienDanger(game: Game, player: Player, viewerId: string | undefined): { danger: number; hidden: boolean } {
-    if (player.id === viewerId || game.phase === GamePhase.FINAL_SCORING) return { danger: player.danger || 0, hidden: false };
+    if (player.id === viewerId || game.phase === GamePhase.FINAL_SCORING) return { danger: player.danger, hidden: false };
     return {
       danger: this.exertienTrackDanger(game, player),
       hidden: player.playedCards.some(c => c.type === CardType.EXERTIEN),

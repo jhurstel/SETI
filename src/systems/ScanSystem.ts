@@ -488,7 +488,7 @@ export class ScanSystem {
         const reward = CardSystem.parseRewards(effectString(buff).split(':'));
         const res = ResourceSystem.processBonuses(reward, updatedGame, playerId, 'scan', sequenceId);
         updatedGame = res.updatedGame;
-        historyEntries.push({ message: `gagne ${ResourceSystem.formatBonus(reward)!.join(', ')} ("${buff.source}")`, playerId, sequenceId });
+        historyEntries.push({ message: `gagne ${ResourceSystem.formatBonus(reward).join(', ')} ("${buff.source}")`, playerId, sequenceId });
         if (buff.target === 'first') {
           const player = requirePlayer(updatedGame, playerId);
           player.activeBuffs = player.activeBuffs.filter(b => !(b.type === buff.type && b.source === buff.source && b.sequenceId === buff.sequenceId));
@@ -530,7 +530,7 @@ export class ScanSystem {
 
     const solarSystem = game.board.solarSystem;
     const extraObjects = solarSystem.extraCelestialObjects || [];
-    const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
+    const rotationState = createRotationState(solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
     const oumuamua = extraObjects.find(o => o.id === 'oumuamua');
     const oumuamuaSector = oumuamua ? calculateAbsolutePosition(oumuamua, rotationState, extraObjects).absoluteSector : undefined;
     // Numéro du secteur du plateau (pour Oumuamua : le secteur où il se trouve)
@@ -694,7 +694,7 @@ export class ScanSystem {
       return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: 'Média insuffisant pour utiliser Observation II' };
     }
     const solarSystem = game.board.solarSystem;
-    const mercuryPos = getObjectPosition('mercury', solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0, solarSystem.extraCelestialObjects)!;
+    const mercuryPos = getObjectPosition('mercury', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3, solarSystem.extraCelestialObjects)!;
 
     const updatedGame = cloneGame(game);
     updatedGame.players.find(p => p.id === playerId)!.mediaCoverage -= 1;

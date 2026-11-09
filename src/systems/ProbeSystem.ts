@@ -89,8 +89,8 @@ export class ProbeSystem {
   } {
     if (choice === 'MEDIA') {
       const updatedGame = cloneGame(game);
-      const player = updatedGame.players.find(p => p.id === playerId);
-      if (player) player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
+      const player = requirePlayer(updatedGame, playerId);
+      player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
       return {
         updatedGame,
         historyEntries: [{ message: `choisit de gagner ${ResourceSystem.formatResource(1, 'MEDIA')}`, playerId, sequenceId }],
@@ -110,8 +110,8 @@ export class ProbeSystem {
    */
   static findCard(game: Game, cardId: string) {
     const allCards = [
-      ...game.decks.cards, ...(game.decks.discardPile || []),
-      ...game.players.flatMap(p => [...p.cards, ...(p.playedCards || []), ...p.missions.flatMap(m => m.originalCard ? [m.originalCard] : [])]),
+      ...game.decks.cards, ...game.decks.discardPile,
+      ...game.players.flatMap(p => [...p.cards, ...p.playedCards, ...p.missions.flatMap(m => m.originalCard ? [m.originalCard] : [])]),
     ];
     return allCards.find(c => c.id === cardId);
   }
@@ -160,8 +160,8 @@ export class ProbeSystem {
 
   /** Retire une capsule (spécimen ramené). Modifie la partie reçue (à appeler sur une copie). */
   static removeCapsule(game: Game, playerId: string, capsuleId: string): void {
-    const player = game.players.find(p => p.id === playerId);
-    if (player) player.probes = player.probes.filter(p => p.id !== capsuleId);
+    const player = requirePlayer(game, playerId);
+    player.probes = player.probes.filter(p => p.id !== capsuleId);
     game.board.solarSystem.probes = game.board.solarSystem.probes.filter(p => p.id !== capsuleId);
   }
 
@@ -187,8 +187,8 @@ export class ProbeSystem {
     // Vérifier les technologies qui permettent plusieurs sondes
     const hasExploration1 = player.technologies.some(t => t.id.includes('exploration-1'));
     const maxProbes = hasExploration1
-      ? (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY || 2)
-      : (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM || 1);
+      ? GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY
+      : GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM;
 
     if (!ignoreLimit && probesInSystem.length >= maxProbes) {
       return {
@@ -230,7 +230,7 @@ export class ProbeSystem {
     if (!ignoreLimit) {
       const probesInSystem = player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
       const hasExploration1 = player.technologies.some(t => t.id.includes('exploration-1'));
-      const maxProbes = hasExploration1 ? (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY || 2) : (GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM || 1);
+      const maxProbes = hasExploration1 ? GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM_WITH_TECHNOLOGY : GAME_CONSTANTS.MAX_PROBES_PER_SYSTEM;
 
       if (probesInSystem.length >= maxProbes) {
         const message = `Limite de sondes atteinte (max ${maxProbes}) dans le système solaire)`;
@@ -335,9 +335,9 @@ export class ProbeSystem {
     if (!player || !probe || !probe.solarPosition) return 1;
 
     const rotationState = createRotationState(
-      game.board.solarSystem.rotationAngleLevel1 || 0,
-      game.board.solarSystem.rotationAngleLevel2 || 0,
-      game.board.solarSystem.rotationAngleLevel3 || 0
+      game.board.solarSystem.rotationAngleLevel1,
+      game.board.solarSystem.rotationAngleLevel2,
+      game.board.solarSystem.rotationAngleLevel3
     );
 
     const absoluteSector = getAbsoluteSectorForProbe(probe.solarPosition, rotationState); // getAbsoluteSectorForProbe doesn't use extraObjects
@@ -387,9 +387,9 @@ export class ProbeSystem {
 
     // Calculer le niveau cible en fonction de la rotation actuelle
     const rotationState = createRotationState(
-      game.board.solarSystem.rotationAngleLevel1 || 0,
-      game.board.solarSystem.rotationAngleLevel2 || 0,
-      game.board.solarSystem.rotationAngleLevel3 || 0
+      game.board.solarSystem.rotationAngleLevel1,
+      game.board.solarSystem.rotationAngleLevel2,
+      game.board.solarSystem.rotationAngleLevel3
     );
     const targetLevel = getVisibleLevel(targetDisk, targetSector, rotationState, updatedGame.board.solarSystem.extraCelestialObjects);
 
@@ -461,7 +461,7 @@ export class ProbeSystem {
       buffsToTrigger.forEach(buff => {
         const gain = effectPvOrBonus(buff);
         ResourceSystem.accumulateBonus(gain, bonus);
-        message += ` et gagne ${ResourceSystem.formatBonus(gain)!.join(', ')} ("${buff.source}")`;
+        message += ` et gagne ${ResourceSystem.formatBonus(gain).join(', ')} ("${buff.source}")`;
       });
 
       // Retirer les buffs consommés (pour ne pas gagner 2x les points si on revient sur la planète)
@@ -597,9 +597,9 @@ export class ProbeSystem {
 
     // Créer l'état de rotation pour calculer les positions absolues
     const rotationState = createRotationState(
-      game.board.solarSystem.rotationAngleLevel1 || 0,
-      game.board.solarSystem.rotationAngleLevel2 || 0,
-      game.board.solarSystem.rotationAngleLevel3 || 0
+      game.board.solarSystem.rotationAngleLevel1,
+      game.board.solarSystem.rotationAngleLevel2,
+      game.board.solarSystem.rotationAngleLevel3
     );
 
     for (const probe of playerProbes) {
@@ -925,9 +925,9 @@ export class ProbeSystem {
     // Identifier la cible (Planète ou Satellite)
     const targetBody = this.landingBody(updatedGame, planetId);
 
-    const isFirstLander = targetBody ? (targetBody.landers || []).length === 0 : true;
-    const isSecondLander = targetBody ? (targetBody.landers || []).length === 1 : false;
-    const isThirdLander = targetBody ? (targetBody.landers || []).length === 2 : false;
+    const isFirstLander = targetBody ? targetBody.landers.length === 0 : true;
+    const isSecondLander = targetBody ? targetBody.landers.length === 1 : false;
+    const isThirdLander = targetBody ? targetBody.landers.length === 2 : false;
 
     // Mettre à jour la sonde
     probe.state = ProbeState.LANDED;

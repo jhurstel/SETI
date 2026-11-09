@@ -116,7 +116,7 @@ export class AIEvaluator {
 
   /** PV attendus des cartes Exertiens jouées : pleins si la condition est remplie, sinon selon les étapes manquantes */
   private static exertienCardsValue(game: Game, player: Player, remainingRounds: number, w: EvaluatorWeights): number {
-    return (player.playedCards || [])
+    return player.playedCards
       .filter(card => card.type === CardType.EXERTIEN)
       .reduce((sum, card) => {
         const progress = ScoreManager.exertienCardProgress(game, player, card);
@@ -180,7 +180,7 @@ export class AIEvaluator {
     const probesInSystem = player.probes.filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM && p.solarPosition);
     if (probesInSystem.length > 0) {
       const solarSystem = game.board.solarSystem;
-      const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
+      const rotationState = createRotationState(solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
       const extraObjects = solarSystem.extraCelestialObjects || [];
       for (const probe of probesInSystem) {
         const distance = this.distanceToPlanet(probe.solarPosition.disk, getAbsoluteSectorForProbe(probe.solarPosition, rotationState), rotationState, extraObjects);
@@ -193,7 +193,7 @@ export class AIEvaluator {
     const capsules = player.probes.filter(p => p.state === ProbeState.CAPSULE && p.solarPosition);
     if (capsules.length > 0) {
       const solarSystem = game.board.solarSystem;
-      const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
+      const rotationState = createRotationState(solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
       const extraObjects = solarSystem.extraCelestialObjects || [];
       const destinations = player.missions.some(m => !m.completed && m.requirements.some(r => r.type === 'GAIN_IF_SPECIMEN' && r.target === 'mars')) ? ['earth', 'mars'] : ['earth'];
       for (const capsule of capsules) {

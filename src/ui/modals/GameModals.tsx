@@ -54,7 +54,7 @@ export const CentaurienRewardModal = ({ game, interactionState, onChoice }: { ga
             key={index}
             icon={<BonusIcons bonus={token.bonus} size={26} />}
             label={`Tuile Message ${index + 1}`}
-            detail={(ResourceSystem.formatBonus(token.bonus) || []).join(', ')}
+            detail={ResourceSystem.formatBonus(token.bonus).join(', ')}
             onClick={() => onChoice(index)}
             disabled={!token.isAvailable}
             disabledReason={owner ? <span>Déjà choisie par <strong style={{ color: owner.color }}>{owner.name}</strong></span> : 'Déjà choisie'}
@@ -90,7 +90,7 @@ export const SpecimenModal = ({ game, interactionState, onChoice }: { game: Game
           key={`${planet.id}-${index}`}
           icon={<BonusIcons bonus={token.bonus} size={26} />}
           label={planets.length > 1 ? `${planet.name} : spécimen ${index + 1}` : `Spécimen ${index + 1}`}
-          detail={(ResourceSystem.formatBonus(token.bonus) || []).join(', ')}
+          detail={ResourceSystem.formatBonus(token.bonus).join(', ')}
           onClick={() => onChoice(planet.id, index)}
         />
       )))}
@@ -118,7 +118,7 @@ export const MissionRequirementModal = ({ game, interactionState, onChoice }: { 
             key={`${missionId}-${requirementId}`}
             icon={bonus ? <BonusIcons bonus={bonus} size={26} empty={null} /> : undefined}
             label={mission?.name ?? missionId}
-            detail={bonus ? (ResourceSystem.formatBonus(bonus) || []).join(', ') : undefined}
+            detail={bonus ? ResourceSystem.formatBonus(bonus).join(', ') : undefined}
             onClick={() => onChoice(missionId, requirementId)}
           />
         );

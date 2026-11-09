@@ -375,7 +375,7 @@ export class AITurn {
     const freeMovements = moving?.count ?? 0;
     const options: StepResult[] = [];
     const solarSystem = game.board.solarSystem;
-    const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
+    const rotationState = createRotationState(solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
 
     for (const probe of player.probes) {
       // Les capsules (spécimens Mascamites) se déplacent comme les sondes, vers leur destination
@@ -446,7 +446,7 @@ export class AITurn {
   /** Rapproche une capsule (spécimen Mascamite) de la Terre d'une case, en payant l'énergie. Renvoie null si aucune ne progresse. */
   private static tryMoveCapsuleHome(game: Game, player: Player): StepResult | null {
     const solarSystem = game.board.solarSystem;
-    const rotationState = createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
+    const rotationState = createRotationState(solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
     const extraObjects = solarSystem.extraCelestialObjects || [];
     const distanceHome = (disk: DiskName, sector: SectorNumber) => AIEvaluator.distanceToPlanet(disk, sector, rotationState, extraObjects, 'earth');
 

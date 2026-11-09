@@ -48,13 +48,10 @@ export class PassAction extends BaseAction {
     const playerIndex = updatedGame.players.findIndex(p => p.id === this.playerId);
 
     // Log des cartes défaussées
-    const originalPlayer = game.players.find(p => p.id === this.playerId);
-    if (originalPlayer) {
-      const discardedCards = CardSystem.getHandCards(originalPlayer).filter(c => !this.cardIdsToKeep.includes(c.id));
-      if (discardedCards.length > 0) {
-        const cardNames = discardedCards.map(c => `"${c.name}"`).join(', ');
-        this.historyEntries.push({ message: `défausse ${cardNames}`, playerId, sequenceId });
-      }
+    const discardedCards = CardSystem.getHandCards(requirePlayer(game, this.playerId)).filter(c => !this.cardIdsToKeep.includes(c.id));
+    if (discardedCards.length > 0) {
+      const cardNames = discardedCards.map(c => `"${c.name}"`).join(', ');
+      this.historyEntries.push({ message: `défausse ${cardNames}`, playerId, sequenceId });
     }
 
     // Défausser à 4 cartes

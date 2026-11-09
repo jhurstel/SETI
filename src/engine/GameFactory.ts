@@ -124,7 +124,7 @@ export class GameFactory {
         playerId: player.id,
       });
     }
-    updatedGame.gameLog = [...joins, ...(updatedGame.gameLog || []).filter(log => !log.id.startsWith('log_join_'))];
+    updatedGame.gameLog = [...joins, ...updatedGame.gameLog.filter(log => !log.id.startsWith('log_join_'))];
     return updatedGame;
   }
 

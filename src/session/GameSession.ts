@@ -460,7 +460,7 @@ export class GameSession {
       const previous = before.players.find(p => p.id === player.id);
       const options = player.missions.flatMap(mission => {
         const wasFulfillable = previous?.missions.find(m => m.id === mission.id)?.fulfillableRequirementIds || [];
-        return (mission.fulfillableRequirementIds || []).filter(id => !wasFulfillable.includes(id)).map(requirementId => ({ missionId: mission.id, requirementId }));
+        return mission.fulfillableRequirementIds.filter(id => !wasFulfillable.includes(id)).map(requirementId => ({ missionId: mission.id, requirementId }));
       });
       if (options.length > 0) updated = InteractionQueue.enqueue(updated, [{ type: 'CHOOSING_MISSION_REQUIREMENT', options, playerId: player.id, sequenceId: `mission-claim-${uniqueId()}` }]);
     }

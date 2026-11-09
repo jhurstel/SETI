@@ -1,7 +1,7 @@
 import { CardSystem } from '../src/systems/CardSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { ScoreManager } from '../src/engine/ScoreManager';
-import { AlienBoardType, CardType, CostType, FreeActionType, Game, LifeTraceType, Mission, ProbeState, RevenueType, TechnologyCategory } from '../src/core/types';
+import { AlienBoardType, CardType, CostType, FreeActionType, Game, LifeTraceType, Mission, ProbeState, RevenueType, SectorType, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 import { revealText, textFor } from '../src/core/historyText';
 
@@ -140,6 +140,31 @@ describe('Cartes : cas limites et refus', () => {
         { type: 'SCORE_PER_TECH_CATEGORY', target: 'exploration', value: 3 },
         { type: 'SCORE_PER_TECH_CATEGORY', target: 'observation', value: 1 },
       ])).toBe(1 + 2 + 3 + 2);
+    });
+
+    test('secteurs noirs, traces jaunes, technologies Informatique ; planète sans lune ; cibles inconnues ou absentes : 0 PV', () => {
+      const player = getPlayer(game, P1);
+      const black = game.board.sectors.find(s => s.color === SectorType.BLACK)!;
+      black.coveredBy = [P1, P1];
+      player.lifeTraces = [{ id: 'y', type: LifeTraceType.YELLOW, playerId: P1 }] as never;
+      player.technologies = game.board.technologyBoard.available.filter(t => t.type === TechnologyCategory.COMPUTING).slice(0, 1);
+      // Vénus n'a pas de lune : seuls ses orbiteurs et atterrisseurs comptent
+      const venus = game.board.planets.find(p => p.id === 'venus')!;
+      venus.orbiters = [{ id: 'o', ownerId: P1 } as never];
+      expect(venus.satellites).toBeUndefined();
+      expect(endGame([
+        { type: 'SCORE_PER_COVERED_SECTOR', target: 'black', value: 2 },
+        { type: 'SCORE_PER_LIFETRACE', target: 'yellow', value: 3 },
+        { type: 'SCORE_PER_TECH_CATEGORY', target: 'computing', value: 5 },
+        { type: 'SCORE_PER_ORBITER_LANDER', target: 'venus', value: 1 },
+        // Cibles inconnues ou absentes (erreur de saisie dans le CSV) : rien n'est compté
+        { type: 'SCORE_PER_COVERED_SECTOR', target: 'violet', value: 9 },
+        { type: 'SCORE_PER_LIFETRACE', target: 'violet', value: 9 },
+        { type: 'SCORE_PER_TECH_CATEGORY', target: 'violet', value: 9 },
+        { type: 'SCORE_PER_ORBITER_LANDER', target: 'pluton', value: 9 },
+        { type: 'SCORE_PER_ORBITER_LANDER', value: 9 },
+        { type: 'SCORE_PER_SPECIES_LIFETRACE', value: 9 },
+      ])).toBe(4 + 3 + 5 + 1);
     });
 
     test('sonde sur un champ d\'astéroïdes : pas de points sans sonde', () => {

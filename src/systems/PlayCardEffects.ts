@@ -38,7 +38,7 @@ function add(bonuses: Bonus, key: 'credits' | 'energy' | 'card' | 'probe' | 'tok
 
 function rotationOf(game: Game): RotationState {
   const solarSystem = game.board.solarSystem;
-  return createRotationState(solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0);
+  return createRotationState(solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
 }
 
 function anomaliesOf(game: Game): CelestialObject[] {

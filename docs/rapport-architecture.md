@@ -120,7 +120,7 @@ Bundle de production : `index` 531 Ko (minifié), `vendor` 222 Ko, worker des ro
 
 1. **Le seuil de couverture échoue sur `main`.** `npm run test:coverage` exige 100 % des instructions, lignes et fonctions, et ne passe pas : il manque 9 instructions et 3 fonctions, dans `ScoreManager` (tuile objectif « Autres », face B, lignes 261-266), `GameSession` et `AIController`. Ces lignes n'étaient couvertes que par hasard, par les parties entre robots : quand le comportement d'un robot change, une tuile ou un chemin n'est plus tiré et la couverture tombe.
 2. **La couverture n'est pas en CI.** La CI lance `npm test`, pas `test:coverage`, donc la dérive passe inaperçue.
-3. **Branches les moins couvertes** (nombre de branches non couvertes) : `ProbeSystem` 52, `CardSystem` 49, `SpeciesSystem` 44, `DataLoader` 37, `ScoreManager` 33 (84,7 %), `AIController` 31.
+3. **Branches les moins couvertes** (nombre de branches non couvertes) : `ProbeSystem` 52, `CardSystem` 49, `SpeciesSystem` 44, `DataLoader` 37, `ScoreManager` 33 (84,7 %), `AIController` 31. **Avancé** : 91,9 % → 93,6 % (seuil relevé à 93 %) : gardes mortes retirées (champs garantis par les types, constantes, `requirePlayer`), tests du décompte des cartes Fin de partie et des lignes mal formées du CSV.
 4. **Interface quasi non testée** : un seul scénario Playwright (un tour humain contre un robot). Le jeu en ligne, l'annulation, la reprise après rechargement, la fin de partie et les fenêtres de choix ne sont testés que dans le moteur. Tests de composants : **fait** (Testing Library et jsdom dans Jest, `test/components/` : fenêtres de choix, places, nouvelle partie).
 
 ### Recommandations

@@ -220,7 +220,7 @@ export class CardSystem {
      */
     static previewImmediateBonuses(card: Card): Bonus {
         const bonus: Bonus = {};
-        (card.immediateEffects || []).forEach(effect => {
+        card.immediateEffects.forEach(effect => {
             if (effect.type === 'GAIN') {
                 if (effect.target === 'PROBE') bonus.probe = (bonus.probe || 0) + effectNumber(effect);
                 if (effect.target === 'DATA') bonus.data = (bonus.data || 0) + effectNumber(effect);
@@ -234,7 +234,7 @@ export class CardSystem {
                 }
             }
         });
-        const passives = card.passiveEffects || [];
+        const passives = card.passiveEffects;
         if (passives.some(e => e.type === 'ATMOSPHERIC_ENTRY')) bonus.atmosphericEntry = true;
         if (passives.some(e => e.type === 'SAMPLE_RETURN')) bonus.sampleReturn = true;
         if (passives.some(e => e.type === 'IGNORE_PROBE_LIMIT')) bonus.ignoreProbeLimit = true;
@@ -378,7 +378,7 @@ export class CardSystem {
                 name: card.name,
                 description: card.description,
                 ownerId: player.id,
-                requirements: (card.permanentEffects || []).map((effect, idx) => ({
+                requirements: card.permanentEffects.map((effect, idx) => ({
                     id: `mission-${card.id}-req-${idx}`,
                     ...effect
                 })),
@@ -423,17 +423,15 @@ export class CardSystem {
         addImmediateEffects(card.immediateEffects, bonuses);
         const sequenceId = `seq-${uniqueId()}`;
         const effectContext: PlayCardContext = { game: updatedGame, player, card, bonuses, extraInteractions, takenRowCards, sequenceId };
-        (card.passiveEffects || []).forEach(effect => applyPassiveEffect(effectContext, effect));
+        card.passiveEffects.forEach(effect => applyPassiveEffect(effectContext, effect));
 
         // Traitement des effets permanents (Missions déclenchables)
-        if (card.permanentEffects) {
-            card.permanentEffects.forEach((effect, idx) => {
-                if (effect.type.startsWith('GAIN_ON_')) {
-                    const buffId = `mission-${card.id}-req-${idx}`;
-                    player.permanentBuffs.push({ ...effect, id: buffId, source: card.name });
-                }
-            });
-        }
+        card.permanentEffects.forEach((effect, idx) => {
+            if (effect.type.startsWith('GAIN_ON_')) {
+                const buffId = `mission-${card.id}-req-${idx}`;
+                player.permanentBuffs.push({ ...effect, id: buffId, source: card.name });
+            }
+        });
 
         const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs, historyEntries } = ResourceSystem.processBonuses(bonuses || {}, updatedGame, player.id, cardId, sequenceId);
 
@@ -948,9 +946,9 @@ export class CardSystem {
 
         if (conditionType === 'GAIN_IF_PROBE_IN_DEEP_SPACE') {
             const rotationState = createRotationState(
-                game.board.solarSystem.rotationAngleLevel1 || 0,
-                game.board.solarSystem.rotationAngleLevel2 || 0,
-                game.board.solarSystem.rotationAngleLevel3 || 0
+                game.board.solarSystem.rotationAngleLevel1,
+                game.board.solarSystem.rotationAngleLevel2,
+                game.board.solarSystem.rotationAngleLevel3
             );
             const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, game.board.solarSystem.extraCelestialObjects);
             if (earthPos) {
@@ -968,9 +966,9 @@ export class CardSystem {
 
         if (conditionType === 'GAIN_IF_PROBE_ON_COMET') {
             const rotationState = createRotationState(
-                game.board.solarSystem.rotationAngleLevel1 || 0,
-                game.board.solarSystem.rotationAngleLevel2 || 0,
-                game.board.solarSystem.rotationAngleLevel3 || 0
+                game.board.solarSystem.rotationAngleLevel1,
+                game.board.solarSystem.rotationAngleLevel2,
+                game.board.solarSystem.rotationAngleLevel3
             );
             const hasProbeOnComet = player.probes.some(p => {
                 if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
@@ -983,9 +981,9 @@ export class CardSystem {
 
         if (conditionType === 'GAIN_IF_PROBE_ON_ASTEROID') {
             const rotationState = createRotationState(
-                game.board.solarSystem.rotationAngleLevel1 || 0,
-                game.board.solarSystem.rotationAngleLevel2 || 0,
-                game.board.solarSystem.rotationAngleLevel3 || 0
+                game.board.solarSystem.rotationAngleLevel1,
+                game.board.solarSystem.rotationAngleLevel2,
+                game.board.solarSystem.rotationAngleLevel3
             );
             const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, game.board.solarSystem.extraCelestialObjects);
             if (earthPos) {

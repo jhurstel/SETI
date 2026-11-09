@@ -73,8 +73,7 @@ export class ResourceSystem {
   }
 
   // Helper pour formater les bonus
-  static formatBonus(bonus: Bonus) {
-    if (!bonus) return null;
+  static formatBonus(bonus: Bonus): string[] {
     const items: string[] = [];
     if (bonus.pv) items.push(`${bonus.pv} PV`);
     if (bonus.media) items.push(`${bonus.media} Média`);
@@ -186,7 +185,7 @@ export class ResourceSystem {
       const spent = CardSystem.getHandCards(player).filter(c => cardIdsToSpend?.includes(c.id));
       if (!cardIdsToSpend || cardIdsToSpend.length !== 2 || spent.length !== 2) return { updatedGame: game, error: "2 cartes doivent être sélectionnées", historyEntries: [] };
       player.cards = player.cards.filter(c => !cardIdsToSpend.includes(c.id));
-      updatedGame.decks.discardPile = [...(updatedGame.decks.discardPile || []), ...spent];
+      updatedGame.decks.discardPile = [...updatedGame.decks.discardPile, ...spent];
       spentText = spent.map(c => `"${c.name}"`).join(' et ');
     }
 

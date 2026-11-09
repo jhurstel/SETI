@@ -385,7 +385,7 @@ export class InteractionChoices {
         return { updatedGame, historyEntries, newPendingInteractions, nextInteraction: interaction };
       }
     }
-    if (interaction.then) gain(interaction.then, `gagne ${ResourceSystem.formatBonus(interaction.then)!.join(', ')} ("${interaction.cardName}")`);
+    if (interaction.then) gain(interaction.then, `gagne ${ResourceSystem.formatBonus(interaction.then).join(', ')} ("${interaction.cardName}")`);
     return { updatedGame, historyEntries, newPendingInteractions };
   }
 

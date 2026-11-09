@@ -389,7 +389,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                 status = 'Indisponible';
                 statusColor = SLOT_COLORS.unavailable;
                 note = tokenCost && (currentPlayer.tokens || 0) < tokenCost ? "Nécessite d'avoir suffisamment de tokens" : "Nécessite d'avoir suffisamment de données";
-            } else if ((ResourceSystem.formatBonus(bonus) || []).length <= 0) {
+            } else if (ResourceSystem.formatBonus(bonus).length <= 0) {
                 status = 'Indisponible';
                 statusColor = SLOT_COLORS.unavailable;
                 note = 'Nécessite un jeton';
@@ -441,14 +441,14 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={() => setActiveTooltip(null)}
             >
-                {specimenSlot && <div className="alien-board-specimen"><BonusIcons bonus={bonus} size={(ResourceSystem.formatBonus(bonus) || []).length > 1 ? 9 : 14} /></div>}
+                {specimenSlot && <div className="alien-board-specimen"><BonusIcons bonus={bonus} size={ResourceSystem.formatBonus(bonus).length > 1 ? 9 : 14} /></div>}
                 {!isFilled && !specimenSlot && !!bonus.pv && <VictoryPointsIcon amount={bonus.pv} size={22} />}
             </div>
             {showGains && (
                 // Gains autres que les PV et coûts barrés, à 135° (en bas à droite) comme les cases du système solaire
                 <div className="alien-slot-gains" style={{ left: `${slotSize / 2 + atAngle(slotSize / 2, 135).x - 4}px`, top: `${slotSize / 2 + atAngle(slotSize / 2, 135).y - 4}px` }}>
                     {hasCost && (
-                        <HoverTooltip content={`Coût : ${(ResourceSystem.formatBonus(costBonus) || []).join(', ')} (payé en posant la trace)`} className="alien-slot-cost">
+                        <HoverTooltip content={`Coût : ${ResourceSystem.formatBonus(costBonus).join(', ')} (payé en posant la trace)`} className="alien-slot-cost">
                             <BonusIcons bonus={costBonus} size={12} empty={null} />
                             <svg className="alien-slot-cost-cross" viewBox="0 0 10 10" preserveAspectRatio="none" aria-hidden="true">
                                 <path d="M1 1 L9 9 M9 1 L1 9" />

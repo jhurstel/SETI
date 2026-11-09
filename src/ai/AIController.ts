@@ -124,8 +124,8 @@ export class AIController {
 
     /** Palier Exertien : joue la carte (ou aucune) qui donne la meilleure position évaluée */
     static bestExertienCard(game: Game, playerId: string, milestone: number): { updatedGame: Game; historyEntries: HistoryEntry[] } {
-        const player = game.players.find(p => p.id === playerId);
-        const options: (string | undefined)[] = [undefined, ...(player?.cards || []).filter(c => CardSystem.isExertienCard(c)).map(c => c.id)];
+        const player = requirePlayer(game, playerId);
+        const options: (string | undefined)[] = [undefined, ...player.cards.filter(c => CardSystem.isExertienCard(c)).map(c => c.id)];
         let best: { result: { updatedGame: Game; historyEntries: HistoryEntry[] }; value: number } | null = null;
         for (const cardId of options) {
             const result = InteractionChoices.playExertienCard(game, playerId, { type: 'CHOOSING_EXERTIEN_CARD', milestone }, cardId);
@@ -315,7 +315,7 @@ export class AIController {
             const probes = p.probes.filter(pr => pr.state === ProbeState.IN_SOLAR_SYSTEM && pr.solarPosition);
             if (probes.length > 0) {
                 const probe = probes[Math.floor(random() * probes.length)];
-                const rotationState = createRotationState(c.updatedGame.board.solarSystem.rotationAngleLevel1 || 0, c.updatedGame.board.solarSystem.rotationAngleLevel2 || 0, c.updatedGame.board.solarSystem.rotationAngleLevel3 || 0);
+                const rotationState = createRotationState(c.updatedGame.board.solarSystem.rotationAngleLevel1, c.updatedGame.board.solarSystem.rotationAngleLevel2, c.updatedGame.board.solarSystem.rotationAngleLevel3);
                 const absPos = getAbsoluteSectorForProbe(probe.solarPosition!, rotationState);
                 // Une case voisine, payée avec les déplacements gratuits restants puis l'énergie (comme le joueur humain)
                 const reachable = calculateReachableCellsWithEnergy(probe.solarPosition!.disk, absPos, interaction.count, p.energy, rotationState, false, undefined, c.updatedGame.board.solarSystem.extraCelestialObjects);

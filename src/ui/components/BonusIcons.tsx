@@ -125,7 +125,7 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
       addRepeated(`trace-${i}`, l.amount, color ? <LifeTraceIcon color={color} size={size} /> : <AnyLifeTraceIcon size={size} />, LIFE_TRACE_NAMES[l.scope]);
     });
     delete rest.lifetraces;
-    (ResourceSystem.formatBonus(rest) || []).forEach((text, i) => items.push(<span key={`text-${i}`}>{text}</span>));
+    ResourceSystem.formatBonus(rest).forEach((text, i) => items.push(<span key={`text-${i}`}>{text}</span>));
   }
   if (items.length === 0) return <>{empty}</>;
   return <span className="bonus-icons">{items}</span>;

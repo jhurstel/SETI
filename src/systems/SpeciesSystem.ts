@@ -86,8 +86,8 @@ export class SpeciesSystem {
 
         player.credits -= cost;
         player.cards = player.cards.filter(c => c.id !== card!.id);
-        player.playedCards = [...(player.playedCards || []), card];
-        player.danger = (player.danger || 0) + (card.danger || 0);
+        player.playedCards = [...player.playedCards, card];
+        player.danger = player.danger + (card.danger || 0);
         const paid = cost > 0 ? `paye ${ResourceSystem.formatResource(cost, 'CREDIT')} et ` : '';
         return {
             updatedGame,
@@ -462,7 +462,7 @@ export class SpeciesSystem {
         // Piste Exertiens : le danger de l'emplacement s'ajoute à celui du joueur (affichage ; le décompte final le recalcule).
         // Valeur absolue : les anciennes sauvegardes stockaient ces dangers en négatif
         if (bonusToApply.danger) {
-            scoringPlayer.danger = (scoringPlayer.danger || 0) + Math.abs(bonusToApply.danger);
+            scoringPlayer.danger = scoringPlayer.danger + Math.abs(bonusToApply.danger);
         }
 
         // Carte 75 (Étude sur les Extrêmophiles) : 1 PV par trace de vie marquée de la couleur qui vient d'être gagnée
@@ -540,8 +540,8 @@ export class SpeciesSystem {
             // Joueurs qui ont un marqueur de découverte : une carte Exertien jouée tout de suite (ou non)
             const owners = [...new Set(board.lifeTraces.map(t => t.playerId).filter(id => id !== 'neutral'))];
             owners.forEach(playerId => {
-                const player = updatedGame.players.find(p => p.id === playerId);
-                if (player?.cards.some(c => CardSystem.isExertienCard(c))) {
+                const player = requirePlayer(updatedGame, playerId);
+                if (player.cards.some(c => CardSystem.isExertienCard(c))) {
                     interactions.push({ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, playerId });
                 }
             });
@@ -673,7 +673,7 @@ export class SpeciesSystem {
         if (tokens) {
             const shuffledTokens = ResourceSystem.shuffle(tokens);
             const solarSystem = game.board.solarSystem;
-            const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1 || 0, solarSystem.rotationAngleLevel2 || 0, solarSystem.rotationAngleLevel3 || 0, solarSystem.extraCelestialObjects);
+            const earthPos = getObjectPosition('earth', solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3, solarSystem.extraCelestialObjects);
 
             if (earthPos) {
                 const earthSector = earthPos.absoluteSector;
@@ -716,7 +716,7 @@ export class SpeciesSystem {
 
     /** Premier palier Centaurien atteint et pas encore résolu */
     static reachedCentaurienMarker(player: Player): CentaurienMarker | undefined {
-        return [...(player.centaurienMilestones || [])].sort((a, b) => a.score - b.score).find(m => !m.resolved && player.score >= m.score);
+        return [...player.centaurienMilestones].sort((a, b) => a.score - b.score).find(m => !m.resolved && player.score >= m.score);
     }
 
     /**
@@ -734,7 +734,7 @@ export class SpeciesSystem {
 
         token.isAvailable = false;
         token.claimedBy = playerId;
-        const label = (ResourceSystem.formatBonus(token.bonus) || []).join(', ');
+        const label = ResourceSystem.formatBonus(token.bonus).join(', ');
         const marker = markerId
             ? player.centaurienMilestones.find(m => m.id === markerId)
             : this.reachedCentaurienMarker(player);
@@ -746,7 +746,7 @@ export class SpeciesSystem {
         return {
             updatedGame: res.updatedGame,
             historyEntries: [{ message: `atteint son palier de message Centaurien, choisit la tuile Message « ${label} »${gains}`, playerId, sequenceId }, ...res.historyEntries],
-            newPendingInteractions: res.newPendingInteractions || [],
+            newPendingInteractions: res.newPendingInteractions,
         };
     }
 
@@ -785,7 +785,7 @@ export class SpeciesSystem {
 
         const reception = card.passiveEffects.find(e => e.type === 'RECEPTION');
         const bonus = reception ? CardSystem.parseRewards(String(reception.value).split(':')) : {};
-        const label = (ResourceSystem.formatBonus(bonus) || []).join(', ') || 'aucun effet';
+        const label = ResourceSystem.formatBonus(bonus).join(', ') || 'aucun effet';
         marker.resolved = `Réception (« ${cardName} ») : ${label}`;
         // Sans revenu, la carte est défaussée une fois reçue (ce n'est pas une mission)
         player.playedCards = player.playedCards.filter(c => c.id !== card.id);
@@ -795,7 +795,7 @@ export class SpeciesSystem {
         return {
             updatedGame: res.updatedGame,
             historyEntries: [{ message: `reçoit le message de la carte « ${cardName} »${gains}`, playerId, sequenceId }, ...res.historyEntries],
-            newPendingInteractions: res.newPendingInteractions || [],
+            newPendingInteractions: res.newPendingInteractions,
         };
     }
 }
