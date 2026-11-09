@@ -91,8 +91,9 @@ src/
     ├── BoardUI.tsx          # Composant principal (~970 lignes) : affichage, modes de sélection, commandes envoyées à la session
     ├── tooltipStore.ts, TooltipLayer.tsx # Infobulle active hors de l'état de BoardUI : un survol ne redessine que TooltipLayer
     ├── hooks/               # useGameSession (partie + journal, dispatch), useAITurn (cadence des robots, calcul dans le Web Worker via aiWorkerClient), useAutosave (localStorage, écriture différée), useAnnouncements (début de tour, découverte, tirage du premier joueur), useUndo (annulation locale et en ligne), useStableHandlers (handlers stables pour les plateaux mémoïsés)
-    ├── SolarSystemBoardUI.tsx (~1370), PlayerBoardUI, PlanetBoardUI, AlienBoardUI, TechnologyBoardUI, ObjectiveBoardUI, CardRowUI, HistoryBoardUI (tous mémoïsés : React.memo)
-    ├── solar/               # Parties du plateau du système solaire : slotTooltip (infobulle d'un emplacement d'orbite ou d'atterrissage), highlightedSectors, useProbeSelection (sonde sélectionnée, cases accessibles), planets
+    ├── SolarSystemBoardUI.tsx (~1210), PlayerBoardUI (~340), PlanetBoardUI, AlienBoardUI, TechnologyBoardUI, ObjectiveBoardUI, CardRowUI, HistoryBoardUI (tous mémoïsés : React.memo)
+    ├── solar/               # Parties du plateau du système solaire : slotTooltip (infobulle d'un emplacement d'orbite ou d'atterrissage), highlightedSectors, OumuamuaSignals (secteur d'Oumuamua), pieces et cellPieces (sondes et capsules d'une case), useProbeSelection (sonde sélectionnée, cases accessibles), planets
+    ├── player/              # Parties du plateau joueur : PlayerTabs (onglets), PlayerResources (ressources, actions gratuites, revenus), PlayerActions (actions principales, fin du tour), PlayerTracks (pistes Exploration et Observation), useResourceFlash
     ├── components/          # HandCard, MissionCard, CardTooltip, PlayerComputer, PlanetIcon, SvgBonus, SectorDetails…
     ├── modals/              # Settings (écran d'accueil : continuer, nouvelle partie, en ligne, documentation), NewGame, Online, Documentation (public/docs/documentation.md + PDF), Pass, GameModals
     └── styles/celestialStyles.ts

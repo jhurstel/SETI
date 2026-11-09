@@ -149,7 +149,7 @@ Bundle de production : `index` 531 Ko (minifié), `vendor` 222 Ko, worker des ro
 ### Recommandations
 
 1. Sortir de `BoardUI` des hooks par sujet (sélection locale, annonces et tirage, annulation, en ligne) et des sous-composants par panneau.
-2. Découper `SolarSystemBoardUI` en couches (disques, sondes, secteurs, surbrillances), chacune mémoïsée sur la partie de l'état qu'elle lit.
+2. Découper `SolarSystemBoardUI` en couches (disques, sondes, secteurs, surbrillances), chacune mémoïsée sur la partie de l'état qu'elle lit. **Avancé** : `PlayerBoardUI` découpé (913 → 340 lignes, `ui/player/`), signaux d'Oumuamua et résumé des pièces sortis de `SolarSystemBoardUI` (1 371 → 1 210 lignes).
 3. ~~Remplacer progressivement les styles en ligne par des classes CSS.~~ **Fait**.
 
 ## 6. Serveur et jeu en ligne

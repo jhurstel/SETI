@@ -11,6 +11,7 @@ import { TurnManager } from '../../src/engine/TurnManager';
 import { GameSession } from '../../src/session/GameSession';
 import { CardSystem } from '../../src/systems/CardSystem';
 import { AITurn } from '../../src/ai/AITurn';
+import { uniqueId } from '../../src/core/ids';
 
 const PUBLIC_DIR = path.resolve(__dirname, '../../../public');
 DataLoader.setReader(file => fs.promises.readFile(path.join(PUBLIC_DIR, file), 'utf-8'));
@@ -32,7 +33,8 @@ console.log = () => {};
       const result = GameSession.applyRobotStep(game, step);
       if (result.error) throw new Error(result.error);
       game = result.game;
-      entries.push(...result.entries);
+      // Identifiants posés par SessionJournal en jeu (clés de l'historique affiché)
+      entries.push(...result.entries.map(e => ({ ...e, id: e.id ?? uniqueId() })));
     } else throw new Error('Robot bloqué');
   }
   game.players[0].type = 'human';
