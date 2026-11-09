@@ -183,7 +183,7 @@ Bundle de production : `index` 531 Ko (minifié), `vendor` 222 Ko, worker des ro
 | 3 | ~~Déplacer `performRotation` dans `systems/` et ajouter un contrôle des cycles~~ **Fait** : géométrie et `ComputerSystem` hors du cycle, `npm run check:cycles` en CI | ½ jour | Modularité |
 | 4 | ~~Purge et limites des salles du serveur~~ **Fait** : purge des salles inactives, 200 salles au plus, 5 créations par adresse IP en 10 minutes | ½ jour | Robustesse en ligne |
 | 5 | ~~Profiler une étape Expert, puis réduire le coût des copies~~ **Fait** : robots 5,8 fois plus rapides, décisions identiques, banc `npm run bench:ai` | 1 à 2 jours | Fluidité des robots, capacité du serveur |
-| 6 | Scénarios Playwright : en ligne à deux, annulation, rechargement, fin de partie | 1 à 2 jours | Couverture de l'interface |
+| 6 | ~~Scénarios Playwright : en ligne à deux, annulation, rechargement, fin de partie~~ **Fait** : 3 scénarios de plus (`online`, `localUndoReload`, `endGame`) ; le serveur du jeu en ligne est lancé par `playwright.config.ts` | 1 à 2 jours | Couverture de l'interface |
 | 7 | ~~Séparer `core/` en modèle et règles, découper `types.ts`~~ **Fait** : orchestration dans `src/engine/`, `core/` sans dépendance vers les règles, modèle découpé en 9 fichiers (`core/model/`), couches vérifiées par `npm run check:cycles` | 1 à 2 jours | Lisibilité, temps de compilation |
 | 8 | ~~Découper `BoardUI` et `SolarSystemBoardUI`, mémoïser, `React.lazy`~~ **Fait** : infobulle active hors de `BoardUI` (survol : rendu de 26 ms → 0,2 ms en développement), 8 plateaux mémoïsés avec handlers stables, hooks `useAnnouncements` et `useUndo`, plateau solaire allégé (`ui/solar/`), fenêtres rares chargées à la demande | 2 à 3 jours | Maintenance de l'interface, chargement |
 

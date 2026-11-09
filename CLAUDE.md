@@ -16,7 +16,7 @@ npm run typecheck    # tsc --noEmit (0 erreur attendue)
 npm run lint         # ESLint (0 erreur attendue ; les warnings = dette connue)
 npm test             # Jest (test/*.test.ts, ts-jest)
 npm run test:coverage # Jest + couverture du moteur (hors ui/, rapport HTML dans coverage/)
-npm run test:e2e     # Playwright (e2e/*.spec.ts) : tour d'un joueur humain dans un vrai navigateur
+npm run test:e2e     # Playwright (e2e/*.spec.ts) dans un vrai navigateur : tour solo, annulation et rechargement, partie en ligne à deux, écran de fin
 npm run check        # typecheck + lint + cycles d'import + tests + build — à lancer avant chaque commit
 npm run check:cycles # cycles d'import (tools/check-cycles.mjs) : seuls les systèmes de règles admis
 npm run bench:ai -- 3 2  # performance des robots : 3 parties de 2 Experts (tools/bench/aiBench.ts), temps par étape et empreinte des résultats
@@ -90,7 +90,7 @@ src/
     ├── modals/              # Settings (écran d'accueil : continuer, nouvelle partie, en ligne, documentation), NewGame, Online, Documentation (public/docs/documentation.md + PDF), Pass, GameModals
     └── styles/celestialStyles.ts
 server/                      # Serveur Node du jeu à distance (GameServer : ws, salles, robots, fichiers) ; build/ et data/ ignorés
-e2e/                         # Playwright : parties pilotées dans le navigateur (serveur Vite lancé par playwright.config.ts)
+e2e/                         # Playwright : parties pilotées dans le navigateur ; playwright.config.ts lance le serveur du jeu en ligne (port 8799, dossier temporaire) et Vite (VITE_SERVER_URL vers lui) ; helpers.ts (sélecteurs, mise en place) ; endGame.spec génère une partie terminée par des robots côté Node puis l'injecte comme sauvegarde
 test/                        # Jest : un fichier par module moteur + AITurn (parties complètes entre robots), helpers/gameFixture.ts
 docs/etat-des-lieux-cartes.md # Audit des cartes et des opérations des robots (corrigé / situationnel / limites)
 docs/archive/                # Documents de conception initiaux, obsolètes

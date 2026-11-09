@@ -373,7 +373,7 @@ Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte
 npm run dev            # lance le jeu
 npm run check          # typecheck + lint + tests + build (avant chaque commit)
 npm test               # tests Jest du moteur
-npm run test:e2e       # tests Playwright dans un navigateur
+npm run test:e2e       # tests Playwright dans un navigateur : tour solo, annulation et rechargement, partie en ligne à deux (serveur de jeu lancé pour le test), écran de fin
 npm run tune:ai        # banc de réglage des robots
 npm run server         # serveur du jeu à distance (server:build puis server:start)
 ```

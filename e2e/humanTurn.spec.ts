@@ -1,10 +1,5 @@
-import { test, expect, Page } from '@playwright/test';
-
-/** Action principale disponible dans la ligne des actions du plateau joueur (hexagones). */
-const availableAction = (page: Page, label: string) =>
-  page.locator(`.seti-main-actions .obs-track-slot.clickable[aria-label="${label}"]`);
-/** N'importe quel emplacement d'action principale disponible. */
-const anyAvailableAction = (page: Page) => page.locator('.seti-main-actions .obs-track-slot.clickable[aria-label]');
+import { test, expect } from '@playwright/test';
+import { anyAvailableAction, availableAction } from './helpers';
 
 test('tour complet du joueur humain : lancer une sonde, passer la main au robot, la récupérer', async ({ page }) => {
   await page.goto('/');
