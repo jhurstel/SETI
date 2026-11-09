@@ -1,12 +1,12 @@
-import { Game, GamePhase, Player, Decks, Species, DataComputer, GAME_CONSTANTS, Technology, SectorType, GameLogEntry, LifeTraceType, NEUTRAL_MILESTONES, AlienBoardType, SignalType, Planet } from './types';
+import { Game, GamePhase, Player, Decks, Species, DataComputer, GAME_CONSTANTS, Technology, SectorType, GameLogEntry, LifeTraceType, NEUTRAL_MILESTONES, AlienBoardType, SignalType, Planet } from '../core/types';
 import { BoardManager } from './Board';
 import { CardSystem } from '../systems/CardSystem';
-import { Logger } from './Logger';
-import { DataLoader } from './DataLoader';
-import { cloneGame } from './cloneGame';
+import { Logger } from '../core/Logger';
+import { DataLoader } from '../core/DataLoader';
+import { cloneGame } from '../core/cloneGame';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { uniqueId } from './ids';
-import { random, newSeed, seedRandom, getRandomState } from './random';
+import { uniqueId } from '../core/ids';
+import { random, newSeed, seedRandom, getRandomState } from '../core/random';
 
 /** Couleurs des joueurs, dans l'ordre des places (bleu, rouge, jaune, vert) : affichées aussi avant la partie */
 export const PLAYER_COLORS = ['#4a90e2', '#ff6b6b', '#ffd700', '#4caf50'];

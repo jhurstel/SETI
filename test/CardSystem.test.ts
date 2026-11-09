@@ -1,5 +1,5 @@
 import { CardSystem } from '../src/systems/CardSystem';
-import { GameEngine } from '../src/core/Game';
+import { GameEngine } from '../src/engine/Game';
 import { PlayCardAction } from '../src/actions/PlayCardAction';
 import { DataLoader } from '../src/core/DataLoader';
 import { AlienBoardType, CostType, FreeActionType, Game, LifeTraceLocation, LifeTraceType, RevenueType } from '../src/core/types';

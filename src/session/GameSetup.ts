@@ -1,5 +1,5 @@
 import { AIDifficulty, Game, HistoryEntry } from '../core/types';
-import { GameFactory } from '../core/GameFactory';
+import { GameFactory } from '../engine/GameFactory';
 import { random } from '../core/random';
 
 /** Une place à la table : un joueur humain ou un robot (avec son niveau) */

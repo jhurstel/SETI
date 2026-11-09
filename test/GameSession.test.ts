@@ -1,7 +1,7 @@
 import { GameSession } from '../src/session/GameSession';
 import { InteractionQueue } from '../src/session/InteractionQueue';
 import { Command } from '../src/session/commands';
-import { GameFactory } from '../src/core/GameFactory';
+import { GameFactory } from '../src/engine/GameFactory';
 import { AITurn } from '../src/ai/AITurn';
 import { TechnologySystem } from '../src/systems/TechnologySystem';
 import { CardSystem } from '../src/systems/CardSystem';

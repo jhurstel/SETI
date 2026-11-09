@@ -1,5 +1,5 @@
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
-import { ScoreManager } from '../src/core/ScoreManager';
+import { ScoreManager } from '../src/engine/ScoreManager';
 import { viewFor } from '../src/session/PlayerView';
 import { AlienBoardType, Card, CardType, Game, GamePhase, LifeTraceLocation, LifeTraceType } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';

@@ -364,7 +364,7 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
     );
 };
 
-export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game, onUndo, onUndoTurn, setActiveTooltip }) => {
+const HistoryBoardUIView: React.FC<HistoryBoardUIProps> = ({ historyLog, game, onUndo, onUndoTurn, setActiveTooltip }) => {
     const [isHistoryOpen, setIsHistoryOpen] = useState(true);
     const historyContentRef = useRef<HTMLDivElement>(null);
 
@@ -412,3 +412,6 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         </div>
     );
 };
+
+/** Mémoïsé : redessiné seulement quand ses props changent (partie, interaction…), pas à chaque rendu de BoardUI */
+export const HistoryBoardUI = React.memo(HistoryBoardUIView);

@@ -331,11 +331,13 @@ valeur = PV
 
 ### 6.1 Organisation
 
-- `core/` : modèle (`types.ts`), moteur, plateau, géométrie, tours, persistance, hasard.
+- `core/` : modèle (`types.ts`, découpé par domaine dans `core/model/`), géométrie, chargement des cartes, persistance, copie de l'état, hasard ; aucune dépendance vers les règles.
+- `engine/` : orchestration des règles (moteur des actions, création de partie, plateau, tours, interactions, décompte final).
 - `actions/` : une classe par action principale (validation, exécution).
 - `systems/` : règles métier (sondes, cartes, scan, ressources, ordinateur, technologies, espèces).
 - `session/` : la partie comme session (point d'entrée unique des commandes).
 - `ai/` : robots (actions possibles, évaluation, interactions, tour).
+- Couches, de bas en haut : `core` < `systems` < `actions`, `engine` < `ai` < `session` < `ui`. Une couche n'importe jamais une couche au-dessus ; seuls les systèmes de règles, mutuellement récursifs, forment un cycle (`npm run check:cycles`).
 - `ui/` : React ; affiche la partie et envoie des commandes, sans aucune règle.
 
 ### 6.2 Session et commandes

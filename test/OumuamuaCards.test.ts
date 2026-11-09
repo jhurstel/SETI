@@ -3,7 +3,7 @@ import { CardSystem } from '../src/systems/CardSystem';
 import { ScanSystem } from '../src/systems/ScanSystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
-import { InteractionChoices } from '../src/core/InteractionChoices';
+import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { AIController } from '../src/ai/AIController';
 import { GameSession } from '../src/session/GameSession';
 import { AlienBoardType, Card, Game, InteractionState, Probe, ProbeState, SectorType } from '../src/core/types';

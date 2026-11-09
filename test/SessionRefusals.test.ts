@@ -1,6 +1,6 @@
 import { GameSession } from '../src/session/GameSession';
 import { Command } from '../src/session/commands';
-import { InteractionResolver } from '../src/core/InteractionResolver';
+import { InteractionResolver } from '../src/engine/InteractionResolver';
 import { FreeActionType, Game, GAME_CONSTANTS, GamePhase, InteractionState, Probe, ProbeState, SectorType } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 

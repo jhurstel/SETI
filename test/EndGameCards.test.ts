@@ -1,4 +1,4 @@
-import { ScoreManager } from '../src/core/ScoreManager';
+import { ScoreManager } from '../src/engine/ScoreManager';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { createRotationState, getAbsoluteSectorForProbe, getCell } from '../src/core/SolarSystemPosition';
 import { CardType, DiskName, GAME_CONSTANTS, Game, LifeTraceType, Mission, ObjectiveCategory, ProbeState, SectorNumber, TechnologyCategory } from '../src/core/types';

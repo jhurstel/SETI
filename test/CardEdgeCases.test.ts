@@ -1,6 +1,6 @@
 import { CardSystem } from '../src/systems/CardSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
-import { ScoreManager } from '../src/core/ScoreManager';
+import { ScoreManager } from '../src/engine/ScoreManager';
 import { AlienBoardType, CardType, CostType, FreeActionType, Game, LifeTraceType, Mission, ProbeState, RevenueType, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 import { revealText, textFor } from '../src/core/historyText';

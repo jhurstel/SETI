@@ -3,7 +3,7 @@ import { textFor } from '../core/historyText';
 import { cloneGame } from '../core/cloneGame';
 import { InteractionQueue } from './InteractionQueue';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
-import { ScoreManager } from '../core/ScoreManager';
+import { ScoreManager } from '../engine/ScoreManager';
 
 /** Identifiant affiché à la place d'une espèce pas encore découverte (son plateau est face cachée) */
 export const HIDDEN_SPECIES = 'Inconnue' as AlienBoardType;

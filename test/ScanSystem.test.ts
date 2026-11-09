@@ -4,7 +4,7 @@ import { Game, InteractionState, Sector, SectorType, SignalType } from '../src/c
 type ScanSectorSelection = Extract<InteractionState, { type: 'SELECTING_SCAN_SECTOR' }>;
 import { createTestGame, getPlayer, giveCard } from './helpers/gameFixture';
 import { CardSystem } from '../src/systems/CardSystem';
-import { InteractionResolver } from '../src/core/InteractionResolver';
+import { InteractionResolver } from '../src/engine/InteractionResolver';
 
 /** Marque les signaux d'un secteur dans l'ordre donné (le dernier est le plus récent). */
 function markSignals(sector: Sector, playerIds: string[]): void {

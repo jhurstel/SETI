@@ -14,8 +14,8 @@
  * - Effets spécifiques d'espèces
  */
 
-import { effectNumber, effectString } from './cardEffects';
-import { cloneGame } from './cloneGame';
+import { effectNumber, effectString } from '../core/cardEffects';
+import { cloneGame } from '../core/cloneGame';
 import {
   Game,
   GamePhase,
@@ -42,10 +42,10 @@ import {
   LifeTraceLocation,
   Bonus
 } from '../core/types';
-import { createRotationState, getAbsoluteSectorForProbe, getCell } from './SolarSystemPosition';
+import { createRotationState, getAbsoluteSectorForProbe, getCell } from '../core/SolarSystemPosition';
 import { DISCOVERY_NOTICE, SpeciesSystem } from '../systems/SpeciesSystem';
-import { uniqueId } from './ids';
-import { requirePlayer } from './players';
+import { uniqueId } from '../core/ids';
+import { requirePlayer } from '../core/players';
 
 export class ScoreManager {
   /**

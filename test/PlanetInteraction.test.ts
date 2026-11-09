@@ -1,8 +1,8 @@
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { DiskName, Game, Mission, Probe, ProbeState, SectorNumber, SectorType, Technology } from '../src/core/types';
-import { InteractionResolver } from '../src/core/InteractionResolver';
-import { InteractionChoices } from '../src/core/InteractionChoices';
+import { InteractionResolver } from '../src/engine/InteractionResolver';
+import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { LandAction } from '../src/actions/LandAction';
 import { AIBehavior } from '../src/ai/AIBehavior';
 import { ActionType, FreeActionType, AlienBoardType, LifeTraceType, LifeTraceLocation } from '../src/core/types';

@@ -1,8 +1,8 @@
 import { ResourceSystem } from '../src/systems/ResourceSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { TechnologySystem } from '../src/systems/TechnologySystem';
-import { ScoreManager } from '../src/core/ScoreManager';
-import { InteractionChoices } from '../src/core/InteractionChoices';
+import { ScoreManager } from '../src/engine/ScoreManager';
+import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { AlienBoardType, Bonus, CardType, Game, GAME_CONSTANTS, getInteractionLabel, InteractionState, LifeTraceLocation, LifeTraceType, Mission, ObjectiveCategory, Probe, ProbeState, SectorType, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 

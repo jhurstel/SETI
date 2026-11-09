@@ -2,7 +2,7 @@ import { GameSession } from '../src/session/GameSession';
 import { CardSystem } from '../src/systems/CardSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { TechnologySystem } from '../src/systems/TechnologySystem';
-import { InteractionResolver } from '../src/core/InteractionResolver';
+import { InteractionResolver } from '../src/engine/InteractionResolver';
 import { Game, GamePhase, LifeTraceLocation, LifeTraceType, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 

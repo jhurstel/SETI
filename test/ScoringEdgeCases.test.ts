@@ -1,4 +1,4 @@
-import { ScoreManager } from '../src/core/ScoreManager';
+import { ScoreManager } from '../src/engine/ScoreManager';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { AlienBoardType, Game, GAME_CONSTANTS, ObjectiveCategory, ObjectiveTile } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';

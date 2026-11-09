@@ -24,7 +24,7 @@ interface PlanetBoardUIProps {
 const PLANET_IDS = ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'];
 
 // Main component for the planet panel
-export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionState, onOrbit, onLand, setActiveTooltip }) => {
+const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionState, onOrbit, onLand, setActiveTooltip }) => {
     const [isOpen, setIsOpen] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
     useCloseOnOutsideClick(panelRef, isOpen, () => setIsOpen(false));
@@ -382,3 +382,6 @@ export const PlanetBoardUI: React.FC<PlanetBoardUIProps> = ({ game, interactionS
         </div>
     );
 };
+
+/** Mémoïsé : redessiné seulement quand ses props changent (partie, interaction…), pas à chaque rendu de BoardUI */
+export const PlanetBoardUI = React.memo(PlanetBoardUIView);

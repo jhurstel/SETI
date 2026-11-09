@@ -14,7 +14,7 @@ interface CardRowUIProps {
     setActiveTooltip: (tooltip: ActiveTooltip | null) => void;
 }
 
-export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, onCardClick, setActiveTooltip }) => {
+const CardRowUIView: React.FC<CardRowUIProps> = ({ game, interactionState, onCardClick, setActiveTooltip }) => {
     const isActive = interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD';
     const isInitiallyOpen = interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD';
     const [isOpen, setIsOpen] = useState(isInitiallyOpen);
@@ -81,3 +81,6 @@ export const CardRowUI: React.FC<CardRowUIProps> = ({ game, interactionState, on
         </div>
     );
 };
+
+/** Mémoïsé : redessiné seulement quand ses props changent (partie, interaction…), pas à chaque rendu de BoardUI */
+export const CardRowUI = React.memo(CardRowUIView);

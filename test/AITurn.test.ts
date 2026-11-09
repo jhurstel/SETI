@@ -1,14 +1,14 @@
 import { AITurn } from '../src/ai/AITurn';
 import * as randomModule from '../src/core/random';
-import { GameFactory } from '../src/core/GameFactory';
-import { TurnManager } from '../src/core/TurnManager';
+import { GameFactory } from '../src/engine/GameFactory';
+import { TurnManager } from '../src/engine/TurnManager';
 import { GameSession } from '../src/session/GameSession';
 import { CardSystem } from '../src/systems/CardSystem';
 import { ScanSystem } from '../src/systems/ScanSystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { AIEvaluator, DEFAULT_WEIGHTS } from '../src/ai/AIEvaluator';
 import { AIBehavior } from '../src/ai/AIBehavior';
-import { ScoreManager } from '../src/core/ScoreManager';
+import { ScoreManager } from '../src/engine/ScoreManager';
 import { createRotationState, getAbsoluteSectorForProbe } from '../src/core/SolarSystemPosition';
 import { AIDifficulty, Game, GamePhase, LifeTraceLocation, LifeTraceType } from '../src/core/types';
 import { giveCard, makeCard, mockFetchFromPublic, TEST_SEED } from './helpers/gameFixture';

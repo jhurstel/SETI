@@ -1,5 +1,5 @@
 import { SpeciesSystem, DISCOVERY_MESSAGE } from '../src/systems/SpeciesSystem';
-import { InteractionChoices } from '../src/core/InteractionChoices';
+import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { AlienBoardType, Game, LifeTraceLocation, LifeTraceType } from '../src/core/types';
 import { createTestGame } from './helpers/gameFixture';
 

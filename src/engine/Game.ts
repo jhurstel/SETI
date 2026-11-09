@@ -1,4 +1,4 @@
-import { Game, MAIN_ACTION_TYPES } from './types';
+import { Game, MAIN_ACTION_TYPES } from '../core/types';
 import { BaseAction } from '../actions/Action';
 import { ActionValidator } from './ActionValidator';
 

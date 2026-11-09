@@ -1,6 +1,6 @@
 import { GAME_CONSTANTS, GamePhase } from '../src/core/types';
 import { createTestGame } from './helpers/gameFixture';
-import { GameFactory } from '../src/core/GameFactory';
+import { GameFactory } from '../src/engine/GameFactory';
 
 describe('GameFactory (partie réelle)', () => {
   test('crée une partie à 2 joueurs prête à jouer', async () => {

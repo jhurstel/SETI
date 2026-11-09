@@ -1,7 +1,7 @@
-import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, TechnologyCategory, Technology, TechnologyEffect, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorType, SignalType, Signal, LifeTraceType, AlienBoardType } from './types';
-import { sectorToIndex } from './SolarSystemPosition';
+import { Board, SolarSystem, Sector, Planet, Bonus, TechnologyBoard, TechnologyCategory, Technology, TechnologyEffect, AlienBoard, ObjectiveTile, ObjectiveCategory, SectorType, SignalType, Signal, LifeTraceType, AlienBoardType } from '../core/types';
+import { sectorToIndex } from '../core/SolarSystemPosition';
 import { ResourceSystem } from '../systems/ResourceSystem';
-import { random } from './random';
+import { random } from '../core/random';
 
 export class BoardManager {
   /**

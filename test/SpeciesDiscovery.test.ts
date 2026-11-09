@@ -1,6 +1,6 @@
 import { SpeciesSystem, DISCOVERY_MESSAGE, DISCOVERY_NOTICE, discoveryNotice, noticedSpecies } from '../src/systems/SpeciesSystem';
 import { GameSession } from '../src/session/GameSession';
-import { InteractionChoices } from '../src/core/InteractionChoices';
+import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { AlienBoardType, CardType, Game, GamePhase, LifeTraceLocation, LifeTraceType } from '../src/core/types';
 import { viewFor } from '../src/session/PlayerView';
 import { createTestGame, getPlayer } from './helpers/gameFixture';

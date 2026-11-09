@@ -1,6 +1,6 @@
 import { CardSystem } from '../src/systems/CardSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
-import { InteractionChoices } from '../src/core/InteractionChoices';
+import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { Game, GamePhase, LifeTraceLocation, LifeTraceType } from '../src/core/types';
 import { GameSession } from '../src/session/GameSession';
 import { createTestGame, getPlayer } from './helpers/gameFixture';

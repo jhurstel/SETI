@@ -1,4 +1,4 @@
-import { Game, GamePhase, MAIN_ACTION_TYPES, ValidationResult } from './types';
+import { Game, GamePhase, MAIN_ACTION_TYPES, ValidationResult } from '../core/types';
 import { BaseAction } from '../actions/Action';
 
 export class ActionValidator {

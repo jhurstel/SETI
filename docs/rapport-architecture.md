@@ -144,6 +144,8 @@ Bundle de production : `index` 531 Ko (minifié), `vendor` 222 Ko, worker des ro
 - **Presque pas de mémoïsation** : seuls 2 fichiers utilisent `React.memo`. Chaque changement d'état (160 Ko) redessine tous les plateaux, y compris le SVG du système solaire. Ce n'est pas mesuré ici : un passage au Profiler de React dira si c'est perceptible.
 - **Bonne frontière avec le moteur** : les handlers envoient des commandes et ne calculent pas de règles. Les vérifications d'affichage (coûts, cases jouables) lisent les systèmes sans rien modifier.
 
+**Réalisé (étape 8)** : un profil des rendus (React Profiler, mode développement) a montré que chaque survol redessinait tout l'écran, l'infobulle active étant un état de `BoardUI` (médiane 26 ms, p90 65 ms, max 220 ms). L'infobulle vit maintenant dans `ui/tooltipStore.ts` et s'affiche par `TooltipLayer` : un survol ne coûte plus que 0,2 ms. Les 8 plateaux sont mémoïsés (`React.memo`) et reçoivent des handlers stables (`useStableHandlers`) : ouvrir ou fermer le menu, une annonce ou un message ne les redessine plus (5 ms au lieu d'un rendu complet). `BoardUI` passe de 1 013 à 970 lignes (hooks `useAnnouncements`, `useUndo`), `SolarSystemBoardUI` de 1 733 à 1 370 (`ui/solar/` : infobulle d'emplacement, secteurs surlignés, sélection de sonde). Documentation, partie en ligne et outils de débogage sont chargés à la demande (bundle principal 532 → 519 Ko ; le gros du poids reste le moteur, nécessaire dès qu'une partie commence). Un changement de la partie redessine toujours tous les plateaux (environ 170 ms en développement, bien moins en production) : chaque copie change toutes les références, la mémoïsation n'y peut rien.
+
 ### Recommandations
 
 1. Sortir de `BoardUI` des hooks par sujet (sélection locale, annonces et tirage, annulation, en ligne) et des sous-composants par panneau.
@@ -176,14 +178,14 @@ Bundle de production : `index` 531 Ko (minifié), `vendor` 222 Ko, worker des ro
 
 | Priorité | Action | Effort | Gain |
 |---|---|---|---|
-| 1 | Révoquer le jeton publié dans l'historique, s'il est encore valide | Minutes | Sécurité |
+| 1 | ~~Révoquer le jeton publié dans l'historique, s'il est encore valide~~ **Fait** (révoqué) | Minutes | Sécurité |
 | 2 | ~~Tests ciblés pour revenir à 100 % (tuile « Autres » B, `GameSession`, `AIController`) et `test:coverage` en CI~~ **Fait** : tuiles objectif Missions, Revenus et Autres testées sur leurs deux faces, découverte par commande testée, garde inatteignable retirée ; la CI lance `npm run test:coverage` | ½ jour | Fiabilité des tests |
 | 3 | ~~Déplacer `performRotation` dans `systems/` et ajouter un contrôle des cycles~~ **Fait** : géométrie et `ComputerSystem` hors du cycle, `npm run check:cycles` en CI | ½ jour | Modularité |
 | 4 | ~~Purge et limites des salles du serveur~~ **Fait** : purge des salles inactives, 200 salles au plus, 5 créations par adresse IP en 10 minutes | ½ jour | Robustesse en ligne |
 | 5 | ~~Profiler une étape Expert, puis réduire le coût des copies~~ **Fait** : robots 5,8 fois plus rapides, décisions identiques, banc `npm run bench:ai` | 1 à 2 jours | Fluidité des robots, capacité du serveur |
 | 6 | Scénarios Playwright : en ligne à deux, annulation, rechargement, fin de partie | 1 à 2 jours | Couverture de l'interface |
-| 7 | Séparer `core/` en modèle et règles, découper `types.ts` | 1 à 2 jours | Lisibilité, temps de compilation |
-| 8 | Découper `BoardUI` et `SolarSystemBoardUI`, mémoïser, `React.lazy` | 2 à 3 jours | Maintenance de l'interface, chargement |
+| 7 | ~~Séparer `core/` en modèle et règles, découper `types.ts`~~ **Fait** : orchestration dans `src/engine/`, `core/` sans dépendance vers les règles, modèle découpé en 9 fichiers (`core/model/`), couches vérifiées par `npm run check:cycles` | 1 à 2 jours | Lisibilité, temps de compilation |
+| 8 | ~~Découper `BoardUI` et `SolarSystemBoardUI`, mémoïser, `React.lazy`~~ **Fait** : infobulle active hors de `BoardUI` (survol : rendu de 26 ms → 0,2 ms en développement), 8 plateaux mémoïsés avec handlers stables, hooks `useAnnouncements` et `useUndo`, plateau solaire allégé (`ui/solar/`), fenêtres rares chargées à la demande | 2 à 3 jours | Maintenance de l'interface, chargement |
 
 ## Méthode
 

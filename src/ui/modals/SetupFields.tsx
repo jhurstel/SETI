@@ -1,6 +1,6 @@
 import React from 'react';
 import { AIDifficulty } from '../../core/types';
-import { PLAYER_COLORS } from '../../core/GameFactory';
+import { PLAYER_COLORS } from '../../engine/GameFactory';
 import { HumanIcon, LevelStrength } from '../components/PlayerKindIcon';
 
 /**

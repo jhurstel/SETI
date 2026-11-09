@@ -1,5 +1,5 @@
 import { ScanSystem } from '../src/systems/ScanSystem';
-import { InteractionChoices } from '../src/core/InteractionChoices';
+import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { CardSystem } from '../src/systems/CardSystem';
 import { AIController } from '../src/ai/AIController';

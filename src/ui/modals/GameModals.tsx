@@ -4,7 +4,7 @@ import { HistoryList } from '../HistoryBoardUI';
 import { HistoryProgressBar } from '../components/HistoryProgressBar';
 import { PlayerKindIcon } from '../components/PlayerKindIcon';
 import { historyTimeline } from '../../core/historyTimeline';
-import { ScoreManager } from '../../core/ScoreManager';
+import { ScoreManager } from '../../engine/ScoreManager';
 import { ResourceSystem } from '../../systems/ResourceSystem';
 import { CardSystem } from '../../systems/CardSystem';
 import { ChoiceModal, ChoiceOption, ChoiceFooterButton } from './ChoiceModal';
@@ -16,7 +16,7 @@ import { Tooltip } from '../Tooltip';
 import { ResourceIcon, SignalGainIcon, ActionHexIcon, CentaurienMessageIcon, TrophyIcon } from '../components/GameIcons';
 import { SpeciesSystem } from '../../systems/SpeciesSystem';
 import { effectString } from '../../core/cardEffects';
-import { InteractionChoices } from '../../core/InteractionChoices';
+import { InteractionChoices } from '../../engine/InteractionChoices';
 import { useCloseTooltipOnClick } from '../hooks/useCloseTooltipOnClick';
 
 export const ConfirmModal = ({ visible, message, onConfirm, onCancel }: { visible: boolean, message: string, onConfirm: () => void, onCancel: () => void }) => {

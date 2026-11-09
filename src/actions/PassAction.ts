@@ -1,7 +1,7 @@
 import { Game, ActionType, ValidationResult, GamePhase, HistoryEntry } from '../core/types';
-import { ScoreManager } from '../core/ScoreManager';
+import { ScoreManager } from '../engine/ScoreManager';
 import { BaseAction } from './Action';
-import { TurnManager } from '../core/TurnManager';
+import { TurnManager } from '../engine/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
 import { performRotation } from '../systems/RotationSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';

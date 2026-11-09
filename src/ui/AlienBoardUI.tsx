@@ -6,7 +6,7 @@ import { SpeciesSystem, MASCAMITE_BOARD_SPECIMEN_SLOT } from '../systems/Species
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
 import { CardBack, DeckPile } from './components/CardBack';
-import { ScoreManager } from '../core/ScoreManager';
+import { ScoreManager } from '../engine/ScoreManager';
 import { Tooltip } from './Tooltip';
 import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon, CentaurienMessageIcon } from './components/GameIcons';
 import { LIFE_TRACE_COLORS, LifeTraceColor } from './styles/lifeTraceColors';
@@ -251,7 +251,7 @@ const mascamiteTriangleColumns = (slotCount: number): number[][] => {
     return columns;
 };
 
-export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, onPlaceLifeTrace, onSpeciesCardClick, setActiveTooltip, forceOpen }) => {
+const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, onPlaceLifeTrace, onSpeciesCardClick, setActiveTooltip, forceOpen }) => {
     const board = game.board.alienBoards[boardIndex];
     const species = game.species.find(s => s.name === board.speciesId);
     const side = boardIndex === 0 ? 'left' : 'right';
@@ -712,3 +712,6 @@ export const AlienBoardUI: React.FC<AlienBoardUIProps> = ({ game, boardIndex, in
         </div>
     );
 };
+
+/** Mémoïsé : redessiné seulement quand ses props changent (partie, interaction…), pas à chaque rendu de BoardUI */
+export const AlienBoardUI = React.memo(AlienBoardUIView);

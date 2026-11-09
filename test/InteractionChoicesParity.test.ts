@@ -1,5 +1,5 @@
 import { ScanSystem } from '../src/systems/ScanSystem';
-import { InteractionChoices } from '../src/core/InteractionChoices';
+import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { TechnologySystem } from '../src/systems/TechnologySystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';

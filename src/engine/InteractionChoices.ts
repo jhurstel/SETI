@@ -1,4 +1,4 @@
-import { Bonus, DiskName, Game, HistoryEntry, InteractionState, LifeTraceLocation, LifeTraceType, SectorNumber, Technology, TechnologyCategory } from './types';
+import { Bonus, DiskName, Game, HistoryEntry, InteractionState, LifeTraceLocation, LifeTraceType, SectorNumber, Technology, TechnologyCategory } from '../core/types';
 import { GameEngine } from './Game';
 import { MoveProbeAction } from '../actions/MoveProbeAction';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
@@ -9,11 +9,11 @@ import { CardSystem } from '../systems/CardSystem';
 import { ScanFollowUp, ScanSystem } from '../systems/ScanSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { ScoreManager } from './ScoreManager';
-import { uniqueId } from './ids';
-import { cloneGame } from './cloneGame';
-import { privateText } from './historyText';
+import { uniqueId } from '../core/ids';
+import { cloneGame } from '../core/cloneGame';
+import { privateText } from '../core/historyText';
 import { PassAction } from '../actions/PassAction';
-import { requirePlayer } from './players';
+import { requirePlayer } from '../core/players';
 
 /** Résultat d'un choix fait sur une interaction en attente. */
 export interface ChoiceResult {

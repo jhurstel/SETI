@@ -9,15 +9,15 @@ export * from './ai/AIBehavior';
 export * from './ai/AIController';
 
 // Core
-export * from './core/ActionValidator';
-export * from './core/Board';
+export * from './engine/ActionValidator';
+export * from './engine/Board';
 export * from './core/DataLoader';
-export * from './core/Game';
-export * from './core/GameFactory';
+export * from './engine/Game';
+export * from './engine/GameFactory';
 export * from './core/Logger';
-export * from './core/ScoreManager';
+export * from './engine/ScoreManager';
 export * from './core/SolarSystemPosition';
-export * from './core/TurnManager';
+export * from './engine/TurnManager';
 export * from './core/types';
 
 // Systems

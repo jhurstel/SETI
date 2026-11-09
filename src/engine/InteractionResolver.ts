@@ -1,13 +1,13 @@
-import { effectString } from './cardEffects';
-import { Bonus, Game, HistoryEntry, InteractionState } from './types';
-import { cloneGame } from './cloneGame';
+import { effectString } from '../core/cardEffects';
+import { Bonus, Game, HistoryEntry, InteractionState } from '../core/types';
+import { cloneGame } from '../core/cloneGame';
 import { ScanSystem } from '../systems/ScanSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
-import { uniqueId } from './ids';
-import { requirePlayer } from './players';
+import { uniqueId } from '../core/ids';
+import { requirePlayer } from '../core/players';
 
 /** Interactions résolues sans choix du joueur (effets de carte, résolution de secteur, validation de mission…). */
 export type AutomaticInteraction = Extract<InteractionState, { type: 'TRIGGER_CARD_EFFECT' | 'RESOLVING_SECTOR' | 'DRAW_AND_SCAN' | 'CLAIMING_MISSION_REQUIREMENT' }>;

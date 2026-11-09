@@ -1,6 +1,6 @@
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { CardSystem } from '../src/systems/CardSystem';
-import { ScoreManager } from '../src/core/ScoreManager';
+import { ScoreManager } from '../src/engine/ScoreManager';
 import { DataLoader } from '../src/core/DataLoader';
 import { AIController } from '../src/ai/AIController';
 import { deserializeGame, serializeGame } from '../src/core/GamePersistence';

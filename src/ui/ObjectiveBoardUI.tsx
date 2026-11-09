@@ -14,7 +14,7 @@ interface ObjectiveBoardUIProps {
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
 
-export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, interactionState, onObjectiveClick, setActiveTooltip }) => {
+const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interactionState, onObjectiveClick, setActiveTooltip }) => {
     const isInitiallyOpen = interactionState.type === 'PLACING_OBJECTIVE_MARKER';
     const [isObjectivesOpen, setIsObjectivesOpen] = useState(isInitiallyOpen);
     useEffect(() => {
@@ -238,3 +238,6 @@ export const ObjectiveBoardUI: React.FC<ObjectiveBoardUIProps> = ({ game, intera
         </div>
     );
 };
+
+/** Mémoïsé : redessiné seulement quand ses props changent (partie, interaction…), pas à chaque rendu de BoardUI */
+export const ObjectiveBoardUI = React.memo(ObjectiveBoardUIView);

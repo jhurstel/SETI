@@ -2,8 +2,8 @@
 // Reçoit { id, seed, weights: EvaluatorWeights[] } et renvoie { id, scores: number[] } (score final par siège).
 import * as fs from 'fs';
 import * as path from 'path';
-import { GameFactory } from '../../src/core/GameFactory';
-import { TurnManager } from '../../src/core/TurnManager';
+import { GameFactory } from '../../src/engine/GameFactory';
+import { TurnManager } from '../../src/engine/TurnManager';
 import { GameSession } from '../../src/session/GameSession';
 import { CardSystem } from '../../src/systems/CardSystem';
 import { AITurn } from '../../src/ai/AITurn';

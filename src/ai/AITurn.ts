@@ -1,8 +1,8 @@
 import { Game, Player, ActionType, GamePhase, ProbeState, DiskName, SectorNumber, HistoryEntry, InteractionState, AIDecision, Card, GAME_CONSTANTS } from '../core/types';
-import { GameEngine } from '../core/Game';
-import { TurnManager } from '../core/TurnManager';
-import { InteractionResolver } from '../core/InteractionResolver';
-import { InteractionChoices } from '../core/InteractionChoices';
+import { GameEngine } from '../engine/Game';
+import { TurnManager } from '../engine/TurnManager';
+import { InteractionResolver } from '../engine/InteractionResolver';
+import { InteractionChoices } from '../engine/InteractionChoices';
 import { requirePlayer } from '../core/players';
 import { createRotationState, getAbsoluteSectorForProbe, calculateReachableCells, getAdjacentCells } from '../core/SolarSystemPosition';
 import { BaseAction } from '../actions/Action';

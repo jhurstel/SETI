@@ -1,5 +1,5 @@
 import { CardSystem } from '../src/systems/CardSystem';
-import { InteractionChoices } from '../src/core/InteractionChoices';
+import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { AIController } from '../src/ai/AIController';
 import { FreeActionType, Game, InteractionState, RevenueType } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';

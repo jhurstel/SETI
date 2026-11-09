@@ -16,7 +16,7 @@ interface TechnologyBoardUIProps {
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
 
-export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, interactionState, onTechClick, setActiveTooltip }) => {
+const TechnologyBoardUIView: React.FC<TechnologyBoardUIProps> = ({ game, interactionState, onTechClick, setActiveTooltip }) => {
   const currentPlayer = game.players[game.currentPlayerIndex];
   const techBoard = game.board.technologyBoard;
 
@@ -203,3 +203,6 @@ export const TechnologyBoardUI: React.FC<TechnologyBoardUIProps> = ({ game, inte
     </div>
   );
 };
+
+/** Mémoïsé : redessiné seulement quand ses props changent (partie, interaction…), pas à chaque rendu de BoardUI */
+export const TechnologyBoardUI = React.memo(TechnologyBoardUIView);

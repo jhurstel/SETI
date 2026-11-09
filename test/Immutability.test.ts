@@ -1,6 +1,6 @@
 import { cloneGame } from '../src/core/cloneGame';
-import { GameEngine } from '../src/core/Game';
-import { GameFactory } from '../src/core/GameFactory';
+import { GameEngine } from '../src/engine/Game';
+import { GameFactory } from '../src/engine/GameFactory';
 import { ComputerSystem } from '../src/systems/ComputerSystem';
 import { PassAction } from '../src/actions/PassAction';
 import { ResearchTechAction } from '../src/actions/ResearchTechAction';

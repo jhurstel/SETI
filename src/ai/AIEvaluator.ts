@@ -1,5 +1,5 @@
 import { Game, Player, ProbeState, DiskName, SectorNumber, LifeTraceType, CardType } from '../core/types';
-import { ScoreManager } from '../core/ScoreManager';
+import { ScoreManager } from '../engine/ScoreManager';
 import { ScanSystem } from '../systems/ScanSystem';
 import { createRotationState, getAbsoluteSectorForProbe, getAllCells, calculateReachableCells, RotationState } from '../core/SolarSystemPosition';
 

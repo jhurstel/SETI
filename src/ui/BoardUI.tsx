@@ -1,41 +1,47 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Game, ActionType, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, LifeTraceType, InteractionState, GamePhase, SignalType, getInteractionLabel, LifeTraceLocation } from '../core/types';
 import { ConfirmModal, MediaOrMoveModal, Observation2Modal, TokenDiscardModal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal, MissionRequirementModal, SpecimenModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
-import { ActionValidator } from '../core/ActionValidator';
+import { ActionValidator } from '../engine/ActionValidator';
 import { AnalyzeDataAction } from '../actions/AnalyzeDataAction';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { CardSystem } from '../systems/CardSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ScanSystem } from '../systems/ScanSystem';
-import { SpeciesSystem, noticedSpecies } from '../systems/SpeciesSystem';
-import { Announcement, AnnouncementContent } from './components/Announcement';
+import { SpeciesSystem } from '../systems/SpeciesSystem';
+import { Announcement } from './components/Announcement';
 import { GameSession } from '../session/GameSession';
 import { Choice, Command } from '../session/commands';
 import { useAITurn } from './hooks/useAITurn';
 import { useAutosave } from './hooks/useAutosave';
 import { useGameSession, RobotStep } from './hooks/useGameSession';
 import { useOnlineSession } from './hooks/useOnlineSession';
-import { OnlineModal } from './modals/OnlineModal';
+import { useAnnouncements } from './hooks/useAnnouncements';
+import { useUndo } from './hooks/useUndo';
+import { useStableHandlers } from './hooks/useStableHandlers';
 import { SpaceBackdrop } from './components/SpaceBackdrop';
 import { FirstPlayerDraw } from './components/FirstPlayerDraw';
-import { DebugPanel } from './DebugPanel';
 import { useDebugSetting } from './hooks/useDebugSetting';
 import { PassModal } from './modals/PassModal';
 import { CardPickModal } from './modals/CardPickModal';
-import { Tooltip } from './Tooltip';
+import { setActiveTooltip } from './tooltipStore';
+import { TooltipLayer } from './TooltipLayer';
 import { ObjectiveBoardUI } from './ObjectiveBoardUI';
 import { HistoryBoardUI } from './HistoryBoardUI';
 import { CardRowUI } from './CardRowUI';
 import { AlienBoardUI } from './AlienBoardUI';
 import { SettingsModal } from './modals/SettingsModal';
-import { DocumentationModal } from './modals/DocumentationModal';
 import { PlanetBoardUI } from './PlanetBoardUI';
 import './BoardUI.css';
 import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
+
+// Fenêtres chargées à la demande (morceaux séparés du bundle), montées seulement quand elles sont ouvertes
+const OnlineModal = lazy(() => import('./modals/OnlineModal').then(m => ({ default: m.OnlineModal })));
+const DocumentationModal = lazy(() => import('./modals/DocumentationModal').then(m => ({ default: m.DocumentationModal })));
+const DebugPanel = lazy(() => import('./DebugPanel').then(m => ({ default: m.DebugPanel })));
 
 /** Modes propres à l'interface (sélection avant la commande, animation) : la partie n'en sait rien */
 type LocalMode = Extract<InteractionState, { type: 'DISCARDING_CARD' | 'TRADING_CARD' | 'ANALYZING' }>;
@@ -68,6 +74,9 @@ export const BoardUI: React.FC = () => {
 
   // États de l'interface
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
+  const showMessage = useCallback((message: string) => setToast({ message, visible: true }), []);
+  // Annonces au centre de l'écran (début de tour, découverte d'une espèce, tirage du premier joueur)
+  const { announcement, onAnnouncementDone, drawing, endDrawing, showNotifications } = useAnnouncements({ game: realGame, historyLog, me, onMessage: showMessage });
   const [showDebug, setShowDebug] = useDebugSetting();
   const [localMode, setLocalMode] = useState<LocalMode | null>(null);
   // Cartes sélectionnées pour l'interaction en cours (réservation, défausse pour signaux)
@@ -75,21 +84,7 @@ export const BoardUI: React.FC = () => {
   // Action Orbite / Atterrissage / Jouer une carte choisie : planètes ou cartes jouables mises en avant
   const [actionFocus, setActionFocus] = useState<'orbit' | 'land' | 'card' | null>(null);
   const [viewedPlayerId, setViewedPlayerId] = useState<string | null>(null);
-  // Annonces au centre de l'écran : découverte d'une espèce (prioritaire), début de tour d'un joueur
-  const [discovery, setDiscovery] = useState<{ species: string; key: number } | null>(null);
-  const [turnAnnouncement, setTurnAnnouncement] = useState<AnnouncementContent | null>(null);
-  // Tirage du premier joueur : animé une fois au démarrage de chaque partie (solo ou en ligne), avant la première
-  // réservation ; la partie est reconnue par sa première entrée d'historique. Les robots locaux attendent la fin
-  const [drawShownFor, setDrawShownFor] = useState<string | null>(null);
-  const [drawing, setDrawing] = useState(false);
-  const gameKey = historyLog[0]?.id;
-  const atStart = !!realGame && realGame.phase === GamePhase.SETUP && realGame.players.every(p => p.reservedCards.length === 0);
-  useEffect(() => {
-    if (!atStart || !gameKey || gameKey === drawShownFor) return;
-    setDrawShownFor(gameKey);
-    setDrawing(true);
-  }, [atStart, gameKey, drawShownFor]);
-  const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null>(null);
+  // Infobulle active : hors de l'état de BoardUI (tooltipStore), un survol ne redessine pas tout l'écran
   useCloseTooltipOnClick(() => setActiveTooltip(null));
   const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
   const [settingsVisible, setSettingsVisible] = useState(true); // Ouvert au lancement
@@ -146,40 +141,7 @@ export const BoardUI: React.FC = () => {
   // Sauvegarde automatique à chaque modification de la partie locale (une partie en ligne est gardée par le serveur)
   useAutosave(session.game, session.historyLog);
 
-  // Début de tour d'un joueur : annonce au centre (grande pour vous, réduite pour les autres). Le nombre de tours
-  // déjà commencés (lignes « --- Tour de … » de l'historique) distingue deux tours de suite d'un même joueur
-  const turnsStarted = historyLog.filter(e => e.message.startsWith('--- Tour de')).length;
-  const turnPlayer = realGame && realGame.phase === GamePhase.PLAYING ? realGame.players[realGame.currentPlayerIndex] : undefined;
-  const turnKey = turnPlayer ? `${realGame!.currentRound}-${turnsStarted}-${turnPlayer.id}` : null;
-  useEffect(() => {
-    if (!turnKey || !turnPlayer || !realGame) return;
-    const mine = turnPlayer.id === me;
-    setTurnAnnouncement({
-      key: turnKey,
-      kicker: `Manche ${realGame.currentRound}`,
-      title: mine ? 'À vous de jouer' : `Tour de ${turnPlayer.name}`,
-      subtitle: mine ? turnPlayer.name : turnPlayer.type === 'robot' ? 'Robot' : undefined,
-      color: turnPlayer.color,
-      size: mine ? 'large' : 'compact',
-      duration: mine ? 1800 : 1200,
-    });
-    // Seul le changement de tour relance l'annonce
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turnKey]);
-  const closeDiscovery = useCallback(() => setDiscovery(null), []);
-  const closeTurnAnnouncement = useCallback(() => setTurnAnnouncement(null), []);
 
-  /** Annonces de la partie (découverte d'une espèce…) */
-  const showNotifications = (notifications: string[]) => {
-    notifications.forEach(message => {
-      const species = noticedSpecies(message);
-      if (species !== undefined) {
-        setDiscovery({ species, key: Date.now() });
-      } else {
-        setToast({ message, visible: true });
-      }
-    });
-  };
 
   /**
    * Envoie une commande au nom du joueur qui agit : à la session locale, ou au serveur en ligne (le joueur est alors
@@ -229,48 +191,15 @@ export const BoardUI: React.FC = () => {
 
   // --- Annulation ---
 
-  // En ligne, le serveur n'accepte que l'annulation de ses propres actions de son tour en cours, tant que personne
-  // d'autre n'a joué depuis (online.state.undo) ; en local, le journal de la session (robots compris)
   const resetInterface = () => {
     setLocalMode(null);
   };
-  const lastEntry = historyLog[historyLog.length - 1];
-  const canUndoLast = isOnline
-    ? !!online.state.undo?.last
-    : !!lastEntry && !lastEntry.message.startsWith('---') && (
-      !!lastEntry.previousState || (!!lastEntry.sequenceId && historyLog.some(e => e.sequenceId === lastEntry.sequenceId && !!e.previousState)));
-  const canUndoTurn = isOnline ? !!online.state.undo?.turn : session.canUndoTurn(me);
-  const undoOnline = async (scope: 'last' | 'turn') => {
-    const result = await online.undo(scope);
-    if (result.error) setToast({ message: result.error, visible: true });
-    resetInterface();
-  };
-  const handleUndoTurn = () => {
-    if (!me) return;
-    setConfirmModalState({
-      visible: true,
-      cardId: null,
-      message: isOnline
-        ? 'Revenir au début de votre tour ? Toutes vos actions de ce tour seront annulées.'
-        : "Revenir au début de votre dernier tour ? Toutes les actions jouées depuis, y compris celles des robots, seront annulées.",
-      onConfirm: () => {
-        if (isOnline) {
-          undoOnline('turn');
-          return;
-        }
-        session.undoTurn(me);
-        resetInterface();
-      }
-    });
-  };
-  const handleUndo = () => {
-    if (isOnline) {
-      undoOnline('last');
-      return;
-    }
-    session.undo();
-    resetInterface();
-  };
+  const { onUndo, onUndoTurn } = useUndo({
+    isOnline, online, session, me, historyLog,
+    onError: showMessage,
+    confirm: (message, onConfirm) => setConfirmModalState({ visible: true, cardId: null, message, onConfirm }),
+    onDone: resetInterface,
+  });
 
   // --- Robots ---
 
@@ -618,13 +547,60 @@ export const BoardUI: React.FC = () => {
   );
 
   // Si le jeu n'est pas initialisé (ou dans le salon d'une partie en ligne), afficher uniquement les modales de démarrage
+  // Handlers stables (même identité à chaque rendu) : les plateaux mémoïsés ne se redessinent que si la partie,
+  // l'interaction ou leurs autres données changent, pas pour un message, une annonce ou une fenêtre
+  const h = useStableHandlers({
+    handleAction,
+    handleBackgroundClick,
+    handleBuyCardAction,
+    handleCardClick,
+    handleCardRowClick,
+    handleCentaurienRewardClick,
+    handleComputerColumnSelect,
+    handleConfirmDiscard,
+    handleConfirmTrade,
+    handleDirectTrade,
+    handleDiscardCardAction,
+    handleExertienCardChoice,
+    handleLand,
+    handleMascamiteClick,
+    handleMenuChoice,
+    handleMissionClick,
+    handleMissionRequirementChoice,
+    handleNextPlayer,
+    handleObjectiveClick,
+    handleOrbit,
+    handlePlaceLifeTrace,
+    handlePlanetClick,
+    handlePlayCardRequest,
+    handleProbeMove,
+    handleSectorClick,
+    handleSpeciesCardClick,
+    handleTechClick,
+    handleTradeCardAction,
+    handleTransferData,
+    onUndo,
+    onUndoTurn,
+    viewPlayer: setViewedPlayerId,
+    openSettings: () => setSettingsVisible(true),
+    openDocumentation: () => setDocVisible(true),
+    confirmAction: (message: string, onConfirm: () => void) => setConfirmModalState({ visible: true, cardId: null, message, onConfirm }),
+  });
+  // Joueurs humains d'autres écrans (en ligne) : liste gardée tant que la partie ne change pas (plateau mémoïsé)
+  const remoteHumanIds = useMemo(
+    () => (isOnline && realGame ? realGame.players.filter(p => p.type === 'human' && p.id !== me).map(p => p.id) : undefined),
+    [isOnline, realGame, me],
+  );
+
   if (!game) {
     return (
       <div className="seti-root">
         {settingsModal}
         {onlineVisible && <SpaceBackdrop />}
-        <OnlineModal visible={onlineVisible} online={online} onBack={() => { setOnlineVisible(false); setSettingsVisible(true); }} />
-        <DocumentationModal visible={docVisible} onClose={() => setDocVisible(false)} />
+        <Suspense fallback={null}>
+          {onlineVisible && <OnlineModal visible online={online} onBack={() => { setOnlineVisible(false); setSettingsVisible(true); }} />}
+          {docVisible && <DocumentationModal visible onClose={() => setDocVisible(false)} />}
+        </Suspense>
       </div>
     );
   }
@@ -640,29 +616,12 @@ export const BoardUI: React.FC = () => {
   const turnColor = (waitingPlayer ?? realCurrent).color;
   const isWaiting = (currentPlayer.type === 'robot' && interactionState.type === 'IDLE') || !!waitingPlayer;
 
-  // Découverte (prioritaire sur l'annonce de tour) : nom de l'espèce et joueurs qui ont un marqueur sur son plateau
-  const discoveryBoard = discovery ? game.board.alienBoards.find(b => b.speciesId === discovery.species) : undefined;
-  const discoverers = [...new Set((discoveryBoard?.lifeTraces || []).map(t => t.playerId))]
-    .map(id => realGame!.players.find(p => p.id === id)?.name)
-    .filter((name): name is string => !!name);
-  const announcement: AnnouncementContent | null = discovery
-    ? {
-        key: `discovery-${discovery.key}`,
-        kicker: 'Nouvelle espèce',
-        title: discovery.species || 'Espèce Alien découverte',
-        subtitle: discoverers.length > 0 ? `découverte par ${discoverers.join(', ').replace(/, ([^,]*)$/, ' et $1')}` : undefined,
-        color: '#3ddc84',
-        size: 'large',
-        duration: 3500,
-        icon: '👽',
-      }
-    : turnAnnouncement;
 
   return (
     <div className="seti-root">
-      <Announcement announcement={announcement} onDone={discovery ? closeDiscovery : closeTurnAnnouncement} />
+      <Announcement announcement={announcement} onDone={onAnnouncementDone} />
       {drawing && !settingsVisible && (
-        <FirstPlayerDraw players={realGame!.players} firstIndex={realGame!.firstPlayerIndex} meId={me} onDone={() => setDrawing(false)} />
+        <FirstPlayerDraw players={realGame!.players} firstIndex={realGame!.firstPlayerIndex} meId={me} onDone={endDrawing} />
       )}
       {isOnline && online.state.status !== 'connected' && (
         <div className="seti-online-banner">
@@ -676,24 +635,18 @@ export const BoardUI: React.FC = () => {
       )}
       {/* Outils de débogage (réglage du menu Paramètres, masqués par défaut ; pas en ligne) */}
       {showDebug && !isOnline && (
-        <DebugPanel
-          game={game}
-          setGame={(newGame) => session.replace(newGame, 'DEBUG : partie modifiée', currentPlayer.id)}
-          onHistory={(message) => setToast({ message, visible: true })}
-          interactionState={interactionState}
-          onClose={() => setShowDebug(false)}
-        />
+        <Suspense fallback={null}>
+          <DebugPanel
+            game={game}
+            setGame={(newGame) => session.replace(newGame, 'DEBUG : partie modifiée', currentPlayer.id)}
+            onHistory={(message) => setToast({ message, visible: true })}
+            interactionState={interactionState}
+            onClose={() => setShowDebug(false)}
+          />
+        </Suspense>
       )}
 
-      {activeTooltip && (
-        <Tooltip
-          content={activeTooltip.content}
-          targetRect={activeTooltip.rect}
-          pointerEvents={activeTooltip.pointerEvents}
-          onMouseEnter={activeTooltip.onMouseEnter}
-          onMouseLeave={activeTooltip.onMouseLeave}
-        />
-      )}
+      <TooltipLayer />
 
       {/* Carte de fin de manche, découverte et choisie une fois passé */}
       {interactionState.type === 'CHOOSING_ROUND_CARD' && actingPlayer(game).type === 'human' && (
@@ -746,12 +699,12 @@ export const BoardUI: React.FC = () => {
             subtitle={`Vous ne gardez que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} cartes en main pour la manche suivante.`}
             cards={hand}
             selectedIds={interactionState.selectedCards}
-            onToggle={handleCardClick}
+            onToggle={h.handleCardClick}
             highlightedAttribute="freeAction"
             status={`Sélectionnées : ${interactionState.selectedCards.length} / ${toDiscard}`}
             confirmLabel="Défausser"
             canConfirm={interactionState.selectedCards.length === toDiscard}
-            onConfirm={handleConfirmDiscard}
+            onConfirm={h.handleConfirmDiscard}
           />
         );
       })()}
@@ -763,12 +716,12 @@ export const BoardUI: React.FC = () => {
           subtitle="Les cartes échangées sont défaussées."
           cards={CardSystem.getHandCards(actingPlayer(game))}
           selectedIds={interactionState.selectedCards}
-          onToggle={handleCardClick}
+          onToggle={h.handleCardClick}
           highlightedAttribute="freeAction"
           status={`Sélectionnées : ${interactionState.selectedCards.length} / ${interactionState.count}`}
           confirmLabel="Échanger"
           canConfirm={interactionState.selectedCards.length === interactionState.count}
-          onConfirm={handleConfirmTrade}
+          onConfirm={h.handleConfirmTrade}
           onCancel={() => setLocalMode(null)}
         />
       )}
@@ -780,12 +733,12 @@ export const BoardUI: React.FC = () => {
           subtitle="Chaque carte défaussée marque un signal dans un secteur de sa couleur."
           cards={CardSystem.getHandCards(actingPlayer(game))}
           selectedIds={interactionState.selectedCards}
-          onToggle={handleCardClick}
+          onToggle={h.handleCardClick}
           highlightedAttribute="scan"
           status={`Sélectionnées : ${interactionState.selectedCards.length} / ${interactionState.count}`}
           confirmLabel="Défausser"
           canConfirm
-          onConfirm={handleConfirmDiscard}
+          onConfirm={h.handleConfirmDiscard}
         />
       )}
 
@@ -821,7 +774,7 @@ export const BoardUI: React.FC = () => {
       {/* Menu de choix des bonus interactifs */}
       <BonusChoiceModal
         interactionState={interactionState}
-        onChoice={handleMenuChoice}
+        onChoice={h.handleMenuChoice}
         onFinish={() => run({ type: 'SKIP' })}
       />
 
@@ -830,28 +783,28 @@ export const BoardUI: React.FC = () => {
       <CentaurienRewardModal
         game={game}
         interactionState={interactionState}
-        onChoice={handleCentaurienRewardClick}
+        onChoice={h.handleCentaurienRewardClick}
       />
 
       {/* Modal pour palier Exertien */}
       <ExertienCardModal
         game={game}
         interactionState={interactionState}
-        onChoice={handleExertienCardChoice}
+        onChoice={h.handleExertienCardChoice}
       />
 
       {/* Spécimen Mascamite à prélever ou à étudier */}
       <SpecimenModal
         game={game}
         interactionState={interactionState}
-        onChoice={handleMascamiteClick}
+        onChoice={h.handleMascamiteClick}
       />
 
       {/* Modal pour une mission déclenchée hors de son tour */}
       <MissionRequirementModal
         game={game}
         interactionState={interactionState}
-        onChoice={handleMissionRequirementChoice}
+        onChoice={h.handleMissionRequirementChoice}
       />
 
       {/* Modale de confirmation */}
@@ -875,11 +828,17 @@ export const BoardUI: React.FC = () => {
         <>
           {/* Le fond de l'accueil, pas la partie en cours */}
           <SpaceBackdrop overGame />
-          <OnlineModal visible online={online} onBack={() => { setOnlineVisible(false); setSettingsVisible(true); }} />
+          <Suspense fallback={null}>
+            <OnlineModal visible online={online} onBack={() => { setOnlineVisible(false); setSettingsVisible(true); }} />
+          </Suspense>
         </>
       )}
 
-      <DocumentationModal visible={docVisible} onClose={() => setDocVisible(false)} />
+      {docVisible && (
+        <Suspense fallback={null}>
+          <DocumentationModal visible onClose={() => setDocVisible(false)} />
+        </Suspense>
+      )}
 
       {/* Ecran de fin de partie */}
       {game.phase === GamePhase.FINAL_SCORING && <EndGameModal game={realGame!} historyLog={historyLog} setActiveTooltip={setActiveTooltip} />}
@@ -891,24 +850,24 @@ export const BoardUI: React.FC = () => {
               game={game}
               playerId={currentPlayerIdToDisplay}
               interactionState={interactionState}
-              onViewPlayer={setViewedPlayerId}
-              onAction={handleAction}
+              onViewPlayer={h.viewPlayer}
+              onAction={h.handleAction}
               highlightPlayableCards={actionFocus === 'card'}
-              onCardClick={handleCardClick}
-              onDiscardCardAction={handleDiscardCardAction}
-              onTradeCardAction={handleTradeCardAction}
-              onBuyCardAction={handleBuyCardAction}
-              onDirectTradeAction={handleDirectTrade}
-              onPlayCard={handlePlayCardRequest}
-              onTransferData={handleTransferData}
-              onComputerSlotSelect={handleComputerColumnSelect}
-              onNextPlayer={handleNextPlayer}
+              onCardClick={h.handleCardClick}
+              onDiscardCardAction={h.handleDiscardCardAction}
+              onTradeCardAction={h.handleTradeCardAction}
+              onBuyCardAction={h.handleBuyCardAction}
+              onDirectTradeAction={h.handleDirectTrade}
+              onPlayCard={h.handlePlayCardRequest}
+              onTransferData={h.handleTransferData}
+              onComputerSlotSelect={h.handleComputerColumnSelect}
+              onNextPlayer={h.handleNextPlayer}
               setActiveTooltip={setActiveTooltip}
-              onSettingsClick={() => setSettingsVisible(true)}
-              onDocumentationClick={() => setDocVisible(true)}
-              remoteHumanIds={isOnline ? realGame!.players.filter(p => p.type === 'human' && p.id !== me).map(p => p.id) : undefined}
-              onMissionClick={handleMissionClick}
-              onConfirmAction={(message, onConfirm) => setConfirmModalState({ visible: true, cardId: null, message, onConfirm })}
+              onSettingsClick={h.openSettings}
+              onDocumentationClick={h.openDocumentation}
+              remoteHumanIds={remoteHumanIds}
+              onMissionClick={h.handleMissionClick}
+              onConfirmAction={h.confirmAction}
             />
           </div>
         </div>
@@ -928,14 +887,14 @@ export const BoardUI: React.FC = () => {
           <SolarSystemBoardUI
             game={game}
             interactionState={interactionState}
-            onProbeMove={handleProbeMove}
-            onPlanetClick={handlePlanetClick}
-            onOrbit={handleOrbit}
-            onLand={handleLand}
-            onSectorClick={handleSectorClick}
-            onBackgroundClick={handleBackgroundClick}
+            onProbeMove={h.handleProbeMove}
+            onPlanetClick={h.handlePlanetClick}
+            onOrbit={h.handleOrbit}
+            onLand={h.handleLand}
+            onSectorClick={h.handleSectorClick}
+            onBackgroundClick={h.handleBackgroundClick}
             setActiveTooltip={setActiveTooltip}
-            onMascamiteClick={handleMascamiteClick}
+            onMascamiteClick={h.handleMascamiteClick}
             planetFocus={actionFocus === 'orbit' || actionFocus === 'land' ? actionFocus : null}
           />
 
@@ -945,7 +904,7 @@ export const BoardUI: React.FC = () => {
             <ObjectiveBoardUI
               game={game}
               interactionState={interactionState}
-              onObjectiveClick={handleObjectiveClick}
+              onObjectiveClick={h.handleObjectiveClick}
               setActiveTooltip={setActiveTooltip}
             />
 
@@ -953,7 +912,7 @@ export const BoardUI: React.FC = () => {
             <TechnologyBoardUI
               game={game}
               interactionState={interactionState}
-              onTechClick={handleTechClick}
+              onTechClick={h.handleTechClick}
               setActiveTooltip={setActiveTooltip}
             />
 
@@ -961,7 +920,7 @@ export const BoardUI: React.FC = () => {
             <CardRowUI
               game={game}
               interactionState={interactionState}
-              onCardClick={handleCardRowClick}
+              onCardClick={h.handleCardRowClick}
               setActiveTooltip={setActiveTooltip}
             />
 
@@ -969,8 +928,8 @@ export const BoardUI: React.FC = () => {
             <PlanetBoardUI
               game={game}
               interactionState={interactionState}
-              onOrbit={handleOrbit}
-              onLand={handleLand}
+              onOrbit={h.handleOrbit}
+              onLand={h.handleLand}
               setActiveTooltip={setActiveTooltip}
             />
           </div>
@@ -979,8 +938,8 @@ export const BoardUI: React.FC = () => {
           <HistoryBoardUI
             historyLog={historyLog}
             game={realGame!}
-            onUndo={canUndoLast ? handleUndo : undefined}
-            onUndoTurn={canUndoTurn ? handleUndoTurn : undefined}
+            onUndo={h.onUndo}
+            onUndoTurn={h.onUndoTurn}
             setActiveTooltip={setActiveTooltip}
           />
 
@@ -989,8 +948,8 @@ export const BoardUI: React.FC = () => {
             game={game}
             boardIndex={0}
             interactionState={interactionState}
-            onPlaceLifeTrace={handlePlaceLifeTrace}
-            onSpeciesCardClick={handleSpeciesCardClick}
+            onPlaceLifeTrace={h.handlePlaceLifeTrace}
+            onSpeciesCardClick={h.handleSpeciesCardClick}
             setActiveTooltip={setActiveTooltip}
             forceOpen={interactionState.type === 'ACQUIRING_ALIEN_CARD' && game.species.find(s => s.id === interactionState.speciesId)?.name === game.board.alienBoards[0].speciesId}
           />
@@ -1000,8 +959,8 @@ export const BoardUI: React.FC = () => {
             game={game}
             boardIndex={1}
             interactionState={interactionState}
-            onPlaceLifeTrace={handlePlaceLifeTrace}
-            onSpeciesCardClick={handleSpeciesCardClick}
+            onPlaceLifeTrace={h.handlePlaceLifeTrace}
+            onSpeciesCardClick={h.handleSpeciesCardClick}
             setActiveTooltip={setActiveTooltip}
             forceOpen={interactionState.type === 'ACQUIRING_ALIEN_CARD' && game.species.find(s => s.id === interactionState.speciesId)?.name === game.board.alienBoards[1].speciesId}
           />

@@ -1,7 +1,7 @@
-import { Game, GamePhase, Player, HistoryEntry, InteractionState, GAME_CONSTANTS } from './types';
+import { Game, GamePhase, Player, HistoryEntry, InteractionState, GAME_CONSTANTS } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { ScoreManager } from './ScoreManager';
-import { cloneGame } from './cloneGame';
+import { cloneGame } from '../core/cloneGame';
 
 export class TurnManager {
   /**

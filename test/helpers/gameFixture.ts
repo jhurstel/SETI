@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { GameFactory } from '../../src/core/GameFactory';
+import { GameFactory } from '../../src/engine/GameFactory';
 import { Game, GamePhase, Player, Card, CardType, CostType, FreeActionType, RevenueType, SectorType } from '../../src/core/types';
 
 const PUBLIC_DIR = path.resolve(__dirname, '../../public');

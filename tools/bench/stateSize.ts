@@ -1,7 +1,7 @@
 // Taille (JSON) des parties de l'état, pour savoir quoi partager plutôt que copier (outil de mesure, non publié).
 import * as fs from 'fs';
 import * as path from 'path';
-import { GameFactory } from '../../src/core/GameFactory';
+import { GameFactory } from '../../src/engine/GameFactory';
 import { Game } from '../../src/core/types';
 
 const PUBLIC_DIR = path.resolve(__dirname, '../../../public');

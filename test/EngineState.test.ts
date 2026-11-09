@@ -1,9 +1,9 @@
-import { GameEngine } from '../src/core/Game';
-import { ActionValidator } from '../src/core/ActionValidator';
+import { GameEngine } from '../src/engine/Game';
+import { ActionValidator } from '../src/engine/ActionValidator';
 import { PassAction } from '../src/actions/PassAction';
 import { LaunchProbeAction } from '../src/actions/LaunchProbeAction';
-import { ScoreManager } from '../src/core/ScoreManager';
-import { TurnManager } from '../src/core/TurnManager';
+import { ScoreManager } from '../src/engine/ScoreManager';
+import { TurnManager } from '../src/engine/TurnManager';
 import { TechnologySystem } from '../src/systems/TechnologySystem';
 import { Game, GamePhase, TechnologyCategory } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';

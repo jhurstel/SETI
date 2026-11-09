@@ -1,6 +1,6 @@
-import { ScoreManager } from '../src/core/ScoreManager';
-import { TurnManager } from '../src/core/TurnManager';
-import { ActionValidator } from '../src/core/ActionValidator';
+import { ScoreManager } from '../src/engine/ScoreManager';
+import { TurnManager } from '../src/engine/TurnManager';
+import { ActionValidator } from '../src/engine/ActionValidator';
 import { DataLoader } from '../src/core/DataLoader';
 import { AITurn } from '../src/ai/AITurn';
 import { PassAction } from '../src/actions/PassAction';

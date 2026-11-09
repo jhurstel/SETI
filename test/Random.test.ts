@@ -1,9 +1,9 @@
 import { random, seedRandom, getRandomState, setRandomState } from '../src/core/random';
-import { GameFactory } from '../src/core/GameFactory';
+import { GameFactory } from '../src/engine/GameFactory';
 import { serializeGame, deserializeGame } from '../src/core/GamePersistence';
 import { AITurn } from '../src/ai/AITurn';
-import { TurnManager } from '../src/core/TurnManager';
-import { GameEngine } from '../src/core/Game';
+import { TurnManager } from '../src/engine/TurnManager';
+import { GameEngine } from '../src/engine/Game';
 import { PassAction } from '../src/actions/PassAction';
 import { CardSystem } from '../src/systems/CardSystem';
 import { Game, GamePhase } from '../src/core/types';

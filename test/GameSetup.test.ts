@@ -1,5 +1,5 @@
 import { GameSetup, SeatConfig } from '../src/session/GameSetup';
-import { GameFactory } from '../src/core/GameFactory';
+import { GameFactory } from '../src/engine/GameFactory';
 import { GamePhase } from '../src/core/types';
 import { mockFetchFromPublic, TEST_SEED } from './helpers/gameFixture';
 

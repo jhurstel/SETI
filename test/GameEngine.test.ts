@@ -1,4 +1,4 @@
-import { GameEngine } from '../src/core/Game';
+import { GameEngine } from '../src/engine/Game';
 import { PassAction } from '../src/actions/PassAction';
 import { Game, Player, GamePhase } from '../src/core/types';
 import { performRotation } from '../src/systems/RotationSystem';

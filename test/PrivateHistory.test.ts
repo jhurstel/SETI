@@ -3,7 +3,7 @@ import { viewEntries } from '../src/session/PlayerView';
 import { CardSystem } from '../src/systems/CardSystem';
 import { ResourceSystem } from '../src/systems/ResourceSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
-import { InteractionChoices } from '../src/core/InteractionChoices';
+import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { cloneGame } from '../src/core/cloneGame';
 import { AlienBoardType, Card, Game, HistoryEntry, RevenueType } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';

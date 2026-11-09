@@ -1,10 +1,13 @@
-// Contrôle des cycles d'import du code (npm run check:cycles, lancé par npm run check et la CI).
+// Contrôle des cycles d'import et des couches du code (npm run check:cycles, lancé par npm run check et la CI).
 //
 // Graphe des imports relatifs exécutés (les `import type` sont ignorés : ils disparaissent à la compilation).
 // Un seul cycle est admis : les systèmes de règles listés ci-dessous, mutuellement récursifs par nature
 // (un bonus peut lancer un scan ou une sonde qui rapporte un bonus : ResourceSystem.processBonuses).
 // Le contrôle échoue si un autre cycle apparaît, ou si un module rejoint ce groupe : la géométrie,
 // le modèle (core/), l'IA, la session et l'interface doivent rester hors de tout cycle.
+//
+// Couches (de bas en haut) : core (modèle) < systems (règles) < actions, engine (orchestration) < ai < session < ui.
+// Une couche n'importe jamais une couche au-dessus d'elle (FORBIDDEN) ; server/ et tools/ sont au sommet.
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { dirname, join, normalize, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,7 +27,19 @@ const ALLOWED_CYCLE = new Set([
   'src/systems/TechnologySystem.ts',
 ]);
 
+/** Dossiers qu'une couche de src/ ne doit pas importer (imports exécutés) */
+const FORBIDDEN = {
+  core: ['systems', 'actions', 'engine', 'ai', 'session', 'ui'],
+  systems: ['actions', 'engine', 'ai', 'session', 'ui'],
+  actions: ['ai', 'session', 'ui'],
+  engine: ['ai', 'session', 'ui'],
+  ai: ['session', 'ui'],
+  session: ['ui'],
+};
+
 const rel = file => relative(ROOT, file).split(sep).join('/');
+/** Couche d'un fichier de src/ (son premier dossier), sinon undefined */
+const layerOf = file => rel(file).match(/^src\/([^/]+)\//)?.[1];
 
 function listFiles(dir) {
   const files = [];
@@ -118,9 +133,19 @@ for (const component of stronglyConnected()) {
   if (outside.length > 0) problems.push(`Cycle d'import non admis :\n  ${component.join('\n  ')}\n  (hors des systèmes de règles : ${outside.join(', ')})`);
 }
 
+for (const [file, targets] of graph) {
+  const layer = layerOf(file);
+  for (const target of targets) {
+    const targetLayer = layerOf(target);
+    if (layer && targetLayer && FORBIDDEN[layer]?.includes(targetLayer)) {
+      problems.push(`Couche non respectée : ${rel(file)} (${layer}) importe ${rel(target)} (${targetLayer})`);
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.error(problems.join('\n\n'));
-  console.error('\nCasser le cycle (déplacer la fonction partagée dans un module sans dépendance), voir tools/check-cycles.mjs.');
+  console.error('\nCasser le cycle ou la dépendance (déplacer la fonction partagée dans une couche plus basse), voir tools/check-cycles.mjs.');
   process.exit(1);
 }
-console.log(`Cycles d'import : aucun hors des ${ALLOWED_CYCLE.size} systèmes de règles admis (${files.length} fichiers analysés).`);
+console.log(`Cycles et couches : aucun cycle hors des ${ALLOWED_CYCLE.size} systèmes de règles admis, couches respectées (${files.length} fichiers analysés).`);

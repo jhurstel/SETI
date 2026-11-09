@@ -4,14 +4,14 @@ import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { ScanFollowUp, ScanSystem } from '../systems/ScanSystem';
-import { InteractionResolver } from '../core/InteractionResolver';
+import { InteractionResolver } from '../engine/InteractionResolver';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { createRotationState, getAbsoluteSectorForProbe, calculateReachableCellsWithEnergy } from '../core/SolarSystemPosition';
 import { AIBehavior } from './AIBehavior';
 import { AIEvaluator } from './AIEvaluator';
 import { random } from '../core/random';
-import { InteractionChoices } from '../core/InteractionChoices';
+import { InteractionChoices } from '../engine/InteractionChoices';
 import { requirePlayer } from '../core/players';
 
 /** Interactions où le robot fait un choix au hasard : il tire plusieurs choix (selon son niveau) et garde le meilleur */

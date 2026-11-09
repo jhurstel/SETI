@@ -1,10 +1,10 @@
-import { TurnManager } from '../src/core/TurnManager';
-import { GameEngine } from '../src/core/Game';
+import { TurnManager } from '../src/engine/TurnManager';
+import { GameEngine } from '../src/engine/Game';
 import { PassAction } from '../src/actions/PassAction';
 import { CardType, Game, GamePhase, InteractionState, LifeTraceType, RevenueType } from '../src/core/types';
-import { InteractionChoices } from '../src/core/InteractionChoices';
+import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { revealText } from '../src/core/historyText';
-import { ScoreManager } from '../src/core/ScoreManager';
+import { ScoreManager } from '../src/engine/ScoreManager';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 import { DISCOVERY_NOTICE } from '../src/systems/SpeciesSystem';
 import { CardSystem } from '../src/systems/CardSystem';

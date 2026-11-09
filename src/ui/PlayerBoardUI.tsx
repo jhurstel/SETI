@@ -4,7 +4,7 @@ import { ProbeSystem } from '../systems/ProbeSystem';
 import { ComputerSystem } from '../systems/ComputerSystem'; 
 import { CardSystem } from '../systems/CardSystem';
 import { ScanSystem } from '../systems/ScanSystem';
-import { TurnManager } from '../core/TurnManager';
+import { TurnManager } from '../engine/TurnManager';
 import { PlayerComputer } from './components/PlayerComputer';
 import { HandCard } from './components/HandCard';
 import { CardBack } from './components/CardBack';
@@ -203,7 +203,7 @@ const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, playerId, han
   );
 };
 
-export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onTransferData, onComputerSlotSelect, onNextPlayer, onDirectTradeAction, setActiveTooltip, onSettingsClick, onDocumentationClick, onMissionClick, onConfirmAction, highlightPlayableCards = false, remoteHumanIds = [] }) => {
+const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onTransferData, onComputerSlotSelect, onNextPlayer, onDirectTradeAction, setActiveTooltip, onSettingsClick, onDocumentationClick, onMissionClick, onConfirmAction, highlightPlayableCards = false, remoteHumanIds = [] }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -908,3 +908,6 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     </div>
   );
 };
+
+/** Mémoïsé : redessiné seulement quand ses props changent (partie, interaction…), pas à chaque rendu de BoardUI */
+export const PlayerBoardUI = React.memo(PlayerBoardUIView);
