@@ -1,5 +1,6 @@
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
-import { performRotation, createRotationState, getObjectPosition, calculateAbsolutePosition } from '../src/core/SolarSystemPosition';
+import { createRotationState, getObjectPosition, calculateAbsolutePosition } from '../src/core/SolarSystemPosition';
+import { performRotation } from '../src/systems/RotationSystem';
 import { AlienBoardType, CelestialObject, Game, LifeTraceLocation, LifeTraceType, SectorNumber } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 

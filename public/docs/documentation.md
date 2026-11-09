@@ -394,6 +394,8 @@ Le jeu solo n'est pas concerné : il garde la session dans le navigateur, sans s
 - **Jeton de place** : chaque joueur reçoit un jeton secret ; avec le code, il permet de reprendre sa place après une coupure (une seule connexion par place).
 - **Robots** : ils jouent sur le serveur, une étape toutes les 1,5 s, par les mêmes opérations que dans le jeu local.
 - **Enregistrement** : chaque salle est écrite sur disque après chaque changement (un fichier JSON par salle, écriture atomique) et relue au redémarrage.
+- **Purge** : chaque salle note sa dernière activité (arrivée, commande, étape de robot, annulation). Au démarrage puis toutes les heures, le serveur supprime, en mémoire et sur disque, les salles inactives depuis trop longtemps (`ROOM_EXPIRY` : 6 h pour une partie terminée, 24 h pour un salon, 7 jours pour une partie en cours), sauf si un joueur y est connecté.
+- **Limites de création** : 200 salles au plus (une purge est tentée avant de refuser, « Le serveur est complet ») et 5 créations par adresse IP en 10 minutes (« Trop de salles créées ») ; rejoindre une salle n'est pas limité. Options `maxRooms`, `createLimit` et `purgeInterval` de `GameServer`.
 - **Ce que reçoit chaque joueur** : sa vue de la partie (`viewFor`) et l'historique qu'il peut lire (`viewEntries`), après chaque changement.
 - **Annulation** : la salle garde en mémoire (pas dans son fichier) l'état d'avant chaque commande du joueur qui joue ; une commande d'un autre joueur, une étape de robot ou la fin de son tour les efface. Un joueur ne revient donc que sur ses propres actions de son tour, jamais sur ce qu'un autre a joué.
 

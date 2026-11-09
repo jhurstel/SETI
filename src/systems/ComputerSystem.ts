@@ -17,7 +17,7 @@ import {
   InteractionState, RuleCheck } from '../core/types';
 import { cloneGame } from '../core/cloneGame';
 import { uniqueId } from '../core/ids';
-import { CardSystem } from './CardSystem';
+import { handCards } from '../core/hand';
 import { requirePlayer } from '../core/players';
 
 /** Réservation gagnée sans carte en main : elle est perdue */
@@ -88,7 +88,7 @@ export class ComputerSystem {
     let noReservation = false;
     bonusEffects.forEach(effect => {
       if (effect.type === 'reservation') {
-        const count = Math.min(effect.amount, CardSystem.getHandCards(player).length);
+        const count = Math.min(effect.amount, handCards(player).length);
         if (count > 0) newPendingInteractions.push({ type: 'RESERVING_CARD', count, selectedCards: [], sequenceId });
         else noReservation = true;
       } else if (effect.type === 'anycard') {

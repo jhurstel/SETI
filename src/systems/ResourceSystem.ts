@@ -1,4 +1,5 @@
-import { getObjectPosition, performRotation } from '../core/SolarSystemPosition';
+import { getObjectPosition } from '../core/SolarSystemPosition';
+import { performRotation } from './RotationSystem';
 import { Game, GAME_CONSTANTS, Bonus, InteractionState, TechnologyCategory, SectorType, HistoryEntry, ProbeState, LifeTraceType } from '../core/types';
 import { cloneGame } from '../core/cloneGame';
 import { CardSystem } from './CardSystem';

@@ -1,11 +1,11 @@
 import { GameEngine } from '../src/core/Game';
 import { PassAction } from '../src/actions/PassAction';
 import { Game, Player, GamePhase } from '../src/core/types';
-import { performRotation } from '../src/core/SolarSystemPosition';
+import { performRotation } from '../src/systems/RotationSystem';
 
 // On "mock" le module qui contient les fonctions à simuler.
 // Cela remplace toutes les fonctions exportées de ce module par des simulations (mocks).
-jest.mock('../src/core/SolarSystemPosition');
+jest.mock('../src/systems/RotationSystem');
 
 // Mock minimaliste pour le GameEngine
 const createMockGame = (): Game => {
@@ -33,7 +33,7 @@ const createMockGame = (): Game => {
     firstPlayerIndex: 0,
     phase: GamePhase.PLAYING,
     players: [createPlayer('p1'), createPlayer('p2')],
-    board: { solarSystem: { probes: [], rotationAngleLevel1: 0, rotationAngleLevel2: 0, rotationAngleLevel3: 0, nextRingLevel: 3 } } as unknown as Game['board'],
+    board: { planets: [], sectors: [], solarSystem: { probes: [], rotationAngleLevel1: 0, rotationAngleLevel2: 0, rotationAngleLevel3: 0, nextRingLevel: 3 } } as unknown as Game['board'],
     decks: { cards: [], cardRow: [], discardPile: [], roundDecks: {} },
     species: [],
     discoveredSpecies: [],

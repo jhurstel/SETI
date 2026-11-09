@@ -3,7 +3,7 @@ import { ScoreManager } from '../core/ScoreManager';
 import { BaseAction } from './Action';
 import { TurnManager } from '../core/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
-import { performRotation } from '../core/SolarSystemPosition';
+import { performRotation } from '../systems/RotationSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { cloneGame } from '../core/cloneGame';
 import { uniqueId } from '../core/ids';

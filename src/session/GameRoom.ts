@@ -22,6 +22,8 @@ export interface SavedRoom {
   status: RoomStatus;
   seats: RoomSeat[];
   createdAt: number;
+  /** Dernière activité (absente des anciennes sauvegardes : la création) */
+  updatedAt?: number;
   /** Premier joueur demandé (absent : tiré au hasard) */
   firstPlayer?: FirstPlayerChoice;
   game?: SavedGame;
@@ -47,6 +49,17 @@ interface UndoPoint {
 
 const MAX_NAME = 40;
 
+const HOUR = 60 * 60 * 1000;
+/**
+ * Durée d'inactivité après laquelle une salle est supprimée par le serveur : une partie terminée (le temps de voir
+ * l'écran de fin), un salon où personne n'est venu, une partie abandonnée en cours de route
+ */
+export const ROOM_EXPIRY: Record<RoomStatus, number> = {
+  finished: 6 * HOUR,
+  lobby: 24 * HOUR,
+  playing: 7 * 24 * HOUR,
+};
+
 /**
  * Salle d'une partie à distance : places (humains, robots), jetons, partie et historique complet.
  * Pure : le serveur (server/) s'occupe du réseau, du rythme des robots et de l'écriture sur disque.
@@ -63,6 +76,8 @@ export class GameRoom {
   private static creating: Promise<unknown> = Promise.resolve();
   /** Points d'annulation du joueur qui joue en ce moment (toujours d'un seul joueur, dans l'ordre) */
   private undoPoints: UndoPoint[] = [];
+  /** Dernière activité (arrivée, commande, étape de robot…), notée par le serveur avec `touch` */
+  updatedAt: number;
 
   private constructor(
     readonly code: string,
@@ -70,7 +85,19 @@ export class GameRoom {
     readonly createdAt: number,
     public status: RoomStatus = 'lobby',
     readonly firstPlayer: FirstPlayerChoice = 'random',
-  ) {}
+  ) {
+    this.updatedAt = createdAt;
+  }
+
+  /** Note une activité dans la salle */
+  touch(now = Date.now()): void {
+    this.updatedAt = now;
+  }
+
+  /** La salle est inactive depuis plus longtemps que ROOM_EXPIRY pour son état : le serveur peut la supprimer */
+  isExpired(now = Date.now()): boolean {
+    return now - this.updatedAt > ROOM_EXPIRY[this.status];
+  }
 
   /**
    * Crée une salle : le créateur prend la première place humaine. `robotNames` nomme les robots dans l'ordre
@@ -278,6 +305,7 @@ export class GameRoom {
       status: this.status,
       seats: this.seats.map(seat => ({ ...seat })),
       createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
       firstPlayer: this.firstPlayer,
       game: this.game ? serializeGame(this.game, this.log) : undefined,
     };
@@ -285,6 +313,7 @@ export class GameRoom {
 
   static fromSaved(saved: SavedRoom): GameRoom {
     const room = new GameRoom(saved.code, saved.seats.map(seat => ({ ...seat })), saved.createdAt, saved.status, saved.firstPlayer);
+    room.updatedAt = saved.updatedAt ?? saved.createdAt;
     if (saved.game) {
       const { game, historyLog } = deserializeGame(JSON.stringify(saved.game));
       room.game = game;

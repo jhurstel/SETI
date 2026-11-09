@@ -106,7 +106,9 @@ describe('Décompte final', () => {
       const species = game.species.find(s => s.name === AlienBoardType.EXERTIENS)!;
       expect(species.fixedSlots.redlifetrace.every(slot => (slot.danger || 0) > 0)).toBe(true);
 
-      species.fixedSlots.redlifetrace[0] = { ...species.fixedSlots.redlifetrace[0], danger: -3 };
+      // Les emplacements sont figés et partagés entre les copies : on les remplace d'un bloc, comme le moteur
+      const [first, ...others] = species.fixedSlots.redlifetrace;
+      species.fixedSlots = { ...species.fixedSlots, redlifetrace: [{ ...first, danger: -3 }, ...others] };
       game.board.alienBoards[0].lifeTraces.push({ id: 'm', type: LifeTraceType.RED, playerId: P1, location: LifeTraceLocation.SPECIES, slotIndex: 0 });
       expect(ScoreManager.calculateExertienDanger(game, getPlayer(game, P1))).toBe(3);
     });

@@ -1,3 +1,4 @@
+import { handCards, isExertienCard } from '../core/hand';
 import { effectNumber, effectString, effectAmount } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
 import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, CardType, Mission, HistoryEntry, InteractionState, LifeTraceType, Player, CardEffect, SectorType, TechnologyCategory, CostType, AlienBoardType, LifeTraceLocation, RuleCheck } from '../core/types';
@@ -40,18 +41,14 @@ const FREE_ACTION_DISCARDS: Partial<Record<FreeActionType, { needs: 'probe' | 'd
  *    - Sont évaluées à la demande (UI, Clic) via `evaluateMission` et validées manuellement.
  */
 export class CardSystem {
-    /**
-     * Cartes Exertiens : stockées dans player.cards mais elles ne sont pas « en main ».
-     * Elles ne comptent pas dans la limite de 4 cartes et ne peuvent être ni défaussées,
-     * ni réservées, ni jouées normalement (uniquement via un palier Exertien).
-     */
+    /** Carte Exertien (pas en main) : voir core/hand.ts */
     static isExertienCard(card: Card): boolean {
-        return card.type === CardType.EXERTIEN;
+        return isExertienCard(card);
     }
 
-    /** Cartes réellement en main (hors cartes Exertiens). */
+    /** Cartes réellement en main (hors cartes Exertiens) : voir core/hand.ts */
     static getHandCards(player: Player): Card[] {
-        return player.cards.filter(c => !this.isExertienCard(c));
+        return handCards(player);
     }
 
     /** Cartes à défausser en passant : la main est ramenée à GAME_CONSTANTS.HAND_SIZE_AFTER_PASS cartes */

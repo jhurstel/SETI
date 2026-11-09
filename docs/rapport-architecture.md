@@ -11,9 +11,9 @@ Analyse du code au commit `06c6759` (plus les modifications Exertiens non commit
 | Typage et discipline | Très bonne | 0 `any`, 0 `@ts-ignore`, état immuable vérifié, hasard à graine partout. |
 | Tests du moteur | Très bonne, avec une fragilité | 865 tests, 99,9 % des lignes ; le seuil de 100 % **échoue déjà sur `main`** et la couverture n'est pas vérifiée en CI. |
 | Tests de l'interface | Faible | 12 400 lignes d'interface, un seul scénario Playwright. |
-| Performance des robots | Correcte, à surveiller | Expert : étape médiane ~110 ms, mais 10 % des étapes dépassent ~1 s (cadence prévue : 1,5 s). |
+| Performance des robots | Bonne (après correction) | Mesure corrigée : la copie de la partie prenait 87 % du temps ; remplacée, une étape Expert prend 4 à 5 ms en médiane et moins de 100 ms au pire (voir § 2). |
 | Interface React | Lourde à maintenir | Fichiers de 1 000 à 1 700 lignes, 300 styles en ligne, presque pas de mémoïsation. |
-| Serveur en ligne | Fonctionnel, peu durci | Les salles ne sont jamais supprimées ; aucune limite de création. |
+| Serveur en ligne | Fonctionnel, peu durci | Les salles ne sont jamais supprimées ; aucune limite de création (corrigé depuis : purge et limites). |
 
 ## Chiffres clés
 
@@ -61,17 +61,21 @@ Plus gros fichiers : `SolarSystemBoardUI.tsx` 1 733, `ProbeSystem.ts` 1 263, `Ca
 
 ### Recommandations
 
-1. **Casser le cycle** (effort faible, gain fort) : déplacer `performRotation` dans un `systems/RotationSystem.ts`, pour que `SolarSystemPosition` redevienne de la géométrie pure. Ensuite, sortir de `ResourceSystem` ce dont tout le monde a besoin (`processBonuses`, formatage) vers un module de base sans dépendance vers les autres systèmes.
+1. **Casser le cycle** (effort faible, gain fort) : déplacer `performRotation` dans un `systems/RotationSystem.ts`, pour que `SolarSystemPosition` redevienne de la géométrie pure, et sortir les fonctions pures partagées (main du joueur) vers des modules sans dépendance. **Fait** (voir plus bas). Correction : `processBonuses` ne peut pas devenir un module de base, puisqu'il appelle les sondes, le scan, les cartes, les technologies et la rotation, qui l'appellent à leur tour. Cette récursion vient des règles (un bonus peut lancer un scan qui rapporte un bonus) ; la supprimer demanderait d'injecter `processBonuses` à l'exécution, ce qui cacherait la dépendance sans la retirer.
 2. **Séparer `core/` en deux** : `model/` (types, ids, random, cloneGame, cardEffects, géométrie : aucune dépendance vers les règles) et `rules/` ou `engine/` (TurnManager, ScoreManager, InteractionChoices, InteractionResolver, Game…).
 3. **Découper `types.ts` par domaine** (joueur, plateau, cartes, interactions, constantes) en gardant un fichier qui ré-exporte tout pour ne rien casser.
 4. **Registre des interactions** (plus tard) : un descripteur par variante (libellé, choix appliqué, choix du robot), vérifié exhaustivement par le compilateur, au lieu de six `switch` à tenir synchronisés.
-5. Ajouter un **contrôle automatique des cycles** (script ou règle ESLint `import/no-cycle`) pour que le cycle ne se reforme pas.
+5. Ajouter un **contrôle automatique des cycles** pour que le cycle ne se reforme pas. **Fait** (voir plus bas).
+
+**Réalisé (recommandations 1 et 5)** : `performRotation` est dans `systems/RotationSystem.ts` et `SolarSystemPosition` n'importe plus que `types` ; `handCards` et `isExertienCard` sont dans `core/hand.ts` (`CardSystem.getHandCards` y renvoie), ce qui sort `ComputerSystem` du cycle. Il ne reste qu'un groupe : les 8 systèmes de règles récursifs (Card, PlayCardEffects, Probe, Resource, Rotation, Scan, Species, Technology). `tools/check-cycles.mjs` (`npm run check:cycles`, dans `npm run check` et la CI) échoue si un autre cycle apparaît ou si un module rejoint ce groupe.
 
 ## 2. Performance
 
 ### Mesures
 
-Parties complètes entre robots, graine de test fixe (mesures faites pendant que la suite de couverture tournait : chiffres plutôt pessimistes) :
+> **Correction (étape 5 du plan)** : les mesures ci-dessous ont été prises dans Jest, sous l'instrumentation de la couverture : elles surestiment les temps d'environ 5 fois. Mesurées ensuite sous Node avec `npm run bench:ai` (3 parties de 2 Experts, graines fixes) : **8,5 s par partie, étape médiane 22 ms, p90 204 ms, max 419 ms**. Le profil CPU a montré que **87 % du temps** était passé dans `structuredClone` (appelé par `cloneGame`). Après le remplacement par une copie écrite à la main (`deepCopy`) et le partage des données de règles figées (bonus des emplacements, pistes des espèces, prérequis des missions) : **1,5 s par partie, étape médiane 4 ms, p90 33 ms, max 78 ms**, soit 5,8 fois plus rapide (5,7 fois à 3 joueurs : 42,5 s ramenées à 7,4 s pour 3 parties). Les décisions des robots sont identiques : même empreinte des scores et du nombre d'étapes avant et après, à 2 et 3 joueurs. La suite Jest est passée de 60 s à environ 25 s. La copie reste le premier poste (environ 65 % du temps) : aller plus loin demanderait un partage structurel complet (copie à l'écriture), ce qui n'est plus nécessaire à ces temps-là.
+
+Mesures d'origine (Jest instrumenté, pour mémoire) :
 
 | Partie | Étapes | Calcul total | Étape médiane | p90 | p99 | Max |
 |---|---|---|---|---|---|---|
@@ -151,6 +155,7 @@ Bundle de production : `index` 531 Ko (minifié), `vendor` 222 Ko, worker des ro
 - **Bien conçu** : `GameRoom` et `RemoteClient` sont purs et testés contre un vrai serveur ; protocole versionné, accusés de réception, battement de cœur, reprise par jeton, vue filtrée par joueur.
 - **Les salles ne sont jamais supprimées**, ni en mémoire ni sur disque : ni les parties terminées, ni les salons abandonnés (la liste les masque après un jour, mais ils restent chargés).
 - **Aucune limite** sur le nombre de salles créées, ni par connexion.
+- **Corrigé depuis** : purge des salles inactives (6 h terminée, 24 h salon, 7 jours en cours ; au démarrage et toutes les heures, en mémoire et sur disque, jamais avec un joueur connecté) et limites de création (200 salles, 5 créations par adresse IP en 10 minutes).
 - **Générateur aléatoire global** : correct grâce à la restauration de `rngState` et à la création des parties une à la fois, mais fragile si du code asynchrone s'intercale un jour.
 - **Hébergement** : le disque Render n'est pas conservé, donc toutes les salles sont perdues à chaque redémarrage (limite connue et acceptée).
 
@@ -173,9 +178,9 @@ Bundle de production : `index` 531 Ko (minifié), `vendor` 222 Ko, worker des ro
 |---|---|---|---|
 | 1 | Révoquer le jeton publié dans l'historique, s'il est encore valide | Minutes | Sécurité |
 | 2 | ~~Tests ciblés pour revenir à 100 % (tuile « Autres » B, `GameSession`, `AIController`) et `test:coverage` en CI~~ **Fait** : tuiles objectif Missions, Revenus et Autres testées sur leurs deux faces, découverte par commande testée, garde inatteignable retirée ; la CI lance `npm run test:coverage` | ½ jour | Fiabilité des tests |
-| 3 | Déplacer `performRotation` dans `systems/` et ajouter un contrôle des cycles | ½ jour | Modularité |
-| 4 | Purge et limites des salles du serveur | ½ jour | Robustesse en ligne |
-| 5 | Profiler une étape Expert, puis réduire le coût des copies | 1 à 2 jours | Fluidité des robots, capacité du serveur |
+| 3 | ~~Déplacer `performRotation` dans `systems/` et ajouter un contrôle des cycles~~ **Fait** : géométrie et `ComputerSystem` hors du cycle, `npm run check:cycles` en CI | ½ jour | Modularité |
+| 4 | ~~Purge et limites des salles du serveur~~ **Fait** : purge des salles inactives, 200 salles au plus, 5 créations par adresse IP en 10 minutes | ½ jour | Robustesse en ligne |
+| 5 | ~~Profiler une étape Expert, puis réduire le coût des copies~~ **Fait** : robots 5,8 fois plus rapides, décisions identiques, banc `npm run bench:ai` | 1 à 2 jours | Fluidité des robots, capacité du serveur |
 | 6 | Scénarios Playwright : en ligne à deux, annulation, rechargement, fin de partie | 1 à 2 jours | Couverture de l'interface |
 | 7 | Séparer `core/` en modèle et règles, découper `types.ts` | 1 à 2 jours | Lisibilité, temps de compilation |
 | 8 | Découper `BoardUI` et `SolarSystemBoardUI`, mémoïser, `React.lazy` | 2 à 3 jours | Maintenance de l'interface, chargement |

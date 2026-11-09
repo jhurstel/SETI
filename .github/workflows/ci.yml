@@ -20,6 +20,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
+      # Cycles d'import : seuls les systèmes de règles listés dans tools/check-cycles.mjs
+      - run: npm run check:cycles
       # Tests et seuils de couverture du moteur (jest.config.ts) : une instruction non couverte fait échouer la CI
       - run: npm run test:coverage
       - run: npx vite build

@@ -1,6 +1,6 @@
 import { BaseAction } from './Action';
 import { Game, ActionType, ValidationResult, GAME_CONSTANTS } from '../core/types';
-import { performRotation } from '../core/SolarSystemPosition';
+import { performRotation } from '../systems/RotationSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { cloneGame } from '../core/cloneGame';

@@ -1,3 +1,4 @@
+import { performRotation } from '../src/systems/RotationSystem';
 import {
   rotateSector,
   getAdjacentCells,
@@ -7,7 +8,6 @@ import {
   calculateReachableCells,
   createRotationState,
   getAbsoluteSectorForProbe,
-  performRotation,
   RotationState,
 } from '../src/core/SolarSystemPosition';
 import { DiskName, Game, GamePhase, Probe, ProbeState, SectorNumber } from '../src/core/types';

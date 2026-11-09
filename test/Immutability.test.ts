@@ -55,6 +55,33 @@ describe('cloneGame', () => {
   test('donne le même état que structuredClone', () => {
     expect(cloneGame(game)).toEqual(structuredClone(game));
   });
+
+  test('bonus des emplacements, pistes des espèces et prérequis des missions : figés et partagés, le reste copié', () => {
+    const player = getPlayer(game, P1);
+    player.missions = [{ id: 'm', cardId: 'c', name: 'M', description: '', ownerId: P1, requirements: [{ type: 'GAIN_IF_PROBES', value: 2 }], completedRequirementIds: [], fulfillableRequirementIds: [], completed: false }];
+    const copy = cloneGame(game);
+    const planet = game.board.planets.find(p => p.orbitFirstBonus)!;
+    const planetCopy = copy.board.planets.find(p => p.id === planet.id)!;
+    const sector = game.board.sectors[0];
+    const species = game.species[0];
+
+    // Partagés (figés)
+    expect(planetCopy.orbitFirstBonus).toBe(planet.orbitFirstBonus);
+    expect(planetCopy.orbitSlots).toBe(planet.orbitSlots);
+    expect(copy.board.sectors[0].firstBonus).toBe(sector.firstBonus);
+    expect(copy.species[0].fixedSlots).toBe(species.fixedSlots);
+    expect(getPlayer(copy, P1).missions[0].requirements).toBe(player.missions[0].requirements);
+    expect(() => { (planetCopy.orbitFirstBonus as { pv?: number }).pv = 99; }).toThrow(TypeError);
+    expect(() => { copy.species[0].fixedSlots.redlifetrace.push({}); }).toThrow(TypeError);
+
+    // Copiés : l'état variable reste indépendant
+    expect(planetCopy).not.toBe(planet);
+    expect(planetCopy.orbiters).not.toBe(planet.orbiters);
+    expect(copy.board.sectors[0].signals).not.toBe(sector.signals);
+    expect(getPlayer(copy, P1).missions[0]).not.toBe(player.missions[0]);
+    getPlayer(copy, P1).missions[0].completedRequirementIds.push('r1');
+    expect(player.missions[0].completedRequirementIds).toEqual([]);
+  });
 });
 
 describe('ComputerSystem.fillSlot', () => {

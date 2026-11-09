@@ -20,6 +20,12 @@ export interface GameServerOptions {
   seed?: number;
   /** Origines des pages autorisées à se connecter (ex. https://seti.netlify.app) ; vide : toutes */
   allowedOrigins?: string[];
+  /** Nombre maximal de salles (au-delà, une création est refusée après une purge) ; 200 par défaut */
+  maxRooms?: number;
+  /** Créations de salle permises par adresse IP pendant `windowMs` ; 5 en 10 minutes par défaut */
+  createLimit?: { count: number; windowMs: number };
+  /** Intervalle de la purge des salles expirées (ms), une heure par défaut */
+  purgeInterval?: number;
 }
 
 /** Lettres des codes de salle (sans I, O ni chiffres, faciles à dicter) */
@@ -33,6 +39,8 @@ const MAX_LISTED_ROOMS = 30;
 /** Une connexion : la salle et la place qu'elle occupe, une fois arrivée */
 interface Client {
   socket: WebSocket;
+  /** Adresse IP du joueur (derrière le proxy de l'hébergeur : la première de X-Forwarded-For) */
+  address: string;
   code?: string;
   token?: string;
   alive: boolean;
@@ -49,6 +57,9 @@ export class GameServer {
   private readonly http: Server;
   private readonly wss: WebSocketServer;
   private heartbeat?: NodeJS.Timeout;
+  private purgeTimer?: NodeJS.Timeout;
+  /** Dates des dernières créations de salle par adresse (limite de création) */
+  private readonly creations = new Map<string, number[]>();
   private readonly saving = new Set<string>();
   private readonly pendingSaves = new Set<string>();
 
@@ -61,7 +72,7 @@ export class GameServer {
       // Seules les pages du jeu (origines autorisées) peuvent se connecter ; sans liste, toutes
       verifyClient: ({ origin }: { origin: string }) => !options.allowedOrigins?.length || options.allowedOrigins.includes(origin),
     });
-    this.wss.on('connection', socket => this.onConnection(socket));
+    this.wss.on('connection', (socket, req) => this.onConnection(socket, req));
     this.loadRooms();
   }
 
@@ -75,6 +86,8 @@ export class GameServer {
           client.alive = false;
           client.socket.ping();
         }), 30_000);
+        // Salles expirées (terminées, abandonnées) : supprimées régulièrement, en mémoire et sur disque
+        this.purgeTimer = setInterval(() => { this.purge(); }, this.options.purgeInterval ?? 60 * 60 * 1000);
         resolve((this.http.address() as AddressInfo).port);
       });
     });
@@ -82,6 +95,7 @@ export class GameServer {
 
   async close(): Promise<void> {
     if (this.heartbeat) clearInterval(this.heartbeat);
+    if (this.purgeTimer) clearInterval(this.purgeTimer);
     this.robotTimers.forEach(timer => clearTimeout(timer));
     this.robotTimers.clear();
     this.clients.forEach(client => client.socket.terminate());
@@ -120,8 +134,10 @@ export class GameServer {
     res.end();
   }
 
-  private onConnection(socket: WebSocket) {
-    const client: Client = { socket, alive: true };
+  private onConnection(socket: WebSocket, req: IncomingMessage) {
+    const forwarded = req.headers['x-forwarded-for'];
+    const address = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0].trim() || req.socket.remoteAddress || '';
+    const client: Client = { socket, address, alive: true };
     this.clients.add(client);
     socket.on('pong', () => { client.alive = true; });
     socket.on('message', data => {
@@ -145,6 +161,8 @@ export class GameServer {
     }
     switch (message.type) {
       case 'create': {
+        const refused = this.creationRefused(client.address);
+        if (refused) return this.send(client, { type: 'error', message: refused });
         const token = randomUUID();
         const robots = message.seats.filter(seat => seat.type === 'robot').length;
         const names = [...ROBOT_NAMES].sort(() => Math.random() - 0.5).slice(0, robots);
@@ -155,6 +173,7 @@ export class GameServer {
           return this.send(client, { type: 'error', message: (error as Error).message });
         }
         this.rooms.set(room.code, room);
+        this.creations.set(client.address, [...(this.creations.get(client.address) ?? []), Date.now()]);
         return this.enter(client, room, token);
       }
       case 'join': {
@@ -193,7 +212,8 @@ export class GameServer {
         const room = client.code ? this.rooms.get(client.code) : undefined;
         if (!room || !client.token) return this.send(client, { type: 'ack', requestId, error: "Rejoignez d'abord une salle" });
         const result = room.undo(client.token, message.scope);
-        if (result.error) return this.send(client, { type: 'ack', requestId, error: result.error });        this.changed(room, []);
+        if (result.error) return this.send(client, { type: 'ack', requestId, error: result.error });
+        this.changed(room, []);
         this.send(client, { type: 'ack', requestId });
       }
     }
@@ -212,6 +232,7 @@ export class GameServer {
 
   /** Après un changement : chacun reçoit sa vue, la salle est enregistrée, les robots reprennent */
   private changed(room: GameRoom, notifications: string[]) {
+    room.touch();
     this.broadcast(room.code, notifications);
     this.save(room);
     this.scheduleRobot(room);
@@ -241,6 +262,46 @@ export class GameServer {
 
   private send(client: Client, message: ServerMessage) {
     if (client.socket.readyState === WebSocket.OPEN) client.socket.send(JSON.stringify(message));
+  }
+
+  /**
+   * Raison du refus d'une création de salle, sinon null : trop de créations récentes depuis cette adresse,
+   * ou serveur plein (même après la purge des salles expirées)
+   */
+  private creationRefused(address: string, now = Date.now()): string | null {
+    const { count, windowMs } = this.options.createLimit ?? { count: 5, windowMs: 10 * 60 * 1000 };
+    const recent = (this.creations.get(address) ?? []).filter(time => now - time < windowMs);
+    if (recent.length > 0) this.creations.set(address, recent);
+    else this.creations.delete(address);
+    if (recent.length >= count) return 'Trop de salles créées : réessayez dans quelques minutes';
+    const maxRooms = this.options.maxRooms ?? 200;
+    if (this.rooms.size >= maxRooms) this.purge(now);
+    if (this.rooms.size >= maxRooms) return 'Le serveur est complet : réessayez plus tard';
+    return null;
+  }
+
+  /**
+   * Supprime les salles expirées (GameRoom.isExpired : terminées, salons vides, parties abandonnées), en mémoire et
+   * sur disque, sauf celles où un joueur est connecté ou dont l'enregistrement est en cours. Renvoie leurs codes.
+   */
+  purge(now = Date.now()): string[] {
+    const purged: string[] = [];
+    for (const room of [...this.rooms.values()]) {
+      if (!room.isExpired(now) || this.saving.has(room.code)) continue;
+      if ([...this.clients].some(client => client.code === room.code)) continue;
+      this.rooms.delete(room.code);
+      const timer = this.robotTimers.get(room.code);
+      if (timer) clearTimeout(timer);
+      this.robotTimers.delete(room.code);
+      this.pendingSaves.delete(room.code);
+      if (this.options.dataDir) {
+        fs.rm(path.join(this.options.dataDir, `${room.code}.json`), { force: true })
+          .catch(error => console.error(`[Serveur] suppression de la salle ${room.code} impossible :`, error));
+      }
+      purged.push(room.code);
+    }
+    if (purged.length > 0) console.log(`[Serveur] ${purged.length} salle(s) expirée(s) supprimée(s) : ${purged.join(', ')}`);
+    return purged;
   }
 
   private newCode(): string {
@@ -289,10 +350,12 @@ export class GameServer {
       try {
         const room = GameRoom.fromSaved(JSON.parse(readFileSync(path.join(dataDir, file), 'utf-8')) as SavedRoom);
         this.rooms.set(room.code, room);
-        this.scheduleRobot(room);
       } catch (error) {
         console.error(`[Serveur] salle ${file} illisible :`, error);
       }
     }
+    // Salles expirées pendant l'arrêt du serveur : supprimées avant de relancer les robots des autres
+    this.purge();
+    this.rooms.forEach(room => this.scheduleRobot(room));
   }
 }

@@ -22,7 +22,9 @@
     "server": "npm run server:build && npm run server:start",
     "server:build": "esbuild server/index.ts --bundle --platform=node --target=node20 --packages=external --outfile=server/build/index.js --log-level=warning",
     "server:start": "node server/build/index.js",
-    "check": "npm run typecheck && npm run lint && npm test && vite build"
+    "check:cycles": "node tools/check-cycles.mjs",
+    "bench:ai": "esbuild tools/bench/aiBench.ts tools/bench/stateSize.ts --bundle --platform=node --target=node20 --outdir=tools/bench/build --log-level=warning && node tools/bench/build/aiBench.js",
+    "check": "npm run typecheck && npm run lint && npm run check:cycles && npm test && vite build"
   },
   "keywords": [
     "seti",
