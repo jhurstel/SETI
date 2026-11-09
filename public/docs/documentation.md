@@ -13,7 +13,7 @@ Ce document décrit comment jouer, les règles telles qu'elles sont appliquées,
 ### 1.1 Lancer une partie
 
 - **Accueil** : au lancement (et par ⚙️ en cours de partie), l'écran d'accueil propose de continuer la partie sauvegardée (sa barre de progression montre où elle en est : un trait gris par manche, un trait de la couleur du joueur par tour, l'action principale du tour au survol), d'en commencer une nouvelle, de jouer en ligne, ainsi que la documentation, les règles et la FAQ.
-- **Nouvelle partie** : choisir le nombre de robots (1 à 3), leur niveau (Débutant, Intermédiaire, Expert) et qui commence.
+- **Nouvelle partie** : votre nom (gardé pour la partie suivante, en solo comme en ligne), puis les places comme pour une salle en ligne : la vôtre et 1 à 3 robots, chacun à sa couleur et avec son propre niveau (Débutant, Intermédiaire, Expert : 1 à 3 barres ; « + Ajouter un robot », ✕ pour en retirer un). Le premier joueur est tiré au hasard au démarrage et annoncé par un radar : les joueurs sont des signaux autour d'un radiotélescope, le faisceau tourne, ralentit et se verrouille sur le premier joueur (onde à sa couleur, « X commence ! ») ; un clic le ferme, de même en ligne. La fenêtre garde le fond de l'accueil, même ouverte pendant une partie.
 - La partie se joue en **5 manches**. Chaque joueur commence avec 4 crédits, 3 énergies, 4 Médias et 5 cartes, puis **réserve** une carte sous son plateau (mise en place).
 - **Sauvegarde automatique** : l'état est enregistré dans le navigateur après chaque action (et quand la page est quittée). En rouvrant la page, la partie reprend où elle s'était arrêtée.
 - **Export / import** : l'accueil (⚙️ en cours de partie) enregistre la partie dans un fichier JSON ou en recharge une. Une sauvegarde d'une version plus récente du jeu est refusée.
@@ -21,7 +21,7 @@ Ce document décrit comment jouer, les règles telles qu'elles sont appliquées,
 ### 1.2 L'écran
 
 - **Système solaire** (centre) : 3 anneaux rotatifs, 8 secteurs, planètes, comètes, champs d'astéroïdes, sondes.
-- **Plateau du joueur** (gauche) : les onglets en haut affichent le plateau de chaque joueur. La section Ressources montre le score, les crédits, l'énergie, les cartes en main (4 gardées en passant), les Médias et les données (6 au plus), puis les revenus ; l'infobulle d'une ressource propose ses actions gratuites (échanges, achat d'une carte) en boutons à icônes, chacun avec son infobulle (coût, bonus). La tuile des revenus montre les cartes réservées et les 5 revenus de chaque manche (crédits, énergie, cartes, Médias, données ; un revenu nul est estompé). La section Actions montre les 8 actions principales en hexagones (lancer, orbite, atterrir, scanner, analyser, jouer une carte, rechercher, passer) et, dans son propre cadre, la fin du tour. Seul le plateau défile, sous les onglets. Dessous : les emplacements des technologies Exploration, les étapes du scan et les technologies Observation, l'ordinateur de données (les actions ne sont que dans la section Actions), cartes en main (celles d'un robot qu'on n'a pas vues sont montrées de dos), missions et cartes jouées.
+- **Plateau du joueur** (gauche) : les onglets en haut affichent le plateau de chaque joueur (devant le nom : silhouette pour un humain, barres de niveau pour un robot) ; le contour du plateau prend la couleur du joueur affiché. La section Ressources montre le score, les crédits, l'énergie, les cartes en main, les Médias et les données, puis les revenus ; la limite d'une ressource est écrite sous son symbole (cartes : « Fin de tour : 4 », gardées en passant ; Médias : « (max 10) » ; données : « (max 6) »). L'infobulle d'une ressource ne montre que ses actions (échanges, achat d'une carte), en boutons à icônes l'un au-dessus de l'autre, chacun avec son infobulle (coût et bonus sur une ligne). La tuile des revenus montre les cartes réservées et les 5 revenus de chaque manche (crédits, énergie, cartes, Médias, données ; un revenu nul est estompé) ; dans son infobulle, les cartes réservées sont listées une par ligne, surlignées comme dans l'historique, avec l'infobulle de la carte. La section Actions montre les 8 actions principales en hexagones (lancer, orbite, atterrir, scanner, analyser, jouer une carte, rechercher, passer) et, dans son propre cadre, la fin du tour ; leur infobulle donne le coût et le bonus sur une même ligne. Seul le plateau défile, sous les onglets. Dessous : les emplacements des technologies Exploration, les étapes du scan et les technologies Observation, l'ordinateur de données (les actions ne sont que dans la section Actions), cartes en main (celles d'un robot qu'on n'a pas vues sont montrées de dos), missions et cartes jouées.
 - **Rangée de cartes**, **plateau des technologies**, **tuiles objectif**, **plateaux des espèces Alien** et **historique**.
 - **Panneau Planètes** : chaque planète, avec à côté une ligne par type de sonde présente (orbiteurs, atterrisseurs, lunes comprises) et une pastille de la couleur de chaque joueur, dans l'ordre d'arrivée. Son infobulle montre les cases de la planète ; chaque gain posé à côté d'une case a sa propre infobulle.
 - Les infobulles (survol) donnent le détail de chaque élément. Une action (principale, fin du tour, étape du scan) montre son coût et son bonus en symboles (chacun avec son infobulle ; sonde en hexagone, orbiteur et atterrisseur en disque comme sur le panneau des planètes, crédit « ? » pour le coût d'une carte), puis ce que fait un clic ou la raison qui l'empêche. Un emplacement de technologie (le cadre, pour Observation I dont la pastille est l'étape de la Terre) montre si elle est acquise, le pouvoir actuel du joueur et, tant qu'elle n'est pas acquise, le bénéfice de la technologie.
@@ -70,7 +70,7 @@ Quand une action ouvre un choix (placer une trace de vie, choisir une carte, une
 
 Les déplacements gratuits reçus d'une carte (« 2 déplacements ») se dépensent sonde par sonde ; on peut renoncer à ceux qui restent.
 
-**Début de tour et tour des autres joueurs.** Chaque tour s'ouvre sur une annonce au centre de l'écran, à la couleur du joueur : « À vous de jouer » en grand pour votre tour, une bande plus petite pour celui d'un autre (un clic la ferme). Pendant le tour d'un robot ou d'un autre joueur, le message au-dessus du plateau indique qui joue, et ce message et le cadre du plateau du système solaire prennent sa couleur : vos actions sont verrouillées, mais le plateau reste consultable (infobulles, plateaux des autres joueurs, historique).
+**Début de tour et tour des autres joueurs.** Chaque tour s'ouvre sur une annonce au centre de l'écran, à la couleur du joueur : « À vous de jouer » en grand pour votre tour, une bande plus petite pour celui d'un autre (un clic la ferme). Le contour du plateau du système solaire et le message au-dessus du plateau sont toujours à la couleur du joueur qui a la main (joueur en cours, ou celui qui doit faire un choix), en solo comme en ligne ; le plateau joueur prend la couleur du joueur dont l'onglet est affiché. Pendant le tour d'un robot ou d'un autre joueur, le message indique qui joue et le cadre du système solaire s'illumine : vos actions sont verrouillées, mais le plateau reste consultable (infobulles, plateaux des autres joueurs, historique).
 
 ### 1.6 Annuler
 
@@ -82,12 +82,12 @@ Les déplacements gratuits reçus d'une carte (« 2 déplacements ») se dépens
 ### 1.7 Jouer en ligne
 
 - Menu principal → **Partie en ligne** (bouton présent quand un serveur est configuré).
-- **Créer une salle** : votre nom, puis les autres places (joueur humain ou robot, de 2 à 4 joueurs en tout). Le jeu donne un **code de 5 lettres** à transmettre aux autres joueurs.
-- **Rejoindre** : votre nom et le code de la salle. La partie commence dès que toutes les places humaines sont prises ; le premier joueur est tiré au hasard.
+- **Créer une salle** : même présentation que Nouvelle partie. Votre nom, puis les places, chacune à sa couleur : la vôtre, et les autres (Humain avec sa silhouette, ou robot avec ses barres de niveau, en cellules de même taille sur une ligne), de 2 à 4 joueurs en tout ; le premier joueur est tiré au hasard au démarrage. Le jeu donne un **code de 5 lettres** à transmettre aux autres joueurs.
+- **Rejoindre** : votre nom et le code de la salle, ou **Rejoindre** sur une des salles qui attendent des joueurs (liste relue toutes les 5 s : code, places à leurs couleurs, places libres). Les parties en cours sont listées dessous (joueurs, manche). Un salon resté vide plus d'un jour n'est plus listé. La partie commence dès que toutes les places humaines sont prises.
 - Pendant le tour d'un autre joueur, le message au-dessus du plateau l'indique (« Tour de Bob », « En attente de Bob » s'il doit faire un choix) et le plateau reste consultable. Les robots jouent sur le serveur.
 - Chacun ne voit que ce qu'il a le droit de voir : la main des autres, les cartes qu'ils piochent et leurs cartes Exertiens restent cachées.
-- **Reprise** : en cas de coupure, le jeu se reconnecte tout seul ; après un rechargement de la page, menu → **Reprendre la partie en ligne**. Le serveur gratuit s'endort après 15 min sans joueurs et met environ une minute à se réveiller ; un redémarrage du serveur efface les salles en cours.
-- Pas d'annulation en ligne. La partie solo (sauvegarde automatique) n'est pas touchée : **Continuer la partie** y revient.
+- **Reprise** : en cas de coupure, le jeu se reconnecte tout seul (pendant 2 minutes), et tout de suite au retour du réseau ou quand la page redevient visible (sortie de veille) ; une connexion restée ouverte mais muette est détectée en moins d'une minute. Après un rechargement de la page, menu → **Reprendre la partie en ligne**. Le serveur gratuit s'endort après 15 min sans joueurs et met environ une minute à se réveiller ; un redémarrage du serveur efface les salles en cours.
+- **Annuler en ligne** : seulement vos propres actions de votre tour en cours, tant que personne d'autre n'a joué depuis (fin de votre tour, choix d'un autre joueur, robot) : dernière action, ou retour au début de votre tour. La partie solo (sauvegarde automatique) n'est pas touchée : **Continuer la partie** y revient.
 
 ### 1.8 Paramètres
 
@@ -388,13 +388,13 @@ Le jeu solo n'est pas concerné : il garde la session dans le navigateur, sans s
 
 ### 7.1 Le serveur
 
-- Lancement : `npm run server` (port `PORT`, 8787 par défaut ; salles enregistrées dans `SETI_DATA_DIR`, `server/data` par défaut). `GET /health` donne la version et le nombre de salles.
-- **Salle** (`session/GameRoom.ts`, sans réseau, testée avec Jest) : un code de 5 lettres, 2 à 4 places (humains ou robots). Le créateur prend la première place humaine, les autres joueurs rejoignent avec le code. La partie démarre quand toutes les places humaines sont prises, avec un premier joueur tiré au hasard.
+- Lancement : `npm run server` (port `PORT`, 8787 par défaut ; salles enregistrées dans `SETI_DATA_DIR`, `server/data` par défaut). `GET /health` donne la version et le nombre de salles ; `GET /rooms` la liste des salles (`RoomSummary` : salons de moins d'un jour puis parties en cours, sans jeton ni partie ; lisible par les origines autorisées).
+- **Salle** (`session/GameRoom.ts`, sans réseau, testée avec Jest) : un code de 5 lettres, 2 à 4 places (humains ou robots). Le créateur prend la première place humaine, les autres joueurs rejoignent avec le code. La partie démarre quand toutes les places humaines sont prises, avec un premier joueur tiré au hasard (le message `create` accepte encore `firstPlayer` : une place, `random` ou `randomOther` ; l'interface ne l'envoie plus).
 - **Jeton de place** : chaque joueur reçoit un jeton secret ; avec le code, il permet de reprendre sa place après une coupure (une seule connexion par place).
 - **Robots** : ils jouent sur le serveur, une étape toutes les 1,5 s, par les mêmes opérations que dans le jeu local.
 - **Enregistrement** : chaque salle est écrite sur disque après chaque changement (un fichier JSON par salle, écriture atomique) et relue au redémarrage.
 - **Ce que reçoit chaque joueur** : sa vue de la partie (`viewFor`) et l'historique qu'il peut lire (`viewEntries`), après chaque changement.
-- **Pas d'annulation en ligne** : elle reviendrait aussi sur les actions des autres joueurs.
+- **Annulation** : la salle garde en mémoire (pas dans son fichier) l'état d'avant chaque commande du joueur qui joue ; une commande d'un autre joueur, une étape de robot ou la fin de son tour les efface. Un joueur ne revient donc que sur ses propres actions de son tour, jamais sur ce qu'un autre a joué.
 
 ### 7.2 Protocole (`session/protocol.ts`)
 
@@ -402,21 +402,23 @@ Messages JSON sur WebSocket.
 
 | Sens | Message | Rôle |
 |---|---|---|
-| Client → serveur | `create { version, name, seats }` | Crée une salle (`seats` : `{ type: 'human' }` ou `{ type: 'robot', aiDifficulty }`) |
+| Client → serveur | `create { version, name, seats, firstPlayer? }` | Crée une salle (`seats` : `{ type: 'human' }` ou `{ type: 'robot', aiDifficulty }` ; `firstPlayer` : index de place, `random` ou `randomOther`) |
 | Client → serveur | `join { version, code, name }` | Prend une place libre |
 | Client → serveur | `resume { version, code, token }` | Reprend sa place |
 | Client → serveur | `command { command }` | Une commande de la session (`LAUNCH_PROBE`, `CHOOSE`…) |
+| Client → serveur | `undo { scope }` | Annule sa dernière action (`last`) ou revient au début de son tour (`turn`) |
+| Client → serveur | `ping` | Battement de cœur (toutes les 25 s) : le serveur répond `pong` |
 | Serveur → client | `welcome { code, token, playerId }` | Place obtenue (garder le jeton) |
-| Serveur → client | `state { room, you, game, entries }` | Vue de la partie pour ce joueur |
+| Serveur → client | `state { room, you, game, entries, undo }` | Vue de la partie pour ce joueur, annulations possibles |
 | Serveur → client | `notification { messages }` | Annonces (découverte d'une espèce…) |
 | Serveur → client | `error { message }` | Refus (version, salle, commande non permise…) |
 
-Client et serveur doivent avoir la même version aux deux premiers numéros près (1.1.x). Chaque commande porte un `requestId` ; le serveur répond par `ack { requestId, error? }` après avoir envoyé l'état qui en découle.
+Client et serveur doivent avoir la même version aux deux premiers numéros près (1.2.x). Chaque commande (et chaque annulation) porte un `requestId` ; le serveur répond par `ack { requestId, error? }` après avoir envoyé l'état qui en découle.
 
 ### 7.3 Le client (`session/RemoteClient.ts`)
 
 - Pur (testé avec Jest contre le vrai serveur) : création, arrivée, reprise de la place, commandes ; une commande se termine à l'accusé de réception, la partie reçue est alors à jour.
-- Reconnexion automatique (reprise de la place par son jeton), pendant 2 minutes au plus ; une place inconnue du serveur (salle perdue) est oubliée.
+- Reconnexion automatique (reprise de la place par son jeton), pendant 2 minutes au plus ; une place inconnue du serveur (salle perdue) est oubliée. `reconnectNow` relance tout de suite une tentative en attente (événements `online` et `visibilitychange` du navigateur). Battement de cœur : un `ping` toutes les 25 s ; sans nouvelles du serveur pendant 50 s, la connexion est tenue pour coupée et la place reprise.
 - Dans l'interface : `useOnlineSession` (place gardée dans le navigateur, `seti_online`), `OnlineModal` (créer, rejoindre, salon). `BoardUI` envoie ses commandes au serveur au lieu de la session locale, n'affiche pas les interactions des autres joueurs, et traite les autres joueurs humains comme des robots pour l'affichage (actions désactivées pendant leur tour).
 
 ### 7.4 Déploiement

@@ -9,11 +9,14 @@ const anyAvailableAction = (page: Page) => page.locator('.seti-main-actions .obs
 test('tour complet du joueur humain : lancer une sonde, passer la main au robot, la récupérer', async ({ page }) => {
   await page.goto('/');
 
-  // Nouvelle partie : 2 joueurs, robot Débutant, l'humain commence
+  // Nouvelle partie : 1 robot (place par défaut) Débutant ; premier joueur tiré au hasard (radar, un clic le ferme)
   await page.getByRole('button', { name: 'Nouvelle Partie' }).click();
-  await page.getByText('2 joueurs').click();
-  await page.getByText('Débutant', { exact: true }).click();
+  await page.getByRole('radio', { name: 'Débutant' }).click();
   await page.getByRole('button', { name: 'Commencer' }).click();
+  const draw = page.getByRole('dialog', { name: 'Tirage du premier joueur' });
+  await expect(draw).toBeVisible({ timeout: 30_000 });
+  await draw.click();
+  await expect(draw).toHaveCount(0);
 
   // Mise en place : réserver une carte de la main de départ
   const reservation = page.locator('.seti-choice-modal', { hasText: 'Réservez une carte' });

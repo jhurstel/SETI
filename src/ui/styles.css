@@ -313,7 +313,7 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
-  /* Bleu comme le toast ; à la couleur du joueur en cours pendant le tour d'un autre joueur (.seti-waiting) */
+  /* Bleu par défaut ; plateaux de jeu à la couleur du joueur qui a la main (BoardUI.css) */
   border: 2px solid #4a9eff;
 }
 

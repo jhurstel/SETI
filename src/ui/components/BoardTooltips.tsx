@@ -82,10 +82,13 @@ export const ActionTooltip: React.FC<{
 }> = ({ title, cost, bonus, bonusLabel = 'Bonus', available = true, hint }) => (
   <div className="seti-board-tooltip">
     <div className="seti-board-tooltip-title">{title}</div>
-    <dl className="seti-board-tooltip-rows">
-      {cost !== undefined && (<><dt>Coût</dt><dd className="cost">{cost || 'Aucun'}</dd></>)}
-      {bonus !== undefined && (<><dt>{bonusLabel}</dt><dd>{bonus}</dd></>)}
-    </dl>
+    {/* Coût et bonus sur la même ligne, comme dans l'infobulle d'un emplacement (passe à la ligne si besoin) */}
+    {(cost !== undefined || bonus !== undefined) && (
+      <div className="seti-board-tooltip-line">
+        {cost !== undefined && <span className="seti-board-tooltip-pair"><span className="label">Coût :</span><span className="cost">{cost || 'Aucun'}</span></span>}
+        {bonus !== undefined && <span className="seti-board-tooltip-pair"><span className="label">{bonusLabel} :</span><span className="value">{bonus}</span></span>}
+      </div>
+    )}
     {hint && <div className={`seti-board-tooltip-hint ${available ? 'ok' : 'blocked'}`}>{hint}</div>}
   </div>
 );

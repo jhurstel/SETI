@@ -101,10 +101,8 @@ export class InteractionResolver {
         const trace = SpeciesSystem.placeLifeTraceAuto(updatedGame, other.color, otherId, sequenceId);
         updatedGame = trace.updatedGame;
         historyEntries.push(...trace.historyEntries.map(e => ({ ...e, sequenceId })));
-        if (updatedGame.isSpeciesDiscovered) {
-          historyEntries.push({ message: 'découvre une nouvelle espèce Alien !', playerId: otherId, sequenceId });
-          updatedGame.isSpeciesDiscovered = false;
-        }
+        // (une découverte est déjà écrite par la trace de vie, à sa place)
+        updatedGame.isSpeciesDiscovered = false;
         newInteractions.push(...trace.newPendingInteractions);
       }
     }

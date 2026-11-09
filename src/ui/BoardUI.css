@@ -7,18 +7,29 @@
   min-width: 0;
 }
 
-/* Tour d'un autre joueur : toast et cadre du plateau du système solaire à la couleur du joueur en cours */
-.seti-right-panel.seti-waiting .seti-toast {
+/* Contour des plateaux (système solaire, plateau joueur) et toast à la couleur du joueur qui a la main
+   (--turn-color, posée par BoardUI sur .seti-root-inner) ; pendant le tour d'un autre joueur, le cadre s'illumine */
+.seti-root-inner .seti-toast {
   color: #fff;
-  border-color: var(--turn-color);
-  background-color: color-mix(in srgb, var(--turn-color) 25%, rgba(0, 0, 0, 0.9));
+  border-color: var(--turn-color, #4a9eff);
+  background-color: color-mix(in srgb, var(--turn-color, #4a9eff) 25%, rgba(0, 0, 0, 0.9));
+}
+.seti-root-inner .seti-solar-system-container,
+.seti-root-inner .seti-player-panel {
+  border-color: var(--turn-color, #4a9eff);
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+/* Plateau joueur : à la couleur du joueur affiché (onglet choisi) */
+.seti-root-inner .seti-player-panel {
+  border-color: var(--board-color, var(--turn-color, #4a9eff));
+}
+.seti-right-panel.seti-waiting .seti-toast {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
 .seti-right-panel.seti-waiting .seti-solar-system-container {
-  border-color: var(--turn-color);
   box-shadow: 0 0 14px color-mix(in srgb, var(--turn-color) 45%, transparent);
 }
 .seti-toast-spinner {

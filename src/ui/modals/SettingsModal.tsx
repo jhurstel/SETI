@@ -108,20 +108,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setVisible(false);
   };
 
-  const handleNewGameConfirm = (playerCount: number, difficulty: string, isFirstPlayer: boolean) => {
+  const handleNewGameConfirm = (playerName: string, robots: AIDifficulty[]) => {
       try {
           const robotNamesPool = ['R2-D2', 'C-3PO', 'HAL 9000', 'Wall-E', 'T-800', 'Data', 'Bender', 'Marvin', 'Bishop', 'GLaDOS', 'Auto', 'EVE'];
           const shuffledRobots = [...robotNamesPool].sort(() => 0.5 - Math.random());
 
-          const playerNames = ['Thierry'];
-          for (let i = 1; i < playerCount; i++) {
-              playerNames.push(shuffledRobots[i-1]);
-          }
-
-          const seats: SeatConfig[] = playerNames.map((name, index) => (
-            index === 0 ? { name, type: 'human' } : { name, type: 'robot', aiDifficulty: difficulty as AIDifficulty }
-          ));
-          GameSetup.newGame(seats, { firstPlayer: isFirstPlayer ? 0 : 'randomOther' }).then(({ game: newGame, entries }) => {
+          // Vous, puis les robots (niveau de chacun), nommés au hasard
+          const seats: SeatConfig[] = [
+            { name: playerName, type: 'human' },
+            ...robots.map((aiDifficulty, index): SeatConfig => ({ name: shuffledRobots[index], type: 'robot', aiDifficulty })),
+          ];
+          GameSetup.newGame(seats, { firstPlayer: 'random' }).then(({ game: newGame, entries }) => {
           // Journal de départ : les entrées de mise en place écrites par la partie
           onLoadGame(newGame, entries);
 
@@ -236,6 +233,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   return (
     <>
       {(visible || newGameModalVisible) && !canGoBack && <SpaceBackdrop />}
+      {/* Nouvelle partie ouverte pendant une partie : le fond de l'accueil, pas la partie en cours */}
+      {newGameModalVisible && canGoBack && <SpaceBackdrop overGame />}
       {visible && (
         <div className="seti-home" role="dialog" aria-label="Accueil">
           <SpaceBackdrop />

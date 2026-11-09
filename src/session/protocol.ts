@@ -10,12 +10,27 @@ import { Command } from './commands';
 /** Place demandée à la création d'une salle (la première place humaine est celle du créateur) */
 export type SeatRequest = { type: 'human' } | { type: 'robot'; aiDifficulty?: AIDifficulty };
 
+/** Premier joueur demandé à la création : un index de place, n'importe quelle place, ou une autre que celle du créateur */
+export type FirstPlayerChoice = number | 'random' | 'randomOther';
+
+/** Annulations possibles pour un joueur en ligne : ses propres actions, tant que personne d'autre n'a joué depuis */
+export interface UndoAvailability {
+  /** Annuler sa dernière action */
+  last: boolean;
+  /** Revenir au plus tôt de son tour en cours (plusieurs actions) */
+  turn: boolean;
+}
+
 export type ClientMessage =
-  | { type: 'create'; version: string; name: string; seats: SeatRequest[] }
+  | { type: 'create'; version: string; name: string; seats: SeatRequest[]; firstPlayer?: FirstPlayerChoice }
   | { type: 'join'; version: string; code: string; name: string }
   | { type: 'resume'; version: string; code: string; token: string }
   /** `requestId` (facultatif) : renvoyé dans l'accusé de réception, après l'état qui suit la commande */
-  | { type: 'command'; command: Command; requestId?: number };
+  | { type: 'command'; command: Command; requestId?: number }
+  /** Annulation de ses propres actions (voir UndoAvailability) ; accusé de réception comme une commande */
+  | { type: 'undo'; scope: 'last' | 'turn'; requestId?: number }
+  /** Battement de cœur du client : le serveur répond `pong` (connexion morte détectée, serveur gardé éveillé) */
+  | { type: 'ping' };
 
 export type RoomStatus = 'lobby' | 'playing' | 'finished';
 
@@ -26,16 +41,35 @@ export interface RoomInfo {
   seats: { playerId: string; name: string; type: 'human' | 'robot'; aiDifficulty?: AIDifficulty; claimed: boolean; connected: boolean }[];
 }
 
+/**
+ * Résumé public d'une salle (liste des salles, `GET /rooms`) : de quoi choisir une salle à rejoindre ou voir les
+ * parties en cours, sans jeton ni partie
+ */
+export interface RoomSummary {
+  code: string;
+  status: 'lobby' | 'playing';
+  createdAt: number;
+  /** Manche en cours (partie commencée) */
+  round?: number;
+  seats: { name: string; type: 'human' | 'robot'; aiDifficulty?: AIDifficulty; claimed: boolean }[];
+}
+
+/** Adresse de la liste des salles (HTTP) à partir de l'adresse WebSocket du serveur */
+export function roomsUrl(serverUrl: string): string {
+  return `${serverUrl.replace(/^ws(s?):\/\//, 'http$1://').replace(/\/+$/, '')}/rooms`;
+}
+
 export type ServerMessage =
   /** Place obtenue (création, arrivée ou reconnexion) : le jeton permet de revenir à cette place */
   | { type: 'welcome'; version: string; code: string; token: string; playerId: string }
   /** Vue de la partie pour ce joueur (viewFor) et historique filtré (viewEntries) ; pas de partie dans le salon */
-  | { type: 'state'; room: RoomInfo; you: string; game?: Game; entries: HistoryEntry[] }
+  | { type: 'state'; room: RoomInfo; you: string; game?: Game; entries: HistoryEntry[]; undo?: UndoAvailability }
   /** Annonces (découverte d'une espèce…) */
   | { type: 'notification'; messages: string[] }
   /** Commande traitée (l'état qui en découle a déjà été envoyé) ou refusée */
   | { type: 'ack'; requestId?: number; error?: string }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string }
+  | { type: 'pong' };
 
 /** Client et serveur s'entendent si leur version a les mêmes deux premiers numéros (1.1.x) */
 export function isCompatibleVersion(client: string, server: string): boolean {
@@ -67,7 +101,12 @@ export function parseClientMessage(raw: string): ClientMessage | null {
         const s = seat as Record<string, unknown> | null;
         return !!s && (s.type === 'human' || (s.type === 'robot' && (s.aiDifficulty === undefined || DIFFICULTIES.includes(s.aiDifficulty as AIDifficulty))));
       });
-      return valid ? { type: 'create', version: message.version, name: message.name.trim(), seats: seats as SeatRequest[] } : null;
+      const first = message.firstPlayer;
+      const validFirst = first === undefined || first === 'random' || first === 'randomOther'
+        || (typeof first === 'number' && Number.isInteger(first) && first >= 0 && first < seats.length);
+      if (!valid || !validFirst) return null;
+      const created: ClientMessage = { type: 'create', version: message.version, name: message.name.trim(), seats: seats as SeatRequest[] };
+      return first === undefined ? created : { ...created, firstPlayer: first as FirstPlayerChoice };
     }
     case 'join':
       return isString(message.version, 20) && isString(message.code, 10) && isString(message.name, 40)
@@ -83,6 +122,13 @@ export function parseClientMessage(raw: string): ClientMessage | null {
       const requestId = typeof message.requestId === 'number' ? message.requestId : undefined;
       return requestId === undefined ? { type: 'command', command: command as unknown as Command } : { type: 'command', command: command as unknown as Command, requestId };
     }
+    case 'undo': {
+      if (message.scope !== 'last' && message.scope !== 'turn') return null;
+      const requestId = typeof message.requestId === 'number' ? message.requestId : undefined;
+      return requestId === undefined ? { type: 'undo', scope: message.scope } : { type: 'undo', scope: message.scope, requestId };
+    }
+    case 'ping':
+      return { type: 'ping' };
     default:
       return null;
   }

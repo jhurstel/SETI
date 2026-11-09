@@ -36,19 +36,13 @@ const refused = (game: Game, error: string): ChoiceResult => ({ updatedGame: gam
  */
 export class InteractionChoices {
   /**
-   * Détecte une découverte d'espèce due au choix (comparaison des plateaux Alien avant/après :
-   * un indicateur `isSpeciesDiscovered` resté actif ne compte pas) et l'ajoute à l'historique (la session en tire l'annonce).
+   * Après un choix : l'indicateur `isSpeciesDiscovered` est remis à zéro. La découverte elle-même est écrite
+   * dans l'historique par la trace de vie qui la déclenche (après la trace, avant les cartes Alien), et la session
+   * en tire l'annonce.
    */
-  static noteDiscovery(before: Game, result: ChoiceResult, playerId: string, sequenceId: string): ChoiceResult {
-    const updatedGame = result.updatedGame;
-    if (updatedGame === before) return result;
-    const discovered = updatedGame.board.alienBoards.some((board, i) => board.isDiscovered && !before.board.alienBoards[i]?.isDiscovered);
-    updatedGame.isSpeciesDiscovered = false;
-    if (!discovered) return result;
-    return {
-      ...result,
-      historyEntries: [...result.historyEntries, { message: 'découvre une nouvelle espèce Alien !', playerId, sequenceId }],
-    };
+  static noteDiscovery(before: Game, result: ChoiceResult): ChoiceResult {
+    if (result.updatedGame !== before) result.updatedGame.isSpeciesDiscovered = false;
+    return result;
   }
 
   /** Place une trace de vie sur l'emplacement choisi d'un plateau Alien. */
@@ -74,7 +68,7 @@ export class InteractionChoices {
       historyEntries: placed.historyEntries.map(e => ({ ...e, sequenceId: e.sequenceId || sequenceId })),
       newPendingInteractions: placed.newPendingInteractions.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId })),
     };
-    return this.noteDiscovery(game, result, playerId, sequenceId);
+    return this.noteDiscovery(game, result);
   }
 
   /** Prend une carte Alien (`cardId` de la rangée de l'espèce, ou 'deck' pour la pioche). */

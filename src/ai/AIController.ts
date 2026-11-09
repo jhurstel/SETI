@@ -259,7 +259,7 @@ export class AIController {
                     if (best) return best;
                 }
                 const auto = SpeciesSystem.placeLifeTraceAuto(updatedGame, interaction.color, player.id, sequenceId, interaction.boardIndices);
-                const res = InteractionChoices.noteDiscovery(updatedGame, { updatedGame: auto.updatedGame, historyEntries: auto.historyEntries, newPendingInteractions: auto.newPendingInteractions || [] }, player.id, sequenceId);
+                const res = InteractionChoices.noteDiscovery(updatedGame, { updatedGame: auto.updatedGame, historyEntries: auto.historyEntries, newPendingInteractions: auto.newPendingInteractions || [] });
                 historyEntries.push(...res.historyEntries);
                 updatedGame = res.updatedGame;
                 newPendingInteractions.push(...res.newPendingInteractions.map(i => ({ ...i, sequenceId })));

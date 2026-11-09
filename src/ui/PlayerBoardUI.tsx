@@ -16,6 +16,8 @@ import { SlotTooltip } from './components/SlotTooltip';
 import { ActionTooltip, TechTooltip, ResourceSymbols, PieceSymbol, ScanSymbol, BlueTraceSymbol, CardCostSymbol, TechSymbol, DiscardSymbol, AmountSymbol, ActionSymbol } from './components/BoardTooltips';
 import { ReservationIcon } from './components/ObjectiveSymbol';
 import { HoverTooltip } from './components/HoverTooltip';
+import { CardTooltip } from './components/CardTooltip';
+import { PlayerKindIcon } from './components/PlayerKindIcon';
 import './PlayerBoardUI.css';
 
 interface PlayerBoardUIProps {
@@ -372,7 +374,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
   const getActionTooltip = (actionType: ActionType, available: boolean): React.ReactNode => {
     const hasProbeOnPlanetInfo = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
     let cost: React.ReactNode = '';
-    let bonus: React.ReactNode = '';
+    let bonus: React.ReactNode | undefined = '';
     let action = '';
     let bonusLabel = 'Bonus';
     let reason: string | undefined;
@@ -425,7 +427,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         break;
 
       case ActionType.ANALYZE_DATA:
-        cost = <ResourceSymbols bonus={{ energy: GAME_CONSTANTS.ANALYZE_COST_ENERGY }} note="et les données de l'ordinateur" />;
+        cost = <ResourceSymbols bonus={{ energy: GAME_CONSTANTS.ANALYZE_COST_ENERGY }} />;
         bonus = <BlueTraceSymbol />;
         action = 'Cliquez pour analyser les données';
         if (!currentPlayer.dataComputer.canAnalyze) reason = "Ligne du haut de l'ordinateur incomplète";
@@ -435,7 +437,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
       case ActionType.RESEARCH_TECH:
         cost = <ResourceSymbols bonus={{ media: GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA }} />;
         // Le Système solaire tourne avant de prendre la technologie
-        bonus = <><ResourceSymbols bonus={{ rotation: 1 }} /> puis <TechSymbol /></>;
+        bonus = <><ResourceSymbols bonus={{ rotation: 1 }} /><TechSymbol /></>;
         action = 'Cliquez pour rechercher une technologie';
         if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) reason = `Vous avez ${currentPlayer.mediaCoverage} média(s)`;
         break;
@@ -455,7 +457,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
         break;
 
       case ActionType.PLAY_CARD: {
-        bonus = 'Les effets de la carte';
+        // Pas de ligne Bonus : les effets dépendent de la carte
+        bonus = undefined;
         action = 'Cliquez pour jouer une carte de votre main';
         cost = <CardCostSymbol />;
         const cardCheck = CardSystem.canPlayCards(game, currentPlayer.id);
@@ -525,7 +528,7 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     };
   };
   const cardTrade = (gain: 'credit' | 'energy'): FreeAction => ({
-    key: `card-${gain}`, title: 'Échanger des cartes', spend: 'card', spendAmount: 2, gain, gainAmount: 1, note: 'cartes de la main au choix',
+    key: `card-${gain}`, title: 'Échanger des cartes', spend: 'card', spendAmount: 2, gain, gainAmount: 1,
     available: isCurrentTurn && !isInteractiveMode && handCards.length >= 2,
     lacking: `Vous avez ${handCards.length} carte(s) en main`, onClick: () => onTradeCardAction && onTradeCardAction(gain),
   });
@@ -534,13 +537,12 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
     available: isCurrentTurn && !isInteractiveMode && currentPlayer.mediaCoverage >= 3,
     lacking: `Vous avez ${currentPlayer.mediaCoverage} média(s)`, onClick: () => onBuyCardAction && onBuyCardAction(),
   };
-  // Actions gratuites d'une ressource : boutons à icônes seules, chacun avec une infobulle d'action (coût, bonus, clic ou raison)
-  const resourceTooltip = (status: string, color: string, note: string, actions: FreeAction[]) => (
+  // Infobulle d'une ressource : seulement ses actions gratuites, boutons à icônes seules, chacun avec une infobulle
+  // d'action (coût, bonus, clic ou raison) ; pas d'infobulle sans action (robot, score, données)
+  const resourceTooltip = (actions: FreeAction[]) => (isRobot || actions.length === 0 ? null : (
     <div className="seti-resource-tooltip">
-      <SlotTooltip status={status} statusColor={color} note={note} />
-      {!isRobot && actions.length > 0 && (
         <div className="seti-resource-tooltip-actions">
-          <div className="seti-resource-tooltip-actions-title">Actions gratuites</div>
+          <div className="seti-resource-tooltip-actions-title">Actions</div>
           <div className="seti-resource-tooltip-action-row">
             {actions.map(action => (
               <HoverTooltip key={action.key} nested content={
@@ -563,9 +565,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
             ))}
           </div>
         </div>
-      )}
     </div>
-  );
+  ));
 
   return (
     <div className="seti-player-board-container">
@@ -588,7 +589,8 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                  opacity: isViewed ? 1 : 0.7,
                }}
              >
-               {p.type === 'robot' && !remoteHumanIds.includes(p.id) ? '🤖' : '👤'} {p.name}
+               {/* Silhouette pour un humain (en ligne, les autres joueurs humains comptent ici comme robots), force du niveau pour un robot */}
+               <PlayerKindIcon player={remoteHumanIds.includes(p.id) ? { type: 'human' } : p} /> {p.name}
                {isFirstPlayer && <span>👑</span>}
                {isActive && <span className="seti-player-tab-indicator"></span>}
              </div>
@@ -606,20 +608,23 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
       </div>
 
       {/* Plateau du joueur */}
-      <div className="seti-player-panel" style={{ borderTop: `4px solid ${currentPlayer.color || '#444'}`, borderTopLeftRadius: 0 }}>
+      {/* Contour à la couleur du joueur dont le plateau est affiché (celle du joueur qui a la main sinon, BoardUI.css) */}
+      <div className="seti-player-panel" style={{ '--board-color': currentPlayer.color } as React.CSSProperties}>
         <div className="seti-player-layout-container seti-thin-scroll">
           {/* Sections Ressources (tuiles symbole + valeur, revenus) et Actions (actions principales, fin du tour) */}
           <div className="seti-stats-bar">
             {(() => {
               const flashClass = (flash: { type: string } | null) => (flash ? (flash.type === 'gain' ? 'flash-gain' : 'flash-loss') : '');
-              const tile = (key: string, flash: { id: number; type: string } | null, icon: React.ReactNode, tooltip: React.ReactNode) => (
+              // Tuile d'une ressource : symbole et valeur, limite éventuelle en légende dessous (sans déplacer le symbole)
+              const tile = (key: string, flash: { id: number; type: string } | null, icon: React.ReactNode, tooltip: React.ReactNode, caption?: string) => (
                 <div
                   key={flash ? `${key}-${flash.id}` : `${key}-static`}
-                  className={`seti-stat-tile ${flashClass(flash)}`}
-                  onMouseEnter={(e) => showInteractiveTooltip(e, tooltip)}
-                  onMouseLeave={scheduleTooltipClose}
+                  className={`seti-stat-tile ${tooltip ? 'has-actions' : ''} ${flashClass(flash)}`}
+                  onMouseEnter={tooltip ? (e) => showInteractiveTooltip(e, tooltip) : undefined}
+                  onMouseLeave={tooltip ? scheduleTooltipClose : undefined}
                 >
                   <div className="seti-stat-main">{icon}</div>
+                  {caption && <span className="seti-stat-caption">{caption}</span>}
                 </div>
               );
               return (
@@ -627,17 +632,17 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                   <div className="seti-player-section">
                   <div className="seti-player-section-title">Ressources</div>
                   <div className="seti-stats-row">
-                  {tile('score', scoreFlash, <VictoryPointsIcon amount={currentPlayer.score} size={32} />, <SlotTooltip status="Score" statusColor="#6fd8bf" note={`${currentPlayer.score} points de victoire`} />)}
+                  {tile('score', scoreFlash, <VictoryPointsIcon amount={currentPlayer.score} size={32} />, null)}
                   {tile('credit', creditFlash, <ResourceIcon kind="credit" amount={currentPlayer.credits} size={30} />,
-                    resourceTooltip('Crédits', '#ffd700', `${currentPlayer.credits} crédit${currentPlayer.credits > 1 ? 's' : ''} : sondes, orbites, scans, cartes`, [trade('credit', 'energy'), trade('credit', 'card')]))}
+                    resourceTooltip([trade('credit', 'energy'), trade('credit', 'card')]))}
                   {tile('energy', energyFlash, <ResourceIcon kind="energy" amount={currentPlayer.energy} size={30} />,
-                    resourceTooltip('Énergie', '#3daa3a', `${currentPlayer.energy} énergie${currentPlayer.energy > 1 ? 's' : ''} : déplacements, atterrissages, scans, analyse`, [trade('energy', 'credit'), trade('energy', 'card')]))}
+                    resourceTooltip([trade('energy', 'credit'), trade('energy', 'card')]))}
                   {tile('cards', cardsFlash, <ResourceIcon kind="card" amount={handCards.length} size={30} />,
-                    resourceTooltip('Cartes en main', '#e8e8e8', `${handCards.length} / ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} : au-delà, défausse en passant`, [cardTrade('credit'), cardTrade('energy')]))}
+                    resourceTooltip([cardTrade('credit'), cardTrade('energy')]), `Fin de tour : ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}`)}
                   {tile('media', mediaFlash, <ResourceIcon kind="media" amount={currentPlayer.mediaCoverage} size={30} />,
-                    resourceTooltip('Couverture médiatique', '#e5197e', `${currentPlayer.mediaCoverage} / ${GAME_CONSTANTS.MAX_MEDIA_COVERAGE} : technologies (6), achat d'une carte (3)`, [buyCard]))}
-                  {tile('data', dataFlash, <ResourceIcon kind="data" amount={currentPlayer.data || 0} size={30} />,
-                    resourceTooltip('Données', '#6f9be0', `${currentPlayer.data || 0} / ${GAME_CONSTANTS.MAX_DATA} : à transférer vers l'ordinateur`, []))}
+                    resourceTooltip([buyCard]), `(max ${GAME_CONSTANTS.MAX_MEDIA_COVERAGE})`)}
+                  {tile('data', dataFlash, <ResourceIcon kind="data" amount={currentPlayer.data} size={30} />,
+                    null, `(max ${GAME_CONSTANTS.MAX_DATA})`)}
 
                   {/* Revenus : bouton Réservation, revenus de chaque manche en miniature, détail en infobulle */}
                   {(() => {
@@ -661,10 +666,20 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                             <span className="seti-revenue-tooltip-detail">{r.base > 0 ? `${r.base} de départ` : ''}{r.base > 0 && r.total > r.base ? ' + ' : ''}{r.total > r.base ? `${r.total - r.base} réservé${r.total - r.base > 1 ? 's' : ''}` : ''}</span>
                           </div>
                         ))}
+                        {/* Cartes réservées : une par ligne, nom surligné comme dans l'historique, infobulle de la carte */}
                         <div className="seti-revenue-tooltip-cards">
-                          {reserved.length > 0
-                            ? <>Cartes réservées ({reserved.length}) : {reserved.map(c => c.name).join(', ')}</>
-                            : 'Aucune carte réservée'}
+                          {reserved.length > 0 ? (
+                            <>
+                              <div className="seti-revenue-tooltip-cards-title">Cartes réservées ({reserved.length})</div>
+                              {reserved.map(c => (
+                                <div key={c.id} className="seti-revenue-tooltip-card">
+                                  <HoverTooltip nested content={<CardTooltip card={c} />}>
+                                    <span className="seti-history-card-ref">"{c.name}"</span>
+                                  </HoverTooltip>
+                                </div>
+                              ))}
+                            </>
+                          ) : 'Aucune carte réservée'}
                         </div>
                       </div>
                     );
@@ -672,9 +687,9 @@ export const PlayerBoardUI: React.FC<PlayerBoardUIProps> = ({ game, playerId, in
                     return (
                       <div
                         key={anyFlash ? `revenue-${anyFlash.id}` : 'revenue-static'}
-                        className={`seti-stat-tile seti-revenue-tile ${flashClass(anyFlash)}`}
-                        onMouseEnter={(e) => handleTooltipHover(e, tooltip)}
-                        onMouseLeave={handleTooltipLeave}
+                        className={`seti-stat-tile seti-revenue-tile has-actions ${flashClass(anyFlash)}`}
+                        onMouseEnter={(e) => showInteractiveTooltip(e, tooltip)}
+                        onMouseLeave={scheduleTooltipClose}
                         aria-label="Revenus"
                       >
                         <div className="seti-stat-main">

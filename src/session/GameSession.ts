@@ -25,7 +25,7 @@ import { getRandomState, setRandomState } from '../core/random';
 import { uniqueId } from '../core/ids';
 import { Choice, Command } from './commands';
 import { InteractionQueue } from './InteractionQueue';
-import { DISCOVERY_NOTICE, discoveryNotice } from '../systems/SpeciesSystem';
+import { DISCOVERY_MESSAGE, DISCOVERY_NOTICE, discoveryNotice } from '../systems/SpeciesSystem';
 
 export interface DispatchResult {
   /** La partie après la commande (inchangée si refusée) */
@@ -37,7 +37,6 @@ export interface DispatchResult {
   error?: string;
 }
 
-const DISCOVERY_MESSAGE = 'découvre une nouvelle espèce Alien !';
 /** Interactions auxquelles le joueur peut renoncer (déplacements gratuits, achat de carte, reste du menu de bonus) */
 const SKIPPABLE: InteractionState['type'][] = ['MOVING_PROBE', 'ACQUIRING_CARD', 'CHOOSING_BONUS_ACTION'];
 /** Cartes dont les gains se résolvent dans l'ordre de la carte, sans menu de choix */

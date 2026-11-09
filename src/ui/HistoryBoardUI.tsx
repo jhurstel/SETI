@@ -19,18 +19,23 @@ const ROTATION_PATTERN = /\((?:Bleu|Rouge|Jaune)\)/;
 const lifeTraceColor = (text: string): LifeTraceColor | undefined => /rouge/i.test(text) ? 'red' : /jaune/i.test(text) ? 'yellow' : /bleu/i.test(text) ? 'blue' : undefined;
 // Autres gains dessinés avec leur symbole du livret, après une quantité (« obtient 2 déplacements gratuits », « 1 Token »,
 // « 2 cartes Alien », « 1 Atterrissage ») ; testés avant les ressources (« carte Alien » avant « carte »)
-const SYMBOL_ICONS: { label: string; pattern: RegExp; icon: (amount: number | undefined) => React.ReactNode }[] = [
-    { label: 'Déplacement', pattern: /[Dd]éplacements?(?: gratuits?)?|[Mm]ouvements? gratuits?/, icon: amount => <ResourceIcon kind="movement" amount={amount} size={15} /> },
-    { label: 'Token', pattern: /[Tt]okens?/, icon: amount => <ResourceIcon kind="token" amount={amount} size={15} /> },
-    { label: 'Carte Alien', pattern: /[Cc]artes? Alien/, icon: amount => <ResourceIcon kind="alienCard" amount={amount} size={15} /> },
-    { label: 'Atterrissage', pattern: /[Aa]tterrissages?|[Aa]tterrisseurs?/, icon: amount => <Repeated amount={amount ?? 1}><ActionHexIcon kind="land" size={15} /></Repeated> },
+const SYMBOL_ICONS: { label: string; plural: string; pattern: RegExp; icon: (amount: number | undefined) => React.ReactNode }[] = [
+    { label: 'Déplacement', plural: 'Déplacements', pattern: /[Dd]éplacements?(?: gratuits?)?|[Mm]ouvements? gratuits?/, icon: amount => <ResourceIcon kind="movement" amount={amount} size={15} /> },
+    { label: 'Token', plural: 'Tokens', pattern: /[Tt]okens?/, icon: amount => <ResourceIcon kind="token" amount={amount} size={15} /> },
+    { label: 'Carte Alien', plural: 'Cartes Alien', pattern: /[Cc]artes? Alien/, icon: amount => <ResourceIcon kind="alienCard" amount={amount} size={15} /> },
+    { label: 'Atterrissage', plural: 'Atterrissages', pattern: /[Aa]tterrissages?|[Aa]tterrisseurs?/, icon: amount => <Repeated amount={amount ?? 1}><ActionHexIcon kind="land" size={15} /></Repeated> },
 ];
 const matchesWhole = (pattern: RegExp, text: string) => new RegExp(`^(?:${pattern.source})$`).test(text);
+
+/** Infobulle d'un symbole de l'historique : sa quantité en toutes lettres (« 3 Crédits ») */
+const symbolLabel = (label: string, plural = label, amount?: number): string =>
+    amount !== undefined ? `${amount} ${amount > 1 ? plural : label}` : label;
 
 interface HistoryBoardUIProps {
     historyLog: HistoryEntry[];
     game: Game;
-    onUndo: () => void;
+    /** Annuler la dernière action (absent : rien d'annulable) */
+    onUndo?: () => void;
     /** Retour au début du dernier tour du joueur (absent : rien à annuler) */
     onUndoTurn?: () => void;
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
@@ -241,7 +246,7 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
             // Une trace de vie nomme toujours sa couleur : symbole avec ou sans quantité (« place une trace de vie Rouge »)
             if (matchesWhole(LIFE_TRACE_PATTERN, part)) {
                 const color = lifeTraceColor(part);
-                return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: part, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}><Repeated amount={amounts[index] ?? 1}>{color ? <LifeTraceIcon color={color} size={15} /> : <AnyLifeTraceIcon size={15} />}</Repeated></span>;
+                return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: amounts[index] !== undefined ? `${amounts[index]} ${part}` : part, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}><Repeated amount={amounts[index] ?? 1}>{color ? <LifeTraceIcon color={color} size={15} /> : <AnyLifeTraceIcon size={15} />}</Repeated></span>;
             }
             if (matchesWhole(SIGNAL_PATTERN, part)) {
                 const sector = part.replace(/^[Ss]ignal /, '') as SectorType;
@@ -253,18 +258,21 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
             }
             const symbol = afterAmount ? SYMBOL_ICONS.find(s => matchesWhole(s.pattern, part)) : undefined;
             if (symbol) {
-                return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: symbol.label, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}>{symbol.icon(amounts[index])}</span>;
+                return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: symbolLabel(symbol.label, symbol.plural, amounts[index]), rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)}>{symbol.icon(amounts[index])}</span>;
             }
             for (const [key, config] of Object.entries(ResourceSystem.RESOURCE_CONFIG)) {
                 if (afterAmount && new RegExp(`^${config.regex.source}$`).test(part)) {
                     const kind = RESOURCE_ICON_KINDS[key];
-                    const icon = kind ? <ResourceIcon kind={kind} amount={amounts[index]} size={15} />
-                        : key === 'RESERVATION' ? <Repeated amount={amounts[index] ?? 1}><ReservationIcon size={14} /></Repeated>
-                        : key === 'PV' ? <VictoryPointsIcon amount={amounts[index]} size={17} />
-                        : key === 'SONDE' ? <Repeated amount={amounts[index] ?? 1}><ActionHexIcon kind="launch" size={15} /></Repeated>
-                        : key === 'TECH' ? <Repeated amount={amounts[index] ?? 1}><AnyTechIcon size={15} /></Repeated>
+                    const amount = amounts[index];
+                    const icon = kind ? <ResourceIcon kind={kind} amount={amount} size={15} />
+                        : key === 'RESERVATION' ? <Repeated amount={amount ?? 1}><ReservationIcon size={14} /></Repeated>
+                        : key === 'PV' ? <VictoryPointsIcon amount={amount} size={17} />
+                        : key === 'SONDE' ? <Repeated amount={amount ?? 1}><ActionHexIcon kind="launch" size={15} /></Repeated>
+                        : key === 'TECH' ? <Repeated amount={amount ?? 1}><AnyTechIcon size={15} /></Repeated>
                         : config.label;
-                    return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: config.label, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)} style={{ color: config.color }}>{icon}</span>;
+                    // Infobulle : la quantité en toutes lettres (« 3 Crédits »)
+                    const tooltip = symbolLabel(config.label, key === 'PV' ? 'PV' : config.plural, amount);
+                    return <span key={index} className="seti-history-resource-icon" onMouseEnter={(e) => setActiveTooltip({ content: tooltip, rect: e.currentTarget.getBoundingClientRect() })} onMouseLeave={() => setActiveTooltip(null)} style={{ color: config.color }}>{icon}</span>;
                 }
             }
 
@@ -366,12 +374,6 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
         }
     }, [historyLog]);
 
-    const lastEntry = historyLog.length > 0 ? historyLog[historyLog.length - 1] : null;
-    const canUndo = lastEntry && !lastEntry.message.startsWith('---') && (
-        !!lastEntry.previousState || 
-        (!!lastEntry.sequenceId && !!historyLog.find(e => e.sequenceId === lastEntry.sequenceId)?.previousState)
-    );
-
     return (
         <div className="seti-history-wrapper">
             <div className={`seti-foldable-container seti-history-container seti-icon-panel ${isHistoryOpen ? 'open' : 'collapsed'}`}>
@@ -381,7 +383,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                     {onUndoTurn && (
                         <button
                             className="panel-title seti-history-undo-btn"
-                            onMouseEnter={(e) => setActiveTooltip({ content: 'Revenir au début de mon dernier tour', rect: e.currentTarget.getBoundingClientRect() })}
+                            onMouseEnter={(e) => setActiveTooltip({ content: 'Revenir au début de mon tour', rect: e.currentTarget.getBoundingClientRect() })}
                             onMouseLeave={() => setActiveTooltip(null)}
                             onClick={(e) => { e.stopPropagation(); onUndoTurn(); }}
                         >
@@ -392,7 +394,7 @@ export const HistoryBoardUI: React.FC<HistoryBoardUIProps> = ({ historyLog, game
                             </span>
                         </button>
                     )}
-                    {canUndo && (
+                    {onUndo && (
                         <button
                             className="panel-title seti-history-undo-btn"
                             onMouseEnter={(e) => setActiveTooltip({ content: 'Annuler la dernière action', rect: e.currentTarget.getBoundingClientRect() })}

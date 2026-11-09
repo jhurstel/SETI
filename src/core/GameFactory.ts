@@ -8,6 +8,9 @@ import { ResourceSystem } from '../systems/ResourceSystem';
 import { uniqueId } from './ids';
 import { random, newSeed, seedRandom, getRandomState } from './random';
 
+/** Couleurs des joueurs, dans l'ordre des places (bleu, rouge, jaune, vert) : affichées aussi avant la partie */
+export const PLAYER_COLORS = ['#4a90e2', '#ff6b6b', '#ffd700', '#4caf50'];
+
 export class GameFactory {
   /**
    * Crée une nouvelle partie
@@ -111,7 +114,6 @@ export class GameFactory {
    * Crée un joueur initialisé
    */
   private static createPlayer(id: string, name: string, initialScore: number, index: number): Player {
-    const colors = ['#4a90e2', '#ff6b6b', '#ffd700', '#4caf50']; // Bleu, Rouge, Jaune, Vert
     return {
       id,
       name,
@@ -134,7 +136,7 @@ export class GameFactory {
       hasPassed: false,
       hasPerformedMainAction: false,
       type: 'human',
-      color: colors[index % colors.length],
+      color: PLAYER_COLORS[index % PLAYER_COLORS.length],
       danger: 0,
       claimedGoldenMilestones: [],
       claimedNeutralMilestones: [],

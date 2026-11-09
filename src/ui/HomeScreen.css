@@ -9,6 +9,11 @@
   pointer-events: none;
 }
 
+/* Fenêtres ouvertes depuis l'accueil pendant une partie : le fond de l'accueil reste, la partie est cachée */
+.seti-space.over-game {
+  z-index: 1999;
+}
+
 .seti-space-nebula {
   position: absolute;
   inset: -20%;

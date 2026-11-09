@@ -21,6 +21,7 @@ import { useGameSession, RobotStep } from './hooks/useGameSession';
 import { useOnlineSession } from './hooks/useOnlineSession';
 import { OnlineModal } from './modals/OnlineModal';
 import { SpaceBackdrop } from './components/SpaceBackdrop';
+import { FirstPlayerDraw } from './components/FirstPlayerDraw';
 import { DebugPanel } from './DebugPanel';
 import { useDebugSetting } from './hooks/useDebugSetting';
 import { PassModal } from './modals/PassModal';
@@ -61,6 +62,9 @@ export const BoardUI: React.FC = () => {
     ? { ...realGame, players: realGame.players.map(p => (p.id !== me && p.type === 'human' ? { ...p, type: 'robot' as const } : p)) }
     : realGame), [realGame, isOnline, me]);
   const [onlineVisible, setOnlineVisible] = useState(false);
+  // La partie en ligne commence : la fenêtre (salon) se ferme
+  const onlineStarted = !!online.game;
+  useEffect(() => { if (onlineStarted) setOnlineVisible(false); }, [onlineStarted]);
 
   // États de l'interface
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
@@ -74,6 +78,17 @@ export const BoardUI: React.FC = () => {
   // Annonces au centre de l'écran : découverte d'une espèce (prioritaire), début de tour d'un joueur
   const [discovery, setDiscovery] = useState<{ species: string; key: number } | null>(null);
   const [turnAnnouncement, setTurnAnnouncement] = useState<AnnouncementContent | null>(null);
+  // Tirage du premier joueur : animé une fois au démarrage de chaque partie (solo ou en ligne), avant la première
+  // réservation ; la partie est reconnue par sa première entrée d'historique. Les robots locaux attendent la fin
+  const [drawShownFor, setDrawShownFor] = useState<string | null>(null);
+  const [drawing, setDrawing] = useState(false);
+  const gameKey = historyLog[0]?.id;
+  const atStart = !!realGame && realGame.phase === GamePhase.SETUP && realGame.players.every(p => p.reservedCards.length === 0);
+  useEffect(() => {
+    if (!atStart || !gameKey || gameKey === drawShownFor) return;
+    setDrawShownFor(gameKey);
+    setDrawing(true);
+  }, [atStart, gameKey, drawShownFor]);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect, pointerEvents?: 'none' | 'auto', onMouseEnter?: () => void, onMouseLeave?: () => void } | null>(null);
   useCloseTooltipOnClick(() => setActiveTooltip(null));
   const [confirmModalState, setConfirmModalState] = useState<{ visible: boolean; cardId: string | null; message: string; onConfirm?: () => void }>({ visible: false, cardId: null, message: '', onConfirm: undefined });
@@ -214,25 +229,45 @@ export const BoardUI: React.FC = () => {
 
   // --- Annulation ---
 
-  // Pas d'annulation en ligne : elle reviendrait aussi sur les actions des autres joueurs
-  const humanPlayerId = isOnline ? undefined : me;
+  // En ligne, le serveur n'accepte que l'annulation de ses propres actions de son tour en cours, tant que personne
+  // d'autre n'a joué depuis (online.state.undo) ; en local, le journal de la session (robots compris)
   const resetInterface = () => {
     setLocalMode(null);
   };
+  const lastEntry = historyLog[historyLog.length - 1];
+  const canUndoLast = isOnline
+    ? !!online.state.undo?.last
+    : !!lastEntry && !lastEntry.message.startsWith('---') && (
+      !!lastEntry.previousState || (!!lastEntry.sequenceId && historyLog.some(e => e.sequenceId === lastEntry.sequenceId && !!e.previousState)));
+  const canUndoTurn = isOnline ? !!online.state.undo?.turn : session.canUndoTurn(me);
+  const undoOnline = async (scope: 'last' | 'turn') => {
+    const result = await online.undo(scope);
+    if (result.error) setToast({ message: result.error, visible: true });
+    resetInterface();
+  };
   const handleUndoTurn = () => {
-    if (!humanPlayerId) return;
+    if (!me) return;
     setConfirmModalState({
       visible: true,
       cardId: null,
-      message: "Revenir au début de votre dernier tour ? Toutes les actions jouées depuis, y compris celles des robots, seront annulées.",
+      message: isOnline
+        ? 'Revenir au début de votre tour ? Toutes vos actions de ce tour seront annulées.'
+        : "Revenir au début de votre dernier tour ? Toutes les actions jouées depuis, y compris celles des robots, seront annulées.",
       onConfirm: () => {
-        session.undoTurn(humanPlayerId);
+        if (isOnline) {
+          undoOnline('turn');
+          return;
+        }
+        session.undoTurn(me);
         resetInterface();
       }
     });
   };
   const handleUndo = () => {
-    if (isOnline) return;
+    if (isOnline) {
+      undoOnline('last');
+      return;
+    }
     session.undo();
     resetInterface();
   };
@@ -240,7 +275,7 @@ export const BoardUI: React.FC = () => {
   // --- Robots ---
 
   // En ligne, les robots jouent sur le serveur
-  useAITurn(isOnline ? null : session.game, !!localMode, (step: RobotStep) => {
+  useAITurn(isOnline ? null : session.game, !!localMode || drawing, (step: RobotStep) => {
     const result = session.applyRobotStep(step);
     if (!result) return;
     if (result.error) {
@@ -592,7 +627,8 @@ export const BoardUI: React.FC = () => {
   const waitingText = waitingPlayer
     ? `En attente de ${waitingPlayer.name}`
     : realCurrent.type === 'robot' ? `Tour de ${realCurrent.name} (robot)` : `Tour de ${realCurrent.name}`;
-  const waitingColor = (waitingPlayer ?? realCurrent).color;
+  // Couleur du joueur qui a la main (joueur en cours, ou celui qui doit résoudre l'interaction) : contour des plateaux et toast
+  const turnColor = (waitingPlayer ?? realCurrent).color;
   const isWaiting = (currentPlayer.type === 'robot' && interactionState.type === 'IDLE') || !!waitingPlayer;
 
   // Découverte (prioritaire sur l'annonce de tour) : nom de l'espèce et joueurs qui ont un marqueur sur son plateau
@@ -616,9 +652,16 @@ export const BoardUI: React.FC = () => {
   return (
     <div className="seti-root">
       <Announcement announcement={announcement} onDone={discovery ? closeDiscovery : closeTurnAnnouncement} />
+      {drawing && !settingsVisible && (
+        <FirstPlayerDraw players={realGame!.players} firstIndex={realGame!.firstPlayerIndex} meId={me} onDone={() => setDrawing(false)} />
+      )}
       {isOnline && online.state.status !== 'connected' && (
         <div className="seti-online-banner">
           {online.state.status === 'connecting' ? 'Connexion au serveur perdue, reconnexion…' : 'Déconnecté du serveur.'}
+          {/* Reprise automatique abandonnée (2 minutes) : nouvelle tentative à la demande, avec la place gardée */}
+          {online.state.status === 'disconnected' && online.storedSeat && (
+            <button className="seti-modal-btn" onClick={() => online.resume().catch((e: Error) => setToast({ message: e.message, visible: true }))}>Reconnecter</button>
+          )}
           {online.state.status === 'disconnected' && <button className="seti-modal-btn" onClick={() => setSettingsVisible(true)}>Menu</button>}
         </div>
       )}
@@ -818,13 +861,21 @@ export const BoardUI: React.FC = () => {
       />
 
       {settingsModal}
+      {/* Partie en ligne demandée depuis le menu pendant une partie solo (qui reste reprenable) */}
+      {onlineVisible && !isOnline && (
+        <>
+          {/* Le fond de l'accueil, pas la partie en cours */}
+          <SpaceBackdrop overGame />
+          <OnlineModal visible online={online} onBack={() => { setOnlineVisible(false); setSettingsVisible(true); }} />
+        </>
+      )}
 
       <DocumentationModal visible={docVisible} onClose={() => setDocVisible(false)} />
 
       {/* Ecran de fin de partie */}
       {game.phase === GamePhase.FINAL_SCORING && <EndGameModal game={realGame!} historyLog={historyLog} setActiveTooltip={setActiveTooltip} />}
 
-      <div className="seti-root-inner">
+      <div className="seti-root-inner" style={{ '--turn-color': turnColor } as React.CSSProperties}>
         <div className="seti-left-panel">
           <div className={"seti-left-panel-wrapper"}>
             <PlayerBoardUI
@@ -852,8 +903,8 @@ export const BoardUI: React.FC = () => {
             />
           </div>
         </div>
-        {/* Tour d'un autre joueur : le toast et le cadre du plateau prennent sa couleur ; le plateau reste consultable */}
-        <div className={`seti-right-panel${isWaiting ? ' seti-waiting' : ''}`} style={isWaiting ? { '--turn-color': waitingColor } as React.CSSProperties : undefined}>
+        {/* Tour d'un autre joueur : le plateau reste consultable, son cadre s'illumine */}
+        <div className={`seti-right-panel${isWaiting ? ' seti-waiting' : ''}`}>
           {/* Message (toast) au-dessus du plateau, à la hauteur des onglets des joueurs */}
           <div className="seti-toast-bar">
             {isWaiting && !settingsVisible ? (
@@ -919,8 +970,8 @@ export const BoardUI: React.FC = () => {
           <HistoryBoardUI
             historyLog={historyLog}
             game={realGame!}
-            onUndo={handleUndo}
-            onUndoTurn={session.canUndoTurn(humanPlayerId) ? handleUndoTurn : undefined}
+            onUndo={canUndoLast ? handleUndo : undefined}
+            onUndoTurn={canUndoTurn ? handleUndoTurn : undefined}
             setActiveTooltip={setActiveTooltip}
           />
 

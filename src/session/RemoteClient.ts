@@ -1,7 +1,7 @@
 import { Game, HistoryEntry } from '../core/types';
 import { GAME_VERSION } from '../core/version';
 import { Command } from './commands';
-import { ClientMessage, RoomInfo, SeatRequest, ServerMessage } from './protocol';
+import { ClientMessage, FirstPlayerChoice, RoomInfo, SeatRequest, ServerMessage, UndoAvailability } from './protocol';
 
 /** Ce dont le client a besoin d'une WebSocket (celle du navigateur, ou `ws` dans les tests) */
 export interface SocketLike {
@@ -32,6 +32,8 @@ export interface RemoteState {
   /** Vue de la partie pour ce joueur (absente dans le salon) */
   game?: Game;
   entries: HistoryEntry[];
+  /** Annulations possibles pour ce joueur (absent : aucune) */
+  undo?: UndoAvailability;
 }
 
 export interface RemoteClientOptions {
@@ -49,6 +51,12 @@ export interface RemoteClientOptions {
   maxRetryTime?: number;
   /** Délai d'attente d'une réponse du serveur (ms) */
   timeout?: number;
+  /**
+   * Battement de cœur (ms) : le client envoie `ping`, et ferme la connexion (puis la reprend) si rien n'est reçu
+   * pendant deux périodes. Une connexion à moitié ouverte (veille de l'ordinateur, changement de réseau) est
+   * ainsi détectée. 0 : pas de battement.
+   */
+  heartbeat?: number;
 }
 
 type Hello = { resolve: (seat: Seat) => void; reject: (error: Error) => void };
@@ -69,7 +77,10 @@ export class RemoteClient {
   private closedByUser = false;
   private retryStart = 0;
   private retryCount = 0;
-  private retryTimer?: ReturnType<typeof setTimeout>;
+  /** Tentative de connexion programmée et la demande qu'elle enverra (reprise immédiate : `reconnectNow`) */
+  private retry?: { timer: ReturnType<typeof setTimeout>; message: Extract<ClientMessage, { type: 'create' | 'join' | 'resume' }> };
+  private heartbeatTimer?: ReturnType<typeof setInterval>;
+  private lastReceived = 0;
 
   constructor(private readonly url: string, private readonly createSocket: SocketFactory, private readonly options: RemoteClientOptions) {}
 
@@ -78,8 +89,9 @@ export class RemoteClient {
   }
 
   /** Crée une salle (`seats` : places dans l'ordre, la première humaine est celle du créateur) */
-  create(name: string, seats: SeatRequest[]): Promise<Seat> {
-    return this.open({ type: 'create', version: GAME_VERSION, name, seats });
+  create(name: string, seats: SeatRequest[], firstPlayer?: FirstPlayerChoice): Promise<Seat> {
+    const message: Extract<ClientMessage, { type: 'create' }> = { type: 'create', version: GAME_VERSION, name, seats };
+    return this.open(firstPlayer === undefined ? message : { ...message, firstPlayer });
   }
 
   /** Rejoint une salle avec son code */
@@ -94,6 +106,33 @@ export class RemoteClient {
 
   /** Envoie une commande ; se termine quand le serveur l'a traitée (état à jour) ou refusée */
   send(command: Command): Promise<{ error?: string }> {
+    return this.request(requestId => ({ type: 'command', command, requestId }));
+  }
+
+  /** Annule sa dernière action ou revient au plus tôt de son tour (voir `state.undo`) */
+  undo(scope: 'last' | 'turn'): Promise<{ error?: string }> {
+    return this.request(requestId => ({ type: 'undo', scope, requestId }));
+  }
+
+  /**
+   * Reprise immédiate (retour du réseau, page de nouveau visible) : une tentative en attente part tout de suite,
+   * une connexion ouverte est vérifiée par un ping. Sans effet si l'utilisateur a quitté la salle.
+   */
+  reconnectNow(): void {
+    if (this.closedByUser) return;
+    if (this.socket?.readyState === 1) {
+      this.write({ type: 'ping' });
+      return;
+    }
+    const retry = this.retry;
+    if (!retry) return;
+    clearTimeout(retry.timer);
+    this.retryStart = Date.now();
+    this.retryCount = 0;
+    this.connect(retry.message);
+  }
+
+  private request(build: (requestId: number) => Extract<ClientMessage, { type: 'command' | 'undo' }>): Promise<{ error?: string }> {
     const socket = this.socket;
     if (!socket || socket.readyState !== 1 || this.state.status !== 'connected') {
       return Promise.resolve({ error: 'Pas de connexion au serveur' });
@@ -105,18 +144,20 @@ export class RemoteClient {
         resolve({ error: 'Le serveur ne répond pas' });
       }, this.options.timeout ?? 15_000);
       this.pending.set(requestId, result => { clearTimeout(timer); resolve(result); });
-      this.write({ type: 'command', command, requestId });
+      this.write(build(requestId));
     });
   }
 
   /** Quitte la salle (la place reste réservée sur le serveur, reprenable avec son jeton) */
   close(): void {
     this.closedByUser = true;
-    if (this.retryTimer) clearTimeout(this.retryTimer);
+    if (this.retry) clearTimeout(this.retry.timer);
+    this.retry = undefined;
+    this.stopHeartbeat();
     this.socket?.close();
     this.socket = undefined;
     this.failPending('Déconnecté');
-    this.update({ status: 'disconnected', seat: undefined, room: undefined, game: undefined, entries: [] });
+    this.update({ status: 'disconnected', seat: undefined, room: undefined, game: undefined, entries: [], undo: undefined });
   }
 
   private open(message: Extract<ClientMessage, { type: 'create' | 'join' | 'resume' }>): Promise<Seat> {
@@ -132,6 +173,8 @@ export class RemoteClient {
 
   private connect(message: Extract<ClientMessage, { type: 'create' | 'join' | 'resume' }>) {
     this.socket?.close();
+    this.retry = undefined;
+    this.stopHeartbeat();
     this.update({ status: 'connecting' });
     let socket: SocketLike;
     try {
@@ -145,6 +188,8 @@ export class RemoteClient {
     socket.onopen = () => {
       opened = true;
       this.awaitingWelcome = true;
+      this.lastReceived = Date.now();
+      this.startHeartbeat(socket);
       this.write(message);
     };
     socket.onmessage = event => this.receive(String(event.data));
@@ -152,6 +197,7 @@ export class RemoteClient {
     socket.onclose = event => {
       if (this.socket !== socket) return;
       this.socket = undefined;
+      this.stopHeartbeat();
       this.awaitingWelcome = false;
       this.failPending('Connexion perdue');
       if (event.code === 4000) {
@@ -180,10 +226,35 @@ export class RemoteClient {
     if (this.state.seat && !this.hello) this.retryStart = Date.now();
     const delay = delays[Math.min(this.retryCount++, delays.length - 1)];
     this.update({ status: 'connecting' });
-    this.retryTimer = setTimeout(() => this.connect(message), delay);
+    this.retry = { timer: setTimeout(() => this.connect(message), delay), message };
+  }
+
+  /** Ping régulier ; sans nouvelles du serveur pendant deux périodes, la connexion est fermée puis reprise */
+  private startHeartbeat(socket: SocketLike) {
+    this.stopHeartbeat();
+    const period = this.options.heartbeat ?? 25_000;
+    if (period <= 0) return;
+    this.heartbeatTimer = setInterval(() => {
+      if (Date.now() - this.lastReceived > period * 2) {
+        // Connexion morte : le navigateur peut tarder à signaler sa fermeture, on la traite tout de suite
+        // comme une coupure (reprise de la place)
+        const lost = socket.onclose;
+        socket.onclose = null;
+        socket.close();
+        lost?.({});
+        return;
+      }
+      this.write({ type: 'ping' });
+    }, period);
+  }
+
+  private stopHeartbeat() {
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = undefined;
   }
 
   private receive(raw: string) {
+    this.lastReceived = Date.now();
     let message: ServerMessage;
     try {
       message = JSON.parse(raw) as ServerMessage;
@@ -202,7 +273,9 @@ export class RemoteClient {
         break;
       }
       case 'state':
-        this.update({ room: message.room, game: message.game, entries: message.entries });
+        this.update({ room: message.room, game: message.game, entries: message.entries, undo: message.undo });
+        break;
+      case 'pong':
         break;
       case 'notification':
         this.options.onNotifications?.(message.messages);
@@ -226,8 +299,9 @@ export class RemoteClient {
           this.closedByUser = true;
           this.socket?.close();
           this.socket = undefined;
+          this.stopHeartbeat();
           if (message.message === 'Place introuvable') this.options.onSeat?.(undefined);
-          this.update({ status: 'disconnected', seat: undefined, room: undefined, game: undefined, entries: [] });
+          this.update({ status: 'disconnected', seat: undefined, room: undefined, game: undefined, entries: [], undo: undefined });
           if (hello) hello.reject(new Error(message.message));
           else this.options.onError?.(message.message);
         } else {

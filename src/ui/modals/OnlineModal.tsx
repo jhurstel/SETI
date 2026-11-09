@@ -1,19 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { AIDifficulty } from '../../core/types';
-import { SeatRequest } from '../../session/protocol';
-import { OnlineSession, readPlayerName, writePlayerName } from '../hooks/useOnlineSession';
+import { RoomSummary, SeatRequest, roomsUrl } from '../../session/protocol';
+import { SERVER_URL } from '../serverUrl';
+import { OnlineSession } from '../hooks/useOnlineSession';
+import { readPlayerName, writePlayerName } from '../playerName';
+import { PlayerNameField, SeatChoice, SeatColor, SeatKind, SeatList } from './SetupFields';
 import './SettingsModal.css';
 import './NewGameModal.css';
 import './OnlineModal.css';
-
-type SeatChoice = 'human' | AIDifficulty;
-
-const SEAT_CHOICES: { id: SeatChoice; label: string }[] = [
-  { id: 'human', label: 'Humain' },
-  { id: 'EASY', label: 'Débutant' },
-  { id: 'MEDIUM', label: 'Intermédiaire' },
-  { id: 'EXPERT', label: 'Expert' },
-];
 
 interface OnlineModalProps {
   visible: boolean;
@@ -35,16 +28,55 @@ const Frame: React.FC<{ title: string; subtitle?: React.ReactNode; onDismiss?: (
   </div>
 );
 
-/** Silhouette d'une place : humain ou robot */
-const SeatAvatar: React.FC<{ robot: boolean; claimed: boolean }> = ({ robot, claimed }) => (
-  <span className={`seti-online-avatar ${robot ? 'robot' : 'human'} ${claimed ? 'claimed' : ''}`} aria-hidden="true">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      {robot
-        ? <path d="M12 3v3M6 8h12a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2zM9 13h.01M15 13h.01M9.5 16.5h5" />
-        : <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0" />}
-    </svg>
-  </span>
-);
+/** Liste des salles du serveur, relue toutes les 5 s tant qu'elle est affichée (null : pas encore lue ou serveur injoignable) */
+function useRoomList(active: boolean): { rooms: RoomSummary[] | null; failed: boolean } {
+  const [rooms, setRooms] = useState<RoomSummary[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!active) return;
+    let stopped = false;
+    const load = async () => {
+      try {
+        const response = await fetch(roomsUrl(SERVER_URL));
+        const list = (await response.json()) as RoomSummary[];
+        if (!stopped) { setRooms(list); setFailed(false); }
+      } catch {
+        if (!stopped) setFailed(true);
+      }
+    };
+    load();
+    const timer = setInterval(load, 5000);
+    return () => { stopped = true; clearInterval(timer); };
+  }, [active]);
+  return { rooms, failed };
+}
+
+/** Une salle de la liste : code, places à leurs couleurs, places libres ; un salon se rejoint d'un clic */
+const RoomRow: React.FC<{ room: RoomSummary; busy: boolean; onJoin?: () => void }> = ({ room, busy, onJoin }) => {
+  const free = room.seats.filter(seat => !seat.claimed).length;
+  const host = room.seats.find(seat => seat.type === 'human' && seat.claimed)?.name;
+  return (
+    <li className={`seti-room-row ${room.status}`}>
+      <span className="seti-room-code">{room.code}</span>
+      <span className="seti-room-info">
+        <span className="seti-room-seats">
+          {room.seats.map((seat, index) => (
+            <span key={index} className={`seti-room-seat ${seat.claimed ? '' : 'free'}`}>
+              <SeatColor index={index} filled={seat.claimed} />
+              <SeatKind robot={seat.type === 'robot' ? seat.aiDifficulty ?? 'MEDIUM' : undefined} />
+            </span>
+          ))}
+        </span>
+        <span className="seti-room-detail">
+          {room.status === 'lobby'
+            ? `${host ? `Salle de ${host} · ` : ''}${free} place${free > 1 ? 's' : ''} libre${free > 1 ? 's' : ''}`
+            : `${room.seats.filter(s => s.type === 'human').map(s => s.name).join(', ')} · manche ${room.round}`}
+        </span>
+      </span>
+      {onJoin && <button type="button" className="seti-newgame-btn secondary seti-room-join" disabled={busy} onClick={onJoin}>Rejoindre</button>}
+    </li>
+  );
+};
 
 /** Partie en ligne : créer une salle ou la rejoindre avec son code, puis attendre les autres joueurs (salon) */
 export const OnlineModal: React.FC<OnlineModalProps> = ({ visible, online, onBack }) => {
@@ -60,8 +92,11 @@ export const OnlineModal: React.FC<OnlineModalProps> = ({ visible, online, onBac
   const { state } = online;
   const room = state.room;
   const inForm = visible && !room && state.status !== 'connecting';
+  const roomList = useRoomList(inForm && tab === 'join');
+  // À chaque ouverture : le dernier nom saisi (il a pu changer dans la fenêtre Nouvelle partie)
+  useEffect(() => { if (visible) setName(readPlayerName()); }, [visible]);
 
-  const submit = async () => {
+  const submit = async (joinCode = code) => {
     const trimmed = name.trim();
     if (!trimmed) return setError('Indiquez votre nom');
     writePlayerName(trimmed);
@@ -70,10 +105,11 @@ export const OnlineModal: React.FC<OnlineModalProps> = ({ visible, online, onBac
     try {
       if (tab === 'create') {
         const seats: SeatRequest[] = [{ type: 'human' }, ...others.map(choice => (choice === 'human' ? { type: 'human' as const } : { type: 'robot' as const, aiDifficulty: choice }))];
+        // Premier joueur tiré au hasard par le serveur au lancement
         await online.create(trimmed, seats);
       } else {
-        if (!code.trim()) return setError('Indiquez le code de la salle');
-        await online.join(code.trim().toUpperCase(), trimmed);
+        if (!joinCode.trim()) return setError('Indiquez le code de la salle');
+        await online.join(joinCode.trim().toUpperCase(), trimmed);
       }
     } catch (e) {
       setError((e as Error).message);
@@ -140,9 +176,10 @@ export const OnlineModal: React.FC<OnlineModalProps> = ({ visible, online, onBac
             <span style={{ width: `${(claimed / room.seats.length) * 100}%` }} />
           </div>
           <ul className="seti-online-seats">
-            {room.seats.map(seat => (
+            {room.seats.map((seat, index) => (
               <li key={seat.playerId} className={seat.claimed ? 'claimed' : ''}>
-                <SeatAvatar robot={seat.type === 'robot'} claimed={seat.claimed} />
+                <SeatColor index={index} filled={seat.playerId === online.me} />
+                <SeatKind robot={seat.type === 'robot' ? seat.aiDifficulty ?? 'MEDIUM' : undefined} />
                 <span className="seti-online-seat-name">{seat.claimed ? seat.name : 'Place libre'}</span>
                 <span className={`seti-online-status ${seat.playerId === online.me ? 'you' : seat.claimed ? 'ready' : 'waiting'}`}>
                   {seat.playerId === online.me ? 'Vous' : seat.claimed ? 'Prêt' : 'En attente…'}
@@ -171,57 +208,51 @@ export const OnlineModal: React.FC<OnlineModalProps> = ({ visible, online, onBac
         <button type="button" role="tab" aria-selected={tab === 'join'} className={tab === 'join' ? 'selected' : ''} onClick={() => switchTab('join')}>Rejoindre</button>
       </div>
 
-      <section className="seti-newgame-section">
-        <h3><label htmlFor="seti-online-name">Votre nom</label></h3>
-        <input id="seti-online-name" className="seti-online-input" value={name} maxLength={40} autoFocus onChange={e => setName(e.target.value)} placeholder="Votre nom" />
-      </section>
+      <PlayerNameField id="seti-online-name" value={name} onChange={setName} autoFocus />
 
       {tab === 'create' ? (
-        <section className="seti-newgame-section">
-          <h3>Autres places</h3>
-          <div className="seti-online-seat-list">
-            {others.map((choice, index) => (
-              <div key={index} className="seti-online-seat-row">
-                <span className="seti-online-seat-label">
-                  <SeatAvatar robot={choice !== 'human'} claimed />
-                  Place {index + 2}
-                </span>
-                <div className="seti-online-chips" role="radiogroup" aria-label={`Place ${index + 2}`}>
-                  {SEAT_CHOICES.map(option => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={choice === option.id}
-                      className={choice === option.id ? 'selected' : ''}
-                      onClick={() => setOthers(others.map((c, i) => (i === index ? option.id : c)))}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-                {others.length > 1 && (
-                  <button type="button" className="seti-online-remove" aria-label={`Retirer la place ${index + 2}`} onClick={() => setOthers(others.filter((_, i) => i !== index))}>✕</button>
-                )}
-              </div>
-            ))}
-            {others.length < 3 && (
-              <button type="button" className="seti-online-add" onClick={() => setOthers([...others, 'human'])}>+ Ajouter une place</button>
-            )}
-          </div>
-        </section>
+        <>
+          <section className="seti-newgame-section">
+            <h3>Places · {others.length + 1} joueurs</h3>
+            <SeatList hostName={name.trim() || 'Vous'} seats={others} onChange={setOthers} allowHuman />
+          </section>
+        </>
       ) : (
         <section className="seti-newgame-section">
           <h3><label htmlFor="seti-online-code">Code de la salle</label></h3>
-          <input id="seti-online-code" className="seti-online-input code" value={code} maxLength={10} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="ABCDE" />
+          <input id="seti-online-code" className="seti-newgame-input code" value={code} maxLength={10} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="ABCDE" />
         </section>
       )}
+
+      {/* Salles du serveur : les salons à rejoindre, puis les parties en cours */}
+      {tab === 'join' && (() => {
+        const lobbies = roomList.rooms?.filter(r => r.status === 'lobby') ?? [];
+        const playing = roomList.rooms?.filter(r => r.status === 'playing') ?? [];
+        return (
+          <>
+            <section className="seti-newgame-section">
+              <h3>Salles qui attendent des joueurs</h3>
+              {roomList.rooms === null
+                ? <p className="seti-room-empty">{roomList.failed ? 'Serveur injoignable pour le moment (il peut mettre une minute à se réveiller).' : 'Chargement…'}</p>
+                : lobbies.length === 0
+                  ? <p className="seti-room-empty">Aucune salle ouverte : créez-en une, ou entrez un code.</p>
+                  : <ul className="seti-room-list">{lobbies.map(r => <RoomRow key={r.code} room={r} busy={busy} onJoin={() => { setCode(r.code); submit(r.code); }} />)}</ul>}
+            </section>
+            {playing.length > 0 && (
+              <section className="seti-newgame-section">
+                <h3>Parties en cours</h3>
+                <ul className="seti-room-list">{playing.map(r => <RoomRow key={r.code} room={r} busy={busy} />)}</ul>
+              </section>
+            )}
+          </>
+        );
+      })()}
 
       {error && <p className="seti-online-error" role="alert">{error}</p>}
 
       <div className="seti-newgame-actions">
         <button type="button" className="seti-newgame-btn secondary" onClick={onBack}>Annuler</button>
-        <button type="button" className="seti-newgame-btn primary" disabled={busy} onClick={submit}>
+        <button type="button" className="seti-newgame-btn primary" disabled={busy} onClick={() => submit()}>
           {busy ? 'Connexion…' : tab === 'create' ? 'Créer la salle' : 'Rejoindre la salle'}
         </button>
       </div>

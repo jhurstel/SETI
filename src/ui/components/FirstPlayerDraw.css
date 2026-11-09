@@ -1,0 +1,113 @@
+/* Tirage du premier joueur : radar au centre de l'écran, au-dessus de la partie */
+.seti-draw-overlay {
+  position: fixed;
+  inset: 0;
+  /* Au-dessus des fenêtres de choix (réservation de mise en place) et des annonces */
+  z-index: 10500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(3, 4, 11, 0.94);
+  backdrop-filter: blur(3px);
+  cursor: pointer;
+  animation: seti-draw-fade 0.3s ease-out;
+}
+
+@keyframes seti-draw-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.seti-draw-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 28px;
+  max-width: calc(100vw - 32px);
+}
+
+.seti-draw-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8fa6d6;
+}
+
+.seti-draw-radar {
+  position: relative;
+  /* Place pour les noms autour du radar */
+  margin: 22px 60px;
+}
+
+.seti-draw-radar svg {
+  display: block;
+  overflow: visible;
+}
+
+.seti-draw-name {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  opacity: 0.85;
+  transition: transform 0.3s, opacity 0.3s;
+}
+
+.seti-draw-name.chosen {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.25);
+}
+
+/* Onde de verrouillage autour du premier joueur */
+.seti-draw-ping {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: seti-draw-ping 1.2s ease-out infinite;
+}
+
+.seti-draw-ping.delayed {
+  animation-delay: 0.4s;
+}
+
+@keyframes seti-draw-ping {
+  from { transform: scale(1); opacity: 0.9; }
+  to { transform: scale(3.2); opacity: 0; }
+}
+
+.seti-draw-result {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 2rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-shadow: 0 0 14px currentColor;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.seti-draw-result.visible {
+  opacity: 1;
+  transform: none;
+}
+
+.seti-draw-hint {
+  font-size: 0.75rem;
+  color: #6f80a8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seti-draw-overlay,
+  .seti-draw-ping {
+    animation: none;
+  }
+  .seti-draw-name,
+  .seti-draw-result {
+    transition: none;
+  }
+}

@@ -539,7 +539,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: help;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
 }
 
@@ -629,6 +628,16 @@
   max-width: 260px;
 }
 
+.seti-revenue-tooltip-cards-title {
+  margin-bottom: 3px;
+  color: #8fa6d6;
+}
+
+.seti-revenue-tooltip-card {
+  padding: 1px 0;
+  font-size: 0.8rem;
+}
+
 /* Ressources et revenus, sur une ligne, sans cadre */
 .seti-stats-row {
   display: flex;
@@ -706,7 +715,27 @@
 
 /* Infobulle d'une ressource : actions gratuites cliquables */
 .seti-stat-tile {
+  position: relative;
+}
+
+.seti-stat-tile.has-actions {
   cursor: help;
+}
+
+/* Limite d'une ressource, sous son symbole (en bas de la tuile : le symbole reste en place) */
+.seti-stat-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1px;
+  text-align: center;
+  font-size: 0.62rem;
+  line-height: 1;
+  color: #9fb2da;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
 }
 
 /* Infobulle d'une ressource : tout est centré (état, note, titre et boutons des actions gratuites) */
@@ -718,9 +747,6 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-top: 8px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .seti-resource-tooltip-actions-title {
@@ -731,11 +757,12 @@
   color: #8fa6d6;
 }
 
+/* Boutons des actions gratuites, l'un au-dessus de l'autre */
 .seti-resource-tooltip-action-row {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
 }
 
 /* Bouton d'action gratuite : icônes seules (dépense → gain), détail dans son infobulle */

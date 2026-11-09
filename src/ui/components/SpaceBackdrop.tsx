@@ -13,8 +13,9 @@ const ORBITS = [
  * Fond de l'accueil : nébuleuses, trois couches d'étoiles qui scintillent, orbites lentes autour d'un soleil (en bas de l'écran, comme un horizon)
  * et balayage d'un radiotélescope. Purement décoratif (aria-hidden), animations coupées si le système le demande.
  */
-export const SpaceBackdrop: React.FC = () => (
-  <div className="seti-space" aria-hidden="true">
+export const SpaceBackdrop: React.FC<{ overGame?: boolean }> = ({ overGame = false }) => (
+  /* overGame : au-dessus de la partie en cours, sous les fenêtres (Nouvelle partie, Partie en ligne ouvertes depuis l'accueil) */
+  <div className={`seti-space${overGame ? ' over-game' : ''}`} aria-hidden="true">
     <div className="seti-space-nebula" />
     <div className="seti-space-stars small" />
     <div className="seti-space-stars medium" />

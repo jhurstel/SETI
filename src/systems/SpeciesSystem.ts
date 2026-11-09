@@ -16,6 +16,8 @@ export const MASCAMITE_BOARD_SPECIMEN_SLOT = 2;
 
 /** Annonce d'une découverte d'espèce (fenêtre « Découverte » de l'interface) */
 export const DISCOVERY_NOTICE = "Découverte d'une nouvelle espèce Alien !";
+/** Entrée d'historique d'une découverte (le joueur « découvre une nouvelle espèce Alien ! ») : la session en tire l'annonce */
+export const DISCOVERY_MESSAGE = 'découvre une nouvelle espèce Alien !';
 /** Annonce de la découverte d'une espèce nommée (fenêtre « Découverte » de l'interface) */
 export const discoveryNotice = (speciesName: string): string => `Découverte d'une nouvelle espèce Alien : ${speciesName} !`;
 /** Espèce annoncée par une annonce de découverte (`DISCOVERY_NOTICE` seule : chaîne vide), sinon undefined */
@@ -410,7 +412,8 @@ export class SpeciesSystem {
 
         let discoveryLogs: string[] = [];
         let discoveryInteractions: InteractionState[] = [];
-        if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
+        const discoveredNow = hasRed && hasYellow && hasBlue && !board.isDiscovered;
+        if (discoveredNow) {
             ({ logs: discoveryLogs, interactions: discoveryInteractions } = this.discoverSpecies(updatedGame, boardIndex));
         }
 
@@ -430,11 +433,11 @@ export class SpeciesSystem {
         if (res.logs.length > 0) {
             mainLog += ` et ${res.logs.join(' et ')}`;
         }
-        if (discoveryLogs.length > 0) {
-            mainLog += `. ${discoveryLogs.join('. ')}`;
-        }
-
-        res.historyEntries.unshift({ message: mainLog, playerId, sequenceId });
+        // Dans l'ordre : trace placée, découverte de l'espèce (et sa mise en jeu), cartes Alien distribuées
+        const discoveryEntries = discoveredNow
+            ?[{ message: DISCOVERY_MESSAGE, playerId, sequenceId }, ...discoveryLogs.map(message => ({ message, playerId, sequenceId }))]
+            : [];
+        res.historyEntries.unshift({ message: mainLog, playerId, sequenceId }, ...discoveryEntries);
 
         if (hasFulfillable) {
             res.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId });
@@ -477,7 +480,9 @@ export class SpeciesSystem {
         const board = updatedGame.board.alienBoards[boardIndex];
         board.isDiscovered = true;
         updatedGame.isSpeciesDiscovered = true;
-        const { logs } = this.distributeDiscoveryCards(updatedGame, boardIndex);
+        // Cartes distribuées d'abord (les choix des Exertiens en dépendent), annoncées après la mise en jeu de l'espèce
+        const { logs: cardLogs } = this.distributeDiscoveryCards(updatedGame, boardIndex);
+        const logs: string[] = [];
         const interactions: InteractionState[] = [];
 
         // Rangée de cartes de l'espèce
@@ -528,7 +533,7 @@ export class SpeciesSystem {
             });
         }
 
-        return { logs, interactions };
+        return { logs: [...logs, ...cardLogs], interactions };
     }
 
     /**
@@ -637,7 +642,7 @@ export class SpeciesSystem {
             if (boardToken) {
                 species.fixedSlots = { ...species.fixedSlots, bluelifetrace: species.fixedSlots.bluelifetrace.map((slot, i) => (i === MASCAMITE_BOARD_SPECIMEN_SLOT ? boardToken.bonus : slot)) };
             }
-            logs.push("Les Mascamites sont découverts ! Des spécimens apparaissent sur Jupiter et Saturne.");
+            logs.push("Des spécimens Mascamites apparaissent sur Jupiter et Saturne.");
         }
         return logs;
     }

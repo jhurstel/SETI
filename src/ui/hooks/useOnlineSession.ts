@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Game } from '../../core/types';
 import { Command } from '../../session/commands';
-import { SeatRequest } from '../../session/protocol';
+import { FirstPlayerChoice, SeatRequest } from '../../session/protocol';
 import { RemoteClient, RemoteState, Seat, SocketLike } from '../../session/RemoteClient';
 import { SERVER_URL } from '../serverUrl';
 
 const SEAT_KEY = 'seti_online';
-const NAME_KEY = 'seti_player_name';
 
 function readSeat(): Seat | undefined {
   try {
@@ -23,23 +22,6 @@ function writeSeat(seat: Seat | undefined) {
     else localStorage.removeItem(SEAT_KEY);
   } catch {
     // Stockage indisponible : la place ne pourra pas être reprise après rechargement
-  }
-}
-
-/** Dernier nom de joueur utilisé en ligne */
-export function readPlayerName(): string {
-  try {
-    return localStorage.getItem(NAME_KEY) || '';
-  } catch {
-    return '';
-  }
-}
-
-export function writePlayerName(name: string) {
-  try {
-    localStorage.setItem(NAME_KEY, name);
-  } catch {
-    // sans importance
   }
 }
 
@@ -75,7 +57,20 @@ export function useOnlineSession(handlers: { onNotifications: (messages: string[
 
   useEffect(() => () => clientRef.current?.close(), []);
 
-  const create = useCallback((name: string, seats: SeatRequest[]) => client().create(name, seats), [client]);
+  // Retour du réseau ou de la page (veille, onglet en arrière-plan) : reprise immédiate, sans attendre le délai
+  useEffect(() => {
+    const retry = () => {
+      if (document.visibilityState === 'visible') clientRef.current?.reconnectNow();
+    };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', retry);
+    };
+  }, []);
+
+  const create = useCallback((name: string, seats: SeatRequest[], firstPlayer?: FirstPlayerChoice) => client().create(name, seats, firstPlayer), [client]);
   const join = useCallback((code: string, name: string) => client().join(code, name), [client]);
   const resume = useCallback(() => {
     const seat = readSeat();
@@ -83,6 +78,8 @@ export function useOnlineSession(handlers: { onNotifications: (messages: string[
   }, [client]);
   /** Commande du joueur : se termine quand le serveur l'a traitée (partie reçue à jour) ou refusée */
   const send = useCallback((command: Command) => client().send(command), [client]);
+  /** Annulation de ses propres actions (possible selon `state.undo`) */
+  const undo = useCallback((scope: 'last' | 'turn') => client().undo(scope), [client]);
 
   /** Quitte la partie en ligne ; `forget` oublie aussi la place (sinon elle reste reprenable) */
   const leave = useCallback((forget = false) => {
@@ -108,6 +105,7 @@ export function useOnlineSession(handlers: { onNotifications: (messages: string[
     join,
     resume,
     send,
+    undo,
     leave,
   };
 }

@@ -54,6 +54,42 @@
   align-self: center;
 }
 
+/* Infobulle d'action : « Coût : …  Bonus : … » sur une ligne */
+.seti-board-tooltip-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 12px;
+  font-size: 0.88em;
+}
+
+.seti-board-tooltip-pair {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  line-height: 1;
+}
+
+/* Libellé et symboles centrés sur la même ligne */
+.seti-board-tooltip-pair > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.seti-board-tooltip-pair .label {
+  color: #8fa6d6;
+}
+
+.seti-board-tooltip-pair .cost {
+  color: #ffd700;
+}
+
+.seti-board-tooltip-pair .value {
+  color: #e8eefc;
+}
+
 .seti-board-tooltip-symbols {
   display: inline-flex;
   align-items: center;

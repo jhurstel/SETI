@@ -7,7 +7,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { DataLoader } from '../src/core/DataLoader';
 import { GAME_VERSION } from '../src/core/version';
 import { GameRoom, SavedRoom } from '../src/session/GameRoom';
-import { ClientMessage, ServerMessage, isCompatibleVersion, parseClientMessage } from '../src/session/protocol';
+import { ClientMessage, RoomSummary, ServerMessage, isCompatibleVersion, parseClientMessage } from '../src/session/protocol';
 
 export interface GameServerOptions {
   /** Dossier des données du jeu (public/ : cartes) */
@@ -26,6 +26,9 @@ export interface GameServerOptions {
 const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const ROBOT_NAMES = ['R2-D2', 'C-3PO', 'HAL 9000', 'Wall-E', 'T-800', 'Data', 'Bender', 'Marvin', 'Bishop', 'GLaDOS', 'Auto', 'EVE'];
 const MAX_MESSAGE = 64 * 1024;
+/** Liste des salles : un salon resté sans joueurs plus d'un jour n'y figure plus */
+const LOBBY_LISTED_FOR = 24 * 60 * 60 * 1000;
+const MAX_LISTED_ROOMS = 30;
 
 /** Une connexion : la salle et la place qu'elle occupe, une fois arrivée */
 interface Client {
@@ -87,7 +90,27 @@ export class GameServer {
     await this.flushSaves();
   }
 
+  /**
+   * Salles listées (`GET /rooms`) : les salons qui attendent des joueurs (plus récents d'abord), puis les parties
+   * en cours ; ni les parties terminées, ni les salons de plus d'un jour
+   */
+  listRooms(now = Date.now()): RoomSummary[] {
+    const summaries = [...this.rooms.values()]
+      .map(room => room.summary())
+      .filter((summary): summary is RoomSummary => !!summary && (summary.status === 'playing' || now - summary.createdAt < LOBBY_LISTED_FOR));
+    const order = (summary: RoomSummary) => (summary.status === 'lobby' ? 0 : 1);
+    return summaries.sort((a, b) => order(a) - order(b) || b.createdAt - a.createdAt).slice(0, MAX_LISTED_ROOMS);
+  }
+
   private onHttp(req: IncomingMessage, res: ServerResponse) {
+    if (req.url === '/rooms') {
+      // Lue par les pages du jeu (autre origine) : autorisée pour les origines permises, toutes sans liste
+      const origin = req.headers.origin;
+      const allowed = !this.options.allowedOrigins?.length ? '*' : origin && this.options.allowedOrigins.includes(origin) ? origin : undefined;
+      res.writeHead(200, { 'Content-Type': 'application/json', ...(allowed ? { 'Access-Control-Allow-Origin': allowed, Vary: 'Origin' } : {}) });
+      res.end(JSON.stringify(this.listRooms()));
+      return;
+    }
     if (req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ version: GAME_VERSION, rooms: this.rooms.size, clients: this.clients.size }));
@@ -116,7 +139,8 @@ export class GameServer {
   }
 
   private async onMessage(client: Client, message: ClientMessage) {
-    if (message.type !== 'command' && !isCompatibleVersion(message.version, GAME_VERSION)) {
+    if (message.type === 'ping') return this.send(client, { type: 'pong' });
+    if (message.type !== 'command' && message.type !== 'undo' && !isCompatibleVersion(message.version, GAME_VERSION)) {
       return this.send(client, { type: 'error', message: `Version du jeu incompatible (serveur ${GAME_VERSION}, client ${message.version})` });
     }
     switch (message.type) {
@@ -126,7 +150,7 @@ export class GameServer {
         const names = [...ROBOT_NAMES].sort(() => Math.random() - 0.5).slice(0, robots);
         let room: GameRoom;
         try {
-          room = GameRoom.create(this.newCode(), message.name, token, message.seats, names);
+          room = GameRoom.create(this.newCode(), message.name, token, message.seats, names, message.firstPlayer);
         } catch (error) {
           return this.send(client, { type: 'error', message: (error as Error).message });
         }
@@ -161,6 +185,15 @@ export class GameServer {
         if (result.error) return this.send(client, { type: 'ack', requestId, error: result.error });
         // L'état part avant l'accusé de réception : à sa réception, le client a déjà la partie à jour
         this.changed(room, result.notifications);
+        this.send(client, { type: 'ack', requestId });
+        return;
+      }
+      case 'undo': {
+        const { requestId } = message;
+        const room = client.code ? this.rooms.get(client.code) : undefined;
+        if (!room || !client.token) return this.send(client, { type: 'ack', requestId, error: "Rejoignez d'abord une salle" });
+        const result = room.undo(client.token, message.scope);
+        if (result.error) return this.send(client, { type: 'ack', requestId, error: result.error });        this.changed(room, []);
         this.send(client, { type: 'ack', requestId });
       }
     }
