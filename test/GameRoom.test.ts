@@ -27,21 +27,21 @@ const tokenOf = (room: GameRoom, playerId: string) => room.seats.find(s => s.pla
 const current = (room: GameRoom) => room.game!.players[room.game!.currentPlayerIndex];
 
 /** Les robots jouent tant qu'ils le peuvent (comme le serveur, sans attente) */
-function playRobots(room: GameRoom) {
+async function playRobots(room: GameRoom) {
   for (let i = 0; i < 300 && room.robotToPlay; i++) {
-    if (!room.robotStep().played) break;
+    if (!(await room.robotStep()).played) break;
   }
 }
 
 /** Mise en place : chaque humain réserve sa première carte, les robots la leur */
-function finishSetup(room: GameRoom) {
+async function finishSetup(room: GameRoom) {
   for (let i = 0; i < 10 && room.game!.phase === GamePhase.SETUP; i++) {
-    playRobots(room);
+    await playRobots(room);
     if (room.game!.phase !== GamePhase.SETUP) break;
     const player = current(room);
     expect(room.command(tokenOf(room, player.id), { type: 'CHOOSE', choice: { kind: 'CARDS', cardIds: [player.cards[0].id] } }).error).toBeUndefined();
   }
-  playRobots(room);
+  await playRobots(room);
 }
 
 describe('GameRoom : salle de partie à distance', () => {
@@ -90,7 +90,7 @@ describe('GameRoom : salle de partie à distance', () => {
 
   test('chaque joueur agit par son jeton, seulement quand c\'est à lui ; une commande invalide est refusée', async () => {
     const room = await startedRoom();
-    finishSetup(room);
+    await finishSetup(room);
     expect(room.game!.phase).toBe(GamePhase.PLAYING);
 
     const active = current(room);
@@ -105,7 +105,7 @@ describe('GameRoom : salle de partie à distance', () => {
 
   test('vues : la main et les cartes piochées d\'un adversaire sont cachées, l\'historique reste lisible', async () => {
     const room = await startedRoom();
-    finishSetup(room);
+    await finishSetup(room);
     const bob = room.viewFor('tok-bob')!;
     const alice = room.game!.players[0];
     expect(bob.you).toBe('player_1');
@@ -123,7 +123,7 @@ describe('GameRoom : salle de partie à distance', () => {
 
   test('le robot joue son tour par étapes jusqu\'au joueur humain suivant', async () => {
     const room = await startedRoom();
-    finishSetup(room);
+    await finishSetup(room);
     // Les humains passent jusqu'à ce que le robot ait joué au moins un tour
     let robotEntries = 0;
     for (let turn = 0; turn < 6 && room.status === 'playing' && robotEntries === 0; turn++) {
@@ -138,7 +138,7 @@ describe('GameRoom : salle de partie à distance', () => {
         }
       }
       const before = room.log.length;
-      playRobots(room);
+      await playRobots(room);
       robotEntries += room.log.slice(before).filter(e => e.playerId === 'player_2').length;
     }
     expect(robotEntries).toBeGreaterThan(0);
@@ -147,7 +147,7 @@ describe('GameRoom : salle de partie à distance', () => {
 
   test('sauvegarde et reprise : même partie, mêmes jetons, même historique', async () => {
     const room = await startedRoom();
-    finishSetup(room);
+    await finishSetup(room);
     const restored = GameRoom.fromSaved(JSON.parse(JSON.stringify(room.toSaved())));
     expect(restored.status).toBe('playing');
     expect(restored.seatOf('tok-bob')!.playerId).toBe('player_1');
@@ -160,7 +160,7 @@ describe('GameRoom : salle de partie à distance', () => {
 
   test('commande qui fait planter le moteur : refusée, la partie de la salle est inchangée', async () => {
     const room = await startedRoom();
-    finishSetup(room);
+    await finishSetup(room);
     const before = room.game;
     const crash = jest.spyOn(GameSession, 'dispatch').mockImplementation(() => { throw new Error('boum'); });
     try {
@@ -173,7 +173,7 @@ describe('GameRoom : salle de partie à distance', () => {
 
   test('étape de robot refusée par la session : rien n\'est joué, la partie est inchangée', async () => {
     const room = await startedRoom();
-    finishSetup(room);
+    await finishSetup(room);
     const robot = room.game!.players.find(p => p.type === 'robot')!;
     room.game = { ...room.game!, currentPlayerIndex: room.game!.players.indexOf(robot) };
     expect(room.robotToPlay).toBe(true);
@@ -181,7 +181,7 @@ describe('GameRoom : salle de partie à distance', () => {
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     const refuse = jest.spyOn(GameSession, 'applyRobotStep').mockReturnValue({ game: before, entries: [], notifications: [], error: 'refus' });
     try {
-      expect(room.robotStep()).toEqual({ played: false, notifications: [] });
+      expect(await room.robotStep()).toEqual({ played: false, notifications: [] });
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('étape de robot refusée'), 'refus');
     } finally {
       refuse.mockRestore();
@@ -199,7 +199,7 @@ describe('GameRoom : cas limites', () => {
   test('commande avant le lancement, deuxième lancement : refusés', async () => {
     const lobby = GameRoom.create('ABCDE', 'Alice', 'tok-alice', SEATS, ['HAL']);
     expect(lobby.command('tok-alice', { type: 'LAUNCH_PROBE' }).error).toBe("La partie n'a pas commencé");
-    expect(lobby.robotStep()).toEqual({ played: false, notifications: [] });
+    expect(await lobby.robotStep()).toEqual({ played: false, notifications: [] });
 
     const room = await startedRoom();
     await expect(room.start()).rejects.toThrow('La partie a déjà commencé');
@@ -228,13 +228,13 @@ describe('GameRoom : cas limites', () => {
     expect(room.game.phase).toBe(GamePhase.SETUP);
     expect(room.robotToPlay).toBe(true);
     const before = room.game;
-    expect(room.robotStep()).toEqual({ played: false, notifications: [] });
+    expect(await room.robotStep()).toEqual({ played: false, notifications: [] });
     expect(room.game).toBe(before);
   });
 
   test('la dernière passe de la dernière manche termine la salle', async () => {
     const room = await startedRoom();
-    finishSetup(room);
+    await finishSetup(room);
     const active = current(room);
     room.game = { ...room.game!, currentRound: room.game!.maxRounds };
     room.game.players.forEach(p => { if (p.id !== active.id) p.hasPassed = true; });

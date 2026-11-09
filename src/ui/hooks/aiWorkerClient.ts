@@ -1,8 +1,8 @@
 import AIWorker from '../../ai/aiWorker?worker';
-import { AITurn, AIStep } from '../../ai/AITurn';
-import type { AIEndTurn, AIWorkerRequest, AIWorkerResponse } from '../../ai/aiWorkerProtocol';
+import type { AIWorkerRequest, AIWorkerResponse } from '../../ai/aiWorkerProtocol';
+import { computeEndTurn, computeStep, RobotComputer } from '../../ai/robotCompute';
 import { Game } from '../../core/types';
-import { getRandomState, setRandomState } from '../../core/random';
+import { getRandomState } from '../../core/random';
 
 /**
  * Lance les calculs des robots dans un Web Worker (src/ai/aiWorker.ts) et renvoie une promesse.
@@ -47,30 +47,29 @@ function post(kind: AIWorkerRequest['kind'], game: Game): Promise<AIWorkerRespon
   });
 }
 
-/** Étape d'un robot (AITurn.playStep), calculée dans le Worker. */
-export async function playAIStep(game: Game): Promise<AIStep> {
-  try {
-    const response = await post('playStep', game);
-    if ('error' in response) throw new Error(response.error);
-    setRandomState(response.rngState);
-    if (response.kind !== 'playStep') throw new Error('Réponse inattendue du Web Worker');
-    return response.step;
-  } catch {
-    if (game.rngState !== undefined) setRandomState(game.rngState);
-    return AITurn.playStep(game);
-  }
-}
-
-/** Fin de tour d'un robot (AITurn.endTurn), calculée dans le Worker. */
-export async function endAITurn(game: Game): Promise<AIEndTurn> {
-  try {
-    const response = await post('endTurn', game);
-    if ('error' in response) throw new Error(response.error);
-    setRandomState(response.rngState);
-    if (response.kind !== 'endTurn') throw new Error('Réponse inattendue du Web Worker');
-    return response.end;
-  } catch {
-    if (game.rngState !== undefined) setRandomState(game.rngState);
-    return AITurn.endTurn(game);
-  }
-}
+/**
+ * Calculs des robots dans le Worker (repli sur le fil principal : même résultat). Chaque calcul rend l'état du
+ * générateur atteint, repris par GameSession.applyRobotStep.
+ */
+export const workerRobotComputer: RobotComputer = {
+  async playStep(game: Game) {
+    try {
+      const response = await post('playStep', game);
+      if ('error' in response) throw new Error(response.error);
+      if (response.kind !== 'playStep') throw new Error('Réponse inattendue du Web Worker');
+      return { step: response.step, rngState: response.rngState };
+    } catch {
+      return computeStep(game);
+    }
+  },
+  async endTurn(game: Game) {
+    try {
+      const response = await post('endTurn', game);
+      if ('error' in response) throw new Error(response.error);
+      if (response.kind !== 'endTurn') throw new Error('Réponse inattendue du Web Worker');
+      return { end: response.end, rngState: response.rngState };
+    } catch {
+      return computeEndTurn(game);
+    }
+  },
+};

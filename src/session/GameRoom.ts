@@ -1,8 +1,7 @@
 import { Game, GamePhase, HistoryEntry } from '../core/types';
-import { setRandomState } from '../core/random';
 import { uniqueId } from '../core/ids';
 import { SavedGame, deserializeGame, serializeGame } from '../core/GamePersistence';
-import { AITurn } from '../ai/AITurn';
+import { localRobotComputer, RobotComputer } from '../ai/robotCompute';
 import { GameSession } from './GameSession';
 import { GameSetup, SeatConfig } from './GameSetup';
 import { Command } from './commands';
@@ -73,8 +72,6 @@ export class GameRoom {
   game?: Game;
   /** Historique complet (passages privés compris, sans états d'annulation) */
   log: HistoryEntry[] = [];
-  /** Création des parties une à la fois : la mise en place utilise le générateur global entre deux attentes */
-  private static creating: Promise<unknown> = Promise.resolve();
   /** Points d'annulation du joueur qui joue en ce moment (toujours d'un seul joueur, dans l'ordre) */
   private undoPoints: UndoPoint[] = [];
   /** Dernière activité (arrivée, commande, étape de robot…), notée par le serveur avec `touch` */
@@ -153,9 +150,8 @@ export class GameRoom {
   async start(seed?: number): Promise<void> {
     if (this.status !== 'lobby') throw new Error('La partie a déjà commencé');
     if (!this.isReady) throw new Error('Toutes les places ne sont pas prises');
-    const created = GameRoom.creating.then(() => GameSetup.newGame(this.seats, { seed, firstPlayer: this.firstPlayer }));
-    GameRoom.creating = created.catch(() => undefined);
-    const { game, entries } = await created;
+    // Plusieurs salles peuvent créer leur partie en même temps : la mise en place tire sans interruption (GameFactory)
+    const { game, entries } = await GameSetup.newGame(this.seats, { seed, firstPlayer: this.firstPlayer });
     const started = GameSession.start(game);
     this.game = started.game;
     this.status = 'playing';
@@ -229,25 +225,29 @@ export class GameRoom {
   }
 
   /**
-   * Une étape du robot dont c'est le tour (comme useAITurn dans le jeu local). Renvoie false s'il n'a rien
-   * à faire ; le serveur rappelle cette méthode au rythme voulu tant qu'elle renvoie true.
+   * Une étape du robot dont c'est le tour (comme useAITurn dans le jeu local), calculée par `computer` (sur place,
+   * ou dans un fil séparé sur le serveur). `played` : le robot a joué ; le serveur rappelle cette méthode au rythme
+   * voulu. `stale` : la partie a changé pendant le calcul (commande d'un joueur, annulation), l'étape est
+   * abandonnée et sera recalculée sur la nouvelle partie.
    */
-  robotStep(): { played: boolean; notifications: string[] } {
-    if (!this.robotToPlay || !this.game) return { played: false, notifications: [] };
+  async robotStep(computer: RobotComputer = localRobotComputer): Promise<{ played: boolean; notifications: string[]; stale?: boolean }> {
+    const none = { played: false, notifications: [] };
+    if (!this.robotToPlay || !this.game) return none;
     const game = this.game;
-    if (game.rngState !== undefined) setRandomState(game.rngState);
-    const step = AITurn.playStep(game);
-    if (step.kind === 'WAIT') return { played: false, notifications: [] };
+    const computed = await computer.playStep(game);
+    if (this.game !== game) return { ...none, stale: true };
+    if (computed.step.kind === 'WAIT') return none;
     let result;
-    if (step.kind === 'END_TURN') {
-      if (game.rngState !== undefined) setRandomState(game.rngState);
-      result = GameSession.applyRobotStep(game, { kind: 'END_TURN_DONE', end: AITurn.endTurn(game) });
+    if (computed.step.kind === 'END_TURN') {
+      const end = await computer.endTurn(game);
+      if (this.game !== game) return { ...none, stale: true };
+      result = GameSession.applyRobotStep(game, { kind: 'END_TURN_DONE', end: end.end }, end.rngState);
     } else {
-      result = GameSession.applyRobotStep(game, step);
+      result = GameSession.applyRobotStep(game, computed.step, computed.rngState);
     }
     if (result.error) {
       trace.error(`[Salle ${this.code}] étape de robot refusée :`, result.error);
-      return { played: false, notifications: [] };
+      return none;
     }
     // Un robot a joué : plus d'annulation possible pour le joueur précédent
     if (result.game !== game) this.undoPoints = [];

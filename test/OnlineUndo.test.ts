@@ -22,27 +22,27 @@ const tokenOf = (room: GameRoom, playerId: string) => room.seats.find(s => s.pla
 const current = (room: GameRoom) => room.game!.players[room.game!.currentPlayerIndex];
 const playerOf = (room: GameRoom, id: string) => room.game!.players.find(p => p.id === id)!;
 
-function playRobots(room: GameRoom) {
+async function playRobots(room: GameRoom) {
   for (let i = 0; i < 300 && room.robotToPlay; i++) {
-    if (!room.robotStep().played) break;
+    if (!(await room.robotStep()).played) break;
   }
 }
 
 /** Mise en place : chaque humain réserve sa première carte, les robots la leur */
-function finishSetup(room: GameRoom) {
+async function finishSetup(room: GameRoom) {
   for (let i = 0; i < 10 && room.game!.phase === GamePhase.SETUP; i++) {
-    playRobots(room);
+    await playRobots(room);
     if (room.game!.phase !== GamePhase.SETUP) break;
     const player = current(room);
     expect(room.command(tokenOf(room, player.id), { type: 'CHOOSE', choice: { kind: 'CARDS', cardIds: [player.cards[0].id] } }).error).toBeUndefined();
   }
-  playRobots(room);
+  await playRobots(room);
 }
 
 /** Partie lancée par Alice (place 1), mise en place finie : c'est à un humain de jouer */
 async function playingRoom(): Promise<GameRoom> {
   const room = await startedRoom(0);
-  finishSetup(room);
+  await finishSetup(room);
   expect(room.game!.phase).toBe(GamePhase.PLAYING);
   expect(current(room).type).toBe('human');
   return room;
@@ -132,7 +132,7 @@ describe('GameRoom : annulation en ligne', () => {
     expect(current(room).id).not.toBe(active.id);
     expect(room.undoFor(active.id)).toEqual({ last: false, turn: false });
 
-    playRobots(room);
+    await playRobots(room);
     const next = current(room);
     expect(next.type).toBe('human');
     expect(room.command(tokenOf(room, next.id), { type: 'LAUNCH_PROBE' }).error).toBeUndefined();
@@ -148,7 +148,7 @@ describe('GameRoom : annulation en ligne', () => {
       expect(room.command(token, { type: 'END_TURN' }).error).toBeUndefined();
     }
     expect(current(room).type).toBe('robot');
-    expect(room.robotStep().played).toBe(true);
+    expect((await room.robotStep()).played).toBe(true);
     room.game!.players.forEach(p => expect(room.undoFor(p.id)).toEqual({ last: false, turn: false }));
   });
 });

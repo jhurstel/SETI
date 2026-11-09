@@ -28,6 +28,9 @@ import { InteractionQueue } from './InteractionQueue';
 import { DISCOVERY_MESSAGE, DISCOVERY_NOTICE, discoveryNotice } from '../systems/SpeciesSystem';
 import { trace } from '../core/trace';
 
+/** Étape d'un robot à appliquer : calculée par AITurn.playStep, ou fin de tour calculée par AITurn.endTurn */
+export type RobotStepInput = AIStep | { kind: 'END_TURN_DONE'; end: ReturnType<typeof AITurn.endTurn> };
+
 export interface DispatchResult {
   /** La partie après la commande (inchangée si refusée) */
   game: Game;
@@ -204,7 +207,10 @@ export class GameSession {
    * Applique une étape de robot calculée par AITurn (éventuellement dans un Web Worker) : action, fin de tour, passe.
    * Les interactions destinées à un joueur humain entrent dans la file : le robot attend qu'elles soient résolues.
    */
-  static applyRobotStep(game: Game, step: AIStep | { kind: 'END_TURN_DONE'; end: ReturnType<typeof AITurn.endTurn> }): DispatchResult {
+  static applyRobotStep(game: Game, step: RobotStepInput, rngState?: number): DispatchResult {
+    // Le générateur reprend là où le calcul de l'étape l'a laissé (robotCompute) ; sans état fourni, l'étape vient
+    // d'être calculée sur place et le générateur y est encore
+    if (rngState !== undefined) setRandomState(rngState);
     const outcome = new Outcome();
     let updated = game;
     try {

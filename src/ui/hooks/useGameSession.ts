@@ -1,11 +1,12 @@
 import { useCallback, useRef, useState } from 'react';
 import { Game, HistoryEntry } from '../../core/types';
-import { DispatchResult, GameSession } from '../../session/GameSession';
+import { DispatchResult, GameSession, RobotStepInput } from '../../session/GameSession';
 import { SessionJournal } from '../../session/SessionJournal';
 import { Command } from '../../session/commands';
 import { findTurnUndoPoint } from '../../core/TurnUndo';
 
-export type RobotStep = Parameters<typeof GameSession.applyRobotStep>[1];
+/** Étape d'un robot et état du générateur atteint par son calcul (ai/robotCompute) */
+export type RobotStep = { step: RobotStepInput; rngState: number };
 
 const humanIds = (game: Game) => game.players.filter(p => p.type === 'human').map(p => p.id);
 
@@ -40,11 +41,11 @@ export function useGameSession() {
     return result;
   }, [commit]);
 
-  /** Étape d'un robot calculée par AITurn */
+  /** Étape d'un robot calculée par AITurn (dans le Web Worker) */
   const applyRobotStep = useCallback((step: RobotStep): DispatchResult | null => {
     const current = gameRef.current;
     if (!current) return null;
-    const result = GameSession.applyRobotStep(current, step);
+    const result = GameSession.applyRobotStep(current, step.step, step.rngState);
     if (!result.error) commit(current, result);
     return result;
   }, [commit]);

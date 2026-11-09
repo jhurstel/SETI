@@ -1,6 +1,6 @@
 import { AIDifficulty, Game, HistoryEntry } from '../core/types';
 import { GameFactory } from '../engine/GameFactory';
-import { random } from '../core/random';
+import { random, withRandomState } from '../core/random';
 
 /** Une place à la table : un joueur humain ou un robot (avec son niveau) */
 export interface SeatConfig {
@@ -31,12 +31,12 @@ export class GameSetup {
 
     // Tirage fait avec le générateur de la partie (déjà amorcé par la graine) : même graine, même premier joueur
     const { firstPlayer = 0 } = options;
-    const first = firstPlayer === 'random'
+    const drawn = withRandomState(created.rngState, () => firstPlayer === 'random'
       ? Math.floor(random() * seats.length)
       : firstPlayer === 'randomOther'
         ? (seats.length > 1 ? 1 + Math.floor(random() * (seats.length - 1)) : 0)
-        : firstPlayer;
-    const game = GameFactory.initializeGame(GameFactory.setFirstPlayer(created, first));
+        : firstPlayer);
+    const game = GameFactory.initializeGame({ ...GameFactory.setFirstPlayer(created, drawn.result), rngState: drawn.rngState });
     const entries: HistoryEntry[] = (game.gameLog || []).map(log => ({
       id: log.id,
       message: log.message,

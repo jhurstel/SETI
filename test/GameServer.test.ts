@@ -7,6 +7,7 @@ import { ClientMessage, ServerMessage } from '../src/session/protocol';
 import { GamePhase } from '../src/core/types';
 import { GAME_VERSION } from '../src/core/version';
 import { TEST_SEED } from './helpers/gameFixture';
+import { computeStep, localRobotComputer, RobotComputer } from '../src/ai/robotCompute';
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
@@ -171,5 +172,47 @@ describe('serveur du jeu à distance', () => {
     expect(room.robotToPlay).toBe(false);
     expect(room.game!.players[room.game!.currentPlayerIndex].type).toBe('human');
     client.close();
+  });
+  test('robots calculés ailleurs : un calcul à la fois par salle, recalcul si la partie change, panne sans arrêt du serveur', async () => {
+    await server.close();
+    let calls = 0;
+    let active = 0;
+    let maxActive = 0;
+    const robots: RobotComputer = {
+      playStep: async game => {
+        calls++;
+        active++;
+        maxActive = Math.max(maxActive, active);
+        await new Promise(r => setTimeout(r, 5));
+        active--;
+        // 1er calcul : la partie de la salle change pendant le calcul (commande d'un joueur) ; 2e : panne
+        if (calls === 1) {
+          const room = [...server.rooms.values()].find(r => r.game === game)!;
+          room.game = { ...room.game! };
+        }
+        if (calls === 2) throw new Error('panne du calcul');
+        return computeStep(game);
+      },
+      endTurn: localRobotComputer.endTurn,
+    };
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    server = new GameServer({ publicDir: PUBLIC_DIR, dataDir, robotDelay: 0, seed: TEST_SEED, robots });
+    port = await server.listen(0);
+    try {
+      const client = await TestClient.connect(port);
+      // Le robot commence (premier joueur : place 2) : il réserve sa carte de mise en place
+      client.send({ type: 'create', version: GAME_VERSION, name: 'Alice', seats: [{ type: 'human' }, { type: 'robot', aiDifficulty: 'EASY' }], firstPlayer: 1 });
+      await client.next('welcome');
+      for (let i = 0; i < 100 && calls < 2; i++) await new Promise(r => setTimeout(r, 20));
+      for (let i = 0; i < 100 && !errorSpy.mock.calls.length; i++) await new Promise(r => setTimeout(r, 20));
+      // Partie changée : l'étape abandonnée est recalculée ; la panne est notée, le serveur répond toujours
+      expect(calls).toBe(2);
+      expect(maxActive).toBe(1);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('étape de robot impossible'), expect.any(Error));
+      expect((await fetch(`http://localhost:${port}/health`)).ok).toBe(true);
+      client.close();
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });

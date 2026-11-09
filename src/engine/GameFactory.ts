@@ -1,4 +1,4 @@
-import { Game, GamePhase, Player, Decks, Species, DataComputer, GAME_CONSTANTS, Technology, SectorType, GameLogEntry, LifeTraceType, NEUTRAL_MILESTONES, AlienBoardType, SignalType, Planet } from '../core/types';
+import { Card, Game, GamePhase, Player, Decks, Species, DataComputer, GAME_CONSTANTS, Technology, SectorType, GameLogEntry, LifeTraceType, NEUTRAL_MILESTONES, AlienBoardType, SignalType, Planet } from '../core/types';
 import { BoardManager } from './Board';
 import { CardSystem } from '../systems/CardSystem';
 import { Logger } from '../core/Logger';
@@ -6,16 +6,33 @@ import { DataLoader } from '../core/DataLoader';
 import { cloneGame } from '../core/cloneGame';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { uniqueId } from '../core/ids';
-import { random, newSeed, seedRandom, getRandomState } from '../core/random';
+import { random, newSeed, seedRandom, getRandomState, setRandomState } from '../core/random';
 
 /** Couleurs des joueurs, dans l'ordre des places (bleu, rouge, jaune, vert) : affichées aussi avant la partie */
 export const PLAYER_COLORS = ['#4a90e2', '#ff6b6b', '#ffd700', '#4caf50'];
+
+/** Fichiers de cartes (public/cards/<nom>.csv) */
+const CARD_FILES = ['main', 'mascamites', 'anomalies', 'oumuamua', 'centauriens', 'exertiens'] as const;
+type CardFile = typeof CARD_FILES[number];
 
 export class GameFactory {
   /**
    * Crée une nouvelle partie
    */
   static async createGame(playerNames: string[], humanIsFirstPlayer: boolean = true, seed: number = newSeed()): Promise<Game> {
+    // Cartes lues d'abord : la mise en place tire ensuite sans interruption (pas d'await entre deux tirages)
+    const cards = await this.loadAllCards();
+    return this.createGameFromCards(cards, playerNames, humanIsFirstPlayer, seed);
+  }
+
+  /** Fichiers des cartes (base et espèces), lus en parallèle */
+  private static async loadAllCards(): Promise<Record<CardFile, Card[]>> {
+    const loaded = await Promise.all(CARD_FILES.map(file => DataLoader.loadCards(`cards/${file}.csv`)));
+    return Object.fromEntries(CARD_FILES.map((file, index) => [file, loaded[index]])) as Record<CardFile, Card[]>;
+  }
+
+  /** Partie créée à partir des cartes lues, synchrone ; l'état du générateur atteint est noté dans `rngState` */
+  private static createGameFromCards(cards: Record<CardFile, Card[]>, playerNames: string[], humanIsFirstPlayer: boolean, seed: number): Game {
     // Toute la mise en place (et la suite de la partie) découle de la graine
     seedRandom(seed);
 
@@ -32,14 +49,14 @@ export class GameFactory {
 
     // Créer les decks
     const decks: Decks = {
-      cards: await DataLoader.loadCards('cards/main.csv'),
+      cards: cards.main,
       cardRow: [],
       discardPile: [],
       roundDecks: {}
     };
 
     // Créer les espèces (non découvertes initialement)
-    const species = await this.createSpecies();
+    const species = this.createSpecies(cards);
 
     // Créer le plateau
     const board = BoardManager.createInitialBoard();
@@ -79,7 +96,8 @@ export class GameFactory {
       isSpeciesDiscovered: false
     };
 
-    return this.setFirstPlayer(game, firstPlayerIndex);
+    // Les tirages suivants (premier joueur, initializeGame) reprennent de cet état
+    return { ...this.setFirstPlayer(game, firstPlayerIndex), rngState: getRandomState() };
   }
 
   /**
@@ -177,6 +195,8 @@ export class GameFactory {
       throw new Error('La partie doit être en phase SETUP');
     }
 
+    // Repart de l'état du générateur noté par createGame (ou par le tirage du premier joueur)
+    if (game.rngState !== undefined) setRandomState(game.rngState);
     let updatedGame = cloneGame(game);
 
     // Mélanger le deck de cartes
@@ -266,7 +286,7 @@ export class GameFactory {
   /**
    * Crée les espèces alien
    */
-  private static async createSpecies(): Promise<Species[]> {
+  private static createSpecies(cards: Record<CardFile, Card[]>): Species[] {
     return [
       {
         id: `species-${AlienBoardType.MASCAMITES}-${uniqueId()}`,
@@ -284,7 +304,7 @@ export class GameFactory {
           yellowlifetrace: {},
           bluelifetrace: {}
         },
-        cards: await DataLoader.loadCards('cards/mascamites.csv'),
+        cards: cards.mascamites,
         cardRow: [],
         discovered: false,
         specimen: [
@@ -313,7 +333,7 @@ export class GameFactory {
           yellowlifetrace: { pv: 2 },
           bluelifetrace: { pv: 2 }
         },
-        cards: await DataLoader.loadCards('cards/anomalies.csv'),
+        cards: cards.anomalies,
         cardRow: [],
         discovered: false,
         anomalie: [
@@ -337,7 +357,7 @@ export class GameFactory {
           yellowlifetrace: { pv: 6, token: -1 },
           bluelifetrace: { pv: 6, token: -1 }
         },
-        cards: await DataLoader.loadCards('cards/oumuamua.csv'),
+        cards: cards.oumuamua,
         cardRow: [],
         discovered: false,
         sector: {
@@ -400,7 +420,7 @@ export class GameFactory {
           yellowlifetrace: { pv: 6, data: -1 },
           bluelifetrace: { pv: 6, data: -1 }
         },
-        cards: await DataLoader.loadCards('cards/centauriens.csv'),
+        cards: cards.centauriens,
         cardRow: [],
         discovered: false,
         message: [
@@ -438,7 +458,7 @@ export class GameFactory {
           yellowlifetrace: {},
           bluelifetrace: {}
         },
-        cards: await DataLoader.loadCards('cards/exertiens.csv'),
+        cards: cards.exertiens,
         cardRow: [],
         discovered: false
       },

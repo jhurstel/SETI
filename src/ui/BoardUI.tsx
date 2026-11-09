@@ -212,7 +212,7 @@ export const BoardUI: React.FC = () => {
       return;
     }
     showNotifications(result.notifications);
-    if (step.kind === 'END_TURN_DONE') setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
+    if (step.step.kind === 'END_TURN_DONE') setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
   });
 
   // --- Tour ---

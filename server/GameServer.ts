@@ -7,6 +7,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { DataLoader } from '../src/core/DataLoader';
 import { GAME_VERSION } from '../src/core/version';
 import { GameRoom, SavedRoom } from '../src/session/GameRoom';
+import { localRobotComputer, RobotComputer } from '../src/ai/robotCompute';
 import { ClientMessage, RoomSummary, ServerMessage, isCompatibleVersion, parseClientMessage } from '../src/session/protocol';
 
 export interface GameServerOptions {
@@ -26,6 +27,11 @@ export interface GameServerOptions {
   createLimit?: { count: number; windowMs: number };
   /** Intervalle de la purge des salles expirées (ms), une heure par défaut */
   purgeInterval?: number;
+  /**
+   * Calcul des robots : fils séparés en production (RobotPool, server/index.ts), sur place par défaut (tests).
+   * Arrêté avec le serveur s'il a une méthode `close`.
+   */
+  robots?: RobotComputer & { close?: () => Promise<void> };
 }
 
 /** Lettres des codes de salle (sans I, O ni chiffres, faciles à dicter) */
@@ -54,6 +60,8 @@ export class GameServer {
   readonly rooms = new Map<string, GameRoom>();
   private readonly clients = new Set<Client>();
   private readonly robotTimers = new Map<string, NodeJS.Timeout>();
+  /** Salles dont une étape de robot est en cours de calcul (une seule à la fois par salle) */
+  private readonly computing = new Set<string>();
   private readonly http: Server;
   private readonly wss: WebSocketServer;
   private heartbeat?: NodeJS.Timeout;
@@ -102,6 +110,7 @@ export class GameServer {
     await new Promise<void>(resolve => this.wss.close(() => resolve()));
     await new Promise<void>(resolve => this.http.close(() => resolve()));
     await this.flushSaves();
+    await this.options.robots?.close?.();
   }
 
   /**
@@ -239,11 +248,24 @@ export class GameServer {
   }
 
   private scheduleRobot(room: GameRoom) {
-    if (this.robotTimers.has(room.code) || !room.robotToPlay) return;
-    this.robotTimers.set(room.code, setTimeout(() => {
-      this.robotTimers.delete(room.code);
-      const step = room.robotStep();
-      if (step.played) this.changed(room, step.notifications);
+    const code = room.code;
+    if (this.robotTimers.has(code) || this.computing.has(code) || !room.robotToPlay) return;
+    this.robotTimers.set(code, setTimeout(() => {
+      this.robotTimers.delete(code);
+      this.computing.add(code);
+      room.robotStep(this.options.robots ?? localRobotComputer)
+        .then(step => {
+          this.computing.delete(code);
+          // Salle supprimée pendant le calcul (purge) : rien à faire
+          if (this.rooms.get(code) !== room) return;
+          if (step.played) this.changed(room, step.notifications);
+          // Partie changée pendant le calcul : l'étape est recalculée sur la nouvelle partie
+          else if (step.stale) this.scheduleRobot(room);
+        })
+        .catch(error => {
+          this.computing.delete(code);
+          console.error(`[Serveur] étape de robot impossible dans la salle ${code} :`, error);
+        });
     }, this.options.robotDelay ?? 1500));
   }
 

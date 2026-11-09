@@ -104,7 +104,7 @@ Bundle de production : `index` 531 Ko (minifié), `vendor` 222 Ko, worker des ro
 1. **Profiler une étape Expert** (Chrome DevTools sur le worker, ou `--cpu-prof` sous Node avec `tools/spsa`) pour confirmer la part de `cloneGame` avant d'optimiser.
 2. **Copier moins** : partage structurel (ne copier que les branches modifiées, par exemple avec une copie « à l'écriture » sur `board`, `decks` et `players`), ou cloner une fois par simulation au lieu d'une fois par opération enchaînée.
 3. **Borner les simulations** de l'Expert (élaguer les actions gratuites manifestement mauvaises avant de les simuler) et mettre en cache les calculs géométriques répétés (`getAllCells` sur un même état de rotation), après profilage.
-4. **Serveur** : faire tourner les robots dans un `worker_thread` (le moteur est déjà pur) pour qu'une salle lente ne bloque pas les autres.
+4. **Serveur** : faire tourner les robots dans un `worker_thread` (le moteur est déjà pur) pour qu'une salle lente ne bloque pas les autres. **Fait** : `server/RobotPool.ts` (fils `worker_threads`, `ROBOT_THREADS`), même calcul que le Web Worker du navigateur (`ai/robotCompute`).
 5. **Découper le bundle** : `React.lazy` pour la documentation, l'écran de fin et le jeu en ligne.
 
 ## 3. Tests
@@ -158,7 +158,7 @@ Bundle de production : `index` 531 Ko (minifié), `vendor` 222 Ko, worker des ro
 - **Les salles ne sont jamais supprimées**, ni en mémoire ni sur disque : ni les parties terminées, ni les salons abandonnés (la liste les masque après un jour, mais ils restent chargés).
 - **Aucune limite** sur le nombre de salles créées, ni par connexion.
 - **Corrigé depuis** : purge des salles inactives (6 h terminée, 24 h salon, 7 jours en cours ; au démarrage et toutes les heures, en mémoire et sur disque, jamais avec un joueur connecté) et limites de création (200 salles, 5 créations par adresse IP en 10 minutes).
-- **Générateur aléatoire global** : correct grâce à la restauration de `rngState` et à la création des parties une à la fois, mais fragile si du code asynchrone s'intercale un jour.
+- **Générateur aléatoire global** : correct grâce à la restauration de `rngState` et à la création des parties une à la fois, mais fragile si du code asynchrone s'intercale un jour. **Corrigé** : chaque calcul repart de l'état de sa partie et le rend (`withRandomState`, `robotCompute`), `createGame` ne tire plus entre deux attentes ; la file de création des parties est retirée (test : deux parties créées en même temps).
 - **Hébergement** : le disque Render n'est pas conservé, donc toutes les salles sont perdues à chaque redémarrage (limite connue et acceptée).
 
 ### Recommandations

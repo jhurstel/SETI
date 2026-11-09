@@ -28,6 +28,18 @@ export function setRandomState(value: number): void {
   state = value >>> 0;
 }
 
+/**
+ * Exécute `fn` (synchrone) avec le générateur d'une partie : repart de son état `rngState` (s'il est connu) et
+ * rend l'état atteint, à enregistrer dans la partie. Le générateur est partagé par tout le programme : une règle
+ * ne doit jamais tirer avant un `await` et continuer après (un autre calcul pourrait tirer entre-temps) ;
+ * tout calcul aléatoire d'une partie passe par ici, ou par une fonction qui y passe (GameSession, AITurn.compute…).
+ */
+export function withRandomState<T>(rngState: number | undefined, fn: () => T): { result: T; rngState: number } {
+  if (rngState !== undefined) setRandomState(rngState);
+  const result = fn();
+  return { result, rngState: getRandomState() };
+}
+
 /** Nombre dans [0, 1), comme Math.random. */
 export function random(): number {
   state = (state + 0x6d2b79f5) >>> 0;

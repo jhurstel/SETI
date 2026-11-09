@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Game } from '../../core/types';
 import { GameSession } from '../../session/GameSession';
-import { playAIStep, endAITurn } from './aiWorkerClient';
+import { workerRobotComputer } from './aiWorkerClient';
 import { RobotStep } from './useGameSession';
 
 const AI_STEP_DELAY_MS = 1500;
@@ -24,14 +24,14 @@ export function useAITurn(game: Game | null, paused: boolean, onStep: (step: Rob
     let cancelled = false;
     const delay = new Promise<void>(resolve => setTimeout(resolve, AI_STEP_DELAY_MS));
     const run = async () => {
-      const [step] = await Promise.all([playAIStep(game), delay]);
+      const [{ step, rngState }] = await Promise.all([workerRobotComputer.playStep(game), delay]);
       if (cancelled || step.kind === 'WAIT') return;
       if (step.kind === 'END_TURN') {
-        const end = await endAITurn(game);
-        if (!cancelled) onStepRef.current({ kind: 'END_TURN_DONE', end });
+        const end = await workerRobotComputer.endTurn(game);
+        if (!cancelled) onStepRef.current({ step: { kind: 'END_TURN_DONE', end: end.end }, rngState: end.rngState });
         return;
       }
-      onStepRef.current(step);
+      onStepRef.current({ step, rngState });
     };
     run().catch(error => console.error('[AI] Erreur pendant le tour du robot :', error));
 
