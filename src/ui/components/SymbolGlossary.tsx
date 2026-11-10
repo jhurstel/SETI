@@ -1,6 +1,6 @@
 import React from 'react';
 import { TechnologyCategory } from '../../core/types';
-import { MascamiteIcon, TrophyIcon, ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS } from './GameIcons';
+import { ANOMALY_COLORS, AnomalyIcon, MascamiteIcon, TrophyIcon, ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS } from './GameIcons';
 import { ReservationIcon, TechCategoryIcon, AnyTechIcon, OrbiterOrLanderIcon, OrbiterIcon, LanderIcon } from './ObjectiveSymbol';
 import { LIFE_TRACE_COLORS } from '../styles/lifeTraceColors';
 import { HumanIcon, LevelStrength } from './PlayerKindIcon';
@@ -45,7 +45,6 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       { icon: <ResourceIcon kind="alienCard" size={28} />, name: 'Carte Alien', text: 'Une carte de l\'espèce (pioche ou rangée de l\'espèce).' },
       { icon: <ResourceIcon kind="movement" size={28} />, name: 'Déplacement', text: 'Un déplacement gratuit de sonde (sans énergie).' },
       { icon: <ReservationIcon size={24} />, name: 'Réservation', text: 'Une carte de la main glissée sous les revenus : son revenu tout de suite, puis à chaque manche.' },
-      { icon: <ResourceIcon kind="token" size={28} />, name: 'Jeton Oumuamua', text: 'Dépensé sur la piste d\'Oumuamua.' },
       { icon: <RotationTokenIcon size={28} />, name: 'Rotation du Système solaire', text: "Jeton Rotation : le Système solaire tourne (recherche d'une technologie, premier joueur à passer, gains de cartes)." },
       { icon: <span className="seti-glossary-icons">{Object.values(ROTATION_CHEVRON_COLORS).map(color => <RotationChevronIcon key={color} color={color} size={22} />)}</span>, name: 'Rotation', text: 'Le Système Solaire tourne : anneau bleu, rouge ou jaune, celui du chevron sur le plateau.' },
       { icon: <span className="seti-glossary-icons"><OrbiterIcon size={26} /><LanderIcon size={26} /></span>, name: 'Orbiteur, atterrisseur', text: 'Une sonde en orbite ou posée (panneau des planètes, infobulles des actions).' },
@@ -55,7 +54,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
   {
     title: 'Traces de vie',
     entries: [
-      { icon: <LifeTraceIcon color="red" size={28} />, name: 'Trace rouge (rose)', text: 'Molécule : à placer sur un plateau Alien.' },
+      { icon: <LifeTraceIcon color="red" size={28} />, name: 'Trace rouge', text: 'Molécule : souvent gagnée en couvrant un secteur.' },
       { icon: <LifeTraceIcon color="yellow" size={28} />, name: 'Trace jaune', text: 'Roche : souvent gagnée en posant une sonde.' },
       { icon: <LifeTraceIcon color="blue" size={28} />, name: 'Trace bleue', text: 'Micro-organismes : souvent gagnée en analysant les données.' },
       { icon: <AnyLifeTraceIcon size={28} />, name: 'Trace au choix', text: 'Joker : la couleur de son choix.' },
@@ -78,6 +77,9 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
   {
     title: 'Espèces',
     entries: [
+      { icon: <span className="seti-glossary-icons">{Object.values(ANOMALY_COLORS).map(color => <AnomalyIcon key={color} color={color} size={24} />)}</span>, name: 'Anomalies', text: 'Jetons Anomalie du système solaire, à la couleur de leur trace de vie : quand une rotation amène la Terre sur l\'une d\'elles, sa récompense (au centre du jeton) va au joueur le plus haut sur la piste de sa couleur.' },
+      { icon: <span className="seti-glossary-emoji">☣️</span>, name: 'Danger Exertiens', text: 'À côté du nom des Exertiens : son infobulle donne le danger de chaque joueur et ses cartes Exertiens (celles des adversaires de dos).' },
+      { icon: <ResourceIcon kind="token" size={28} />, name: 'Jeton Oumuamua', text: 'Dépensé sur la piste d\'Oumuamua.' },
       { icon: <MascamiteIcon size={26} />, name: 'Spécimen Mascamite', text: 'À côté du nom des Mascamites : son infobulle montre les spécimens restants sur Jupiter et Saturne (récompense si vous les avez vus, sinon « ? »).' },
       { icon: <CentaurienMessageIcon size={28} />, name: 'Message centaurien', text: 'Palier des Centauriens : une tuile Message à choisir, ou l\'effet Réception d\'une carte. Sur le plateau de l\'espèce, son infobulle liste les paliers et les tuiles Message.' },
     ],
@@ -87,6 +89,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
     entries: [
       { icon: <HumanIcon size={22} />, name: 'Joueur humain', text: "Devant le nom d'un joueur humain ; « / » suivi de ce symbole : par joueur (bonus de présence d'un secteur)." },
       { icon: <LevelStrength value={2} />, name: "Niveau d'un robot", text: '1 à 3 barres : Débutant, Intermédiaire, Expert.' },
+      { icon: <span className="seti-glossary-emoji">👑</span>, name: 'Premier joueur', text: 'Sur l\'onglet du joueur qui a commencé la partie.' },
       { icon: <TrophyIcon size={24} />, name: 'Vainqueur', text: 'Après le nom du ou des vainqueurs, en fin de partie.' },
     ],
   },

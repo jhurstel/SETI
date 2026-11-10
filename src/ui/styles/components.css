@@ -411,3 +411,9 @@
   font-style: italic;
   color: #aaa;
 }
+
+/* Glossaire : symbole qui est un emoji de l'interface (danger Exertiens, premier joueur) */
+.seti-glossary-emoji {
+  font-size: 22px;
+  line-height: 1;
+}

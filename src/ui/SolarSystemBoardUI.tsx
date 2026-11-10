@@ -4,7 +4,7 @@ import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2
 import { polarToCartesian, calculateObjectPosition } from './solarGeometry';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { BonusIcons } from './components/BonusIcons';
-import { MascamiteIcon } from './components/GameIcons';
+import { AnomalyIcon, MascamiteIcon } from './components/GameIcons';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { Tooltip } from './Tooltip';
@@ -401,7 +401,6 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
 
     if (!obj.anomalyData) return null;
     const color = colorMap[obj.anomalyData.color] || '#fff';
-    const gradientId = `seti-anomaly-glow-${obj.id}`;
 
     // Jeton : anneau de distorsion à la couleur de l'anomalie (anneau pointillé qui tourne), récompense au centre
     return (
@@ -426,22 +425,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
-        <svg viewBox="0 0 40 40" width="34" height="34" className="solar-anomaly-svg">
-          <defs>
-            <radialGradient id={gradientId}>
-              <stop offset="0%" stopColor="#05060f" />
-              <stop offset="58%" stopColor="#0b1026" />
-              <stop offset="78%" stopColor={color} stopOpacity="0.85" />
-              <stop offset="100%" stopColor={color} stopOpacity="0" />
-            </radialGradient>
-          </defs>
-          <circle cx="20" cy="20" r="20" fill={`url(#${gradientId})`} />
-          <circle cx="20" cy="20" r="17.5" fill="none" stroke={color} strokeOpacity="0.55" strokeWidth="0.8" />
-          <g className="seti-anomaly-ring">
-            <circle cx="20" cy="20" r="14" fill="none" stroke={color} strokeWidth="1.6" strokeDasharray="5 3" strokeLinecap="round" />
-          </g>
-          <circle cx="20" cy="20" r="11" fill="#05060f" stroke="#ffffff" strokeOpacity="0.35" strokeWidth="0.6" />
-        </svg>
+        <AnomalyIcon color={color} size={34} className="solar-anomaly-svg" />
         <div className="solar-anomaly-token">
           <BonusIcons bonus={obj.anomalyData.bonus} size={11} empty={null} />
         </div>

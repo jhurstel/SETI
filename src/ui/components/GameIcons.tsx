@@ -170,6 +170,35 @@ export const CentaurienMessageIcon: React.FC<{ size?: number }> = ({ size = 20 }
   </svg>
 );
 
+/** Couleurs des jetons Anomalie (couleur de la trace de vie de l'anomalie) */
+export const ANOMALY_COLORS = { red: '#ff6b6b', yellow: '#ffd700', blue: '#4a9eff' } as const;
+
+/**
+ * Jeton Anomalie : anneau de distorsion à la couleur de l'anomalie (anneau pointillé qui tourne, classe
+ * seti-anomaly-ring), centre sombre où le plateau affiche la récompense
+ */
+export const AnomalyIcon: React.FC<{ color: string; size?: number; className?: string }> = ({ color, size = 24, className = 'icon-block' }) => {
+  const uid = useUid();
+  return (
+    <svg viewBox="0 0 40 40" width={size} height={size} className={className}>
+      <defs>
+        <radialGradient id={`anomaly-${uid}`}>
+          <stop offset="0%" stopColor="#05060f" />
+          <stop offset="58%" stopColor="#0b1026" />
+          <stop offset="78%" stopColor={color} stopOpacity="0.85" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <circle cx="20" cy="20" r="20" fill={`url(#anomaly-${uid})`} />
+      <circle cx="20" cy="20" r="17.5" fill="none" stroke={color} strokeOpacity="0.55" strokeWidth="0.8" />
+      <g className="seti-anomaly-ring">
+        <circle cx="20" cy="20" r="14" fill="none" stroke={color} strokeWidth="1.6" strokeDasharray="5 3" strokeLinecap="round" />
+      </g>
+      <circle cx="20" cy="20" r="11" fill="#05060f" stroke="#ffffff" strokeOpacity="0.35" strokeWidth="0.6" />
+    </svg>
+  );
+};
+
 /**
  * Spécimen Mascamite : jeton doré frappé d'une créature sombre à six pattes (comme le jeton du jeu). `hidden` : jeton
  * face cachée (créature estompée, point d'interrogation).
