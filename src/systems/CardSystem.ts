@@ -741,6 +741,36 @@ export class CardSystem {
     }
 
     /**
+     * Cercle de mission que le joueur peut recouvrir maintenant : pas encore recouvert, et déclenché (mission
+     * déclenchable, `fulfillableRequirementIds`) ou condition remplie (mission conditionnelle `GAIN_IF_…`)
+     */
+    static isRequirementClaimable(game: Game, playerId: string, mission: Mission, requirementId: string): boolean {
+        if (mission.completedRequirementIds.includes(requirementId)) return false;
+        if (mission.fulfillableRequirementIds.includes(requirementId)) return true;
+        const requirement = mission.requirements.find(r => r.id === requirementId);
+        return !!requirement && requirement.type.startsWith('GAIN_IF_') && !!this.evaluateMission(game, playerId, effectString(requirement));
+    }
+
+    /** Cercles de mission que le joueur peut recouvrir maintenant (voir isRequirementClaimable) */
+    static claimableRequirements(game: Game, playerId: string): { missionId: string; requirementId: string }[] {
+        return requirePlayer(game, playerId).missions.flatMap(mission => mission.requirements
+            .filter(r => r.id && this.isRequirementClaimable(game, playerId, mission, r.id))
+            .map(r => ({ missionId: mission.id, requirementId: r.id! })));
+    }
+
+    /**
+     * Avertissement avant de finir son tour ou de passer : des cercles de mission pourraient être recouverts maintenant,
+     * et le joueur l'a peut-être oublié. Null s'il n'y en a pas.
+     */
+    static unclaimedMissionWarning(game: Game, playerId: string, ending: 'END_TURN' | 'PASS'): string | null {
+        const claimable = this.claimableRequirements(game, playerId);
+        if (claimable.length === 0) return null;
+        const names = [...new Set(claimable.map(c => requirePlayer(game, playerId).missions.find(m => m.id === c.missionId)!.name))];
+        const what = claimable.length > 1 ? `${claimable.length} objectifs de mission peuvent être validés` : 'Un objectif de mission peut être validé';
+        return `${what} (${names.map(n => `"${n}"`).join(', ')}) : cliquez sur le cercle qui clignote pour en recevoir la récompense. ${ending === 'PASS' ? 'Passer' : 'Terminer le tour'} sans le faire ?`;
+    }
+
+    /**
      * Évalue une condition de mission déclenchable et retourne le bonus si la condition est remplie
      * Format attendu: CONDITION:TARGET:BONUS1:VALUE1:BONUS2:VALUE2...
      */

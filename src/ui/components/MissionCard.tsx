@@ -1,4 +1,3 @@
-import { effectString } from '../../core/cardEffects';
 import React from 'react';
 import { Mission, Game } from '../../core/types';
 import { CardSystem } from '../../systems/CardSystem';
@@ -89,21 +88,9 @@ export const MissionCard: React.FC<MissionCardProps> = ({
           const isCompleted = requirement && requirement.id ? (mission.completedRequirementIds || []).includes(requirement.id) : false;
           const text = missionRequirementStrings[index] || (requirement ? `Condition ${index + 1}` : `Mission ${index + 1}`);
 
-          let isFulfillable = false;
-          let isConditional = false;
-
-          // Vérifier si la condition est marquée comme "fulfillable" (GAIN_ON_...)
-          if (requirement?.id && mission.fulfillableRequirementIds.includes(requirement.id)) {
-            isFulfillable = true;
-          }
-
-          if (requirement) {
-            if (requirement.type.startsWith('GAIN_IF_')) {
-              isConditional = true;
-              const bonus = CardSystem.evaluateMission(game, playerId, effectString(requirement));
-              if (bonus) isFulfillable = true;
-            }
-          }
+          // Cercle déclenché ou condition remplie : même règle que l'avertissement de fin de tour (CardSystem)
+          const isConditional = !!requirement?.type.startsWith('GAIN_IF_');
+          const isFulfillable = !!requirement?.id && CardSystem.isRequirementClaimable(game, playerId, mission, requirement.id);
 
           const canClick = !isCompleted && isFulfillable && isCurrentTurn && !isRobot && !isInteractiveMode;
           const isHighlighted = isCompleted || canClick;

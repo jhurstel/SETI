@@ -667,3 +667,49 @@
   text-align: left;
   min-width: 250px;
 }
+
+/* Symbole Mascamites (jeton Spécimen) à côté du nom de l'espèce, et son infobulle : spécimens de Jupiter et Saturne */
+.alien-mascamite-specimens {
+  display: inline-flex;
+  align-items: center;
+  cursor: help;
+}
+
+.alien-mascamite-specimens img {
+  border-radius: 50%;
+  display: block;
+}
+
+.alien-specimens-tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+}
+
+.alien-specimens-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.alien-specimens-planet {
+  font-weight: bold;
+  min-width: 62px;
+}
+
+.alien-specimen-token {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border: 1px solid rgba(214, 186, 92, 0.6);
+  border-radius: 10px;
+  background: rgba(214, 186, 92, 0.12);
+}
+
+.alien-specimen-unknown {
+  color: #d6ba5c;
+  font-weight: bold;
+  padding: 0 3px;
+}

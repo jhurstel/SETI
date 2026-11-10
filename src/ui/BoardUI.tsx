@@ -228,8 +228,10 @@ export const BoardUI: React.FC = () => {
         setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
       }
     };
-    // 2e palier Exertien atteint sans crédit pour y jouer sa carte : confirmation, comme les autres gains perdus
-    const warning = SpeciesSystem.exertienMilestoneWarning(game, game.players[before].id);
+    // Objectifs de mission à valider, 2e palier Exertien atteint sans crédit pour y jouer sa carte : confirmation
+    const playerId = game.players[before].id;
+    const warning = [CardSystem.unclaimedMissionWarning(game, playerId, 'END_TURN'), SpeciesSystem.exertienMilestoneWarning(game, playerId)]
+      .filter(Boolean).join('\n\n');
     if (warning) {
       setConfirmModalState({ visible: true, cardId: null, message: warning, onConfirm: () => { endTurn(); } });
       return;
@@ -349,12 +351,15 @@ export const BoardUI: React.FC = () => {
       case ActionType.PASS: {
         const handSize = CardSystem.getHandCards(currentPlayer).length;
         const toDiscard = CardSystem.cardsToDiscardAtPass(currentPlayer);
+        // Objectifs de mission encore à valider : rappelés en tête de la confirmation
+        const missionWarning = CardSystem.unclaimedMissionWarning(game, currentPlayer.id, 'PASS');
+        const reminder = missionWarning ? `${missionWarning}\n\n` : '';
         if (toDiscard > 0) {
           // Avertir avant de passer : le joueur ne jouera plus de la manche et perdra des cartes
           setConfirmModalState({
             visible: true,
             cardId: null,
-            message: `Passer définitivement ? Vous ne pourrez plus agir avant la prochaine manche. Vous avez ${handSize} cartes en main : vous devrez en défausser ${toDiscard} pour n'en garder que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}.`,
+            message: `${reminder}Passer définitivement ? Vous ne pourrez plus agir avant la prochaine manche. Vous avez ${handSize} cartes en main : vous devrez en défausser ${toDiscard} pour n'en garder que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}.`,
             onConfirm: () => {
               setLocalMode({ type: 'DISCARDING_CARD', count: toDiscard, selectedCards: [] });
               setToast({ message: `Veuillez défausser pour ne garder que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} cartes en main.`, visible: true });
@@ -365,7 +370,7 @@ export const BoardUI: React.FC = () => {
         setConfirmModalState({
           visible: true,
           cardId: null,
-          message: 'Passer définitivement ? Vous ne pourrez plus agir avant la prochaine manche.',
+          message: `${reminder}Passer définitivement ? Vous ne pourrez plus agir avant la prochaine manche.`,
           onConfirm: () => startPass(CardSystem.getHandCards(currentPlayer).map(c => c.id)),
         });
         break;

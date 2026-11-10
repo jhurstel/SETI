@@ -29,7 +29,7 @@ Ce document décrit comment jouer, les règles telles qu'elles sont appliquées,
 
 ### 1.3 Le tour
 
-À son tour, un joueur fait **une action principale** et autant d'**actions gratuites** qu'il veut (avant ou après), puis termine son tour (bouton « Fin du tour »).
+À son tour, un joueur fait **une action principale** et autant d'**actions gratuites** qu'il veut (avant ou après), puis termine son tour (bouton « Fin du tour »). Si un objectif de mission peut encore être validé (cercle qui clignote), finir son tour ou passer demande confirmation.
 Quand une action ouvre un choix (placer une trace de vie, choisir une carte, une technologie…), le jeu affiche ce qu'il attend dans le bandeau et met en avant les éléments cliquables.
 
 À la fin du tour, le jeu vérifie les **paliers de score** (voir 2.7) puis passe au joueur suivant. Un joueur qui a **passé** ne joue plus jusqu'à la fin de la manche.
@@ -147,7 +147,7 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 ### 2.7 Paliers et objectifs
 
 - **Paliers dorés** à 25, 50 et 70 PV : le joueur qui les franchit pose un marqueur sur une tuile objectif (Technologies, Missions, Revenus, Autres).
-- **Paliers neutres** à 20 et 30 PV (moins de 4 joueurs) : un marqueur neutre est posé sur une tuile.
+- **Paliers neutres** à 20 et 30 PV (moins de 4 joueurs) : un marqueur neutre est posé sur une tuile. Un marqueur neutre posé sur le triangle d'un plateau Alien occupe le bonus de découverte de sa couleur : la trace suivante de cette couleur y prend le bonus suivant.
 - Les tuiles objectif rapportent leurs points au décompte final selon le rang du joueur.
 - Les paliers sont vérifiés à la fin du tour ; s'il y a un choix à faire, il est demandé avant le joueur suivant.
 
@@ -181,6 +181,8 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 
 - Certaines cartes permettent de **prélever un spécimen** sur Jupiter, Saturne ou leurs lunes : une fenêtre montre les spécimens restants de la planète et leur récompense, que le joueur voit ensuite seul dans l'infobulle des jetons (les autres joueurs ne les voient pas) ; le jeton choisi part dans une **capsule**, qui se déplace et se comporte comme une sonde : énergie ou déplacements gratuits (défausse d'une carte Déplacement, Observation IV…), coût de sortie d'un champ d'astéroïdes, Médias des cases, visites et missions déclenchées par un déplacement. Le spécimen d'une capsule n'est visible que par son propriétaire. Elle ne compte pas dans la limite de sondes et ne peut ni se mettre en orbite ni atterrir. Les robots simulent chaque spécimen et gardent la meilleure récompense.
 - Une capsule arrivée sur la Terre (ou sur Mars pour ET.4) se réclame comme une mission : récompense de la carte plus celle du spécimen. Le jeton du spécimen se pose ensuite sur la première case libre (sans bonus ni trace) de la piste bleue des Mascamites : sa récompense devient le gain de cette case.
+- Une capsule qui arrive sur sa destination l'annonce dans l'historique (« déclenche une mission à recouvrir »), comme les autres missions.
+- À côté du nom de l'espèce, le symbole Spécimen montre dans son infobulle les spécimens restants sur Jupiter et sur Saturne, une ligne par planète : leur récompense si vous les avez vus (en prélevant ou étudiant un spécimen de la planète), sinon « ? ».
 - D'autres cartes permettent de **consulter** un spécimen (gagner son bonus sans le retirer), choisi dans la même fenêtre.
 - Pas d'emplacement infini.
 

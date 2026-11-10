@@ -193,6 +193,25 @@ describe('Orbite / atterrissage : fonctions moteur utilisées par l\'interface',
       expect(getPlayer(back.updatedGame, P1).mediaCoverage).toBe(mediaCoverage + 1);
     });
 
+    test('capsule arrivée sur sa destination : l\'historique annonce la mission à recouvrir (une seule fois)', () => {
+      const capsule = ProbeSystem.createCapsule(game, P1, 'earth', { bonus: { pv: 3 } })!;
+      getPlayer(game, P1).missions = [missionReturning('GAIN_IF_SPECIMEN:earth:pv:3')];
+      getPlayer(game, P1).energy = 5;
+      const solar = game.board.solarSystem;
+      const earth = getObjectPosition('earth', solar.rotationAngleLevel1, solar.rotationAngleLevel2, solar.rotationAngleLevel3, solar.extraCelestialObjects)!;
+      const awaySector = (earth.absoluteSector % 8) + 1 as SectorNumber;
+      const announces = (res: { historyEntries: { message: string }[] }) => res.historyEntries.some(e => e.message === 'déclenche une mission à recouvrir');
+
+      // Départ de la Terre : la mission n'est plus réalisable, rien à annoncer
+      const away = ProbeSystem.moveProbe(game, P1, capsule.id, earth.disk, awaySector, 0, 's');
+      expect(announces(away)).toBe(false);
+      expect(ProbeSystem.hasClaimableSpecimenMission(away.updatedGame, P1)).toBe(false);
+      // Retour sur Terre : le cercle peut être recouvert
+      const back = ProbeSystem.moveProbe(away.updatedGame, P1, capsule.id, earth.disk, earth.absoluteSector, 0, 's');
+      expect(announces(back)).toBe(true);
+      expect(ProbeSystem.hasClaimableSpecimenMission(back.updatedGame, P1)).toBe(true);
+    });
+
     test('ramener le spécimen sur Terre accomplit la mission : récompense de la carte + celle du spécimen, la capsule disparaît', () => {
       const capsule = ProbeSystem.createCapsule(game, P1, 'earth', { bonus: { pv: 3 } })!;
       getPlayer(game, P1).missions = [missionReturning('GAIN_IF_SPECIMEN:earth:pv:3:data:3')];

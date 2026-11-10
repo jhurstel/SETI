@@ -158,6 +158,13 @@ export class ProbeSystem {
     );
   }
 
+  /** Le joueur peut recouvrir un cercle « ramener un spécimen » (GAIN_IF_SPECIMEN : capsule sur sa destination) */
+  static hasClaimableSpecimenMission(game: Game, playerId: string): boolean {
+    const player = requirePlayer(game, playerId);
+    return CardSystem.claimableRequirements(game, playerId).some(({ missionId, requirementId }) =>
+      player.missions.find(m => m.id === missionId)?.requirements.find(r => r.id === requirementId)?.type === 'GAIN_IF_SPECIMEN');
+  }
+
   /** Retire une capsule (spécimen ramené). Modifie la partie reçue (à appeler sur une copie). */
   static removeCapsule(game: Game, playerId: string, capsuleId: string): void {
     const player = requirePlayer(game, playerId);
@@ -562,7 +569,9 @@ export class ProbeSystem {
     }
     res.historyEntries.unshift({ message, playerId, sequenceId: currentSequenceId });
 
-    if (hasFulfillable) {
+    // Capsule arrivée à destination (Terre, ou Mars pour ET.4) : sa mission « ramener un spécimen » peut être recouverte
+    const specimenMissionReady = isCapsule && !this.hasClaimableSpecimenMission(game, playerId) && this.hasClaimableSpecimenMission(updatedGame, playerId);
+    if (hasFulfillable || specimenMissionReady) {
       res.historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId});
     }
 

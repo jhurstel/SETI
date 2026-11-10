@@ -134,6 +134,38 @@ const SpeciesCardArea: React.FC<{
 // Contenu de l'infobulle du danger Exertien : cartes de chaque joueur sur une ligne ; le détail de la carte survolée
 // s'affiche dans sa propre infobulle, qui peut recouvrir celle-ci. Les cartes Exertiens des adversaires restent cachées
 // (jouées face cachée jusqu'au décompte final) : dos des cartes jouées, et seul le danger de la piste (+ ? s'ils en ont joué)
+/** Planètes où les Mascamites déposent leurs spécimens, dans l'ordre affiché */
+const SPECIMEN_PLANETS = [{ id: 'jupiter', name: 'Jupiter' }, { id: 'saturn', name: 'Saturne' }];
+
+/**
+ * Infobulle du symbole Mascamites : les spécimens encore sur Jupiter et Saturne, une ligne par planète. Un spécimen
+ * se lit (gains en symboles, chacun avec son infobulle) seulement si le joueur de cet écran a le droit de le voir
+ * (SpeciesSystem.canSeeSpecimens : il a déjà prélevé ou étudié un spécimen de la planète), sinon « ? ».
+ */
+const MascamiteSpecimensTooltip: React.FC<{ game: Game; onEnter: () => void; onLeave: () => void }> = ({ game, onEnter, onLeave }) => {
+    const viewerId = game.players.find(player => player.type === 'human')?.id;
+    return (
+        <div className="alien-specimens-tooltip" onMouseEnter={onEnter} onMouseLeave={onLeave}>
+            <div className="alien-tooltip-title">Spécimens Mascamites</div>
+            {SPECIMEN_PLANETS.map(({ id, name }) => {
+                const tokens = game.board.planets.find(p => p.id === id)?.mascamiteTokens ?? [];
+                const visible = !!viewerId && SpeciesSystem.canSeeSpecimens(game, viewerId, id);
+                return (
+                    <div key={id} className="alien-specimens-row">
+                        <span className="alien-specimens-planet">{name}</span>
+                        {tokens.length === 0 && <span className="alien-empty-note">aucun</span>}
+                        {tokens.map((token, index) => (
+                            <span key={index} className="alien-specimen-token">
+                                {visible ? <BonusIcons bonus={token.bonus} size={16} tooltips /> : <HoverTooltip nested content="Spécimen inconnu (face cachée)"><span className="alien-specimen-unknown">?</span></HoverTooltip>}
+                            </span>
+                        ))}
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
 const ExertienDangerTooltip: React.FC<{
     game: Game;
     onEnter: () => void;
@@ -616,6 +648,21 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                                         onMouseLeave={handleMouseLeaveWithDelay}
                                     >
                                         <CentaurienMessageIcon size={22} />
+                                    </div>
+                                )}
+                                {board.speciesId === AlienBoardType.MASCAMITES && (
+                                    <div className="alien-mascamite-specimens"
+                                        onMouseEnter={(e) => {
+                                            // Infobulle où la souris peut entrer (symboles des gains) ; le plateau reste ouvert tant qu'elle est affichée
+                                            handleMouseEnterClearDelay();
+                                            setIsPinnedTooltipOpen(true);
+                                            const content = <MascamiteSpecimensTooltip game={game} onEnter={handleMouseEnterClearDelay} onLeave={handleMouseLeaveWithDelay} />;
+                                            setActiveTooltip({ content, rect: e.currentTarget.getBoundingClientRect(), pointerEvents: 'auto' });
+                                        }}
+                                        onMouseLeave={handleMouseLeaveWithDelay}
+                                    >
+                                        {/* Jeton Spécimen Mascamite, tiré de la FAQ officielle (public/docs) */}
+                                        <img src="mascamite-specimen.png" alt="Spécimens Mascamites" width={22} height={22} />
                                     </div>
                                 )}
                                 {board.speciesId === AlienBoardType.EXERTIENS && (

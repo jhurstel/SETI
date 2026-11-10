@@ -286,7 +286,8 @@ export class SpeciesSystem {
                     board.lifeTraces.push({
                         id: `trace-neutral-${uniqueId()}`,
                         type: color,
-                        playerId: 'neutral'
+                        playerId: 'neutral',
+                        location: LifeTraceLocation.TRIANGLE
                     });
 
                     // Vérifier si une espèce Alien est découverte (1 marqueur de chaque couleur sur ce plateau)
@@ -340,8 +341,10 @@ export class SpeciesSystem {
         let speciesSlotIndex: number | undefined;
 
         if (slotType === LifeTraceLocation.TRIANGLE) {
-            // Le joueur a cliqué sur le triangle. On compte combien de ses traces y sont déjà.
-            const tracesOnTriangle = board.lifeTraces.filter(t => t.type === color && t.location === LifeTraceLocation.TRIANGLE).length;
+            // Traces de cette couleur déjà sur le triangle, marqueur neutre compris : la première prend le bonus de
+            // découverte, les suivantes le bonus suivant. Hors de la piste d'espèce = sur le triangle (les marqueurs
+            // neutres des anciennes sauvegardes n'ont pas d'emplacement noté)
+            const tracesOnTriangle = board.lifeTraces.filter(t => t.type === color && t.location !== LifeTraceLocation.SPECIES).length;
             if (tracesOnTriangle === 0) {
                 bonusToApply = board.firstBonus;
             } else {
