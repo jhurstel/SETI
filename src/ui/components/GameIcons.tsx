@@ -170,9 +170,6 @@ export const CentaurienMessageIcon: React.FC<{ size?: number }> = ({ size = 20 }
   </svg>
 );
 
-/** Couleurs des jetons Anomalie (couleur de la trace de vie de l'anomalie) */
-export const ANOMALY_COLORS = { red: '#ff6b6b', yellow: '#ffd700', blue: '#4a9eff' } as const;
-
 /**
  * Jeton Anomalie : anneau de distorsion à la couleur de l'anomalie (anneau pointillé qui tourne, classe
  * seti-anomaly-ring), centre sombre où le plateau affiche la récompense

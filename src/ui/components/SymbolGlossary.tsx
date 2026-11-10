@@ -1,8 +1,9 @@
 import React from 'react';
 import { TechnologyCategory } from '../../core/types';
-import { ANOMALY_COLORS, AnomalyIcon, MascamiteIcon, TrophyIcon, ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS } from './GameIcons';
+import { AnomalyIcon, MascamiteIcon, TrophyIcon, ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS } from './GameIcons';
 import { ReservationIcon, TechCategoryIcon, AnyTechIcon, OrbiterOrLanderIcon, OrbiterIcon, LanderIcon } from './ObjectiveSymbol';
 import { LIFE_TRACE_COLORS } from '../styles/lifeTraceColors';
+import { ANOMALY_COLORS } from '../styles/anomalyColors';
 import { HumanIcon, LevelStrength } from './PlayerKindIcon';
 
 interface Entry {
