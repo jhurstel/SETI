@@ -170,6 +170,46 @@ export const CentaurienMessageIcon: React.FC<{ size?: number }> = ({ size = 20 }
   </svg>
 );
 
+/**
+ * Spécimen Mascamite : jeton doré frappé d'une créature sombre à six pattes (comme le jeton du jeu). `hidden` : jeton
+ * face cachée (créature estompée, point d'interrogation).
+ */
+export const MascamiteIcon: React.FC<{ size?: number; hidden?: boolean }> = ({ size = 22, hidden = false }) => {
+  const uid = useUid();
+  return (
+    <svg width={size} height={size} viewBox="-50 -50 100 100" className="icon-block">
+      <defs>
+        <radialGradient id={`mascamite-${uid}`} cx="38%" cy="32%" r="75%">
+          <stop offset="0%" stopColor="#fbf0a4" />
+          <stop offset="55%" stopColor="#d9b546" />
+          <stop offset="100%" stopColor="#8f6b1a" />
+        </radialGradient>
+      </defs>
+      <circle r={46} fill={`url(#mascamite-${uid})`} stroke="#6e5212" strokeWidth={4} />
+      <circle r={38} fill="none" stroke="rgba(255, 245, 190, 0.45)" strokeWidth={2} />
+      <g fill="#3a2410" stroke="#3a2410" strokeLinecap="round" strokeLinejoin="round" opacity={hidden ? 0.28 : 1}>
+        {/* Pattes : trois paires, coudées vers l'arrière */}
+        <g fill="none" strokeWidth={5}>
+          <path d="M-8 -6 L-22 -16 L-30 -10" />
+          <path d="M8 -6 L22 -16 L30 -10" />
+          <path d="M-9 3 L-25 2 L-32 10" />
+          <path d="M9 3 L25 2 L32 10" />
+          <path d="M-7 12 L-18 22 L-20 31" />
+          <path d="M7 12 L18 22 L20 31" />
+          {/* Mandibules */}
+          <path d="M-5 -22 L-10 -30 L-6 -34" strokeWidth={4} />
+          <path d="M5 -22 L10 -30 L6 -34" strokeWidth={4} />
+        </g>
+        {/* Tête, thorax et abdomen */}
+        <ellipse cx={0} cy={-19} rx={7} ry={6} />
+        <ellipse cx={0} cy={-5} rx={10} ry={9} />
+        <ellipse cx={0} cy={16} rx={12} ry={15} />
+      </g>
+      {hidden && <text y={14} textAnchor="middle" fontSize={44} fontWeight="bold" fill="#3a2410">?</text>}
+    </svg>
+  );
+};
+
 /** Fin de tour (« Prochain joueur ») : hexagone vert, flèche circulaire qui passe la main au joueur suivant */
 export const EndTurnIcon: React.FC<{ size?: number }> = ({ size = 28 }) => {
   const uid = useUid();

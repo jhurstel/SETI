@@ -675,11 +675,6 @@
   cursor: help;
 }
 
-.alien-mascamite-specimens img {
-  border-radius: 50%;
-  display: block;
-}
-
 .alien-specimens-tooltip {
   display: flex;
   flex-direction: column;
@@ -712,4 +707,22 @@
   color: #d6ba5c;
   font-weight: bold;
   padding: 0 3px;
+}
+
+/* Case de la piste bleue Mascamites qui attend un spécimen : symbole estompé */
+.alien-specimen-placeholder {
+  display: flex;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* Infobulle du danger : cartes Exertiens d'un adversaire (nombre ; celles à jouer estompées, de dos) */
+.alien-exertien-count {
+  font-size: 0.85em;
+  color: #bbb;
+  margin: 2px 0 4px;
+}
+
+.alien-danger-card.held {
+  opacity: 0.55;
 }

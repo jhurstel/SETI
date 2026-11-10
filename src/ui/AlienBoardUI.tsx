@@ -8,7 +8,7 @@ import { CardContent } from './components/HandCard';
 import { CardBack, DeckPile } from './components/CardBack';
 import { ScoreManager } from '../engine/ScoreManager';
 import { Tooltip } from './Tooltip';
-import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon, CentaurienMessageIcon } from './components/GameIcons';
+import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon, CentaurienMessageIcon, MascamiteIcon } from './components/GameIcons';
 import { LIFE_TRACE_COLORS, LifeTraceColor } from './styles/lifeTraceColors';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import './AlienBoardUI.css';
@@ -191,18 +191,28 @@ const ExertienDangerTooltip: React.FC<{
                     ? []
                     : [...(p.cards || []), ...(p.playedCards || [])].filter(c => c.type === CardType.EXERTIEN);
                 const hiddenPlayed = hidden ? p.playedCards.filter(c => c.type === CardType.EXERTIEN) : [];
+                // Cartes Exertiens d'un adversaire pas encore jouées : seulement leur nombre
+                const hiddenHeld = hidden ? p.cards.filter(c => c.type === CardType.EXERTIEN).length : 0;
                 return (
                     <div key={p.id} className="alien-danger-player">
                         <div className="alien-danger-player-header">
                             <span style={{ color: p.color, fontWeight: 'bold' }}>{p.name}</span>
                             <span className="count-badge">{visible.danger}{visible.hidden ? ' + ?' : ''}</span>
                         </div>
-                        {hiddenPlayed.length > 0 ? (
-                            <div className="alien-danger-cards">
-                                {hiddenPlayed.map(card => <CardBack key={card.id} className="alien-danger-card" />)}
-                            </div>
-                        ) : hidden ? (
-                            <div className="alien-empty-note">Aucune carte Exertien jouée</div>
+                        {hidden ? (
+                            <>
+                                <div className="alien-exertien-count">
+                                    {hiddenHeld > 0 ? `${hiddenHeld} carte${hiddenHeld > 1 ? 's' : ''} Exertien à jouer` : 'Aucune carte Exertien à jouer'}
+                                    {' · '}
+                                    {hiddenPlayed.length > 0 ? `${hiddenPlayed.length} jouée${hiddenPlayed.length > 1 ? 's' : ''} face cachée` : 'aucune jouée'}
+                                </div>
+                                {hiddenHeld + hiddenPlayed.length > 0 && (
+                                    <div className="alien-danger-cards">
+                                        {Array.from({ length: hiddenHeld }, (_, i) => <CardBack key={`held-${i}`} className="alien-danger-card held" />)}
+                                        {hiddenPlayed.map(card => <CardBack key={card.id} className="alien-danger-card" />)}
+                                    </div>
+                                )}
+                            </>
                         ) : exertienCards.length > 0 ? (
                             <div className="alien-danger-cards">
                                 {exertienCards.map(card => (
@@ -389,6 +399,9 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
         // face visible tant que la case est libre : leur récompense est celle de la case
         const specimenSlot = !isFilled && !isInfinite && type === LifeTraceType.BLUE && species?.name === AlienBoardType.MASCAMITES
           && index >= MASCAMITE_BOARD_SPECIMEN_SLOT && Object.keys(bonus).length > 0;
+        // Case vide qui recevra un spécimen ramené à destination (SpeciesSystem.placeSpecimenOnTrack) : symbole estompé
+        const awaitingSpecimen = !isFilled && !isInfinite && type === LifeTraceType.BLUE && species?.name === AlienBoardType.MASCAMITES
+          && index >= MASCAMITE_BOARD_SPECIMEN_SLOT && Object.keys(bonus).length === 0;
         // Coûts de l'emplacement (valeurs négatives : tokens, données), payés en y posant la trace (SpeciesSystem.placeLifeTrace)
         const tokenCost = bonus.token && bonus.token < 0 ? -bonus.token : 0;
         const dataCost = bonus.data && bonus.data < 0 ? -bonus.data : 0;
@@ -424,7 +437,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
             } else if (ResourceSystem.formatBonus(bonus).length <= 0) {
                 status = 'Indisponible';
                 statusColor = SLOT_COLORS.unavailable;
-                note = 'Nécessite un jeton';
+                note = awaitingSpecimen ? 'Recevra le prochain spécimen Mascamite ramené à destination' : 'Nécessite un jeton';
             } else {
                 status = 'Disponible';
                 statusColor = SLOT_COLORS.available;
@@ -473,6 +486,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={() => setActiveTooltip(null)}
             >
+                {awaitingSpecimen && <div className="alien-specimen-placeholder"><MascamiteIcon size={18} /></div>}
                 {specimenSlot && <div className="alien-board-specimen"><BonusIcons bonus={bonus} size={ResourceSystem.formatBonus(bonus).length > 1 ? 9 : 14} /></div>}
                 {!isFilled && !specimenSlot && !!bonus.pv && <VictoryPointsIcon amount={bonus.pv} size={22} />}
             </div>
@@ -661,8 +675,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                                         }}
                                         onMouseLeave={handleMouseLeaveWithDelay}
                                     >
-                                        {/* Jeton Spécimen Mascamite, tiré de la FAQ officielle (public/docs) */}
-                                        <img src="mascamite-specimen.png" alt="Spécimens Mascamites" width={22} height={22} />
+                                        <MascamiteIcon size={22} />
                                     </div>
                                 )}
                                 {board.speciesId === AlienBoardType.EXERTIENS && (

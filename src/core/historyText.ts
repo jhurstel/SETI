@@ -1,7 +1,7 @@
 /**
  * Passages privés des messages d'historique : ce qu'un seul joueur a le droit de lire (nom d'une carte
- * piochée face cachée…). Le moteur les marque avec `privateText` ; le journal local les révèle tous
- * (`revealText`, un joueur humain contre des robots), une vue réseau les retire pour les autres joueurs (`textFor`).
+ * piochée face cachée…). Le moteur les marque avec `privateText` ; l'historique affiché ne montre à chaque joueur
+ * que les siens (`textFor`, jeu local compris), `revealText` donne le message complet (fin de partie, outils).
  */
 
 const PRIVATE = /⟦([^|⟧]+)\|([^|⟧]*)(?:\|([^⟧]*))?⟧/g;

@@ -4,6 +4,8 @@ import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2
 import { polarToCartesian, calculateObjectPosition } from './solarGeometry';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { BonusIcons } from './components/BonusIcons';
+import { MascamiteIcon } from './components/GameIcons';
+import { ResourceSystem } from '../systems/ResourceSystem';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { Tooltip } from './Tooltip';
 import { PLANET_STYLES, PLANET_SIZES } from './styles/celestialStyles';
@@ -569,50 +571,43 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
           const isClickable = (interactionState.type === 'COLLECTING_SPECIMEN' && interactionState.planetId === planetData.id)
             || (interactionState.type === 'CONSULTING_SPECIMEN' && SpeciesSystem.consultablePlanets(game, game.players[game.currentPlayerIndex].id, interactionState).includes(planetData.id));
 
+          const visible = !!viewerId && SpeciesSystem.canSeeSpecimens(game, viewerId, planetData.id);
+
           return (
             <div
               key={`masc-${i}`}
-              style={{
-                position: 'absolute',
-                top: `calc(50% + ${ty}px)`,
-                left: `calc(50% + ${tx}px)`,
-                width: '12px',
-                height: '12px',
-                backgroundColor: '#4a148c',
-                border: '1px solid #ea80fc',
-                borderRadius: '50%',
-                transform: 'translate(-50%, -50%)',
-                zIndex: 40,
-                cursor: isClickable ? 'pointer' : 'help',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                pointerEvents: 'auto',
-                boxShadow: isClickable ? '0 0 5px #00ff00' : 'none'
-              }}
+              className={`solar-specimen-token ${isClickable ? 'clickable' : ''}`}
+              style={{ top: `calc(50% + ${ty}px)`, left: `calc(50% + ${tx}px)` }}
               onClick={(e) => {
                 if (isClickable) { e.stopPropagation(); onMascamiteClick(planetData.id, i); }
               }}
               onMouseEnter={(e) => {
                 e.stopPropagation();
-                const rect = e.currentTarget.getBoundingClientRect();
+                if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+                // Infobulle où la souris peut entrer : chaque gain a la sienne
                 setActiveTooltip({
                   content: (
                     <div className="solar-specimen-tooltip">
                       <div className="solar-specimen-title">Spécimen Mascamite</div>
                       <div className="solar-tooltip-bonus">
-                        {viewerId && SpeciesSystem.canSeeSpecimens(game, viewerId, planetData.id)
-                          ? `Récompense : ${specimenRewardText(token.bonus, true) || 'aucune'}`
-                          : 'Face cachée : visible en prélevant ou en étudiant un spécimen de cette planète'}
+                        {visible
+                          ? (ResourceSystem.formatBonus(token.bonus).length > 0 ? <BonusIcons bonus={token.bonus} size={16} tooltips /> : 'Aucune récompense')
+                          : 'Spécimen inconnu (face cachée)'}
                       </div>
                     </div>
                   ),
-                  rect
+                  rect: e.currentTarget.getBoundingClientRect(),
+                  pointerEvents: 'auto',
+                  onMouseEnter: () => { if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); },
+                  onMouseLeave: () => setActiveTooltip(null),
                 });
               }}
-              onMouseLeave={() => setActiveTooltip(null)}
+              onMouseLeave={(e) => {
+                e.stopPropagation();
+                hoverTimeoutRef.current = setTimeout(() => setActiveTooltip(null), 250);
+              }}
             >
-              <span className="solar-specimen-mark">M</span>
+              <MascamiteIcon size={16} hidden={!visible} />
             </div>
           );
         })}

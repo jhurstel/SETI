@@ -7,7 +7,7 @@ import { ResourceIcon, ResourceIconKind, LifeTraceIcon, AnyLifeTraceIcon, Victor
 import { LifeTraceColor } from './styles/lifeTraceColors';
 import { ReservationIcon, AnyTechIcon } from './components/ObjectiveSymbol';
 import { BonusIcons, Repeated, SectorSignalIcon } from './components/BonusIcons';
-import { revealText } from '../core/historyText';
+import { textFor } from '../core/historyText';
 
 // Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
 const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', CARD: 'card', DATA: 'data' };
@@ -165,9 +165,13 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
         );
     };
 
+    // Joueur de cet écran : le seul humain de la partie affichée (en ligne, les autres humains y sont des robots)
+    const viewerId = game.players.find(p => p.type === 'human')?.id;
+
     const formatHistoryMessage = (raw: string) => {
-        // Jeu local : les passages privés (cartes piochées) sont lisibles par le joueur humain
-        const message = revealText(raw);
+        // Passages privés (noms des cartes piochées face cachée, cartes Exertiens reçues) : lisibles seulement par leur
+        // propriétaire ; les autres joueurs n'en voient que la version publique (comme en ligne, viewEntries)
+        const message = viewerId ? textFor(raw, viewerId) : raw;
         const resourcePattern = Object.values(ResourceSystem.RESOURCE_CONFIG).map(c => c.regex.source).join('|');
         const symbolPattern = SYMBOL_ICONS.map(s => s.pattern.source).join('|');
         const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${LIFE_TRACE_PATTERN.source}|${SIGNAL_PATTERN.source}|${ROTATION_PATTERN.source}|${symbolPattern}|${resourcePattern}|"[^"]+")`, 'g');

@@ -1,6 +1,6 @@
 import React from 'react';
 import { TechnologyCategory } from '../../core/types';
-import { TrophyIcon, ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS } from './GameIcons';
+import { MascamiteIcon, TrophyIcon, ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS } from './GameIcons';
 import { ReservationIcon, TechCategoryIcon, AnyTechIcon, OrbiterOrLanderIcon, OrbiterIcon, LanderIcon } from './ObjectiveSymbol';
 import { LIFE_TRACE_COLORS } from '../styles/lifeTraceColors';
 import { HumanIcon, LevelStrength } from './PlayerKindIcon';
@@ -78,7 +78,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
   {
     title: 'Espèces',
     entries: [
-      { icon: <img src="mascamite-specimen.png" alt="" width={24} height={24} className="glossary-mascamite" />, name: 'Spécimen Mascamite', text: 'À côté du nom des Mascamites : son infobulle montre les spécimens restants sur Jupiter et Saturne (récompense si vous les avez vus, sinon « ? »).' },
+      { icon: <MascamiteIcon size={26} />, name: 'Spécimen Mascamite', text: 'À côté du nom des Mascamites : son infobulle montre les spécimens restants sur Jupiter et Saturne (récompense si vous les avez vus, sinon « ? »).' },
       { icon: <CentaurienMessageIcon size={28} />, name: 'Message centaurien', text: 'Palier des Centauriens : une tuile Message à choisir, ou l\'effet Réception d\'une carte. Sur le plateau de l\'espèce, son infobulle liste les paliers et les tuiles Message.' },
     ],
   },
