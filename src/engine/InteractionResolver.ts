@@ -170,11 +170,12 @@ export class InteractionResolver {
 
     mission.completedRequirementIds.push(interaction.requirementId);
     // Un déclencheur ne recouvre qu'un cercle, toutes cartes confondues : les autres cercles du même déclencheur
-    // ne sont plus réalisables ; ceux d'un autre déclencheur (2e technologie…) le restent
+    // ne sont plus réalisables ; ceux d'un autre déclencheur (2e technologie…) le restent. Une mission conditionnelle
+    // (GAIN_IF_…, sans déclencheur) n'efface aucun cercle déclenché, et reste réalisable tant que sa condition est remplie.
     const trigger = mission.fulfillableTriggers?.[interaction.requirementId];
     player.missions.forEach(m => {
       m.fulfillableRequirementIds = m.fulfillableRequirementIds.filter(id =>
-        id !== interaction.requirementId && trigger !== undefined && m.fulfillableTriggers?.[id] !== undefined && m.fulfillableTriggers[id] !== trigger);
+        !(m === mission && id === interaction.requirementId) && (trigger === undefined || m.fulfillableTriggers?.[id] !== trigger));
       if (m.fulfillableTriggers) {
         m.fulfillableTriggers = Object.fromEntries(Object.entries(m.fulfillableTriggers).filter(([id]) => m.fulfillableRequirementIds.includes(id)));
       }

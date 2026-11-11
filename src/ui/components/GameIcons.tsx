@@ -157,7 +157,26 @@ export const DiscardCardIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
   </svg>
 );
 
-/** Message des Centauriens (tuile Message, palier) : tuile violette, point d'émission et ondes radio */
+/** Accomplir une mission (livret p. 27) : carte blanche au bas grisé, coche verte cerclée de sombre en bas à droite */
+export const MissionCompleteIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" className="icon-block">
+    <rect x={8} y={4} width={21} height={31} rx={3.5} fill="#fafafa" />
+    <path d="M8 22 H29 V31.5 Q29 35 25.5 35 H11.5 Q8 35 8 31.5 Z" fill="#c9c9c9" />
+    <rect x={8} y={4} width={21} height={31} rx={3.5} fill="none" stroke="#333" strokeWidth={2.2} />
+    <path d="M17 26 L23 32 L35 19" fill="none" stroke="#2b2b2b" strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M17 26 L23 32 L35 19" fill="none" stroke="#3fbf1f" strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/** Refuser, renoncer : cercle rouge barré */
+export const RefuseIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" className="icon-block">
+    <circle cx={20} cy={20} r={14} fill="rgba(217, 64, 64, 0.15)" stroke="#d94040" strokeWidth={4} />
+    <path d="M10.1 29.9 L29.9 10.1" stroke="#d94040" strokeWidth={4} strokeLinecap="round" />
+  </svg>
+);
+
+/** Message des Centauriens (tuile Message, palier): tuile violette, point d'émission et ondes radio */
 export const CentaurienMessageIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 40 40" className="icon-block">
     <rect x={3} y={3} width={34} height={34} rx={8} fill="#5b3fc4" stroke="#b9a8ff" strokeWidth={2} />

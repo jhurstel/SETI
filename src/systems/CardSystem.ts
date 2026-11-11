@@ -390,8 +390,13 @@ export class CardSystem {
             player.missions.push(newMission);
 
             if (card.type === CardType.CONDITIONAL_MISSION) {
+                // Cartes piochées par l'effet de la carte (Programme NIAC, 89 : 3 Pioche) : la main n'est pas vide une fois la carte jouée
+                const ownGains: Bonus = {};
+                addImmediateEffects(card.immediateEffects, ownGains);
+                const drawsCards = (ownGains.card ?? 0) + (ownGains.anycard ?? 0) > 0;
                 newMission.requirements.forEach(req => {
                     // Le spécimen doit d'abord être prélevé grâce à cette carte : jamais rempli au moment de la jouer
+                    if (req.type === 'GAIN_IF_EMPTY_HAND' && drawsCards) return;
                     if (req.type.startsWith('GAIN_IF_') && req.type !== 'GAIN_IF_SPECIMEN') {
                         const bonus = CardSystem.evaluateMission(updatedGame, player.id, effectString(req));
                         if (bonus) {
@@ -1032,7 +1037,7 @@ export class CardSystem {
         }
 
         if (conditionType === 'GAIN_IF_EMPTY_HAND') {
-            if (player.cards.length === 0) return rewards;
+            if (this.getHandCards(player).length === 0) return rewards;
         }
 
         if (conditionType === 'GAIN_IF_ORBITER_AND_LANDER') {

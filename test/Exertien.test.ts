@@ -4,7 +4,8 @@ import { ScoreManager } from '../src/engine/ScoreManager';
 import { AIController } from '../src/ai/AIController';
 import { AITurn } from '../src/ai/AITurn';
 import { PassAction } from '../src/actions/PassAction';
-import { AlienBoardType, Card, CardType, Game, Technology, TechnologyCategory } from '../src/core/types';
+import { AlienBoardType, Card, CardType, Game, GamePhase, Technology, TechnologyCategory } from '../src/core/types';
+import { GameSession } from '../src/session/GameSession';
 import { AIEvaluator, DEFAULT_WEIGHTS } from '../src/ai/AIEvaluator';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
@@ -51,7 +52,7 @@ describe('Exertiens', () => {
       const res = ScoreManager.checkScoreMilestones(game, P1);
 
       expect(res.shouldStop).toBe(true);
-      expect(res.newInteraction).toEqual({ type: 'CHOOSING_EXERTIEN_CARD', milestone: 30 });
+      expect(res.newInteraction).toMatchObject({ type: 'CHOOSING_EXERTIEN_CARD', milestone: 30 });
     });
 
     test('un palier déjà utilisé ne se redéclenche pas', () => {
@@ -77,7 +78,7 @@ describe('Exertiens', () => {
       p2.score = 31;
       p2.cards.push(exertien('e2', 1));
 
-      expect(ScoreManager.checkScoreMilestones(game, P2).newInteraction).toEqual({ type: 'CHOOSING_EXERTIEN_CARD', milestone: 30 });
+      expect(ScoreManager.checkScoreMilestones(game, P2).newInteraction).toMatchObject({ type: 'CHOOSING_EXERTIEN_CARD', milestone: 30 });
     });
   });
 
@@ -208,6 +209,30 @@ describe('Exertiens', () => {
       expect(getPlayer(end.updatedGame, P1).claimedExertienMilestones).toHaveLength(1);
       expect(warn).not.toHaveBeenCalled();
       warn.mockRestore();
+
+      // Le choix du robot (carte jouée ou renoncement) s'écrit sous le message du palier
+      const milestone = end.historyEntries.find(e => e.message.startsWith('a atteint un palier Exertien'))!;
+      const choice = end.historyEntries.find(e => /carte Exertien/.test(e.message) && e !== milestone)!;
+      expect(milestone.sequenceId).toBeDefined();
+      expect(choice.sequenceId).toBe(milestone.sequenceId);
+    });
+
+    test('joueur humain : la carte jouée au palier s\'écrit dans la séquence du palier', () => {
+      const player = getPlayer(game, P1);
+      player.score = 31;
+      player.hasPerformedMainAction = true;
+      player.cards.push(exertien('e1', 3));
+      game.phase = GamePhase.PLAYING;
+
+      const ended = GameSession.dispatch(game, P1, { type: 'END_TURN' });
+      expect(ended.error).toBeUndefined();
+      const milestone = ended.entries.find(e => e.message.startsWith('a atteint un palier Exertien'))!;
+      expect(ended.game.interaction).toMatchObject({ type: 'CHOOSING_EXERTIEN_CARD', sequenceId: milestone.sequenceId });
+
+      const chosen = GameSession.dispatch(ended.game, P1, { type: 'CHOOSE', choice: { kind: 'EXERTIEN', cardId: 'e1' } });
+      expect(chosen.error).toBeUndefined();
+      const played = chosen.entries.find(e => e.message.includes('joue une carte Exertien'))!;
+      expect(played.sequenceId).toBe(milestone.sequenceId);
     });
   });
 });

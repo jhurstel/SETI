@@ -391,7 +391,8 @@ export class AIController {
             // selon l'avancement de la condition et la pénalité de danger attendue
             const res = AIController.bestExertienCard(c.updatedGame, c.player.id, interaction.milestone);
             c.updatedGame = res.updatedGame;
-            c.historyEntries.push(...res.historyEntries.map(e => ({ ...e, sequenceId: c.sequenceId })));
+            // Même séquence que le message du palier (sous lequel le choix s'écrit)
+            c.historyEntries.push(...res.historyEntries.map(e => ({ ...e, sequenceId: interaction.sequenceId || c.sequenceId })));
         },
         CHOOSING_OBS3_ACTION: (c, interaction) => {
             // Même règle que le joueur humain (accepter, puis défausser 1 carte) ; le robot défausse sa première carte
@@ -523,6 +524,15 @@ export class AIController {
                 }
             }
         },
-        REMOVING_LANDER: (c, interaction) => AIController.ROBOT_HANDLERS.REMOVING_ORBITER(c, interaction as never),
+        REMOVING_LANDER: (c, interaction) => {
+            // Le premier atterrisseur du robot (planète, lune ou planète d'Oumuamua)
+            const bodyId = ProbeSystem.landerBodies(c.updatedGame, c.player.id)[0];
+            const res = bodyId === undefined ? null : InteractionChoices.removeProbe(c.updatedGame, c.player.id, { ...interaction, sequenceId: c.sequenceId }, bodyId);
+            if (res && !res.error) {
+                c.updatedGame = res.updatedGame;
+                c.historyEntries.push(...res.historyEntries);
+                c.newPendingInteractions.push(...res.newPendingInteractions);
+            }
+        },
     };
 }

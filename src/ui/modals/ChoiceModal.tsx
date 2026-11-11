@@ -67,13 +67,16 @@ export const ChoiceOption = ({ icon, label, detail, onClick, disabled = false, d
 );
 
 /** Bouton d'action en pied de fenêtre (confirmer, passer, terminer…) */
-export const ChoiceFooterButton = ({ children, onClick, disabled = false, secondary = false }: {
+export const ChoiceFooterButton = ({ children, onClick, disabled = false, secondary = false, icon }: {
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
   secondary?: boolean;
+  /** Symbole de l'action, devant le libellé (réserver, défausser, échanger…) */
+  icon?: React.ReactNode;
 }) => (
   <button className={`seti-choice-footer-btn ${secondary ? 'secondary' : ''}`} onClick={onClick} disabled={disabled}>
+    {icon && <span className="seti-choice-footer-icon">{icon}</span>}
     {children}
   </button>
 );

@@ -226,7 +226,8 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
                                             }}
                                             onMouseLeave={() => setActiveTooltip(null)}
                                         >
-                                            {player ? '' : pv}
+                                            {/* Emplacement libre : jeton PV de la récompense, comme sur les autres plateaux */}
+                                            {player ? '' : <VictoryPointsIcon amount={pv} size={22} />}
                                         </div>
                                     );
                                 })}

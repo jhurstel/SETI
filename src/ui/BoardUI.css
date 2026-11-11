@@ -472,6 +472,9 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
   color: #ff6b6b;
 }
 .seti-choice-footer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   padding: 10px 26px;
   font-size: 1rem;
   font-weight: bold;
@@ -480,6 +483,10 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
   border: none;
   border-radius: 6px;
   cursor: pointer;
+}
+.seti-choice-footer-icon {
+  display: inline-flex;
+  align-items: center;
 }
 .seti-choice-footer-btn.secondary {
   background: #555;

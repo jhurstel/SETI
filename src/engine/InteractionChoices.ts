@@ -309,15 +309,20 @@ export class InteractionChoices {
     return res;
   }
 
-  /** Retrait d'un orbiteur (carte 15) ou d'un atterrisseur (carte 84) du joueur : celui de l'emplacement choisi, sinon le premier sur la planète. */
+  /**
+   * Retrait d'un orbiteur (carte 15) ou d'un atterrisseur (carte 84) du joueur : celui de l'emplacement choisi, sinon le premier
+   * sur le corps. Un atterrisseur peut être sur une planète, une lune ou la planète d'Oumuamua ; son emplacement est la case de l'interface.
+   */
   static removeProbe(game: Game, playerId: string, interaction: Interaction<'REMOVING_ORBITER'> | Interaction<'REMOVING_LANDER'>, planetId: string, slotIndex?: number): ChoiceResult {
-    const planet = game.board.planets.find(p => p.id === planetId);
-    const probes = interaction.type === 'REMOVING_ORBITER' ? planet?.orbiters : planet?.landers;
-    const index = slotIndex ?? probes?.findIndex(p => p.ownerId === playerId) ?? -1;
-    if (!probes || index === -1 || probes[index]?.ownerId !== playerId) return refused(game, 'Aucune de vos sondes à retirer ici');
-    return interaction.type === 'REMOVING_ORBITER'
-      ? ProbeSystem.removeOrbiter(game, playerId, planetId, index, interaction.sequenceId)
-      : ProbeSystem.removeLander(game, playerId, planetId, index, interaction.sequenceId);
+    if (interaction.type === 'REMOVING_LANDER') {
+      const index = ProbeSystem.ownLanderIndex(game, playerId, planetId, slotIndex);
+      if (index === -1) return refused(game, 'Aucun de vos atterrisseurs à retirer ici');
+      return ProbeSystem.removeLander(game, playerId, planetId, index, interaction.sequenceId);
+    }
+    const orbiters = game.board.planets.find(p => p.id === planetId)?.orbiters;
+    const index = slotIndex ?? orbiters?.findIndex(p => p.ownerId === playerId) ?? -1;
+    if (!orbiters || index === -1 || orbiters[index]?.ownerId !== playerId) return refused(game, 'Aucune de vos sondes à retirer ici');
+    return ProbeSystem.removeOrbiter(game, playerId, planetId, index, interaction.sequenceId);
   }
 
   /** Carte de fin de manche prise après avoir passé (CHOOSING_ROUND_CARD), son nom restant privé ; puis le tour passe. */

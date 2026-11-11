@@ -52,7 +52,7 @@ Quand une action ouvre un choix (placer une trace de vie, choisir une carte, une
 - **Lancer une sonde** : la sonde part de la case de la Terre. Exploration I permet un lancement gratuit et une 2ᵉ sonde.
 - **Plusieurs pièces sur une case** : vos sondes et capsules sont dessinées au-dessus des autres ; l'infobulle d'une pièce regroupe toutes celles de la case par joueur. Cliquer sur la case (une planète, la Terre comprise, ou une pièce d'un autre joueur) sélectionne votre sonde ou capsule qui s'y trouve, la suivante à chaque clic ; quand vous en avez une sur la Terre, le lancement se fait par le bouton de l'action.
 - **Orbite / atterrissage** : la sonde doit être sur la case de la planète. Si plusieurs planètes ou lunes sont possibles, le jeu demande laquelle. Une planète n'a pas de limite d'orbiteurs ni d'atterrisseurs : une fois les cases imprimées occupées, les suivants reçoivent le gain de la dernière case. Une lune n'accueille qu'un seul atterrisseur (sauf avec *Dragonfly*, qui permet de se poser sur une lune occupée). Mascamites : certains atterrissages permettent de **prélever un spécimen** (voir 3.2).
-- **Scanner** : (1) signal dans le secteur de la Terre (ou un secteur adjacent avec Observation I) ; (2) choix d'une carte de la rangée, signal dans le secteur de sa couleur ; (3) Observation II : payer 1 Média pour un signal sur Mercure ; Observation III : défausser une carte pour un signal de sa couleur ; Observation IV : payer 1 énergie pour lancer une sonde, ou gagner 1 déplacement.
+- **Scanner** : (1) signal dans le secteur de la Terre (ou un secteur adjacent avec Observation I) ; (2) choix d'une carte de la rangée, signal dans le secteur de sa couleur ; (3) Observation II : payer 1 Média pour un signal sur Mercure ; Observation III : défausser une carte pour un signal de sa couleur ; Observation IV : payer 1 énergie pour lancer une sonde, ou gagner 1 déplacement. Dans les fenêtres de choix, ces bonus sont représentés par la tuile de leur technologie.
 - Chaque signal pose un marqueur dans le secteur et, si le secteur le prévoit, rapporte une **donnée**. Un secteur dont toutes les cases sont remplies est **résolu** (voir 2.2).
 - **Rechercher une technologie** : une technologie par pile et par joueur. Les technologies Informatique se posent sur l'ordinateur et ajoutent un gain quand la colonne est remplie.
 - **Passer** : la pile de fin de manche reste cachée tant qu'on n'a pas passé ; une fois la passe confirmée (elle ne s'annule plus), on la découvre et la carte choisie va dans la main, avant que le tour passe au joueur suivant. Les autres joueurs ne savent pas laquelle. À la fin de la manche, chacun reçoit ses revenus (crédits, énergies, cartes).
@@ -134,7 +134,7 @@ Chaque pile a 4 exemplaires ; le premier pris rapporte 3 PV, les suivants 1 Méd
 
 - **Action** : gains immédiats.
 - **Mission conditionnelle / déclenchable** : restent devant le joueur ; chaque condition remplie se réclame (action gratuite) et donne sa récompense.
-- **Mission déclenchée** : un même déclencheur ne recouvre qu'un cercle, toutes cartes confondues, au choix du joueur ; les cercles d'une carte se recouvrent dans l'ordre de son choix (carte 107 : 2 Médias ou 4 PV après une trace bleue). Pendant son tour, les cercles possibles sont surlignés sur ses cartes : il clique sur celui qu'il recouvre (les autres cercles du même déclencheur s'éteignent ; deux déclencheurs, par exemple deux technologies acquises, recouvrent deux cercles). Si l'effet survient pendant le tour d'un autre joueur (trace de vie gagnée par une majorité…), une fenêtre lui propose aussitôt les cercles déclenchés ; il peut aussi ne pas en profiter.
+- **Mission déclenchée** : un même déclencheur ne recouvre qu'un cercle, toutes cartes confondues, au choix du joueur ; les cercles d'une carte se recouvrent dans l'ordre de son choix (carte 107 : 2 Médias ou 4 PV après une trace bleue). Pendant son tour, les cercles possibles sont surlignés sur ses cartes : il clique sur celui qu'il recouvre (les autres cercles du même déclencheur s'éteignent ; deux déclencheurs, par exemple deux technologies acquises, recouvrent deux cercles). Si l'effet survient pendant le tour d'un autre joueur (trace de vie gagnée par une majorité…), une fenêtre lui propose aussitôt les cercles déclenchés ; il peut aussi ne pas en profiter. Missions déclenchées et missions conditionnelles sont indépendantes : recouvrir un cercle déclenché n'empêche pas d'accomplir une mission conditionnelle dont la condition est remplie (carré), et inversement.
 - **Fin de partie** : points au décompte final selon une condition.
 - La main n'a pas de limite pendant la manche ; au moment de passer, on n'en garde que 4.
 
@@ -180,7 +180,7 @@ Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacem
 | 7 | 7 PV |
 
 - Certaines cartes permettent de **prélever un spécimen** sur Jupiter, Saturne ou leurs lunes : une fenêtre montre les spécimens restants de la planète et leur récompense, que le joueur voit ensuite seul dans l'infobulle des jetons (les autres joueurs ne les voient pas) ; le jeton choisi part dans une **capsule**, qui se déplace et se comporte comme une sonde : énergie ou déplacements gratuits (défausse d'une carte Déplacement, Observation IV…), coût de sortie d'un champ d'astéroïdes, Médias des cases, visites et missions déclenchées par un déplacement. Le spécimen d'une capsule n'est visible que par son propriétaire. Elle ne compte pas dans la limite de sondes et ne peut ni se mettre en orbite ni atterrir. Les robots simulent chaque spécimen et gardent la meilleure récompense.
-- Une capsule arrivée sur la Terre (ou sur Mars pour ET.4) se réclame comme une mission : récompense de la carte plus celle du spécimen. Le jeton du spécimen se pose ensuite sur la première case libre (sans bonus ni trace) de la piste bleue des Mascamites : sa récompense devient le gain de cette case.
+- Une capsule arrivée sur la Terre (ou sur Mars pour ET.4) se réclame comme une mission : récompense de la carte plus celle du spécimen. Le jeton du spécimen se pose ensuite sur la première case libre (sans bonus ni trace) de la piste bleue des Mascamites : sa récompense devient le gain de cette case. Une case de la piste bleue qui attend encore son spécimen est indisponible : on ne peut pas y poser de trace.
 - Une capsule qui arrive sur sa destination l'annonce dans l'historique (« déclenche une mission à recouvrir »), comme les autres missions.
 - Le symbole Spécimen (jeton doré à la créature) marque les spécimens sur Jupiter et Saturne (« ? » s'ils sont face cachée pour vous ; infobulle : récompense en symboles, ou « Spécimen inconnu (face cachée) ») et, estompé, les cases de la piste bleue qui recevront les spécimens ramenés.
 - À côté du nom de l'espèce, le symbole Spécimen montre dans son infobulle les spécimens restants sur Jupiter et sur Saturne, une ligne par planète : leur récompense si vous les avez vus (en prélevant ou étudiant un spécimen de la planète), sinon « ? ».
@@ -248,7 +248,7 @@ Une interaction est un choix en attente. Elles sont gardées dans la partie, dan
 | `CHOOSING_OBS4_ACTION` | Scan avec Observation IV | Sonde, déplacement ou rien (`OBS4`) | Non |
 | `DISCARDING_FOR_SIGNAL` | Effet de carte | Cartes à défausser (`CARDS`) | Non |
 | `DISCARDING_DRAWN_CARD` | ET.15 « Vie Quotidienne » | Une des cartes piochées, pour son action gratuite puis pour son revenu (`CARD`) | Non |
-| `REMOVING_ORBITER` / `REMOVING_LANDER` | Cartes 15 et 84 | Planète (`PLANET`) | Non |
+| `REMOVING_ORBITER` / `REMOVING_LANDER` | Cartes 15 et 84 | Planète (`PLANET`) ; carte 84 : planète, lune ou Oumuamua, la case désigne l'atterrisseur | Non |
 | `CHOOSING_BONUS_ACTION` | Plusieurs gains à choix | Entrée du menu (`MENU`) | Oui |
 | `ACQUIRING_ALIEN_CARD` | Découverte, bonus | Carte Alien (`ALIEN_CARD`) | Non |
 | `CHOOSING_CENTAURIEN_REWARD` | Palier Centaurien | Tuile Message (`CENTAURIEN`) | Non |
@@ -282,11 +282,14 @@ valeur = PV
        − pénalité de danger attendue
 ```
 
-- `f` vaut 1, puis `lastRoundFactor` pendant la dernière manche.
-- **Ressources** : crédits, énergie, Médias, données et cartes en main (au plus `maxUsefulCards`).
+- Pendant les 4 premières manches, les ressources, le plateau et le décompte final ont chacun un poids propre à la manche (`resourceRound1…4`, `boardRound1…4`, `endGameRound1…4`) ; pendant la dernière manche, ressources et plateau valent `lastRoundFactor` et le décompte final `endGameLastRound`.
+- **Passer** : la position après la passe est évaluée de même, mais pendant la dernière manche les ressources et le plateau ne valent plus que `lastRoundPassFactor` (la partie du joueur est finie), et chaque passe coûte `passCost` PV.
+- **Ressources** : crédits, énergie, Médias, données et cartes en main (les `maxUsefulCards` meilleures). Une carte vaut `card` + `cardQuality` × son meilleur usage (`ai/CardValue.ts`) : la jouer (ses gains et ses cercles de mission convertis avec les mêmes poids, moins son coût) ou la défausser pour son action gratuite.
 - **Plateau** : cases d'ordinateur, signaux, secteurs en cours (Média et part du bonus si majoritaire), traces de vie, découvertes promises, cartes Alien, technologies, missions ouvertes, cartes jouées, orbiteurs, atterrisseurs, sondes (selon leur distance à une planète), capsules (selon leur distance à la destination).
 
 ### 5.3 Poids (`AIEvaluator.DEFAULT_WEIGHTS`)
+
+Les robots ont un jeu de poids par nombre de joueurs (`WEIGHTS_BY_PLAYER_COUNT`) : le tableau ci-dessous donne les poids à 2 joueurs (`DEFAULT_WEIGHTS`, aussi utilisés pour un autre nombre de joueurs). À 3 et 4 joueurs, les poids réglés séparément (`WEIGHTS_3P`, `WEIGHTS_4P`) s'en écartent nettement : par exemple, à 3 joueurs, un atterrisseur vaut 21,8 et un revenu par manche 0,75 ; à 4 joueurs, une carte jouée vaut 3,9, la main n'est utile que jusqu'à 6 cartes environ, et seuls ces poids distinguent les cartes selon leurs usages (`cardQuality` 0,24 ; 0 ailleurs : toutes les cartes se valent).
 
 | Poids | Valeur | Rôle |
 |---|---|---|
@@ -295,6 +298,7 @@ valeur = PV
 | `media` | 0,66 | Un Média |
 | `data` | 0,35 | Une donnée en réserve |
 | `card` | 0,66 | Une carte en main |
+| `cardQuality` | 0 | Part du meilleur usage d'une carte (la jouer ou sa défausse) dans sa valeur |
 | `maxUsefulCards` | 10,16 | Nombre de cartes au-delà duquel une carte ne vaut plus rien |
 | `computerSlot` | 0,21 | Une case d'ordinateur remplie |
 | `signal` | 0,24 | Un signal posé |
@@ -315,9 +319,13 @@ valeur = PV
 | `alienCard` | 1,39 | Une carte Alien en main |
 | `sectorLead` | 1,27 | Part du bonus de couverture quand on est majoritaire |
 | `sectorLifeTraceValue` | 2,24 | Valeur d'une trace de vie promise par un secteur |
-| `endGameBefore` | 0,18 | Poids du décompte final avant la dernière manche (Expert) |
+| `endGameRound1…4` | 0,19 ; 0,09 ; 0,26 ; 0,11 | Poids du décompte final pendant les manches 1 à 4 (Expert) |
 | `endGameLastRound` | 1 | Poids du décompte final pendant la dernière manche |
-| `lastRoundFactor` | 0,59 | Facteur des ressources pendant la dernière manche |
+| `resourceRound1…4` | 0,85 ; 1,35 ; 1,17 ; 1,22 | Facteur des ressources pendant les manches 1 à 4 |
+| `boardRound1…4` | 0,74 ; 0,68 ; 0,78 ; 0,67 | Facteur du plateau pendant les manches 1 à 4 |
+| `lastRoundFactor` | 0,59 | Facteur des ressources et du plateau pendant la dernière manche |
+| `lastRoundPassFactor` | 0,01 | Leur facteur après avoir passé pendant la dernière manche |
+| `passCost` | 0,02 | Coût d'une passe (PV) |
 | `freeActionMinGain` | 0,22 | Gain minimal pour faire une action gratuite |
 | `dangerPenalty` | 2,65 | Échelle de la pénalité de danger (Exertiens) |
 | `dangerMarginDecay` | 0,9 | Réduction de la pénalité par point d'écart avec le plus exposé |
@@ -327,8 +335,11 @@ valeur = PV
 ### 5.4 Réglage (SPSA)
 
 - Les poids sont réglés ensemble par **SPSA** : on perturbe tous les poids à la fois, on fait jouer deux Experts (poids + et −) l'un contre l'autre, et on déplace les poids vers le côté gagnant.
-- Banc : `tools/spsa` (`npm run tune:ai`), parties à 2 et 3 joueurs.
-- Dernier réglage : +6,6 ± 1,5 PV contre les anciens poids (229 victoires contre 173, 404 parties).
+- Banc : `tools/spsa` (`npm run tune:ai`), un réglage par nombre de joueurs (2, 3 ou 4).
+- Dernier réglage (140 itérations de 48 parties par nombre de joueurs, validé sur graines neuves contre les poids précédents) : à 2 joueurs, aucun gain (−1,0 ± 2,1 PV, poids précédents gardés) ; à 3 joueurs, +3,5 ± 1,8 PV (109 victoires contre 92) ; à 4 joueurs, +14,9 ± 1,8 PV (141 victoires contre 59).
+- Poids par manche (réglage des seuls poids de manche et de passe, 140 itérations, novembre 2026) : +4,4 ± 2,1 PV à 2 joueurs (107 victoires contre 89) et +2,9 ± 1,7 PV à 4 joueurs (111 contre 92), appliqués ; à 3 joueurs, −1,2 ± 2,0 PV, non appliqués (poids identiques à chaque manche).
+- Valeur des cartes (`card`, `cardQuality`, `maxUsefulCards`, `openMission`, 140 itérations, novembre 2026) : +3,2 ± 1,5 PV à 4 joueurs (116 victoires contre 84), appliquée ; aucun gain à 2 et 3 joueurs (−0,1 ± 2,1 et −0,7 ± 1,9 PV), où toutes les cartes gardent la même valeur.
+- Expert contre Intermédiaire (environ 100 parties par nombre de joueurs) : +5,9 ± 2,1 PV à 2 joueurs (58 victoires contre 40), +10,4 ± 2,5 PV à 3 joueurs (70 contre 32), +8,4 ± 2,1 PV à 4 joueurs (61 contre 39).
 - Comparer deux niveaux demande au moins une cinquantaine de parties : les scores sont très dispersés.
 
 ## 6. Architecture

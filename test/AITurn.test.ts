@@ -61,6 +61,9 @@ function playRobotGame(initial: Game, maxSteps = 5000): { game: Game; steps: num
   return { game, steps };
 }
 
+/** Facteur du plateau dans l'évaluation pendant la manche en cours (une des 4 premières, poids à 2 joueurs) */
+const boardFactor = (game: Game) => [DEFAULT_WEIGHTS.boardRound1, DEFAULT_WEIGHTS.boardRound2, DEFAULT_WEIGHTS.boardRound3, DEFAULT_WEIGHTS.boardRound4][game.currentRound - 1];
+
 describe('AITurn (parties complètes entre robots)', () => {
   let logSpy: jest.SpyInstance;
   let warnSpy: jest.SpyInstance;
@@ -196,7 +199,7 @@ describe('AITurn (parties complètes entre robots)', () => {
     const calls = finalSpy.mock.calls.length;
     finalSpy.mockRestore();
 
-    expect(withProjection - withoutProjection).toBeCloseTo(10 * DEFAULT_WEIGHTS.endGameBefore);
+    expect(withProjection - withoutProjection).toBeCloseTo(10 * DEFAULT_WEIGHTS.endGameRound1);
     expect(calls).toBe(1); // l'Intermédiaire n'anticipe pas le décompte final
     expect(mediumValue).toBeGreaterThan(0);
   });
@@ -212,7 +215,7 @@ describe('AITurn (parties complètes entre robots)', () => {
     board.lifeTraces = [trace(LifeTraceType.RED, p1.id), trace(LifeTraceType.YELLOW, p2.id)];
     const withClaim = AIEvaluator.evaluate(game, p1.id);
     // 1 couleur à soi, 2 couleurs sur 3 présentes ; la trace elle-même n'est pas dans player.lifeTraces ici
-    expect(withClaim - withoutClaim).toBeCloseTo(DEFAULT_WEIGHTS.discoveryClaim * 2 / 3);
+    expect(withClaim - withoutClaim).toBeCloseTo(DEFAULT_WEIGHTS.discoveryClaim * 2 / 3 * boardFactor(game));
 
     board.isDiscovered = true;
     expect(AIEvaluator.evaluate(game, p1.id)).toBeCloseTo(withoutClaim);
@@ -236,7 +239,7 @@ describe('AITurn (parties complètes entre robots)', () => {
     // Un signal de plus, et la majorité : part du bonus (3 PV + 1 trace) selon le remplissage
     const fill = 3 / sector.signals.length;
     const w = DEFAULT_WEIGHTS;
-    expect(ahead - behind).toBeCloseTo(w.signal + fill * w.sectorLead * (3 + w.sectorLifeTraceValue));
+    expect(ahead - behind).toBeCloseTo((w.signal + fill * w.sectorLead * (3 + w.sectorLifeTraceValue)) * boardFactor(game));
   });
 
   test('tirages comparés pour les choix aléatoires : 2 pour le débutant, 4 pour un robot stratégique', async () => {

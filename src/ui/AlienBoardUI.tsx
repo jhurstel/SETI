@@ -407,7 +407,9 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
         const dataCost = bonus.data && bonus.data < 0 ? -bonus.data : 0;
         const canAfford = (currentPlayer.tokens || 0) >= tokenCost && currentPlayer.data >= dataCost;
         const isNext = index === 0 || (isInfinite && index === fixedSlotsLength) || !!board.lifeTraces.find(t => t.location === LifeTraceLocation.SPECIES && t.type === type && t.slotIndex === index - 1);
-        const isClickable = isInfinite ? isPlacing && !isFilled && isNext && canAfford : isPlacing && !isFilled && canAfford; // Note: Fixed slots logic simplified for Mascamites specific placement if needed, but standard logic applies
+        // Case de la piste bleue des Mascamites sans spécimen : indisponible
+        const available = !species || SpeciesSystem.isSpeciesSlotAvailable(species, type, index);
+        const isClickable = isPlacing && !isFilled && canAfford && available && (!isInfinite || isNext);
 
         // Dessin de la case : PV au centre ; autres gains et coûts (barrés d'une croix rouge) contre la case à 135°
         const hasCost = tokenCost > 0 || dataCost > 0;

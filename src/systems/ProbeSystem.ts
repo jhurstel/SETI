@@ -1065,7 +1065,7 @@ export class ProbeSystem {
     const res = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'atmospheric_entry', currentSequenceId);
 
     // Message, ligne des gains, puis leurs conséquences
-    res.historyEntries.unshift({ message: `retire un orbiteur de ${planet.name}`, playerId, sequenceId: currentSequenceId }, ...res.logs.map(log => ({ message: log, playerId, sequenceId: currentSequenceId })));
+    res.historyEntries.unshift(...this.removalEntries(`retire un orbiteur de ${planet.name}`, res.logs, playerId, currentSequenceId));
 
     return {
       updatedGame: res.updatedGame,
@@ -1075,7 +1075,8 @@ export class ProbeSystem {
   }
 
   /**
-   * Retire un atterrisseur d'une planète (effet de carte)
+   * Retire un atterrisseur (carte 84, Retour d'échantillons) d'une planète, d'une lune ou de la planète d'Oumuamua :
+   * `landerIndex` est sa position dans la liste des atterrisseurs du corps. Gain : 1 trace de vie jaune.
    */
   static removeLander(game: Game, playerId: string, planetId: string, landerIndex: number, sequenceId?: string): {
     updatedGame: Game;
@@ -1083,35 +1084,50 @@ export class ProbeSystem {
     newPendingInteractions: InteractionState[];
   } {
     const updatedGame = cloneGame(game);
-    const player = updatedGame.players.find(p => p.id === playerId);
-    const planet = updatedGame.board.planets.find(p => p.id === planetId);
+    const player = requirePlayer(updatedGame, playerId);
+    const body = this.landingBody(updatedGame, planetId);
 
-    if (!player || !planet || !planet.landers[landerIndex] || planet.landers[landerIndex].ownerId !== playerId) {
+    if (!body || body.landers[landerIndex]?.ownerId !== playerId) {
       throw new Error("Impossible de retirer l'atterrisseur.");
     }
 
-    const removedProbe = planet.landers[landerIndex];
-
-    // Retirer de la planète
-    planet.landers.splice(landerIndex, 1);
-
-
-    // Retirer de la liste du joueur
+    const [removedProbe] = body.landers.splice(landerIndex, 1);
     player.probes = player.probes.filter(p => p.id !== removedProbe.id);
 
-    // Appliquer les gains via ResourceSystem : 1 Trace de Vie Jaune
     const bonuses: Bonus = { lifetraces: [{ amount: 1, scope: LifeTraceType.YELLOW }] };
     const currentSequenceId = sequenceId || `remove-lander-${uniqueId()}`;
     const res = ResourceSystem.processBonuses(bonuses, updatedGame, playerId, 'sample_return', currentSequenceId);
-
-    // Message, ligne des gains, puis leurs conséquences
-    res.historyEntries.unshift({ message: `retire un atterrisseur de ${planet.name}`, playerId, sequenceId: currentSequenceId }, ...res.logs.map(log => ({ message: log, playerId, sequenceId: currentSequenceId })));
+    res.historyEntries.unshift(...this.removalEntries(`retire un atterrisseur de ${body.name}`, res.logs, playerId, currentSequenceId));
 
     return {
       updatedGame: res.updatedGame,
       historyEntries: res.historyEntries,
       newPendingInteractions: res.newPendingInteractions
     };
+  }
+
+  /** Message d'un retrait de sonde, suivi sur la même ligne de ses gains (« retire un atterrisseur de Mars et gagne … »), puis les autres lignes */
+  private static removalEntries(message: string, logs: string[], playerId: string, sequenceId: string): HistoryEntry[] {
+    const gainsIndex = logs.findIndex(log => log.startsWith('gagne '));
+    const head = gainsIndex === -1 ? message : `${message} et ${logs[gainsIndex]}`;
+    return [head, ...logs.filter((_, i) => i !== gainsIndex)].map(text => ({ message: text, playerId, sequenceId }));
+  }
+
+  /** Corps (planète, lune, planète d'Oumuamua) où le joueur a au moins un atterrisseur : ceux qu'il peut retirer (carte 84) */
+  static landerBodies(game: Game, playerId: string): string[] {
+    const oumuamua = game.species.find(s => s.name === AlienBoardType.OUMUAMUA)?.planet;
+    const bodies: (Planet | Satellite)[] = [...game.board.planets, ...game.board.planets.flatMap(p => p.satellites || []), ...(oumuamua ? [oumuamua] : [])];
+    return bodies.filter(b => b.landers.some(l => l.ownerId === playerId)).map(b => b.id);
+  }
+
+  /**
+   * Position, dans la liste des atterrisseurs du corps, de celui du joueur sur la case `slotIndex` (celle de l'interface :
+   * le dernier posé si plusieurs y sont), ou du premier du joueur sans case ; -1 s'il n'y en a pas.
+   */
+  static ownLanderIndex(game: Game, playerId: string, planetId: string, slotIndex?: number): number {
+    const landers = this.landingBody(game, planetId)?.landers ?? [];
+    const indices = landers.map((l, i) => ({ l, i })).filter(({ l }) => l.ownerId === playerId && (slotIndex === undefined || l.planetSlotIndex === slotIndex));
+    return indices.length === 0 ? -1 : slotIndex === undefined ? indices[0].i : indices[indices.length - 1].i;
   }
 
   /**

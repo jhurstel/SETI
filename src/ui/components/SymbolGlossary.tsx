@@ -1,6 +1,6 @@
 import React from 'react';
 import { TechnologyCategory } from '../../core/types';
-import { AnomalyIcon, MascamiteIcon, TrophyIcon, ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS } from './GameIcons';
+import { AnomalyIcon, MascamiteIcon, TrophyIcon, ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS, MissionCompleteIcon, RefuseIcon } from './GameIcons';
 import { ReservationIcon, TechCategoryIcon, AnyTechIcon, OrbiterOrLanderIcon, OrbiterIcon, LanderIcon } from './ObjectiveSymbol';
 import { LIFE_TRACE_COLORS } from '../styles/lifeTraceColors';
 import { ANOMALY_COLORS } from '../styles/anomalyColors';
@@ -32,6 +32,8 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
     entries: [
       { icon: <DiscardCardIcon size={28} />, name: 'Défausser une carte', text: 'Une carte de la main pour l\'action gratuite de son coin (Média, donnée, déplacement…).' },
       { icon: <ResourceIcon kind="movement" size={28} />, name: 'Déplacer une sonde', text: '1 énergie (ou un déplacement gratuit) par case.' },
+      { icon: <MissionCompleteIcon size={28} />, name: 'Accomplir une mission', text: "Recouvrir un cercle (mission déclenchable) ou le carré (mission conditionnelle) d'une mission jouée pour gagner sa récompense ; hors de son tour, une fenêtre propose les cercles déclenchés." },
+      { icon: <RefuseIcon size={26} />, name: 'Refuser', text: 'Dans une fenêtre de choix : renoncer au gain proposé.' },
     ],
   },
   {

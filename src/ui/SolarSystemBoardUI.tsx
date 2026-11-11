@@ -466,10 +466,10 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
         canInteract = true;
       }
     } else if (interactionState.type === 'REMOVING_LANDER') {
+      // Planète où le joueur a un atterrisseur, sur elle ou sur une de ses lunes (carte 84)
+      const bodies = ProbeSystem.landerBodies(game, currentPlayer.id);
       const planetData = getPlanetData(obj.id);
-      if (planetData && planetData.landers.some(p => p.ownerId === currentPlayer.id)) {
-        canInteract = true;
-      }
+      canInteract = bodies.includes(obj.id) || !!planetData?.satellites?.some(s => bodies.includes(s.id));
     } else if (!currentPlayer.hasPerformedMainAction && !isRobot && game.phase !== GamePhase.SETUP) {
       if (obj.id === 'earth') {
         canInteract = ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch;

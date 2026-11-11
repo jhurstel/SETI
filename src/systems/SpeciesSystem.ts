@@ -238,6 +238,16 @@ export class SpeciesSystem {
         return Object.keys(slot).length > 0;
     }
 
+    /**
+     * Un emplacement de la piste d'espèce peut-il recevoir une trace ? Non pour les cases de la piste bleue des Mascamites
+     * qui attendent encore leur spécimen (sans jeton, donc sans récompense : SpeciesSystem.placeSpecimenOnTrack).
+     */
+    static isSpeciesSlotAvailable(species: Species, color: LifeTraceType, slotIndex: number): boolean {
+        if (species.name !== AlienBoardType.MASCAMITES || color !== LifeTraceType.BLUE) return true;
+        const slot = species.fixedSlots.bluelifetrace[slotIndex];
+        return slotIndex < MASCAMITE_BOARD_SPECIMEN_SLOT || slot === undefined || Object.keys(slot).length > 0;
+    }
+
     static freeSpeciesSlotIndices(game: Game, boardIndex: number, color: LifeTraceType): number[] {
         const board = game.board.alienBoards[boardIndex];
         const species = game.species.find(s => s.name === board.speciesId);
@@ -245,7 +255,7 @@ export class SpeciesSystem {
         const fixed = color === LifeTraceType.RED ? species.fixedSlots.redlifetrace
             : color === LifeTraceType.YELLOW ? species.fixedSlots.yellowlifetrace : species.fixedSlots.bluelifetrace;
         const taken = new Set(board.lifeTraces.filter(t => t.type === color && t.location === LifeTraceLocation.SPECIES).map(t => t.slotIndex));
-        const free = fixed.map((_, i) => i).filter(i => !taken.has(i));
+        const free = fixed.map((_, i) => i).filter(i => !taken.has(i) && this.isSpeciesSlotAvailable(species, color, i));
         if (!this.hasInfiniteSlot(species, color)) return free;
         let infiniteIndex = fixed.length;
         while (taken.has(infiniteIndex)) infiniteIndex++;
@@ -362,6 +372,9 @@ export class SpeciesSystem {
             const isOccupied = board.lifeTraces.some(t => t.type === color && t.location === LifeTraceLocation.SPECIES && t.slotIndex === trackIndex);
             if (isOccupied) {
                 return { updatedGame: game, historyEntries: [{ message: "Emplacement déjà occupé.", playerId, sequenceId }], newPendingInteractions: [] };
+            }
+            if (!this.isSpeciesSlotAvailable(species, color, trackIndex)) {
+                return { updatedGame: game, historyEntries: [{ message: "Emplacement indisponible : il attend un spécimen Mascamite.", playerId, sequenceId }], newPendingInteractions: [] };
             }
 
             // Déterminer le bonus en fonction de l'index sur la piste

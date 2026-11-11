@@ -14,12 +14,14 @@ interface PassModalProps {
   title?: string;
   subtitle?: string;
   confirmLabel?: string;
+  /** Symbole du bouton de validation (réserver, défausser…) */
+  confirmIcon?: React.ReactNode;
   /** Attribut mis en surbrillance, comme sur le plateau joueur (revenu pour une réservation) */
   highlightedAttribute?: 'revenue' | 'scan' | 'freeAction';
 }
 
 /** Choix d'une carte dans une fenêtre centrale (fin de manche, réservation) */
-export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm, currentRound, title, subtitle, confirmLabel, highlightedAttribute = 'freeAction' }) => {
+export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm, currentRound, title, subtitle, confirmLabel, confirmIcon, highlightedAttribute = 'freeAction' }) => {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
   useCloseTooltipOnClick(() => setActiveTooltip(null));
@@ -38,7 +40,7 @@ export const PassModal: React.FC<PassModalProps> = ({ visible, cards, onConfirm,
       <ChoiceModal
         title={title ?? `Fin de manche ${currentRound} : choisissez une carte`}
         subtitle={subtitle}
-        footer={<ChoiceFooterButton onClick={confirm} disabled={!selectedCardId}>{confirmLabel ?? 'Confirmer et passer'}</ChoiceFooterButton>}
+        footer={<ChoiceFooterButton onClick={confirm} disabled={!selectedCardId} icon={confirmIcon}>{confirmLabel ?? 'Confirmer et passer'}</ChoiceFooterButton>}
         wide
       >
           {cards.map(card => (

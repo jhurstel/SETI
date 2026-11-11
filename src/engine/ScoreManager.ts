@@ -603,10 +603,12 @@ export class ScoreManager {
       // 2e palier : jouer sa carte coûte 1 crédit
       const cost = SpeciesSystem.exertienCardCost(updatedGame, exertienMilestone);
       if (player.cards.some(c => c.type === CardType.EXERTIEN) && player.credits >= cost) {
-        historyEntries.push({ message: `a atteint un palier Exertien et peut jouer une carte${cost > 0 ? ` (pour ${cost} crédit)` : ''}.`, playerId });
+        // Le choix de la carte (ou le renoncement) s'écrit dans la même séquence, sous le palier
+        const sequenceId = `exertien-${uniqueId()}`;
+        historyEntries.push({ message: `a atteint un palier Exertien et peut jouer une carte${cost > 0 ? ` (pour ${cost} crédit)` : ''}.`, playerId, sequenceId });
         return {
           updatedGame,
-          newInteraction: { type: 'CHOOSING_EXERTIEN_CARD', milestone: exertienMilestone },
+          newInteraction: { type: 'CHOOSING_EXERTIEN_CARD', milestone: exertienMilestone, sequenceId },
           historyEntries,
           discoveryNotification,
           shouldStop: true,

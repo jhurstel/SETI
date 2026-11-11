@@ -1,6 +1,7 @@
 import { Game, Player, ProbeState, DiskName, SectorNumber, LifeTraceType, CardType } from '../core/types';
 import { ScoreManager } from '../engine/ScoreManager';
 import { ScanSystem } from '../systems/ScanSystem';
+import { CardValue } from './CardValue';
 import { createRotationState, getAbsoluteSectorForProbe, getAllCells, calculateReachableCells, RotationState } from '../core/SolarSystemPosition';
 
 /** Nombre maximal de déplacements explorés pour estimer la distance d'une sonde à une planète */
@@ -22,6 +23,9 @@ export const DEFAULT_WEIGHTS = {
   media: 0.66,
   data: 0.35,
   card: 0.66,
+  // Part de la valeur propre d'une carte en main (CardValue : la jouer, ou la défausser pour son action gratuite)
+  // ajoutée à card : 0, toutes les cartes se valent
+  cardQuality: 0,
   maxUsefulCards: 10.16,
   computerSlot: 0.21,
   signal: 0.24,
@@ -49,11 +53,30 @@ export const DEFAULT_WEIGHTS = {
   // Valeur en PV d'une trace de vie gagnée en couvrant un secteur (pour estimer son bonus)
   sectorLifeTraceValue: 2.24,
   // Robot Expert : part des points du décompte final déjà acquis (tuiles objectif, cartes Fin de partie,
-  // cartes Exertiens), partielle avant la dernière manche : ce n'est qu'une projection
-  endGameBefore: 0.18,
+  // cartes Exertiens) pendant chacune des 4 premières manches (ce n'est qu'une projection), puis pendant la dernière.
+  // Poids par manche réglés par SPSA à 2 joueurs (novembre 2026) : +4,4 ± 2,1 PV, 107 victoires contre 89
+  // (200 parties à graines neuves) face aux mêmes poids sans distinction de manche
+  endGameRound1: 0.1921,
+  endGameRound2: 0.0857,
+  endGameRound3: 0.2625,
+  endGameRound4: 0.1137,
   endGameLastRound: 1,
+  // Part de la valeur des ressources et du potentiel du plateau pendant chacune des 4 premières manches
+  resourceRound1: 0.8461,
+  resourceRound2: 1.3504,
+  resourceRound3: 1.1738,
+  resourceRound4: 1.2153,
+  boardRound1: 0.7412,
+  boardRound2: 0.6788,
+  boardRound3: 0.7795,
+  boardRound4: 0.6721,
   // Pendant la dernière manche, les ressources et le potentiel ne valent plus que cette part
   lastRoundFactor: 0.59,
+  // Passer pendant la dernière manche termine la partie du joueur : ses ressources et son potentiel ne valent
+  // plus que cette part (0 : plus rien ne rapporte). Chaque passe coûte aussi passCost (PV) : le robot ne passe
+  // que si aucune action ne lui fait gagner plus que cela.
+  lastRoundPassFactor: 0.0134,
+  passCost: 0.0163,
   // Gain minimal (en PV) pour qu'un robot stratégique joue une action gratuite facultative
   freeActionMinGain: 0.22,
   // Danger Exertien : part de la pénalité attendue (10 % du score) comptée quand le joueur est le plus exposé,
@@ -71,39 +94,127 @@ export const DEFAULT_WEIGHTS = {
 export type EvaluatorWeights = typeof DEFAULT_WEIGHTS;
 
 /**
+ * Poids selon la manche, avant leur réglage : même part du décompte final pendant les 4 premières manches,
+ * ressources et plateau pleins, ressources sans valeur après la passe de la dernière manche, passe sans coût
+ */
+function roundDefaults(endGame: number) {
+  return {
+    endGameRound1: endGame, endGameRound2: endGame, endGameRound3: endGame, endGameRound4: endGame,
+    resourceRound1: 1, resourceRound2: 1, resourceRound3: 1, resourceRound4: 1,
+    boardRound1: 1, boardRound2: 1, boardRound3: 1, boardRound4: 1,
+    lastRoundPassFactor: 0, passCost: 0,
+  };
+}
+
+/** Poids d'une des 4 premières manches (1 à 4) */
+function roundWeights(w: EvaluatorWeights, round: number): { endGame: number; resource: number; board: number } {
+  switch (round) {
+    case 1: return { endGame: w.endGameRound1, resource: w.resourceRound1, board: w.boardRound1 };
+    case 2: return { endGame: w.endGameRound2, resource: w.resourceRound2, board: w.boardRound2 };
+    case 3: return { endGame: w.endGameRound3, resource: w.resourceRound3, board: w.boardRound3 };
+    default: return { endGame: w.endGameRound4, resource: w.resourceRound4, board: w.boardRound4 };
+  }
+}
+
+/**
+ * Poids à 3 joueurs : réglage SPSA propre (140 itérations de 48 parties à 3 joueurs en miroir, partant de
+ * DEFAULT_WEIGHTS, moyenne des 70 dernières). Validation sur 204 parties à graines neuves : +3,5 ± 1,8 PV,
+ * 109 victoires contre 92 face à DEFAULT_WEIGHTS.
+ */
+export const WEIGHTS_3P: EvaluatorWeights = {
+  credit: 1.6336, energy: 1.4296, media: 0.8452, data: 0.4398, card: 1.2509, cardQuality: 0, maxUsefulCards: 6.9675,
+  computerSlot: 0.0844, signal: 0.62, lifeTrace: 0.9422, technology: 2.4269,
+  probeInSystem: 0.3193, probeOnPlanet: 6.4049, probeStep: 1.1644,
+  capsule: 2.3142, capsuleAtDestination: 8.2885, capsuleStep: 0.4309,
+  orbiter: 2.3024, lander: 21.776, openMission: 1.6113, playedCard: 0.4887, incomePerRound: 0.7459,
+  discoveryClaim: 5.1005, alienCard: 2.0515, sectorLead: 1.9486, sectorLifeTraceValue: 1.6324,
+  ...roundDefaults(0.2535), endGameLastRound: 1, lastRoundFactor: 0.6286, freeActionMinGain: 0.1879,
+  dangerPenalty: 1.5833, dangerMarginDecay: 0.6325, exertienStepChance: 0.125, minPointsPerRound: 17.5955,
+};
+
+/**
+ * Poids à 4 joueurs : réglage SPSA propre (140 itérations de 48 parties à 4 joueurs, 2 contre 2 en miroir, partant de
+ * DEFAULT_WEIGHTS, moyenne des 70 dernières). Validation sur 204 parties à graines neuves : +14,9 ± 1,8 PV,
+ * 141 victoires contre 59 face à DEFAULT_WEIGHTS. Poids par manche réglés ensuite (140 itérations) : +2,9 ± 1,7 PV,
+ * 111 victoires contre 92 (204 parties). À 3 joueurs, ce second réglage n'a rien apporté (−1,2 ± 2,0 PV) : poids
+ * sans distinction de manche. Valeur des cartes réglée enfin (card, cardQuality, maxUsefulCards, openMission ; 140 itérations) :
+ * +3,2 ± 1,5 PV, 116 victoires contre 84 (204 parties). À 2 et 3 joueurs, aucun gain (−0,1 ± 2,1 et −0,7 ± 1,9 PV) :
+ * cardQuality reste à 0 (toutes les cartes se valent).
+ */
+export const WEIGHTS_4P: EvaluatorWeights = {
+  credit: 1.4018, energy: 1.2387, media: 0.8408, data: 1.094, card: 0.7275, cardQuality: 0.241, maxUsefulCards: 5.9695,
+  computerSlot: 0.3527, signal: 0.3851, lifeTrace: 1.1882, technology: 2.7967,
+  probeInSystem: 1.872, probeOnPlanet: 7.3369, probeStep: 1.375,
+  capsule: 1.1608, capsuleAtDestination: 4.2599, capsuleStep: 0.2632,
+  orbiter: 3.257, lander: 4.0629, openMission: 0.6213, playedCard: 3.8651, incomePerRound: 2.2685,
+  discoveryClaim: 7.2208, alienCard: 1.0142, sectorLead: 0.6689, sectorLifeTraceValue: 3.0314,
+  endGameRound1: 0.4392, endGameRound2: 0.3651, endGameRound3: 0.3682, endGameRound4: 0.652, endGameLastRound: 1,
+  resourceRound1: 1.4364, resourceRound2: 1.4979, resourceRound3: 1.2519, resourceRound4: 0.8833,
+  boardRound1: 0.9014, boardRound2: 1.0854, boardRound3: 1.1086, boardRound4: 0.7382,
+  lastRoundPassFactor: 0.0107, passCost: 0.0104, lastRoundFactor: 0.5783, freeActionMinGain: 0.4347,
+  dangerPenalty: 4.5872, dangerMarginDecay: 0.3736, exertienStepChance: 0.7045, minPointsPerRound: 15.4556,
+};
+
+/**
+ * Poids propres à chaque nombre de joueurs, réglés séparément par SPSA (tools/spsa) ; DEFAULT_WEIGHTS pour
+ * un autre nombre de joueurs. À 2 joueurs, le réglage propre de tous les poids n'a rien apporté (−1,0 ± 2,1 PV sur
+ * 200 parties) : DEFAULT_WEIGHTS reste en place, avec ses poids par manche réglés.
+ */
+export const WEIGHTS_BY_PLAYER_COUNT: Readonly<Record<number, EvaluatorWeights>> = {
+  2: DEFAULT_WEIGHTS,
+  3: WEIGHTS_3P,
+  4: WEIGHTS_4P,
+};
+
+/**
  * Évaluation heuristique d'une position du point de vue d'un joueur.
  * Pure et sans effet de bord : sert à comparer les états obtenus en simulant chaque choix possible.
  */
 export class AIEvaluator {
   /**
-   * Poids propres à certains joueurs (par identifiant), à la place de DEFAULT_WEIGHTS.
+   * Poids propres à certains joueurs (par identifiant), à la place des poids par défaut.
    * Sert au réglage des poids par parties entre robots ; vide en jeu.
    */
   static weightOverrides = new Map<string, EvaluatorWeights>();
 
-  /** Poids utilisés pour un joueur : les siens s'il en a reçu (réglage), sinon DEFAULT_WEIGHTS */
-  static weightsFor(playerId: string): EvaluatorWeights {
-    return this.weightOverrides.get(playerId) ?? DEFAULT_WEIGHTS;
+  /**
+   * Poids utilisés pour un joueur : les siens s'il en a reçu (réglage),
+   * sinon ceux du nombre de joueurs de la partie (WEIGHTS_BY_PLAYER_COUNT), sinon DEFAULT_WEIGHTS
+   */
+  static weightsFor(game: Game, playerId: string): EvaluatorWeights {
+    return this.weightOverrides.get(playerId) ?? WEIGHTS_BY_PLAYER_COUNT[game.players.length] ?? DEFAULT_WEIGHTS;
   }
 
-  static evaluate(game: Game, playerId: string): number {
+  /**
+   * Valeur de la position si le joueur passe maintenant (seuil des actions principales des robots stratégiques) :
+   * pendant la dernière manche, ses ressources et son potentiel ne valent plus que lastRoundPassFactor ;
+   * toute passe coûte passCost.
+   */
+  static passValue(game: Game, playerId: string): number {
+    const w = this.weightsFor(game, playerId);
+    return this.evaluate(game, playerId, true) - w.passCost;
+  }
+
+  static evaluate(game: Game, playerId: string, passing = false): number {
     const player = game.players.find(p => p.id === playerId);
     if (!player) return 0;
-    const w = this.weightsFor(playerId);
+    const w = this.weightsFor(game, playerId);
 
-    // Valeur du potentiel : pleine jusqu'à l'avant-dernière manche, réduite pendant la dernière
+    // Valeur du potentiel : selon la manche jusqu'à l'avant-dernière, réduite pendant la dernière
+    // (et presque nulle une fois la dernière manche passée)
     const remainingRounds = Math.max(0, game.maxRounds - game.currentRound);
-    const futureFactor = remainingRounds >= 1 ? 1 : w.lastRoundFactor;
+    const round = remainingRounds >= 1 ? roundWeights(w, game.maxRounds - remainingRounds) : null;
+    const lastFactor = passing ? w.lastRoundPassFactor : w.lastRoundFactor;
 
     let value = player.score;
-    value += futureFactor * this.resourceValue(player, w);
-    value += futureFactor * this.boardValue(game, player, w);
+    value += (round ? round.resource : lastFactor) * this.resourceValue(player, w);
+    value += (round ? round.board : lastFactor) * this.boardValue(game, player, w);
     value += remainingRounds * w.incomePerRound * (player.revenueCredits * w.credit + player.revenueEnergy * w.energy + player.revenueCards * w.card);
 
     // Le décompte final se calcule une seule fois, en fin de partie : l'Expert l'anticipe
     // (sans les cartes Exertiens, comptées pour tous les niveaux ci-dessous)
     if (player.aiDifficulty === 'EXPERT' && !game.finalScores) {
-      const weight = remainingRounds >= 1 ? w.endGameBefore : w.endGameLastRound;
+      const weight = round ? round.endGame : w.endGameLastRound;
       const endGame = ScoreManager.calculateFinalScore(game, playerId);
       value += weight * (endGame.total - endGame.exertienCards);
     }
@@ -147,12 +258,12 @@ export class AIEvaluator {
 
   private static resourceValue(player: Player, w: EvaluatorWeights): number {
     // Les cartes Exertiens ne sont pas en main (FAQ Q40) : elles ne valent rien tant qu'elles ne sont pas jouées
-    const handSize = player.cards.filter(c => c.type !== CardType.EXERTIEN).length;
+    const hand = player.cards.filter(c => c.type !== CardType.EXERTIEN);
     return player.credits * w.credit
       + player.energy * w.energy
       + player.mediaCoverage * w.media
       + player.data * w.data
-      + Math.min(handSize, w.maxUsefulCards) * w.card;
+      + CardValue.handValue(hand, w);
   }
 
   private static boardValue(game: Game, player: Player, w: EvaluatorWeights): number {

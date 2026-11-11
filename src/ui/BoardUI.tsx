@@ -26,6 +26,8 @@ import { SpaceBackdrop } from './components/SpaceBackdrop';
 import { FirstPlayerDraw } from './components/FirstPlayerDraw';
 import { useDebugSetting } from './hooks/useDebugSetting';
 import { PassModal } from './modals/PassModal';
+import { DiscardCardIcon, ResourceIcon, ResourceIconKind, SignalGainIcon } from './components/GameIcons';
+import { ReservationIcon } from './components/ObjectiveSymbol';
 import { CardPickModal } from './modals/CardPickModal';
 import { setActiveTooltip } from './tooltipStore';
 import { TooltipLayer } from './TooltipLayer';
@@ -45,6 +47,13 @@ const DebugPanel = lazy(() => import('./DebugPanel').then(m => ({ default: m.Deb
 
 /** Modes propres à l'interface (sélection avant la commande, animation) : la partie n'en sait rien */
 type LocalMode = Extract<InteractionState, { type: 'DISCARDING_CARD' | 'TRADING_CARD' | 'ANALYZING' }>;
+
+/** Symbole de la ressource gagnée par un échange de cartes (bouton « Échanger ») */
+const TRADE_GAINS: ResourceIconKind[] = ['credit', 'energy', 'card'];
+const tradeGainIcon = (targetGain: string) => {
+  const kind = TRADE_GAINS.find(k => k === targetGain.toLowerCase());
+  return kind ? <ResourceIcon kind={kind} size={20} /> : undefined;
+};
 
 
 
@@ -674,6 +683,7 @@ export const BoardUI: React.FC = () => {
           title={`Réservez une carte${interactionState.count > 1 ? ` (${interactionState.count} réservations restantes)` : ''}`}
           subtitle="La carte réservée est glissée sous votre plateau : vous gagnez aussitôt son revenu, puis à chaque manche."
           confirmLabel="Réserver"
+          confirmIcon={<ReservationIcon size={20} />}
           highlightedAttribute="revenue"
         />
       )}
@@ -690,6 +700,7 @@ export const BoardUI: React.FC = () => {
             ? "Vie Quotidienne : vous gagnez l'action gratuite indiquée dans le coin de la carte."
             : 'Vie Quotidienne : vous gagnez 1 ressource du type de son revenu.'}
           confirmLabel="Défausser"
+          confirmIcon={<DiscardCardIcon size={20} />}
           highlightedAttribute={interactionState.step === 'FREE_ACTION' ? 'freeAction' : 'revenue'}
         />
       )}
@@ -708,6 +719,7 @@ export const BoardUI: React.FC = () => {
             highlightedAttribute="freeAction"
             status={`Sélectionnées : ${interactionState.selectedCards.length} / ${toDiscard}`}
             confirmLabel="Défausser"
+            confirmIcon={<DiscardCardIcon size={20} />}
             canConfirm={interactionState.selectedCards.length === toDiscard}
             onConfirm={h.handleConfirmDiscard}
           />
@@ -725,6 +737,7 @@ export const BoardUI: React.FC = () => {
           highlightedAttribute="freeAction"
           status={`Sélectionnées : ${interactionState.selectedCards.length} / ${interactionState.count}`}
           confirmLabel="Échanger"
+          confirmIcon={tradeGainIcon(interactionState.targetGain)}
           canConfirm={interactionState.selectedCards.length === interactionState.count}
           onConfirm={h.handleConfirmTrade}
           onCancel={() => setLocalMode(null)}
@@ -742,6 +755,7 @@ export const BoardUI: React.FC = () => {
           highlightedAttribute="scan"
           status={`Sélectionnées : ${interactionState.selectedCards.length} / ${interactionState.count}`}
           confirmLabel="Défausser"
+          confirmIcon={<SignalGainIcon badge="discard" size={22} />}
           canConfirm
           onConfirm={h.handleConfirmDiscard}
         />

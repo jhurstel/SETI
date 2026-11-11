@@ -13,7 +13,8 @@ import { BonusIcons } from '../components/BonusIcons';
 import { interactionSymbol } from '../components/InteractionSymbol';
 import { ChoiceCardTile } from './CardPickModal';
 import { Tooltip } from '../Tooltip';
-import { ResourceIcon, SignalGainIcon, ActionHexIcon, CentaurienMessageIcon, TrophyIcon } from '../components/GameIcons';
+import { ResourceIcon, ActionHexIcon, CentaurienMessageIcon, TrophyIcon, RefuseIcon, TechTileIcon } from '../components/GameIcons';
+import { LanderIcon } from '../components/ObjectiveSymbol';
 import { SpeciesSystem } from '../../systems/SpeciesSystem';
 import { effectString } from '../../core/cardEffects';
 import { InteractionChoices } from '../../engine/InteractionChoices';
@@ -148,7 +149,8 @@ export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: 
         footer={
           <>
             <ChoiceFooterButton secondary onClick={() => choose(undefined)}>Ne pas jouer de carte</ChoiceFooterButton>
-            <ChoiceFooterButton onClick={() => selectedId && choose(selectedId)} disabled={!selectedId || !canPay}>{cost > 0 ? `Jouer la carte (${cost} crédit)` : 'Jouer la carte'}</ChoiceFooterButton>
+            <ChoiceFooterButton onClick={() => selectedId && choose(selectedId)} disabled={!selectedId || !canPay}
+              icon={cost > 0 ? <ResourceIcon kind="credit" amount={-cost} size={20} /> : undefined}>Jouer la carte</ChoiceFooterButton>
           </>
         }
         wide
@@ -178,15 +180,15 @@ export const MediaOrMoveModal = ({ onChoice }: { onChoice: (choice: 'MEDIA' | 'M
 
 export const Observation2Modal = ({ onChoice }: { onChoice: (accepted: boolean) => void }) => (
   <ChoiceModal title="Observation II" subtitle="Défausser un Média pour marquer un signal supplémentaire dans le secteur de Mercure ?">
-    <ChoiceOption icon={<><ResourceIcon kind="media" size={22} /><span aria-hidden="true">→</span><SignalGainIcon badge="mercury" size={26} /></>} label="Oui" detail="−1 Média, +1 signal (Mercure)" onClick={() => onChoice(true)} />
-    <ChoiceOption icon="✋" label="Non" onClick={() => onChoice(false)} />
+    <ChoiceOption icon={<TechTileIcon techId="observation-2" width={30} height={42} />} label="Oui" detail="−1 Média, +1 signal (Mercure)" onClick={() => onChoice(true)} />
+    <ChoiceOption icon={<RefuseIcon size={26} />} label="Non" onClick={() => onChoice(false)} />
   </ChoiceModal>
 );
 
 export const Observation3Modal = ({ onChoice }: { onChoice: (accepted: boolean) => void }) => (
   <ChoiceModal title="Observation III" subtitle="Défausser une carte de votre main pour marquer un signal supplémentaire ?">
-    <ChoiceOption icon={<SignalGainIcon badge="discard" size={26} />} label="Oui" detail="une carte de la main pour son signal" onClick={() => onChoice(true)} />
-    <ChoiceOption icon="✋" label="Non" onClick={() => onChoice(false)} />
+    <ChoiceOption icon={<TechTileIcon techId="observation-3" width={30} height={42} />} label="Oui" detail="une carte de la main pour son signal" onClick={() => onChoice(true)} />
+    <ChoiceOption icon={<RefuseIcon size={26} />} label="Non" onClick={() => onChoice(false)} />
   </ChoiceModal>
 );
 
@@ -194,7 +196,7 @@ export const Observation3Modal = ({ onChoice }: { onChoice: (accepted: boolean) 
 export const TokenDiscardModal = ({ interaction, tokens, onChoice }: { interaction: Extract<InteractionState, { type: 'DISCARDING_TOKEN' }>, tokens: number, onChoice: (accepted: boolean) => void }) => (
   <ChoiceModal title={interaction.cardName} subtitle={`Défausser 1 Token pour gagner ${interaction.rewardText} ? (${tokens} Token${tokens > 1 ? 's' : ''})`}>
     <ChoiceOption icon={<ResourceIcon kind="token" size={22} />} label="Défausser 1 Token" detail={`+${interaction.rewardText}`} onClick={() => onChoice(true)} disabled={tokens < 1} disabledReason="Aucun token" />
-    <ChoiceOption icon="✋" label={interaction.then ? 'Arrêter et gagner 1 Atterrissage' : 'Non'} onClick={() => onChoice(false)} />
+    <ChoiceOption icon={interaction.then ? <LanderIcon size={26} /> : <RefuseIcon size={26} />} label={interaction.then ? 'Arrêter et gagner 1 Atterrissage' : 'Non'} onClick={() => onChoice(false)} />
   </ChoiceModal>
 );
 

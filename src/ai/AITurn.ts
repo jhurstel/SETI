@@ -233,10 +233,11 @@ export class AITurn {
 
   /**
    * Simule chaque action principale possible et renvoie le résultat de la meilleure.
-   * Renvoie null si aucune ne vaut mieux que passer.
+   * Renvoie null si aucune ne vaut mieux que passer (AIEvaluator.passValue).
    */
   private static chooseBestMainAction(game: Game, player: Player): StepResult | null {
-    const baseline = AIEvaluator.evaluate(game, player.id);
+    // Gains mesurés par rapport à la passe (ressources perdues si c'est la dernière manche, coût de la passe)
+    const baseline = AIEvaluator.passValue(game, player.id);
     let best: { result: StepResult; gain: number; decision: AIDecision } | null = null;
 
     const decisions = AIBehavior.listMainActions(game, player);
@@ -350,7 +351,7 @@ export class AITurn {
       ...this.buyCardOptions(game, player),
       ...this.discardForFreeActionOptions(game, player),
     ];
-    return this.pickBest(candidates, player.id, baseline + AIEvaluator.weightsFor(player.id).freeActionMinGain);
+    return this.pickBest(candidates, player.id, baseline + AIEvaluator.weightsFor(game, player.id).freeActionMinGain);
   }
 
   /** Meilleur résultat dont l'évaluation dépasse le seuil, ou null */

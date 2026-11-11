@@ -96,11 +96,10 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
 
       const satelliteSlotOpen = ProbeSystem.canLandOnSlot(game, satellite.id, 0, ProbeSystem.allowsOccupiedLanding(interactionState)).canLand;
       const satelliteAllowed = ProbeSystem.canLandOnSatellite(game, currentPlayer.id, satellite.id, interactionState.type === 'LANDING_PROBE' && interactionState.ignoreSatelliteLimit).canLand;
-      const isSatClickable =
-        satelliteSlotOpen &&
-        canLand &&
-        !!onLand &&
-        satelliteAllowed;
+      const removingLander = interactionState.type === 'REMOVING_LANDER';
+      const isSatClickable = removingLander
+        ? !removingItem && player?.id === currentPlayer.id && !!onLand
+        : satelliteSlotOpen && canLand && !!onLand && satelliteAllowed;
 
       return (
         <div
@@ -127,7 +126,8 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
 
           <svg width="100%" height="100%" viewBox="0 0 40 40" className="svg-visible">
             <g transform="translate(20, 20)" style={{ cursor: isSatClickable ? 'pointer' : 'help', pointerEvents: 'auto' }} onClick={(e) => {
-              if (isSatClickable && onLand) { e.stopPropagation(); onLand(satellite.id, 0); }
+              if (removingLander) handleSlotClick(e, isSatClickable, onLand, satellite.id, 0, 'lander');
+              else if (isSatClickable && onLand) { e.stopPropagation(); onLand(satellite.id, 0); }
             }}
               onMouseEnter={(e) => {
                 setHoveredSlot({ type: 'lander', planetId: satellite.id, index: 0, rect: e.currentTarget.getBoundingClientRect() });

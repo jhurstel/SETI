@@ -189,6 +189,24 @@ describe('découverte d\'une espèce', () => {
       const bonus = g.species.find(s => s.name === AlienBoardType.MASCAMITES)!.fixedSlots.bluelifetrace[2];
       expect(viewFor(g, P2).species.find(s => s.name === AlienBoardType.MASCAMITES)!.fixedSlots.bluelifetrace[2]).toEqual(bonus);
     });
+
+    test("piste bleue : une case qui attend son spécimen est indisponible, jusqu'à ce qu'un spécimen y soit ramené", () => {
+      const g = discoverMascamites();
+      expect(g.board.alienBoards[0].isDiscovered).toBe(true);
+      // Cases 0 et 1 (récompenses imprimées) et 2 (7e spécimen) ; pas les cases vides suivantes
+      expect(SpeciesSystem.freeSpeciesSlotIndices(g, 0, LifeTraceType.BLUE)).toEqual([0, 1, 2]);
+      expect(SpeciesSystem.lifeTraceOptions(g, LifeTraceType.BLUE).some(o => o.location === LifeTraceLocation.SPECIES && o.slotIndex === 3)).toBe(false);
+
+      const refused = SpeciesSystem.placeLifeTrace(g, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.SPECIES, 3);
+      expect(refused.updatedGame).toBe(g);
+      expect(refused.historyEntries[0].message).toMatch(/indisponible/);
+      expect(SpeciesSystem.placeLifeTrace(g, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.SPECIES, 2).updatedGame).not.toBe(g);
+
+      // Un spécimen ramené à destination remplit la case 3, qui devient disponible
+      expect(SpeciesSystem.placeSpecimenOnTrack(g, { bonus: { pv: 3 } })).toBe(3);
+      expect(SpeciesSystem.freeSpeciesSlotIndices(g, 0, LifeTraceType.BLUE)).toEqual([0, 1, 2, 3]);
+      expect(SpeciesSystem.placeLifeTrace(g, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.SPECIES, 3).updatedGame).not.toBe(g);
+    });
   });
 });
 
