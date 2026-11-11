@@ -1,5 +1,5 @@
 // Worker de réglage : joue des parties entre robots Experts, chaque siège avec ses propres poids d'évaluation.
-// Reçoit { id, seed, weights: (EvaluatorWeights | null)[], levels?: niveau par siège (Expert par défaut) } et renvoie { id, scores: number[] } (score final par siège).
+// Reçoit { id, seed, weights: (EvaluatorWeights | null)[], levels?: niveau par siège (Expert par défaut), temperatures?: température imposée par siège (null : celle du niveau), lookaheads?: anticipation imposée par siège, rollouts?: suites jouées imposées par siège } et renvoie { id, scores: number[] } (score final par siège).
 import * as fs from 'fs';
 import * as path from 'path';
 import { GameFactory } from '../../src/engine/GameFactory';
@@ -8,6 +8,7 @@ import { GameSession } from '../../src/session/GameSession';
 import { CardSystem } from '../../src/systems/CardSystem';
 import { AITurn } from '../../src/ai/AITurn';
 import { AIEvaluator, EvaluatorWeights } from '../../src/ai/AIEvaluator';
+import { AIBehavior } from '../../src/ai/AIBehavior';
 import { AIDifficulty, Game, GamePhase } from '../../src/core/types';
 
 const PUBLIC_DIR = path.resolve(__dirname, '../../../public');
@@ -18,15 +19,21 @@ const PUBLIC_DIR = path.resolve(__dirname, '../../../public');
 console.log = () => {};
 console.warn = () => {};
 
-type Job = { id: number; seed: number; weights: (EvaluatorWeights | null)[]; levels?: AIDifficulty[] };
+type Job = { id: number; seed: number; weights: (EvaluatorWeights | null)[]; levels?: AIDifficulty[]; temperatures?: (number | null)[]; lookaheads?: (number | null)[]; rollouts?: (number | null)[] };
 
-async function playGame({ seed, weights, levels }: Job): Promise<number[]> {
+async function playGame({ seed, weights, levels, temperatures, lookaheads, rollouts }: Job): Promise<number[]> {
   const names = weights.map((_, i) => `R${i + 1}`);
   let game: Game = await GameFactory.createGame(names, true, seed);
   game.players.forEach((p, i) => { p.type = 'robot'; p.aiDifficulty = levels?.[i] ?? 'EXPERT'; });
   AIEvaluator.weightOverrides.clear();
   // Siège sans poids : ceux du jeu pour ce nombre de joueurs
   game.players.forEach((p, i) => { const w = weights[i]; if (w) AIEvaluator.weightOverrides.set(p.id, w); });
+  AIBehavior.temperatureOverrides.clear();
+  game.players.forEach((p, i) => { const t = temperatures?.[i]; if (t !== null && t !== undefined) AIBehavior.temperatureOverrides.set(p.id, t); });
+  AIBehavior.lookaheadOverrides.clear();
+  game.players.forEach((p, i) => { const k = lookaheads?.[i]; if (k !== null && k !== undefined) AIBehavior.lookaheadOverrides.set(p.id, k); });
+  AIBehavior.rolloutOverrides.clear();
+  game.players.forEach((p, i) => { const r = rollouts?.[i]; if (r !== null && r !== undefined) AIBehavior.rolloutOverrides.set(p.id, r); });
   game = GameFactory.initializeGame(game);
 
   for (let steps = 0; steps < 6000 && game.phase !== GamePhase.FINAL_SCORING; steps++) {

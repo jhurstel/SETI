@@ -31,6 +31,11 @@ describe('renderMarkdown (documentation du jeu)', () => {
     expect(renderMarkdown('Avant\n\n{{glossaire}}\n\nAprès').html).toBe('<p>Avant</p>\n<div data-doc-component="glossaire"></div>\n<p>Après</p>');
   });
 
+  test('une image devient une capture résolue depuis la base, sans devenir un lien', () => {
+    expect(renderMarkdown('![Menu des récompenses](docs/images/menus/recompenses.png)', './').html)
+      .toBe('<p><img class="seti-doc-image" src="./docs/images/menus/recompenses.png" alt="Menu des récompenses" loading="lazy"></p>');
+  });
+
   test('le texte est échappé', () => {
     expect(renderMarkdown('<script>alert(1)</script>').html).toBe('<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>');
   });
@@ -44,6 +49,10 @@ describe('renderMarkdown (documentation du jeu)', () => {
       expect(html).toContain(`docs/${file}`);
       expect(fs.existsSync(path.join(docs, file))).toBe(true);
     });
+    // Chaque capture d'écran citée existe
+    const images = [...html.matchAll(/<img [^>]*src="([^"]+)"/g)].map(m => m[1]);
+    expect(images.length).toBeGreaterThan(10);
+    images.forEach(src => expect(fs.existsSync(path.join(docs, '..', src))).toBe(true));
     expect(slugify('3.6 Exertiens')).toBe('3-6-exertiens');
   });
 });

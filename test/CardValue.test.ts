@@ -1,6 +1,7 @@
 import { CardValue } from '../src/ai/CardValue';
 import { AIEvaluator, DEFAULT_WEIGHTS } from '../src/ai/AIEvaluator';
-import { Game, CardType, CostType, FreeActionType } from '../src/core/types';
+import { Game, CardType, CostType, FreeActionType, LifeTraceType, SectorType, TechnologyCategory } from '../src/core/types';
+import { CardSystem } from '../src/systems/CardSystem';
 import { createTestGame, getPlayer, giveCard, makeCard } from './helpers/gameFixture';
 
 const P1 = 'player_0';
@@ -91,5 +92,71 @@ describe('CardValue', () => {
     } finally {
       AIEvaluator.weightOverrides.clear();
     }
+  });
+
+  describe('valeur des missions (missionChance)', () => {
+    const chance = { ...w, missionChance: 0.5 };
+
+    test("récompense d'un cercle convertie avec les poids, cible comprise", () => {
+      expect(CardValue.missionRewardValue('GAIN_IF_8_MEDIA:pv:3:anycard:1', w)).toBeCloseTo(3 + w.card);
+      expect(CardValue.missionRewardValue('GAIN_ON_VISIT:jupiter:data:1', w)).toBeCloseTo(w.data);
+      expect(CardValue.missionRewardValue('', w)).toBe(0);
+      expect(CardValue.bonusValue({
+        credits: 1, energy: 1, media: 1, token: 1, data: 1, card: 1, anycard: 1, speciesCard: 1, probe: 1, movements: 1,
+        signals: [{ amount: 2, scope: SectorType.ANY }], scan: 1, lifetraces: [{ amount: 1, scope: LifeTraceType.RED }],
+        technologies: [{ amount: 1, scope: TechnologyCategory.ANY }], landing: 1, revenue: 1,
+      }, w)).toBeCloseTo(w.credit + w.energy + 2 * w.media + w.data + 2 * w.card + w.alienCard
+        + w.probeInSystem + (w.probeOnPlanet - w.probeInSystem) / 2 + w.probeStep + 4 * (w.signal + w.data)
+        + w.lifeTrace + w.technology + (w.lander - w.probeOnPlanet) + 2 * w.incomePerRound);
+    });
+
+    test('une carte de mission en main compte ses récompenses × missionChance (Pioneer 11 : 1 donnée, 4 PV)', () => {
+      const pioneer = giveCard(game, P1, '1');
+      expect(CardValue.playGain(pioneer, chance)).toBeCloseTo(2 * w.openMission + 0.5 * (w.data + 4));
+    });
+
+    test("l'évaluation : récompense pleine si le cercle est réalisable, sinon × missionChance × manches restantes", () => {
+      const lovell = giveCard(game, P1, '51');
+      game.currentPlayerIndex = 0;
+      getPlayer(game, P1).credits = 20;
+      game = CardSystem.playCard(game, P1, '51').updatedGame;
+      const player = getPlayer(game, P1);
+      player.mediaCoverage = 0;
+      game.currentRound = 2;
+      const reward = 3 + w.card;
+      // Cartes en main toutes égales (cardQuality 0) : seule la mission jouée compte
+      const chance = { ...w, cardQuality: 0, missionChance: 0.5 };
+      const evaluate = (weights: typeof w) => {
+        AIEvaluator.weightOverrides.set(P1, weights);
+        try { return AIEvaluator.evaluate(game, P1); } finally { AIEvaluator.weightOverrides.clear(); }
+      };
+      // Pas encore 8 Médias : chance × part des manches restantes (manches 2 à 5 sur 5)
+      const roundsLeft = (game.maxRounds - 1) / game.maxRounds;
+      const notYet = evaluate(chance) - evaluate({ ...chance, missionChance: 0 });
+      expect(notYet).toBeCloseTo(0.5 * roundsLeft * reward * w.boardRound2);
+      // 8 Médias : le carré peut être recouvert, récompense pleine
+      player.mediaCoverage = 8;
+      const ready = evaluate(chance) - evaluate({ ...chance, missionChance: 0 });
+      expect(ready).toBeCloseTo(reward * w.boardRound2);
+      expect(lovell.id).toBe('51');
+    });
+
+    test("l'évaluation ignore les missions terminées, les cercles recouverts et ceux sans récompense", () => {
+      const player = getPlayer(game, P1);
+      const requirement = (id: string, value: string) => ({ id, type: 'GAIN_IF_8_MEDIA', value });
+      player.missions = [
+        { id: 'done', cardId: 'c1', name: 'Terminée', description: '', ownerId: P1, requirements: [requirement('a', 'GAIN_IF_8_MEDIA:pv:3')],
+          completedRequirementIds: [], fulfillableRequirementIds: [], completed: true },
+        { id: 'open', cardId: 'c2', name: 'Ouverte', description: '', ownerId: P1,
+          requirements: [requirement('b', 'GAIN_IF_8_MEDIA:pv:3'), requirement('c', '')],
+          completedRequirementIds: ['b'], fulfillableRequirementIds: [], completed: false },
+      ];
+      const evaluate = (weights: typeof w) => {
+        AIEvaluator.weightOverrides.set(P1, weights);
+        try { return AIEvaluator.evaluate(game, P1); } finally { AIEvaluator.weightOverrides.clear(); }
+      };
+      // Cartes en main toutes égales (cardQuality 0) : seules les missions jouées comptent
+      expect(evaluate({ ...w, cardQuality: 0, missionChance: 0.5 })).toBeCloseTo(evaluate({ ...w, cardQuality: 0, missionChance: 0 }));
+    });
   });
 });

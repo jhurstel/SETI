@@ -6,7 +6,7 @@ import './PlayerKindIcon.css';
 /** Niveaux des robots : nom affiché et force (1 à 3 barres), comme dans la fenêtre Nouvelle partie */
 const ROBOT_LEVELS: Record<'EASY' | 'MEDIUM' | 'EXPERT', { name: string; strength: number }> = {
   EASY: { name: 'Débutant', strength: 1 },
-  MEDIUM: { name: 'Intermédiaire', strength: 2 },
+  MEDIUM: { name: 'Avancé', strength: 2 },
   EXPERT: { name: 'Expert', strength: 3 },
 };
 

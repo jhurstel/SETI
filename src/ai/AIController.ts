@@ -138,15 +138,11 @@ export class AIController {
 
     /**
      * Carte de fin de manche, une fois passé : le robot stratégique simule chaque carte de la pile et garde la
-     * meilleure position, le Débutant la tire au hasard, le niveau PASS des tests prend la première.
+     * meilleure position, le niveau PASS des tests prend la première.
      */
     static bestRoundCard(game: Game, player: Player, interaction: Extract<InteractionState, { type: 'CHOOSING_ROUND_CARD' }>) {
         const deck = game.decks.roundDecks[interaction.round] || [];
-        const difficulty = AIBehavior.getDifficulty(player);
-        if (difficulty === 'PASS' || !AIBehavior.isStrategic(player)) {
-            const card = difficulty === 'PASS' ? deck[0] : deck[Math.floor(random() * deck.length)];
-            return InteractionChoices.chooseRoundCard(game, player.id, interaction, card.id);
-        }
+        if (!AIBehavior.isStrategic(player)) return InteractionChoices.chooseRoundCard(game, player.id, interaction, deck[0].id);
         let best: { result: ReturnType<typeof InteractionChoices.chooseRoundCard>; value: number } | null = null;
         for (const card of deck) {
             const result = InteractionChoices.chooseRoundCard(game, player.id, interaction, card.id);

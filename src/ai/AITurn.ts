@@ -13,6 +13,7 @@ import { ResearchTechAction } from '../actions/ResearchTechAction';
 import { PlayCardAction } from '../actions/PlayCardAction';
 import { OrbitAction } from '../actions/OrbitAction';
 import { LandAction } from '../actions/LandAction';
+import { PassAction } from '../actions/PassAction';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -20,8 +21,9 @@ import { ResourceSystem } from '../systems/ResourceSystem';
 import { AIBehavior } from './AIBehavior';
 import { AIController } from './AIController';
 import { AIEvaluator } from './AIEvaluator';
+import { determinize } from './Determinize';
 import { uniqueId } from '../core/ids';
-import { random } from '../core/random';
+import { getRandomState, random, setRandomState, withRandomState } from '../core/random';
 import { trace } from '../core/trace';
 
 /**
@@ -44,8 +46,8 @@ type StepResult = { updatedGame: Game; historyEntries: HistoryEntry[]; humanInte
 
 /** Gain minimal pour qu'un robot stratégique joue une action principale plutôt que de passer */
 const MAIN_ACTION_MIN_GAIN = 0;
-/** Le robot Débutant tire son action principale au hasard parmi ses meilleures options */
-const EASY_TOP_CHOICES = 3;
+/** Garde-fou d'une suite simulée (rollout) : nombre maximal d'étapes de robot jouées */
+const ROLLOUT_MAX_STEPS = 80;
 
 /**
  * Tour d'un robot, sans dépendance à React : une étape à la fois
@@ -75,12 +77,6 @@ export class AITurn {
       return this.passAfterUsingExcessCards(game, player);
     }
 
-    if (AIBehavior.getDifficulty(player) === 'EASY') {
-      const choice = this.chooseEasyMainAction(game, player);
-      if (choice) return { kind: 'UPDATED', ...choice };
-      return this.passAfterUsingExcessCards(game, player);
-    }
-
     // Niveau PASS (tests) : le robot passe sans jouer d'action principale
     return this.pass(player);
   }
@@ -103,7 +99,7 @@ export class AITurn {
           if (!res.error) candidates.push({ updatedGame: res.updatedGame, historyEntries: res.historyEntries });
         }
       }
-      const best = this.pickBest(candidates, player.id, -Infinity);
+      const best = this.pickBest(candidates, player, -Infinity);
       if (best) return { kind: 'UPDATED', ...best };
     }
     return this.pass(player);
@@ -217,7 +213,7 @@ export class AITurn {
     return { updatedGame: res.updatedGame, historyEntries: inStep([...historyEntries, ...res.historyEntries]), humanInteractions: res.newPendingInteractions };
   }
 
-  /** Tente une action gratuite (avec une part d'aléatoire). Renvoie null si aucune n'est jouée. */
+  /** Niveau PASS des tests (sans simulation) : tente une action gratuite, avec une part d'aléatoire. Renvoie null si aucune n'est jouée. */
   private static tryFreeAction(game: Game, player: Player): StepResult | null {
     return this.tryMoveCapsuleHome(game, player)
       ?? this.tryClaimMission(game, player)
@@ -227,25 +223,26 @@ export class AITurn {
   }
 
   // ---------------------------------------------------------------------------
-  // Robot stratégique (MEDIUM, EXPERT) : chaque option est simulée avec le moteur,
-  // puis la position obtenue est notée par AIEvaluator.
+  // Robot stratégique (tous les niveaux) : chaque option est simulée avec le moteur, puis la position obtenue
+  // est notée par AIEvaluator ; le niveau fixe seulement l'hésitation entre les bonnes options
+  // (AIBehavior.temperature, pickWithNoise).
   // ---------------------------------------------------------------------------
 
   /**
-   * Simule chaque action principale possible et renvoie le résultat de la meilleure.
-   * Renvoie null si aucune ne vaut mieux que passer (AIEvaluator.passValue).
+   * Simule chaque action principale possible et renvoie le résultat de la meilleure (Expert), ou d'une des
+   * meilleures tirée selon la température du niveau. Renvoie null si aucune ne vaut mieux que passer
+   * (AIEvaluator.passValue).
    */
   private static chooseBestMainAction(game: Game, player: Player): StepResult | null {
     // Gains mesurés par rapport à la passe (ressources perdues si c'est la dernière manche, coût de la passe)
     const baseline = AIEvaluator.passValue(game, player.id);
-    let best: { result: StepResult; gain: number; decision: AIDecision } | null = null;
+    const options: { value: number; item: { result: StepResult; decision: AIDecision } }[] = [];
 
     const decisions = AIBehavior.listMainActions(game, player);
     for (const decision of decisions) {
       const result = this.playMainAction(game, player, decision);
       if (!result) continue;
-      const gain = AIEvaluator.evaluate(result.updatedGame, player.id) - baseline;
-      if (!best || gain > best.gain) best = { result, gain, decision };
+      options.push({ value: AIEvaluator.evaluate(result.updatedGame, player.id) - baseline, item: { result, decision } });
     }
 
     // Actions rendues possibles par une préparation (échange de ressources, achat d'une carte) :
@@ -257,43 +254,117 @@ export class AITurn {
         if (available.has(this.decisionKey(decision))) continue;
         const result = this.playMainAction(preparation.updatedGame, prepared, decision);
         if (!result) continue;
-        const gain = AIEvaluator.evaluate(result.updatedGame, player.id) - baseline;
-        if (!best || gain > best.gain) {
-          best = { result: { ...result, historyEntries: [...preparation.historyEntries, ...result.historyEntries] }, gain, decision };
-        }
+        options.push({
+          value: AIEvaluator.evaluate(result.updatedGame, player.id) - baseline,
+          item: { result: { ...result, historyEntries: [...preparation.historyEntries, ...result.historyEntries] }, decision },
+        });
       }
     }
 
-    if (!best || best.gain <= MAIN_ACTION_MIN_GAIN) {
+    // Seules les actions qui valent mieux que passer sont candidates
+    const worthwhile = options.filter(o => o.value > MAIN_ACTION_MIN_GAIN);
+    // Pas d'anticipation dans une suite simulée (elle-même une anticipation)
+    const lookahead = this.simulating ? 0 : AIBehavior.lookahead(player);
+    const candidates = lookahead > 0 && worthwhile.length > 1 ? this.withOpponentReply(worthwhile, player, lookahead) : worthwhile;
+    const chosen = AIBehavior.pickWithNoise(candidates, AIBehavior.temperature(player));
+    if (!chosen) {
       trace.info(`[AI] ${player.name} : aucune action rentable, passe`);
       return null;
     }
-    trace.info(`[AI] ${player.name} chose:`, best.decision.action, `(gain estimé ${best.gain.toFixed(2)})`);
-    return best.result;
+    const gain = worthwhile.find(o => o.item === chosen)!.value;
+    trace.info(`[AI] ${player.name} chose:`, chosen.decision.action, `(gain estimé ${gain.toFixed(2)})`);
+    return chosen.result;
   }
 
   /**
-   * Robot Débutant : simule chaque action principale (sans préparation ni anticipation) et en tire une
-   * au hasard parmi les meilleures qui améliorent sa position. Il évite ainsi les coups inutiles
-   * sans jouer à coup sûr le meilleur. Renvoie null s'il vaut mieux passer.
+   * Anticipation : les `count` actions les mieux évaluées sont départagées par la position du robot après la fin
+   * de son tour et la meilleure réponse de l'adversaire suivant (secteur pris, carte de la rangée prise,
+   * technologie acquise…). Les autres actions ne sont plus candidates.
    */
-  private static chooseEasyMainAction(game: Game, player: Player): StepResult | null {
-    const baseline = AIEvaluator.evaluate(game, player.id);
-    const options: { result: StepResult; gain: number; decision: AIDecision }[] = [];
-    for (const decision of AIBehavior.listMainActions(game, player)) {
-      const result = this.playMainAction(game, player, decision);
+  private static withOpponentReply<T extends { result: StepResult }>(options: { value: number; item: T }[], player: Player, count: number): { value: number; item: T }[] {
+    // Mêmes tirages pour chaque candidat (pioches, choix comparés de la réponse) : l'écart entre deux candidats
+    // vient de l'action, pas du hasard de la simulation ; le générateur reprend ensuite où il en était
+    const rngState = getRandomState();
+    const rollouts = AIBehavior.rollouts(player);
+    // Suite i : même graine pour chaque candidat
+    const seedOf = (i: number) => (rngState + Math.imul(i + 1, 0x9e3779b9)) >>> 0;
+    const value = (game: Game) => (rollouts > 0
+      ? Array.from({ length: rollouts }, (_, i) => withRandomState(seedOf(i), () => this.rolloutValue(game, player)).result)
+        .reduce((a, b) => a + b, 0) / rollouts
+      : withRandomState(rngState, () => this.valueAfterReply(game, player)).result);
+    const ranked = [...options]
+      .sort((a, b) => b.value - a.value)
+      .slice(0, count)
+      .map(option => ({ value: value(option.item.result.updatedGame), item: option.item }));
+    setRandomState(rngState);
+    return ranked;
+  }
+
+  /** Vrai pendant une suite simulée : les robots y jouent sans anticipation */
+  private static simulating = false;
+
+  /**
+   * Une suite jouée (rollout) : cartes cachées redistribuées du point de vue du robot (determinize), fin de son
+   * tour, puis tous les joueurs jouent en Experts sans anticipation jusqu'à la prochaine action principale du robot
+   * (ou ROLLOUT_MAX_STEPS étapes, ou la fin de la partie). Renvoie la position du robot atteinte.
+   */
+  private static rolloutValue(game: Game, player: Player): number {
+    let current = determinize(game, player.id);
+    current.players.forEach(p => { p.type = 'robot'; p.aiDifficulty = 'EXPERT'; });
+    this.simulating = true;
+    try {
+      current = this.endTurn(current).updatedGame;
+      for (let step = 0; step < ROLLOUT_MAX_STEPS && current.phase === GamePhase.PLAYING; step++) {
+        const active = current.players[current.currentPlayerIndex];
+        if (active.id === player.id && active.hasPerformedMainAction) break;
+        current = CardSystem.refillCardRow(current);
+        const next = this.playStep(current);
+        if (next.kind === 'UPDATED') current = next.updatedGame;
+        else if (next.kind === 'END_TURN') current = this.endTurn(current).updatedGame;
+        else if (next.kind === 'PASS') current = this.applyPass(current, active, next.cardsToKeep) ?? current;
+        else break;
+      }
+    } finally {
+      this.simulating = false;
+    }
+    return AIEvaluator.evaluate(current, player.id);
+  }
+
+  /** Passe d'un robot dans une suite simulée : action Passer, puis carte de fin de manche choisie par le robot */
+  private static applyPass(game: Game, player: Player, cardsToKeep: string[]): Game | null {
+    const action = new PassAction(player.id, cardsToKeep);
+    const result = new GameEngine(game).executeAction(action);
+    if (!result.success || !result.updatedState) return null;
+    const sequenceId = `ai-pass-${uniqueId()}`;
+    return AIController.processInteractionQueue(result.updatedState, action.newPendingInteractions.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId })), sequenceId, requirePlayer(result.updatedState, player.id)).updatedGame;
+  }
+
+  /**
+   * Position du robot après la fin de son tour (paliers résolus par lui) et la réponse de l'adversaire suivant.
+   * Sans adversaire suivant (les autres ont passé, fin de partie), la position après la fin du tour.
+   */
+  private static valueAfterReply(game: Game, player: Player): number {
+    const ended = this.endTurn(game).updatedGame;
+    const opponent = ended.players[ended.currentPlayerIndex];
+    if (ended.phase !== GamePhase.PLAYING || opponent.id === player.id) return AIEvaluator.evaluate(ended, player.id);
+    return AIEvaluator.evaluate(this.bestPublicReply(ended, opponent) ?? ended, player.id);
+  }
+
+  /**
+   * Meilleure action principale de l'adversaire, de son point de vue (même évaluation), parmi celles qui ne
+   * dévoilent rien de caché : sa main n'est pas lue (aucune carte jouée). Null s'il ferait mieux de passer.
+   */
+  private static bestPublicReply(game: Game, opponent: Player): Game | null {
+    const baseline = AIEvaluator.passValue(game, opponent.id);
+    let best: { game: Game; gain: number } | null = null;
+    for (const decision of AIBehavior.listMainActions(game, opponent)) {
+      if (decision.action === ActionType.PLAY_CARD) continue;
+      const result = this.playMainAction(game, opponent, decision);
       if (!result) continue;
-      const gain = AIEvaluator.evaluate(result.updatedGame, player.id) - baseline;
-      if (gain > MAIN_ACTION_MIN_GAIN) options.push({ result, gain, decision });
+      const gain = AIEvaluator.evaluate(result.updatedGame, opponent.id) - baseline;
+      if (gain > MAIN_ACTION_MIN_GAIN && (!best || gain > best.gain)) best = { game: result.updatedGame, gain };
     }
-    if (options.length === 0) {
-      trace.info(`[AI] ${player.name} : aucune action utile, passe`);
-      return null;
-    }
-    const top = options.sort((a, b) => b.gain - a.gain).slice(0, EASY_TOP_CHOICES);
-    const chosen = top[Math.floor(random() * top.length)];
-    trace.info(`[AI] ${player.name} chose:`, chosen.decision.action, `(gain estimé ${chosen.gain.toFixed(2)})`);
-    return chosen.result;
+    return best?.game ?? null;
   }
 
   /** Identifiant d'une action principale (type et cible) pour repérer les actions nouvellement possibles */
@@ -351,21 +422,18 @@ export class AITurn {
       ...this.buyCardOptions(game, player),
       ...this.discardForFreeActionOptions(game, player),
     ];
-    return this.pickBest(candidates, player.id, baseline + AIEvaluator.weightsFor(game, player.id).freeActionMinGain);
+    return this.pickBest(candidates, player, baseline + AIEvaluator.weightsFor(game, player.id).freeActionMinGain);
   }
 
-  /** Meilleur résultat dont l'évaluation dépasse le seuil, ou null */
-  private static pickBest(candidates: StepResult[], playerId: string, threshold: number): StepResult | null {
-    let best: StepResult | null = null;
-    let bestValue = threshold;
-    for (const candidate of candidates) {
-      const value = AIEvaluator.evaluate(candidate.updatedGame, playerId);
-      if (value > bestValue) {
-        best = candidate;
-        bestValue = value;
-      }
-    }
-    return best;
+  /**
+   * Parmi les résultats dont l'évaluation dépasse le seuil : le meilleur (Expert), ou un des meilleurs tiré
+   * selon la température du niveau ; null si aucun ne dépasse le seuil
+   */
+  private static pickBest(candidates: StepResult[], player: Player, threshold: number): StepResult | null {
+    const options = candidates
+      .map(item => ({ value: AIEvaluator.evaluate(item.updatedGame, player.id), item }))
+      .filter(o => o.value > threshold);
+    return AIBehavior.pickWithNoise(options, AIBehavior.temperature(player));
   }
 
   /**
@@ -498,7 +566,7 @@ export class AITurn {
       if (!AIBehavior.isStrategic(player)) return option;
       options.push(option);
     }
-    return this.pickBest(options, player.id, -Infinity);
+    return this.pickBest(options, player, -Infinity);
   }
 
   private static tryTransferData(game: Game, player: Player, always = false): StepResult | null {

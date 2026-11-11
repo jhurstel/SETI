@@ -6,6 +6,25 @@ import { CardSystem } from '../systems/CardSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import { random } from '../core/random';
 
+/**
+ * Température de chaque niveau : tous les robots évaluent les positions de la même façon (AIEvaluator),
+ * le niveau ne fixe que leur hésitation entre les bonnes actions (AIBehavior.pickWithNoise).
+ * Réglée pour atteindre des écarts cibles entre niveaux (npm run tune:ai -- levels, docs : 5.1).
+ */
+export const LEVEL_TEMPERATURE: Record<AIDifficulty, number> = { PASS: 0, EASY: 12, MEDIUM: 2, EXPERT: 0 };
+/** Les options à plus de NOISE_WINDOW températures de la meilleure ne sont jamais choisies */
+export const NOISE_WINDOW = 3;
+/**
+ * Anticipation de chaque niveau : nombre de meilleures actions principales départagées par la réponse simulée
+ * de l'adversaire suivant (AITurn.withOpponentReply) ; 0 : aucune anticipation.
+ */
+export const LEVEL_LOOKAHEAD: Record<AIDifficulty, number> = { PASS: 0, EASY: 0, MEDIUM: 0, EXPERT: 3 };
+/**
+ * Suites jouées (rollouts) pour chacune de ces actions : 0, réponse du seul adversaire suivant ; sinon, autant de
+ * suites jusqu'à la prochaine action principale du robot, cartes cachées redistribuées (AITurn.rolloutValue).
+ */
+export const LEVEL_ROLLOUTS: Record<AIDifficulty, number> = { PASS: 0, EASY: 0, MEDIUM: 0, EXPERT: 4 };
+
 export class AIBehavior {
 
     /** Niveau d'un robot (EASY par défaut, ex. anciennes sauvegardes) */
@@ -13,18 +32,64 @@ export class AIBehavior {
         return player.aiDifficulty ?? 'EASY';
     }
 
-    /** Le robot choisit ses coups en simulant et en évaluant les positions (voir AITurn) */
+    /**
+     * Le robot choisit ses coups en simulant et en évaluant les positions (voir AITurn) : tous les niveaux,
+     * avec la même évaluation ; seul le niveau PASS des tests ne le fait pas.
+     */
     static isStrategic(player: Player): boolean {
-        const difficulty = this.getDifficulty(player);
-        return difficulty === 'MEDIUM' || difficulty === 'EXPERT';
+        return this.getDifficulty(player) !== 'PASS';
+    }
+
+    /** Nombre de tirages comparés pour un choix aléatoire (secteur, technologie, carte…) */
+    static choiceSamples(player: Player): number {
+        return this.isStrategic(player) ? 4 : 1;
+    }
+
+    /** Température imposée à un joueur, pour comparer des réglages (banc tools/spsa ; vide en jeu) */
+    static temperatureOverrides = new Map<string, number>();
+
+    /** Anticipation imposée à un joueur, pour comparer des réglages (banc tools/spsa ; vide en jeu) */
+    static lookaheadOverrides = new Map<string, number>();
+
+    /** Nombre de meilleures actions que le robot départage en simulant la réponse de l'adversaire suivant */
+    static lookahead(player: Player): number {
+        return this.lookaheadOverrides.get(player.id) ?? LEVEL_LOOKAHEAD[this.getDifficulty(player)];
+    }
+
+    /** Suites jouées imposées à un joueur, pour comparer des réglages (banc tools/spsa ; vide en jeu) */
+    static rolloutOverrides = new Map<string, number>();
+
+    /** Nombre de suites jouées pour chaque action départagée (0 : réponse de l'adversaire suivant seulement) */
+    static rollouts(player: Player): number {
+        return this.rolloutOverrides.get(player.id) ?? LEVEL_ROLLOUTS[this.getDifficulty(player)];
+    }
+
+    /** Hésitation du robot (température du choix de ses actions, en points d'évaluation ; 0 : toujours la meilleure) */
+    static temperature(player: Player): number {
+        return this.temperatureOverrides.get(player.id) ?? LEVEL_TEMPERATURE[this.getDifficulty(player)];
     }
 
     /**
-     * Nombre de tirages comparés pour un choix aléatoire (secteur, technologie, carte…) :
-     * le robot Débutant compare 2 tirages, un robot stratégique 4.
+     * Choix d'une option selon sa valeur : la meilleure à température nulle (la première en cas d'égalité),
+     * sinon un tirage où une option vaut exp(−écart / température) fois la meilleure. Les options à plus de
+     * NOISE_WINDOW températures de la meilleure ne sont jamais tirées : le robot hésite entre de bons coups,
+     * il ne joue pas un coup absurde.
      */
-    static choiceSamples(player: Player): number {
-        return this.isStrategic(player) ? 4 : this.getDifficulty(player) === 'EASY' ? 2 : 1;
+    static pickWithNoise<T>(options: { value: number; item: T }[], temperature: number): T | null {
+        if (options.length === 0) return null;
+        const best = options.reduce((a, b) => (b.value > a.value ? b : a));
+        if (temperature <= 0) return best.item;
+        const close = options.filter(o => o.value >= best.value - NOISE_WINDOW * temperature);
+        const weights = close.map(o => Math.exp((o.value - best.value) / temperature));
+        let draw = random() * weights.reduce((a, b) => a + b, 0);
+        // La dernière option prend le reste du tirage (arrondis compris)
+        let i = 0;
+        while (i < close.length - 1) {
+            draw -= weights[i];
+            if (draw < 0) break;
+            i++;
+        }
+        return close[i].item;
     }
 
     /**

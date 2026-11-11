@@ -1,7 +1,9 @@
 import { Game, Player, ProbeState, DiskName, SectorNumber, LifeTraceType, CardType } from '../core/types';
 import { ScoreManager } from '../engine/ScoreManager';
 import { ScanSystem } from '../systems/ScanSystem';
+import { CardSystem } from '../systems/CardSystem';
 import { CardValue } from './CardValue';
+import { effectString } from '../core/cardEffects';
 import { createRotationState, getAbsoluteSectorForProbe, getAllCells, calculateReachableCells, RotationState } from '../core/SolarSystemPosition';
 
 /** Nombre maximal de déplacements explorés pour estimer la distance d'une sonde à une planète */
@@ -40,6 +42,9 @@ export const DEFAULT_WEIGHTS = {
   orbiter: 5.59,
   lander: 9.37,
   openMission: 1.23,
+  // Chance de recouvrir un cercle de mission ouvert (non réalisable maintenant) d'ici la fin de la partie, appliquée
+  // à sa récompense ; 0 : la récompense n'est pas comptée (seulement openMission)
+  missionChance: 0,
   playedCard: 0.4,
   incomePerRound: 2.53,
   // 1re trace d'une couleur sur une espèce non découverte : carte Alien reçue à la découverte,
@@ -126,7 +131,7 @@ export const WEIGHTS_3P: EvaluatorWeights = {
   computerSlot: 0.0844, signal: 0.62, lifeTrace: 0.9422, technology: 2.4269,
   probeInSystem: 0.3193, probeOnPlanet: 6.4049, probeStep: 1.1644,
   capsule: 2.3142, capsuleAtDestination: 8.2885, capsuleStep: 0.4309,
-  orbiter: 2.3024, lander: 21.776, openMission: 1.6113, playedCard: 0.4887, incomePerRound: 0.7459,
+  orbiter: 2.3024, lander: 21.776, openMission: 1.6113, missionChance: 0, playedCard: 0.4887, incomePerRound: 0.7459,
   discoveryClaim: 5.1005, alienCard: 2.0515, sectorLead: 1.9486, sectorLifeTraceValue: 1.6324,
   ...roundDefaults(0.2535), endGameLastRound: 1, lastRoundFactor: 0.6286, freeActionMinGain: 0.1879,
   dangerPenalty: 1.5833, dangerMarginDecay: 0.6325, exertienStepChance: 0.125, minPointsPerRound: 17.5955,
@@ -146,7 +151,7 @@ export const WEIGHTS_4P: EvaluatorWeights = {
   computerSlot: 0.3527, signal: 0.3851, lifeTrace: 1.1882, technology: 2.7967,
   probeInSystem: 1.872, probeOnPlanet: 7.3369, probeStep: 1.375,
   capsule: 1.1608, capsuleAtDestination: 4.2599, capsuleStep: 0.2632,
-  orbiter: 3.257, lander: 4.0629, openMission: 0.6213, playedCard: 3.8651, incomePerRound: 2.2685,
+  orbiter: 3.257, lander: 4.0629, openMission: 0.6213, missionChance: 0, playedCard: 3.8651, incomePerRound: 2.2685,
   discoveryClaim: 7.2208, alienCard: 1.0142, sectorLead: 0.6689, sectorLifeTraceValue: 3.0314,
   endGameRound1: 0.4392, endGameRound2: 0.3651, endGameRound3: 0.3682, endGameRound4: 0.652, endGameLastRound: 1,
   resourceRound1: 1.4364, resourceRound2: 1.4979, resourceRound3: 1.2519, resourceRound4: 0.8833,
@@ -211,9 +216,9 @@ export class AIEvaluator {
     value += (round ? round.board : lastFactor) * this.boardValue(game, player, w);
     value += remainingRounds * w.incomePerRound * (player.revenueCredits * w.credit + player.revenueEnergy * w.energy + player.revenueCards * w.card);
 
-    // Le décompte final se calcule une seule fois, en fin de partie : l'Expert l'anticipe
-    // (sans les cartes Exertiens, comptées pour tous les niveaux ci-dessous)
-    if (player.aiDifficulty === 'EXPERT' && !game.finalScores) {
+    // Le décompte final se calcule une seule fois, en fin de partie : il est anticipé (même évaluation pour tous
+    // les niveaux ; sans les cartes Exertiens, comptées ci-dessous)
+    if (!game.finalScores) {
       const weight = round ? round.endGame : w.endGameLastRound;
       const endGame = ScoreManager.calculateFinalScore(game, playerId);
       value += weight * (endGame.total - endGame.exertienCards);
@@ -266,6 +271,28 @@ export class AIEvaluator {
       + CardValue.handValue(hand, w);
   }
 
+  /**
+   * Récompenses des cercles de mission encore ouverts, chacune × la chance de la gagner : 1 si le cercle peut être
+   * recouvert maintenant, sinon missionChance × la part des manches restantes (manche en cours comprise).
+   * Nul avec missionChance = 0 (les missions ne valent alors que openMission).
+   */
+  private static missionProspects(game: Game, player: Player, w: EvaluatorWeights): number {
+    if (w.missionChance <= 0) return 0;
+    const roundsLeft = Math.max(0, game.maxRounds - game.currentRound + 1) / game.maxRounds;
+    let value = 0;
+    for (const mission of player.missions) {
+      if (mission.completed) continue;
+      for (const requirement of mission.requirements) {
+        if (!requirement.id || mission.completedRequirementIds.includes(requirement.id)) continue;
+        const reward = CardValue.missionRewardValue(effectString(requirement), w);
+        if (reward <= 0) continue;
+        const chance = CardSystem.isRequirementClaimable(game, player.id, mission, requirement.id) ? 1 : w.missionChance * roundsLeft;
+        value += chance * reward;
+      }
+    }
+    return value;
+  }
+
   private static boardValue(game: Game, player: Player, w: EvaluatorWeights): number {
     let value = 0;
 
@@ -283,6 +310,7 @@ export class AIEvaluator {
     value += player.cards.filter(c => c.id.startsWith('ET.') && c.type !== CardType.EXERTIEN).length * w.alienCard;
     value += player.technologies.length * w.technology;
     value += player.missions.filter(m => !m.completed).length * w.openMission;
+    value += this.missionProspects(game, player, w);
     value += player.playedCards.length * w.playedCard;
 
     value += player.probes.filter(p => p.state === ProbeState.IN_ORBIT).length * w.orbiter;

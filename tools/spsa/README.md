@@ -10,12 +10,15 @@ Banc de réglage des poids d'évaluation des robots (`WEIGHTS_BY_PLAYER_COUNT` d
 ```bash
 npm run tune:ai -- tune 3 140                     # réglage SPSA à 3 joueurs (reprend out/p3/state.json s'il existe)
 npm run tune:ai -- compare 3 p3/tuned.json default 34   # validation (fichiers lus dans out/, default = poids en place pour ce nombre de joueurs)
-npm run tune:ai -- levels 3 17                    # Expert contre Intermédiaire, poids en place
+npm run tune:ai -- levels 3 17                    # Expert contre Avancé, poids en place
+npm run tune:ai -- levels 2 50 MEDIUM EASY@8      # deux niveaux quelconques, NIVEAU@T : autre température (LEVEL_TEMPERATURE)
+npm run tune:ai -- levels 2 50 EXPERT EXPERT+0     # NIVEAU+K : nombre d'actions départagées par l'anticipation (LEVEL_LOOKAHEAD)
+npm run tune:ai -- levels 2 50 'EXPERT*8' EXPERT   # NIVEAU*N : suites jouées par action départagée (LEVEL_ROLLOUTS ; *0 : réponse de l'adversaire suivant seulement)
 ```
 
 `tune` écrit `out/p<joueurs>/state.json` à chaque itération (reprise possible), `out/p<joueurs>/spsa.log`, puis `out/p<joueurs>/tuned.json` : la moyenne des paramètres sur la dernière moitié des itérations. `compare` (`out/compare.log`) et `levels` (`out/levels.log`) utilisent des graines (900000 + 10000 × joueurs et plus) que le réglage n'utilise jamais. Nombre de parties : 2 par graine à 2 joueurs, 6 par graine à 3 ou 4 joueurs.
 
-Options du réglage (variables d'environnement) : `SPSA_KEYS` ne règle que les paramètres nommés (séparés par des virgules, `*` final pour un préfixe : `SPSA_KEYS='endGameRound*,passCost'`), les autres restant fixés à leur valeur en place ; `SPSA_TAG` range le réglage dans `out/p<joueurs>-<tag>/` (sans reprendre l'état d'un autre réglage) ; `SPSA_WORKERS` fixe le nombre de processus ; `SPSA_START='cardQuality=0.3'` donne la valeur de départ d'un paramètre (un poids nul ne bougerait presque pas, le réglage se faisant en logarithme). Pour `compare`, un fichier peut ne donner que quelques poids : les autres sont ceux en place.
+Options du réglage (variables d'environnement) : `SPSA_KEYS` ne règle que les paramètres nommés (séparés par des virgules, `*` final pour un préfixe : `SPSA_KEYS='endGameRound*,passCost'`), les autres restant fixés à leur valeur en place ; `SPSA_TAG` range le réglage dans `out/p<joueurs>-<tag>/` (sans reprendre l'état d'un autre réglage) ; `SPSA_WORKERS` fixe le nombre de processus ; `SPSA_START='cardQuality=0.3'` donne la valeur de départ d'un paramètre (un poids nul ne bougerait presque pas, le réglage se faisant en logarithme). Pour `compare`, un fichier peut ne donner que quelques poids : les autres sont ceux en place. `SPSA_BUILD` lit le moteur compilé dans un autre dossier que `build/` (par exemple `npx esbuild tools/spsa/worker.ts tools/spsa/defaults.ts --bundle --platform=node --target=node20 --outdir=tools/spsa/build-levels`, puis `SPSA_BUILD=tools/spsa/build-levels node tools/spsa/spsa.js levels …`) : utile pour mesurer pendant qu'un réglage tourne sur `build/`.
 
 ## Diagnostic
 

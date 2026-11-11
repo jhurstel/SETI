@@ -2,14 +2,15 @@
 // (voir tools/spsa/README.md).
 // Usage : npm run tune:ai -- tune <joueurs> <itérations>
 //         npm run tune:ai -- compare <joueurs> <fichierA.json|default> <fichierB.json|default> <graines>
-//         npm run tune:ai -- levels <joueurs> <graines>        (Expert contre Intermédiaire, poids en place)
+//         npm run tune:ai -- levels <joueurs> <graines> [A] [B]  (niveaux, par défaut EXPERT contre MEDIUM ; NIVEAU@température, NIVEAU+anticipation, NIVEAU*suites pour en essayer d'autres)
 const { fork, execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
 // Le moteur est compilé par esbuild dans build/ (npm run tune:ai le fait) ; les résultats vont dans out/
-const BUILD = path.join(__dirname, 'build');
+// SPSA_BUILD : autre dossier de compilation (pour mesurer pendant qu'un réglage tourne sur build/)
+const BUILD = process.env.SPSA_BUILD ? path.resolve(process.env.SPSA_BUILD) : path.join(__dirname, 'build');
 const OUT = path.join(__dirname, 'out');
 fs.mkdirSync(OUT, { recursive: true });
 const CURRENT = JSON.parse(execFileSync(process.execPath, [path.join(BUILD, 'defaults.js')], { encoding: 'utf8' }));
@@ -26,7 +27,7 @@ const BOUNDS = {
   endGameRound1: [0.01, 1], endGameRound2: [0.01, 1], endGameRound3: [0.01, 1], endGameRound4: [0.01, 1],
   resourceRound1: [0.05, 5], resourceRound2: [0.05, 5], resourceRound3: [0.05, 5], resourceRound4: [0.05, 5],
   boardRound1: [0.05, 5], boardRound2: [0.05, 5], boardRound3: [0.05, 5], boardRound4: [0.05, 5],
-  maxUsefulCards: [2, 12], minPointsPerRound: [3, 40], passCost: [0.01, 10], cardQuality: [0.02, 3],
+  maxUsefulCards: [2, 12], minPointsPerRound: [3, 40], passCost: [0.01, 10], cardQuality: [0.02, 3], missionChance: [0.02, 1],
 };
 // SPSA_START='cardQuality=0.3,…' : valeur de départ d'un paramètre (utile pour un poids nul, réglé en logarithme)
 const START = Object.fromEntries((process.env.SPSA_START || '').split(',').filter(Boolean).map(s => s.split('=')).map(([k, v]) => [k.trim(), Number(v)]));
@@ -51,7 +52,7 @@ function runGames(jobs) {
     const feed = w => {
       if (next >= jobs.length) { w.kill(); return; }
       const id = next++;
-      w.send({ id, seed: jobs[id].seed, weights: jobs[id].weights, levels: jobs[id].levels });
+      w.send({ id, seed: jobs[id].seed, weights: jobs[id].weights, levels: jobs[id].levels, temperatures: jobs[id].temperatures, lookaheads: jobs[id].lookaheads, rollouts: jobs[id].rollouts });
     };
     pool.forEach(w => {
       w.on('message', m => {
@@ -84,7 +85,11 @@ async function match(players, sideA, sideB, seeds) {
   for (const seed of seeds) {
     for (const seats of ARRANGEMENTS[players]) {
       const side = s => (s === 'A' ? sideA : sideB);
-      jobs.push({ seed, seats, weights: seats.map(s => side(s).weights), levels: seats.map(s => side(s).level || 'EXPERT') });
+      jobs.push({
+        seed, seats, weights: seats.map(s => side(s).weights), levels: seats.map(s => side(s).level || 'EXPERT'),
+        temperatures: seats.map(s => side(s).temperature ?? null), lookaheads: seats.map(s => side(s).lookahead ?? null),
+        rollouts: seats.map(s => side(s).rollouts ?? null),
+      });
     }
   }
   const results = await runGames(jobs);
@@ -169,18 +174,25 @@ async function compare(players, fileA, fileB, nSeeds) {
   report(players, fileA, fileB, games, t0);
 }
 
-async function levels(players, nSeeds) {
+// Niveau d'un côté : EASY, MEDIUM ou EXPERT, avec une température (MEDIUM@2.5), une anticipation (EXPERT+0) ou des suites jouées (EXPERT*4) imposées
+const parseLevel = spec => {
+  const m = /^(EASY|MEDIUM|EXPERT)(?:@([\d.]+))?(?:\+(\d+))?(?:\*(\d+))?$/.exec(spec);
+  if (!m) throw new Error(`niveau inconnu : ${spec} (EASY, MEDIUM, EXPERT, NIVEAU@température, NIVEAU+anticipation, NIVEAU*suites)`);
+  return { weights: null, level: m[1], temperature: m[2] === undefined ? null : Number(m[2]), lookahead: m[3] === undefined ? null : Number(m[3]), rollouts: m[4] === undefined ? null : Number(m[4]) };
+};
+
+async function levels(players, nSeeds, a = 'EXPERT', b = 'MEDIUM') {
   logFile = path.join(OUT, 'levels.log');
   const t0 = Date.now();
-  const games = await match(players, { weights: null, level: 'EXPERT' }, { weights: null, level: 'MEDIUM' }, validationSeeds(players, nSeeds));
-  report(players, 'Expert', 'Intermédiaire', games, t0);
+  const games = await match(players, parseLevel(a), parseLevel(b), validationSeeds(players, nSeeds));
+  report(players, a, b, games, t0);
 }
 
 const [mode, ...args] = process.argv.slice(2);
 const run = {
   tune: () => tune(checkPlayers(Number(args[0])), Number(args[1] || 60)),
   compare: () => compare(checkPlayers(Number(args[0])), args[1], args[2], Number(args[3] || 50)),
-  levels: () => levels(checkPlayers(Number(args[0])), Number(args[1] || 25)),
+  levels: () => levels(checkPlayers(Number(args[0])), Number(args[1] || 25), args[2], args[3]),
 }[mode];
-if (!run) { console.error('usage : tune <joueurs> <itérations> | compare <joueurs> <a> <b> <graines> | levels <joueurs> <graines>'); process.exit(1); }
+if (!run) { console.error('usage : tune <joueurs> <itérations> | compare <joueurs> <a> <b> <graines> | levels <joueurs> <graines> [A] [B]'); process.exit(1); }
 run().catch(error => { log(`ERREUR ${error.stack || error}`); process.exit(1); });

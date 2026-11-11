@@ -1,6 +1,6 @@
 /**
  * Rendu Markdown minimal pour la documentation du jeu (public/docs/documentation.md) :
- * titres, paragraphes, listes, tableaux, blocs de code, gras, code et liens.
+ * titres, paragraphes, listes, tableaux, blocs de code, gras, code, images et liens.
  * Une ligne `{{nom}}` devient un emplacement (`<div data-doc-component="nom">`) où l'interface insère un composant
  * (glossaire des symboles, avec les icônes du jeu).
  * Le texte est échappé : seul le balisage ci-dessus produit du HTML.
@@ -19,15 +19,18 @@ const escapeHtml = (text: string) =>
 export const slugify = (text: string) =>
   text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
-/** Lien relatif (ex. docs/regles.pdf) : résolu depuis la base de l'application ; ouvert dans un nouvel onglet */
+/** Adresse relative (ex. docs/regles.pdf) : résolue depuis la base de l'application */
+const resolve = (href: string, baseUrl: string) => (/^(https?:|#)/.test(href) ? href : `${baseUrl}${href}`);
+
+/** Image `![légende](adresse)` (capture d'écran), puis lien `[texte](adresse)`, ouvert dans un nouvel onglet */
 const inline = (text: string, baseUrl: string) =>
   escapeHtml(text)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, label: string, href: string) => {
-      const url = /^(https?:|#)/.test(href) ? href : `${baseUrl}${href}`;
-      return `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`;
-    });
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, alt: string, src: string) =>
+      `<img class="seti-doc-image" src="${resolve(src, baseUrl)}" alt="${alt}" loading="lazy">`)
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, label: string, href: string) =>
+      `<a href="${resolve(href, baseUrl)}" target="_blank" rel="noopener noreferrer">${label}</a>`);
 
 const tableCells = (line: string) => line.trim().replace(/^\||\|$/g, '').split('|').map(cell => cell.trim());
 

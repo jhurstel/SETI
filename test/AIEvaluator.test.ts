@@ -86,10 +86,9 @@ describe('AIEvaluator', () => {
       game.currentRound = 4;
       const spy = jest.spyOn(ScoreManager, 'calculateFinalScore').mockReturnValue({ missionEndGame: 0, objectiveTiles: 10, speciesBonuses: 0, exertienCards: 0, total: 10 });
       try {
-        getPlayer(game, P1).aiDifficulty = 'EXPERT';
-        const expert = AIEvaluator.evaluate(game, P1);
-        getPlayer(game, P1).aiDifficulty = 'MEDIUM';
-        expect(expert - AIEvaluator.evaluate(game, P1)).toBeCloseTo(10 * base.endGameRound4);
+        const projected = AIEvaluator.evaluate(game, P1);
+        AIEvaluator.weightOverrides.set(P1, { ...base, resourceRound2: 1, resourceRound3: 3, endGameRound4: 0 });
+        expect(projected - AIEvaluator.evaluate(game, P1)).toBeCloseTo(10 * base.endGameRound4);
       } finally {
         spy.mockRestore();
       }

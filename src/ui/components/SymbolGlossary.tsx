@@ -91,7 +91,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
     title: 'Joueurs',
     entries: [
       { icon: <HumanIcon size={22} />, name: 'Joueur humain', text: "Devant le nom d'un joueur humain ; « / » suivi de ce symbole : par joueur (bonus de présence d'un secteur)." },
-      { icon: <LevelStrength value={2} />, name: "Niveau d'un robot", text: '1 à 3 barres : Débutant, Intermédiaire, Expert.' },
+      { icon: <LevelStrength value={2} />, name: "Niveau d'un robot", text: '1 à 3 barres : Débutant, Avancé, Expert.' },
       { icon: <span className="seti-glossary-emoji">👑</span>, name: 'Premier joueur', text: 'Sur l\'onglet du joueur qui a commencé la partie.' },
       { icon: <TrophyIcon size={24} />, name: 'Vainqueur', text: 'Après le nom du ou des vainqueurs, en fin de partie.' },
     ],

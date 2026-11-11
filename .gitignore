@@ -32,7 +32,7 @@ gittoken.txt
 test-results/
 playwright-report/
 coverage/
-tools/spsa/build/
+tools/spsa/build*/
 tools/spsa/out/
 tools/bench/build/
 server/build/

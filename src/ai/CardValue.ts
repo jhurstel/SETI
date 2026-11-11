@@ -1,5 +1,6 @@
-import { Card, CardEffect, CardType, CostType, FreeActionType } from '../core/types';
-import { effectAmount, effectNumber } from '../core/cardEffects';
+import { Bonus, Card, CardEffect, CardType, CostType, FreeActionType } from '../core/types';
+import { CardSystem } from '../systems/CardSystem';
+import { effectAmount, effectNumber, effectString } from '../core/cardEffects';
 import type { EvaluatorWeights } from './AIEvaluator';
 
 /**
@@ -43,21 +44,57 @@ export class CardValue {
     return this.playGain(card, w) - cost;
   }
 
-  /** Gains de la carte jouée : effets immédiats, cercles de mission, carte Fin de partie */
+  /**
+   * Gains de la carte jouée : effets immédiats, cercles de mission, carte Fin de partie. Chaque cercle (GAIN_ON_…,
+   * GAIN_IF_…) ou carte Fin de partie compte comme une mission ouverte, plus sa récompense × missionChance
+   */
   static playGain(card: Card, w: EvaluatorWeights): number {
     const immediate = card.immediateEffects.reduce((sum, effect) => sum + this.effectValue(effect, w), 0);
-    // Chaque cercle de mission (GAIN_ON_…, GAIN_IF_…) ou carte Fin de partie compte comme une mission ouverte
-    const circles = new Set([...card.passiveEffects, ...card.permanentEffects]
+    const circles = [...new Map([...card.passiveEffects, ...card.permanentEffects]
       .filter(e => /^GAIN_(ON|IF)_/.test(e.type))
-      .map(e => `${e.type}:${String(e.target)}:${JSON.stringify(e.value)}`)).size;
-    const missions = circles + (card.type === CardType.END_GAME ? 1 : 0);
-    return immediate + missions * w.openMission;
+      .map(e => [`${e.type}:${String(e.target)}:${JSON.stringify(e.value)}`, e])).values()];
+    const missions = circles.length + (card.type === CardType.END_GAME ? 1 : 0);
+    const rewards = w.missionChance > 0
+      ? circles.reduce((sum, e) => sum + this.missionRewardValue(effectString(e), w), 0)
+      : 0;
+    return immediate + missions * w.openMission + w.missionChance * rewards;
+  }
+
+  /** Valeur en PV de la récompense d'un cercle de mission (« GAIN_IF_8_MEDIA:pv:3 », « GAIN_ON_VISIT:jupiter:data:1 »…) */
+  static missionRewardValue(missionString: string, w: EvaluatorWeights): number {
+    const mission = CardSystem.parseMission(missionString);
+    return mission ? this.bonusValue(mission.rewards, w) : 0;
+  }
+
+  /** Valeur en PV d'un gain, avec les poids de l'évaluation */
+  static bonusValue(bonus: Bonus, w: EvaluatorWeights): number {
+    const amount = (list?: { amount: number }[]) => (list ?? []).reduce((sum, item) => sum + item.amount, 0);
+    return (bonus.pv ?? 0)
+      + (bonus.credits ?? 0) * w.credit
+      + (bonus.energy ?? 0) * w.energy
+      + ((bonus.media ?? 0) + (bonus.token ?? 0)) * w.media
+      + (bonus.data ?? 0) * w.data
+      + ((bonus.card ?? 0) + (bonus.anycard ?? 0)) * w.card
+      + (bonus.speciesCard ?? 0) * w.alienCard
+      + (bonus.probe ?? 0) * this.launchedProbe(w)
+      + (bonus.movements ?? 0) * w.probeStep
+      + amount(bonus.signals) * (w.signal + w.data)
+      + (bonus.scan ?? 0) * 2 * (w.signal + w.data)
+      + amount(bonus.lifetraces) * w.lifeTrace
+      + amount(bonus.technologies) * w.technology
+      + (bonus.landing ?? 0) * Math.max(0, w.lander - w.probeOnPlanet)
+      // Une réservation : un revenu de plus, compté pour deux manches en moyenne
+      + (bonus.revenue ?? 0) * 2 * w.incomePerRound;
+  }
+
+  /** Une sonde lancée : à mi-chemin d'une planète en moyenne */
+  private static launchedProbe(w: EvaluatorWeights): number {
+    return w.probeInSystem + Math.max(0, w.probeOnPlanet - w.probeInSystem) / 2;
   }
 
   /** Valeur d'un gain immédiat (colonne Gain du CSV) */
   private static effectValue(effect: CardEffect, w: EvaluatorWeights): number {
-    // Une sonde lancée : à mi-chemin d'une planète en moyenne
-    const probe = w.probeInSystem + Math.max(0, w.probeOnPlanet - w.probeInSystem) / 2;
+    const probe = this.launchedProbe(w);
     switch (effect.target) {
       case 'MEDIA': return effectNumber(effect) * w.media;
       case 'CREDIT': return effectNumber(effect) * w.credit;

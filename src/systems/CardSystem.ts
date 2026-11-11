@@ -785,6 +785,16 @@ export class CardSystem {
         missionString: string,
         skipConditionCheck: boolean = false
     ): Bonus | null {
+        const mission = this.parseMission(missionString);
+        if (!mission) return null;
+        return this.checkMissionCondition(game, playerId, mission.conditionType, mission.target, mission.rewards, mission.parts, skipConditionCheck);
+    }
+
+    /**
+     * Lecture d'une mission (sans la partie) : condition, cible éventuelle et récompense.
+     * Format : CONDITION[:CIBLE]:RESSOURCE1:VALEUR1:RESSOURCE2:VALEUR2…
+     */
+    static parseMission(missionString: string): { conditionType: string; target?: string; rewards: Bonus; parts: string[] } | null {
         if (!missionString) return null;
 
         const parts = missionString.split(':').map(p => p.trim());
@@ -820,8 +830,7 @@ export class CardSystem {
             bonusStartIndex = 2;
         }
 
-        const rewards = this.parseRewards(parts.slice(bonusStartIndex));
-        return this.checkMissionCondition(game, playerId, conditionType, target, rewards, parts, skipConditionCheck);
+        return { conditionType, target, rewards: this.parseRewards(parts.slice(bonusStartIndex)), parts };
     }
 
     /** Récompenses écrites en paires <ressource>:<valeur> (ex: pv:3:data:1, redlifetrace:1) */

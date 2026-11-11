@@ -190,3 +190,5 @@
     font-size: 0.8rem;
     line-height: 1.3;
 }
+/* Captures d'écran (fenêtres de choix) : taille réelle au plus, jamais plus larges que le texte */
+.seti-doc-body .seti-doc-image { display: block; max-width: min(100%, 560px); height: auto; margin: 10px 0 14px; border: 1px solid #3a3d4a; border-radius: 6px; }

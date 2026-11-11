@@ -31,7 +31,7 @@ Dernière mise à jour : octobre 2026. Ce document résume l'audit de toutes les
 - **Défausser pour des signaux** (cartes 67 et 114) : interaction non gérée, désormais traitée.
 - **Étude de l'Écosystème** (consulter un spécimen) : le robot choisit Jupiter ou Saturne où il a une sonde.
 - **Orbite et atterrissage bonus** : le robot pouvait viser une sonde qui n'était pas sur la planète ; une orbite bonus d'ET.3 ne proposait pas de spécimen.
-- **Capsules** : les robots Intermédiaires les ramènent sur Terre. Les robots Débutants ne les déplacent pas.
+- **Capsules** : les robots (tous niveaux) les ramènent sur Terre, en simulant leurs déplacements.
 
 ## Cartes situationnelles (sans effet hors contexte, comportement attendu)
 
@@ -57,5 +57,5 @@ Ces cartes n'ont pas d'effet visible lors du test automatique, faute de contexte
 
 ## Limites connues
 
-- **Robots** : le niveau Expert joue comme le niveau Intermédiaire ; les robots Débutants prennent les cartes au hasard.
+- **Robots** : les trois niveaux simulent et évaluent les cartes de la même façon ; seul leur choix final est plus ou moins hésitant (température).
 - **Fiches des espèces** : les règles des espèces viennent des CSV, des règles et de la FAQ. Une règle propre à une fiche Espèce qui n'y figure pas serait à signaler.

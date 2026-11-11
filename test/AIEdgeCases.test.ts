@@ -161,11 +161,11 @@ describe('Robots : cas limites', () => {
     });
   });
 
-  test('robot Débutant : une action impossible à jouer est ignorée (il passe)', () => {
+  test('robot (tous niveaux) : une action impossible à jouer est ignorée (il passe)', () => {
     const player = getPlayer(game, P1);
     player.aiDifficulty = 'EASY';
     const spy = jest.spyOn(AIBehavior, 'listMainActions').mockReturnValue([{ action: 'INCONNUE' } as never]);
-    expect(AITurn['chooseEasyMainAction'](game, player)).toBeNull();
+    expect(AITurn['chooseBestMainAction'](game, player)).toBeNull();
     spy.mockRestore();
   });
 
@@ -177,14 +177,34 @@ describe('Robots : cas limites', () => {
     expect(options).toHaveLength(game.decks.cardRow.length);
   });
 
-  describe('robot Débutant', () => {
-    beforeEach(() => { getPlayer(game, P1).aiDifficulty = 'EASY'; });
+  describe('robot sans simulation (niveau PASS des tests)', () => {
+    beforeEach(() => { getPlayer(game, P1).aiDifficulty = 'PASS'; });
 
     test('achat au hasard : rien sans carte dans la rangée', () => {
       getPlayer(game, P1).mediaCoverage = 5;
       game.decks.cardRow = [];
       nextDrawBelow(0.1);
       expect(AITurn['tryBuyCard'](game, getPlayer(game, P1))).toBeNull();
+    });
+
+    test('achat au hasard : une carte de la rangée avec 3 Médias', () => {
+      const player = getPlayer(game, P1);
+      player.mediaCoverage = 5;
+      const before = player.cards.length;
+      nextDrawBelow(0.1);
+      const res = AITurn['tryBuyCard'](game, player)!;
+      expect(getPlayer(res.updatedGame, P1).mediaCoverage).toBe(2);
+      expect(getPlayer(res.updatedGame, P1).cards.length).toBe(before + 1);
+      expect(player.mediaCoverage).toBe(5);
+    });
+
+    test('défausse au hasard : la carte la moins utile à garder', () => {
+      const player = getPlayer(game, P1);
+      Object.assign(player, { credits: 0, revenueCredits: 0, mediaCoverage: 0 });
+      player.cards = [makeCard('cheap', { cost: 0, freeAction: FreeActionType.MEDIA }), makeCard('dear', { cost: 5, freeAction: FreeActionType.MEDIA })];
+      nextDrawBelow(0.1);
+      const res = AITurn['tryDiscardForFreeAction'](game, player)!;
+      expect(getPlayer(res.updatedGame, P1).cards.map(c => c.id)).toEqual(['cheap']);
     });
 
     test('défausse au hasard : rien sans carte à action gratuite', () => {
@@ -342,9 +362,9 @@ describe('Robots : cas limites', () => {
       expect(AITurn['passAfterUsingExcessCards'](game, player)).toEqual({ kind: 'PASS', cardsToKeep: expect.any(Array) });
     });
 
-    test('robot Débutant : défausse pour « 2 Médias » avec l\'opération du moteur', () => {
+    test('robot sans simulation : défausse pour « 2 Médias » avec l\'opération du moteur', () => {
       const player = getPlayer(game, P1);
-      Object.assign(player, { aiDifficulty: 'EASY', mediaCoverage: 0 });
+      Object.assign(player, { aiDifficulty: 'PASS', mediaCoverage: 0 });
       player.cards = [makeCard('media2', { freeAction: FreeActionType.TWO_MEDIA })];
       nextDrawBelow(0.1);
       const res = AITurn['tryDiscardForFreeAction'](game, player)!;

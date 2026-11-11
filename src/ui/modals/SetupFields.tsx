@@ -9,9 +9,9 @@ import { HumanIcon, LevelStrength } from '../components/PlayerKindIcon';
  */
 
 export const ROBOT_LEVELS: { id: AIDifficulty; name: string; text: string; strength: number }[] = [
-  { id: 'EASY', name: 'Débutant', text: 'Choisit au hasard parmi ses bonnes actions.', strength: 1 },
-  { id: 'MEDIUM', name: 'Intermédiaire', text: 'Joue la meilleure action de son tour.', strength: 2 },
-  { id: 'EXPERT', name: 'Expert', text: 'Vise aussi les points du décompte final.', strength: 3 },
+  { id: 'EASY', name: 'Débutant', text: 'Hésite beaucoup entre ses bonnes actions.', strength: 1 },
+  { id: 'MEDIUM', name: 'Avancé', text: 'Joue le plus souvent sa meilleure action.', strength: 2 },
+  { id: 'EXPERT', name: 'Expert', text: 'Joue toujours sa meilleure action.', strength: 3 },
 ];
 
 /** Couleur de la place `index` (ordre des places, comme dans la partie) */

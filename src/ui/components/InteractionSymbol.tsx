@@ -1,7 +1,10 @@
 import React from 'react';
 import { InteractionState, SectorType, TechnologyCategory } from '../../core/types';
 import { BonusIcons } from './BonusIcons';
-import { CentaurienMessageIcon, DiscardCardIcon, MascamiteIcon, MissionCompleteIcon, ResourceIcon, SignalGainIcon, TechTileIcon, VictoryPointsIcon } from './GameIcons';
+import { ActionHexIcon, CentaurienMessageIcon, DiscardCardIcon, MascamiteIcon, MissionCompleteIcon, ResourceIcon, ResourceIconKind, SignalGainIcon, TechTileIcon, VictoryPointsIcon } from './GameIcons';
+
+/** Gains d'un échange de cartes qui ont un symbole de ressource */
+const TRADE_GAINS: ResourceIconKind[] = ['credit', 'energy', 'card'];
 import { OrbiterIcon, LanderIcon, ReservationIcon, TechCategoryIcon } from './ObjectiveSymbol';
 
 const SIZE = 26;
@@ -49,6 +52,13 @@ export const interactionSymbol = (state: InteractionState): React.ReactNode => {
     case 'CHOOSING_OBS2_ACTION': return <TechTileIcon techId="observation-2" width={TILE_WIDTH} height={SIZE + 6} />;
     case 'CHOOSING_OBS3_ACTION': return <TechTileIcon techId="observation-3" width={TILE_WIDTH} height={SIZE + 6} />;
     case 'CHOOSING_OBS4_ACTION': return <TechTileIcon techId="observation-4" width={TILE_WIDTH} height={SIZE + 6} />;
+    case 'DISCARDING_DRAWN_CARD': return <DiscardCardIcon size={SIZE} />;
+    case 'ANALYZING': return <ActionHexIcon kind="analyze" size={SIZE} />;
+    case 'TRADING_CARD': {
+      // Cartes données, puis le gain de l'échange
+      const gain = TRADE_GAINS.find(k => k === state.targetGain.toLowerCase());
+      return <><ResourceIcon kind="card" amount={state.count} size={SIZE - 4} />{gain && <ResourceIcon kind={gain} size={SIZE - 4} />}</>;
+    }
     default: return null;
   }
 };

@@ -13,7 +13,7 @@ Ce document décrit comment jouer, les règles telles qu'elles sont appliquées,
 ### 1.1 Lancer une partie
 
 - **Accueil** : au lancement (et par ⚙️ en cours de partie), l'écran d'accueil propose de continuer la partie sauvegardée (sa barre de progression montre où elle en est : un trait gris par manche, un trait de la couleur du joueur par tour, l'action principale du tour au survol), d'en commencer une nouvelle, de jouer en ligne, ainsi que la documentation, les règles et la FAQ.
-- **Nouvelle partie** : votre nom (gardé pour la partie suivante, en solo comme en ligne), puis les places comme pour une salle en ligne : la vôtre et 1 à 3 robots, chacun à sa couleur et avec son propre niveau (Débutant, Intermédiaire, Expert : 1 à 3 barres ; « + Ajouter un robot », ✕ pour en retirer un). Le premier joueur est tiré au hasard au démarrage et annoncé par un radar : les joueurs sont des signaux autour d'un radiotélescope, le faisceau tourne, ralentit et se verrouille sur le premier joueur (onde à sa couleur, « X commence ! ») ; un clic le ferme, de même en ligne. La fenêtre garde le fond de l'accueil, même ouverte pendant une partie.
+- **Nouvelle partie** : votre nom (gardé pour la partie suivante, en solo comme en ligne), puis les places comme pour une salle en ligne : la vôtre et 1 à 3 robots, chacun à sa couleur et avec son propre niveau (Débutant, Avancé, Expert : 1 à 3 barres ; « + Ajouter un robot », ✕ pour en retirer un). Le premier joueur est tiré au hasard au démarrage et annoncé par un radar : les joueurs sont des signaux autour d'un radiotélescope, le faisceau tourne, ralentit et se verrouille sur le premier joueur (onde à sa couleur, « X commence ! ») ; un clic le ferme, de même en ligne. La fenêtre garde le fond de l'accueil, même ouverte pendant une partie.
 - La partie se joue en **5 manches**. Chaque joueur commence avec 4 crédits, 3 énergies, 4 Médias et 5 cartes, puis **réserve** une carte sous son plateau (mise en place).
 - **Sauvegarde automatique** : l'état est enregistré dans le navigateur après chaque action (et quand la page est quittée). En rouvrant la page, la partie reprend où elle s'était arrêtée.
 - **Export / import** : l'accueil (⚙️ en cours de partie) enregistre la partie dans un fichier JSON ou en recharge une. Une sauvegarde d'une version plus récente du jeu est refusée.
@@ -100,6 +100,83 @@ Les déplacements gratuits reçus d'une carte (« 2 déplacements ») se dépens
 Les symboles de l'interface reprennent ceux du livret de règles.
 
 {{glossaire}}
+
+### 1.10 Fenêtres de choix
+
+Quand le jeu attend une décision qui ne se prend pas directement sur le plateau, une fenêtre s'ouvre au centre de l'écran. Chaque option y est un symbole dans une tuile ; le survol donne son libellé, son détail et, si elle est grisée, la raison. Le bouton **Voir le plateau** cache la fenêtre le temps de regarder le jeu. Les autres choix (planète, secteur, technologie, emplacement d'une trace de vie, tuile objectif, carte de la rangée, carte Alien) se font sur le plateau, dont les cases possibles clignotent.
+
+#### Récompenses (ordre des gains)
+
+Une action, une carte ou un secteur peut rapporter plusieurs gains qui demandent chacun un choix (une technologie à prendre, une trace de vie à placer, des déplacements gratuits, une carte à choisir…). Plutôt que de les imposer dans un ordre, le jeu les réunit dans la fenêtre **Récompenses** : le joueur clique sur le gain qu'il veut résoudre en premier, fait son choix sur le plateau, puis revient au menu pour le suivant ; un gain résolu est coché. Quand tous le sont, **Terminer** ferme le menu. L'ordre compte : par exemple, placer une trace de vie avant de prendre une technologie peut débloquer une mission, ou se déplacer avant d'atterrir. Une carte Mascamite qui offre « orbite ou atterrissage » utilise la même fenêtre pour proposer l'un ou l'autre.
+
+![Récompenses](docs/images/menus/recompenses.png)
+
+#### Cartes de la main
+
+- **Réserver une carte** (mise en place, bonus de réservation) : la carte choisie est glissée sous le plateau ; son revenu, en surbrillance, est gagné aussitôt puis à chaque manche.
+
+![Réserver une carte](docs/images/menus/reservation.png)
+
+- **Défausse de fin de manche** : en passant, le joueur ne garde que 4 cartes ; il coche celles à défausser (action gratuite en surbrillance), puis **Défausser**.
+
+![Défausse de fin de manche](docs/images/menus/defausse-fin-de-manche.png)
+
+- **Carte de fin de manche** : après avoir passé, le joueur découvre la pile de la manche et en prend une carte.
+
+![Carte de fin de manche](docs/images/menus/carte-fin-de-manche.png)
+
+- **Échanger 2 cartes** (action gratuite) : 2 cartes de la main contre 1 crédit, 1 énergie ou 1 carte ; **Annuler** renonce à l'échange.
+
+![Échanger 2 cartes](docs/images/menus/echange.png)
+
+- **Défausser pour des signaux** (effet de carte) : jusqu'au nombre indiqué de cartes, chacune marquant un signal dans un secteur de sa couleur (en surbrillance).
+
+![Défausser pour des signaux](docs/images/menus/defausse-signaux.png)
+
+- **Vie Quotidienne** (ET.15) : parmi les cartes piochées, une est défaussée pour son action gratuite, puis une autre pour la ressource de son revenu.
+
+![Vie Quotidienne](docs/images/menus/vie-quotidienne.png)
+
+#### Scan et déplacements
+
+- **Observation II, III, IV** : à la fin d'un scan, chaque technologie Observation acquise propose son bonus, représenté par sa tuile, ou le refus (cercle barré). Observation II : payer 1 Média pour un signal sur Mercure ; Observation III : défausser une carte pour un signal de sa couleur ; Observation IV : payer 1 énergie pour lancer une sonde, ou gagner 1 déplacement.
+
+![Observation II](docs/images/menus/observation-2.png)
+![Observation III](docs/images/menus/observation-3.png)
+![Observation IV](docs/images/menus/observation-4.png)
+
+- **Assistance gravitationnelle** (carte 19) : en arrivant sur une planète, 1 Média ou 1 déplacement gratuit.
+
+![Assistance gravitationnelle](docs/images/menus/media-ou-deplacement.png)
+
+#### Missions
+
+- **Mission déclenchée** : pendant le tour d'un autre joueur, quand un effet remplit un cercle de mission (trace de vie gagnée par une majorité…), le joueur choisit le cercle à recouvrir (un seul, avec sa récompense en symboles) ou **Ne pas en profiter**. Pendant son propre tour, il clique directement sur le cercle surligné de la carte.
+
+![Mission déclenchée](docs/images/menus/mission.png)
+
+#### Espèces
+
+- **Message Centaurien** : au palier de son marqueur, le joueur prend une tuile Message encore disponible ; celles déjà prises sont grisées, avec le nom de qui l'a choisie.
+
+![Message Centaurien](docs/images/menus/centaurien.png)
+
+- **Cartes Exertiens** (découverte et paliers) : le joueur sélectionne une de ses cartes Exertiens, puis **Jouer la carte** (1 crédit au 2e palier), ou **Ne pas jouer de carte**. Le DANGER actuel est rappelé.
+
+![Cartes Exertiens](docs/images/menus/exertien.png)
+
+- **Spécimen Mascamite** : prélever (le spécimen part dans une capsule, sa récompense est gagnée à l'arrivée) ou étudier (récompense immédiate, le spécimen reste) un des spécimens de la planète.
+
+![Spécimen Mascamite](docs/images/menus/specimen.png)
+
+- **Défausser un Token** (cartes Oumuamua) : défausser 1 Token pour le gain de la carte, ou y renoncer ; *Adaptation des Sondes* revient tant qu'il reste des jetons, et arrêter donne 1 Atterrissage.
+
+![Défausser un Token](docs/images/menus/token.png)
+
+#### Confirmations et fin de partie
+
+- **Attention** : finir son tour ou passer alors qu'une mission peut encore être recouverte, ou sans jouer sa carte Exertien à un palier, demande confirmation (**Annuler** ou **Continuer quand même**).
+- **Fin de partie** : le décompte de chaque joueur par catégorie, le vainqueur et l'historique complet de la partie (voir 2.8).
 
 ## 2. Règles appliquées
 
@@ -263,12 +340,40 @@ Une interaction peut viser un autre joueur que le joueur actif (par exemple le g
 
 ### 5.1 Niveaux
 
-- **Débutant (EASY)** : simule chaque action principale et en tire une au hasard parmi les 3 meilleures qui améliorent sa position ; sinon il passe. Actions gratuites occasionnelles.
-- **Intermédiaire (MEDIUM)** : simule chaque action principale et chaque action gratuite avec le vrai moteur, note la position obtenue et garde la meilleure. Il passe quand rien n'améliore sa position.
-- **Expert (EXPERT)** : comme l'Intermédiaire, mais compte aussi les points du décompte final déjà acquis. Sur 72 parties contre l'Intermédiaire : 61 % de victoires, environ +11 PV.
+Les trois niveaux jouent de la même façon : ils simulent chaque action principale et chaque action gratuite avec le vrai moteur, notent la position obtenue avec la même évaluation (décompte final anticipé compris) et passent quand rien n'améliore leur position. Seule change leur **hésitation** entre les bonnes actions, réglée par une température (en points d'évaluation) :
+
+- **Expert (EXPERT)**, température 0 : joue toujours l'action la mieux évaluée, après avoir joué plusieurs suites possibles de ses meilleures actions (voir plus bas).
+- **Avancé (MEDIUM)**, température 2 : joue le plus souvent la meilleure action, parfois une action presque aussi bonne.
+- **Débutant (EASY)**, température 12 : hésite beaucoup entre ses bonnes actions.
+
+Une action moins bien notée de *d* points que la meilleure est tirée exp(−*d* / température) fois moins souvent ; une action à plus de 3 températures de la meilleure n'est jamais jouée : un robot hésite entre de bons coups, il ne joue pas un coup absurde. Le même tirage choisit les actions gratuites.
+
+**Anticipation de l'Expert (suites jouées)** : il départage ses 3 meilleures actions principales en jouant, pour chacune, 4 suites possibles de la partie jusqu'à sa prochaine action principale, et garde celle dont la position moyenne est la meilleure. Dans chaque suite :
+
+- ce qu'il ne voit pas est redistribué au hasard : les cartes de la pioche, des piles de fin de manche et des mains adverses sont mélangées puis redonnées en mêmes nombres ; il ne lit donc jamais la main cachée d'un adversaire ;
+- tous les joueurs jouent en Experts (sans anticipation), passes comprises ;
+- les tirages au hasard sont les mêmes pour chaque action comparée (la suite n° 1 de chaque action part de la même graine) : seule l'action fait la différence.
+
+Mesure contre l'Expert précédent (novembre 2026, environ 100 parties en miroir par ligne) :
+
+| Joueurs | 4 suites | 8 suites |
+|---|---|---|
+| 2 | +12,2 ± 2,9 PV (65 victoires contre 34) | +13,1 ± 2,7 PV (70 contre 27) |
+| 3 | +3,3 ± 3,1 PV (54 contre 47) | +5,3 ± 3,0 PV (59 contre 43) |
+| 4 | +8,0 ± 2,1 PV (64 contre 35) | +10,2 ± 2,3 PV (67 contre 34) |
+
+4 suites sont gardées : 8 n'apportent qu'un peu plus pour un calcul deux fois plus long. Coût (une partie de robots Experts, sur PC) : étape médiane de quelques millisecondes, mais 10 % des étapes dépassent 0,65 s à 2 joueurs et 2,1 s à 4 joueurs (au plus 2,2 s et 4,5 s) ; le calcul tourne dans un Web Worker, l'interface ne fige pas. Une version plus simple (réponse du seul adversaire suivant, sans carte jouée) ne gagnait que +0,1 à +1,7 PV.
+
+Les températures visent des écarts mesurables : l'Expert gagne au moins 2 parties sur 3 contre l'Avancé, l'Avancé environ 3 sur 4 contre le Débutant. Mesure (novembre 2026, Expert avec ses suites jouées, environ 100 parties en miroir par case : écart de score moyen, puis victoires) :
+
+| Joueurs | Expert − Avancé | Avancé − Débutant | Expert − Débutant |
+|---|---|---|---|
+| 2 | +17,4 ± 2,8 PV (70 contre 26) | +20,7 ± 3,3 PV (71 contre 29) | +37,1 ± 3,1 PV (87 contre 13) |
+| 3 | +17,6 ± 3,2 PV (70 contre 32) | +17,2 ± 3,0 PV (64 contre 38) | +34,3 ± 2,9 PV (90 contre 12) |
+| 4 | +12,0 ± 2,4 PV (66 contre 36) | +25,1 ± 2,3 PV (81 contre 19) | +46,2 ± 2,0 PV (101 contre 1) |
 
 Pour les choix aléatoires (pioche…), un robot compare 4 tirages et garde le meilleur. Chaque placement de trace de vie est simulé.
-Les robots jouent avec exactement les mêmes opérations que le joueur humain : mêmes vérifications, mêmes gains, mêmes messages dans l'historique (défausse pour une action gratuite, achat ou échange contre une carte à choisir dans la rangée ou la pioche, déplacements gratuits, colonne de l'ordinateur pour une technologie Informatique, réservation de mise en place). Une carte piochée face cachée (achat, échange) ne lui est connue qu'une fois en main : sa simulation compte les cartes de la main, pas leur identité ; il peut ensuite jouer la carte piochée, comme le joueur humain. Il ne transfère pas de donnée sur une case de réservation sans carte en main (le bonus serait perdu), sauf si sa réserve de données est pleine. Un robot choisit sa carte de fin de manche comme le joueur humain, une fois passé (il ne voit pas la pile avant) : l'Intermédiaire et l'Expert simulent chaque carte, le Débutant la tire au hasard. Avant de passer avec plus de 4 cartes en main, un robot (tous niveaux) se sert d'abord des cartes que la passe lui ferait défausser : il simule leur défausse pour l'action gratuite et l'échange de 2 d'entre elles contre 1 crédit, 1 énergie ou 1 carte, et joue la meilleure option, une carte à la fois.
+Les robots jouent avec exactement les mêmes opérations que le joueur humain : mêmes vérifications, mêmes gains, mêmes messages dans l'historique (défausse pour une action gratuite, achat ou échange contre une carte à choisir dans la rangée ou la pioche, déplacements gratuits, colonne de l'ordinateur pour une technologie Informatique, réservation de mise en place). Une carte piochée face cachée (achat, échange) ne lui est connue qu'une fois en main : sa simulation compte les cartes de la main, pas leur identité ; il peut ensuite jouer la carte piochée, comme le joueur humain. Il ne transfère pas de donnée sur une case de réservation sans carte en main (le bonus serait perdu), sauf si sa réserve de données est pleine. Un robot choisit sa carte de fin de manche comme le joueur humain, une fois passé (il ne voit pas la pile avant) : l'Avancé et l'Expert simulent chaque carte, le Débutant la tire au hasard. Avant de passer avec plus de 4 cartes en main, un robot (tous niveaux) se sert d'abord des cartes que la passe lui ferait défausser : il simule leur défausse pour l'action gratuite et l'échange de 2 d'entre elles contre 1 crédit, 1 énergie ou 1 carte, et joue la meilleure option, une carte à la fois.
 Un robot joue une étape toutes les 1,5 s ; le calcul tourne dans un Web Worker pour ne pas figer l'interface.
 
 ### 5.2 Évaluation d'une position
@@ -305,6 +410,7 @@ Les robots ont un jeu de poids par nombre de joueurs (`WEIGHTS_BY_PLAYER_COUNT`)
 | `lifeTrace` | 1,44 | Une trace de vie |
 | `technology` | 2,77 | Une technologie |
 | `openMission` | 1,23 | Une condition de mission ouverte |
+| `missionChance` | 0 | Chance de recouvrir un cercle de mission ouvert : sa récompense (convertie avec les poids) en est multipliée, et par la part des manches restantes ; récompense pleine si le cercle peut être recouvert maintenant ; 0 : récompense non comptée |
 | `playedCard` | 0,4 | Une carte jouée devant soi |
 | `probeInSystem` | 1,15 | Une sonde dans le système solaire |
 | `probeOnPlanet` | 6,7 | Une sonde sur une planète |
@@ -339,7 +445,8 @@ Les robots ont un jeu de poids par nombre de joueurs (`WEIGHTS_BY_PLAYER_COUNT`)
 - Dernier réglage (140 itérations de 48 parties par nombre de joueurs, validé sur graines neuves contre les poids précédents) : à 2 joueurs, aucun gain (−1,0 ± 2,1 PV, poids précédents gardés) ; à 3 joueurs, +3,5 ± 1,8 PV (109 victoires contre 92) ; à 4 joueurs, +14,9 ± 1,8 PV (141 victoires contre 59).
 - Poids par manche (réglage des seuls poids de manche et de passe, 140 itérations, novembre 2026) : +4,4 ± 2,1 PV à 2 joueurs (107 victoires contre 89) et +2,9 ± 1,7 PV à 4 joueurs (111 contre 92), appliqués ; à 3 joueurs, −1,2 ± 2,0 PV, non appliqués (poids identiques à chaque manche).
 - Valeur des cartes (`card`, `cardQuality`, `maxUsefulCards`, `openMission`, 140 itérations, novembre 2026) : +3,2 ± 1,5 PV à 4 joueurs (116 victoires contre 84), appliquée ; aucun gain à 2 et 3 joueurs (−0,1 ± 2,1 et −0,7 ± 1,9 PV), où toutes les cartes gardent la même valeur.
-- Expert contre Intermédiaire (environ 100 parties par nombre de joueurs) : +5,9 ± 2,1 PV à 2 joueurs (58 victoires contre 40), +10,4 ± 2,5 PV à 3 joueurs (70 contre 32), +8,4 ± 2,1 PV à 4 joueurs (61 contre 39).
+- Valeur des missions (`missionChance`, `openMission`, 140 itérations, novembre 2026, partant de `missionChance` = 0,4) : −1,3 ± 2,4 PV à 2 joueurs, +1,1 ± 2,1 à 3 joueurs, +2,1 ± 1,5 à 4 joueurs (109 victoires contre 94) ; aucun gain net, non appliquée (`missionChance` reste à 0).
+- Écarts entre niveaux : `npm run tune:ai -- levels <joueurs> <graines> <A> <B>` (par exemple `MEDIUM EASY`, `MEDIUM@3` pour essayer une autre température, `EXPERT+0` pour un Expert sans anticipation) ; résultats en 5.1.
 - Comparer deux niveaux demande au moins une cinquantaine de parties : les scores sont très dispersés.
 
 ## 6. Architecture

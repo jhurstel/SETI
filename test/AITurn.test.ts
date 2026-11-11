@@ -94,7 +94,7 @@ describe('AITurn (parties complètes entre robots)', () => {
     expect(result.steps).toBeLessThan(5000);
   }, 60000);
 
-  test("une partie entre robots intermédiaires et débutants va jusqu'au décompte final", async () => {
+  test("une partie entre robots avancés et débutants va jusqu'au décompte final", async () => {
     const game = await createRobotGame(['R1', 'R2', 'R3'], ['MEDIUM', 'EASY', 'MEDIUM']);
     const result = playRobotGame(game);
 
@@ -102,7 +102,7 @@ describe('AITurn (parties complètes entre robots)', () => {
     expect(result.game.finalScores).toHaveLength(3);
   }, 120000);
 
-  test('un robot intermédiaire ne modifie pas la partie reçue', async () => {
+  test('un robot avancé ne modifie pas la partie reçue', async () => {
     const started = playRobotGame(await createRobotGame(['R1', 'R2'], ['MEDIUM', 'MEDIUM']), 2).game;
     const snapshot = JSON.stringify(started);
     for (let i = 0; i < 3; i++) AITurn.playStep(started);
@@ -126,8 +126,8 @@ describe('AITurn (parties complètes entre robots)', () => {
     expect(missionOf(step.updatedGame).fulfillableRequirementIds).toEqual([]);
   }, 60000);
 
-  test('un robot débutant rapproche sa capsule de la Terre', async () => {
-    const game = playRobotGame(await createRobotGame(['R1', 'R2'], ['EASY', 'EASY']), 2).game;
+  test('un robot sans simulation (niveau PASS des tests) rapproche sa capsule de la Terre', async () => {
+    const game = playRobotGame(await createRobotGame(['R1', 'R2'], ['PASS', 'PASS']), 2).game;
     const robot = game.players[game.currentPlayerIndex];
     robot.energy = 5;
     const capsule = ProbeSystem.createCapsule(game, robot.id, 'jupiter', { bonus: { pv: 3 } })!;
@@ -144,7 +144,7 @@ describe('AITurn (parties complètes entre robots)', () => {
     expect(distance(step.updatedGame)).toBe(distance(game) - 1);
   });
 
-  test("un robot intermédiaire échange des ressources quand c'est ce qui lui permet de jouer une carte rentable", async () => {
+  test("un robot avancé échange des ressources quand c'est ce qui lui permet de jouer une carte rentable", async () => {
     const game = playRobotGame(await createRobotGame(['R1', 'R2'], ['MEDIUM', 'MEDIUM']), 2).game;
     const robot = game.players[game.currentPlayerIndex];
     // Carte à 3 crédits pour 2 crédits en main : 2 énergies → 1 crédit la rend jouable
@@ -187,21 +187,22 @@ describe('AITurn (parties complètes entre robots)', () => {
     expect(AIEvaluator.evaluate(step.updatedGame, player.id)).toBeGreaterThan(before);
   });
 
-  test("un robot expert compte dans sa position une part des points du décompte final (partielle avant la dernière manche)", async () => {
-    const game = await createRobotGame(['R1', 'R2'], ['EXPERT', 'MEDIUM']);
-    const [expert, medium] = game.players;
+  test("tous les niveaux comptent dans leur position une part des points du décompte final (même évaluation)", async () => {
+    const game = await createRobotGame(['R1', 'R2'], ['EXPERT', 'EASY']);
+    const [expert, easy] = game.players;
+    const before = [AIEvaluator.evaluate(game, expert.id), AIEvaluator.evaluate(game, easy.id)];
     const finalSpy = jest.spyOn(ScoreManager, 'calculateFinalScore').mockReturnValue({ missionEndGame: 4, objectiveTiles: 6, speciesBonuses: 0, exertienCards: 0, total: 10 });
-
-    const withProjection = AIEvaluator.evaluate(game, expert.id);
-    expert.aiDifficulty = 'MEDIUM';
-    const withoutProjection = AIEvaluator.evaluate(game, expert.id);
-    const mediumValue = AIEvaluator.evaluate(game, medium.id);
-    const calls = finalSpy.mock.calls.length;
+    const after = [AIEvaluator.evaluate(game, expert.id), AIEvaluator.evaluate(game, easy.id)];
     finalSpy.mockRestore();
+    const projected = (id: string) => ScoreManager.calculateFinalScore(game, id);
 
-    expect(withProjection - withoutProjection).toBeCloseTo(10 * DEFAULT_WEIGHTS.endGameRound1);
-    expect(calls).toBe(1); // l'Intermédiaire n'anticipe pas le décompte final
-    expect(mediumValue).toBeGreaterThan(0);
+    [expert, easy].forEach((p, i) => {
+      const { total, exertienCards } = projected(p.id);
+      expect(after[i] - before[i]).toBeCloseTo((10 - (total - exertienCards)) * DEFAULT_WEIGHTS.endGameRound1);
+    });
+    // Le niveau ne change pas l'évaluation
+    easy.aiDifficulty = 'EXPERT';
+    expect(AIEvaluator.evaluate(game, easy.id)).toBeCloseTo(before[1]);
   });
 
   test("l'évaluation compte la carte Alien promise par la 1re trace d'une couleur, selon l'avancement de la découverte", async () => {
@@ -242,9 +243,9 @@ describe('AITurn (parties complètes entre robots)', () => {
     expect(ahead - behind).toBeCloseTo((w.signal + fill * w.sectorLead * (3 + w.sectorLifeTraceValue)) * boardFactor(game));
   });
 
-  test('tirages comparés pour les choix aléatoires : 2 pour le débutant, 4 pour un robot stratégique', async () => {
-    const game = await createRobotGame(['R1', 'R2', 'R3'], ['EASY', 'MEDIUM', 'PASS']);
-    expect(game.players.map(p => AIBehavior.choiceSamples(p))).toEqual([2, 4, 1]);
+  test('tirages comparés pour les choix aléatoires : 4 pour tous les niveaux, 1 pour le niveau PASS des tests', async () => {
+    const game = await createRobotGame(['R1', 'R2', 'R3', 'R4'], ['EASY', 'MEDIUM', 'EXPERT', 'PASS']);
+    expect(game.players.map(p => AIBehavior.choiceSamples(p))).toEqual([4, 4, 4, 1]);
   });
 
   test('playStep ne modifie pas la partie reçue', async () => {
