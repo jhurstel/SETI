@@ -377,10 +377,26 @@ export function getAllAbsolutePositions(rotationState: RotationState, extraObjec
   return positions;
 }
 
+/** Cases déjà calculées, par état de rotation et objets supplémentaires (la géométrie ne dépend que d'eux) */
+const CELLS_CACHE_SIZE = 500;
+const cellsCache = new Map<string, ReadonlyMap<string, Readonly<SolarSystemCell>>>();
+
 /**
- * Obtient toutes les cases du système solaire avec leur état
+ * Obtient toutes les cases du système solaire avec leur état. Le résultat est mis en cache et partagé
+ * (cases figées) : appelée des milliers de fois par étape d'un robot, elle prenait 16 % de son temps.
  */
-export function getAllCells(rotationState: RotationState, extraObjects: CelestialObject[] = []): Map<string, SolarSystemCell> {
+export function getAllCells(rotationState: RotationState, extraObjects: CelestialObject[] = []): ReadonlyMap<string, Readonly<SolarSystemCell>> {
+  const key = `${rotationState.level1Angle}/${rotationState.level2Angle}/${rotationState.level3Angle}/${extraObjects.map(o => `${o.id}:${o.type}:${o.position.disk}${o.position.sector}:${o.level ?? 0}`).join(',')}`;
+  const cached = cellsCache.get(key);
+  if (cached) return cached;
+  if (cellsCache.size > CELLS_CACHE_SIZE) cellsCache.clear();
+  const cells = computeAllCells(rotationState, extraObjects);
+  cells.forEach(cell => Object.freeze(cell));
+  cellsCache.set(key, cells);
+  return cells;
+}
+
+function computeAllCells(rotationState: RotationState, extraObjects: CelestialObject[]): Map<string, SolarSystemCell> {
   const cells = new Map<string, SolarSystemCell>();
   const positions = getAllAbsolutePositions(rotationState, extraObjects);
 
@@ -603,7 +619,7 @@ export function getCell(
   sector: SectorNumber,
   rotationState: RotationState,
   extraObjects: CelestialObject[] = []
-): SolarSystemCell | null {
+): Readonly<SolarSystemCell> | null {
   const cells = getAllCells(rotationState, extraObjects);
   return cells.get(`${disk}${sector}`) || null;
 }

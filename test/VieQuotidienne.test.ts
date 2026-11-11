@@ -73,8 +73,9 @@ describe('ET.15 « Vie Quotidienne » : 3 cartes piochées, une défaussée pour
   test("une carte piochée sans action gratuite : refusée pour l'action gratuite (régression : défaussée pour rien)", () => {
     const played = playVieQuotidienne(game);
     const discarding = played.newPendingInteractions.find(i => i.type === 'DISCARDING_DRAWN_CARD') as Discarding;
-    const drawn = getPlayer(played.updatedGame, P1).cards.find(c => c.id === 'move')!;
-    drawn.freeAction = FreeActionType.UNDEFINED;
+    const cards = getPlayer(played.updatedGame, P1).cards;
+    const index = cards.findIndex(c => c.id === 'move');
+    cards[index] = { ...cards[index], freeAction: FreeActionType.UNDEFINED };
     const res = InteractionChoices.discardDrawnCard(played.updatedGame, P1, discarding, 'move');
     expect(res.error).toBe('Cette carte ne peut pas être défaussée');
     expect(res.updatedGame).toBe(played.updatedGame);

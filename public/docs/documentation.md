@@ -362,7 +362,7 @@ Mesure contre l'Expert précédent (novembre 2026, environ 100 parties en miroir
 | 3 | +3,3 ± 3,1 PV (54 contre 47) | +5,3 ± 3,0 PV (59 contre 43) |
 | 4 | +8,0 ± 2,1 PV (64 contre 35) | +10,2 ± 2,3 PV (67 contre 34) |
 
-4 suites sont gardées : 8 n'apportent qu'un peu plus pour un calcul deux fois plus long. Coût (une partie de robots Experts, sur PC) : étape médiane de quelques millisecondes, mais 10 % des étapes dépassent 0,65 s à 2 joueurs et 2,1 s à 4 joueurs (au plus 2,2 s et 4,5 s) ; le calcul tourne dans un Web Worker, l'interface ne fige pas. Une version plus simple (réponse du seul adversaire suivant, sans carte jouée) ne gagnait que +0,1 à +1,7 PV.
+4 suites sont gardées : 8 n'apportent qu'un peu plus pour un calcul deux fois plus long. Coût (une partie de robots Experts, sur PC) : étape médiane de quelques millisecondes, mais 10 % des étapes dépassent 0,26 s à 2 joueurs, 0,41 s à 3 et 0,58 s à 4 (au plus 1,2 s) ; le calcul tourne dans un Web Worker, l'interface ne fige pas. Une version plus simple (réponse du seul adversaire suivant, sans carte jouée) ne gagnait que +0,1 à +1,7 PV.
 
 Les températures visent des écarts mesurables : l'Expert gagne au moins 2 parties sur 3 contre l'Avancé, l'Avancé environ 3 sur 4 contre le Débutant. Mesure (novembre 2026, Expert avec ses suites jouées, environ 100 parties en miroir par case : écart de score moyen, puis victoires) :
 

@@ -5,6 +5,7 @@ import {
   getVisibleLevel,
   getObjectPosition,
   getCell,
+  getAllCells,
   calculateReachableCells,
   createRotationState,
   getAbsoluteSectorForProbe,
@@ -318,5 +319,19 @@ describe('poussée des sondes recouvertes par un anneau', () => {
     coveredProbe(createRotationState(0, 0, -45));
     const res = ProbeSystem.updateProbesAfterRotation(game, NO_ROTATION, NO_ROTATION, []);
     expect(res.pushes).toEqual([]);
+  });
+});
+
+describe('getAllCells : cache par état de rotation', () => {
+  test('même rotation : mêmes cases, figées ; le cache vidé quand il devient trop grand ne change rien', () => {
+    const rotation = createRotationState(0, 0, 0);
+    const cells = getAllCells(rotation);
+    expect(getAllCells(createRotationState(0, 0, 0))).toBe(cells);
+    expect(Object.isFrozen(cells.get('A1'))).toBe(true);
+    const comet = [{ id: 'comet', type: 'comet' as const, name: 'Comète', position: { disk: 'B' as const, sector: 3 as const, x: 0, y: 0 }, level: 0 as const }];
+    expect(getAllCells(rotation, comet)).not.toBe(cells);
+    const reference = JSON.stringify([...cells]);
+    for (let i = 0; i < 600; i++) getAllCells(createRotationState(i, 0, 0));
+    expect(JSON.stringify([...getAllCells(rotation)])).toBe(reference);
   });
 });

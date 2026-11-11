@@ -77,6 +77,12 @@ describe('GamePersistence', () => {
     expect(serializeGame(game, log, 2).gameLog.map(e => !!e.previousState)).toEqual([false, true, false, true, true]);
   });
 
+  test("la partie relue ne garde pas le journal, rendu à part (régression : recopié à chaque copie de l'état)", () => {
+    const { game: restored, historyLog } = deserializeGame(JSON.stringify(serializeGame(game, [entry('a'), entry('b')])));
+    expect(restored.gameLog).toEqual([]);
+    expect(historyLog.map(e => e.message)).toEqual(['a', 'b']);
+  });
+
   test('les états sauvegardés ne contiennent pas le journal (pas de récursion)', () => {
     const saved = serializeGame(game, [entry('a')]);
     expect('gameLog' in saved.gameLog[0].previousState!).toBe(false);

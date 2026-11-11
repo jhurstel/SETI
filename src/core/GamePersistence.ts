@@ -148,5 +148,8 @@ export function deserializeGame(json: string): { game: Game; historyLog: History
     ...(log.mainAction ? { mainAction: true } : {}),
     previousState: log.previousState,
   }));
+  // Le journal (états d'annulation compris) est rendu à part : laissé dans la partie, il était recopié à chaque
+  // copie de l'état (des milliers d'objets : robots bien plus lents après un rechargement)
+  game.gameLog = [];
   return { game, historyLog };
 }

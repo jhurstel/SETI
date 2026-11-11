@@ -181,13 +181,13 @@ const PASSIVE_HANDLERS: Record<string, PassiveHandler> = {
 
   'GAIN_ENERGY_PER_ENERGY_REVENUE': ({ player, bonuses }) => {
     const revealed = player.cards.filter(c => c.revenue === RevenueType.ENERGY);
-    revealed.forEach(c => { c.isRevealed = true; });
+    player.cards = player.cards.map(c => (c.revenue === RevenueType.ENERGY ? { ...c, isRevealed: true } : c));
     if (revealed.length > 0) add(bonuses, 'energy', revealed.length);
   },
 
   'REVEAL_MOVEMENT_CARDS_FOR_BONUS': ({ player, bonuses }) => {
     const revealed = player.cards.filter(c => c.freeAction === FreeActionType.MOVEMENT);
-    revealed.forEach(c => { c.isRevealed = true; });
+    player.cards = player.cards.map(c => (c.freeAction === FreeActionType.MOVEMENT ? { ...c, isRevealed: true } : c));
     if (revealed.length > 0) add(bonuses, 'movements', revealed.length);
   },
 

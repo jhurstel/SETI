@@ -25,7 +25,8 @@ describe('viewFor : vue de la partie pour un joueur', () => {
   });
 
   test('une carte révélée de l\'adversaire reste visible', () => {
-    getPlayer(game, B).cards[0].isRevealed = true;
+    const cards = getPlayer(game, B).cards;
+    cards[0] = { ...cards[0], isRevealed: true };
     const view = viewFor(game, A);
     expect(getPlayer(view, B).cards[0]).toEqual(getPlayer(game, B).cards[0]);
     expect(getPlayer(view, B).cards[1].id).toMatch(/^hidden-/);

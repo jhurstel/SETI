@@ -264,12 +264,10 @@ export class GameFactory {
         stacks.forEach((stack) => {
           const shuffledStack = ResourceSystem.shuffle(stack);
 
-          // La première carte (visible) gagne +2 PV
+          // La première carte (visible) gagne +2 PV (technologie remplacée : elles sont figées et partagées)
           if (shuffledStack.length > 0) {
-            shuffledStack[0].bonus = {
-              ...shuffledStack[0].bonus,
-              pv: (shuffledStack[0].bonus.pv || 0) + 2
-            };
+            const top = shuffledStack[0];
+            shuffledStack[0] = { ...top, bonus: { ...top.bonus, pv: (top.bonus.pv || 0) + 2 } };
           }
 
           shuffledTechnologies.push(...shuffledStack);

@@ -26,31 +26,23 @@ function deepFreeze(value: unknown): void {
   Object.freeze(value);
 }
 
-/** Fige les effets d'une carte (une seule fois par tableau) : ils sont alors partagés entre les copies. */
-function freezeEffects(effects: Card['immediateEffects']): void {
-  if (effects && !Object.isFrozen(effects)) deepFreeze(effects);
-}
-
 /**
- * Copie d'une carte : ses champs variables (propriétaire, révélée, accomplie…) sont copiés,
- * ses effets, qui ne changent jamais, sont figés et partagés.
+ * Une carte est figée (effets compris) et partagée entre les copies : ses champs variables (propriétaire,
+ * révélée…) changent en la remplaçant ({ ...carte, isRevealed: true }), jamais sur place.
  */
-function cloneCard(card: Card): Card {
-  freezeEffects(card.immediateEffects);
-  freezeEffects(card.passiveEffects);
-  freezeEffects(card.permanentEffects);
-  return { ...card };
+function shareCard(card: Card): Card {
+  if (!Object.isFrozen(card)) deepFreeze(card);
+  return card;
 }
 
 function cloneCards(cards: Card[]): Card[] {
-  return cards ? cards.map(cloneCard) : cards;
+  return cards ? cards.map(shareCard) : cards;
 }
 
-/** Copie d'une technologie : effets et bonus figés et partagés, propriétaire copié. */
+/** Une technologie ne change jamais : figée et partagée entre les copies (comme les cartes). */
 function cloneTech(tech: Technology): Technology {
-  deepFreeze(tech.effects);
-  deepFreeze(tech.bonus);
-  return { ...tech };
+  if (!Object.isFrozen(tech)) deepFreeze(tech);
+  return tech;
 }
 
 function cloneTechs(techs: Technology[]): Technology[] {
@@ -112,11 +104,7 @@ function clonePlayer(player: Player): Player {
   // recouverts, completedRequirementIds, évoluent) : figés et partagés
   player.missions.forEach(mission => {
     deepFreeze(mission.requirements);
-    if (mission.originalCard) {
-      freezeEffects(mission.originalCard.immediateEffects);
-      freezeEffects(mission.originalCard.passiveEffects);
-      freezeEffects(mission.originalCard.permanentEffects);
-    }
+    if (mission.originalCard) shareCard(mission.originalCard);
   });
   const { cards, playedCards, reservedCards, technologies, ...rest } = player;
   return {

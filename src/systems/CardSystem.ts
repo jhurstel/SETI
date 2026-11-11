@@ -154,9 +154,13 @@ export class CardSystem {
         const bought = this.buyCard(game, playerId, cardId, !!options.isFree);
         if (bought.error) return { updatedGame: game, historyEntries: [], newPendingInteractions: [], error: bought.error };
 
-        const updatedGame = cloneGame(bought.updatedGame);
+        // Partie déjà copiée par buyCard (sans erreur) : modifiée sans nouvelle copie
+        const updatedGame = bought.updatedGame;
         const player = updatedGame.players.find(p => p.id === playerId)!;
-        const card = player.cards.find(c => !handBefore.includes(c.id));
+        // Carte reçue, révélée par son action gratuite (cartes figées et partagées : remplacée, pas modifiée)
+        const index = player.cards.findIndex(c => !handBefore.includes(c.id));
+        if (options.triggerFreeAction && index >= 0) player.cards[index] = { ...player.cards[index], isRevealed: true };
+        const card = index >= 0 ? player.cards[index] : undefined;
         const cardName = card?.name || 'Inconnue';
         const newPendingInteractions: InteractionState[] = [];
 
@@ -165,7 +169,6 @@ export class CardSystem {
             : `paye 3 médias pour acheter ${cardId ? `"${cardName}" depuis la rangée` : `${privateText(playerId, `"${cardName}"`, 'une carte')} depuis la pioche`}`;
 
         if (options.triggerFreeAction && card) {
-            card.isRevealed = true;
             switch (card.freeAction) {
                 case FreeActionType.MEDIA:
                     player.mediaCoverage = Math.min(player.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);

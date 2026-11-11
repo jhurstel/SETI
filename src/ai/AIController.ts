@@ -1,4 +1,3 @@
-import { cloneGame } from '../core/cloneGame';
 import { Game, InteractionState, Player, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType, AutomaticInteraction, ChoiceInteractionType, Interaction } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
@@ -214,7 +213,9 @@ export class AIController {
         interaction: InteractionState,
         sequenceId: string
     ): AIControllerResult {
-        const c = new RobotStep(game, cloneGame(game), player, sequenceId);
+        // Pas de copie : chaque opération appelée (InteractionChoices, InteractionResolver, systèmes) copie la partie
+        // avant de la modifier (20 % du temps des robots quand elle était faite ici)
+        const c = new RobotStep(game, game, player, sequenceId);
         const handler = (AIController.ROBOT_HANDLERS as Partial<Record<string, RobotHandler<RobotInteractionType>>>)[interaction.type];
         if (handler) handler(c, interaction as Interaction<RobotInteractionType>);
         else c.historyEntries.push({ message: `AI ne peut pas gérer l'interaction: ${interaction.type}`, playerId: player.id, sequenceId });
