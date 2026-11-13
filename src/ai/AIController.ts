@@ -1,4 +1,4 @@
-import { Game, InteractionState, Player, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType, AutomaticInteraction, ChoiceInteractionType, Interaction } from '../core/types';
+import { Game, InteractionState, ObjectiveTile, Player, ProbeState, DiskName, SectorNumber, HistoryEntry, AlienBoardType, AutomaticInteraction, ChoiceInteractionType, Interaction } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { ComputerSystem } from '../systems/ComputerSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -12,13 +12,30 @@ import { AIEvaluator } from './AIEvaluator';
 import { random } from '../core/random';
 import { InteractionChoices } from '../engine/InteractionChoices';
 import { requirePlayer } from '../core/players';
+import { ScoreManager } from '../engine/ScoreManager';
 
 /** Interactions où le robot fait un choix au hasard : il tire plusieurs choix (selon son niveau) et garde le meilleur */
 const RANDOM_CHOICE_INTERACTIONS: InteractionState['type'][] = [
-    'SELECTING_SCAN_SECTOR', 'PLACING_OBJECTIVE_MARKER', 'RESERVING_CARD', 'ACQUIRING_CARD', 'MOVING_PROBE',
+    'SELECTING_SCAN_SECTOR', 'RESERVING_CARD', 'ACQUIRING_CARD', 'MOVING_PROBE',
     'ACQUIRING_TECH', 'SELECTING_COMPUTER_SLOT', 'CHOOSING_OBS4_ACTION', 'ACQUIRING_ALIEN_CARD',
     'CHOOSING_CENTAURIEN_REWARD', 'CHOOSING_MEDIA_OR_MOVE', 'DISCARDING_FOR_SIGNAL',
 ];
+
+/**
+ * Série qu'un joueur ajoute encore, en moyenne, à une tuile objectif entre le moment où il y pose un marqueur
+ * et la fin de la partie, selon la manche (1 à 5) : série moyenne en fin de partie moins série moyenne au moment
+ * du choix. Mesuré sur 85 parties Expert contre Avancé (2 et 3 joueurs, novembre 2026, tools/spsa/diagnose.ts).
+ */
+const OBJECTIVE_REMAINING_SERIES: Record<string, readonly number[]> = {
+    TECHNOLOGY_A: [0.78, 0.77, 0.62, 0.40, 0.28],
+    TECHNOLOGY_B: [2.07, 1.47, 1.09, 0.90, 0.41],
+    MISSION_A: [1.12, 0.98, 0.79, 0.58, 0.38],
+    MISSION_B: [0.85, 0.85, 0.77, 0.48, 0.32],
+    REVENUE_A: [0.57, 0.53, 0.40, 0.27, 0.16],
+    REVENUE_B: [1.61, 1.31, 1.10, 0.56, 0.23],
+    OTHER_A: [1.13, 1.06, 0.92, 0.60, 0.28],
+    OTHER_B: [1.28, 1.09, 0.95, 0.66, 0.30],
+};
 
 interface AIControllerResult {
     updatedGame: Game;
@@ -119,6 +136,30 @@ export class AIController {
             }
         }
         return best ? best.result : null;
+    }
+
+    /**
+     * Points attendus d'une tuile objectif en fin de partie si le joueur y pose son marqueur maintenant :
+     * série actuelle plus la série encore ajoutée en moyenne d'ici la fin (OBJECTIVE_REMAINING_SERIES),
+     * multipliée par la récompense du rang obtenu (1er, 2e, suivants).
+     */
+    static projectedObjectivePoints(game: Game, player: Player, tile: ObjectiveTile): number {
+        const rank = tile.markers.length;
+        const reward = rank === 0 ? tile.rewards.first : rank === 1 ? tile.rewards.second : tile.rewards.others;
+        const round = Math.min(Math.max(game.currentRound, 1), 5) - 1;
+        const remaining = OBJECTIVE_REMAINING_SERIES[`${tile.category}_${tile.side}`][round];
+        return (ScoreManager.objectiveTileSeries(player, game.board, tile) + remaining) * reward;
+    }
+
+    /**
+     * Robot (tous niveaux sauf PASS) : tuile objectif sans marqueur du joueur qui promet le plus de points
+     * en fin de partie (projectedObjectivePoints). La série du moment seule ne suffit pas : au premier palier,
+     * elle vaut souvent 0 partout, alors que le rang (11 PV par série au 1er, 5 au 3e) et la progression
+     * habituelle de chaque tuile font l'essentiel de l'écart.
+     */
+    static bestObjectiveTile(game: Game, player: Player): ObjectiveTile {
+        const tiles = game.board.objectiveTiles.filter(tile => !tile.markers.includes(player.id));
+        return tiles.reduce((best, tile) => (this.projectedObjectivePoints(game, player, tile) > this.projectedObjectivePoints(game, player, best) ? tile : best));
     }
 
     /** Palier Exertien : joue la carte (ou aucune) qui donne la meilleure position évaluée */
@@ -278,8 +319,11 @@ export class AIController {
         PLACING_OBJECTIVE_MARKER: (c, interaction) => {
             const availableObjectives = c.updatedGame.board.objectiveTiles.filter(tile => !tile.markers.includes(c.player.id));
             if (availableObjectives.length > 0) {
-                const randomObjective = availableObjectives[Math.floor(random() * availableObjectives.length)];
-                const result = InteractionChoices.placeObjectiveMarker(c.updatedGame, c.player.id, { ...interaction, sequenceId: c.sequenceId }, randomObjective.id);
+                // Niveau PASS (tests) : au hasard ; les autres : la tuile qui promet le plus de points
+                const chosen = AIBehavior.isStrategic(c.player)
+                    ? AIController.bestObjectiveTile(c.updatedGame, c.player)
+                    : availableObjectives[Math.floor(random() * availableObjectives.length)];
+                const result = InteractionChoices.placeObjectiveMarker(c.updatedGame, c.player.id, { ...interaction, sequenceId: c.sequenceId }, chosen.id);
                 c.updatedGame = result.updatedGame;
                 c.historyEntries.push(...result.historyEntries.map(e => ({ ...e, previousState: c.game })));
             }

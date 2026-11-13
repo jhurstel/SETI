@@ -26,7 +26,10 @@ Options du réglage (variables d'environnement) : `SPSA_KEYS` ne règle que les 
 
 ```bash
 node tools/spsa/build/diagnose.js 3 810000 8 > tools/spsa/out/diag/p3_0.jsonl   # 8 parties à 3 joueurs à partir de la graine 810000
+node tools/spsa/build/diagnose.js 2 700000 30 EXPERT,MEDIUM > tools/spsa/out/diag/em2.jsonl   # niveaux par siège : chaque graine jouée dans chaque rotation des sièges
 ```
+
+Avec des niveaux, chaque ligne porte aussi `level` et `seat`. `tileSeries` donne la série finale du joueur sur chaque tuile objectif, `tileChoices` chacun de ses marqueurs (tuile, rang, manche, séries de toutes les tuiles au moment du choix) : c'est de là que vient `OBJECTIVE_REMAINING_SERIES` (`src/ai/AIController.ts`). Les actions comptées sont les vraies décisions : celles des suites jouées par l'anticipation de l'Expert sont ignorées. Lancer plusieurs processus sur des graines différentes pour occuper les cœurs.
 
 ## Réglage SPSA
 
