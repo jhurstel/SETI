@@ -274,7 +274,8 @@ export class BoardManager {
       const baseBonuses: Bonus[] = [
         { pv: 3 },
         { media: 1 },
-        { card: 1 },
+        // Carte de la rangée ou 1re carte du paquet, au choix (règles, « Autres manières de gagner des cartes »)
+        { anycard: 1 },
         { energy: 1 }
       ];
 

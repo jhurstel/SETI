@@ -758,10 +758,11 @@ export class SpeciesSystem {
 
         const sequenceId = `centaurien-${uniqueId()}`;
         const res = ResourceSystem.processBonuses(token.bonus, updatedGame, playerId, 'centaurien_message', sequenceId);
-        const gains = res.logs.length > 0 ? ` et ${res.logs.join(', ')}` : '';
+        // « choisit une tuile Message et gagne 2 PV » : le gain n'est écrit qu'une fois (la tuile n'est nommée que sans gain écrit)
+        const choice = res.logs.length > 0 ? `une tuile Message et ${res.logs.join(', ')}` : `la tuile Message « ${label} »`;
         return {
             updatedGame: res.updatedGame,
-            historyEntries: [{ message: `atteint son palier de message Centaurien, choisit la tuile Message « ${label} »${gains}`, playerId, sequenceId }, ...res.historyEntries],
+            historyEntries: [{ message: `atteint son palier de message Centaurien, choisit ${choice}`, playerId, sequenceId }, ...res.historyEntries],
             newPendingInteractions: res.newPendingInteractions,
         };
     }

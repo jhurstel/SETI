@@ -441,7 +441,9 @@ export class CardSystem {
             }
         });
 
-        const { updatedGame: gameAfterBonuses, newPendingInteractions, passiveGains, logs, historyEntries } = ResourceSystem.processBonuses(bonuses || {}, updatedGame, player.id, cardId, sequenceId);
+        const processed = ResourceSystem.processBonuses(bonuses || {}, updatedGame, player.id, cardId, sequenceId);
+        const { newPendingInteractions, passiveGains, logs, historyEntries } = processed;
+        let gameAfterBonuses = processed.updatedGame;
 
         // Construction du message d'historique unifié
         let message = `paye ${card.cost} ${card.costType}${card.cost > 1 ? 's' : ''} pour jouer "${card.name}"`;
@@ -460,6 +462,10 @@ export class CardSystem {
         if (movementLogs.length > 0) {
             extras.push(movementLogs.join(', '));
         }
+        // Carte Centaurien : son palier de message est posé sur la piste de score (réception à +15 PV)
+        if (card.type === CardType.CENTAURIEN) {
+            extras.push('émet un message');
+        }
         if (extras.length > 0) {
             message += ` et ${extras.join(' et ')}`;
         }
@@ -470,6 +476,16 @@ export class CardSystem {
         historyEntries.unshift({ message, playerId, sequenceId });
         if (otherLogs.length > 0) {
             otherLogs.forEach(log => historyEntries.push({ message: log, playerId, sequenceId }));
+        }
+        // Cartes 91 à 93 : la carte se réserve elle-même, sous-action à part avec son gain (carte piochée : nom privé)
+        if (effectContext.reservation) {
+            const handBefore = new Set(gameAfterBonuses.players.find(p => p.id === playerId)!.cards.map(c => c.id));
+            gameAfterBonuses = ResourceSystem.processBonuses(effectContext.reservation, gameAfterBonuses, playerId, cardId, sequenceId).updatedGame;
+            const { reservation } = effectContext;
+            let gain = [...ResourceSystem.formatPassiveGains(reservation), ...(reservation.card ? [ResourceSystem.formatResource(reservation.card, 'CARD')] : [])].join(', ');
+            const drawn = gameAfterBonuses.players.find(p => p.id === playerId)!.cards.find(c => !handBefore.has(c.id));
+            if (drawn) gain += ` ${privateText(playerId, `"${drawn.name}"`)}`;
+            historyEntries.push({ message: `réserve "${card.name}" et gagne ${gain}`, playerId, sequenceId });
         }
         if (takenRowCards.length > 0) {
             historyEntries.push({ message: `prend en main les cartes de la rangée : ${takenRowCards.map(n => `"${n}"`).join(', ')}`, playerId, sequenceId });

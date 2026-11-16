@@ -7,8 +7,9 @@ import { findTurnUndoPoint } from './TurnUndo';
  * - 1 : sauvegardes sans numéro de version (paliers Centauriens enregistrés comme de simples scores)
  * - 2 : paliers Centauriens enregistrés comme marqueurs { id, score, ... }
  * - 3 : effets des cartes Oumuamua à jetons et à signal (ET.21, ET.22, ET.24, ET.25, ET.28) lus comme effets de la carte
+ * - 4 : bonus de carte des tuiles Technologie au choix (rangée ou pioche : `anycard`), et non plus une pioche (`card`)
  */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 /** Effets des cartes Oumuamua relus en version 3 (anciens effets permanents jamais traités) */
 const OUMUAMUA_CARD_EFFECTS: Record<string, { type: string; target: string; value: string | number }> = {
@@ -21,7 +22,7 @@ const OUMUAMUA_CARD_EFFECTS: Record<string, { type: string; target: string; valu
 const OLD_OUMUAMUA_EFFECTS = ['GAIN_ON_OUMUAMUA_SIGNAL', 'GAIN_ON_TOKEN', 'GAIN_ON_TOKEN_AND_LAND'];
 
 type RawEffect = { type: string };
-type RawCard = { id?: unknown; passiveEffects?: RawEffect[]; permanentEffects?: RawEffect[]; requirements?: RawEffect[]; permanentBuffs?: RawEffect[] };
+type RawCard = { id?: unknown; bonus?: Record<string, unknown>; passiveEffects?: RawEffect[]; permanentEffects?: RawEffect[]; requirements?: RawEffect[]; permanentBuffs?: RawEffect[] };
 
 /** Parcourt tout l'état (mains, pioches, missions, cartes d'espèce…) et applique `visit` à chaque objet */
 function visitObjects(value: unknown, visit: (obj: RawCard) => void): void {
@@ -64,6 +65,15 @@ const MIGRATIONS: Record<number, (state: RawState) => void> = {
       const effect = typeof obj.id === 'string' ? OUMUAMUA_CARD_EFFECTS[obj.id] : undefined;
       if (effect && obj.passiveEffects && !obj.passiveEffects.some(e => e.type === effect.type)) {
         obj.passiveEffects = [...obj.passiveEffects, { ...effect }];
+      }
+    });
+  },
+  // Tuiles Technologie : le bonus de carte est une carte au choix (rangée ou pioche), pas une pioche
+  3: state => {
+    visitObjects(state, obj => {
+      if (typeof obj.id === 'string' && /^(exploration|observation|computing)-\d+-\d+$/.test(obj.id) && obj.bonus?.card) {
+        const { card, ...rest } = obj.bonus;
+        obj.bonus = { ...rest, anycard: card };
       }
     });
   },

@@ -135,7 +135,7 @@ export class InteractionChoices {
     return {
       updatedGame: res.updatedGame,
       historyEntries: res.historyEntries.map(e => ({ ...e, sequenceId: e.sequenceId || sequenceId })),
-      newPendingInteractions: [],
+      newPendingInteractions: res.newPendingInteractions.map(i => ({ ...i, sequenceId })),
     };
   }
 

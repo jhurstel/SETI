@@ -7,7 +7,7 @@ import { ResourceIcon, ResourceIconKind, LifeTraceIcon, AnyLifeTraceIcon, Victor
 import { LifeTraceColor } from './styles/lifeTraceColors';
 import { ReservationIcon, AnyTechIcon } from './components/ObjectiveSymbol';
 import { BonusIcons, Repeated, SectorSignalIcon } from './components/BonusIcons';
-import { textFor } from '../core/historyText';
+import { PLAYER_NAME, PLAYER_NAME_PART, textFor } from '../core/historyText';
 
 // Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
 const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', CARD: 'card', DATA: 'data' };
@@ -174,7 +174,7 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
         const message = viewerId ? textFor(raw, viewerId) : raw;
         const resourcePattern = Object.values(ResourceSystem.RESOURCE_CONFIG).map(c => c.regex.source).join('|');
         const symbolPattern = SYMBOL_ICONS.map(s => s.pattern.source).join('|');
-        const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${LIFE_TRACE_PATTERN.source}|${SIGNAL_PATTERN.source}|${ROTATION_PATTERN.source}|${symbolPattern}|${resourcePattern}|"[^"]+")`, 'g');
+        const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${PLAYER_NAME_PART.source}|${LIFE_TRACE_PATTERN.source}|${SIGNAL_PATTERN.source}|${ROTATION_PATTERN.source}|${symbolPattern}|${resourcePattern}|"[^"]+")`, 'g');
 
         const parts = message.split(splitRegex);
         // « 2 PV », « 3 Crédits » : le nombre est retiré du texte et dessiné dans l'icône (laurier, pastille, jeton) ;
@@ -229,6 +229,13 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
                         </span>
                     );
                 }
+            }
+
+            // Nom de joueur marqué par le moteur (« les joueurs présents (A et B) ») : écrit dans sa couleur
+            const named = new RegExp(`^${PLAYER_NAME.source}$`).exec(part);
+            if (named) {
+                const namedPlayer = game.players.find(p => p.id === named[1]);
+                return <strong key={index} style={{ color: namedPlayer?.color || '#ccc' }}>{named[2]}</strong>;
             }
 
             if (part.includes('<strong>')) {

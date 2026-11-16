@@ -51,6 +51,21 @@ describe('GamePersistence', () => {
     expect(CardSystem.playCard(restored, 'player_0', 'ET.25').newPendingInteractions).toContainEqual(expect.objectContaining({ type: 'DISCARDING_TOKEN' }));
   });
 
+  test('format 3 : le bonus de carte des tuiles Technologie devient une carte au choix (anycard)', () => {
+    const saved = JSON.parse(JSON.stringify({ ...serializeGame(game, []), saveVersion: 3 }));
+    // Ancien format : bonus de carte en pioche (card) sur le plateau et chez un joueur
+    const slots = saved.board.technologyBoard.categorySlots as { technologies: { id: string; bonus: Record<string, number> }[] }[];
+    slots.forEach(slot => slot.technologies.forEach(t => { if (t.bonus.anycard) { delete t.bonus.anycard; t.bonus.card = 1; } }));
+    const owned = { ...slots[0].technologies[0], bonus: { card: 1, pv: 2 } };
+    saved.players[0].technologies = [owned];
+
+    const { game: restored } = deserializeGame(JSON.stringify(saved));
+    const techs = restored.board.technologyBoard.categorySlots!.flatMap(s => s.technologies);
+    expect(techs.some(t => t.bonus.card)).toBe(false);
+    expect(techs.filter(t => t.bonus.anycard)).toHaveLength(techs.length / 4);
+    expect(getPlayer(restored, 'player_0').technologies[0].bonus).toEqual({ anycard: 1, pv: 2 });
+  });
+
   test('retire l\'historique d\'annulation du moteur des anciennes sauvegardes', () => {
     const old = { ...serializeGame(game, [entry('a')]), history: [{ state: previous, timestamp: 1 }] };
     const { game: restored } = deserializeGame(JSON.stringify(old));

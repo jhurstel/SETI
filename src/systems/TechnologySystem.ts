@@ -1,6 +1,6 @@
 import { effectNumber } from '../core/cardEffects';
 import { cloneGame } from '../core/cloneGame';
-import { Game, Technology, GAME_CONSTANTS, TechnologyCategory, HistoryEntry, RuleCheck } from '../core/types';
+import { Game, Technology, GAME_CONSTANTS, TechnologyCategory, HistoryEntry, RuleCheck, InteractionState } from '../core/types';
 import { ComputerSystem } from './ComputerSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { CardSystem } from './CardSystem';
@@ -59,11 +59,13 @@ export class TechnologySystem {
     return this.acquirableTechs(game, playerId, { categories }).length > 0;
   }
 
-  static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[], historyEntries: HistoryEntry[] } {
+  static acquireTechnology(game: Game, playerId: string, tech: Technology, targetComputerCol?: number, noTileBonus: boolean = false): { updatedGame: Game, gains: string[], historyEntries: HistoryEntry[], newPendingInteractions: InteractionState[] } {
     let updatedGame = cloneGame(game);
     let player = requirePlayer(updatedGame, playerId);
     const historyEntries: HistoryEntry[] = [];
-    const probeEntries: HistoryEntry[] = [];
+    // Conséquences écrites sous le message de la technologie (sonde lancée)
+    const subEntries: HistoryEntry[] = [];
+    const newPendingInteractions: InteractionState[] = [];
     const updatedTechBoard = updatedGame.board.technologyBoard;
 
     // Remove tech from board
@@ -115,13 +117,18 @@ export class TechnologySystem {
         player = updatedGame.players.find(p => p.id === playerId)!;
         gains.push(`${tech.bonus.card} Carte`);
       }
+      if (tech.bonus.anycard) {
+        // Carte au choix (rangée ou pioche) : le choix écrit d'où elle vient, en sous-action (InteractionChoices.acquireCard)
+        newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: tech.bonus.anycard, isFree: true });
+        gains.push(`${tech.bonus.anycard} Carte`);
+      }
       if (tech.bonus.probe) {
         const result = ProbeSystem.launchProbe(updatedGame, player.id, true, false);
         if (result.probeId) {
           updatedGame = result.updatedGame;
           player = updatedGame.players.find(p => p.id === playerId)!;
           // Le lancement suit le message de la technologie (il en est une conséquence)
-          probeEntries.push(...result.historyEntries);
+          subEntries.push(...result.historyEntries.map(e => ({ ...e, sequenceId: '' })));
           gains.push(`1 Sonde`);
         } else {
           gains.push(`1 Sonde (Perdue: Limite atteinte)`);
@@ -129,7 +136,7 @@ export class TechnologySystem {
       }
     }
     historyEntries.push({ message: `acquiert technologie "${tech.type} ${tech.name}"${gains.length > 0 ? ` et gagne ${gains.join(', ')}` : ''}`, playerId, sequenceId: '' });
-    historyEntries.push(...probeEntries);
+    historyEntries.push(...subEntries);
 
     // Traitement des missions conditionnelles (GAIN_ON_TECH)
     const hasFulfillable = CardSystem.processMissionBuffs(player, buff => buff.type === 'GAIN_ON_ANY_TECH' || buff.type === TECH_TRIGGERS[tech.type]);
@@ -182,6 +189,6 @@ export class TechnologySystem {
       player.activeBuffs = player.activeBuffs.filter((_, index) => !buffsToRemove.includes(index));
     }
 
-    return { updatedGame, gains, historyEntries };
+    return { updatedGame, gains, historyEntries, newPendingInteractions };
   }
 }

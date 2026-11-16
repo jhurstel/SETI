@@ -133,6 +133,35 @@ export class ResourceSystem {
   /**
    * Helper pour fusionner les bonus
    */
+  /** Ressources gagnées directement (« 2 Médias », « 2 PV »…), dans l'ordre de la ligne « gagne … » de `processBonuses` */
+  static formatPassiveGains(bonuses: Bonus): string[] {
+    const gains: string[] = [];
+    if (bonuses.media) gains.push(ResourceSystem.formatResource(bonuses.media, 'MEDIA'));
+    if (bonuses.credits) gains.push(ResourceSystem.formatResource(bonuses.credits, 'CREDIT'));
+    if (bonuses.energy) gains.push(ResourceSystem.formatResource(bonuses.energy, 'ENERGY'));
+    if (bonuses.data) gains.push(ResourceSystem.formatResource(bonuses.data, 'DATA'));
+    if (bonuses.pv) gains.push(ResourceSystem.formatResource(bonuses.pv, 'PV'));
+    if (bonuses.probe) gains.push(ResourceSystem.formatResource(bonuses.probe, 'PROBE'));
+    if (bonuses.landing) gains.push(ResourceSystem.formatResource(bonuses.landing, 'LANDING'));
+    if (bonuses.token && bonuses.token > 0) gains.push(ResourceSystem.formatResource(bonuses.token, 'TOKEN'));
+    if (bonuses.revenue) gains.push(ResourceSystem.formatResource(bonuses.revenue, 'REVENUE'));
+    return gains;
+  }
+
+  /**
+   * Messages de `processBonuses(bonuses)` sans la part `sourced` déjà annoncée avec sa carte (« gagne 2 PV (Bonus "…") ») :
+   * la ligne « gagne … » ne garde que le reste des ressources (ou disparaît), pour ne pas compter deux fois le même gain.
+   */
+  static logsWithout(logs: string[], bonuses: Bonus, sourced: Bonus | undefined): string[] {
+    const keys = ['media', 'credits', 'energy', 'data', 'pv', 'probe', 'landing', 'token', 'revenue'] as const;
+    if (!sourced || !keys.some(key => sourced[key])) return logs;
+    const fullLine = `gagne ${ResourceSystem.formatPassiveGains(bonuses).join(', ')}`;
+    const rest: Bonus = { ...bonuses };
+    keys.forEach(key => { if (sourced[key]) rest[key] = (bonuses[key] || 0) - (sourced[key] || 0); });
+    const restGains = ResourceSystem.formatPassiveGains(rest);
+    return logs.flatMap(log => log !== fullLine ? [log] : restGains.length > 0 ? [`gagne ${restGains.join(', ')}`] : []);
+  }
+
   static mergeBonuses(...bonuses: (Bonus | undefined)[]): Bonus {
     const result: Bonus = {};
     bonuses.forEach(b => {
@@ -293,15 +322,7 @@ export class ResourceSystem {
     }
 
     // Gains passifs pour le résumé (déjà effectué dans CardSystem)
-    if (bonuses.media) { const txt = ResourceSystem.formatResource(bonuses.media, 'MEDIA'); passiveGains.push(txt); }
-    if (bonuses.credits) { const txt = ResourceSystem.formatResource(bonuses.credits, 'CREDIT'); passiveGains.push(txt); }
-    if (bonuses.energy) { const txt = ResourceSystem.formatResource(bonuses.energy, 'ENERGY'); passiveGains.push(txt); }
-    if (bonuses.data) { const txt = ResourceSystem.formatResource(bonuses.data, 'DATA'); passiveGains.push(txt); }
-    if (bonuses.pv) { const txt = ResourceSystem.formatResource(bonuses.pv, 'PV'); passiveGains.push(txt); }
-    if (bonuses.probe) { const txt = ResourceSystem.formatResource(bonuses.probe, 'PROBE'); passiveGains.push(txt); }
-    if (bonuses.landing) { const txt = ResourceSystem.formatResource(bonuses.landing, 'LANDING'); passiveGains.push(txt); }
-    if (bonuses.token && bonuses.token > 0) { const txt = ResourceSystem.formatResource(bonuses.token, 'TOKEN'); passiveGains.push(txt); }
-    if (bonuses.revenue) { const txt = ResourceSystem.formatResource(bonuses.revenue, 'REVENUE'); passiveGains.push(txt); }
+    passiveGains.push(...ResourceSystem.formatPassiveGains(bonuses));
     const gainsText = passiveGains.length > 0 ? `${passiveGains.join(', ')}` : '';
     if (gainsText) logs.push(`gagne ${gainsText}`);
     // Gains résolus ensuite (signal d'un secteur imposé, carte à choisir) : annoncés sur la ligne des gains,

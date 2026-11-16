@@ -8,6 +8,7 @@ import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { uniqueId } from '../core/ids';
 import { requirePlayer } from '../core/players';
+import { plainNames } from '../core/historyText';
 
 export interface AutomaticResolution {
   updatedGame: Game;
@@ -67,7 +68,8 @@ export class InteractionResolver {
     if (coverage.bonuses) {
       const bonusRes = ResourceSystem.processBonuses(coverage.bonuses, updatedGame, playerId, 'scan', sequenceId || '');
       updatedGame = bonusRes.updatedGame;
-      coverageLogs.push(...bonusRes.logs);
+      // Gains des cartes (45, 46, 47) déjà annoncés avec leur nom : pas répétés dans les gains du secteur
+      coverageLogs.push(...ResourceSystem.logsWithout(bonusRes.logs, coverage.bonuses, coverage.sourcedBonuses));
       historyEntries.push(...bonusRes.historyEntries);
       newInteractions.push(...bonusRes.newPendingInteractions.map(i => ({ ...i, sequenceId })));
     }
@@ -98,7 +100,7 @@ export class InteractionResolver {
       }
     }
 
-    const summary = coverageMessage ? `Secteur résolu. ${coverageMessage}` : 'Secteur résolu.';
+    const summary = coverageMessage ? `Secteur résolu. ${plainNames(coverageMessage)}` : 'Secteur résolu.';
     return { updatedGame, historyEntries, newInteractions, summary };
   }
 

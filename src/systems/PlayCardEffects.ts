@@ -22,6 +22,8 @@ export interface PlayCardContext {
   takenRowCards: string[];
   /** Séquence de l'action de la carte (effets limités à cette action) */
   sequenceId: string;
+  /** Gain de la réservation de la carte jouée (cartes 91 à 93), annoncé à part : « réserve "…" et gagne … » */
+  reservation?: Bonus;
 }
 
 /** Couleur de trace de vie d'un paramètre de carte (red, yellow, blue ; sinon n'importe laquelle) */
@@ -75,10 +77,12 @@ export function addImmediateEffects(effects: CardEffect[] | undefined, bonuses: 
 type PassiveHandler = (ctx: PlayCardContext, effect: CardEffect) => void;
 
 /** Cartes 91 à 93 : la carte jouée est glissée sous les revenus, avec les cartes réservées, au lieu d'être défaussée */
-function reserveSelf({ game, player, card }: PlayCardContext): void {
+function reserveSelf(ctx: PlayCardContext, gain: Bonus): void {
+  const { game, player, card } = ctx;
   const index = game.decks.discardPile.findIndex(c => c.id === card.id);
   if (index !== -1) game.decks.discardPile.splice(index, 1);
   player.reservedCards.push(card);
+  ctx.reservation = gain;
 }
 
 /** Gain d'un Token défaussé (GAIN_ON_TOKEN…:<gain>:<valeur>) : Déplacements, Donnée ou Signal dans n'importe quel secteur */
@@ -194,31 +198,28 @@ const PASSIVE_HANDLERS: Record<string, PassiveHandler> = {
   // Carte 91 : la carte est réservée sous les revenus Energie (gain immédiat : 1 Energie)
   'GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE': (ctx) => {
     const { player, bonuses } = ctx;
-    reserveSelf(ctx);
+    reserveSelf(ctx, { energy: 1 });
     const energyRevCards = player.revenueEnergy - GAME_CONSTANTS.INITIAL_REVENUE_ENERGY;
     if (energyRevCards > 0) add(bonuses, 'energy', energyRevCards);
     player.revenueEnergy += 1;
-    add(bonuses, 'energy', 1);
   },
 
   // Carte 92 : la carte est réservée sous les revenus Pioche (gain immédiat : 1 carte, piochée par processBonuses)
   'GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE': (ctx) => {
     const { player, bonuses } = ctx;
-    reserveSelf(ctx);
+    reserveSelf(ctx, { card: 1 });
     const cardRevCards = player.revenueCards - GAME_CONSTANTS.INITIAL_REVENUE_CARDS;
     if (cardRevCards > 0) add(bonuses, 'media', cardRevCards);
     player.revenueCards += 1;
-    add(bonuses, 'card', 1);
   },
 
   // Carte 93 : la carte est réservée sous les revenus Crédit (gain immédiat : 1 Crédit)
   'GAIN_PV_PER_REVENUE_CREDIT_AND_RESERVE': (ctx) => {
     const { player, bonuses } = ctx;
-    reserveSelf(ctx);
+    reserveSelf(ctx, { credits: 1 });
     const creditRevCards = player.revenueCredits - GAME_CONSTANTS.INITIAL_REVENUE_CREDITS;
     if (creditRevCards > 0) add(bonuses, 'pv', creditRevCards * 3);
     player.revenueCredits += 1;
-    add(bonuses, 'credits', 1);
   },
 
   // 1 Déplacement par planète ou comète visible dans le secteur de la Terre

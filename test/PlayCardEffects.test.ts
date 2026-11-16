@@ -165,8 +165,14 @@ describe('Effets passifs appliqués directement (PlayCardEffects)', () => {
     player.revenueEnergy = GAME_CONSTANTS.INITIAL_REVENUE_ENERGY + 2;
     player.revenueCards = GAME_CONSTANTS.INITIAL_REVENUE_CARDS + 1;
 
-    expect(play('GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE', 1).energy).toBe(3);
-    expect(play('GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE', 1)).toEqual({ media: 1, card: 1 });
+    // Le gain de la réservation de la carte est à part (sous-action « réserve "…" et gagne … »)
+    const reserveAndGain = (type: string) => {
+      const ctx: PlayCardContext = { game, player: getPlayer(game, P1), card: makeCard('carte'), bonuses: {}, extraInteractions: [], takenRowCards: [], sequenceId: 'seq' };
+      applyPassiveEffect(ctx, { type, value: 1 });
+      return { bonuses: ctx.bonuses, reservation: ctx.reservation };
+    };
+    expect(reserveAndGain('GAIN_ENERGY_PER_REVENUE_ENERGY_AND_RESERVE')).toEqual({ bonuses: { energy: 2 }, reservation: { energy: 1 } });
+    expect(reserveAndGain('GAIN_MEDIA_PER_REVENUE_CARD_AND_RESERVE')).toEqual({ bonuses: { media: 1 }, reservation: { card: 1 } });
   });
 
   test('ET.11 : 1 Déplacement si une anomalie est dans le secteur de la Terre', () => {

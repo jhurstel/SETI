@@ -7,6 +7,7 @@ import { ProbeSystem } from './ProbeSystem';
 import { CardSystem } from './CardSystem';
 import { uniqueId } from '../core/ids';
 import { requirePlayer } from '../core/players';
+import { playerText } from '../core/historyText';
 
 type ScanSectorSelection = Extract<InteractionState, { type: 'SELECTING_SCAN_SECTOR' }>;
 /** Contrainte posée aux signaux suivants de la même séquence (voir ScanSystem.scanFollowUp) */
@@ -83,6 +84,8 @@ export class ScanSystem {
     updatedGame: Game;
     logs: string[];
     bonuses: Bonus;
+    /** Part de `bonuses` déjà annoncée dans `logs` avec sa carte (« gagne 2 PV (Bonus "…") ») : à ne pas répéter */
+    sourcedBonuses: Bonus;
   } {
     const validation = this.canScanSector(game, playerId, checkCost);
     if (!validation.canScan) {
@@ -92,11 +95,12 @@ export class ScanSystem {
     const updatedGame = cloneGame(game);
     const sector = this.getSectorById(updatedGame, sectorId);
     if (!sector) {
-      return { updatedGame, logs: [], bonuses: {} };
+      return { updatedGame, logs: [], bonuses: {}, sourcedBonuses: {} };
     }
 
     const logs: string[] = [];
     const bonuses: Bonus = {};
+    const sourcedBonuses: Bonus = {};
     const player = updatedGame.players.find(p => p.id === playerId);
 
     // Find first available signal
@@ -127,6 +131,7 @@ export class ScanSystem {
           if (buff.type === 'SCORE_PER_SECTOR') {
             if (SECTOR_COLOR_TARGETS[buff.target ?? ''] === sector.color) {
               bonuses.pv = (bonuses.pv || 0) + effectNumber(buff);
+              sourcedBonuses.pv = (sourcedBonuses.pv || 0) + effectNumber(buff);
               logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'PV')} (Bonus "${buff.source}")`);
             }
           }
@@ -137,6 +142,7 @@ export class ScanSystem {
           const otherPlayers = sector.signals.some(s => s.marked && s.markedBy && s.markedBy !== playerId);
           if (!otherPlayers) {
             bonuses.pv = (bonuses.pv || 0) + effectNumber(buff);
+            sourcedBonuses.pv = (sourcedBonuses.pv || 0) + effectNumber(buff);
             logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'PV')} (Bonus "${buff.source}")`);
           }
         });
@@ -145,7 +151,7 @@ export class ScanSystem {
       logs.push(`tente de scanner le secteur ${sector.id} mais il est plein`);
     }
 
-    return { updatedGame, logs, bonuses };
+    return { updatedGame, logs, bonuses, sourcedBonuses };
   }
 
   /**
@@ -166,6 +172,8 @@ export class ScanSystem {
     /** Gains communs à tous les joueurs présents dans le secteur (Média, ou Token pour Oumuamua) */
     sharedLogs?: string[];
     bonuses: Bonus;
+    /** Part de `bonuses` déjà annoncée dans `logs` avec sa carte (« gagne 1 Énergie (Bonus "…") ») : à ne pas répéter */
+    sourcedBonuses?: Bonus;
     winnerId?: string;
     newPendingInteractions: { interaction: InteractionState, playerId: string }[];
   } {
@@ -178,6 +186,7 @@ export class ScanSystem {
     const logs: string[] = [];
     const sharedLogs: string[] = [];
     const bonuses: Bonus = {};
+    const sourcedBonuses: Bonus = {};
     const newPendingInteractions: { interaction: InteractionState, playerId: string }[] = [];
     const majorities = this.calculateMajorities(sector);
     if (majorities.length === 0) {
@@ -199,7 +208,7 @@ export class ScanSystem {
         } else {
           const res = ResourceSystem.processBonuses(sectorBonus, updatedGame, winnerId, 'sector_cover_passive', '');
           updatedGame = res.updatedGame;
-          res.logs.forEach(l => logs.push(`${winner!.name} ${l}`));
+          res.logs.forEach(l => logs.push(`${playerText(winnerId, winner!.name)} ${l}`));
           winner = updatedGame.players.find(p => p.id === winnerId);
           if (res.newPendingInteractions.length > 0) {
             res.newPendingInteractions.forEach(i => {
@@ -218,10 +227,10 @@ export class ScanSystem {
         if (p) {
           if (sector.id === 'oumuamua') {
             p.tokens = (p.tokens || 0) + 1;
-            mediaWinners.push(p.name);
+            mediaWinners.push(playerText(p.id, p.name));
           } else {
             p.mediaCoverage = Math.min(p.mediaCoverage + 1, GAME_CONSTANTS.MAX_MEDIA_COVERAGE);
-            mediaWinners.push(p.name);
+            mediaWinners.push(playerText(p.id, p.name));
           }
         }
       });
@@ -243,12 +252,14 @@ export class ScanSystem {
         if (winnerId === playerId) {
           if (buff.target === 'energy') {
             bonuses.energy = (bonuses.energy || 0) + effectNumber(buff);
+            sourcedBonuses.energy = (sourcedBonuses.energy || 0) + effectNumber(buff);
             logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'ENERGY')} (Bonus "${buff.source}")`);
           } else if (buff.target === 'draw') {
             bonuses.card = (bonuses.card || 0) + effectNumber(buff);
             logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'CARD')} (Bonus "${buff.source}")`);
           } else if (buff.target === 'data') {
             bonuses.data = (bonuses.data || 0) + effectNumber(buff);
+            sourcedBonuses.data = (sourcedBonuses.data || 0) + effectNumber(buff);
             logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'DATA')} (Bonus "${buff.source}")`);
           }
         }
@@ -303,7 +314,7 @@ export class ScanSystem {
         }
       }
     }
-    return { updatedGame, logs, sharedLogs, bonuses, winnerId, newPendingInteractions };
+    return { updatedGame, logs, sharedLogs, bonuses, sourcedBonuses, winnerId, newPendingInteractions };
   }
 
   /**
@@ -463,7 +474,7 @@ export class ScanSystem {
     if (scanResult.bonuses) {
       const bonusRes = ResourceSystem.processBonuses(scanResult.bonuses, updatedGame, playerId, 'scan', sequenceId);
       updatedGame = bonusRes.updatedGame;
-      scanLogs.push(...bonusRes.logs);
+      scanLogs.push(...ResourceSystem.logsWithout(bonusRes.logs, scanResult.bonuses, scanResult.sourcedBonuses));
       historyEntries.push(...bonusRes.historyEntries);
       newPendingInteractions.push(...bonusRes.newPendingInteractions);
     }

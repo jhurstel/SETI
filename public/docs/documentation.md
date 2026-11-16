@@ -43,7 +43,7 @@ Quand une action ouvre un choix (placer une trace de vie, choisir une carte, une
 | **Atterrir** | 3 énergies (2 si un orbiteur est déjà là ou avec Exploration III, 1 avec les deux) | Une sonde se pose sur la planète (ou une lune, avec Exploration IV) ; gain de la case d'atterrissage. |
 | **Scanner** | 1 crédit + 2 énergies | Un signal dans le secteur de la Terre, puis un signal dans le secteur d'une carte de la rangée (la carte est défaussée). Les technologies Observation ajoutent des signaux. |
 | **Analyser les données** | 1 énergie | Possible quand la ligne du haut de l'ordinateur est pleine : vide l'ordinateur et donne une trace de vie **bleue**. |
-| **Rechercher une technologie** | 6 Médias | Prend une technologie sur le plateau (avec son bonus) et fait tourner le système solaire. |
+| **Rechercher une technologie** | 6 Médias | Prend une technologie sur le plateau (avec son bonus : 3 PV, 1 Média, 1 énergie, ou une carte au choix dans la rangée ou en haut de la pioche) et fait tourner le système solaire. |
 | **Jouer une carte** | Coût de la carte (crédits ou énergie) | Applique les gains de la carte ; une mission reste devant le joueur, une carte Fin de partie est décomptée à la fin. |
 | **Passer** | — | Garde au plus 4 cartes (défausse le reste). Le premier à passer fait tourner le système solaire. Chaque joueur qui passe découvre ensuite la pile de fin de manche, cachée jusque-là, et y prend une carte. |
 
