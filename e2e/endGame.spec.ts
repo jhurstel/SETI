@@ -65,4 +65,10 @@ test('fin de partie : l\'écran de fin affiche le décompte de chaque joueur et 
   await expect(endGame.locator('.seti-endgame-trophy').first()).toBeVisible();
   // Plus aucune action possible
   await expect(page.locator('.seti-main-actions .obs-track-slot.clickable[aria-label]')).toHaveCount(0);
+
+  // « Voir le plateau » cache le résumé, « Revoir le résumé » le rouvre
+  await page.getByRole('button', { name: 'Voir le plateau' }).click();
+  await expect(endGame).toBeHidden();
+  await page.getByRole('button', { name: 'Revoir le résumé' }).click();
+  await expect(endGame).toBeVisible();
 });

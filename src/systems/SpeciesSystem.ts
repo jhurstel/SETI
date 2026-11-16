@@ -197,6 +197,27 @@ export class SpeciesSystem {
     }
 
     /**
+     * Avertissement à l'ouverture du placement d'une trace de vie : aucun emplacement de la piste des espèces
+     * découvertes (plateaux autorisés) ne peut la recevoir, parce qu'ils sont occupés ou que le joueur ne peut pas
+     * payer leur coût (tokens, données). La trace n'est jamais perdue : les emplacements de découverte et
+     * excédentaires (triangles) l'acceptent toujours. Rien à signaler sans espèce découverte.
+     */
+    static speciesTrackWarning(game: Game, playerId: string, interaction: { color: LifeTraceType; boardIndices?: number[] }): string | undefined {
+        const allowed = (index: number) => !interaction.boardIndices || interaction.boardIndices.includes(index);
+        const discovered = game.board.alienBoards.map((board, index) => ({ board, index })).filter(d => d.board.isDiscovered && allowed(d.index));
+        if (discovered.length === 0) return undefined;
+        const trackAccepts = this.lifeTraceOptions(game, interaction.color).some(option =>
+            option.location === LifeTraceLocation.SPECIES && allowed(option.boardIndex)
+            && this.placeLifeTrace(game, option.boardIndex, option.color, playerId, '', option.location, option.slotIndex).updatedGame !== game);
+        if (trackAccepts) return undefined;
+        const trace = interaction.color === LifeTraceType.ANY ? 'cette trace de vie' : `cette trace de vie ${interaction.color.toLowerCase()}`;
+        const tracks = discovered.length > 1
+            ? `Les pistes des espèces ${discovered.map(d => d.board.speciesId).join(' et ')} ne peuvent pas recevoir`
+            : `La piste de l'espèce ${discovered[0].board.speciesId} ne peut pas recevoir`;
+        return `${tracks} ${trace} : emplacements occupés ou coût impayable. Placez-la sur un emplacement de découverte ou excédentaire (triangle) d'un plateau Alien.`;
+    }
+
+    /**
      * Emplacements possibles pour une trace de vie, du plus intéressant au moins intéressant :
      * emplacement Découverte (triangle) d'une espèce non découverte où la couleur manque (rapproche la découverte,
      * et la 1re trace d'une couleur rapporte une carte Alien à la découverte), puis tous les emplacements libres

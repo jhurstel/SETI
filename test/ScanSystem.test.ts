@@ -88,6 +88,25 @@ describe('ScanSystem', () => {
       ScanSystem.scanSector(game, P1, sector.id);
       expect(sector.signals[0].marked).toBe(false);
     });
+
+    test('carte 50 : 2 PV par secteur différent, pas pour un 2e signal dans le même secteur', () => {
+      const other = game.board.sectors[1];
+      // Un adversaire dans l'autre secteur n'empêche pas le bonus
+      markSignals(other, [P2]);
+      getPlayer(game, P1).activeBuffs = [{ type: 'SCORE_IF_UNIQUE', value: 2, source: 'Square Kilometre Array' }];
+
+      const first = ScanSystem.scanSector(game, P1, sector.id, false);
+      expect(first.bonuses.pv).toBe(2);
+      const second = ScanSystem.scanSector(first.updatedGame, P1, sector.id, false);
+      expect(second.bonuses.pv).toBe(2); // 2 PV du 2e signal du secteur, pas de bonus de carte
+      expect(second.logs.some(l => l.includes('Square Kilometre Array'))).toBe(false);
+      const third = ScanSystem.scanSector(second.updatedGame, P1, other.id, false);
+      expect(third.logs.some(l => l.includes('Square Kilometre Array'))).toBe(true);
+
+      // La partie reçue n'est pas modifiée
+      expect(getPlayer(game, P1).activeBuffs[0].rewardedSectors).toBeUndefined();
+      expect(getPlayer(first.updatedGame, P1).activeBuffs[0].rewardedSectors).toEqual([sector.id]);
+    });
   });
 
   describe('isSectorCovered', () => {

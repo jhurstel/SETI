@@ -334,6 +334,11 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
   background-color: rgba(33, 150, 243, 0.9);
 }
 
+/* Écran de fin de partie : le bouton reste au-dessus de son voile (z-index 10000) */
+.seti-minimize-modal-btn.endgame {
+  z-index: 10001;
+}
+
 /* ---------------------------------------------------------------------------
    Fenêtres de choix communes (ChoiceModal) : même aspect que les panneaux du jeu
    --------------------------------------------------------------------------- */

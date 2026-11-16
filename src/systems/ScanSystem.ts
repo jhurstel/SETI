@@ -137,14 +137,14 @@ export class ScanSystem {
           }
         });
 
-        const uniqueBuffs = player.activeBuffs.filter(buff => buff.type === 'SCORE_IF_UNIQUE');
-        uniqueBuffs.forEach(buff => {
-          const otherPlayers = sector.signals.some(s => s.marked && s.markedBy && s.markedBy !== playerId);
-          if (!otherPlayers) {
-            bonuses.pv = (bonuses.pv || 0) + effectNumber(buff);
-            sourcedBonuses.pv = (sourcedBonuses.pv || 0) + effectNumber(buff);
-            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'PV')} (Bonus "${buff.source}")`);
-          }
+        // Carte 50 (SCORE_IF_UNIQUE) : PV pour chaque secteur différent où le joueur marque un signal,
+        // une seule fois par secteur (les secteurs déjà récompensés sont notés sur le buff)
+        player.activeBuffs = player.activeBuffs.map(buff => {
+          if (buff.type !== 'SCORE_IF_UNIQUE' || buff.rewardedSectors?.includes(sector.id)) return buff;
+          bonuses.pv = (bonuses.pv || 0) + effectNumber(buff);
+          sourcedBonuses.pv = (sourcedBonuses.pv || 0) + effectNumber(buff);
+          logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'PV')} (Bonus "${buff.source}")`);
+          return { ...buff, rewardedSectors: [...(buff.rewardedSectors ?? []), sector.id] };
         });
       }
     } else {

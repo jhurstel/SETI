@@ -176,7 +176,8 @@ Une action, une carte ou un secteur peut rapporter plusieurs gains qui demandent
 #### Confirmations et fin de partie
 
 - **Attention** : finir son tour ou passer alors qu'une mission peut encore être recouverte, ou sans jouer sa carte Exertien à un palier, demande confirmation (**Annuler** ou **Continuer quand même**).
-- **Fin de partie** : le décompte de chaque joueur par catégorie, le vainqueur et l'historique complet de la partie (voir 2.8).
+- **Fin de partie** : le décompte de chaque joueur par catégorie, le vainqueur et l'historique complet de la partie (voir 2.8). **Voir le plateau** cache le résumé le temps de regarder le plateau final ; **Revoir le résumé** le rouvre.
+- **Piste d'espèce indisponible** : quand une trace de vie est à placer et que la piste des espèces découvertes ne peut pas la recevoir (emplacements occupés, ou coût en tokens ou données impayable), un avertissement rappelle qu'il reste les emplacements de découverte et excédentaires (triangles) ; **Annuler** ou **Continuer quand même** le ferment, puis on pose la trace sur un triangle.
 
 ## 2. Règles appliquées
 
@@ -213,6 +214,7 @@ Chaque pile a 4 exemplaires ; le premier pris rapporte 3 PV, les suivants 1 Méd
 - **Mission conditionnelle / déclenchable** : restent devant le joueur ; chaque condition remplie se réclame (action gratuite) et donne sa récompense.
 - **Mission déclenchée** : un même déclencheur ne recouvre qu'un cercle, toutes cartes confondues, au choix du joueur ; les cercles d'une carte se recouvrent dans l'ordre de son choix (carte 107 : 2 Médias ou 4 PV après une trace bleue). Pendant son tour, les cercles possibles sont surlignés sur ses cartes : il clique sur celui qu'il recouvre (les autres cercles du même déclencheur s'éteignent ; deux déclencheurs, par exemple deux technologies acquises, recouvrent deux cercles). Si l'effet survient pendant le tour d'un autre joueur (trace de vie gagnée par une majorité…), une fenêtre lui propose aussitôt les cercles déclenchés ; il peut aussi ne pas en profiter. Missions déclenchées et missions conditionnelles sont indépendantes : recouvrir un cercle déclenché n'empêche pas d'accomplir une mission conditionnelle dont la condition est remplie (carré), et inversement.
 - **Fin de partie** : points au décompte final selon une condition.
+- Carte 50 (Square Kilometre Array) : 2 PV pour chaque secteur différent où elle marque un signal ; un 2e signal dans le même secteur ne rapporte pas ces PV.
 - La main n'a pas de limite pendant la manche ; au moment de passer, on n'en garde que 4.
 
 ### 2.6 Traces de vie
@@ -220,6 +222,8 @@ Chaque pile a 4 exemplaires ; le premier pris rapporte 3 PV, les suivants 1 Méd
 Une trace de vie (rouge, jaune ou bleue) se place sur le plateau d'une espèce Alien : sur l'emplacement de découverte de sa couleur, sur la piste de l'espèce, ou sur un emplacement excédentaire. Voir la partie 3.
 
 Une trace de vie « de la couleur de son choix » prend la couleur de l'emplacement choisi : elle déclenche les missions de cette couleur et celles qui portent sur n'importe quelle trace de vie (ET.29), pas celles des autres couleurs.
+
+Les emplacements de découverte et excédentaires (triangles) acceptent toujours une trace : elle n'est jamais perdue, même quand la piste de l'espèce est pleine ou trop chère (avertissement : voir 1.10, Confirmations et fin de partie).
 
 ### 2.7 Paliers et objectifs
 

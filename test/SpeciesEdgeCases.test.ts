@@ -96,6 +96,62 @@ describe('SpeciesSystem : cas limites', () => {
     });
   });
 
+  describe('traces de vie : piste pleine, triangles toujours disponibles', () => {
+    const P2 = 'player_1';
+    const colors = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE];
+    /** Mascamites (sans emplacement infini) découverts sur le plateau 0, piste des couleurs données remplie par P2 */
+    function fullMascamiteTrack(trackColors: LifeTraceType[]) {
+      const board = discoveredBoard(game, AlienBoardType.MASCAMITES);
+      const slots = game.species.find(s => s.name === AlienBoardType.MASCAMITES)!.fixedSlots;
+      trackColors.forEach(color => {
+        const fixed = color === LifeTraceType.RED ? slots.redlifetrace : color === LifeTraceType.YELLOW ? slots.yellowlifetrace : slots.bluelifetrace;
+        fixed.forEach((_, slotIndex) => board.lifeTraces.push({ id: `t-${color}-${slotIndex}`, type: color, playerId: P2, location: LifeTraceLocation.SPECIES, slotIndex }));
+      });
+      return board;
+    }
+
+    test("piste pleine : avertissement, mais l'emplacement triangle accepte toujours la trace (aucune n'est perdue)", () => {
+      fullMascamiteTrack([LifeTraceType.RED]);
+      const warning = SpeciesSystem.speciesTrackWarning(game, P1, { color: LifeTraceType.RED });
+      expect(warning).toBe("La piste de l'espèce Mascamites ne peut pas recevoir cette trace de vie rouge : emplacements occupés ou coût impayable. Placez-la sur un emplacement de découverte ou excédentaire (triangle) d'un plateau Alien.");
+
+      // Plusieurs traces de suite sur le triangle : toutes acceptées (bonus de découverte puis bonus suivant)
+      let current = game;
+      for (let i = 0; i < 3; i++) {
+        const placed = SpeciesSystem.placeLifeTrace(current, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.TRIANGLE);
+        expect(placed.updatedGame).not.toBe(current);
+        current = placed.updatedGame;
+      }
+      expect(current.board.alienBoards[0].lifeTraces.filter(t => t.playerId === P1 && t.location === LifeTraceLocation.TRIANGLE)).toHaveLength(3);
+      // Le placement automatique (robots) se rabat aussi sur un triangle
+      expect(SpeciesSystem.placeLifeTraceAuto(game, LifeTraceType.RED, P1, 's').updatedGame).not.toBe(game);
+    });
+
+    test("pas d'avertissement : emplacement libre sur la piste, autre couleur, espèce non découverte ou plateau non autorisé", () => {
+      expect(SpeciesSystem.speciesTrackWarning(game, P1, { color: LifeTraceType.RED })).toBeUndefined();
+      fullMascamiteTrack([LifeTraceType.RED]);
+      expect(SpeciesSystem.speciesTrackWarning(game, P1, { color: LifeTraceType.YELLOW })).toBeUndefined();
+      expect(SpeciesSystem.speciesTrackWarning(game, P1, { color: LifeTraceType.ANY })).toBeUndefined();
+      expect(SpeciesSystem.speciesTrackWarning(game, P1, { color: LifeTraceType.RED, boardIndices: [1] })).toBeUndefined();
+    });
+
+    test("couleur au choix, pistes pleines de deux espèces découvertes : avertissement au pluriel, sans modifier la partie", () => {
+      fullMascamiteTrack(colors);
+      const other = game.board.alienBoards[1];
+      other.isDiscovered = true;
+      // Seconde espèce : cases fixes occupées ; la suivante (emplacement infini) coûte des tokens que le joueur n'a pas
+      getPlayer(game, P1).tokens = 0;
+      getPlayer(game, P1).data = 0;
+      colors.forEach(color => SpeciesSystem.freeSpeciesSlotIndices(game, 1, color).slice(0, -1)
+        .forEach(slotIndex => other.lifeTraces.push({ id: `o-${color}-${slotIndex}`, type: color, playerId: P2, location: LifeTraceLocation.SPECIES, slotIndex })));
+      const before = JSON.stringify(game);
+      expect(other.speciesId).toBe(AlienBoardType.OUMUAMUA);
+      expect(SpeciesSystem.speciesTrackWarning(game, P1, { color: LifeTraceType.ANY }))
+        .toMatch(/^Les pistes des espèces Mascamites et Oumuamua ne peuvent pas recevoir cette trace de vie : /);
+      expect(JSON.stringify(game)).toBe(before);
+    });
+  });
+
   describe('Centauriens', () => {
     test("emplacement payé en données (15 PV pour 3 données) : refusé sans assez de données, sinon les données sont payées", () => {
       discoveredBoard(game, AlienBoardType.CENTAURIENS);

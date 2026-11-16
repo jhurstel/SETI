@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { Game, ActionType, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, LifeTraceType, InteractionState, GamePhase, SignalType, getInteractionLabel, LifeTraceLocation } from '../core/types';
-import { ConfirmModal, MediaOrMoveModal, Observation2Modal, TokenDiscardModal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, CentaurienRewardModal, ExertienCardModal, MissionRequirementModal, SpecimenModal } from './modals/GameModals';
+import { ConfirmModal, MediaOrMoveModal, Observation2Modal, TokenDiscardModal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, LifeTraceTrackWarning, CentaurienRewardModal, ExertienCardModal, MissionRequirementModal, SpecimenModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
 import { TechnologyBoardUI } from './TechnologyBoardUI';
 import { PlayerBoardUI } from './PlayerBoardUI';
@@ -789,6 +789,9 @@ export const BoardUI: React.FC = () => {
           <Observation4Modal onChoice={(choice: 'PROBE' | 'MOVE') => choose({ kind: 'OBS4', choice })} canLaunch={canLaunch} canMove={canMove} />
         );
       })()}
+
+      {/* Trace de vie : la piste des espèces découvertes ne peut pas la recevoir, il reste les triangles */}
+      <LifeTraceTrackWarning game={game} interactionState={interactionState} />
 
       {/* Menu de choix des bonus interactifs */}
       <BonusChoiceModal

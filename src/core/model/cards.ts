@@ -40,6 +40,8 @@ export interface CardEffect {
   source?: string;
   /** Effet limité à l'action de la carte (buff actif) : séquence de cette action */
   sequenceId?: string;
+  /** Buff SCORE_IF_UNIQUE (carte 50) : secteurs déjà récompensés pendant l'action */
+  rewardedSectors?: string[];
 }
 
 export interface Mission {

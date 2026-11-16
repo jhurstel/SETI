@@ -200,6 +200,24 @@ export const TokenDiscardModal = ({ interaction, tokens, onChoice }: { interacti
   </ChoiceModal>
 );
 
+/**
+ * Avertissement à l'ouverture du placement d'une trace de vie quand la piste des espèces découvertes ne peut pas
+ * la recevoir (SpeciesSystem.speciesTrackWarning) : il ne reste que les triangles. Les deux boutons ferment
+ * l'avertissement, le joueur pose ensuite sa trace sur le plateau. Affiché une fois par action (séquence) et par message :
+ * l'interaction est recréée à chaque rendu, elle ne peut pas servir de clé.
+ */
+export const LifeTraceTrackWarning = ({ game, interactionState }: { game: Game, interactionState: InteractionState }) => {
+  const [dismissedKey, setDismissedKey] = useState<string>();
+  const warning = useMemo(() => {
+    if (interactionState.type !== 'PLACING_LIFE_TRACE') return undefined;
+    const playerId = interactionState.playerId ?? game.players[game.currentPlayerIndex].id;
+    return SpeciesSystem.speciesTrackWarning(game, playerId, interactionState);
+  }, [game, interactionState]);
+  const key = `${interactionState.sequenceId ?? ''}|${warning ?? ''}`;
+  const close = () => setDismissedKey(key);
+  return <ConfirmModal visible={!!warning && dismissedKey !== key} message={warning ?? ''} onConfirm={close} onCancel={close} />;
+};
+
 export const Observation4Modal = ({ onChoice, canLaunch, canMove }: { onChoice: (choice: 'PROBE' | 'MOVE') => void, canLaunch: boolean, canMove: boolean }) => (
   <ChoiceModal title="Observation IV" subtitle="Choisissez votre bonus.">
     <ChoiceOption icon={<ActionHexIcon kind="launch" size={26} />} label="Lancer une sonde" detail="−1 Énergie" onClick={() => onChoice('PROBE')} disabled={!canLaunch} disabledReason="Pas assez d'énergie ou limite de sondes atteinte" />
@@ -336,8 +354,15 @@ export const EndGameModal = ({ game, historyLog, setActiveTooltip }: { game: Gam
     .sort((a, b) => b.score.finalScore - a.score.finalScore);
 
   const winners = ScoreManager.determineWinner(finalScores).map(id => game.players.find(p => p.id === id)!);
+  // « Voir le plateau » : la fenêtre se cache le temps de regarder le plateau, puis « Revoir le résumé » la rouvre
+  const [minimized, setMinimized] = useState(false);
 
   return (
+    <>
+    <button className={`seti-minimize-modal-btn endgame ${minimized ? 'minimized' : ''}`} onClick={() => setMinimized(!minimized)}>
+      {minimized ? 'Revoir le résumé' : 'Voir le plateau'}
+    </button>
+    {!minimized && (
     <div className="seti-endgame-overlay">
       <div className="seti-endgame-modal">
         <div className="seti-endgame-header">
@@ -388,5 +413,7 @@ export const EndGameModal = ({ game, historyLog, setActiveTooltip }: { game: Gam
         </button>
       </div>
     </div>
+    )}
+    </>
   );
 };
