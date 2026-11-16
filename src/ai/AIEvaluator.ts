@@ -366,18 +366,17 @@ export class AIEvaluator {
   }
 
   /**
-   * Cartes Alien promises : pour chaque espèce non découverte, chaque couleur dont le joueur a posé la 1re trace,
-   * pondérée par l'avancement de la découverte (couleurs présentes / 3)
+   * Cartes Alien promises : chaque couleur dont le joueur a posé la 1re trace, pondérée par l'avancement de la
+   * découverte (couleurs présentes / 3). Une espèce découverte compte pleinement : la découverte ne fait pas perdre
+   * cette valeur (sinon le robot évite de compléter une découverte, même quand elle lui rapporte plus de PV).
    */
   private static discoveryClaims(game: Game, playerId: string): number {
     const colors = [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE];
-    return game.board.alienBoards
-      .filter(board => !board.isDiscovered)
-      .reduce((sum, board) => {
-        const firsts = colors.map(c => board.lifeTraces.find(t => t.type === c));
-        const progress = firsts.filter(Boolean).length / colors.length;
-        return sum + firsts.filter(t => t?.playerId === playerId).length * progress;
-      }, 0);
+    return game.board.alienBoards.reduce((sum, board) => {
+      const firsts = colors.map(c => board.lifeTraces.find(t => t.type === c));
+      const progress = board.isDiscovered ? 1 : firsts.filter(Boolean).length / colors.length;
+      return sum + firsts.filter(t => t?.playerId === playerId).length * progress;
+    }, 0);
   }
 
   /**

@@ -218,8 +218,9 @@ describe('AITurn (parties complètes entre robots)', () => {
     // 1 couleur à soi, 2 couleurs sur 3 présentes ; la trace elle-même n'est pas dans player.lifeTraces ici
     expect(withClaim - withoutClaim).toBeCloseTo(DEFAULT_WEIGHTS.discoveryClaim * 2 / 3 * boardFactor(game));
 
+    // Espèce découverte : la 1re trace compte pleinement (la découverte ne fait pas perdre cette valeur)
     board.isDiscovered = true;
-    expect(AIEvaluator.evaluate(game, p1.id)).toBeCloseTo(withoutClaim);
+    expect(AIEvaluator.evaluate(game, p1.id) - withoutClaim).toBeCloseTo(DEFAULT_WEIGHTS.discoveryClaim * boardFactor(game));
   });
 
   test("l'évaluation compte la majorité d'un secteur selon son remplissage et son bonus de couverture", async () => {

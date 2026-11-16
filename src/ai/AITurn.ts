@@ -248,10 +248,14 @@ export class AITurn {
     // Actions rendues possibles par une préparation (échange de ressources, achat d'une carte) :
     // la préparation et l'action sont évaluées ensemble, sinon l'échange seul paraîtrait toujours perdant
     const available = new Set(decisions.map(d => this.decisionKey(d)));
+    // Cartes que le robot connaît avant la préparation (sa main, la rangée) : une carte piochée face cachée par un
+    // échange ou un achat ne peut pas décider de l'échange (le joueur humain ne la voit qu'après l'avoir payée)
+    const known = new Set([...player.cards, ...game.decks.cardRow].map(card => card.id));
     for (const preparation of this.preparationOptions(game, player)) {
       const prepared = preparation.updatedGame.players.find(p => p.id === player.id)!;
       for (const decision of AIBehavior.listMainActions(preparation.updatedGame, prepared)) {
         if (available.has(this.decisionKey(decision))) continue;
+        if (decision.action === ActionType.PLAY_CARD && !known.has(decision.data.cardId)) continue;
         const result = this.playMainAction(preparation.updatedGame, prepared, decision);
         if (!result) continue;
         options.push({
@@ -387,8 +391,16 @@ export class AITurn {
     const trade = (spend: string, gain: string, cardIds?: string[]) => {
       if (gain === 'card' && (spend === 'credit' || spend === 'energy')) {
         // Comme le joueur humain : le coût est payé, puis la carte est choisie (rangée ou pioche)
+        // Chaque carte de la rangée, puis la pioche, est une option : le robot choisit en connaissant la rangée
         const res = ResourceSystem.tradeForCard(game, player.id, spend);
-        if (!res.error) options.push(this.resolvePending(res.updatedGame, player, res.historyEntries, res.newPendingInteractions, `ai-trade-${uniqueId()}`));
+        if (res.error) return;
+        const sequenceId = `ai-trade-${uniqueId()}`;
+        const pick = res.newPendingInteractions[0] as Extract<InteractionState, { type: 'ACQUIRING_CARD' }>;
+        for (const card of [...res.updatedGame.decks.cardRow, undefined]) {
+          const acquired = InteractionChoices.acquireCard(res.updatedGame, player.id, { ...pick, sequenceId }, card?.id);
+          if (acquired.error) continue;
+          options.push(this.resolvePending(acquired.updatedGame, player, [...res.historyEntries, ...acquired.historyEntries], acquired.newPendingInteractions, sequenceId));
+        }
         return;
       }
       const res = ResourceSystem.tradeResources(game, player.id, spend, gain, cardIds);
