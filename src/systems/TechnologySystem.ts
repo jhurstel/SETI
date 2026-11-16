@@ -112,11 +112,6 @@ export class TechnologySystem {
         player.data = Math.min((player.data || 0) + tech.bonus.data, GAME_CONSTANTS.MAX_DATA);
         gains.push(`${tech.bonus.data} Data`);
       }
-      if (tech.bonus.card) {
-        updatedGame = CardSystem.drawCards(updatedGame, player.id, tech.bonus.card);
-        player = updatedGame.players.find(p => p.id === playerId)!;
-        gains.push(`${tech.bonus.card} Carte`);
-      }
       if (tech.bonus.anycard) {
         // Carte au choix (rangée ou pioche) : le choix écrit d'où elle vient, en sous-action (InteractionChoices.acquireCard)
         newPendingInteractions.push({ type: 'ACQUIRING_CARD', count: tech.bonus.anycard, isFree: true });
