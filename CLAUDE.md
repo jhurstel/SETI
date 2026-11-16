@@ -32,7 +32,7 @@ npm run bench:ai -- 3 2  # performance des robots : 3 parties de 2 Experts (tool
                      # tools/bench/midGameSave.ts : sauvegarde de milieu de partie à graine fixe (comparer l'affichage avant/après une modification de l'interface)
 npm run tune:ai -- tune 3 140 # réglage SPSA des poids des robots à 3 joueurs (tools/spsa/README.md) ; compare <joueurs> <a.json|default> <b.json|default> <graines> pour valider, levels <joueurs> <graines> [A] [B] : écart entre deux niveaux (Expert contre Avancé par défaut)
 npm run build        # typecheck puis vite build (→ dist/)
-npm run server       # serveur du jeu à distance : server:build (esbuild → server/build) puis server:start (PORT=8787, SETI_DATA_DIR=server/data, ALLOWED_ORIGINS, ROBOT_THREADS=2)
+npm run server       # serveur du jeu à distance : server:build (esbuild → server/build) puis server:start (PORT=8787, SETI_DATA_DIR=server/data, ALLOWED_ORIGINS, ROBOT_THREADS=2, CLIENT_IP_HEADER)
 openspec list        # changements OpenSpec en cours (--specs : capacités) ; openspec validate --specs
 ```
 

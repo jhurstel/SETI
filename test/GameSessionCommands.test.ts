@@ -190,6 +190,8 @@ describe('GameSession : commandes et aiguillage des choix', () => {
       expect(getPlayer(dispatch(game, { type: 'TRADE', spend: 'credit', gain: 'energy' }).game, P1).energy).toBe(1);
       expect(dispatch(game, { type: 'TRADE', spend: 'energy', gain: 'card' }).error).toBeDefined();
       expect(dispatch(game, { type: 'TRADE', spend: 'energy', gain: 'credit' }).error).toBeDefined();
+      // Dépense inconnue (commande forgée par un client en ligne) : refusée, pas de gain gratuit
+      expect(dispatch(game, { type: 'TRADE', spend: 'rien', gain: 'credit' }).error).toBe('Type de ressource à dépenser invalide');
     });
   });
 

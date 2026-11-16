@@ -129,6 +129,14 @@ describe('Opérations du moteur utilisées par l\'interface', () => {
       getPlayer(game, P1).energy = 1;
       expect(ResourceSystem.tradeResources(game, P1, 'energy', 'credit').error).toBe("Pas assez d'énergie");
     });
+
+    test('dépense inconnue : refus, rien gagné (non-régression : échange gratuit)', () => {
+      const credits = getPlayer(game, P1).credits;
+      const res = ResourceSystem.tradeResources(game, P1, 'rien', 'credit');
+      expect(res.error).toBe('Type de ressource à dépenser invalide');
+      expect(res.updatedGame).toBe(game);
+      expect(getPlayer(game, P1).credits).toBe(credits);
+    });
   });
 
   describe('ProbeSystem.chooseMediaOrMove (carte 19)', () => {

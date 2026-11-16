@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { WebSocket } from 'ws';
-import { GameServer, GameServerOptions } from '../server/GameServer';
+import { GameServer, GameServerOptions, clientAddress } from '../server/GameServer';
 import { GameRoom, ROOM_EXPIRY } from '../src/session/GameRoom';
 import { RemoteClient, SocketLike } from '../src/session/RemoteClient';
 import { TEST_SEED } from './helpers/gameFixture';
@@ -38,6 +38,18 @@ describe('salles : activité et expiration (GameRoom)', () => {
     expect(GameRoom.fromSaved(JSON.parse(JSON.stringify(room.toSaved()))).updatedAt).toBe(room.createdAt + 5000);
     const { updatedAt: _updated, ...old } = room.toSaved();
     expect(GameRoom.fromSaved(old).updatedAt).toBe(room.createdAt);
+  });
+});
+
+describe('adresse du client (clientAddress)', () => {
+  test('dernière valeur de X-Forwarded-For (la première peut être choisie par le client)', () => {
+    expect(clientAddress({ 'x-forwarded-for': '1.1.1.1, 2.2.2.2' }, '10.0.0.1')).toBe('2.2.2.2');
+    expect(clientAddress({}, '10.0.0.1')).toBe('10.0.0.1');
+  });
+
+  test('en-tête du proxy configuré : prioritaire', () => {
+    expect(clientAddress({ 'true-client-ip': '3.3.3.3', 'x-forwarded-for': '1.1.1.1' }, '10.0.0.1', 'True-Client-IP')).toBe('3.3.3.3');
+    expect(clientAddress({ 'x-forwarded-for': '1.1.1.1' }, '10.0.0.1', 'True-Client-IP')).toBe('1.1.1.1');
   });
 });
 
@@ -140,6 +152,51 @@ describe('serveur : purge des salles et limites de création', () => {
     server.rooms.get(first.code)!.touch(Date.now() - ROOM_EXPIRY.lobby - 1000);
     const second = await makeClient().create('Bob', SEATS);
     expect([...server.rooms.keys()]).toEqual([second.code]);
+  });
+
+  /** Ouvre une connexion brute et rend le code de sa fermeture (null si elle reste ouverte `ms` millisecondes) */
+  function rawSocket() {
+    const socket = new WebSocket(`ws://localhost:${port}`);
+    const closed = new Promise<number>(resolve => socket.on('close', code => resolve(code)));
+    const opened = new Promise<void>(resolve => socket.on('open', () => resolve()));
+    return { socket, closed, opened };
+  }
+
+  test('connexions limitées par adresse : la suivante est fermée aussitôt', async () => {
+    await startServer({ maxConnectionsPerAddress: 2 });
+    const a = rawSocket();
+    const b = rawSocket();
+    await Promise.all([a.opened, b.opened]);
+    const c = rawSocket();
+    expect(await c.closed).toBe(4029);
+    // Une place libérée : une nouvelle connexion est acceptée
+    a.socket.close();
+    await a.closed;
+    await wait(20);
+    const d = rawSocket();
+    await d.opened;
+    const pong = new Promise(resolve => d.socket.on('message', data => resolve(JSON.parse(data.toString()))));
+    d.socket.send(JSON.stringify({ type: 'ping' }));
+    expect(await pong).toEqual({ type: 'pong' });
+    b.socket.close();
+    d.socket.close();
+  });
+
+  test('débit limité par connexion : au-delà de la rafale permise, la connexion est fermée', async () => {
+    await startServer({ messageRate: { burst: 5, perSecond: 1 } });
+    const ok = rawSocket();
+    await ok.opened;
+    const answers: unknown[] = [];
+    ok.socket.on('message', data => answers.push(JSON.parse(data.toString())));
+    for (let i = 0; i < 5; i++) ok.socket.send(JSON.stringify({ type: 'ping' }));
+    for (let i = 0; i < 50 && answers.length < 5; i++) await wait(10);
+    expect(answers).toHaveLength(5);
+
+    const flood = rawSocket();
+    await flood.opened;
+    for (let i = 0; i < 20; i++) flood.socket.send(JSON.stringify({ type: 'ping' }));
+    expect(await flood.closed).toBe(4008);
+    ok.socket.close();
   });
 
   test('la purge périodique tourne toute seule', async () => {

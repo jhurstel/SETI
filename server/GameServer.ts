@@ -32,6 +32,24 @@ export interface GameServerOptions {
    * Arrêté avec le serveur s'il a une méthode `close`.
    */
   robots?: RobotComputer & { close?: () => Promise<void> };
+  /**
+   * En-tête posé par le proxy de l'hébergeur avec l'adresse du client (ex. true-client-ip) ; absent : la dernière
+   * valeur de X-Forwarded-For (ajoutée par le proxy), jamais la première, que le client peut choisir
+   */
+  clientIpHeader?: string;
+  /** Connexions simultanées permises par adresse IP ; 20 par défaut */
+  maxConnectionsPerAddress?: number;
+  /** Débit de messages permis par connexion : `burst` d'affilée, rechargés de `perSecond` par seconde ; 40 et 10 par défaut */
+  messageRate?: { burst: number; perSecond: number };
+}
+
+/** Adresse IP du client (limite de création de salles) : voir GameServerOptions.clientIpHeader */
+export function clientAddress(headers: IncomingMessage['headers'], remoteAddress: string | undefined, clientIpHeader?: string): string {
+  const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[value.length - 1] : value);
+  const header = clientIpHeader ? first(headers[clientIpHeader.toLowerCase()])?.trim() : undefined;
+  if (header) return header;
+  const forwarded = first(headers['x-forwarded-for'])?.split(',').map(part => part.trim()).filter(Boolean);
+  return forwarded?.[forwarded.length - 1] || remoteAddress || '';
 }
 
 /** Lettres des codes de salle (sans I, O ni chiffres, faciles à dicter) */
@@ -50,6 +68,9 @@ interface Client {
   code?: string;
   token?: string;
   alive: boolean;
+  /** Messages encore permis (limite de débit : seau rechargé au fil du temps) et date de la dernière recharge */
+  allowance: number;
+  refilledAt: number;
 }
 
 /**
@@ -144,12 +165,27 @@ export class GameServer {
   }
 
   private onConnection(socket: WebSocket, req: IncomingMessage) {
-    const forwarded = req.headers['x-forwarded-for'];
-    const address = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0].trim() || req.socket.remoteAddress || '';
-    const client: Client = { socket, address, alive: true };
+    const address = clientAddress(req.headers, req.socket.remoteAddress, this.options.clientIpHeader);
+    // Trop de connexions depuis cette adresse : refusée (une page n'en ouvre qu'une, quelques-unes par foyer)
+    const maxConnections = this.options.maxConnectionsPerAddress ?? 20;
+    if ([...this.clients].filter(other => other.address === address).length >= maxConnections) {
+      socket.close(4029, 'Trop de connexions depuis cette adresse');
+      return;
+    }
+    const { burst, perSecond } = this.options.messageRate ?? { burst: 40, perSecond: 10 };
+    const client: Client = { socket, address, alive: true, allowance: burst, refilledAt: Date.now() };
     this.clients.add(client);
     socket.on('pong', () => { client.alive = true; });
     socket.on('message', data => {
+      // Limite de débit : un client qui envoie trop de messages est déconnecté (il se reconnectera plus tard)
+      const now = Date.now();
+      client.allowance = Math.min(burst, client.allowance + ((now - client.refilledAt) / 1000) * perSecond);
+      client.refilledAt = now;
+      if (client.allowance < 1) {
+        socket.close(4008, 'Trop de messages');
+        return;
+      }
+      client.allowance -= 1;
       const message = parseClientMessage(data.toString());
       if (!message) return this.send(client, { type: 'error', message: 'Message invalide' });
       this.onMessage(client, message).catch(error => {

@@ -61,3 +61,14 @@ Le serveur SHALL limiter le nombre de salles (200) et les créations par adresse
 #### Scenario: Salle abandonnée
 - **WHEN** une partie en cours n'a reçu aucune activité depuis plus de 7 jours et qu'aucun joueur n'y est connecté
 - **THEN** elle est supprimée de la mémoire et du disque
+
+### Requirement: Protection contre les abus
+L'adresse IP du client SHALL être celle ajoutée par le proxy de l'hébergeur (dernière valeur de `X-Forwarded-For` ou en-tête configuré), jamais une valeur choisie par le client. Le serveur SHALL limiter les connexions simultanées par adresse (20) et le débit de messages par connexion (40 d'affilée, 10 par seconde).
+
+#### Scenario: Adresse falsifiée
+- **WHEN** un client envoie un `X-Forwarded-For` qui commence par une autre adresse
+- **THEN** la limite de création s'applique à l'adresse ajoutée par le proxy
+
+#### Scenario: Trop de messages
+- **WHEN** une connexion envoie plus de messages que le débit permis
+- **THEN** elle est fermée

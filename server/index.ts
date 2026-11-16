@@ -7,7 +7,7 @@ import { GAME_VERSION } from '../src/core/version';
 /**
  * Serveur du jeu à distance : `npm run server`. Variables : PORT (8787 par défaut), SETI_DATA_DIR (server/data par
  * défaut, où chaque salle est enregistrée), ALLOWED_ORIGINS (origines des pages autorisées, séparées par des virgules ;
- * vide : toutes), ROBOT_THREADS (fils de calcul des robots, 2 par défaut, au plus le nombre de processeurs).
+ * vide : toutes), CLIENT_IP_HEADER (en-tête du proxy portant l'adresse du client ; vide : X-Forwarded-For), ROBOT_THREADS (fils de calcul des robots, 2 par défaut, au plus le nombre de processeurs).
  */
 // Compilé dans server/build/index.js : la racine du projet est deux dossiers au-dessus
 const root = path.resolve(__dirname, '..', '..');
@@ -18,6 +18,7 @@ const server = new GameServer({
   publicDir: path.join(root, 'public'),
   dataDir: process.env.SETI_DATA_DIR || path.join(root, 'server', 'data'),
   allowedOrigins: (process.env.ALLOWED_ORIGINS || '').split(',').map(origin => origin.trim()).filter(Boolean),
+  clientIpHeader: process.env.CLIENT_IP_HEADER || undefined,
   robots: new RobotPool(path.join(__dirname, 'robotWorker.js'), threads),
 });
 

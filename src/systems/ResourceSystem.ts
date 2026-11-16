@@ -216,6 +216,9 @@ export class ResourceSystem {
       player.cards = player.cards.filter(c => !cardIdsToSpend.includes(c.id));
       updatedGame.decks.discardPile = [...updatedGame.decks.discardPile, ...spent];
       spentText = spent.map(c => `"${c.name}"`).join(' et ');
+    } else {
+      // Sans dépense reconnue, rien ne serait payé : refus (sinon gain gratuit, commande envoyée par un client en ligne)
+      return { updatedGame: game, error: "Type de ressource à dépenser invalide", historyEntries: [] };
     }
 
     let gainedText = ResourceSystem.formatResource(1, gainType);
