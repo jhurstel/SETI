@@ -1,0 +1,18 @@
+---
+paths:
+  - "test/**"
+  - "e2e/**"
+  - "jest.config.ts"
+  - "playwright.config.ts"
+---
+
+# Tests
+
+- Jest + ts-jest dans `test/`, type-checkés via `test/tsconfig.json` (inclus dans `npm run typecheck` ; repasse en CommonJS pour Jest). Un fichier par module moteur + `AITurn` (parties complètes entre robots, test de non-régression global du moteur).
+- `test/helpers/gameFixture.ts` : `createTestGame()` crée une **vraie** partie (fetch simulé qui sert `public/`, donc les vraies cartes ; graine fixe `TEST_SEED`, donc la même partie à chaque exécution), `makeCard()`, `getPlayer()`. À privilégier plutôt que des mocks d'état écrits à la main. Chaque test d'opération vérifie le résultat **et** que la partie reçue n'est pas modifiée.
+- Composants : `test/components/*.test.tsx` (Testing Library, environnement jsdom déclaré en tête de fichier par `/** @jest-environment jsdom */`, feuilles CSS remplacées par `test/helpers/styleStub.ts`) pour les composants qui portent une logique d'affichage : fenêtres de choix (`ChoiceModal`, `CardPickModal`), places et nouvelle partie (`SeatList`, `NewGameModal`). Le reste de l'interface est couvert par Playwright.
+- Un bug connu et pas encore corrigé est documenté par un `test.failing(...)`. Retirer `.failing` quand il est corrigé. Un bug corrigé reçoit un test de non-régression.
+- `CardCatalog.test.ts` vérifie toutes les cartes des CSV (effets lus et traités, jouées par un robot sans erreur) et que les robots gèrent toutes les interactions du moteur. Une nouvelle carte ou un nouvel effet doit le faire passer.
+- **Couverture** : chaque chemin du moteur a son test ciblé (ne pas compter sur les parties entre robots, dont les tirages changent avec leur comportement : c'est ce qui avait fait tomber la couverture des tuiles objectif). SolarSystemPosition, ScanSystem, CardSystem (dont conditions de mission et défausse pour action gratuite), DataLoader (tous les CSV), TurnManager/PassAction, GameFactory, GameEngine, GamePersistence, InteractionResolver, InteractionChoices (chaque choix, côté joueur et robot), Anomalies, Exertiens, orbite/atterrissage, immutabilité, cardEffects, et des parties complètes entre robots (AITurn). `npm run test:coverage` : 100 % des instructions, lignes et fonctions du moteur (hors `ui/`), environ 93,5 % des branches (seuil 93 %), imposés par `coverageThreshold` (`jest.config.ts`) : une instruction non couverte se teste, ou se retire si elle est inatteignable (pas de `/* istanbul ignore */`) ; les cas limites et refus des sondes, du scan et des cartes ont leurs tests (`*EdgeCases.test.ts`), les lignes mal formées du CSV aussi (`DataLoaderMalformed.test.ts`). Une branche non couverte sur un champ que les types garantissent (`|| []`, `if (player)` après une recherche) se retire plutôt que se tester (`requirePlayer`). La géométrie du dessin (`ui/solarGeometry.ts`) est hors du moteur et de la couverture.
+- **Bout en bout** (`e2e/`, `npm run test:e2e`) : Playwright, parties pilotées dans le navigateur (tour solo, annulation et rechargement, partie en ligne à deux, écran de fin) ; `playwright.config.ts` lance le serveur du jeu en ligne (port 8799, dossier temporaire) et Vite (`VITE_SERVER_URL` vers lui) ; `helpers.ts` (sélecteurs, mise en place) ; `endGame.spec` génère une partie terminée par des robots côté Node puis l'injecte comme sauvegarde. En local sous Windows, Playwright utilise le Chrome installé (`PW_CHANNEL` pour en choisir un autre ; Edge est bloqué sur certains postes). Captures de la documentation : `SETI_DOC_SCREENSHOTS=1 npx playwright test docMenus`.
+- Sortie longue : pour lancer la vérification complète sans charger tout le journal dans la conversation, utiliser l'agent `verificateur`.

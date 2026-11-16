@@ -1,0 +1,40 @@
+---
+paths:
+  - "src/ai/**"
+  - "tools/spsa/**"
+  - "tools/bench/**"
+  - "test/AI*.test.ts"
+  - "src/ui/hooks/useAITurn.ts"
+  - "src/ui/hooks/aiWorkerClient.ts"
+---
+
+# Robots
+
+Spec : `openspec/specs/robots/spec.md`. Mesures, réglages passés et pistes essayées sans gain : `.claude/skills/mesurer-robots/resultats.md` (à lire avant de toucher l'évaluation ou les niveaux) ; procédure de mesure : skill `mesurer-robots`.
+
+## Fichiers
+
+```
+src/ai/
+│   ├── AIBehavior.ts        # Actions possibles, choix aléatoire (EASY), cartes gardées, réservation, paliers
+│   ├── AIEvaluator.ts       # Évaluation heuristique d'une position (robots MEDIUM/EXPERT)
+│   ├── AIController.ts      # Résout automatiquement la file d'interactions en attente pour un robot
+│   ├── AITurn.ts            # Tour complet d'un robot, une étape à la fois (pur, testable sans React)
+│   ├── CardValue.ts, Determinize.ts, robotCompute.ts, aiWorker.ts
+```
+
+## Fonctionnement
+
+- **Joueurs** : `type: 'human' | 'robot'`, niveau du robot dans `player.aiDifficulty` (absent = EASY). L'humain est piloté par l'UI. Les robots sont gérés par `AITurn.playStep` / `AITurn.endTurn`, qui s'appuient sur `AIBehavior` et `AIController` ; le hook `useAITurn` appelle une étape toutes les 1,5 s, calculée dans un Web Worker (`ai/aiWorker.ts`, `ui/hooks/aiWorkerClient.ts` : `workerRobotComputer`, même calcul que le serveur, `ai/robotCompute` ; repli sur le fil principal si le Worker est indisponible) pour ne pas figer l'interface ; l'état du générateur aléatoire (`game.rngState`) fait l'aller-retour avec la partie, et l'étape est appliquée par `GameSession.applyRobotStep` (le robot attend tant qu'une interaction attend un humain : `GameSession.robotCanPlay`). Toute logique de robot va dans `AITurn` (moteur), pas dans le hook. `test/AITurn.test.ts` joue des parties complètes entre robots : c'est le test de non-régression global du moteur.
+- **Mêmes opérations que l'humain** : pas de copie des règles dans `ai/`, chaque opération de robot est testée ; les choix sur une interaction passent par `InteractionChoices` (voir `.claude/rules/engine.md`), une interaction destinée à un robot est résolue par `AIController` dans la session (`AIController.ROBOT_HANDLERS` : toutes sauf `local`).
+- **Niveaux** : les trois niveaux jouent de la même façon et avec la même évaluation : ils simulent chaque action principale et chaque action gratuite avec le vrai moteur (`AITurn.chooseBestMainAction`, `tryBestFreeAction`), notent la position obtenue avec `AIEvaluator.evaluate` (PV + ressources et potentiel pondérés par les manches restantes, plus les points du décompte final déjà acquis : `ScoreManager.calculateFinalScore`, tuiles objectif, cartes Fin de partie ; poids `endGameRound1…4` pendant les 4 premières manches, `endGameLastRound` (100 %) pendant la dernière) et passent quand aucune action n'améliore leur position. Le niveau ne fixe que leur hésitation : `LEVEL_TEMPERATURE` (`ai/AIBehavior.ts` : Expert 0, Avancé 2, Débutant 12, en points d'évaluation), utilisée par `AIBehavior.pickWithNoise` (une option à *d* points de la meilleure est tirée exp(−d/T) fois moins souvent, jamais au-delà de `NOISE_WINDOW` = 3 températures). Cibles : l'Expert gagne environ 2 parties sur 3 contre l'Avancé, l'Avancé environ 3 sur 4 contre le Débutant (mesures : `resultats.md`, tableau : documentation 5.1).
+- **Anticipation de l'Expert** (`LEVEL_LOOKAHEAD` : 3 actions, `LEVEL_ROLLOUTS` : 4 suites) : ses 3 meilleures actions principales sont départagées par 4 suites jouées chacune (`AITurn.withOpponentReply`, `rolloutValue`) jusqu'à sa prochaine action principale (`ROLLOUT_MAX_STEPS` 80), tous les joueurs en Experts sans anticipation (`AITurn.simulating`), passes comprises (`applyPass`), cartes cachées redistribuées du point de vue du robot (`ai/Determinize.ts` : pioche, piles de fin de manche, mains adverses ; jamais la main cachée lue), mêmes graines pour chaque candidat ; position moyenne. Sans suites (`LEVEL_ROLLOUTS` 0) : réponse du seul adversaire suivant sans carte jouée (`valueAfterReply`, `bestPublicReply`).
+- **Niveau PASS** (tests) : ne simule rien : actions gratuites au hasard (`AITurn.tryFreeAction`), puis il passe.
+- **Poids** : les poids de `AIEvaluator` (partagés par tous les niveaux) dépendent du nombre de joueurs : `WEIGHTS_BY_PLAYER_COUNT` (`AIEvaluator.weightsFor(game, joueur)`), `DEFAULT_WEIGHTS` à 2 joueurs et pour un autre nombre, `WEIGHTS_3P` et `WEIGHTS_4P`. Ils sont réglés par SPSA en faisant jouer des Experts entre eux (dont le facteur de dernière manche `lastRoundFactor` et le seuil des actions gratuites `freeActionMinGain`), un réglage par nombre de joueurs. Valeur après la passe de la dernière manche et coût d'une passe : `AIEvaluator.passValue` (`lastRoundPassFactor`, `passCost`). Valeur des cartes en main : `ai/CardValue.ts` (`card` + `cardQuality` × meilleur usage, la jouer ou la défausser, les `maxUsefulCards` meilleures). Valeur des récompenses de mission : `missionChance` (récompense d'un cercle ouvert × chance × part des manches restantes, pleine s'il peut être recouvert ; `AIEvaluator.missionProspects`, `CardValue.missionRewardValue`), à 0 aujourd'hui. `AIEvaluator.weightOverrides` permet de donner d'autres poids à un joueur pour une comparaison (vide en jeu). **Pour renforcer l'IA, ajuster d'abord les poids de `AIEvaluator`.**
+- **Choix aléatoires** : pour les interactions à choix aléatoire, `AIController` compare 4 tirages et garde le meilleur.
+- **Préparation d'une action principale** (`AITurn.preparationOptions` : échanges, achat) : un échange contre une carte essaie chaque carte de la rangée puis la pioche, et le robot ne prévoit jamais de jouer une carte qu'il ne connaissait pas avant (piochée face cachée : `known` dans `chooseBestMainAction`, `test/AIHiddenInformation.test.ts`).
+- **Tuile objectif** (tous niveaux sauf PASS) : `AIController.bestObjectiveTile`, points projetés = (série actuelle + série encore gagnée en moyenne selon la manche, `OBJECTIVE_REMAINING_SERIES`, tiré de `tools/spsa/diagnose.ts`) × récompense du rang (`projectedObjectivePoints`).
+- **Traces de vie** : les robots (tous niveaux) simulent chaque emplacement et gardent le mieux évalué (`AIController.bestLifeTracePlacement`), l'évaluation comptant la carte Alien promise par une 1re trace (`discoveryClaim` × avancement de la découverte, pleine une fois l'espèce découverte : sinon la découverte faisait perdre cette valeur et le robot préférait une trace à 3 PV ailleurs à une découverte à 5 PV) et les cartes Alien en main (`alienCard`). L'évaluation compte aussi les secteurs en cours de remplissage (`sectorProspects` : 1 Média si présent, part du bonus de couverture si majoritaire, selon le remplissage).
+- **Exertiens** : l'évaluation (tous niveaux) retire la pénalité de danger attendue (10 % du score final estimé, pleine si le joueur est le plus exposé, réduite par point d'écart : `dangerPenalty`, `dangerMarginDecay`, `minPointsPerRound`) et compte les PV des cartes Exertiens jouées (pleins si la condition est remplie, sinon × `exertienStepChance` par étape manquante, via `ScoreManager.exertienCardProgress`) ; à un palier, le robot simule chaque carte et le renoncement (`AIController.bestExertienCard`).
+- **Autres choix des robots** : `bestMissionRequirement`, `bestSpecimen`, `bestTokenDiscard`, `bestRoundCard` (`AIController`).
+- **Mesurer** : comparer deux niveaux ou deux jeux de poids demande au moins une cinquantaine de parties (scores très dispersés, écart-type d'environ 25 PV par partie) ; une optimisation de vitesse ne doit pas changer l'empreinte de `npm run bench:ai`.

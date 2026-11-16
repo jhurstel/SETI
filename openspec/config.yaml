@@ -1,0 +1,51 @@
+schema: spec-driven
+
+# Contexte du projet (équivalent de l'ancien openspec/project.md), injecté par
+# OpenSpec dans les instructions de chaque artefact (proposition, specs, design, tâches).
+context: |
+  Language: French
+  All artifacts must be written in French.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Projet : adaptation numérique solo du jeu de société SETI (Iello), TypeScript + React (Vite),
+  serveur Node (ws) pour le jeu en ligne. Dépôt public GitHub jhurstel/SETI, branche unique main.
+  Référence des règles : public/docs/seti-rules-fr.pdf et public/docs/SETI-FAQ-FR.pdf.
+
+  Conventions (détail : CLAUDE.md et .claude/rules/) :
+  - Identifiants en anglais ; commentaires, messages et documents en français ; commits en anglais.
+  - Couches : core (modèle) < systems (règles) < actions, engine < ai < session < ui.
+    Toute règle vit dans le moteur (TS pur, sans React) ; l'interface envoie des commandes
+    (GameSession.dispatch) et affiche l'état renvoyé.
+  - État immuable : une opération du moteur ne modifie jamais la partie reçue (cloneGame).
+  - Hasard à graine (core/random.ts), jamais Math.random dans le moteur ni les robots.
+  - Les robots passent par les mêmes opérations que le joueur humain.
+  - Chaque opération du moteur a son test Jest avec une vraie partie (createTestGame) ;
+    couverture du moteur : 100 % des lignes et fonctions, seuil de branches 93 %.
+  - La documentation du jeu (public/docs/documentation.md) suit toute règle, action,
+    interaction ou poids des robots modifiés.
+  - Sauvegardes versionnées : un changement incompatible du modèle ajoute une migration.
+
+  Capacités décrites dans openspec/specs/ : game-rules (règles appliquées par le moteur),
+  robots (niveaux, évaluation, réglage), online-play (salles, serveur, client).
+
+rules:
+  proposal:
+    - Indiquer ce qui reste hors du périmètre.
+    - Signaler tout changement incompatible des sauvegardes (migration) ou du protocole en ligne (version mineure).
+  specs:
+    - Décrire un comportement observable du jeu (joueur, robot, serveur), pas des noms de classes.
+  design:
+    - Situer chaque modification dans sa couche (core, systems, actions/engine, ai, session, ui).
+    - Pour les robots, prévoir la mesure (npm run tune:ai -- levels ou compare, au moins une cinquantaine de parties).
+  tasks:
+    - Chaque tâche du moteur inclut son test Jest (non-régression pour un bug).
+    - Terminer par la mise à jour de public/docs/documentation.md si une règle visible change, puis npm run check.
+
+operations:
+  apply:
+    guidance:
+      - Faire git pull avant de commencer ; lancer npm run check avant de proposer un commit.
+      - Ne pas commiter ni pousser sans l'accord de l'utilisateur.
+  archive:
+    guidance:
+      - Vérifier que CLAUDE.md, .claude/rules/ et la documentation du jeu reflètent encore le code.

@@ -1,0 +1,41 @@
+---
+paths:
+  - "src/ui/**"
+  - "src/main.tsx"
+  - "e2e/**"
+  - "test/components/**"
+---
+
+# Interface
+
+L'interface n'applique aucune règle : un handler envoie une commande (`run`, `choose`) ; une règle qui manque va dans le moteur, avec son test (voir `CLAUDE.md`, Règles de travail).
+
+## Fichiers
+
+```
+src/main.tsx                 # Point d'entrée Vite : monte <BoardUI/> (la partie est créée depuis l'UI)
+src/ui/
+    ├── BoardUI.tsx          # Composant principal (~970 lignes) : affichage, modes de sélection, commandes envoyées à la session
+    ├── tooltipStore.ts, TooltipLayer.tsx # Infobulle active hors de l'état de BoardUI : un survol ne redessine que TooltipLayer
+    ├── hooks/               # useGameSession (partie + journal, dispatch), useAITurn (cadence des robots, calcul dans le Web Worker via aiWorkerClient), useAutosave (localStorage, écriture différée), useAnnouncements (début de tour, découverte, tirage du premier joueur), useUndo (annulation locale et en ligne), useStableHandlers (handlers stables pour les plateaux mémoïsés)
+    ├── SolarSystemBoardUI.tsx (~1210), PlayerBoardUI (~340), PlanetBoardUI, AlienBoardUI, TechnologyBoardUI, ObjectiveBoardUI, CardRowUI, HistoryBoardUI (tous mémoïsés : React.memo)
+    ├── solar/               # Parties du plateau du système solaire : slotTooltip (infobulle d'un emplacement d'orbite ou d'atterrissage), highlightedSectors, OumuamuaSignals (secteur d'Oumuamua), pieces et cellPieces (sondes et capsules d'une case), useProbeSelection (sonde sélectionnée, cases accessibles), planets
+    ├── player/              # Parties du plateau joueur : PlayerTabs (onglets), PlayerResources (ressources, actions gratuites, revenus), PlayerActions (actions principales, fin du tour), PlayerTracks (pistes Exploration et Observation), useResourceFlash
+    ├── components/          # HandCard, MissionCard, CardTooltip, PlayerComputer, PlanetIcon, SvgBonus, SectorDetails…
+    ├── modals/              # Settings (écran d'accueil : continuer, nouvelle partie, en ligne, documentation), NewGame, Online, Documentation (public/docs/documentation.md + PDF), Pass, GameModals
+    └── styles/celestialStyles.ts
+```
+
+Les visuels sont dessinés en SVG/CSS dans le code (il n'y a plus de dossier `assets/`), sauf le logo `public/logo-seti.png` (détouré de la couverture du livret de règles, en clair sur fond transparent), affiché par l'accueil et la documentation. Le fond de l'accueil est `ui/components/SpaceBackdrop.tsx` (`ui/HomeScreen.css`, animations coupées si `prefers-reduced-motion`). La géométrie du dessin (`ui/solarGeometry.ts` : `getSectorType`, `calculateObjectPosition`, `describeArc`) est hors du moteur et de la couverture.
+
+## Conventions
+
+- **Rendu** : les plateaux sont mémoïsés (`React.memo`) et reçoivent de `BoardUI` des handlers stables (`useStableHandlers`, objet `h`) : un nouveau handler passé à un plateau passe par `h`, et toute donnée calculée passée en prop (tableau, objet) par `useMemo`, sinon le plateau se redessine à chaque rendu. L'infobulle active vit dans `ui/tooltipStore.ts` (`setActiveTooltip`, stable) et s'affiche par `TooltipLayer`. Les fenêtres rares (documentation, partie en ligne, outils de débogage) sont chargées à la demande (`React.lazy`) et montées seulement quand elles sont ouvertes.
+- **Styles** : pas de `style={{…}}` fixe dans les composants : une classe CSS nommée dans la feuille du composant, ou dans `ui/styles/components.css` (composants sans feuille, classes partagées : `help-cursor`, `tooltip-caption`, `icon-inline`, `planet-window`…). Seuls les styles calculés (position, couleur du joueur, taille) restent en ligne. Une classe ajoutée à un élément qui en a déjà une s'écrit en sélecteur composé (`.seti-card-name.hand-card-name`) pour l'emporter quel que soit l'ordre des feuilles.
+- **Couleurs et attente** : le contour du système solaire et le toast sont toujours à la couleur du joueur qui a la main (`--turn-color` sur `.seti-root-inner`), le plateau joueur à celle du joueur affiché (`--board-color`). Pendant le tour d'un autre joueur, l'interface ne voile pas le plateau : le cadre du système solaire s'illumine (`.seti-waiting`), plateau consultable ; en local, `run` refuse une commande au nom d'un robot. `ui/components/Announcement` sert à la bande « Nouvelle espèce » et à l'annonce de début de tour.
+- **Fenêtres et infobulles** : toute fenêtre de choix utilise `ui/modals/ChoiceModal` (`ChoiceModal`, `ChoiceOption`, `ChoiceFooterButton`), qui inclut le bouton « Voir le plateau » ; les choix de cartes de la main passent par `PassModal` (une carte : réservation, fin de manche) ou `CardPickModal` (plusieurs : défausse de fin de manche, défausse pour signaux, échange de 2 cartes), qui dessinent les cartes comme sur le plateau joueur (`ChoiceCardTile`, `CardContent`) avec l'attribut utile en surbrillance ; une option indisponible explique pourquoi dans son infobulle. Pas d'attribut HTML `title` : utiliser `setActiveTooltip` ou `components/HoverTooltip` pour garder l'aspect des infobulles du jeu (classe `.seti-tooltip`).
+- **Outils de débogage** : le `DebugPanel` n'est affiché que si la case « Outils de débogage » du menu Paramètres est cochée (`useDebugSetting`, `localStorage['seti_show_debug']`) ; la case et le panneau n'existent qu'en développement (`DEBUG_AVAILABLE`, `__DEBUG_TOOLS__` injecté par Vite), jamais dans la version publiée.
+- **Persistance locale** : `useAutosave` (`localStorage['seti_autosave']`, écriture différée de 500 ms, immédiate si la page est quittée) + export/import JSON dans `SettingsModal` (format : `.claude/rules/engine.md`, Persistance).
+- **Jeu en ligne dans `BoardUI`** : `run(command)` est **asynchrone** (en ligne, il se termine à l'accusé de réception ; une suite qui relit `gameRef` après une commande doit l'attendre avec `await`) ; `game` est la partie d'affichage, où les autres joueurs humains apparaissent comme robots (les composants désactivent alors les actions), `realGame` garde les vrais types (historique, écran de fin) ; une interaction d'un autre joueur n'est pas affichée (« En attente de … ») ; pas de robots locaux, de sauvegarde automatique ni d'outils de débogage en ligne ; l'annulation passe par le serveur (`online.state.undo`). Détail du client : `.claude/rules/online.md`.
+- **Mise en place** : le nom du joueur (`ui/playerName.ts`, `localStorage['seti_player_name']`) est partagé par Nouvelle partie et Partie en ligne ; les deux fenêtres partagent leurs éléments (`ui/modals/SetupFields.tsx` : nom, liste des places `SeatList` avec niveaux et pastilles de couleur `PLAYER_COLORS`) et gardent le fond de l'accueil pendant une partie (`SpaceBackdrop overGame`). Au démarrage d'une partie (phase de mise en place, aucune carte réservée), `ui/components/FirstPlayerDraw` annonce le premier joueur déjà tiré par le moteur (radar), une fois par partie (clé : première entrée d'historique) ; les robots locaux attendent la fin.
+- **Comparer l'affichage** avant/après une modification : `tools/bench/midGameSave.ts` (sauvegarde de milieu de partie à graine fixe). Captures des fenêtres de choix de la documentation : `SETI_DOC_SCREENSHOTS=1 npx playwright test docMenus` (`public/docs/images/menus/`).

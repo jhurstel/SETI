@@ -37,3 +37,7 @@ tools/spsa/out/
 tools/bench/build/
 server/build/
 server/data/
+
+# Claude Code : réglages personnels et worktrees (le reste de .claude/ est partagé)
+.claude/settings.local.json
+.claude/worktrees/
