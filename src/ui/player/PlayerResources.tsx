@@ -48,18 +48,18 @@ export const PlayerResources: React.FC<{
     const have = spend === 'credit' ? currentPlayer.credits : currentPlayer.energy;
     return {
       key: `${spend}-${gain}`, title: 'Échanger', spend, spendAmount: 2, gain, gainAmount: 1, available: isCurrentTurn && !isInteractiveMode && have >= 2,
-      lacking: `Vous avez ${have} ${spend === 'credit' ? 'crédit(s)' : 'énergie(s)'}`, onClick: () => onDirectTradeAction && onDirectTradeAction(spend, gain),
+      lacking: `Nécessite 2 ${spend === 'credit' ? 'crédits' : 'énergies'}`, onClick: () => onDirectTradeAction && onDirectTradeAction(spend, gain),
     };
   };
   const cardTrade = (gain: 'credit' | 'energy'): FreeAction => ({
     key: `card-${gain}`, title: 'Échanger des cartes', spend: 'card', spendAmount: 2, gain, gainAmount: 1,
     available: isCurrentTurn && !isInteractiveMode && handCount >= 2,
-    lacking: `Vous avez ${handCount} carte(s) en main`, onClick: () => onTradeCardAction && onTradeCardAction(gain),
+    lacking: 'Nécessite 2 cartes en main', onClick: () => onTradeCardAction && onTradeCardAction(gain),
   });
   const buyCard: FreeAction = {
     key: 'buy-card', title: 'Acheter une carte', spend: 'media', spendAmount: 3, gain: 'card', gainAmount: 1, note: 'rangée ou pioche',
     available: isCurrentTurn && !isInteractiveMode && currentPlayer.mediaCoverage >= 3,
-    lacking: `Vous avez ${currentPlayer.mediaCoverage} média(s)`, onClick: () => onBuyCardAction && onBuyCardAction(),
+    lacking: 'Nécessite 3 médias', onClick: () => onBuyCardAction && onBuyCardAction(),
   };
   // Infobulle d'une ressource : seulement ses actions gratuites, boutons à icônes seules, chacun avec une infobulle
   // d'action (coût, bonus, clic ou raison) ; pas d'infobulle sans action (robot, score, données)

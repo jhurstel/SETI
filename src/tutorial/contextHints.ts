@@ -25,12 +25,12 @@ export const CONTEXT_HINTS: ContextHint[] = [
   {
     id: 'analyse-possible',
     applies: (game, humanId) => ComputerSystem.canAnalyzeData(game, humanId).canAnalyze && !requirePlayer(game, humanId).hasPerformedMainAction,
-    docLink: '2-3-ordinateur-de-donnees',
+    docLink: '2-4-ordinateur-et-analyse',
   },
   {
     id: 'donnees-pleines',
     applies: (game, humanId) => requirePlayer(game, humanId).data >= GAME_CONSTANTS.MAX_DATA,
-    docLink: '2-3-ordinateur-de-donnees',
+    docLink: '2-4-ordinateur-et-analyse',
   },
   {
     id: 'palier-proche',
@@ -38,17 +38,17 @@ export const CONTEXT_HINTS: ContextHint[] = [
       const player = requirePlayer(game, humanId);
       return GOLDEN_MILESTONES.some(m => !player.claimedGoldenMilestones.includes(m) && player.score < m && player.score >= m - MILESTONE_WARNING);
     },
-    docLink: '2-7-paliers-et-objectifs',
+    docLink: '2-9-paliers-et-fin-de-partie',
   },
   {
     id: 'espece-decouverte',
     applies: game => game.board.alienBoards.some(board => board.isDiscovered),
-    docLink: '3-1-decouverte',
+    docLink: '2-7-traces-de-vie-et-especes',
   },
   {
     id: 'derniere-manche',
     applies: game => game.currentRound === game.maxRounds,
-    docLink: '2-8-fin-de-partie',
+    docLink: '2-9-paliers-et-fin-de-partie',
   },
 ];
 

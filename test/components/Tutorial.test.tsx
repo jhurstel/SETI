@@ -4,7 +4,7 @@ import * as path from 'path';
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { DataLoader } from '../../src/core/DataLoader';
-import { ActionType, Game, GamePhase } from '../../src/core/types';
+import { ActionType, AlienBoardType, Game, GamePhase } from '../../src/core/types';
 import { GameFactory } from '../../src/engine/GameFactory';
 import { TUTORIAL_CHAPTERS } from '../../src/tutorial/chapters';
 import { tutorialBlockReason, TUTORIAL_BLOCK_REASON } from '../../src/tutorial/guidance';
@@ -15,7 +15,7 @@ import { DocumentationModal } from '../../src/ui/modals/DocumentationModal';
 import { setTutorialFocus, tutorialAllows, useTutorialFocus, useTutorialPanel } from '../../src/ui/tutorialFocus';
 import { SettingsModal } from '../../src/ui/modals/SettingsModal';
 import {
-  dismissTutorial, markChapterDone, markHintShown, readTutorialProgress, setContextHelp, shouldProposeTutorial, tutorialProgress, TUTORIAL_KEY,
+  dismissTutorial, markChapterDone, markHintShown, readTutorialProgress, setContextHelp, shouldProposeTutorial, tutorialProgress, TUTORIAL_KEY, unlockSpecies,
 } from '../../src/ui/tutorialProgress';
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -47,7 +47,7 @@ describe('cibles du tutoriel', () => {
 describe('progression du tutoriel (stockage du navigateur)', () => {
   test('rien d\'enregistré : progression vide, tutoriel proposé sans sauvegarde seulement', () => {
     expect(readTutorialProgress()).toBeNull();
-    expect(tutorialProgress()).toEqual({ done: [], dismissed: false, hintsShown: [], contextHelp: false });
+    expect(tutorialProgress()).toEqual({ done: [], dismissed: false, hintsShown: [], contextHelp: false, species: [] });
     expect(shouldProposeTutorial(false)).toBe(true);
     expect(shouldProposeTutorial(true)).toBe(false);
   });
@@ -58,8 +58,17 @@ describe('progression du tutoriel (stockage du navigateur)', () => {
     markHintShown('analyse');
     setContextHelp(true);
     dismissTutorial();
-    expect(readTutorialProgress()).toEqual({ done: ['ecran'], dismissed: true, hintsShown: ['analyse'], contextHelp: true });
+    expect(readTutorialProgress()).toEqual({ done: ['ecran'], dismissed: true, hintsShown: ['analyse'], contextHelp: true, species: [] });
     expect(shouldProposeTutorial(false)).toBe(false);
+  });
+
+  test('espèces débloquées : seules les nouvelles sont renvoyées ; progression ancienne sans espèces', () => {
+    localStorage.setItem(TUTORIAL_KEY, JSON.stringify({ done: ['ecran'], dismissed: true, hintsShown: [], contextHelp: false }));
+    expect(tutorialProgress().species).toEqual([]);
+    expect(unlockSpecies(['Mascamites', 'Anomalies', 'Mascamites'])).toEqual(['Mascamites', 'Anomalies']);
+    expect(unlockSpecies(['Anomalies', 'Exertiens'])).toEqual(['Exertiens']);
+    expect(unlockSpecies(['Exertiens'])).toEqual([]);
+    expect(tutorialProgress()).toMatchObject({ done: ['ecran'], species: ['Mascamites', 'Anomalies', 'Exertiens'] });
   });
 
   test('stockage indisponible ou abîmé : aucune erreur, rien de retenu', () => {
@@ -154,16 +163,48 @@ describe('menu des chapitres', () => {
     fireEvent.click(screen.getByRole('button', { name: 'L\'écran' }));
     expect(onStart).toHaveBeenCalledWith('ecran');
   });
+
+  test("chapitre d'espèce : verrouillé et anonyme tant que l'espèce n'est pas débloquée", () => {
+    const onStart = jest.fn();
+    const chapters = [{ id: 'mascamites', seed: 1, species: AlienBoardType.MASCAMITES, prepare: [], steps: [], solution: [] }];
+    const text = { mascamites: { title: 'Mascamites', summary: 'Spécimens et capsules', steps: {} } };
+    const { unmount } = render(<TutorialMenu chapters={chapters} done={[]} onStart={onStart} onClose={() => {}} text={text} />);
+    const locked = screen.getByRole('button', { name: 'Espèce inconnue (chapitre verrouillé)' });
+    expect(screen.queryByText(/Mascamites|Spécimens/)).toBeNull();
+    fireEvent.click(locked);
+    expect(onStart).not.toHaveBeenCalled();
+    unmount();
+
+    render(<TutorialMenu chapters={chapters} done={[]} unlockedSpecies={[AlienBoardType.MASCAMITES]} onStart={onStart} onClose={() => {}} text={text} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mascamites' }));
+    expect(onStart).toHaveBeenCalledWith('mascamites');
+  });
 });
 
 describe('documentation ouverte sur une section', () => {
   test('« En savoir plus » : la section demandée est affichée', async () => {
     const scrolled: string[] = [];
     Element.prototype.scrollIntoView = function (this: Element) { scrolled.push(this.id); };
-    const fetchMock = jest.fn(async () => ({ ok: true, text: async () => '# Titre\n\n## 2.2 Signaux et secteurs\n\nTexte.' }));
+    const fetchMock = jest.fn(async () => ({ ok: true, text: async () => '# Titre\n\n## 2.3 Scanner\n\nTexte.' }));
     (globalThis as { fetch: unknown }).fetch = fetchMock;
-    render(<DocumentationModal visible onClose={() => {}} section="2-2-signaux-et-secteurs" />);
-    await waitFor(() => expect(scrolled).toContain('2-2-signaux-et-secteurs'));
+    render(<DocumentationModal visible onClose={() => {}} section="2-3-scanner" />);
+    await waitFor(() => expect(scrolled).toContain('2-3-scanner'));
+  });
+
+  test("espèce pas encore rencontrée : sa section est masquée, un lien vers elle ouvre l'encart", async () => {
+    const scrolled: string[] = [];
+    Element.prototype.scrollIntoView = function (this: Element) { scrolled.push(this.id); };
+    const source = [
+      '# Doc', '', '## 3. Les espèces Alien', '',
+      '<!-- espece:Mascamites -->', '### 3.2 Mascamites', '', 'Spécimens.', '',
+      '<!-- espece:Anomalies -->', '### 3.3 Anomalies', '', 'Jetons.',
+    ].join('\n');
+    (globalThis as { fetch: unknown }).fetch = jest.fn(async () => ({ ok: true, text: async () => source }));
+    unlockSpecies(['Anomalies']);
+    render(<DocumentationModal visible onClose={() => {}} section="3-2-mascamites" />);
+    await waitFor(() => expect(scrolled).toContain('especes-encore-inconnues'));
+    expect(screen.queryByText(/Mascamites|Spécimens/)).toBeNull();
+    expect(screen.getAllByText('Jetons.')).toHaveLength(1);
   });
 });
 

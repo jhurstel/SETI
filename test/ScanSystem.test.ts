@@ -38,11 +38,11 @@ describe('ScanSystem', () => {
 
     test('refusé sans crédit ou sans énergie suffisante', () => {
       getPlayer(game, P1).credits = 0;
-      expect(ScanSystem.canScanSector(game, P1)).toMatchObject({ canScan: false, reason: expect.stringContaining('Crédits') });
+      expect(ScanSystem.canScanSector(game, P1)).toMatchObject({ canScan: false, reason: expect.stringContaining('Nécessite 1 crédit') });
 
       getPlayer(game, P1).credits = 5;
       getPlayer(game, P1).energy = 1;
-      expect(ScanSystem.canScanSector(game, P1)).toMatchObject({ canScan: false, reason: expect.stringContaining('Énergie') });
+      expect(ScanSystem.canScanSector(game, P1)).toMatchObject({ canScan: false, reason: expect.stringContaining('Nécessite 2 énergies') });
     });
 
     test('le coût peut être ignoré (scan bonus)', () => {
@@ -81,7 +81,7 @@ describe('ScanSystem', () => {
 
     test('lève une erreur si le joueur ne peut pas payer', () => {
       getPlayer(game, P1).credits = 0;
-      expect(() => ScanSystem.scanSector(game, P1, sector.id)).toThrow('Crédits insuffisants');
+      expect(() => ScanSystem.scanSector(game, P1, sector.id)).toThrow('Nécessite 1 crédit');
     });
 
     test('ne modifie pas la partie d\'origine', () => {

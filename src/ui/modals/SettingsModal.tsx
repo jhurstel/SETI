@@ -60,7 +60,7 @@ function autosaveSummary(json: string | null): React.ReactNode {
     const save = JSON.parse(json) as { maxRounds?: number; players?: { id: string; name: string; color: string }[]; gameLog?: HistoryEntry[] };
     const rounds = historyTimeline(save.gameLog ?? []);
     if (rounds.length === 0) return null;
-    return <HistoryProgressBar rounds={rounds} maxRounds={save.maxRounds ?? 5} players={save.players ?? []} compact />;
+    return <HistoryProgressBar rounds={rounds} maxRounds={save.maxRounds ?? 5} players={save.players ?? []} compact tooltips={false} />;
   } catch {
     return null;
   }
@@ -285,11 +285,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             )}
             <div className="seti-home-actions">
-              {hasAutosave && card('continue', 'play', 'Continuer la partie', savedSummary || 'Reprendre la partie sauvegardée', handleContinue, true)}
-              {card('new', 'rocket', 'Nouvelle partie', 'Jouer en solo contre des bots', handleNewGameRequest, !hasAutosave)}
-              {onTutorial && card('tutorial', 'book', 'Tutoriel', 'Apprendre à jouer, chapitre par chapitre', () => { setVisible(false); onTutorial(); })}
+              {hasAutosave && card('continue', 'play', 'Continuer', savedSummary || 'Reprendre la partie sauvegardée', handleContinue, true)}
+              {onTutorial && card('tutorial', 'book', 'Tutoriel', 'Apprendre à jouer', () => { setVisible(false); onTutorial(); })}
+              {card('new', 'rocket', 'Nouvelle partie', 'Jouer en solo', handleNewGameRequest, !hasAutosave)}
               {onResumeOnline && card('resume-online', 'resume', 'Reprendre en ligne', 'Retrouver votre place dans la salle', () => { setVisible(false); onResumeOnline(); })}
-              {onOnline && card('online', 'online', 'Partie en ligne', 'Créer une salle et jouer avec des amis', () => { setVisible(false); onOnline(); })}
+              {onOnline && card('online', 'online', 'Partie en ligne', 'Jouer avec des amis', () => { setVisible(false); onOnline(); })}
               {onLeaveOnline && card('leave-online', 'leave', 'Quitter la partie en ligne', 'Votre place reste reprenable', onLeaveOnline)}
             </div>
 
@@ -297,8 +297,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button className="seti-home-link" onClick={handleLoadGame}>Restaurer une sauvegarde</button>
               {game && !isTutorial && <button className="seti-home-link" onClick={handleSaveGame}>Sauvegarder la partie</button>}
               {onDocumentation && <button className="seti-home-link" onClick={onDocumentation}>Documentation</button>}
-              <a className="seti-home-link" href="docs/seti-rules-fr.pdf" target="_blank" rel="noopener noreferrer">Règles (PDF)</a>
-              <a className="seti-home-link" href="docs/SETI-FAQ-FR.pdf" target="_blank" rel="noopener noreferrer">FAQ (PDF)</a>
               {onContextHelpChange && (
                 <label className="seti-home-option">
                   <input type="checkbox" checked={!!contextHelp} onChange={e => onContextHelpChange(e.target.checked)} />

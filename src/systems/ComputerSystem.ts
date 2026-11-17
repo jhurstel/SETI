@@ -31,7 +31,7 @@ export class ComputerSystem {
     if (player.energy < GAME_CONSTANTS.ANALYZE_COST_ENERGY) {
       return {
         canAnalyze: false,
-        reason: `Énergie insuffisante (nécessite ${GAME_CONSTANTS.ANALYZE_COST_ENERGY})`
+        reason: `Nécessite ${GAME_CONSTANTS.ANALYZE_COST_ENERGY} énergie${GAME_CONSTANTS.ANALYZE_COST_ENERGY > 1 ? 's' : ''}`
       };
     }
 

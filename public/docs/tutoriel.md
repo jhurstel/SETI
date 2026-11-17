@@ -5,7 +5,7 @@ puis une section par étape « ## Titre {#identifiant} » : mêmes identifiants 
 -->
 
 # L'écran et le tour {#ecran}
-Découvrez les zones de l'écran, puis jouez votre premier tour.
+Les zones de l'écran et votre premier tour.
 
 ## Bienvenue {#bienvenue}
 Bienvenue dans **SETI** ! Votre équipe cherche des signes de vie extraterrestre : explorer le système solaire, scanner le ciel, analyser des données et découvrir des espèces Alien. Le joueur qui a le plus de points de victoire (PV) après **5 manches** gagne.
@@ -59,13 +59,18 @@ Votre action principale est faite : cliquez sur **Fin du tour**. Avant de finir,
 Vous connaissez l'écran et le déroulement d'un tour. Le chapitre suivant vous emmène sur Mars.
 
 # Sondes {#sondes}
-Lancez une sonde, déplacez-la jusqu'à Mars et mettez-la en orbite.
+Lancez une sonde et mettez-la en orbite.
 
 ## Les sondes {#intro}
 Les sondes explorent le système solaire. Arrivées sur une planète, elles peuvent s'y mettre en **orbite** ou s'y **poser** : chacune de ces actions rapporte des gains.
 
 ## Lancez une sonde {#lancer}
 Cliquez sur l'hexagone **Lancer une sonde**, ou sur la **Terre** dans le système solaire : la sonde part de la Terre. Vous ne pouvez avoir qu'une sonde à la fois dans le système solaire (deux avec la technologie Exploration I).
+
+## Annulez vos déplacements {#annuler}
+Votre sonde est trop loin : votre énergie ne suffit plus pour rejoindre **Mars** puis payer la mise en orbite (1 énergie). Pas de panique, un déplacement s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action. Recommencez jusqu'à ce que la sonde puisse de nouveau atteindre Mars : l'énergie dépensée vous est rendue.
 
 ## Déplacez-la jusqu'à Mars {#deplacer}
 Déplacer une sonde est une **action gratuite** : 1 énergie par case. Cliquez sur votre sonde, puis sur une case voisine en direction de **Mars**. Mars est à deux cases de la Terre.
@@ -82,7 +87,7 @@ Votre sonde devient un orbiteur et vous recevez les gains de la case. À Mars, l
 Le **panneau des planètes** montre vos orbiteurs et atterrisseurs. Un orbiteur rend aussi l'atterrissage moins cher : c'est le sujet du chapitre suivant.
 
 # Atterrir et médias {#atterrir}
-Posez une sonde sur Mars, puis achetez une carte avec vos médias.
+Atterrissez sur Mars, achetez une carte.
 
 ## Sur Mars {#intro}
 Vous avez déjà un orbiteur sur Mars, et une deuxième sonde vient d'y arriver. Le panneau des planètes montre les cases d'orbite et d'atterrissage de chaque planète.
@@ -105,10 +110,10 @@ Ouvrez l'infobulle de vos **médias** et achetez une carte (3 médias) : prenez-
 Orbiter, atterrir, gagner des médias et des cartes : vous maîtrisez l'exploration. Place à l'observation du ciel.
 
 # Scanner {#scanner}
-Scannez le ciel, posez vos premiers signaux et gagnez des données.
+Posez des signaux, gagnez des données.
 
 ## Les secteurs {#intro}
-Le système solaire est découpé en 8 **secteurs** de couleur, chacun avec ses cases de signal. Quand toutes les cases d'un secteur sont remplies, le joueur majoritaire en reçoit la récompense (souvent une trace de vie). Ici, vos signaux remplissent déjà presque tout le secteur de la Terre.
+Le système solaire est découpé en 8 **secteurs** de couleur, chacun avec ses cases de signal. Quand toutes les cases d'un secteur sont remplies, le joueur majoritaire en reçoit la récompense (souvent une trace de vie). Ici, le secteur de la Terre est presque plein : vos signaux, et un signal de votre adversaire sur la première case.
 
 ## Scannez {#scanner}
 Cliquez sur **Scanner** (1 crédit et 2 énergies) : un signal se pose dans le secteur de la Terre, puis vous choisissez une carte de la rangée pour un second signal dans un secteur de sa couleur. La carte est défaussée.
@@ -117,6 +122,11 @@ Cliquez sur **Scanner** (1 crédit et 2 énergies) : un signal se pose dans le s
 Votre signal a rempli le **secteur de la Terre** : vous y étiez majoritaire, vous en recevez la récompense, une **trace de vie rouge** (le secteur est ensuite vidé pour être de nouveau rempli). Posez-la : cliquez sur l'emplacement **rouge** d'une espèce Alien (les plateaux en bas de l'écran).
 
 La **première** trace d'une couleur posée sur une espèce rapporte son **bonus de découverte** (affiché sur l'emplacement, survolez-le) ; les suivantes, un bonus plus petit. Quand les trois emplacements de l'espèce sont occupés, elle est **découverte** : le joueur qui a posé la première trace d'une couleur reçoit en plus une **carte de cette espèce**.
+
+## Secteur couvert {#couverture}
+Quand un secteur est couvert, **chaque joueur présent** gagne **1 média**, majoritaire ou non : votre adversaire en a profité aussi.
+
+Le secteur est ensuite vidé, sauf pour le **second** : votre adversaire garde un marqueur sur la **première case**. Il part avec une longueur d'avance pour la prochaine couverture de ce secteur.
 
 ## Vos signaux {#signaux}
 Vos marqueurs sont maintenant sur le système solaire. Survolez un secteur pour voir ses cases, sa récompense et qui y est majoritaire.
@@ -128,7 +138,7 @@ Certaines cases de signal rapportent une **donnée** : elle s'ajoute à votre r�
 Scanner régulièrement vous rapproche des majorités dans les secteurs. Les technologies Observation ajoutent des signaux à chaque scan.
 
 # Ordinateur et analyse {#ordinateur}
-Remplissez l'ordinateur, puis analysez vos données.
+Remplissez l'ordinateur, puis analysez.
 
 ## L'ordinateur {#intro}
 Votre **ordinateur de données** a une ligne du haut à remplir de gauche à droite. Certaines cases rapportent un bonus (média, réservation d'une carte…). Ici, les quatre premières cases sont déjà remplies pour vous : il reste les deux dernières.
@@ -150,7 +160,7 @@ La **première** trace d'une couleur posée sur une espèce rapporte son **bonus
 Le chapitre « Traces de vie et espèces » va jusqu'à la découverte.
 
 # Cartes et missions {#cartes}
-Jouez trois sortes de missions et défaussez une carte.
+Trois sortes de missions, une défausse.
 
 ## Votre main {#intro}
 Vos **cartes en main** s'affichent sur votre plateau. Une carte se joue en payant son coût (en haut à gauche) ; son coin indique son action gratuite et sa couleur de scan. Cliquez sur une carte pour faire apparaître ses deux boutons : **jouer** (bleu) et **défausser** (rouge). Nous vous avons donné trois cartes : **ISS**, **Télescope Lovell** et **Mars Science Laboratory**.
@@ -177,13 +187,13 @@ Les cercles réalisables de la carte ISS s'allument : cliquez sur celui que vous
 Cliquez sur **Fin du tour** pour passer à la mission suivante.
 
 ## Les missions conditionnelles {#conditionnelle}
-Une **mission conditionnelle** a un **carré** : sa récompense est gagnée dès que sa condition est remplie. Le Télescope Lovell demande d'avoir au moins 8 médias : avec le média gagné par ISS, c'est votre cas.
+Une **mission conditionnelle** a un **carré** : quand sa condition est remplie, vous la réclamez au moment de votre choix (action gratuite). Le Télescope Lovell demande d'avoir au moins 8 médias : avec le média gagné par ISS, c'est votre cas.
 
 ## Jouez le Télescope Lovell {#jouer-conditionnelle}
-Jouez le **Télescope Lovell** (3 crédits). Il rapporte 1 donnée et un scan ; comme sa condition est remplie, sa mission est accomplie aussitôt : 3 PV et une carte au choix. Le jeu vous demande dans quel ordre résoudre ces gains (signal du scan, carte), puis le choix de chacun.
+Jouez le **Télescope Lovell** (3 crédits). Il rapporte 1 donnée et un scan : faites le scan (signal, carte de la rangée). Sa condition est déjà remplie : l'historique indique une mission à recouvrir.
 
-## Le carré recouvert {#carre}
-Le carré de la mission est recouvert. Si la condition n'avait pas été remplie, la carte serait restée devant vous : dès que la condition est remplie, cliquez sur son carré pour gagner la récompense (action gratuite). Terminez ensuite votre tour.
+## Recouvrez le carré {#carre}
+Cliquez sur le **carré** surligné du Télescope Lovell, dans vos missions : vous gagnez sa récompense (3 PV et une carte au choix). C'est vous qui décidez du moment, tant que la condition reste remplie : ici, gardez au moins 8 médias.
 
 ## Terminez votre tour {#fin-du-tour-3}
 Cliquez sur **Fin du tour** pour jouer la carte Fin de jeu.
@@ -195,7 +205,7 @@ Jouez **Mars Science Laboratory** (2 crédits) : vous gagnez tout de suite 1 mé
 Une carte **Fin de jeu** rapporte ses points au décompte final, d'après l'état du plateau à ce moment : ici, 4 PV pour chacun de vos orbiteurs et atterrisseurs sur Mars. Pensez-y dans vos prochaines actions.
 
 # Technologies {#technologies}
-Recherchez une technologie avec vos médias.
+Recherchez une technologie.
 
 ## Le plateau des technologies {#intro}
 Trois familles : **Exploration** (sondes), **Observation** (scan) et **Informatique** (ordinateur). Chaque pile compte 4 tuiles et un joueur n'y prend qu'une technologie.
@@ -222,7 +232,7 @@ Cliquez sur une tuile du plateau des technologies. Selon son gain, le jeu vous d
 Votre technologie apparaît sur votre plateau. Son infobulle rappelle son effet, actif pour le reste de la partie.
 
 # Traces de vie et espèces {#especes}
-Posez la troisième trace de vie d'une espèce et découvrez-la.
+Découvrez une espèce Alien.
 
 ## La découverte {#intro}
 Chaque espèce Alien a un triangle de découverte : un emplacement **rouge**, un **jaune** et un **bleu**. Vos traces rouge et jaune sont déjà posées sur la première espèce : il ne manque que la bleue.
@@ -233,17 +243,24 @@ Placez vos deux données dans l'ordinateur pour en remplir la ligne du haut.
 ## Analysez {#analyser}
 Cliquez sur **Analyser les données** (1 énergie) : l'ordinateur se vide et vous gagnez une **trace de vie bleue**.
 
+## Annulez la trace {#annuler}
+Votre trace bleue est sur la **mauvaise espèce** : la première ne sera pas découverte. Un placement s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler la pose (relancez l'analyse si elle est annulée avec). Posez ensuite la trace sur l'emplacement **bleu** de la première espèce.
+
 ## Posez la trace bleue {#poser}
 Cliquez sur l'emplacement **bleu** de la première espèce, celle où vos traces rouge et jaune sont déjà posées : ses trois emplacements seront alors occupés.
 
 ## Espèce découverte ! {#decouverte}
-L'espèce est révélée et ses règles s'appliquent. Les joueurs qui ont posé une première trace d'une couleur reçoivent une **carte Alien** de l'espèce. Les traces suivantes iront sur la piste de l'espèce.
+L'espèce est découverte : ses règles s'appliquent désormais. Les joueurs qui ont posé une première trace d'une couleur reçoivent une **carte Alien** de l'espèce, et les traces suivantes iront sur sa **piste**.
+
+Si vous n'avez encore jamais rencontré cette espèce en partie, elle reste ici anonyme : ses pistes et ses cartes sont cachées.
 
 ## À vous de chercher {#conclusion}
-Chaque espèce a ses propres règles : la documentation les présente toutes.
+Chaque espèce a ses propres règles. Découvrez-les en partie : chaque espèce rencontrée débloque son chapitre du tutoriel et ses règles dans la documentation.
 
 # Passer et fin de manche {#manche}
-Passez, prenez une carte de fin de manche et recevez vos revenus.
+Passez et recevez vos revenus.
 
 ## Passer {#intro}
 Quand vous ne voulez plus agir de la manche, vous **passez** : vous ne jouez plus jusqu'à la manche suivante. Vous ne gardez que 4 cartes en main.
@@ -261,7 +278,7 @@ Le premier joueur à passer fait **tourner** le système solaire. Regardez où s
 La partie compte 5 manches. Passer tôt fait tourner le système à votre avantage, mais vous laisse moins d'actions.
 
 # Paliers et fin de partie {#fin-de-partie}
-Franchissez un palier de score, puis terminez la dernière manche.
+Un palier de score, puis la dernière manche.
 
 ## Les paliers {#intro}
 Nous sommes à la **5ᵉ et dernière manche**, et vous avez 26 PV. Les **paliers dorés** (25, 50 et 70 PV) sont vérifiés à la fin du tour : celui qui les franchit pose un marqueur sur une tuile objectif.
@@ -278,8 +295,173 @@ Cliquez sur **Passer** : c'est la fin de la dernière manche, le décompte final
 ## Le décompte final {#conclusion}
 L'écran de fin détaille les points de chacun : tuiles objectif, cartes Fin de partie, espèces. Vous êtes prêt pour une vraie partie !
 
+# Mascamites {#mascamites}
+Ramenez un spécimen sur Terre.
+
+## Une espèce à découvrir {#intro}
+Vos traces rouge et jaune sont déjà posées sur le triangle de découverte de la première espèce : il ne manque que la bleue. Vous découvrirez ici les **Mascamites**.
+
+## Analysez {#analyser}
+La ligne du haut de votre ordinateur est pleine : cliquez sur **Analyser les données** (1 énergie) pour gagner une **trace de vie bleue**.
+
+## Posez la trace bleue {#poser}
+Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte**.
+
+## Les Mascamites {#decouverte}
+L'espèce est révélée : ses **pistes** remplacent le triangle et ses règles s'appliquent. Comme vous avez posé les trois premières traces, vous recevez trois **cartes Alien** de l'espèce.
+
+## Les spécimens {#specimens}
+À la découverte, 7 **spécimens** sont mélangés : 3 face cachée sur **Jupiter**, 3 sur **Saturne**, et le 7e face visible sur la piste bleue. Survolez Jupiter : vous voyez des « ? », car vous ne savez pas encore ce qu'ils rapportent.
+
+## Terminez votre tour {#fin-du-tour}
+L'analyse était votre action principale. Cliquez sur **Fin du tour** : vous rejouez aussitôt.
+
+## Prélevez un spécimen {#prelever}
+Votre sonde est sur Jupiter. Jouez la carte **Premier Contact** : elle fait atterrir votre sonde (sur Jupiter, sans la déplacer), puis vous laisse **prélever un spécimen** : une fenêtre montre les spécimens de Jupiter et leur récompense. Choisissez-en un.
+
+## La capsule {#capsule}
+Le spécimen part dans une **capsule**, posée sur Jupiter. Elle se déplace comme une sonde (énergie ou déplacements gratuits), mais ne compte pas dans votre limite de sondes et ne peut ni se mettre en orbite ni atterrir. Vous seul voyez le spécimen qu'elle transporte.
+
+## Annulez vos déplacements {#annuler}
+Votre capsule est trop loin : votre énergie ne suffit plus pour la ramener sur la **Terre**. Un déplacement s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernier déplacement. Recommencez jusqu'à ce que la capsule puisse de nouveau atteindre la Terre : l'énergie dépensée vous est rendue.
+
+## Ramenez-la sur Terre {#ramener}
+Déplacez la capsule jusqu'à la **Terre** : cliquez dessus, puis sur une case voisine, comme pour une sonde.
+
+## Recouvrez la mission {#mission}
+La capsule est arrivée : la mission de **Premier Contact** est réalisable. Cliquez sur son cercle surligné : vous gagnez la récompense de la carte **et** celle du spécimen. Le jeton du spécimen rejoint la piste bleue des Mascamites, où il devient le gain de sa case.
+
+## Bien rapporté ! {#conclusion}
+D'autres cartes Mascamites permettent d'**étudier** un spécimen (gagner sa récompense sans le prélever) ou de le ramener sur Mars. La documentation détaille toutes les règles de l'espèce.
+
+# Anomalies {#anomalies}
+La Terre rencontre une anomalie.
+
+## Une espèce à découvrir {#intro}
+Vos traces rouge et jaune sont déjà posées sur le triangle de découverte de la première espèce : il ne manque que la bleue. Vous découvrirez ici les **Anomalies**.
+
+## Analysez {#analyser}
+La ligne du haut de votre ordinateur est pleine : cliquez sur **Analyser les données** (1 énergie) pour gagner une **trace de vie bleue**.
+
+## Posez la trace bleue {#poser}
+Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte**.
+
+## Les Anomalies {#decouverte}
+L'espèce est révélée : ses **pistes** remplacent le triangle et ses règles s'appliquent. Comme vous avez posé les trois premières traces, vous recevez trois **cartes Alien** de l'espèce.
+
+## Les jetons d'anomalie {#jetons}
+Trois **anomalies** sont apparues en bordure du système solaire : une dans le secteur de la Terre, les deux autres à trois secteurs de part et d'autre. Chacune a une couleur et une récompense (survolez-les).
+
+Quand une **rotation** amène la Terre dans le secteur d'une anomalie, le joueur le plus haut sur la piste de cette couleur gagne sa récompense.
+
+## Deux tours plus tard… {#ellipse}
+Chaque rotation n'avance la Terre que d'un secteur. Avancez de deux tours : le système solaire a tourné deux fois, la Terre n'est plus qu'à un secteur d'une anomalie, et vous avez posé une trace sur la piste de sa couleur. Cliquez sur **Suivant** pour faire ce saut dans le temps.
+
+## Faites tourner le système solaire {#rechercher}
+Rechercher une technologie fait d'abord tourner le système solaire. Cliquez sur **Rechercher une technologie** (6 médias) : la Terre arrive sur l'anomalie. Si sa récompense demande un choix, le jeu vous laisse choisir l'ordre : la récompense, puis votre technologie.
+
+## La récompense {#recompense}
+L'anomalie a été activée : vous étiez le plus haut sur la piste de sa couleur, vous avez gagné sa récompense. L'historique le raconte.
+
+## Bien vu ! {#conclusion}
+Surveillez la position de la Terre et des anomalies : monter sur une piste avant la bonne rotation rapporte. La documentation détaille toutes les règles de l'espèce.
+
+# Oumuamua {#oumuamua}
+Couvrez son secteur, gagnez ses jetons.
+
+## Une espèce à découvrir {#intro}
+Vos traces rouge et jaune sont déjà posées sur le triangle de découverte de la première espèce : il ne manque que la bleue. Vous découvrirez ici **Oumuamua**.
+
+## Analysez {#analyser}
+La ligne du haut de votre ordinateur est pleine : cliquez sur **Analyser les données** (1 énergie) pour gagner une **trace de vie bleue**.
+
+## Posez la trace bleue {#poser}
+Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte**.
+
+## Oumuamua {#decouverte}
+L'espèce est révélée : ses **pistes** remplacent le triangle et ses règles s'appliquent. Comme vous avez posé les trois premières traces, vous recevez trois **cartes Alien** de l'espèce.
+
+## Une nouvelle planète {#planete}
+L'astéroïde **Oumuamua** est entré dans le système solaire : c'est une planète (orbite et atterrissage possibles). Il a son propre **secteur de 3 signaux**, où vous avez déjà deux signaux.
+
+## Terminez votre tour {#fin-du-tour}
+L'analyse était votre action principale. Cliquez sur **Fin du tour** : vous rejouez aussitôt.
+
+## Scannez Oumuamua {#scanner}
+Cliquez sur **Scanner** : après le signal du secteur de la Terre, choisissez la première carte de la rangée : sa couleur est celle du secteur où se trouve Oumuamua. Cliquez alors sur le **secteur d'Oumuamua** pour y poser le dernier signal : le secteur est couvert.
+
+## Les jetons {#jetons}
+Couvrir le secteur d'Oumuamua rapporte des **jetons**, au lieu de médias. Ils paient les cases de sa piste (25 PV pour 4 jetons sur la première case) et certaines cartes Oumuamua en défaussent pour un gain.
+
+## Bien couvert ! {#conclusion}
+Oumuamua tourne avec son anneau : surveillez la couleur de son secteur pour vos scans. La documentation détaille toutes les règles de l'espèce.
+
+# Centauriens {#centauriens}
+Atteignez votre palier de message.
+
+## Une espèce à découvrir {#intro}
+Vos traces rouge et jaune sont déjà posées sur le triangle de découverte de la première espèce : il ne manque que la bleue. Vous découvrirez ici les **Centauriens**.
+
+## Analysez {#analyser}
+La ligne du haut de votre ordinateur est pleine : cliquez sur **Analyser les données** (1 énergie) pour gagner une **trace de vie bleue**.
+
+## Posez la trace bleue {#poser}
+Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte**.
+
+## Les Centauriens {#decouverte}
+L'espèce est révélée : ses **pistes** remplacent le triangle et ses règles s'appliquent. Comme vous avez posé les trois premières traces, vous recevez trois **cartes Alien** de l'espèce.
+
+## Le palier de message {#palier}
+À la découverte, chaque joueur pose un **palier** à son score + 15 PV (sur la piste de score). En l'atteignant, il choisira une **tuile Message** parmi celles qui restent.
+
+## Terminez votre tour {#fin-du-tour}
+L'analyse était votre action principale. Cliquez sur **Fin du tour** : vous rejouez aussitôt.
+
+## Scannez {#scanner}
+Vos signaux remplissent presque le secteur de la Terre. Cliquez sur **Scanner** : votre signal le couvre et vous rapporte une **trace de vie rouge**.
+
+## Montez sur la piste {#piste}
+Posez la trace rouge sur la case à **15 PV** de la piste rouge des Centauriens : elle coûte 3 données (vous les avez), et ces 15 PV vous amènent à votre palier.
+
+## Terminez votre tour {#fin-du-tour-2}
+Les paliers se vérifient en fin de tour. Cliquez sur **Fin du tour** : vous atteignez votre palier de message.
+
+## Choisissez une tuile Message {#message}
+Choisissez une **tuile Message** : chacune ne se prend qu'une fois. Survolez-les pour voir leur récompense.
+
+## Message reçu ! {#conclusion}
+Les cartes Centauriens posent aussi un palier : en l'atteignant, leur effet **Réception** s'applique. La documentation détaille toutes les règles de l'espèce.
+
+# Exertiens {#exertiens}
+Jouez une carte Exertien face cachée.
+
+## Une espèce à découvrir {#intro}
+Vos traces rouge et jaune sont déjà posées sur le triangle de découverte de la première espèce : il ne manque que la bleue. Vous découvrirez ici les **Exertiens**.
+
+## Analysez {#analyser}
+La ligne du haut de votre ordinateur est pleine : cliquez sur **Analyser les données** (1 énergie) pour gagner une **trace de vie bleue**.
+
+## Posez la trace bleue {#poser}
+Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte**.
+
+## Jouez une carte Exertien {#jouer}
+Les **Exertiens** sont découverts ! Chaque joueur reçoit 3 **cartes Exertiens**, en plus de vos cartes de découverte : elles ne sont pas dans votre main (on ne les défausse pas, on ne les réserve pas).
+
+Vous avez un marqueur sur chaque emplacement de découverte : vous pouvez jouer tout de suite une carte Exertien **face cachée** par marqueur. Choisissez-en au moins une : son **danger** s'ajoute au vôtre, et sa condition rapportera des PV en fin de partie si elle est remplie.
+
+## Le danger {#danger}
+Survolez le symbole ☣️ du plateau des Exertiens : il montre votre danger (cartes jouées et cases de la piste). Les cartes de vos adversaires restent cachées jusqu'au décompte final.
+
+## Les paliers Exertiens {#paliers}
+Deux **paliers** sont apparus sur la piste de score, au meilleur score + 20 et + 40. À chacun, chaque joueur peut jouer une carte Exertien ; au 2e, elle coûte 1 crédit.
+
+## Attention au danger ! {#conclusion}
+En fin de partie, le joueur le plus exposé (le plus de danger) perd 10 % de son total. La documentation détaille toutes les règles de l'espèce.
+
 # Première vraie partie {#premiere-partie}
-Une partie contre un robot Débutant, avec des conseils.
+Contre un robot Débutant, avec conseils.
 
 ## C'est parti {#bienvenue}
 Une vraie partie commence contre un robot **Débutant**. Le robot joue entre vos tours : son plateau et l'historique montrent ce qu'il fait.

@@ -39,7 +39,7 @@ describe('GameSession : refus des règles et suites des choix', () => {
       [{ type: 'LAUNCH_PROBE' }, /crédit/i],
       [{ type: 'SCAN' }, /crédit|énergie/i],
       [{ type: 'ANALYZE' }, /./],
-      [{ type: 'RESEARCH_TECH' }, /Couverture médiatique insuffisante/],
+      [{ type: 'RESEARCH_TECH' }, /Nécessite 6 médias/],
       [{ type: 'PLAY_CARD', cardId: 'absente' }, /Carte non trouvée/],
     ];
     for (const [command, reason] of refusals) {

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Card, Game, InteractionState, CostType, CardType, RevenueType } from '../../core/types';
+import { Bonus, Card, Game, InteractionState, CostType, CardType, RevenueType } from '../../core/types';
 import { CardSystem } from '../../systems/CardSystem';
 import { CardTooltip } from './CardTooltip';
+import { ActionTooltip, DiscardSymbol, ResourceSymbols } from './BoardTooltips';
 import { ResourceIcon, ActionHexIcon, DiscardCardIcon } from './GameIcons';
 import { BonusIcons, SectorSignalIcon } from './BonusIcons';
 import { freeActionBonus, revenueBonus } from './cardBonus';
@@ -132,10 +133,20 @@ export const HandCard: React.FC<{
       if (isPlayableFocus) phaseClass += ' seti-card-playable-focus';
     }
 
-    const { canDiscard, reason: discardTooltip } = CardSystem.canDiscardFreeAction(game, currentPlayerId, card.freeAction);
-    const { canPlay, reason: playTooltip } = CardSystem.canPlayCard(game, currentPlayerId, card);
+    const { canDiscard, reason: discardReason } = CardSystem.canDiscardFreeAction(game, currentPlayerId, card.freeAction);
+    const { canPlay, reason: playReason } = CardSystem.canPlayCard(game, currentPlayerId, card);
     const canPlayAction = canPlay && !hasPerformedMainAction;
-    const effectivePlayTooltip = hasPerformedMainAction ? "Action principale déjà effectuée" : playTooltip;
+    // Infobulles des boutons : « Jouer une carte » comme l'hexagone de l'action, « Défausser » comme une action gratuite
+    const playCost: Bonus = card.costType === CostType.ENERGY ? { energy: card.cost } : { credits: card.cost };
+    const playTooltip = (
+      <ActionTooltip title="Jouer une carte" cost={card.cost ? <ResourceSymbols bonus={playCost} /> : null} available={canPlayAction}
+        hint={canPlayAction ? 'Cliquez pour jouer cette carte' : hasPerformedMainAction ? 'Action principale déjà effectuée' : playReason} />
+    );
+    const discardGain = freeActionBonus(card.freeAction);
+    const discardTooltip = (
+      <ActionTooltip title="Défausser une carte" cost={<DiscardSymbol />} bonus={discardGain ? <ResourceSymbols bonus={discardGain} /> : undefined}
+        available={canDiscard} hint={canDiscard ? 'Cliquez pour défausser' : discardReason} />
+    );
 
     const isInteractiveMode = isReserving || isDiscarding || isTrading || isDiscardingForSignal || isAcquiring || isSelectingScanCard;
     let shouldGrayOut = !disableGrayOut && !isInteractiveMode && !canPlayAction;
@@ -159,7 +170,7 @@ export const HandCard: React.FC<{
       >
         {isHighlighted && !isInteractiveMode && (
           <>
-          {renderActionButton(<ActionHexIcon kind="card" size={16} />, effectivePlayTooltip, () => { if (canPlayAction) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlayAction, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 } as React.CSSProperties)}
+          {renderActionButton(<ActionHexIcon kind="card" size={16} />, playTooltip, () => { if (canPlayAction) { onPlayCard(card.id); setHighlightedCardId(null); } }, !canPlayAction, '#4a9eff', { position: 'absolute', top: '5px', right: '40px', zIndex: 10 } as React.CSSProperties)}
           {renderActionButton(<DiscardCardIcon size={16} />, discardTooltip, () => { if (canDiscard) { onDiscardCardAction(card.id); setHighlightedCardId(null); } }, !canDiscard, '#ff6b6b', { position: 'absolute', top: '5px', right: '5px', zIndex: 10 } as React.CSSProperties)}
           </>
         )}

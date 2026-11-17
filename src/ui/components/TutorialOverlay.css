@@ -83,7 +83,7 @@
 
 /* Menu des chapitres (accueil) */
 .seti-tutorial-menu {
-  width: min(640px, calc(100vw - 32px));
+  width: min(960px, calc(100vw - 32px));
   max-height: calc(100vh - 64px);
   overflow-y: auto;
   background: rgba(20, 25, 40, 0.97);
@@ -93,11 +93,37 @@
   color: #e6e6e6;
 }
 
+/* En-tête : titre, explication en petit dessous, puis le trait de séparation */
+.seti-tutorial-menu-header {
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.seti-tutorial-menu-header .seti-modal-title {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.seti-tutorial-menu-intro {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: #9fb2da;
+}
+
+/* Chapitres sur deux colonnes (une seule sur un écran étroit) */
 .seti-tutorial-menu-list {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  margin: 12px 0;
+  margin: 12px 0 0;
+}
+
+@media (max-width: 700px) {
+  .seti-tutorial-menu-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .seti-tutorial-menu-item {
@@ -132,6 +158,21 @@
   font-weight: 600;
 }
 
+/* Chapitre d'une espèce pas encore rencontrée : grisé, sans survol */
+.seti-tutorial-menu-item.locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.seti-tutorial-menu-item.locked:hover {
+  border-color: #3a4560;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.seti-tutorial-menu-item.locked .seti-tutorial-menu-number {
+  font-size: 0.8rem;
+}
+
 .seti-tutorial-menu-item.done .seti-tutorial-menu-number {
   border-color: #8fe3a2;
   color: #8fe3a2;
@@ -158,11 +199,6 @@
   text-overflow: ellipsis;
 }
 
-.seti-tutorial-menu-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
 
 /* Proposition du premier lancement (accueil) */
 .seti-tutorial-proposal {

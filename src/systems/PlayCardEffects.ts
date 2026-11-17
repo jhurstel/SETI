@@ -2,6 +2,7 @@ import { effectNumber, effectAmount, effectPvOrBonus } from '../core/cardEffects
 import { Game, Card, ProbeState, FreeActionType, Bonus, GAME_CONSTANTS, RevenueType, InteractionState, LifeTraceType, Player, CardEffect, SectorType, SectorNumber, TechnologyCategory, CelestialObject } from '../core/types';
 import { createRotationState, calculateAbsolutePosition, getCell, getAdjacentCells, getObjectPosition, getAllCelestialObjects, getAbsoluteSectorForProbe, RotationState } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
+import { anomaliesOf, anomalySectors, nextAnomaly } from '../core/anomalies';
 
 /** Carte 108 (SETI@home) : Médias nécessaires pour marquer la trace de vie */
 const LIFETRACE_MEDIA_THRESHOLD = 8;
@@ -41,10 +42,6 @@ function add(bonuses: Bonus, key: 'credits' | 'energy' | 'card' | 'probe' | 'tok
 function rotationOf(game: Game): RotationState {
   const solarSystem = game.board.solarSystem;
   return createRotationState(solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3);
-}
-
-function anomaliesOf(game: Game): CelestialObject[] {
-  return (game.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly');
 }
 
 // --- Effets immédiats (colonne Gain) ---------------------------------------------------------
@@ -287,29 +284,17 @@ const PASSIVE_HANDLERS: Record<string, PassiveHandler> = {
   // Récompense de la prochaine anomalie dans le sens des secteurs à partir de la Terre (une anomalie
   // sur le secteur de la Terre compte comme la plus lointaine)
   'GAIN_REWARD_NEXT_ANOMALY': ({ game, bonuses }) => {
-    const rotationState = rotationOf(game);
-    const extra = game.board.solarSystem.extraCelestialObjects;
-    const earthPos = getObjectPosition('earth', rotationState.level1Angle, rotationState.level2Angle, rotationState.level3Angle, extra);
-    const anomalies = anomaliesOf(game);
-    if (!earthPos || anomalies.length === 0) return;
-    const next = anomalies
-      .map(anomaly => {
-        const dist = (calculateAbsolutePosition(anomaly, rotationState, extra).absoluteSector - earthPos.absoluteSector + 8) % 8;
-        return { anomaly, dist: dist === 0 ? 8 : dist };
-      })
-      .sort((a, b) => a.dist - b.dist)[0].anomaly;
-    if (next.anomalyData?.bonus) ResourceSystem.accumulateBonus(next.anomalyData.bonus, bonuses);
+    const next = nextAnomaly(game);
+    if (next?.anomalyData?.bonus) ResourceSystem.accumulateBonus(next.anomalyData.bonus, bonuses);
   },
 };
 
 /** PV par signal du joueur dans les secteurs des anomalies (SCORE_PER_ANOMALY…) */
 const scorePerAnomaly: PassiveHandler = ({ game, player, bonuses }, effect) => {
-  const rotationState = rotationOf(game);
-  const extra = game.board.solarSystem.extraCelestialObjects;
-  const anomalySectors = new Set<number>(anomaliesOf(game).map(a => calculateAbsolutePosition(a, rotationState, extra).absoluteSector));
+  const sectorsWithAnomaly = anomalySectors(game);
   let signalCount = 0;
   game.board.sectors.forEach(sector => {
-    if (anomalySectors.has(parseInt(sector.id.replace('sector_', '')))) {
+    if (sectorsWithAnomaly.has(parseInt(sector.id.replace('sector_', '')))) {
       signalCount += sector.signals.filter(s => s.markedBy === player.id).length;
     }
   });

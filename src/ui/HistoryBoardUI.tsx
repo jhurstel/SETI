@@ -1,14 +1,17 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTutorialPanel } from './tutorialFocus';
-import { Card, Game, Technology, TechnologyCategory, CardType, Bonus, HistoryEntry, SectorType } from '../core/types';
+import { Card, Game, Technology, CardType, HistoryEntry, SectorType } from '../core/types';
 import { CardTooltip } from '../ui/components/CardTooltip';
+import { TechTooltip } from './components/TechTooltip';
 import './HistoryBoardUI.css';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { ResourceIcon, ResourceIconKind, LifeTraceIcon, AnyLifeTraceIcon, VictoryPointsIcon, ActionHexIcon, RotationChevronIcon, ROTATION_CHEVRON_COLORS } from './components/GameIcons';
 import { LifeTraceColor } from './styles/lifeTraceColors';
 import { ReservationIcon, AnyTechIcon } from './components/ObjectiveSymbol';
-import { BonusIcons, Repeated, SectorSignalIcon } from './components/BonusIcons';
+import { Repeated, SectorSignalIcon } from './components/BonusIcons';
 import { PLAYER_NAME, PLAYER_NAME_PART, textFor } from '../core/historyText';
+import { maskText } from '../tutorial/unlock';
+import { useSpeciesMask } from './speciesMask';
 
 // Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
 const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', CARD: 'card', DATA: 'data' };
@@ -98,73 +101,22 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
         return undefined;
     }, [game]);
 
+    /**
+     * Technologie citée par l'historique (« acquiert technologie "Observation I" ») : catégorie puis niveau, le niveau
+     * seul existant dans les trois catégories. Celle d'un joueur d'abord (la tuile acquise, avec son gain), sinon le plateau.
+     */
     const findTechByName = useCallback((name: string): Technology | undefined => {
-        if (!name) return undefined;
         const cleanName = name.trim();
-        
-        // 1. Check available
-        let tech = game.board.technologyBoard.available?.find(t => t.name === cleanName);
-        if (tech) return tech;
-
-        // 2. Check slots
-        if (game.board.technologyBoard.categorySlots) {
-             for (const slot of game.board.technologyBoard.categorySlots) {
-                 tech = slot.technologies.find(t => t.name === cleanName);
-                 if (tech) return tech;
-             }
-        }
-
-        // 3. Check players
+        const matches = (t: Technology) => `${t.type} ${t.name}` === cleanName;
         for (const p of game.players) {
-            tech = p.technologies.find(t => t.name === cleanName);
-            if (tech) return tech;
+            const owned = p.technologies.find(matches);
+            if (owned) return owned;
         }
-
-        return undefined;
+        return game.board.technologyBoard.categorySlots?.flatMap(slot => slot.technologies).find(matches)
+            ?? game.board.technologyBoard.available?.find(matches);
     }, [game]);
 
-    const renderTechTooltip = (tech: Technology) => {
-        let categoryColor = '#fff';
-        if (tech.type === TechnologyCategory.EXPLORATION) categoryColor = '#ffeb3b';
-        if (tech.type === TechnologyCategory.OBSERVATION) categoryColor = '#ff6b6b';
-        if (tech.type === TechnologyCategory.COMPUTING) categoryColor = '#4a9eff';
-
-        const getTechLevel = (id: string) => {
-            const parts = id.split('-');
-            // Format attendu: category-level-index (ex: exploration-1-0)
-            if (parts.length >= 2) {
-                const level = parseInt(parts[1], 10);
-                if (!isNaN(level)) {
-                    if (level === 1) return 'I';
-                    if (level === 2) return 'II';
-                    if (level === 3) return 'III';
-                    if (level === 4) return 'IV';
-                    return level.toString();
-                }
-            }
-            return '';
-        };
-
-        const level = getTechLevel(tech.id);
-        const displayName = level ? `${tech.type} ${level}` : tech.name;
-
-        const renderBonus = (bonus: Bonus) => {
-            return <div className="history-tech-bonus"><BonusIcons bonus={bonus} size={15} /></div>;
-        };
-
-        return (
-            <div className="history-tech-tooltip">
-                <div className="history-tech-tooltip-header">
-                    <span style={{ fontWeight: 'bold', color: categoryColor, fontSize: '1.1em' }}>{displayName}</span>
-                </div>
-                <div className="history-tech-tooltip-desc">{tech.description || tech.shorttext}</div>
-                <div className="history-tech-tooltip-gains">
-                    <div className="history-tech-tooltip-gains-label">Gains immédiats :</div>
-                    {renderBonus(tech.bonus)}
-                </div>
-            </div>
-        );
-    };
+    const speciesMaskValue = useSpeciesMask();
 
     // Joueur de cet écran : le seul humain de la partie affichée (en ligne, les autres humains y sont des robots)
     const viewerId = game.players.find(p => p.type === 'human')?.id;
@@ -172,7 +124,8 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
     const formatHistoryMessage = (raw: string) => {
         // Passages privés (noms des cartes piochées face cachée, cartes Exertiens reçues) : lisibles seulement par leur
         // propriétaire ; les autres joueurs n'en voient que la version publique (comme en ligne, viewEntries)
-        const message = viewerId ? textFor(raw, viewerId) : raw;
+        // Espèce masquée (chapitre du tutoriel) : ses cartes et son nom n'apparaissent pas
+        const message = maskText(viewerId ? textFor(raw, viewerId) : raw, speciesMaskValue);
         const resourcePattern = Object.values(ResourceSystem.RESOURCE_CONFIG).map(c => c.regex.source).join('|');
         const symbolPattern = SYMBOL_ICONS.map(s => s.pattern.source).join('|');
         const splitRegex = new RegExp(`(<strong>[\\s\\S]*?<\\/strong>|${PLAYER_NAME_PART.source}|${LIFE_TRACE_PATTERN.source}|${SIGNAL_PATTERN.source}|${ROTATION_PATTERN.source}|${symbolPattern}|${resourcePattern}|"[^"]+")`, 'g');
@@ -222,7 +175,7 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
                             className="seti-history-card-ref"
                             onMouseEnter={(e) => {
                                 const rect = e.currentTarget.getBoundingClientRect();
-                                setActiveTooltip({ content: renderTechTooltip(tech), rect });
+                                setActiveTooltip({ content: <TechTooltip tech={tech} />, rect });
                             }}
                             onMouseLeave={() => setActiveTooltip(null)}
                         >

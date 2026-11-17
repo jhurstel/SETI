@@ -10,6 +10,8 @@ interface Props {
   players: { id: string; name: string; color: string }[];
   /** Clic sur un tour ou une manche : indice de l'entrée de l'historique (séparateur du tour ou de la manche). Absent : non cliquable */
   onSelect?: (entryIndex: number) => void;
+  /** Infobulle de chaque trait (manche, action principale du tour) ; absente sur la carte « Continuer » de l'accueil */
+  tooltips?: boolean;
   /** Barre fine sur une ligne (accueil) ; sinon une ligne par manche (fin de partie) */
   compact?: boolean;
 }
@@ -23,7 +25,7 @@ const actionText = (message: string) => revealText(message).replace(/<\/?strong>
  * à venir gardent la place des tours attendus (estimés d'après les manches terminées) : la barre montre où en est la partie.
  * Sinon (fin de partie) : une ligne par manche, les tours alignés en colonnes.
  */
-export const HistoryProgressBar: React.FC<Props> = ({ rounds, maxRounds, players, onSelect, compact }) => {
+export const HistoryProgressBar: React.FC<Props> = ({ rounds, maxRounds, players, onSelect, compact, tooltips = true }) => {
   const finished = rounds.filter(r => r.complete && r.turns.length > 0);
   const expectedTurns = finished.length > 0 ? finished.reduce((sum, r) => sum + r.turns.length, 0) / finished.length : players.length * 4;
 
@@ -74,11 +76,17 @@ export const HistoryProgressBar: React.FC<Props> = ({ rounds, maxRounds, players
   const turnWidth = totalSlots > 0 ? 100 / totalSlots : 0;
   const starts = roundSlots.map((_, r) => roundSlots.slice(0, r).reduce((sum, n) => sum + n, 0));
 
-  const mark = (key: string, left: number, width: number, className: string, color: string | undefined, tooltip: React.ReactNode, entryIndex: number) => (
-    <HoverTooltip key={key} content={tooltip} className={`seti-progress-mark ${className}`} style={{ left: `${left}%`, width: `${width}%` }}>
-      {hit(entryIndex, color, typeof tooltip === 'string' ? tooltip : undefined)}
-    </HoverTooltip>
-  );
+  const mark = (key: string, left: number, width: number, className: string, color: string | undefined, tooltip: React.ReactNode, entryIndex: number) => (tooltips
+    ? (
+      <HoverTooltip key={key} content={tooltip} className={`seti-progress-mark ${className}`} style={{ left: `${left}%`, width: `${width}%` }}>
+        {hit(entryIndex, color, typeof tooltip === 'string' ? tooltip : undefined)}
+      </HoverTooltip>
+    )
+    : (
+      <span key={key} className={`seti-progress-mark ${className}`} style={{ left: `${left}%`, width: `${width}%` }}>
+        {hit(entryIndex, color, typeof tooltip === 'string' ? tooltip : undefined)}
+      </span>
+    ));
 
   return (
     <div className="seti-progress-bar compact">

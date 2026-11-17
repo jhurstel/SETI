@@ -182,7 +182,7 @@ export class ProbeSystem {
     if (checkCost && player.credits < GAME_CONSTANTS.PROBE_LAUNCH_COST) {
       return {
         canLaunch: false,
-        reason: `Crédits insuffisants (nécessite ${GAME_CONSTANTS.PROBE_LAUNCH_COST})`
+        reason: `Nécessite ${GAME_CONSTANTS.PROBE_LAUNCH_COST} crédits`
       };
     }
 
@@ -319,7 +319,7 @@ export class ProbeSystem {
     if (player.energy < finalCost) {
       return {
         canMove: false,
-        reason: `Énergie insuffisante (nécessite ${finalCost})`,
+        reason: `Nécessite ${finalCost} énergie${finalCost > 1 ? 's' : ''}`,
         energyCost: finalCost
       };
     }
@@ -679,14 +679,14 @@ export class ProbeSystem {
     if (checkCost && player.credits < GAME_CONSTANTS.ORBIT_COST_CREDITS) {
       return {
         canOrbit: false,
-        reason: `Crédits insuffisants (nécessite ${GAME_CONSTANTS.ORBIT_COST_CREDITS})`
+        reason: `Nécessite ${GAME_CONSTANTS.ORBIT_COST_CREDITS} crédit${GAME_CONSTANTS.ORBIT_COST_CREDITS > 1 ? 's' : ''}`
       };
     }
 
     if (checkCost && player.energy < GAME_CONSTANTS.ORBIT_COST_ENERGY) {
       return {
         canOrbit: false,
-        reason: `Énergie insuffisante (nécessite ${GAME_CONSTANTS.ORBIT_COST_ENERGY})`
+        reason: `Nécessite ${GAME_CONSTANTS.ORBIT_COST_ENERGY} énergie${GAME_CONSTANTS.ORBIT_COST_ENERGY > 1 ? 's' : ''}`
       };
     }
 
@@ -828,7 +828,7 @@ export class ProbeSystem {
     if (checkCost && player.energy < hasProbeOnPlanetInfo.landCost!) {
       return {
         canLand: false,
-        reason: `Énergie insuffisante (nécessite ${hasProbeOnPlanetInfo.landCost})`,
+        reason: `Nécessite ${hasProbeOnPlanetInfo.landCost!} énergie${hasProbeOnPlanetInfo.landCost! > 1 ? 's' : ''}`,
       };
     }
 

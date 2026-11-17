@@ -440,12 +440,12 @@
   filter: grayscale(0.7);
 }
 
-/* Coût ou bonus à plusieurs ressources dans l'infobulle d'un emplacement : symboles rapprochés, comme dans les
-   infobulles des actions (BoardTooltips.css) */
-.slot-tooltip-line .bonus-icons {
+/* Coût à plusieurs ressources dans l'infobulle d'un emplacement (scan : crédit et énergie) : symboles rapprochés,
+   comme dans les infobulles des actions (BoardTooltips.css) ; le bonus garde son espacement */
+.slot-tooltip-cost .bonus-icons {
   gap: 0;
 }
 
-.slot-tooltip-line .bonus-icons > * + * {
+.slot-tooltip-cost .bonus-icons > * + * {
   margin-left: -6px;
 }

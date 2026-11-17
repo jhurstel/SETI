@@ -53,6 +53,9 @@ const ROLLOUT_MAX_STEPS = 80;
  * Tour d'un robot, sans dépendance à React : une étape à la fois
  * (réservation de mise en place, action gratuite, action principale ou fin de tour).
  */
+/** Objectifs de mission : cercles déclenchés réalisables (GAIN_ON_…), ou missions conditionnelles remplies (GAIN_IF_…) */
+type MissionClaimKind = 'triggered' | 'conditional';
+
 export class AITurn {
   static playStep(game: Game): AIStep {
     const player = game.players[game.currentPlayerIndex];
@@ -343,7 +346,9 @@ export class AITurn {
     const result = new GameEngine(game).executeAction(action);
     if (!result.success || !result.updatedState) return null;
     const sequenceId = `ai-pass-${uniqueId()}`;
-    return AIController.processInteractionQueue(result.updatedState, action.newPendingInteractions.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId })), sequenceId, requirePlayer(result.updatedState, player.id)).updatedGame;
+    const resolved = AIController.processInteractionQueue(result.updatedState, action.newPendingInteractions.map(i => ({ ...i, sequenceId: i.sequenceId || sequenceId })), sequenceId, requirePlayer(result.updatedState, player.id)).updatedGame;
+    // Palier atteint en passant : le tour s'est arrêté pour le choix du robot, il se termine maintenant
+    return resolved.endingTurn ? this.endTurn(resolved).updatedGame : resolved;
   }
 
   /**
@@ -424,14 +429,18 @@ export class AITurn {
   }
 
   /**
-   * Action gratuite d'un robot stratégique : missions et transfert de données dès que possible,
-   * sinon la meilleure option (déplacement, achat de carte, défausse) si elle rapporte assez.
+   * Action gratuite d'un robot stratégique : cercles déclenchés (GAIN_ON_…) et transfert de données dès que possible ;
+   * une mission conditionnelle remplie (GAIN_IF_…) seulement si la réclamer maintenant améliore sa position (comme le
+   * joueur humain, il choisit le moment : ET.23 coûte des Tokens…) ; sinon la meilleure option (déplacement, achat de
+   * carte, défausse) si elle rapporte assez.
    */
   private static tryBestFreeAction(game: Game, player: Player): StepResult | null {
-    const sure = this.tryClaimMission(game, player, true) ?? this.tryTransferData(game, player, true);
+    const sure = this.tryClaimMission(game, player, true, 'triggered') ?? this.tryTransferData(game, player, true);
     if (sure) return sure;
 
     const baseline = AIEvaluator.evaluate(game, player.id);
+    const conditional = this.pickBest(this.missionClaimOptions(game, player, 'conditional'), player, baseline);
+    if (conditional) return conditional;
     const candidates = [
       ...this.probeMoveOptions(game, player),
       ...this.buyCardOptions(game, player),
@@ -556,19 +565,27 @@ export class AITurn {
 
   /**
    * Validation d'un objectif de mission (même règle que le joueur humain, via InteractionResolver) :
-   * objectifs GAIN_ON_… signalés réalisables par le moteur, puis missions conditionnelles GAIN_IF_… remplies.
-   * Un robot stratégique choisit l'objectif le plus rentable.
+   * objectifs GAIN_ON_… signalés réalisables par le moteur, puis missions conditionnelles GAIN_IF_… remplies
+   * (`kind` : seulement les uns ou les autres). Un robot stratégique choisit l'objectif le plus rentable.
    */
-  private static tryClaimMission(game: Game, player: Player, always = false): StepResult | null {
+  private static tryClaimMission(game: Game, player: Player, always = false, kind?: MissionClaimKind): StepResult | null {
     if (!player.missions || (!always && random() >= 0.4)) return null;
+    const options = this.missionClaimOptions(game, player, kind);
+    if (!AIBehavior.isStrategic(player)) return options[0] ?? null;
+    return this.pickBest(options, player, -Infinity);
+  }
 
-    // Les objectifs réalisables d'abord : valider un objectif efface les autres objectifs réalisables
+  /**
+   * Objectifs de mission que le robot peut valider maintenant, chacun simulé (interactions de la récompense résolues
+   * par l'IA) : cercles déclenchés réalisables d'abord (en valider un efface les autres du même déclencheur)
+   */
+  private static missionClaimOptions(game: Game, player: Player, kind?: MissionClaimKind): StepResult[] {
     const candidates = player.missions
       .filter(mission => !mission.completed)
       .flatMap(mission => mission.requirements
         .filter(req => req.id && !mission.completedRequirementIds.includes(req.id))
-        .filter(req => mission.fulfillableRequirementIds.includes(req.id!) || req.type.startsWith('GAIN_IF_'))
-        .map(req => ({ missionId: mission.id, requirementId: req.id!, fulfillable: mission.fulfillableRequirementIds.includes(req.id!) })))
+        .map(req => ({ missionId: mission.id, requirementId: req.id!, fulfillable: mission.fulfillableRequirementIds.includes(req.id!), conditional: req.type.startsWith('GAIN_IF_') }))
+        .filter(c => (kind !== 'conditional' && c.fulfillable) || (kind !== 'triggered' && c.conditional && !c.fulfillable)))
       .sort((a, b) => Number(b.fulfillable) - Number(a.fulfillable));
 
     const options: StepResult[] = [];
@@ -577,11 +594,9 @@ export class AITurn {
       const res = InteractionResolver.resolve(game, player.id, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: candidate.missionId, requirementId: candidate.requirementId, sequenceId });
       if (res.error || res.updatedGame === game) continue;
       // Les interactions déclenchées sont résolues par l'IA (et non confiées à l'interface du joueur humain)
-      const option = this.resolvePending(res.updatedGame, player, res.historyEntries, res.newInteractions, sequenceId);
-      if (!AIBehavior.isStrategic(player)) return option;
-      options.push(option);
+      options.push(this.resolvePending(res.updatedGame, player, res.historyEntries, res.newInteractions, sequenceId));
     }
-    return this.pickBest(options, player, -Infinity);
+    return options;
   }
 
   private static tryTransferData(game: Game, player: Player, always = false): StepResult | null {

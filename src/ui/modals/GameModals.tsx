@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { InteractionState, Game, AlienBoardType, FinalScore, HistoryEntry } from '../../core/types';
+import { InteractionState, Game, AlienBoardType, FinalScore, HistoryEntry, Bonus } from '../../core/types';
 import { HistoryList } from '../HistoryBoardUI';
 import { HistoryProgressBar } from '../components/HistoryProgressBar';
 import { PlayerKindIcon } from '../components/PlayerKindIcon';
@@ -108,7 +108,6 @@ export const MissionRequirementModal = ({ game, interactionState, onChoice }: { 
     <ChoiceModal
       title="Mission déclenchée"
       subtitle="Pendant le tour d'un autre joueur, vous pouvez recouvrir un cercle d'une de vos missions (un seul)."
-      footer={<ChoiceFooterButton secondary onClick={() => onChoice()}>Ne pas en profiter</ChoiceFooterButton>}
     >
       {interactionState.options.map(({ missionId, requirementId }) => {
         const mission = player.missions.find(m => m.id === missionId);
@@ -124,6 +123,7 @@ export const MissionRequirementModal = ({ game, interactionState, onChoice }: { 
           />
         );
       })}
+      <ChoiceOption icon={<RefuseIcon size={26} />} label="Ne pas en profiter" detail="Aucun cercle recouvert" onClick={() => onChoice()} />
     </ChoiceModal>
   );
 };
@@ -153,15 +153,19 @@ export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: 
         subtitle={count > 1
           ? `Vous avez ${count} marqueurs de découverte : vous pouvez jouer jusqu'à ${count} cartes Exertiens face cachée. Leur DANGER s'ajoute au vôtre (actuellement ${player.danger || 0}).`
           : `Vous pouvez jouer une de vos cartes Exertiens face cachée${cost > 0 ? `, pour ${cost} crédit` : ''}. Son DANGER s'ajoute au vôtre (actuellement ${player.danger || 0}).`}
-        footer={
-          <>
-            <ChoiceFooterButton secondary onClick={() => choose([])}>Ne pas jouer de carte</ChoiceFooterButton>
-            <ChoiceFooterButton onClick={() => selectedIds.length > 0 && choose(selectedIds)} disabled={selectedIds.length === 0 || !canPay}
-              icon={cost > 0 ? <ResourceIcon kind="credit" amount={-cost} size={20} /> : undefined}>
-              {selectedIds.length > 1 ? `Jouer les ${selectedIds.length} cartes` : count > 1 ? `Jouer la carte (${selectedIds.length}/${count})` : 'Jouer la carte'}
+        status={count > 1 ? `Sélectionnées : ${selectedIds.length} / ${count}` : undefined}
+        footer={selectedIds.length === 0
+          // Un seul bouton : « Ne pas jouer » tant qu'aucune carte n'est choisie, puis « Jouer »
+          ? <ChoiceFooterButton secondary onClick={() => choose([])} icon={<RefuseIcon size={20} />}>Ne pas jouer</ChoiceFooterButton>
+          : (
+            <ChoiceFooterButton onClick={() => choose(selectedIds)} disabled={!canPay}
+              icon={<>
+                <ResourceIcon kind="card" amount={selectedIds.length} size={22} />
+                {cost > 0 && <ResourceIcon kind="credit" amount={-cost * selectedIds.length} size={22} />}
+              </>}>
+              Jouer
             </ChoiceFooterButton>
-          </>
-        }
+          )}
         wide
       >
         {cards.map(card => (
@@ -182,8 +186,8 @@ export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: 
 
 export const MediaOrMoveModal = ({ onChoice }: { onChoice: (choice: 'MEDIA' | 'MOVE') => void }) => (
   <ChoiceModal title="Assistance gravitationnelle" subtitle="En arrivant sur cette planète, choisissez votre bonus.">
-    <ChoiceOption icon={<ResourceIcon kind="media" size={22} />} label="1 Média" onClick={() => onChoice('MEDIA')} />
-    <ChoiceOption icon={<ResourceIcon kind="movement" size={22} />} label="1 Déplacement" detail="gratuit" onClick={() => onChoice('MOVE')} />
+    <ChoiceOption icon={<ResourceIcon kind="media" amount={1} size={28} />} label="1 Média" onClick={() => onChoice('MEDIA')} />
+    <ChoiceOption icon={<ResourceIcon kind="movement" amount={1} size={28} />} label="1 Déplacement" detail="gratuit" onClick={() => onChoice('MOVE')} />
   </ChoiceModal>
 );
 
@@ -204,7 +208,7 @@ export const Observation3Modal = ({ onChoice }: { onChoice: (accepted: boolean) 
 /** Défausser 1 Token pour le gain d'une carte (ET.24, ET.25, ET.28) ; ET.25 revient tant qu'il reste des tokens */
 export const TokenDiscardModal = ({ interaction, tokens, onChoice }: { interaction: Extract<InteractionState, { type: 'DISCARDING_TOKEN' }>, tokens: number, onChoice: (accepted: boolean) => void }) => (
   <ChoiceModal title={interaction.cardName} subtitle={`Défausser 1 Token pour gagner ${interaction.rewardText} ? (${tokens} Token${tokens > 1 ? 's' : ''})`}>
-    <ChoiceOption icon={<ResourceIcon kind="token" size={22} />} label="Défausser 1 Token" detail={`+${interaction.rewardText}`} onClick={() => onChoice(true)} disabled={tokens < 1} disabledReason="Aucun token" />
+    <ChoiceOption icon={<ResourceIcon kind="token" amount={1} size={28} />} label="Défausser 1 Token" detail={`+${interaction.rewardText}`} onClick={() => onChoice(true)} disabled={tokens < 1} disabledReason="Aucun token" />
     <ChoiceOption icon={interaction.then ? <LanderIcon size={26} /> : <RefuseIcon size={26} />} label={interaction.then ? 'Arrêter et gagner 1 Atterrissage' : 'Non'} onClick={() => onChoice(false)} />
   </ChoiceModal>
 );
@@ -230,11 +234,19 @@ export const LifeTraceTrackWarning = ({ game, interactionState }: { game: Game, 
 export const Observation4Modal = ({ onChoice, canLaunch, canMove }: { onChoice: (choice: 'PROBE' | 'MOVE') => void, canLaunch: boolean, canMove: boolean }) => (
   <ChoiceModal title="Observation IV" subtitle="Choisissez votre bonus.">
     <ChoiceOption icon={<ActionHexIcon kind="launch" size={26} />} label="Lancer une sonde" detail="−1 Énergie" onClick={() => onChoice('PROBE')} disabled={!canLaunch} disabledReason="Pas assez d'énergie ou limite de sondes atteinte" />
-    <ChoiceOption icon={<ResourceIcon kind="movement" size={22} />} label="1 Déplacement" onClick={() => onChoice('MOVE')} disabled={!canMove} disabledReason="Aucune sonde dans le système solaire" />
+    <ChoiceOption icon={<ResourceIcon kind="movement" amount={1} size={28} />} label="1 Déplacement" onClick={() => onChoice('MOVE')} disabled={!canMove} disabledReason="Aucune sonde dans le système solaire" />
   </ChoiceModal>
 );
 
-export const BonusChoiceModal = ({ interactionState, onChoice, onFinish }: { interactionState: InteractionState, onChoice: (idx: number) => void, onFinish: () => void }) => {
+/** Un bonus découpé en gains d'un seul type (une tuile chacun) : PV, crédits…, un signal par secteur visé */
+const splitBonus = (bonus?: Bonus): Bonus[] => {
+  if (!bonus) return [];
+  return Object.entries(bonus).flatMap(([key, value]) => (key === 'signals' && Array.isArray(value)
+    ? value.map(signal => ({ signals: [signal] }) as Bonus)
+    : [{ [key]: value } as Bonus]));
+};
+
+export const BonusChoiceModal =({ interactionState, onChoice, onFinish }: { interactionState: InteractionState, onChoice: (idx: number) => void, onFinish: () => void }) => {
   if (interactionState.type !== 'CHOOSING_BONUS_ACTION') return null;
   const allDone = interactionState.choices.every(c => c.done);
   return (
@@ -243,9 +255,16 @@ export const BonusChoiceModal = ({ interactionState, onChoice, onFinish }: { int
       subtitle={interactionState.bonusesSummary}
       footer={allDone ? <ChoiceFooterButton onClick={onFinish}>Terminer</ChoiceFooterButton> : undefined}
     >
+      {/* Gains appliqués d'office (PV, ressources, signal dans un secteur imposé…) : grisés, déjà faits */}
+      {splitBonus(interactionState.autoGains).map((gain, idx) => (
+        <ChoiceOption key={`auto-${idx}`} icon={<BonusIcons bonus={gain} size={26} empty={null} />} label={ResourceSystem.formatBonus(gain).join(', ')}
+          detail="Gagné automatiquement" onClick={() => {}} done />
+      ))}
       {interactionState.choices.map((choice, idx) => (
         <ChoiceOption key={choice.id} icon={interactionSymbol(choice.state)} label={choice.label} onClick={() => onChoice(idx)} done={choice.done} />
       ))}
+      {/* Renoncer aux récompenses qui restent */}
+      {!allDone && <ChoiceOption icon={<RefuseIcon size={26} />} label="Ne rien faire d'autre" detail="Renoncer aux récompenses restantes" onClick={onFinish} />}
     </ChoiceModal>
   );
 };

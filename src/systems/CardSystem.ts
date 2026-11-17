@@ -16,13 +16,13 @@ import { requirePlayer } from '../core/players';
 const PLAY_COST_TRIGGERS: Record<number, string> = { 1: 'GAIN_ON_PLAY_1_CREDIT', 2: 'GAIN_ON_PLAY_2_CREDITS', 3: 'GAIN_ON_PLAY_3_CREDITS' };
 
 /** Actions gratuites des cartes défaussées : ce qu'il faut pour en profiter et ce qu'elles rapportent */
-const FREE_ACTION_DISCARDS: Partial<Record<FreeActionType, { needs: 'probe' | 'data' | 'media', gain: string }>> = {
-    [FreeActionType.MOVEMENT]: { needs: 'probe', gain: '1 Déplacement' },
-    [FreeActionType.DATA]: { needs: 'data', gain: '1 Donnée' },
-    [FreeActionType.MEDIA]: { needs: 'media', gain: '1 Média' },
-    [FreeActionType.PV_MOVEMENT]: { needs: 'probe', gain: '1 PV et 1 Déplacement' },
-    [FreeActionType.PV_DATA]: { needs: 'data', gain: '1 PV et 1 Donnée' },
-    [FreeActionType.TWO_MEDIA]: { needs: 'media', gain: '2 Médias' },
+const FREE_ACTION_DISCARDS: Partial<Record<FreeActionType, { needs: 'probe' | 'data' | 'media', gain: string, bonus: Bonus }>> = {
+    [FreeActionType.MOVEMENT]: { needs: 'probe', gain: '1 Déplacement', bonus: { movements: 1 } },
+    [FreeActionType.DATA]: { needs: 'data', gain: '1 Donnée', bonus: { data: 1 } },
+    [FreeActionType.MEDIA]: { needs: 'media', gain: '1 Média', bonus: { media: 1 } },
+    [FreeActionType.PV_MOVEMENT]: { needs: 'probe', gain: '1 PV et 1 Déplacement', bonus: { pv: 1, movements: 1 } },
+    [FreeActionType.PV_DATA]: { needs: 'data', gain: '1 PV et 1 Donnée', bonus: { pv: 1, data: 1 } },
+    [FreeActionType.TWO_MEDIA]: { needs: 'media', gain: '2 Médias', bonus: { media: 2 } },
 };
 
 /**
@@ -244,6 +244,11 @@ export class CardSystem {
         return bonus;
     }
 
+    /** Gain de l'action gratuite d'une carte défaussée (absent : carte sans action gratuite) */
+    static freeActionGain(freeAction: FreeActionType): Bonus | undefined {
+        return FREE_ACTION_DISCARDS[freeAction]?.bonus;
+    }
+
     /**
      * Vérifie si un joueur peut défausser une carte
      */
@@ -315,11 +320,11 @@ export class CardSystem {
 
         if (card.costType === CostType.ENERGY) {
             if (player.energy < card.cost) {
-                return { canPlay: false, reason: `Énergie insuffisante (coût: ${card.cost} énergie${card.cost > 1 ? 's' : ''})` };
+                return { canPlay: false, reason: `Nécessite ${card.cost} énergie${card.cost > 1 ? 's' : ''}` };
             }
         } else {
             if (player.credits < card.cost) {
-                return { canPlay: false, reason: `Crédits insuffisants (coût: ${card.cost} crédit${card.cost > 1 ? 's' : ''})` };
+                return { canPlay: false, reason: `Nécessite ${card.cost} crédit${card.cost > 1 ? 's' : ''}` };
             }
         }
 
@@ -362,9 +367,8 @@ export class CardSystem {
 
         // Initialiser les bonus
         const bonuses: Bonus = {};
-        const completedMissions: string[] = [];
-        // Conditions de mission remplies dès la pose (récompenses non ressources : spécimen, trace limitée à une espèce)
-        const missionRewards: string[] = [];
+        // Mission conditionnelle dont la condition est déjà remplie : le joueur la réclame quand il le décide
+        let conditionMet = false;
 
         // Ajouter la carte jouée à la pile de défausse ou aux cartes jouées (Missions Fin de partie)
         if (card.type === CardType.END_GAME || card.type === CardType.CENTAURIEN) {
@@ -392,32 +396,11 @@ export class CardSystem {
             };
             player.missions.push(newMission);
 
+            // Mission conditionnelle : jamais accomplie d'office, même si sa condition est déjà remplie ; le joueur clique
+            // sur son carré quand il le décide (action gratuite, CLAIM_MISSION), tant que la condition reste remplie
             if (card.type === CardType.CONDITIONAL_MISSION) {
-                // Cartes piochées par l'effet de la carte (Programme NIAC, 89 : 3 Pioche) : la main n'est pas vide une fois la carte jouée
-                const ownGains: Bonus = {};
-                addImmediateEffects(card.immediateEffects, ownGains);
-                const drawsCards = (ownGains.card ?? 0) + (ownGains.anycard ?? 0) > 0;
-                newMission.requirements.forEach(req => {
-                    // Le spécimen doit d'abord être prélevé grâce à cette carte : jamais rempli au moment de la jouer
-                    if (req.type === 'GAIN_IF_EMPTY_HAND' && drawsCards) return;
-                    if (req.type.startsWith('GAIN_IF_') && req.type !== 'GAIN_IF_SPECIMEN') {
-                        const bonus = CardSystem.evaluateMission(updatedGame, player.id, effectString(req));
-                        if (bonus) {
-                            // Coût en Tokens (ET.23) : payé ici, processBonuses ne gère que les gains
-                            if ((bonus.token ?? 0) < 0) {
-                                player.tokens = Math.max(0, (player.tokens || 0) + bonus.token!);
-                                delete bonus.token;
-                            }
-                            ResourceSystem.accumulateBonus(bonus, bonuses);
-                            missionRewards.push(effectString(req));
-                            newMission.completedRequirementIds.push(req.id!);
-                        }
-                    }
-                });
-                if (newMission.completedRequirementIds.length > 0 && newMission.completedRequirementIds.length >= newMission.requirements.length) {
-                    newMission.completed = true;
-                    completedMissions.push(newMission.name);
-                }
+                conditionMet = newMission.requirements.some(req => req.type.startsWith('GAIN_IF_') && req.type !== 'GAIN_IF_SPECIMEN'
+                    && !!CardSystem.evaluateMission(updatedGame, player.id, effectString(req)));
             }
         } else {
             updatedGame.decks.discardPile.push(card);
@@ -469,9 +452,6 @@ export class CardSystem {
         if (extras.length > 0) {
             message += ` et ${extras.join(' et ')}`;
         }
-        if (completedMissions.length > 0) {
-            message += ` pour avoir accompli la mission "${completedMissions.join('", "')}"`;
-        }
 
         historyEntries.unshift({ message, playerId, sequenceId });
         if (otherLogs.length > 0) {
@@ -490,7 +470,7 @@ export class CardSystem {
         if (takenRowCards.length > 0) {
             historyEntries.push({ message: `prend en main les cartes de la rangée : ${takenRowCards.map(n => `"${n}"`).join(', ')}`, playerId, sequenceId });
         }
-        if (hasFulfillable) {
+        if (hasFulfillable || conditionMet) {
             historyEntries.push({ message: 'déclenche une mission à recouvrir', playerId, sequenceId});
         }
         if (extraInteractions.length === 0 && card.passiveEffects?.some(e => e.type === 'GAIN_LIFETRACE_IF_ALREADY')) {
@@ -504,10 +484,7 @@ export class CardSystem {
             if (drawn.length > 0) extraInteractions.push({ type: 'DISCARDING_DRAWN_CARD', cardIds: drawn, step: 'FREE_ACTION' });
         }
 
-        const rewardedInteractions = missionRewards.reduce(
-            (interactions, value) => this.missionRewardInteractions(gameAfterBonuses, playerId, value, interactions, sequenceId),
-            newPendingInteractions);
-        return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions: [...rewardedInteractions, ...extraInteractions.map(i => ({ ...i, sequenceId }))] };
+        return { updatedGame: gameAfterBonuses, historyEntries, newPendingInteractions: [...newPendingInteractions, ...extraInteractions.map(i => ({ ...i, sequenceId }))] };
     }
 
     /** Ressource gagnée par un revenu (pour formatResource) */
@@ -601,24 +578,8 @@ export class CardSystem {
         if (!card || !FREE_ACTION_DISCARDS[card.freeAction] || this.isExertienCard(card)) return { updatedGame: game, historyEntries: [], newPendingInteractions: [] };
 
         const sequenceId = `free-action-discard-${uniqueId()}`;
-        const bonuses: Bonus = {};
-
-        // 1. Get bonus from the card's free action
-        if (card.freeAction === FreeActionType.MEDIA) {
-            bonuses.media = (bonuses.media || 0) + 1;
-        } else if (card.freeAction === FreeActionType.DATA) {
-            bonuses.data = (bonuses.data || 0) + 1;
-        } else if (card.freeAction === FreeActionType.MOVEMENT) {
-            bonuses.movements = (bonuses.movements || 0) + 1;
-        } else if (card.freeAction === FreeActionType.PV_MOVEMENT) {
-            bonuses.pv = (bonuses.pv || 0) + 1;
-            bonuses.movements = (bonuses.movements || 0) + 1;
-        } else if (card.freeAction === FreeActionType.PV_DATA) {
-            bonuses.pv = (bonuses.pv || 0) + 1;
-            bonuses.data = (bonuses.data || 0) + 1;
-        } else if (card.freeAction === FreeActionType.TWO_MEDIA) {
-            bonuses.media = (bonuses.media || 0) + 2;
-        }
+        // 1. Gain de l'action gratuite de la carte
+        const bonuses: Bonus = { ...this.freeActionGain(card.freeAction) };
 
         // 2. Missions « après avoir défaussé une carte pour gagner 1 Média / Donnée / Déplacement » (138) : déclenchées
         // par toute action gratuite qui donne cette ressource, cartes Alien comprises (2 Médias, 1 PV + 1 Donnée…)

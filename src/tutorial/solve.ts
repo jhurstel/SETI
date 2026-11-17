@@ -1,4 +1,5 @@
 import type { Game } from '../core/types';
+import { cloneGame } from '../core/cloneGame';
 import { tutorialCommandBlockReason } from './guidance';
 import { applyTutorialCommand, PreparedChapter, resolveCommand } from './prepare';
 import { answerInteraction } from './scenario';
@@ -9,13 +10,29 @@ import type { TutorialChapter, TutorialContext, TutorialState } from './types';
 const MAX_ANSWERS = 20;
 
 /** Répond aux interactions du joueur en attente par le premier choix possible */
-export function answerAll(game: Game, humanId: string): Game {
+export function answerAll(game: Game, humanId: string, chapter?: TutorialChapter): Game {
   let current = game;
   for (let i = 0; i < MAX_ANSWERS && current.interaction; i++) {
-    current = applyTutorialCommand(current, humanId, answerInteraction).game;
+    const answer = chapter?.answer?.(current, humanId) ?? answerInteraction(current, humanId);
+    current = applyTutorialCommand(current, humanId, answer).game;
   }
   if (current.interaction) throw new Error(`Tutoriel : interaction ${current.interaction.type} sans fin`);
   return current;
+}
+
+/**
+ * Valide les explications jusqu'à la prochaine étape d'action (ou la fin du chapitre), en jouant les ellipses des
+ * étapes validées (la partie avance comme dans l'interface)
+ */
+export function readExplanationsAndAdvance(chapter: TutorialChapter, state: TutorialState, game: Game, humanId: string, start: Game): { state: TutorialState; game: Game } {
+  let current = state;
+  let currentGame = game;
+  for (let step = TutorialRunner.currentStep(chapter, current, { game: currentGame, humanId, start }); step && !step.done;
+    step = TutorialRunner.currentStep(chapter, current, { game: currentGame, humanId, start })) {
+    current = TutorialRunner.next(chapter, current, { game: currentGame, humanId, start });
+    if (step.ellipsis) currentGame = step.ellipsis(cloneGame(currentGame), humanId);
+  }
+  return { state: current, game: currentGame };
 }
 
 /** Valide les explications jusqu'à la prochaine étape d'action (ou la fin du chapitre) */
@@ -37,23 +54,23 @@ export function checkSolution(chapter: TutorialChapter, prepared: PreparedChapte
   const start = prepared.game;
   try {
     if (start.players[start.currentPlayerIndex].id !== humanId || start.interaction) return 'le joueur n\'a pas la main au départ';
-    const firstAction = chapter.steps.find(s => s.done);
+    const firstAction = chapter.steps.find(s => s.done && !s.onlyIf);
     if (firstAction?.done?.({ game: start, humanId, start })) return `l'étape ${firstAction.id} est déjà faite au départ`;
     let game = start;
     let state = TutorialRunner.start(chapter);
     let index = 0;
     for (const command of chapter.solution) {
-      state = readExplanations(chapter, state, { game, humanId, start });
+      ({ state, game } = readExplanationsAndAdvance(chapter, state, game, humanId, start));
       const step = TutorialRunner.currentStep(chapter, state, { game, humanId, start });
       const resolved = resolveCommand(command, game, humanId);
       const blocked = tutorialCommandBlockReason(step, resolved);
       if (blocked) return `commande ${resolved.type} refusée à l'étape ${step?.id} : ${blocked}`;
-      game = answerAll(applyTutorialCommand(game, humanId, resolved).game, humanId);
+      game = answerAll(applyTutorialCommand(game, humanId, resolved).game, humanId, chapter);
       const next = TutorialRunner.currentIndex(chapter, state, { game, humanId, start });
       if (next < index) return `l'étape ${chapter.steps[next].id} redevient à faire après ${resolved.type}`;
       index = next;
     }
-    state = readExplanations(chapter, state, { game, humanId, start });
+    ({ state, game } = readExplanationsAndAdvance(chapter, state, game, humanId, start));
     const left = TutorialRunner.currentStep(chapter, state, { game, humanId, start });
     return left ? `l'étape ${left.id} n'est pas terminée par la solution` : null;
   } catch (error) {

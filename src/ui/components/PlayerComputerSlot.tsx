@@ -64,7 +64,7 @@ export const PlayerComputerSlot = ({
         }}
       >
         {isFilled && <div className="computer-slot-dot" />}
-        {!isFilled && slot.bonus === 'media' && <span className="computer-slot-bonus media"><ResourceIcon kind="media" size={20} amount={mediaAmount > 1 ? mediaAmount : undefined} /></span>}
+        {!isFilled && slot.bonus === 'media' && <span className="computer-slot-bonus media"><ResourceIcon kind="media" size={20} amount={mediaAmount} /></span>}
         {!isFilled && slot.bonus === 'reservation' && <span className="computer-slot-bonus reservation"><ReservationIcon size={20} /></span>}
         {!isFilled && slot.bonus === '2pv' && <span className="computer-slot-bonus pv"><VictoryPointsIcon amount={2} size={22} /></span>}
         {!isFilled && slot.bonus === 'credit' && <span className="computer-slot-bonus credit"><ResourceIcon kind="credit" size={20} /></span>}

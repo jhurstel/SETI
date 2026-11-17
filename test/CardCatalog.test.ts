@@ -179,12 +179,17 @@ describe('Cartes corrigées', () => {
       return InteractionResolver.resolve(game, P1, { type: 'CLAIMING_MISSION_REQUIREMENT', missionId: mission.id, requirementId: requirement.id!, sequenceId: 'seq' });
     };
 
-    test("ET.23 jouée avec 3 Tokens : la mission est accomplie aussitôt et les 2 Tokens sont payés", async () => {
+    test("ET.23 jouée avec 3 Tokens : condition remplie, mais la mission attend que le joueur la réclame (Tokens payés alors)", async () => {
       const start = await gameWithCard('ET.23');
       getPlayer(start, P1).tokens = 3;
       const res = CardSystem.playCard(start, P1, 'ET.23');
-      expect(getPlayer(res.updatedGame, P1).tokens).toBe(1);
-      expect(getPlayer(res.updatedGame, P1).missions.find(m => m.cardId === 'ET.23')!.completed).toBe(true);
+      const mission = getPlayer(res.updatedGame, P1).missions.find(m => m.cardId === 'ET.23')!;
+      expect(mission.completed).toBe(false);
+      expect(getPlayer(res.updatedGame, P1).tokens).toBe(3);
+      expect(res.historyEntries.map(e => e.message)).toContain('déclenche une mission à recouvrir');
+      const claimed = claim(res.updatedGame, 'ET.23');
+      expect(getPlayer(claimed.updatedGame, P1).tokens).toBe(1);
+      expect(getPlayer(claimed.updatedGame, P1).missions.find(m => m.cardId === 'ET.23')!.completed).toBe(true);
     });
 
     test("ET.23 Découverte d'Exofossiles : avec 3 Tokens, en défausse 2 et gagne 11 PV", async () => {

@@ -1,8 +1,10 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { SymbolGlossary } from '../components/SymbolGlossary';
+import { SymbolGlossary, TechnologyGlossary, ObjectiveGlossary, SpeciesSymbols } from '../components/SymbolGlossary';
 import { renderMarkdown } from '../components/markdown';
 import { versionLabel } from '../version';
+import { tutorialProgress } from '../tutorialProgress';
+import { hideLockedSpecies, LOCKED_SPECIES_ANCHOR } from '../../tutorial/docMask';
 import './DocumentationModal.css';
 
 /** Chemins relatifs à la page (base Vite « ./ »), comme les CSV des cartes */
@@ -36,18 +38,36 @@ export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible,
     return () => window.removeEventListener('keydown', onKey);
   }, [visible, onClose]);
 
-  const doc = useMemo(() => (source ? renderMarkdown(source, BASE_URL) : null), [source]);
+  // Règles des espèces pas encore rencontrées en partie : masquées (relu à chaque ouverture)
+  const unlockedKey = visible ? tutorialProgress().species.join('|') : '';
+  const unlockedSpecies = useMemo(() => (unlockedKey ? unlockedKey.split('|') : []), [unlockedKey]);
+  const doc = useMemo(
+    () => (source ? renderMarkdown(hideLockedSpecies(source, unlockedSpecies), BASE_URL) : null),
+    [source, unlockedSpecies],
+  );
 
-  // Emplacements {{glossaire}} du texte : le composant y est inséré (vraies icônes du jeu)
-  const [glossarySlots, setGlossarySlots] = useState<Element[]>([]);
+  // Emplacements {{glossaire}}, {{technologies}}, {{objectifs}}, {{symboles-espece:Nom}} du texte :
+  // le composant y est inséré (vraies icônes du jeu)
+  const [componentSlots, setComponentSlots] = useState<Element[]>([]);
   useLayoutEffect(() => {
-    setGlossarySlots(visible && doc ? [...(bodyRef.current?.querySelectorAll('[data-doc-component="glossaire"]') || [])] : []);
+    setComponentSlots(visible && doc ? [...(bodyRef.current?.querySelectorAll('[data-doc-component]') || [])] : []);
   }, [doc, visible]);
+  const slotComponent = (slot: Element): React.ReactNode => {
+    switch (slot.getAttribute('data-doc-component')) {
+      case 'glossaire': return <SymbolGlossary unlockedSpecies={unlockedSpecies} />;
+      case 'technologies': return <TechnologyGlossary />;
+      case 'objectifs': return <ObjectiveGlossary />;
+      case 'symboles-espece': return <SpeciesSymbols species={slot.getAttribute('data-doc-arg') ?? ''} />;
+      default: return null;
+    }
+  };
 
   // Section demandée : affichée dès que le texte est rendu
   useLayoutEffect(() => {
     // Identifiants des titres : slugs (lettres, chiffres, tirets), sans échappement nécessaire
-    if (visible && doc && section) bodyRef.current?.querySelector(`[id="${section}"]`)?.scrollIntoView({ block: 'start' });
+    // Section masquée (espèce pas encore rencontrée) : l'encart des espèces inconnues
+    const target = section && (bodyRef.current?.querySelector(`[id="${section}"]`) ?? bodyRef.current?.querySelector(`[id="${LOCKED_SPECIES_ANCHOR}"]`));
+    if (visible && doc && target) target.scrollIntoView({ block: 'start' });
   }, [doc, visible, section]);
 
   if (!visible) return null;
@@ -67,7 +87,7 @@ export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible,
           <div className="seti-doc-links">
             <a href={`${BASE_URL}docs/seti-rules-fr.pdf`} target="_blank" rel="noopener noreferrer" className="seti-modal-btn">Règles du jeu (PDF)</a>
             <a href={`${BASE_URL}docs/SETI-FAQ-FR.pdf`} target="_blank" rel="noopener noreferrer" className="seti-modal-btn">FAQ (PDF)</a>
-            <button onClick={onClose} className="seti-modal-btn secondary">Fermer</button>
+            <button onClick={onClose} className="seti-doc-close" aria-label="Fermer">✕</button>
           </div>
         </div>
         <div className="seti-doc-columns">
@@ -82,7 +102,7 @@ export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible,
             {error && <p>Impossible de charger la documentation.</p>}
             {!error && !doc && <p>Chargement…</p>}
             {doc && <div dangerouslySetInnerHTML={{ __html: doc.html }} />}
-            {glossarySlots.map((slot, index) => createPortal(<SymbolGlossary />, slot, `glossary-${index}`))}
+            {componentSlots.map((slot, index) => createPortal(slotComponent(slot), slot, `doc-component-${index}`))}
           </div>
         </div>
       </div>

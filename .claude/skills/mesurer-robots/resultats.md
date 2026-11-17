@@ -1,10 +1,10 @@
 # Robots : mesures et réglages passés
 
-Journal des mesures (déplacé de CLAUDE.md). Ajouter chaque nouvelle mesure ici, datée, avec le nombre de parties et l'écart ± (erreur type). Mettre aussi à jour le tableau de la documentation (5.1) quand l'écart entre niveaux change.
+Journal des mesures (déplacé de CLAUDE.md). Ajouter chaque nouvelle mesure ici, datée, avec le nombre de parties et l'écart ± (erreur type). Mettre aussi à jour le tableau de la documentation (1.1, Nouvelle partie, écarts arrondis) quand l'écart entre niveaux change.
 
 ## Niveaux
 
-- Mesure (`npm run tune:ai -- levels <joueurs> <graines> <A> <B>`, `NIVEAU@T` pour une autre température ; environ 100 parties en miroir, novembre 2026) : Expert (avec ses suites jouées) − Avancé +17,4 / +17,6 / +12,0 PV à 2 / 3 / 4 joueurs (70 / 70 / 66 % de victoires), Avancé − Débutant +20,7 / +17,2 / +25,1 PV, Expert − Débutant +37,1 / +34,3 / +46,2 PV (tableau : documentation 5.1).
+- Mesure (`npm run tune:ai -- levels <joueurs> <graines> <A> <B>`, `NIVEAU@T` pour une autre température ; environ 100 parties en miroir, novembre 2026) : Expert (avec ses suites jouées) − Avancé +17,4 / +17,6 / +12,0 PV à 2 / 3 / 4 joueurs (70 / 70 / 66 % de victoires), Avancé − Débutant +20,7 / +17,2 / +25,1 PV, Expert − Débutant +37,1 / +34,3 / +46,2 PV (tableau : documentation 1.1, Nouvelle partie).
 
 ## Anticipation de l'Expert
 

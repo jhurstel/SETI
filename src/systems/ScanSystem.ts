@@ -3,6 +3,7 @@ import { cloneGame } from '../core/cloneGame';
 import { Game, Sector, Bonus, SignalType, GAME_CONSTANTS, InteractionState, ProbeState, HistoryEntry, SectorType, RuleCheck } from '../core/types';
 import { getObjectPosition, createRotationState, calculateAbsolutePosition, getAbsoluteSectorForProbe } from '../core/SolarSystemPosition';
 import { ResourceSystem } from './ResourceSystem';
+import { anomalySectors } from '../core/anomalies';
 import { ProbeSystem } from './ProbeSystem';
 import { CardSystem } from './CardSystem';
 import { uniqueId } from '../core/ids';
@@ -47,14 +48,14 @@ export class ScanSystem {
     if (checkCost && player.credits < GAME_CONSTANTS.SCAN_COST_CREDITS) {
       return {
         canScan: false,
-        reason: `Crédits insuffisants (nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS})`
+        reason: `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit${GAME_CONSTANTS.SCAN_COST_CREDITS > 1 ? 's' : ''}`
       };
     }
 
     if (checkCost && player.energy < GAME_CONSTANTS.SCAN_COST_ENERGY) {
       return {
         canScan: false,
-        reason: `Énergie insuffisante (nécessite ${GAME_CONSTANTS.SCAN_COST_ENERGY})`
+        reason: `Nécessite ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergie${GAME_CONSTANTS.SCAN_COST_ENERGY > 1 ? 's' : ''}`
       };
     }
 
@@ -562,6 +563,10 @@ export class ScanSystem {
         // Oumuamua est valide s'il se trouve dans un secteur de la couleur demandée
         isColorValid = color === SectorType.OUMUAMUA || game.board.sectors[oumuamuaSector - 1]?.color === color;
       }
+      if (!isColorValid && color === SectorType.ANOMALY) {
+        // Secteur d'une anomalie : la position de l'anomalie compte, pas la couleur du secteur ni celle du jeton
+        isColorValid = sectorNumber !== undefined && sector.id !== 'oumuamua' && anomalySectors(game).has(sectorNumber);
+      }
       if (!isColorValid && color === SectorType.OUMUAMUA) {
         isColorValid = sectorNumber !== undefined && sectorNumber === oumuamuaSector;
       }
@@ -571,7 +576,7 @@ export class ScanSystem {
         isColorValid = !!planetPos && planetPos.absoluteSector === sectorNumber;
       }
       if (!isColorValid && !isAdjacentToEarth(sectorNumber)) {
-        return { valid: false, error: `Couleur incorrecte. Sélectionnez un secteur ${color}.` };
+        return { valid: false, error: color === SectorType.ANOMALY ? 'Sélectionnez un secteur qui contient une anomalie.' : `Couleur incorrecte. Sélectionnez un secteur ${color}.` };
       }
     }
 
@@ -579,8 +584,9 @@ export class ScanSystem {
     if (!interaction.onlyProbes) return { valid: true };
 
     const candidateProbes = interaction.anyProbe ? solarSystem.probes : player.probes;
+    // Une capsule de spécimen (Mascamites) compte comme une sonde : elle se déplace et se comporte comme une sonde
     const validProbes = candidateProbes.filter(p => {
-      if (p.state !== ProbeState.IN_SOLAR_SYSTEM || !p.solarPosition) return false;
+      if (!ScanSystem.isSignalPiece(p)) return false;
       if (sector.id === 'oumuamua') {
         return !!oumuamua &&
           p.solarPosition.disk === oumuamua.position.disk &&
@@ -684,6 +690,20 @@ export class ScanSystem {
     }
 
     return { updatedGame, historyEntries, newPendingInteractions, scanFollowUp: this.scanFollowUp(interaction, sector.id, validation.usedProbeId) };
+  }
+
+  /** Pièce qui désigne un secteur pour un signal « secteur d'une de vos sondes » : sonde ou capsule dans le système solaire */
+  static isSignalPiece(probe: { state: ProbeState; solarPosition?: unknown }): boolean {
+    return (probe.state === ProbeState.IN_SOLAR_SYSTEM || probe.state === ProbeState.CAPSULE) && !!probe.solarPosition;
+  }
+
+  /**
+   * Un signal « secteur d'une de vos sondes » peut être posé : le joueur a une sonde ou une capsule dans le système
+   * solaire (`anyProbe`, carte 30 : celles de n'importe quel joueur) ; sinon le signal est perdu
+   */
+  static canPlaceProbeSignal(game: Game, playerId: string, anyProbe = false): boolean {
+    const pieces = anyProbe ? game.board.solarSystem.probes : requirePlayer(game, playerId).probes;
+    return pieces.some(p => this.isSignalPiece(p));
   }
 
   /**

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Game } from '../../core/types';
+import { cloneGame } from '../../core/cloneGame';
 import { chapterById, TUTORIAL_CHAPTERS } from '../../tutorial/chapters';
 import { tutorialBlockReason, tutorialFinishedReason } from '../../tutorial/guidance';
 import { parseTutorialText, TutorialChapterText } from '../../tutorial/tutorialText';
 import { TutorialRunner } from '../../tutorial/TutorialRunner';
+import { isChapterUnlocked } from '../../tutorial/unlock';
 import type { TutorialAction, TutorialChapter, TutorialState, TutorialStep } from '../../tutorial/types';
 import { markChapterDone, tutorialProgress } from '../tutorialProgress';
 
@@ -29,10 +31,17 @@ function loadTutorialText(): Promise<Record<string, TutorialChapterText>> {
  * Tutoriel dans l'interface : chapitre en cours, étape courante (déduite de la partie affichée), textes et
  * progression. Les règles du déroulement sont dans src/tutorial (TutorialRunner, guidance).
  */
-export function useTutorial(game: Game | null) {
+export function useTutorial(game: Game | null, onEllipsis?: (advanced: Game) => void) {
   const [active, setActive] = useState<ActiveTutorial | null>(null);
   const [text, setText] = useState<Record<string, TutorialChapterText> | null>(null);
   const [done, setDone] = useState<string[]>(() => tutorialProgress().done);
+  /** Espèces débloquées : chapitres d'espèce jouables et règles visibles dans la documentation */
+  const [unlockedSpecies, setUnlockedSpecies] = useState<string[]>(() => tutorialProgress().species);
+  const refreshProgress = useCallback(() => {
+    const progress = tutorialProgress();
+    setDone(progress.done);
+    setUnlockedSpecies(progress.species);
+  }, []);
 
   const ensureText = useCallback(() => {
     loadTutorialText().then(setText).catch(() => setText({}));
@@ -68,8 +77,12 @@ export function useTutorial(game: Game | null) {
   }, [finished, active]);
 
   const next = useCallback(() => {
-    setActive(current => (current && game ? { ...current, state: TutorialRunner.next(current.chapter, current.state, { game, humanId: current.humanId, start: current.start }) } : current));
-  }, [game]);
+    if (!active || !game) return;
+    const current = TutorialRunner.currentStep(active.chapter, active.state, { game, humanId: active.humanId, start: active.start });
+    setActive({ ...active, state: TutorialRunner.next(active.chapter, active.state, { game, humanId: active.humanId, start: active.start }) });
+    // Ellipse : la partie avance d'un coup (« quelques tours plus tard »)
+    if (current?.ellipsis && !current.done) onEllipsis?.(current.ellipsis(cloneGame(game), active.humanId));
+  }, [active, game, onEllipsis]);
 
   /** Chapitre préparé terminé : plus aucune commande, seules les options de la bulle */
   const lockReason = active ? tutorialFinishedReason(active.chapter, finished) : null;
@@ -80,12 +93,14 @@ export function useTutorial(game: Game | null) {
     [step, lockReason],
   );
 
-  const nextChapter = active ? TUTORIAL_CHAPTERS[TUTORIAL_CHAPTERS.findIndex(c => c.id === active.chapter.id) + 1] : undefined;
+  // Chapitre suivant jouable (les chapitres d'espèce verrouillés sont sautés)
+  const nextChapter = active
+    ? TUTORIAL_CHAPTERS.slice(TUTORIAL_CHAPTERS.findIndex(c => c.id === active.chapter.id) + 1).find(c => isChapterUnlocked(c, unlockedSpecies))
+    : undefined;
 
   return {
-    active, step, stepIndex, finished, text, done, block, nextChapter, choicePending, duringChoice, lockReason,
-    begin, end, next, ensureText,
-    refreshProgress: () => setDone(tutorialProgress().done),
+    active, step, stepIndex, finished, text, done, unlockedSpecies, block, nextChapter, choicePending, duringChoice, lockReason,
+    begin, end, next, ensureText, refreshProgress,
     chapterById,
   };
 }

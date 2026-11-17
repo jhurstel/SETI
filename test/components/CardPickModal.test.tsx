@@ -49,10 +49,11 @@ describe('CardPickModal (choix de plusieurs cartes de la main)', () => {
     expect(onConfirm).toHaveBeenCalledWith(['c', 'b']);
   });
 
-  test('choix facultatif : bouton Annuler', () => {
+  test('choix facultatif : pas de bouton Annuler, la touche Échap renonce', () => {
     const onCancel = jest.fn();
     render(<Discard onConfirm={() => {}} onCancel={onCancel} />);
-    fireEvent.click(screen.getByText('Annuler'));
+    expect(screen.queryByText('Annuler')).toBeNull();
+    fireEvent.keyDown(window, { key: 'Escape' });
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 

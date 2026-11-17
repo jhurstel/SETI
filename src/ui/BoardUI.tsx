@@ -40,6 +40,7 @@ import { PlanetBoardUI } from './PlanetBoardUI';
 import './BoardUI.css';
 import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
 import { useTutorial } from './hooks/useTutorial';
+import { useSpeciesUnlock } from './hooks/useSpeciesUnlock';
 import { setTutorialFocus } from './tutorialFocus';
 import { TutorialOverlay } from './components/TutorialOverlay';
 import { TutorialMenu } from './components/TutorialMenu';
@@ -49,6 +50,9 @@ import { prepareChapter } from '../tutorial/prepare';
 import { GameSetup } from '../session/GameSetup';
 import { readPlayerName } from './playerName';
 import { markHintShown, setContextHelp, tutorialProgress } from './tutorialProgress';
+import { isChapterUnlocked, NO_SPECIES_MASK, speciesMask } from '../tutorial/unlock';
+import { SpeciesMaskContext } from './speciesMask';
+import { uniqueId } from '../core/ids';
 import { CONTEXT_HINTS_TEXT_ID, nextContextHint } from '../tutorial/contextHints';
 
 // Fenêtres chargées à la demande (morceaux séparés du bundle), montées seulement quand elles sont ouvertes
@@ -63,7 +67,7 @@ type LocalMode = Extract<InteractionState, { type: 'DISCARDING_CARD' | 'TRADING_
 const TRADE_GAINS: ResourceIconKind[] = ['credit', 'energy', 'card'];
 const tradeGainIcon = (targetGain: string) => {
   const kind = TRADE_GAINS.find(k => k === targetGain.toLowerCase());
-  return kind ? <ResourceIcon kind={kind} size={20} /> : undefined;
+  return kind ? <ResourceIcon kind={kind} amount={1} size={22} /> : undefined;
 };
 
 
@@ -159,7 +163,12 @@ export const BoardUI: React.FC = () => {
   const isReservationModalActive = !!reservingPlayer && reservingPlayer.type === 'human';
 
   // Tutoriel : chapitre en cours sur la partie locale, étape courante déduite de la partie
-  const tutorial = useTutorial(isOnline ? null : session.game);
+  // Ellipse d'un chapitre : la partie avancée remplace la partie affichée, historique gardé et annoté
+  const { load: loadSession, historyLog: sessionLog } = session;
+  const tutorialEllipsis = useCallback((advanced: Game) => {
+    loadSession(advanced, [...sessionLog, { id: uniqueId(), message: '--- Quelques tours plus tard… ---', playerId: '' }]);
+  }, [loadSession, sessionLog]);
+  const tutorial = useTutorial(isOnline ? null : session.game, tutorialEllipsis);
   const [tutorialMenuVisible, setTutorialMenuVisible] = useState(false);
   // Étape vue par les plateaux mémoïsés : seules les actions permises clignotent, le panneau décrit s'ouvre
   useEffect(() => {
@@ -174,6 +183,24 @@ export const BoardUI: React.FC = () => {
   useEffect(() => { if (contextHelp) ensureText(); }, [contextHelp, ensureText]);
   /** Chapitre à position préparée en cours : la partie ne se sauvegarde pas */
   const isTutorialGame = !!tutorial.active && tutorial.active.chapter.seed !== undefined;
+
+  // Chapitre « Traces de vie et espèces » : espèce pas encore rencontrée en partie, anonyme à l'écran
+  const tutorialActive = tutorial.active;
+  const speciesMaskValue = useMemo(
+    () => (tutorialActive ? speciesMask(tutorialActive.chapter, tutorialActive.start, tutorial.unlockedSpecies) : NO_SPECIES_MASK),
+    [tutorialActive, tutorial.unlockedSpecies],
+  );
+  // Annonce de découverte d'une espèce masquée : sans son nom
+  const shownAnnouncement = announcement && speciesMaskValue.species.length > 0 && announcement.key.startsWith('discovery')
+    ? { ...announcement, title: 'Espèce Alien découverte' }
+    : announcement;
+
+  // Espèces découvertes en partie (pas dans un chapitre) : leur chapitre du tutoriel et leurs règles se débloquent
+  const { refreshProgress: refreshTutorialProgress } = tutorial;
+  useSpeciesUnlock(realGame, isTutorialGame, useCallback((species: string[]) => {
+    refreshTutorialProgress();
+    showMessage(`Nouveau chapitre du tutoriel : ${species.join(', ')}`);
+  }, [refreshTutorialProgress, showMessage]));
 
   // Sauvegarde automatique à chaque modification de la partie locale (une partie en ligne est gardée par le serveur ;
   // un chapitre du tutoriel n'est jamais sauvegardé et ne remplace pas la partie sauvegardée)
@@ -588,13 +615,13 @@ export const BoardUI: React.FC = () => {
   /** Démarre un chapitre : position préparée (jamais sauvegardée), ou vraie partie contre un robot Débutant */
   const startChapter = async (chapterId: string) => {
     const chapter = chapterById(chapterId);
-    if (!chapter) return;
+    if (!chapter || !isChapterUnlocked(chapter, tutorialProgress().species)) return;
     setTutorialMenuVisible(false);
     setSettingsVisible(false);
     const name = readPlayerName() || 'Vous';
     try {
       if (chapter.seed !== undefined) {
-        const prepared = await prepareChapter(chapter, name);
+        const prepared = await prepareChapter(chapter, name, { unlockedSpecies: tutorialProgress().species });
         handleLoadGame(prepared.game, prepared.entries);
         tutorial.begin(chapter, session.gameRef.current ?? prepared.game, prepared.humanId);
       } else {
@@ -666,8 +693,8 @@ export const BoardUI: React.FC = () => {
 
   // Menu des chapitres (accueil, fin d'un chapitre)
   const tutorialMenu = tutorialMenuVisible && (
-    <TutorialMenu chapters={TUTORIAL_CHAPTERS} text={tutorial.text} done={tutorial.done} onStart={startChapter}
-      onClose={() => { setTutorialMenuVisible(false); if (!game) setSettingsVisible(true); }} />
+    <TutorialMenu chapters={TUTORIAL_CHAPTERS} text={tutorial.text} done={tutorial.done} unlockedSpecies={tutorial.unlockedSpecies} onStart={startChapter}
+      onClose={() => { setTutorialMenuVisible(false); setSettingsVisible(true); }} />
   );
 
   // Si le jeu n'est pas initialisé (ou dans le salon d'une partie en ligne), afficher uniquement les modales de démarrage
@@ -708,6 +735,7 @@ export const BoardUI: React.FC = () => {
     viewPlayer: setViewedPlayerId,
     openSettings: () => setSettingsVisible(true),
     openDocumentation: () => setDocVisible(true),
+    openDocumentationAt: (section: string) => { setDocSection(section); setDocVisible(true); },
     confirmAction: (message: string, onConfirm: () => void) => setConfirmModalState({ visible: true, cardId: null, message, onConfirm }),
   });
   // Joueurs humains d'autres écrans (en ligne) : liste gardée tant que la partie ne change pas (plateau mémoïsé)
@@ -745,8 +773,9 @@ export const BoardUI: React.FC = () => {
 
 
   return (
+    <SpeciesMaskContext.Provider value={speciesMaskValue}>
     <div className="seti-root">
-      <Announcement announcement={announcement} onDone={onAnnouncementDone} />
+      <Announcement announcement={shownAnnouncement} onDone={onAnnouncementDone} />
       {drawing && !settingsVisible && (
         <FirstPlayerDraw players={realGame!.players} firstIndex={realGame!.firstPlayerIndex} meId={me} onDone={endDrawing} />
       )}
@@ -782,7 +811,8 @@ export const BoardUI: React.FC = () => {
           cards={game.decks.roundDecks[interactionState.round] || []}
           onConfirm={(cardId) => choose({ kind: 'CARD', cardId })}
           currentRound={interactionState.round}
-          confirmLabel="Prendre la carte"
+          confirmLabel="Choisir"
+          confirmIcon={<ResourceIcon kind="card" amount={1} size={22} />}
         />
       )}
 
@@ -1015,7 +1045,8 @@ export const BoardUI: React.FC = () => {
           onMenu={() => {}}
         />
       )}
-      {tutorialMenu}
+      {/* Le fond de l'accueil, pas la partie en cours */}
+      {tutorialMenu && <><SpaceBackdrop overGame />{tutorialMenu}</>}
 
       {/* Ecran de fin de partie */}
       {game.phase === GamePhase.FINAL_SCORING && <EndGameModal game={realGame!} historyLog={historyLog} setActiveTooltip={setActiveTooltip} />}
@@ -1129,6 +1160,7 @@ export const BoardUI: React.FC = () => {
             onPlaceLifeTrace={h.handlePlaceLifeTrace}
             onSpeciesCardClick={h.handleSpeciesCardClick}
             setActiveTooltip={setActiveTooltip}
+            onOpenDocumentation={h.openDocumentationAt}
             forceOpen={interactionState.type === 'ACQUIRING_ALIEN_CARD' && game.species.find(s => s.id === interactionState.speciesId)?.name === game.board.alienBoards[0].speciesId}
           />
 
@@ -1140,11 +1172,13 @@ export const BoardUI: React.FC = () => {
             onPlaceLifeTrace={h.handlePlaceLifeTrace}
             onSpeciesCardClick={h.handleSpeciesCardClick}
             setActiveTooltip={setActiveTooltip}
+            onOpenDocumentation={h.openDocumentationAt}
             forceOpen={interactionState.type === 'ACQUIRING_ALIEN_CARD' && game.species.find(s => s.id === interactionState.speciesId)?.name === game.board.alienBoards[1].speciesId}
           />
           </div>
         </div>
       </div>
     </div>
+    </SpeciesMaskContext.Provider>
   );
 };

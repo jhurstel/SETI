@@ -470,6 +470,11 @@
   text-align: center;
 }
 
+/* Infobulle d'une anomalie : sa règle sur une seule ligne (italique, taille et couleur : subtitleStyle) */
+.solar-tooltip-anomaly-rule {
+  white-space: nowrap;
+}
+
 .solar-anomaly-token {
   position: relative;
   display: flex;
@@ -525,4 +530,21 @@
 .solar-specimen-token.clickable {
   cursor: pointer;
   box-shadow: 0 0 6px #00ff00;
+}
+
+/* Coût du lancement dans l'infobulle de la Terre : petite ligne alignée à gauche, coût en symboles */
+.solar-tooltip-cost-line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  font-size: 0.8em;
+  color: #ccc;
+  margin-top: 2px;
+}
+
+.solar-tooltip-cost {
+  display: inline-flex;
+  align-items: center;
+  color: #ff6b6b; /* comme le coût des emplacements (SLOT_COLORS.unavailable) */
 }

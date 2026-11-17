@@ -1,11 +1,14 @@
 import { TUTORIAL_CHAPTERS, chapterById } from '../src/tutorial/chapters';
 import * as prepareModule from '../src/tutorial/prepare';
 import { cloneGame } from '../src/core/cloneGame';
-import { prepareChapter } from '../src/tutorial/prepare';
-import { answerAll, checkSolution } from '../src/tutorial/solve';
+import { applyTutorialCommand, prepareChapter } from '../src/tutorial/prepare';
+import { answerAll, checkSolution, readExplanations } from '../src/tutorial/solve';
+import { TutorialRunner } from '../src/tutorial/TutorialRunner';
+import { tutorialBlockReason } from '../src/tutorial/guidance';
 import { TutorialChapter, TutorialContext } from '../src/tutorial/types';
-import { answerInteraction, giveCardToHand, humanOf, planetCell, stepTowards } from '../src/tutorial/scenario';
-import { ActionType } from '../src/core/types';
+import { answerInteraction, cannotReachOrbit, giveCardToHand, giveSpeciesCardToHand, humanOf, planetCell, stepTowards } from '../src/tutorial/scenario';
+import { ActionType, LifeTraceType } from '../src/core/types';
+import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { mockFetchFromPublic } from './helpers/gameFixture';
 import { GameSession } from '../src/session/GameSession';
 
@@ -81,6 +84,7 @@ describe('aides des chapitres', () => {
   test('carte ou planète introuvable : erreur du chapitre, ou rien', async () => {
     const { game, humanId } = await sondes();
     expect(() => giveCardToHand(cloneGame(game), humanId, 'pas-une-carte')).toThrow('carte pas-une-carte introuvable');
+    expect(() => giveSpeciesCardToHand(cloneGame(game), humanId, 'pas-une-carte')).toThrow("carte d'espèce pas-une-carte introuvable");
     expect(planetCell(game, 'pluton')).toBeUndefined();
     expect(() => stepTowards('mars')(game, humanId)).toThrow('pas de sonde');
   });
@@ -111,4 +115,65 @@ describe('aides des chapitres', () => {
       spy.mockRestore();
     }
   });
+});
+
+describe('étapes de secours et scénarios', () => {
+  let fetchSpy: jest.SpyInstance;
+  beforeAll(() => { fetchSpy = mockFetchFromPublic(); });
+  afterAll(() => fetchSpy.mockRestore());
+
+  test('sondes : sans assez d\'énergie pour rejoindre Mars et s\'y mettre en orbite, l\'étape « annuler » s\'affiche', async () => {
+    const chapter = chapterById('sondes')!;
+    const { game: start, humanId } = await prepareChapter(chapter, 'Alice');
+    const launched = applyTutorialCommand(start, humanId, { type: 'LAUNCH_PROBE' }).game;
+    const stepAt = (game: typeof start) => {
+      const context = { game, humanId, start };
+      return TutorialRunner.currentStep(chapter, readExplanations(chapter, TutorialRunner.start(chapter), context), context)?.id;
+    };
+    // Mars à 2 cases : 2 énergies pour y aller, 1 pour l'orbite
+    expect(stepAt(launched)).toBe('deplacer');
+    const short = cloneGame(launched);
+    humanOf(short, humanId).energy = 2;
+    expect(stepAt(short)).toBe('annuler');
+    expect(tutorialBlockReason(chapter.steps.find(s => s.id === 'annuler')!, ActionType.ORBIT)).not.toBeNull();
+    // Avant le lancement (pas de sonde), l'étape n'a pas lieu d'être
+    const noProbe = cloneGame(start);
+    humanOf(noProbe, humanId).energy = 0;
+    expect(cannotReachOrbit(noProbe, humanId, 'mars')).toBe(false);
+  });
+
+  test('scanner : chaque joueur présent gagne 1 média, l\'adversaire second garde un marqueur sur la première case', async () => {
+    const chapter = chapterById('scanner')!;
+    const { game: start, humanId } = await prepareChapter(chapter, 'Alice');
+    const opponentId = start.players.find(p => p.id !== humanId)!.id;
+    const earthSector = (game: typeof start) => game.board.sectors.find(s => s.signals.some(signal => signal.markedBy === opponentId))!;
+    const sectorId = earthSector(start).id;
+    expect(earthSector(start).signals[0].markedBy).toBe(opponentId);
+    const after = answerAll(applyTutorialCommand(start, humanId, { type: 'SCAN' }).game, humanId);
+    expect(humanOf(after, opponentId).mediaCoverage).toBe(humanOf(start, opponentId).mediaCoverage + 1);
+    expect(humanOf(after, humanId).mediaCoverage).toBeGreaterThan(humanOf(start, humanId).mediaCoverage);
+    const sector = after.board.sectors.find(s => s.id === sectorId)!;
+    expect(sector.isCovered).toBe(true);
+    expect(sector.signals[0].markedBy).toBe(opponentId);
+    expect(sector.signals.filter(s => s.marked)).toHaveLength(1);
+  });
+});
+
+test('espèces : trace bleue posée sur le second plateau Alien, l\'étape « annuler » s\'affiche', async () => {
+  const fetchSpy = mockFetchFromPublic();
+  try {
+    const chapter = chapterById('especes')!;
+    const { game: start, humanId } = await prepareChapter(chapter, 'Alice');
+    let game = start;
+    for (const command of chapter.solution) game = applyTutorialCommand(game, humanId, command).game;
+    expect(game.interaction?.type).toBe('PLACING_LIFE_TRACE');
+    const option = SpeciesSystem.lifeTraceOptions(game, LifeTraceType.BLUE).find(o => o.boardIndex === 1)!;
+    game = answerAll(applyTutorialCommand(game, humanId, {
+      type: 'CHOOSE', choice: { kind: 'LIFE_TRACE', boardIndex: 1, color: option.color, slotType: option.location, slotIndex: option.slotIndex },
+    }).game, humanId);
+    const context = { game, humanId, start };
+    expect(TutorialRunner.currentStep(chapter, readExplanations(chapter, TutorialRunner.start(chapter), context), context)?.id).toBe('annuler');
+  } finally {
+    fetchSpy.mockRestore();
+  }
 });

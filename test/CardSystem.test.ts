@@ -377,7 +377,7 @@ describe('CardSystem', () => {
     test('vérifie le coût en énergie', () => {
       getPlayer(game, P1).energy = 1;
       const card = makeCard('c', { cost: 2, costType: CostType.ENERGY });
-      expect(CardSystem.canPlayCard(game, P1, card)).toMatchObject({ canPlay: false, reason: expect.stringContaining('Énergie') });
+      expect(CardSystem.canPlayCard(game, P1, card)).toMatchObject({ canPlay: false, reason: expect.stringContaining('Nécessite 2 énergies') });
     });
 
     test('refusé hors de son tour', () => {

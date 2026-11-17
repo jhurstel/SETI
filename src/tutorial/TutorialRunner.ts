@@ -16,7 +16,8 @@ export class TutorialRunner {
   static currentIndex(chapter: TutorialChapter, state: TutorialState, context: TutorialContext): number {
     for (let i = 0; i < chapter.steps.length; i++) {
       const step = chapter.steps[i];
-      const passed = step.done ? step.done(context) : state.explained.includes(step.id);
+      const passed = (step.onlyIf && !step.onlyIf(context))
+        || (step.done ? step.done(context) : state.explained.includes(step.id));
       if (!passed) return i;
     }
     return chapter.steps.length;

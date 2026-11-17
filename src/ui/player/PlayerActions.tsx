@@ -104,15 +104,15 @@ export const PlayerActions: React.FC<{
         cost = <ResourceSymbols bonus={{ credits: GAME_CONSTANTS.SCAN_COST_CREDITS, energy: GAME_CONSTANTS.SCAN_COST_ENERGY }} />;
         bonus = <ScanSymbol />;
         action = 'Cliquez pour scanner';
-        if (currentPlayer.credits < GAME_CONSTANTS.SCAN_COST_CREDITS || currentPlayer.energy < GAME_CONSTANTS.SCAN_COST_ENERGY) reason = `Vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s)`;
+        if (currentPlayer.credits < GAME_CONSTANTS.SCAN_COST_CREDITS || currentPlayer.energy < GAME_CONSTANTS.SCAN_COST_ENERGY) reason = `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit${GAME_CONSTANTS.SCAN_COST_CREDITS > 1 ? 's' : ''} et ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergie${GAME_CONSTANTS.SCAN_COST_ENERGY > 1 ? 's' : ''}`;
         break;
 
       case ActionType.ANALYZE_DATA:
         cost = <ResourceSymbols bonus={{ energy: GAME_CONSTANTS.ANALYZE_COST_ENERGY }} />;
         bonus = <BlueTraceSymbol />;
         action = 'Cliquez pour analyser les données';
-        if (!currentPlayer.dataComputer.canAnalyze) reason = "Ligne du haut de l'ordinateur incomplète";
-        else if (currentPlayer.energy < 1) reason = `Vous avez ${currentPlayer.energy} énergie`;
+        if (!currentPlayer.dataComputer.canAnalyze) reason = "Nécessite une ligne d'ordinateur complète";
+        else if (currentPlayer.energy < GAME_CONSTANTS.ANALYZE_COST_ENERGY) reason = `Nécessite ${GAME_CONSTANTS.ANALYZE_COST_ENERGY} énergie`;
         break;
 
       case ActionType.RESEARCH_TECH:
@@ -120,7 +120,7 @@ export const PlayerActions: React.FC<{
         // Le Système solaire tourne avant de prendre la technologie
         bonus = <><ResourceSymbols bonus={{ rotation: 1 }} /><TechSymbol /></>;
         action = 'Cliquez pour rechercher une technologie';
-        if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) reason = `Vous avez ${currentPlayer.mediaCoverage} média(s)`;
+        if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) reason = `Nécessite ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias`;
         break;
 
       case ActionType.PASS:

@@ -2,7 +2,7 @@
  * Aides des chapitres du tutoriel (fonctions pures) : ajustements de scénario, commandes calculées sur la partie
  * (pas vers une planète, réponse par défaut à une interaction) et prédicats des étapes.
  */
-import { Card, ComputerSlot, Game, Player, ProbeState } from '../core/types';
+import { AlienBoardType, Card, ComputerSlot, GAME_CONSTANTS, Game, LifeTraceLocation, LifeTraceType, Player, ProbeState } from '../core/types';
 import { requirePlayer } from '../core/players';
 import { calculateReachableCells, createRotationState, getAbsoluteSectorForProbe, getAllCells } from '../core/SolarSystemPosition';
 import { CardSystem } from '../systems/CardSystem';
@@ -42,6 +42,44 @@ export function fillComputer(game: Game, playerId: string, slotIds: string[]): G
   return game;
 }
 
+/**
+ * Met une espèce sur le premier plateau Alien (les cinq espèces existent toujours dans la partie) ; si elle était
+ * sur l'autre plateau, celui-ci prend l'espèce que le premier avait
+ */
+export function speciesOnFirstBoard(game: Game, species: AlienBoardType): Game {
+  const boards = game.board.alienBoards;
+  boards.forEach((board, index) => { if (index > 0 && board.speciesId === species) board.speciesId = boards[0].speciesId; });
+  boards[0].speciesId = species;
+  return game;
+}
+
+/**
+ * Découverte d'une espèce prête à jouer : l'espèce sur le premier plateau, les traces rouge et jaune du joueur déjà sur
+ * son triangle de découverte, et la ligne du haut de l'ordinateur remplie : analyser donne la trace bleue qui la découvre
+ */
+export function readyToDiscover(game: Game, humanId: string, species: AlienBoardType): Game {
+  let updated = fillComputer(speciesOnFirstBoard(game, species), humanId, ['1a', '2', '3a', '4', '5a', '6a']);
+  for (const color of [LifeTraceType.RED, LifeTraceType.YELLOW]) {
+    updated = SpeciesSystem.placeLifeTrace(updated, 0, color, humanId, '', LifeTraceLocation.TRIANGLE).updatedGame;
+  }
+  const human = requirePlayer(updated, humanId);
+  human.energy = Math.max(human.energy, GAME_CONSTANTS.ANALYZE_COST_ENERGY);
+  return updated;
+}
+
+/** Met une carte d'une espèce (par son identifiant) dans la main d'un joueur, depuis la pioche de l'espèce */
+export function giveSpeciesCardToHand(game: Game, playerId: string, cardId: string): Game {
+  for (const species of game.species) {
+    const index = species.cards.findIndex(c => c.id === cardId);
+    if (index !== -1) {
+      species.cards = [...species.cards];
+      requirePlayer(game, playerId).cards.push(species.cards.splice(index, 1)[0]);
+      return game;
+    }
+  }
+  throw new Error(`Tutoriel : carte d'espèce ${cardId} introuvable`);
+}
+
 // --- Géométrie : planètes et sondes ---
 
 const rotationOf = (game: Game) => {
@@ -57,40 +95,62 @@ export function planetCell(game: Game, planetId: string): string | undefined {
   return undefined;
 }
 
-/** Sonde du joueur encore dans le système solaire (pas en orbite ni posée) */
-export function freeProbe(game: Game, humanId: string) {
-  return humanOf(game, humanId).probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
+/** Sonde du joueur encore dans le système solaire (pas en orbite ni posée), ou sa capsule de spécimen */
+export function freeProbe(game: Game, humanId: string, state: ProbeState = ProbeState.IN_SOLAR_SYSTEM) {
+  return humanOf(game, humanId).probes.find(p => p.state === state);
 }
 
-/** Case actuelle d'une sonde libre du joueur */
-export function probeCell(game: Game, humanId: string): string | undefined {
-  const probe = freeProbe(game, humanId);
+/** Case actuelle d'une sonde libre du joueur (ou de sa capsule) */
+export function probeCell(game: Game, humanId: string, state: ProbeState = ProbeState.IN_SOLAR_SYSTEM): string | undefined {
+  const probe = freeProbe(game, humanId, state);
   if (!probe) return undefined;
   return `${probe.solarPosition.disk}${getAbsoluteSectorForProbe(probe.solarPosition, rotationOf(game))}`;
 }
 
+/** Plus court chemin (déplacements, sorties d'astéroïde comprises) de la sonde libre du joueur vers une planète */
+function pathTo(game: Game, humanId: string, planetId: string, state: ProbeState = ProbeState.IN_SOLAR_SYSTEM) {
+  const probe = freeProbe(game, humanId, state);
+  const target = planetCell(game, planetId);
+  if (!probe || !target) return undefined;
+  const start = getAbsoluteSectorForProbe(probe.solarPosition, rotationOf(game));
+  const reachable = calculateReachableCells(probe.solarPosition.disk, start, 8, rotationOf(game), false, undefined, game.board.solarSystem.extraCelestialObjects);
+  // Toute planète est à moins de 8 cases d'une autre case du système solaire
+  return { probe, ...reachable.get(target)! };
+}
+
 /** Commande : un pas de la sonde libre du joueur vers une planète (plus court chemin) */
-export function stepTowards(planetId: string) {
+export function stepTowards(planetId: string, state: ProbeState = ProbeState.IN_SOLAR_SYSTEM) {
   return (game: Game, humanId: string): Command => {
-    const probe = freeProbe(game, humanId);
-    const target = planetCell(game, planetId);
-    if (!probe || !target) throw new Error(`Tutoriel : pas de sonde ou de planète ${planetId}`);
-    const s = game.board.solarSystem;
-    const start = getAbsoluteSectorForProbe(probe.solarPosition, rotationOf(game));
-    const reachable = calculateReachableCells(probe.solarPosition.disk, start, 8, rotationOf(game), false, undefined, s.extraCelestialObjects);
-    // Toute planète est à moins de 8 cases d'une autre case du système solaire
-    const next = reachable.get(target)!.path[1];
+    const path = pathTo(game, humanId, planetId, state);
+    if (!path) throw new Error(`Tutoriel : pas de sonde ou de planète ${planetId}`);
+    const probe = path.probe;
+    const next = path.path[1];
     return { type: 'MOVE_PROBE', probeId: probe.id, disk: next[0] as never, sector: Number(next.slice(1)) as never };
   };
 }
 
 // --- Prédicats ---
 
-export const probeOnPlanet = (game: Game, humanId: string, planetId: string) => probeCell(game, humanId) === planetCell(game, planetId);
+export const probeOnPlanet = (game: Game, humanId: string, planetId: string, state: ProbeState = ProbeState.IN_SOLAR_SYSTEM) =>
+  probeCell(game, humanId, state) === planetCell(game, planetId);
 export const hasOrbiter = (game: Game, humanId: string, planetId: string) =>
   humanOf(game, humanId).probes.some(p => p.state === ProbeState.IN_ORBIT && p.planetId === planetId);
 export const hasLander = (game: Game, humanId: string, planetId: string) =>
   humanOf(game, humanId).probes.some(p => p.state === ProbeState.LANDED && p.planetId === planetId);
+/**
+ * La sonde libre du joueur ne peut plus se mettre en orbite autour d'une planète : son énergie ne suffit plus
+ * pour la rejoindre puis payer l'orbite (sans orbiteur déjà posé, ni sonde libre : faux)
+ */
+export function cannotReachOrbit(game: Game, humanId: string, planetId: string): boolean {
+  if (hasOrbiter(game, humanId, planetId)) return false;
+  const path = pathTo(game, humanId, planetId);
+  return !!path && humanOf(game, humanId).energy < path.movements + GAME_CONSTANTS.ORBIT_COST_ENERGY;
+}
+/** La capsule du joueur ne peut plus rejoindre une planète : son énergie ne suffit plus (sans capsule : faux) */
+export function cannotReachWithCapsule(game: Game, humanId: string, planetId: string): boolean {
+  const path = pathTo(game, humanId, planetId, ProbeState.CAPSULE);
+  return !!path && humanOf(game, humanId).energy < path.movements;
+}
 export const handSize = (game: Game, humanId: string) => CardSystem.getHandCards(humanOf(game, humanId)).length;
 export const signalsOf = (game: Game, humanId: string) =>
   game.board.sectors.reduce((n, sector) => n + sector.signals.filter(s => s.markedBy === humanId).length, 0);
@@ -134,6 +194,14 @@ export function answerInteraction(game: Game, humanId: string): Command {
       // Chaque couleur de scan a ses secteurs sur le plateau
       return { type: 'CHOOSE', choice: { kind: 'SECTOR', sectorId: sector!.id } };
     }
+    case 'CHOOSING_EXERTIEN_CARD':
+      return { type: 'CHOOSE', choice: { kind: 'EXERTIEN', cardId: player.cards.find(c => CardSystem.isExertienCard(c))!.id } };
+    case 'CHOOSING_CENTAURIEN_REWARD': {
+      const tiles = game.species.find(s => s.name === AlienBoardType.CENTAURIENS)!.message!;
+      return { type: 'CHOOSE', choice: { kind: 'CENTAURIEN', tokenIndex: tiles.findIndex(t => t.isAvailable) } };
+    }
+    case 'COLLECTING_SPECIMEN':
+      return { type: 'CHOOSE', choice: { kind: 'SPECIMEN', planetId: interaction.planetId, tokenIndex: 0 } };
     case 'CHOOSING_BONUS_ACTION':
       return { type: 'CHOOSE', choice: { kind: 'MENU', index: interaction.choices.findIndex(c => !c.done) } };
     default:

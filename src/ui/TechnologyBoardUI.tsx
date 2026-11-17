@@ -4,6 +4,7 @@ import { tutorialAllows, useTutorialFocus, useTutorialPanel } from './tutorialFo
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { TechTileIcon, VictoryPointsIcon } from './components/GameIcons';
 import { BonusIcons } from './components/BonusIcons';
+import { TechTooltip } from './components/TechTooltip';
 import { HoverTooltip } from './components/HoverTooltip';
 import { AnyTechIcon, TechCategoryIcon } from './components/ObjectiveSymbol';
 import { ActionType, Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
@@ -138,23 +139,7 @@ const TechnologyBoardUIView: React.FC<TechnologyBoardUIProps> = ({ game, interac
                       onClick={() => isClickable && onTechClick && onTechClick(topCard)}
                       onMouseEnter={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ content: (
-                        <div className="seti-tech-tooltip-content">
-                          <div className="seti-tech-tooltip-header">
-                            <span className="seti-tech-tooltip-name">{topCard.name}</span>
-                            <span className="seti-tech-tooltip-category" style={{ color: techStyle.color, borderColor: techStyle.borderColor }}>{slot.category}</span>
-                          </div>
-                          {hasTech && <div className="seti-tech-tooltip-acquired">Déjà acquis</div>}
-                          <div className="seti-tech-tooltip-desc">{topCard.description || topCard.shorttext}</div>
-                          <div className="seti-tech-tooltip-bonus">
-                            <div className="tech-tooltip-gains-label">Gains immédiats :</div>
-                            {renderBonus(topCard.bonus, false)}
-                          </div>
-                          <div className="seti-tech-tooltip-count">
-                            {count} exemplaire{count > 1 ? 's' : ''} restant{count > 1 ? 's' : ''}
-                          </div>
-                        </div>
-                        ), rect });
+                        setActiveTooltip({ content: <TechTooltip tech={topCard} acquired={hasTech} remaining={count} />, rect });
                       }}
                       onMouseLeave={() => setActiveTooltip(null)}
                       style={{

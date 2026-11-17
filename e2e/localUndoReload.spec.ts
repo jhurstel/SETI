@@ -21,7 +21,7 @@ test('partie solo : annuler une action, puis retrouver la partie après un recha
   await expect(probesOnBoard(page)).toHaveCount(probesBefore + 1);
   await page.waitForTimeout(800); // écriture différée de la sauvegarde automatique (500 ms)
   await page.reload();
-  await page.getByText('Continuer la partie').click();
+  await page.getByText('Continuer', { exact: true }).click();
   await expect(probesOnBoard(page)).toHaveCount(probesBefore + 1);
   await expect(launches()).toHaveCount(launchesBefore + 1);
   // Le tirage du premier joueur ne se rejoue pas, et l'action principale reste faite

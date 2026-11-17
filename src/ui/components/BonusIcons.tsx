@@ -29,6 +29,8 @@ const SIGNAL_SCOPES: Partial<Record<SectorType, { color?: string; badge?: Signal
   [SectorType.JUPITER]: { badge: 'jupiter' },
   [SectorType.SATURN]: { badge: 'saturn' },
   [SectorType.OUMUAMUA]: { badge: 'oumuamua' },
+  [SectorType.ANOMALY]: { badge: 'anomaly' },
+  [SectorType.NEXT_ANOMALY]: { badge: 'nextAnomaly' },
 };
 
 /** Symbole du signal d'une carte (coin de scan) : disque à la couleur du secteur ; à défaut, le nom du secteur */
@@ -64,6 +66,8 @@ const SIGNAL_TARGETS: Partial<Record<SectorType, string>> = {
   [SectorType.JUPITER]: 'dans le secteur de Jupiter',
   [SectorType.SATURN]: 'dans le secteur de Saturne',
   [SectorType.OUMUAMUA]: "dans le secteur d'Oumuamua",
+  [SectorType.ANOMALY]: "dans le secteur d'une anomalie",
+  [SectorType.NEXT_ANOMALY]: 'dans le secteur de la prochaine anomalie déclenchée',
 };
 
 const LIFE_TRACE_NAMES: Record<LifeTraceType, string> = {

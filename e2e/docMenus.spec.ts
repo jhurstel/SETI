@@ -4,7 +4,7 @@ import * as path from 'path';
 import { DataLoader } from '../src/core/DataLoader';
 import { serializeGame } from '../src/core/GamePersistence';
 import { cloneGame } from '../src/core/cloneGame';
-import { AlienBoardType, Card, LifeTraceType, Game, GamePhase, HistoryEntry, InteractionState, Player } from '../src/core/types';
+import { AlienBoardType, Card, LifeTraceType, Game, GamePhase, HistoryEntry, InteractionState, Player, SectorType } from '../src/core/types';
 import { GameFactory } from '../src/engine/GameFactory';
 import { TurnManager } from '../src/engine/TurnManager';
 import { GameSession } from '../src/session/GameSession';
@@ -80,7 +80,8 @@ function setInteraction(game: Game, interaction: InteractionState): Game {
 /** Fenêtres capturées : nom du fichier → préparation de la partie */
 const MENUS: Record<string, (game: Game) => Game> = {
   recompenses: game => InteractionQueue.enqueue(game, [
-    { type: 'ACQUIRING_TECH', isBonus: true },
+    // Gains appliqués d'office par le même bonus : tuiles grisées
+    { type: 'ACQUIRING_TECH', isBonus: true, autoGains: { pv: 2, media: 1, signals: [{ amount: 1, scope: SectorType.MARS }] } },
     { type: 'PLACING_LIFE_TRACE', color: LifeTraceType.YELLOW },
     { type: 'MOVING_PROBE', count: 2 },
   ], 'doc'),
@@ -154,12 +155,69 @@ for (const [name, prepare] of Object.entries(MENUS)) {
     const save = JSON.stringify(serializeGame(game, base.entries));
     await page.addInitScript(json => { localStorage.setItem('seti_autosave', json); }, save);
     await page.goto('/', { timeout: 300_000 });
-    await page.getByText('Continuer la partie').click();
+    await page.getByText('Continuer', { exact: true }).click();
     const modal = page.locator('.seti-choice-modal');
     await expect(modal).toBeVisible();
     // Annonces de début de tour terminées, souris hors de la fenêtre (pas d'infobulle)
     await page.mouse.move(5, 5);
     await page.waitForTimeout(2500);
     await modal.screenshot({ path: path.join(OUT_DIR, `${name}.png`) });
+  });
+}
+
+/** Écrans entiers de la documentation (public/docs/images/ecrans/) : accueil, puis partie en cours sans fenêtre */
+const SCREENS_DIR = path.join(PUBLIC_DIR, 'docs', 'images', 'ecrans');
+
+test('capture : écran d\'accueil', async ({ page }) => {
+  fs.mkdirSync(SCREENS_DIR, { recursive: true });
+  const save = JSON.stringify(serializeGame(base.game, base.entries));
+  await page.addInitScript(json => { localStorage.setItem('seti_autosave', json); }, save);
+  await page.goto('/', { timeout: 300_000 });
+  await expect(page.getByText('Continuer', { exact: true })).toBeVisible();
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: path.join(SCREENS_DIR, 'accueil.png') });
+});
+
+test('capture : écran de jeu', async ({ page }) => {
+  fs.mkdirSync(SCREENS_DIR, { recursive: true });
+  const save = JSON.stringify(serializeGame(base.game, base.entries));
+  await page.addInitScript(json => { localStorage.setItem('seti_autosave', json); }, save);
+  await page.goto('/', { timeout: 300_000 });
+  await page.getByText('Continuer', { exact: true }).click();
+  // Annonce de début de tour fermée, souris hors du plateau (pas d'infobulle)
+  await page.waitForTimeout(3000);
+  await page.mouse.click(5, 5);
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(1000);
+  await page.screenshot({ path: path.join(SCREENS_DIR, 'jeu.png') });
+});
+
+/** Plateaux de l'écran de jeu, ouverts un par un (public/docs/images/ecrans/plateau-<nom>.png) */
+const BOARDS: Record<string, { panel: string; header: string }> = {
+  objectifs: { panel: '[data-tutorial="objectives"]', header: '[data-tutorial="objectives"] .seti-foldable-header' },
+  technologies: { panel: '[data-tutorial="tech-board"]', header: '[data-tutorial="tech-board"] .seti-foldable-header' },
+  rangee: { panel: '[data-tutorial="card-row"]', header: '[data-tutorial="card-row"] .seti-foldable-header' },
+  planetes: { panel: '[data-tutorial="planets"]', header: '[data-tutorial="planets"] .seti-foldable-header' },
+  especes: { panel: '.alien-board-container.left', header: '.alien-board-container.left .seti-foldable-header' },
+  joueur: { panel: '[data-tutorial="player-board"]', header: '' },
+  historique: { panel: '[data-tutorial="history"]', header: '' },
+};
+
+for (const [name, board] of Object.entries(BOARDS)) {
+  test(`capture : plateau ${name}`, async ({ page }) => {
+    fs.mkdirSync(SCREENS_DIR, { recursive: true });
+    const save = JSON.stringify(serializeGame(base.game, base.entries));
+    await page.addInitScript(json => { localStorage.setItem('seti_autosave', json); }, save);
+    await page.goto('/', { timeout: 300_000 });
+    await page.getByText('Continuer', { exact: true }).click();
+    // Annonce de début de tour fermée
+    await page.waitForTimeout(3000);
+    await page.mouse.click(5, 5);
+    if (board.header) await page.locator(board.header).first().click();
+    // Souris hors du plateau (pas d'infobulle), animation d'ouverture terminée
+    await page.mouse.move(5, 5);
+    await page.waitForTimeout(1200);
+    await page.locator(board.panel).first().screenshot({ path: path.join(SCREENS_DIR, `plateau-${name}.png`) });
   });
 }

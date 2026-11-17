@@ -92,7 +92,14 @@ type InteractionStateVariant =
  * `playerId` : joueur qui résout l'interaction quand ce n'est pas le joueur actif
  * (ex. gains du gagnant d'un secteur couvert pendant le tour d'un robot). Absent : le joueur actif.
  */
-export type InteractionState = InteractionStateVariant & { playerId?: string };
+export type InteractionState = InteractionStateVariant & {
+  playerId?: string;
+  /**
+   * Gains appliqués d'office par le même bonus (PV, ressources, signal dans un secteur imposé…) : le menu des
+   * récompenses (CHOOSING_BONUS_ACTION) les montre comme déjà faits, à côté des gains à choisir
+   */
+  autoGains?: Bonus;
+};
 
 /** Type d'une interaction, et la variante correspondante */
 export type InteractionType = InteractionState['type'];

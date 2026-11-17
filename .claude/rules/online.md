@@ -15,7 +15,7 @@ paths:
 
 # Jeu en ligne et hébergement
 
-Spec : `openspec/specs/online-play/spec.md`. Protocole détaillé pour le joueur : `public/docs/documentation.md` (section serveur).
+Spec : `openspec/specs/online-play/spec.md`. Protocole : `session/protocol.ts` (messages JSON client → serveur `create`, `join`, `resume`, `command`, `undo`, `ping` ; serveur → client `welcome` (code, jeton, joueur), `state` (vue, historique filtré, annulations possibles), `notification`, `error`, `ack { requestId, error? }` envoyé après l'état qui découle de la commande, `pong`). Le client envoie `ping` toutes les 25 s et tient la connexion pour coupée après 50 s sans nouvelles. `GET /health` : version et nombre de salles.
 
 ## Serveur et salles
 

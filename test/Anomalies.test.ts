@@ -3,6 +3,7 @@ import { createRotationState, getObjectPosition, calculateAbsolutePosition } fro
 import { performRotation } from '../src/systems/RotationSystem';
 import { AlienBoardType, CelestialObject, Game, LifeTraceLocation, LifeTraceType, SectorNumber } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
+import { withRandomState } from '../src/core/random';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
@@ -112,5 +113,39 @@ describe('Anomalies', () => {
     const solar = res.updatedGame.board.solarSystem;
     const rotation = createRotationState(solar.rotationAngleLevel1 || 0, solar.rotationAngleLevel2 || 0, solar.rotationAngleLevel3 || 0);
     expect(calculateAbsolutePosition(solar.extraCelestialObjects![0], rotation, solar.extraCelestialObjects).absoluteSector).toBe(5);
+  });
+});
+
+describe('Anomalies : mise en place au hasard', () => {
+  test('la face (A ou B) et la place de chaque couleur (secteur de la Terre, ou à 3 secteurs) changent d\'une partie à l\'autre', async () => {
+    const base = await createTestGame();
+    anomalyBoard(base);
+    const colorAtEarth = new Set<string>();
+    const orders = new Set<string>();
+    const sides = new Map<string, Set<string>>();
+    for (let state = 1; state <= 60; state++) {
+      const { result: g } = withRandomState(state * 7919, () => {
+        let current = base;
+        for (const color of [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE]) {
+          current = SpeciesSystem.placeLifeTrace(current, 0, color, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
+        }
+        return current;
+      });
+      const solar = g.board.solarSystem;
+      const earth = getObjectPosition('earth', solar.rotationAngleLevel1, solar.rotationAngleLevel2, solar.rotationAngleLevel3, solar.extraCelestialObjects)!.absoluteSector;
+      const anomalies = solar.extraCelestialObjects!.filter(o => o.type === 'anomaly');
+      const at = (sector: number) => anomalies.find(a => a.position.sector === sector)!.anomalyData!.color;
+      colorAtEarth.add(at(earth));
+      orders.add([earth, ((earth - 1 - 3 + 8) % 8) + 1, ((earth - 1 + 3) % 8) + 1].map(at).join('/'));
+      anomalies.forEach(a => {
+        if (!sides.has(a.anomalyData!.color)) sides.set(a.anomalyData!.color, new Set());
+        sides.get(a.anomalyData!.color)!.add(a.anomalyData!.side);
+      });
+    }
+    // Chaque couleur peut être dans le secteur de la Terre, et les 6 ordres possibles apparaissent
+    expect(colorAtEarth).toEqual(new Set([LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE]));
+    expect(orders.size).toBe(6);
+    // Chaque jeton sort sur ses deux faces
+    expect([...sides.values()].map(s => s.size)).toEqual([2, 2, 2]);
   });
 });

@@ -10,6 +10,7 @@ import { TechnologySystem } from './TechnologySystem';
 import { random } from '../core/random';
 import { privateText } from '../core/historyText';
 import { requirePlayer } from '../core/players';
+import { anomalySector, nextAnomaly } from '../core/anomalies';
 
 export class ResourceSystem {
 
@@ -287,8 +288,12 @@ export class ResourceSystem {
         return "Vous avez atteint la limite de sondes dans le système solaire. L'action de lancer une sonde sera perdue. Voulez-vous continuer ?";
       }
     }
-    if (bonus.movements && !bonus.probe && !player.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM)) {
-      return "Vous n'avez aucune sonde dans le système solaire pour effectuer le déplacement. L'action sera perdue. Voulez-vous continuer ?";
+    // Déplacement et signal « secteur d'une de vos sondes » : une capsule de spécimen compte comme une sonde
+    const lostMove = !!bonus.movements && !bonus.probe && !ProbeSystem.hasMovablePiece(player);
+    const lostSignal = !bonus.probe && !!bonus.signals?.some(s => s.scope === SectorType.PROBE) && !ScanSystem.canPlaceProbeSignal(game, playerId, bonus.anyProbe);
+    if (lostMove || lostSignal) {
+      const lost = lostMove && lostSignal ? 'le déplacement et le signal seront perdus' : lostMove ? 'le déplacement sera perdu' : 'le signal sera perdu';
+      return `Vous n'avez aucune sonde ni capsule dans le système solaire : ${lost}. Voulez-vous continuer ?`;
     }
     if (bonus.landing && !ProbeSystem.probeOnPlanetInfo(game, playerId).hasProbe) {
       return "Vous n'avez aucune sonde sur une planète pour effectuer l'atterrissage. L'action sera perdue. Voulez-vous continuer ?";
@@ -311,6 +316,8 @@ export class ResourceSystem {
     const historyEntries: HistoryEntry[] = [];
     const passiveGains: string[] = [];
     const launchedProbeIds: string[] = [];
+    /** Signaux posés d'office (secteur imposé : Terre, planète, étoile, prochaine anomalie) */
+    const autoSignals: { amount: number; scope: SectorType }[] = [];
 
 
     // Appliquer les ressources simples au joueur
@@ -413,7 +420,11 @@ export class ResourceSystem {
             case SectorType.SATURN: objectId = 'saturn'; break;
           }
 
-          if (objectId) {
+          if (signalBonus.scope === SectorType.NEXT_ANOMALY) {
+            // Secteur de la prochaine anomalie qui sera déclenchée : signal posé directement, sans choix
+            const next = nextAnomaly(updatedGame);
+            if (next) targetSectorId = updatedGame.board.sectors[anomalySector(updatedGame, next) - 1]?.id;
+          } else if (objectId) {
             const solarSystem = updatedGame.board.solarSystem;
             const pos = getObjectPosition(objectId, solarSystem.rotationAngleLevel1, solarSystem.rotationAngleLevel2, solarSystem.rotationAngleLevel3, solarSystem.extraCelestialObjects);
             if (pos) {
@@ -439,6 +450,7 @@ export class ResourceSystem {
           }
 
           if (targetSectorId) {
+            autoSignals.push({ amount: 1, scope: signalBonus.scope });
             const sector = updatedGame.board.sectors.find(s => s.id === targetSectorId)!;
             laterGains.push(`1 Signal ${sector.color} (${signalBonus.scope})`);
             const result = ScanSystem.performSignalAndCover(updatedGame, playerId, targetSectorId, [], bonuses.noData, sequenceId);
@@ -453,6 +465,9 @@ export class ResourceSystem {
             newPendingInteractions.push({ type: 'SELECTING_SCAN_CARD', sequenceId });
           } else if (signalBonus.scope === SectorType.DECK) {
             newPendingInteractions.push({ type: 'DRAW_AND_SCAN', count: 1, sequenceId });
+          } else if (signalBonus.scope === SectorType.PROBE && !ScanSystem.canPlaceProbeSignal(updatedGame, playerId, bonuses.anyProbe)) {
+            // Aucune sonde ni capsule dans le système solaire : le signal est perdu
+            logs.push('perd 1 signal (aucune sonde ni capsule dans le système solaire)');
           } else if (signalBonus.scope === SectorType.PROBE) {
             newPendingInteractions.push({ type: 'SELECTING_SCAN_SECTOR', color: SectorType.PROBE, noData: bonuses.noData, onlyProbes: true, keepCardIfOnly: bonuses.keepCardIfOnly, cardId: bonuses.keepCardIfOnly ? sourceId : undefined, sequenceId, markAdjacents: bonuses.gainSignalAdjacents, anyProbe: bonuses.anyProbe });
           } else if ([SectorType.RED, SectorType.BLUE, SectorType.YELLOW, SectorType.BLACK, SectorType.OUMUAMUA, SectorType.ANOMALY, SectorType.ANY].includes(signalBonus.scope)) {
@@ -570,9 +585,25 @@ export class ResourceSystem {
       else logs.unshift(`gagne ${laterGains.join(', ')}`);
     }
 
+    // Gains déjà appliqués : le menu des récompenses (plusieurs choix) les montre comme faits
+    const autoGains = newPendingInteractions.length > 1 ? ResourceSystem.automaticGains(bonuses, autoSignals) : undefined;
+
     // Chaque interaction désigne le joueur qui reçoit le bonus : il peut ne pas être le joueur actif
     // (gagnant d'un secteur couvert par un autre joueur, trace de vie posée pendant le tour d'un robot)
-    return { updatedGame, newPendingInteractions: newPendingInteractions.map(i => ({ ...i, playerId })), logs, passiveGains, historyEntries };
+    return { updatedGame, newPendingInteractions: newPendingInteractions.map(i => ({ ...i, playerId, ...(autoGains ? { autoGains } : {}) })), logs, passiveGains, historyEntries };
+  };
+
+  /**
+   * Part d'un bonus appliquée sans choix du joueur (PV, ressources, pioche, sonde lancée, rotation, signaux à secteur
+   * imposé) ; undefined s'il n'y en a pas
+   */
+  static automaticGains(bonuses: Bonus, autoSignals: { amount: number; scope: SectorType }[]): Bonus | undefined {
+    const gains: Bonus = {};
+    for (const key of ['pv', 'credits', 'energy', 'media', 'data', 'token', 'card', 'probe', 'rotation'] as const) {
+      if (bonuses[key]) gains[key] = bonuses[key];
+    }
+    if (autoSignals.length > 0) gains.signals = autoSignals;
+    return Object.keys(gains).length > 0 ? gains : undefined;
   };
 
 }

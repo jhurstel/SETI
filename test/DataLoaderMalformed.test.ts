@@ -1,5 +1,5 @@
 import { DataLoader } from '../src/core/DataLoader';
-import { CostType } from '../src/core/types';
+import { CostType, SectorType } from '../src/core/types';
 
 const HEADER = 'Id;Nom;Type;Texte;Action gratuite;Couleur scan;Revenu;Cout;Gain;Contrainte';
 
@@ -51,5 +51,12 @@ describe('DataLoader : lignes mal formées du CSV', () => {
     expect(card.costType).toBe(CostType.ENERGY);
     expect(card.cost).toBe(0);
     expect(card.immediateEffects).toEqual([expect.objectContaining({ value: 1 })]);
+  });
+
+  test("signaux Anomalie : secteur d'une anomalie au choix, ou prochaine anomalie (ET.14)", async () => {
+    const [any, next, other] = await load(['3;Essai;Action;;;;;1;1 Signal Anomalie;', '4;Essai;Action;;;;;1;1 Signal Anomalie suivante;', '5;Essai;Action;;;;;1;1 Signal prochaine anomalie;']);
+    expect(any.immediateEffects).toEqual([{ type: 'ACTION', target: 'SIGNAL', value: { amount: 1, scope: SectorType.ANOMALY } }]);
+    expect(next.immediateEffects).toEqual([{ type: 'ACTION', target: 'SIGNAL', value: { amount: 1, scope: SectorType.NEXT_ANOMALY } }]);
+    expect(other.immediateEffects).toEqual(next.immediateEffects);
   });
 });

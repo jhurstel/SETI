@@ -48,7 +48,7 @@ export class TechnologySystem {
     const player = requirePlayer(game, playerId);
 
     if (player.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) {
-      return { canResearch: false, reason: `Couverture médiatique insuffisante (Requis: ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA})` };
+      return { canResearch: false, reason: `Nécessite ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} média${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA > 1 ? 's' : ''}` };
     }
 
     return { canResearch: true };

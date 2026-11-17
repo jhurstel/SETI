@@ -14,13 +14,13 @@ describe('infobulle des cases de signal (secteurs, Oumuamua)', () => {
       .toBe('Cliquez pour marquer le signal');
   });
 
-  test('case du secteur de la Terre : disponible au scan, coût sur la ligne du bonus ; sans ressources : insuffisantes', async () => {
+  test('case du secteur de la Terre : disponible au scan, coût sur la ligne du bonus ; sans ressources : indisponible', async () => {
     const game = await createTestGame();
     const signal = game.board.sectors[0].signals[0];
     const scannable = signalSlotState(game, { type: 'IDLE' }, signal, false, true, true);
     expect(scannable).toEqual({ status: 'Disponible', color: SLOT_COLORS.available, note: 'Scannez pour envoyer un signal', cost: { credits: 1, energy: 2 } });
     game.players[0].credits = 0;
-    expect(signalSlotState(game, { type: 'IDLE' }, signal, false, true, false).status).toBe('Ressources insuffisantes');
+    expect(signalSlotState(game, { type: 'IDLE' }, signal, false, true, false).status).toBe('Indisponible');
   });
 
   test('autre prochaine case : indisponible pour l\'instant, à marquer par un scan ou un signal', async () => {

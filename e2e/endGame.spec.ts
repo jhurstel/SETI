@@ -50,7 +50,7 @@ test('fin de partie : l\'écran de fin affiche le décompte de chaque joueur et 
   const save = await finishedGameSave();
   await page.addInitScript(json => { localStorage.setItem('seti_autosave', json); }, save);
   await page.goto('/');
-  await page.getByText('Continuer la partie').click();
+  await page.getByText('Continuer', { exact: true }).click();
 
   const endGame = page.locator('.seti-endgame-modal');
   await expect(endGame).toBeVisible();

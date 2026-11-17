@@ -1,4 +1,5 @@
-import { Game, InteractionState, getInteractionLabel } from '../core/types';
+import { Bonus, Game, InteractionState, getInteractionLabel } from '../core/types';
+import { ResourceSystem } from '../systems/ResourceSystem';
 import { uniqueId } from '../core/ids';
 
 /**
@@ -58,12 +59,16 @@ export class InteractionQueue {
 
     let queue: InteractionState[];
     if (others.length > 1 && !forceStacking) {
+      // Gains déjà appliqués par les bonus à l'origine de ces choix (une fois chacun)
+      const autoGains = [...new Set(others.map(i => (i.autoGains ? JSON.stringify(i.autoGains) : '')).filter(Boolean))]
+        .reduce<Bonus | undefined>((acc, json) => { const merged = acc ?? {}; ResourceSystem.accumulateBonus(JSON.parse(json), merged); return merged; }, undefined);
       const menu: InteractionState = {
         type: 'CHOOSING_BONUS_ACTION',
         bonusesSummary: summary || "Plusieurs actions disponibles. Choisissez l'ordre de résolution :",
         choices: others.map((state, index) => ({ id: `choice-${uniqueId()}-${index}`, label: getInteractionLabel(state), state, done: false })),
         sequenceId: sequenceId || others[0].sequenceId,
         playerId: others[0].playerId,
+        ...(autoGains ? { autoGains } : {}),
       };
       queue = [...current, menu, ...pending, ...resolutions];
     } else {

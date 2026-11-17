@@ -15,7 +15,7 @@ export interface SignalSlotState {
  * - marquée (par qui) ; indisponible car le signal précédent manque ;
  * - pendant le choix d'un secteur : cliquable ;
  * - case qu'un scan marquerait maintenant (celle qui pulse : secteur de la Terre, ou adjacent avec Observation I) :
- *   disponible, avec le coût du scan sur la ligne du bonus ; sans les ressources du scan : ressources insuffisantes ;
+ *   disponible, avec le coût du scan sur la ligne du bonus ; sans les ressources du scan : indisponible, avec ce que le scan nécessite ;
  * - toute autre prochaine case : indisponible pour l'instant, elle se marque par un scan ou un signal.
  */
 export function signalSlotState(game: Game, interactionState: InteractionState, signal: Signal, isDisabled: boolean, isSectorClickable: boolean, scannable: boolean): SignalSlotState {
@@ -33,8 +33,8 @@ export function signalSlotState(game: Game, interactionState: InteractionState, 
   const canAffordScan = currentPlayer.credits >= GAME_CONSTANTS.SCAN_COST_CREDITS && currentPlayer.energy >= GAME_CONSTANTS.SCAN_COST_ENERGY;
   if (isSectorClickable && !canAffordScan && interactionState.type === 'IDLE') {
     return {
-      status: 'Ressources insuffisantes', color: SLOT_COLORS.unavailable, cost: scanCost,
-      note: `Vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s)`,
+      status: 'Indisponible', color: SLOT_COLORS.unavailable, cost: scanCost,
+      note: `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit${GAME_CONSTANTS.SCAN_COST_CREDITS > 1 ? 's' : ''} et ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergie${GAME_CONSTANTS.SCAN_COST_ENERGY > 1 ? 's' : ''}`,
     };
   }
   return { status: 'Indisponible', color: SLOT_COLORS.unavailable, note: 'Nécessite un scan ou un signal' };

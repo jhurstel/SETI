@@ -11,6 +11,9 @@ const SIZE = 26;
 /** Largeur d'une tuile Technologie à la hauteur des symboles (proportions 58 × 82) */
 const TILE_WIDTH = Math.round((SIZE + 6) * 58 / 82);
 
+/** Les trois catégories de technologies du plateau */
+const BASE_TECH_CATEGORIES = [TechnologyCategory.EXPLORATION, TechnologyCategory.OBSERVATION, TechnologyCategory.COMPUTING];
+
 /**
  * Symboles d'une interaction proposée dans un menu de choix (récompenses à résoudre dans l'ordre voulu) :
  * signal du secteur visé, trace de vie, technologie, cartes, déplacements… ; null si l'interaction n'a pas de symbole
@@ -27,9 +30,17 @@ export const interactionSymbol = (state: InteractionState): React.ReactNode => {
     case 'DRAW_AND_SCAN': return icons({ signals: [{ amount: 1, scope: SectorType.DECK }] });
     case 'DISCARDING_FOR_SIGNAL': return <SignalGainIcon badge="discard" size={SIZE + 2} />;
     case 'PLACING_LIFE_TRACE': return icons({ lifetraces: [{ amount: 1, scope: state.color }] });
-    case 'ACQUIRING_TECH': return state.categories && state.categories.length > 0
-      ? icons({ technologies: state.categories.map(scope => ({ amount: 1, scope })) })
-      : icons({ technologies: [{ amount: 1, scope: TechnologyCategory.ANY }] });
+    case 'ACQUIRING_TECH': {
+      // Toutes les catégories permises (lune de Saturne…) : le symbole « technologie au choix », pas les trois puces
+      const any = !state.categories?.length || state.categories.includes(TechnologyCategory.ANY)
+        || BASE_TECH_CATEGORIES.every(category => state.categories!.includes(category));
+      if (any) return icons({ technologies: [{ amount: 1, scope: TechnologyCategory.ANY }] });
+      // Exploration ou Observation : leur symbole partagé
+      const explorationOrObservation = state.categories!.length === 2 && state.categories!.includes(TechnologyCategory.EXPLORATION) && state.categories!.includes(TechnologyCategory.OBSERVATION);
+      return icons({ technologies: explorationOrObservation
+        ? [{ amount: 1, scope: TechnologyCategory.EXPLORATION_OR_OBSERVATION }]
+        : state.categories!.map(scope => ({ amount: 1, scope })) });
+    }
     case 'ACQUIRING_CARD': return icons({ card: state.count });
     case 'ACQUIRING_ALIEN_CARD': return icons({ speciesCard: state.count });
     case 'MOVING_PROBE': return icons({ movements: state.count });

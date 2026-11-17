@@ -168,6 +168,28 @@ export const MissionCompleteIcon: React.FC<{ size?: number }> = ({ size = 20 }) 
   </svg>
 );
 
+/**
+ * Transférer une donnée dans l'ordinateur (action gratuite ; pas de symbole dans le livret) : jeton Donnée
+ * et double chevron vert montant, comme un gain de niveau de jeu vidéo (l'ordinateur monte d'un cran)
+ */
+export const TransferDataIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" className="icon-block">
+    <g transform="translate(15 23)">
+      <rect x={-11} y={-11} width={22} height={22} rx={3.5} transform="rotate(45)" fill="#4a7fd0" stroke="#dce8ff" strokeWidth={1.2} />
+      <g fill="#dce8ff" fontSize={5} fontWeight="bold" fontFamily="Consolas, monospace" textAnchor="middle">
+        <text y={-1.5}>0101</text><text y={4}>1100</text>
+      </g>
+    </g>
+    {/* Montée de niveau : deux chevrons verts détourés, petites étincelles */}
+    <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M24 18 L31 11 L38 18 M24 26 L31 19 L38 26" stroke="#1d2133" strokeWidth={7} />
+      <path d="M24 18 L31 11 L38 18 M24 26 L31 19 L38 26" stroke="#3fdc4a" strokeWidth={3.6} />
+    </g>
+    <path d="M30 2 L31 4.5 L33.5 5.5 L31 6.5 L30 9 L29 6.5 L26.5 5.5 L29 4.5 Z" fill="#ffd700" />
+    <circle cx={37} cy={7} r={1.2} fill="#ffd700" />
+  </svg>
+);
+
 /** Refuser, renoncer : cercle rouge barré */
 export const RefuseIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 40 40" className="icon-block">
@@ -279,7 +301,7 @@ export const EndTurnIcon: React.FC<{ size?: number }> = ({ size = 28 }) => {
 /* Signal (livret p. 12) : disque gris à barres sonores */
 /* ---------------------------------------------------- */
 
-export type SignalBadge = 'earth' | 'card' | 'mercury' | 'discard' | 'deck' | 'probe' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'oumuamua';
+export type SignalBadge = 'earth' | 'card' | 'mercury' | 'discard' | 'deck' | 'probe' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'oumuamua' | 'anomaly' | 'nextAnomaly';
 
 /** Planète simple (badge de signal) : disque coloré, bandes pour Jupiter, anneau pour Saturne */
 const PlanetBadge: React.FC<{ fill: string; bands?: boolean; ring?: boolean }> = ({ fill, bands, ring }) => (
@@ -352,6 +374,26 @@ const signalBadge = (badge: SignalBadge): React.ReactNode => {
         <g transform="translate(20 20) rotate(-35)">
           <ellipse rx={17} ry={6} fill="#6d4c41" stroke="#0b0f1e" strokeWidth={1.5} />
           <ellipse cx={-4} cy={-1.5} rx={6} ry={2} fill="#8d6e63" />
+        </g>
+      );
+    case 'anomaly':
+      // Secteur d'une anomalie : jeton Anomalie (centre sombre, anneau de distorsion violet pointillé)
+      return (
+        <g transform="translate(20 20)">
+          <circle r={14} fill="#0b1026" stroke="#0b0f1e" strokeWidth={1.5} />
+          <circle r={11} fill="none" stroke="#b07cff" strokeWidth={3} strokeDasharray="4 2.5" />
+          <circle r={5} fill="#05060f" stroke="#e0ccff" strokeWidth={1.2} />
+        </g>
+      );
+    case 'nextAnomaly':
+      // Prochaine anomalie déclenchée : jeton Anomalie et flèche dorée qui en fait le tour (sens des secteurs)
+      return (
+        <g transform="translate(20 20)">
+          <circle r={14} fill="#0b1026" stroke="#0b0f1e" strokeWidth={1.5} />
+          <circle r={8} fill="none" stroke="#b07cff" strokeWidth={2.6} strokeDasharray="3.5 2" />
+          <circle r={3.6} fill="#05060f" stroke="#e0ccff" strokeWidth={1} />
+          <path d="M-9 -10 A13.5 13.5 0 0 1 12.5 -4" fill="none" stroke="#ffd700" strokeWidth={2.6} strokeLinecap="round" />
+          <path d="M8.6 -6.4 L15.6 -2.2 L15.2 -10 Z" fill="#ffd700" />
         </g>
       );
     case 'discard':

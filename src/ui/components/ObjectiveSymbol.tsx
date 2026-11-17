@@ -150,16 +150,23 @@ export const ReservationIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
   </svg>
 );
 
-/** Secteur couvert : bande de secteur avec signal, et coche */
-const CoveredSector = () => (
+/** Secteur couvert : bande de secteur (grise : n'importe lequel, sinon à la couleur du secteur) avec signal, et coche */
+const CoveredSector: React.FC<{ fill?: string }> = ({ fill = COLORS.sector }) => (
   <g>
-    <path d="M2 10 Q20 5 38 10 L35 28 Q20 24 5 28 Z" fill={COLORS.sector} />
+    <path d="M2 10 Q20 5 38 10 L35 28 Q20 24 5 28 Z" fill={fill} stroke={fill === COLORS.sector ? undefined : "rgba(255, 255, 255, 0.55)"} strokeWidth={0.8} />
     {[10, 14, 18, 22, 26, 30].map((x, i) => (
       <rect key={x} x={x - 0.9} y={17 - [2, 4, 6, 6, 4, 2][i]} width={1.8} height={[2, 4, 6, 6, 4, 2][i] * 2} rx={0.9} fill="#fff" />
     ))}
     <circle cx={30} cy={29} r={8} fill="#333" stroke="#fff" strokeWidth={1.2} />
     <Check x={25.5} y={25} size={0.75} color="#fff" />
   </g>
+);
+
+/** Secteur couvert seul (glossaire) : `color` absent pour un secteur quelconque */
+export const CoveredSectorIcon: React.FC<{ color?: string; size?: number }> = ({ color, size = 26 }) => (
+  <svg width={size} height={size} viewBox="0 2 40 36" className="icon-block">
+    <CoveredSector fill={color} />
+  </svg>
 );
 
 /** Satellite blanc (corps et deux panneaux solaires), centré sur (x, y) */

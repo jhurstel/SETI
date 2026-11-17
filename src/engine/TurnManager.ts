@@ -1,6 +1,7 @@
 import { Game, GamePhase, Player, HistoryEntry, InteractionState, GAME_CONSTANTS } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { ScoreManager } from './ScoreManager';
+import { ResourceSystem } from '../systems/ResourceSystem';
 import { cloneGame } from '../core/cloneGame';
 
 export class TurnManager {
@@ -66,14 +67,44 @@ export class TurnManager {
       return { ...base, updatedGame: milestone.updatedGame, turnEntries: [], pendingInteractions: [milestone.newInteraction, ...(milestone.moreInteractions || [])], turnEnded: false };
     }
 
-    const updatedGame = this.nextPlayer(milestone.updatedGame);
-    const nextPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
-    return {
-      ...base,
-      updatedGame,
-      turnEntries: [{ message: `--- Tour de ${nextPlayer.name} ---`, playerId: nextPlayer.id }],
-      turnEnded: true,
-    };
+    const advanced = this.advance(milestone.updatedGame);
+    return { ...base, updatedGame: { ...advanced.updatedGame, endingTurn: false }, turnEntries: advanced.historyEntries, turnEnded: true };
+  }
+
+  /**
+   * Joueur suivant, ou fin de manche quand tous ont passé (revenus, nouveau premier joueur, décompte final
+   * après la dernière), avec les entrées d'historique correspondantes. Les paliers sont vérifiés avant (finishTurn).
+   */
+  static advance(game: Game): { updatedGame: Game; historyEntries: HistoryEntry[] } {
+    const historyEntries: HistoryEntry[] = [];
+    const updatedGame = this.nextPlayer(game);
+    if (!updatedGame.isRoundEnd) {
+      const nextPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
+      historyEntries.push({ message: `--- Tour de ${nextPlayer.name} ---`, playerId: nextPlayer.id });
+      return { updatedGame, historyEntries };
+    }
+
+    historyEntries.push({ message: `--- FIN DE LA MANCHE ${game.currentRound} ---`, playerId: '', sequenceId: '' });
+    // Revenus de chaque joueur
+    updatedGame.players.forEach(player => {
+      const gains: string[] = [];
+      if (player.revenueCredits > 0) gains.push(ResourceSystem.formatResource(player.revenueCredits, 'CREDIT'));
+      if (player.revenueEnergy > 0) gains.push(ResourceSystem.formatResource(player.revenueEnergy, 'ENERGY'));
+      if (player.revenueCards > 0) gains.push(ResourceSystem.formatResource(player.revenueCards, 'CARD'));
+      if (gains.length > 0) historyEntries.push({ message: `perçoit ses revenus : ${gains.join(', ')}`, playerId: player.id, sequenceId: '' });
+    });
+
+    if (updatedGame.phase === GamePhase.FINAL_SCORING && updatedGame.finalScores) {
+      // Dernière manche terminée : décompte final
+      historyEntries.push(...ScoreManager.describeFinalScores(updatedGame, updatedGame.finalScores).map(e => ({ ...e, sequenceId: '' })));
+      return { updatedGame, historyEntries };
+    }
+
+    const firstPlayer = updatedGame.players[updatedGame.firstPlayerIndex];
+    historyEntries.push({ message: `devient le Premier Joueur`, playerId: firstPlayer.id, sequenceId: '' });
+    historyEntries.push({ message: `--- Manche ${updatedGame.currentRound} / ${updatedGame.maxRounds} ---`, playerId: '', sequenceId: '' });
+    historyEntries.push({ message: `--- Tour de ${firstPlayer.name} ---`, playerId: firstPlayer.id, sequenceId: '' });
+    return { updatedGame, historyEntries };
   }
 
   /**

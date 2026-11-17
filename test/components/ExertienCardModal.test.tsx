@@ -18,12 +18,16 @@ describe('fenêtre des cartes Exertiens', () => {
     const onChoice = jest.fn();
     render(<ExertienCardModal game={game} interactionState={{ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, count: 2, playerId: 'player_0' }} onChoice={onChoice} />);
     expect(screen.getByText(/jusqu'à 2 cartes Exertiens/)).toBeTruthy();
+    // Un seul bouton : « Ne pas jouer » sans sélection, « Jouer » ensuite
+    expect(screen.getByText('Ne pas jouer')).toBeTruthy();
     fireEvent.click(screen.getByText('Exertien e1'));
-    expect(screen.getByText('Jouer la carte (1/2)')).toBeTruthy();
+    expect(screen.queryByText('Ne pas jouer')).toBeNull();
+    expect(screen.getByText('Sélectionnées : 1 / 2')).toBeTruthy();
     fireEvent.click(screen.getByText('Exertien e3'));
     // Pas plus de deux cartes
     fireEvent.click(screen.getByText('Exertien e2'));
-    fireEvent.click(screen.getByText('Jouer les 2 cartes'));
+    expect(screen.getByText('Sélectionnées : 2 / 2')).toBeTruthy();
+    fireEvent.click(screen.getByText('Jouer'));
     expect(onChoice).toHaveBeenCalledWith(['e1', 'e3']);
   });
 
@@ -32,9 +36,9 @@ describe('fenêtre des cartes Exertiens', () => {
     render(<ExertienCardModal game={game} interactionState={{ type: 'CHOOSING_EXERTIEN_CARD', milestone: 40 }} onChoice={onChoice} />);
     fireEvent.click(screen.getByText('Exertien e1'));
     fireEvent.click(screen.getByText('Exertien e2'));
-    fireEvent.click(screen.getByText('Jouer la carte'));
+    fireEvent.click(screen.getByText('Jouer'));
     expect(onChoice).toHaveBeenCalledWith(['e2']);
-    fireEvent.click(screen.getByText('Ne pas jouer de carte'));
+    fireEvent.click(screen.getByText('Ne pas jouer'));
     expect(onChoice).toHaveBeenLastCalledWith([]);
   });
 });

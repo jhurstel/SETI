@@ -69,3 +69,25 @@
   font-weight: bold;
   text-align: center;
 }
+
+/* Carte d'une espèce Alien : symbole de l'espèce dans une pastille, sous le logo */
+.seti-card-back-species {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(7, 11, 28, 0.8);
+  border: 1px solid rgba(176, 124, 255, 0.6);
+  pointer-events: none;
+}
+
+/* Pioche d'une espèce : le symbole à gauche, le nombre de cartes à droite */
+.seti-deck-pile .seti-card-back-species {
+  left: 6px;
+  transform: none;
+}

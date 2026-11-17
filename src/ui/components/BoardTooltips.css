@@ -164,12 +164,13 @@
   vertical-align: middle;
 }
 
-/* Plusieurs ressources dans un coût ou un bonus (orbite : crédit et énergie ; scan…) : leurs symboles ont une marge
-   transparente dans leur carré, on les rapproche comme les symboles du bonus de la recherche (environ 5 px d'écart) */
-.seti-board-tooltip-symbols .bonus-icons {
+/* Coût à plusieurs ressources (orbite, scan : crédit et énergie) : leurs symboles ont une marge transparente dans leur
+   carré, on les rapproche comme les symboles du bonus de la recherche (environ 5 px d'écart). Les bonus, dont les
+   symboles portent des nombres plus larges, gardent leur espacement */
+.seti-board-tooltip-pair .cost .bonus-icons {
   gap: 0;
 }
 
-.seti-board-tooltip-symbols .bonus-icons > .symbol-help + .symbol-help {
+.seti-board-tooltip-pair .cost .bonus-icons > .symbol-help + .symbol-help {
   margin-left: -6px;
 }

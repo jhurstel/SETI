@@ -112,6 +112,8 @@ export enum SectorType {
   PICTORIS = "Beta Pictoris",
   OUMUAMUA = "Oumuamua",
   ANOMALY = "Anomalie",
+  /** Secteur de la prochaine anomalie qui sera déclenchée (ET.14) */
+  NEXT_ANOMALY = "Anomalie suivante",
   ANY = "quelconque",
   UNDEFINED = "Non défini"
 }

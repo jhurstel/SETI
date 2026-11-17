@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, ProbeState, GAME_CONSTANTS, InteractionState, CelestialObject, GamePhase, LifeTraceType, ActionType } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, ProbeState, GAME_CONSTANTS, InteractionState, CelestialObject, GamePhase, LifeTraceType, ActionType, AlienBoardType } from '../core/types';
 import { tutorialAllows, useTutorialFocus } from './tutorialFocus';
 import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, sectorToIndex } from '../core/SolarSystemPosition';
 import { polarToCartesian, calculateObjectPosition } from './solarGeometry';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { BonusIcons } from './components/BonusIcons';
 import { AnomalyIcon, MascamiteIcon } from './components/GameIcons';
+import { useSpeciesMask } from './speciesMask';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { Tooltip } from './Tooltip';
@@ -46,6 +47,8 @@ const OUTER_RING_RATIO = 0.88;
 const MIN_BOARD_RENDER_SIZE = 700;
 
 const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, onBackgroundClick, onSectorClick, setActiveTooltip, onMascamiteClick, planetFocus }) => {
+  // Anomalies d'une espèce masquée (chapitre « Traces de vie et espèces ») : jetons non dessinés
+  const hideAnomalies = useSpeciesMask().species.includes(AlienBoardType.ANOMALIES);
   // Tutoriel : seules les actions permises par l'étape en cours font clignoter la Terre ou une planète
   const tutorialFocus = useTutorialFocus();
 
@@ -215,21 +218,27 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
           const isRobot = currentPlayer.type === 'robot';
           if (obj.id === 'earth') {
             const check = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
-            let text = `Lancer une sonde (coût: ${GAME_CONSTANTS.PROBE_LAUNCH_COST} Crédits)`;
+            let text = 'Lancer une sonde';
             let color = '#aaa';
             if (currentPlayer.hasPerformedMainAction || isRobot) {
               text = isRobot ? "Tour du robot" : "Action principale déjà effectuée";
               color = '#ff6b6b';
             } else if (!check.canLaunch) {
-              text = check.reason || "Impossible";
+              // Crédits insuffisants : le coût suffit comme raison ; sinon la raison du moteur (limite de sondes…)
+              text = currentPlayer.credits < GAME_CONSTANTS.PROBE_LAUNCH_COST ? `Nécessite ${GAME_CONSTANTS.PROBE_LAUNCH_COST} crédits` : check.reason || "Impossible";
               color = '#ff6b6b';
             } else if (check.canLaunch) {
               color = '#4a9eff';
             }
             const ownHere = ownPiecesOnPlanet(obj).length > 0;
+            // Lancement possible : son coût, en symboles, entre le titre et le message
+            const showCost = !ownHere && check.canLaunch && !currentPlayer.hasPerformedMainAction && !isRobot;
             subContent = (
               <>
                 {piecesSummary(piecesOnCell(obj.position.disk, obj.position.sector, obj.level || 0))}
+                {showCost && (
+                  <div className="solar-tooltip-cost-line">Coût :<span className="solar-tooltip-cost"><BonusIcons bonus={{ credits: GAME_CONSTANTS.PROBE_LAUNCH_COST }} size={14} /></span></div>
+                )}
                 <div style={{ fontSize: '0.8em', marginTop: '4px', color: ownHere ? '#4a9eff' : color, fontStyle: 'italic' }}>
                   {ownHere ? "Cliquer pour sélectionner votre sonde (lancer : bouton de l'action)" : text}
                 </div>
@@ -259,10 +268,15 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
       }
       case 'anomaly': {
         const bonusText = obj.anomalyData ? <BonusIcons bonus={obj.anomalyData.bonus} tooltips /> : 'Inconnu';
+        const anomalyColor = obj.anomalyData?.color === LifeTraceType.YELLOW ? '#ffd700' : obj.anomalyData?.color === LifeTraceType.RED ? '#ff6b6b' : '#4a9eff';
+        const trackWord = obj.anomalyData?.color === LifeTraceType.YELLOW ? 'jaune' : obj.anomalyData?.color === LifeTraceType.RED ? 'rouge' : 'bleue';
         content = (
           <div>
-            <div style={{ fontWeight: 'bold', color: obj.anomalyData?.color === LifeTraceType.YELLOW ? '#ffd700' : obj.anomalyData?.color === LifeTraceType.RED ? '#ff6b6b' : '#4a9eff' }}>{obj.name}</div>
-            <div className="solar-tooltip-bonus">Bonus: {bonusText}</div>
+            <div style={{ fontWeight: 'bold', color: anomalyColor }}>{obj.name}</div>
+            {/* Sa règle en une ligne, en italique comme les autres objets : une rotation qui amène la Terre dans son secteur la déclenche */}
+            <div className="solar-tooltip-anomaly-rule" style={subtitleStyle}>
+              Terre alignée : le 1er de la piste <span style={{ color: anomalyColor }}>{trackWord}</span> gagne {bonusText}
+            </div>
           </div>
         );
         tooltipProps = hoverable;
@@ -920,7 +934,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
                 } else if (obj.type === 'asteroid') {
                   return renderAsteroid(obj, 10);
                 } else if (obj.type === 'anomaly') {
-                  return renderAnomaly(obj, 10);
+                  return hideAnomalies ? null : renderAnomaly(obj, 10);
                 }
                 return null;
               })}

@@ -5,6 +5,7 @@ import { CardSystem } from '../systems/CardSystem';
 import { PlayerComputer } from './components/PlayerComputer';
 import { HandCard } from './components/HandCard';
 import { CardBack } from './components/CardBack';
+import { cardSpecies } from './cardSpecies';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { SlotTooltip } from './components/SlotTooltip';
@@ -13,6 +14,7 @@ import { PlayerResources } from './player/PlayerResources';
 import { PlayerActions } from './player/PlayerActions';
 import { ExplorationTrack, ObservationTrack } from './player/PlayerTracks';
 import './PlayerBoardUI.css';
+import { useSpeciesMask } from './speciesMask';
 
 interface PlayerBoardUIProps {
   game: Game;
@@ -44,6 +46,13 @@ interface PlayerBoardUIProps {
 }
 
 const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onTransferData, onComputerSlotSelect, onNextPlayer, onDirectTradeAction, setActiveTooltip, onSettingsClick, onDocumentationClick, onMissionClick, onConfirmAction, highlightPlayableCards = false, remoteHumanIds = [], tutorialBlock }) => {
+  // Cartes d'une espèce masquée (chapitre « Traces de vie et espèces ») : montrées de dos
+  const speciesMaskValue = useSpeciesMask();
+  // Symbole d'espèce au dos d'une carte Alien, sauf pour l'espèce masquée par le chapitre du tutoriel
+  const backSpecies = (card: Card) => {
+    const species = cardSpecies(card);
+    return species && !speciesMaskValue.species.includes(species) && !speciesMaskValue.cardIds.includes(card.id) ? species : undefined;
+  };
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -228,7 +237,12 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
             <div className="seti-player-list seti-cards-list seti-thin-scroll" ref={cardsListRef}>
               {!isRobot ? (
                 handCards.length > 0 ? (
-                  handCards.map(card => (
+                  handCards.map(card => speciesMaskValue.cardIds.includes(card.id) ? (
+                    // Carte d'une espèce masquée (chapitre du tutoriel) : de dos, sans nom ni texte
+                    <CardBack key={card.id}
+                      onMouseEnter={e => handleTooltipHover(e, <SlotTooltip status="Carte Alien" statusColor="#9fb2da" note="Découvrez cette espèce en partie pour lire ses cartes" />)}
+                      onMouseLeave={handleTooltipLeave} />
+                  ) : (
                     <HandCard
                         key={card.id}
                         card={card}
@@ -273,7 +287,7 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
                       />
                     ))}
                     {handCards.filter(c => !c.isRevealed).map(card => (
-                      <CardBack key={card.id}
+                      <CardBack key={card.id} species={backSpecies(card)}
                         onMouseEnter={e => handleTooltipHover(e, <SlotTooltip status="Carte masquée" statusColor="#9fb2da" note={`Main de ${currentPlayer.name}`} />)}
                         onMouseLeave={handleTooltipLeave} />
                     ))}
@@ -320,7 +334,7 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
                 {(currentPlayer.playedCards || []).map((card: Card) => (
                   // Carte Exertien d'un adversaire : jouée face cachée jusqu'au décompte final (règles)
                   card.type === CardType.EXERTIEN && currentPlayer.id !== viewerId && game.phase !== GamePhase.FINAL_SCORING ? (
-                    <CardBack key={card.id}
+                    <CardBack key={card.id} species={backSpecies(card)}
                       onMouseEnter={e => handleTooltipHover(e, <SlotTooltip status="Carte Exertien face cachée" statusColor="#9fb2da" note="Révélée au décompte final" />)}
                       onMouseLeave={handleTooltipLeave} />
                   ) : <PlayedMissionCard

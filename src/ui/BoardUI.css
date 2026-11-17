@@ -357,8 +357,11 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
   gap: 14px;
   color: #ddd;
 }
+/* Choix de cartes : les cartes restent sur une ligne tant que l'écran le permet (la fenêtre s'élargit), puis passent à la ligne */
 .seti-choice-modal.wide {
-  width: min(900px, 94vw);
+  width: auto;
+  min-width: min(560px, 92vw);
+  max-width: 96vw;
 }
 .seti-choice-modal-title {
   font-size: 1.35rem;
@@ -371,6 +374,12 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
   color: #bbb;
   text-align: center;
   line-height: 1.4;
+}
+.seti-choice-modal-status {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #ffd700;
+  text-align: center;
 }
 .seti-choice-modal-options {
   display: flex;
@@ -492,6 +501,7 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
 .seti-choice-footer-icon {
   display: inline-flex;
   align-items: center;
+  gap: 3px;
 }
 .seti-choice-footer-btn.secondary {
   background: #555;

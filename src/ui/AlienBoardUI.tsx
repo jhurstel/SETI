@@ -9,13 +9,14 @@ import { CardContent } from './components/HandCard';
 import { CardBack, DeckPile } from './components/CardBack';
 import { ScoreManager } from '../engine/ScoreManager';
 import { Tooltip } from './Tooltip';
-import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon, CentaurienMessageIcon, MascamiteIcon } from './components/GameIcons';
+import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon, CentaurienMessageIcon, MascamiteIcon, DocumentationIcon } from './components/GameIcons';
 import { LIFE_TRACE_COLORS, LifeTraceColor } from './styles/lifeTraceColors';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import './AlienBoardUI.css';
 import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
 import { HoverTooltip } from './components/HoverTooltip';
 import { SlotTooltip } from './components/SlotTooltip';
+import { useSpeciesMask } from './speciesMask';
 import { SLOT_COLORS } from './styles/slotColors';
 import { atAngle, hasExtraGains } from './components/bonusLayout';
 import { CentaurienMessageTile } from './components/CentaurienMessageTile';
@@ -37,7 +38,18 @@ interface AlienBoardUIProps {
     onSpeciesCardClick: (speciesId: string, cardId: string) => void;
     setActiveTooltip: (tooltip: ActiveTooltip | null) => void;
     forceOpen?: boolean;
+    /** Ouvre la documentation à une section (identifiant d'un titre de public/docs/documentation.md) */
+    onOpenDocumentation?: (section: string) => void;
 }
+
+/** Section de la documentation de chaque espèce (titres « 3.x Nom » de public/docs/documentation.md) */
+const SPECIES_DOC_SECTIONS: Record<AlienBoardType, string> = {
+    [AlienBoardType.MASCAMITES]: 'mascamites',
+    [AlienBoardType.ANOMALIES]: 'anomalies',
+    [AlienBoardType.OUMUAMUA]: 'oumuamua',
+    [AlienBoardType.CENTAURIENS]: 'centauriens',
+    [AlienBoardType.EXERTIENS]: 'exertiens',
+};
 
 const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseEnter, onMouseLeave }: { color: LifeTraceColor, traces: LifeTrace[], game: Game, onClick?: () => void, isClickable?: boolean, onMouseEnter?: (e: React.MouseEvent) => void, onMouseLeave?: () => void }) => (
   <div
@@ -75,6 +87,13 @@ const AlienTriangleSlot = ({ color, traces, game, onClick, isClickable, onMouseE
   </div>
 );
 
+/** Couleur d'une trace de vie dans les messages (« Nécessite une trace de vie rouge ») */
+const TRACE_WORDS: Record<LifeTraceType, string> = {
+    [LifeTraceType.RED]: 'rouge', [LifeTraceType.YELLOW]: 'jaune', [LifeTraceType.BLUE]: 'bleue', [LifeTraceType.ANY]: 'quelconque',
+};
+/** Quantité en toutes lettres (« 2 données ») */
+const amount = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`;
+
 /** Emplacements fixes d'une piste, du haut vers le bas, regroupés par niveau de danger consécutif (Exertiens) */
 const dangerZones = (fixedSlots: Bonus[]): { danger?: number, indices: number[] }[] => {
     const zones: { danger?: number, indices: number[] }[] = [];
@@ -107,7 +126,7 @@ const SpeciesCardArea: React.FC<{
     return (
         <div className="seti-card-row-content alien-species-card-area">
             {/* Deck */}
-            <DeckPile count={deck.length}
+            <DeckPile count={deck.length} species={species.name}
                 className={`seti-deck-card alien-small-card ${isAcquiring ? 'acquiring active' : 'default'}`}
                 onClick={(e) => { e.stopPropagation(); onCardClick(species.id, 'deck'); }}
                 onMouseEnter={(e) => {
@@ -209,8 +228,8 @@ const ExertienDangerTooltip: React.FC<{
                                 </div>
                                 {hiddenHeld + hiddenPlayed.length > 0 && (
                                     <div className="alien-danger-cards">
-                                        {Array.from({ length: hiddenHeld }, (_, i) => <CardBack key={`held-${i}`} className="alien-danger-card held" />)}
-                                        {hiddenPlayed.map(card => <CardBack key={card.id} className="alien-danger-card" />)}
+                                        {Array.from({ length: hiddenHeld }, (_, i) => <CardBack key={`held-${i}`} className="alien-danger-card held" species={AlienBoardType.EXERTIENS} />)}
+                                        {hiddenPlayed.map(card => <CardBack key={card.id} className="alien-danger-card" species={AlienBoardType.EXERTIENS} />)}
                                     </div>
                                 )}
                             </>
@@ -294,8 +313,12 @@ const mascamiteTriangleColumns = (slotCount: number): number[][] => {
     return columns;
 };
 
-const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, onPlaceLifeTrace, onSpeciesCardClick, setActiveTooltip, forceOpen }) => {
+const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, interactionState, onPlaceLifeTrace, onSpeciesCardClick, setActiveTooltip, forceOpen, onOpenDocumentation }) => {
     const board = game.board.alienBoards[boardIndex];
+    // Espèce masquée (chapitre « Traces de vie et espèces », pas encore rencontrée) : plateau découvert mais anonyme
+    const mask = useSpeciesMask();
+    const masked = board.isDiscovered && mask.species.includes(board.speciesId);
+    const revealed = board.isDiscovered && !masked;
     const species = game.species.find(s => s.name === board.speciesId);
     const side = boardIndex === 0 ? 'left' : 'right';
     const isMascamites = species?.name === AlienBoardType.MASCAMITES;
@@ -330,6 +353,10 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
     };
 
     if (!board) return null;
+
+    /** Le joueur doit poser une trace de cette couleur sur ce plateau (triangle de découverte cliquable) */
+    const isPlacingColor = (colorType: LifeTraceType) => interactionState.type === 'PLACING_LIFE_TRACE'
+        && (interactionState.color === colorType || interactionState.color === LifeTraceType.ANY) && isBoardAllowed;
 
     const renderAlienSlotTooltip = (colorType: LifeTraceType) => {
         const traces = board.lifeTraces.filter(t => t.type === colorType);
@@ -426,26 +453,26 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
             
             // Même infobulle que les autres emplacements : état, coût et bonus sur une ligne, puis l'action ou la raison
             // (dans la couleur de l'état : rouge si indisponible)
-            let status: string;
-            let statusColor: string;
+            // Case libre : disponible pendant la pose d'une trace de sa couleur ; sinon indisponible (coût trop élevé,
+            // case à spécimen, ou en attente d'une trace de vie de sa couleur)
+            let status = 'Indisponible';
+            let statusColor = SLOT_COLORS.unavailable;
             let note: string;
             if (isFilled) {
                 const player = game.players.find(p => p.id === trace?.playerId);
                 status = `Occupé par ${player?.name || 'Inconnu'}`;
                 statusColor = player?.color || '#ccc';
                 note = '';
-            } else if (!canAfford) {
-                status = 'Indisponible';
-                statusColor = SLOT_COLORS.unavailable;
-                note = tokenCost && (currentPlayer.tokens || 0) < tokenCost ? "Nécessite d'avoir suffisamment de tokens" : "Nécessite d'avoir suffisamment de données";
-            } else if (ResourceSystem.formatBonus(bonus).length <= 0) {
-                status = 'Indisponible';
-                statusColor = SLOT_COLORS.unavailable;
-                note = awaitingSpecimen ? 'Recevra le prochain spécimen Mascamite ramené à destination' : 'Nécessite un jeton';
-            } else {
+            } else if (isClickable) {
                 status = 'Disponible';
                 statusColor = SLOT_COLORS.available;
-                note = 'Placer une trace de vie pour récupérer le bonus';
+                note = 'Cliquez pour poser la trace de vie';
+            } else if (!canAfford) {
+                note = tokenCost && (currentPlayer.tokens || 0) < tokenCost ? `Nécessite ${amount(tokenCost, 'token')}` : `Nécessite ${amount(dataCost, 'donnée')}`;
+            } else if (!available || ResourceSystem.formatBonus(bonus).length <= 0) {
+                note = awaitingSpecimen ? 'Recevra le prochain spécimen Mascamite ramené à destination' : 'Nécessite un jeton';
+            } else {
+                note = `Nécessite une trace de vie ${TRACE_WORDS[type]}`;
             }
 
             setActiveTooltip({
@@ -454,12 +481,16 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
             });
         };
 
-        const style: React.CSSProperties = {
+        const style: React.CSSProperties & { '--slot-glow'?: string } = {
             borderColor: color,
             cursor: isClickable ? 'pointer' : 'help',
             transition: 'box-shadow 0.15s',
-            pointerEvents: 'auto'
+            pointerEvents: 'auto',
+            // Case à cliquer : halo de sa couleur qui pulse, comme les autres emplacements (.seti-slot-highlight)
+            '--slot-glow': color,
         };
+        // Case libre dont le joueur ne peut pas payer le coût : grisée
+        const isDimmed = !isFilled && !canAfford;
 
         if (isInfinite) {
             style.zIndex = 1;
@@ -468,9 +499,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
             style.borderRadius = '50%';
             style.border = `2px solid ${color}`;
             style.background = isClickable ? '#32373c' : '#14171a';
-            if (isClickable) style.boxShadow = `0 0 8px ${color}`;
         } else {
-            style.boxShadow = isClickable ? `0 0 8px ${color}` : 'none';
             style.backgroundColor = isFilled ? getPlayerColor(trace!.playerId) : (isClickable ? '#32373c' : '#14171a');
         }
 
@@ -481,7 +510,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
         return (
             <div key={`${isInfinite ? 'inf' : 'fixed'}-${index}`} className="alien-slot-wrap">
             <div
-                className={`alien-slot ${isInfinite ? 'infinite' : 'fixed'} ${isFilled ? 'filled' : ''} ${isClickable ? 'clickable' : ''}`}
+                className={`alien-slot ${isInfinite ? 'infinite' : 'fixed'} ${isFilled ? 'filled' : ''} ${isClickable ? 'clickable seti-slot-highlight' : ''} ${isDimmed ? 'seti-slot-dimmed' : ''}`}
                 style={style}
                 onClick={(e) => {
                     e.stopPropagation();
@@ -607,7 +636,15 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
         <div className={`alien-board-container ${side}`} data-tutorial="species">
             <div ref={panelRef} className={`seti-foldable-container seti-icon-panel alien-foldable-container ${isOpen || isPinnedTooltipOpen ? 'open' : 'collapsed'}`}>
                 <div className="seti-foldable-content alien-foldable-content">
-                    {board.isDiscovered && (
+                    {masked && (
+                        <>
+                            <div className="alien-species-header">
+                                <div className="alien-species-title-row"><div className="alien-species-id">Espèce découverte</div></div>
+                            </div>
+                            <div className="alien-masked-note">Découvrez cette espèce en partie pour voir ses règles, ses pistes et ses cartes.</div>
+                        </>
+                    )}
+                    {revealed && (
                         <div className="alien-species-header">
                             <div className="alien-species-title-row">
                                 <div 
@@ -630,6 +667,14 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                                     onMouseLeave={() => setActiveTooltip(null)}
                                 >
                                     {board.speciesId}
+                                    {/* Documentation de l'espèce, en exposant de son nom */}
+                                    {onOpenDocumentation && board.speciesId && (
+                                        <button type="button" className="alien-species-doc-btn" aria-label={`Documentation : ${board.speciesId}`}
+                                            onClick={(e) => { e.stopPropagation(); setActiveTooltip(null); onOpenDocumentation(SPECIES_DOC_SECTIONS[board.speciesId]); }}
+                                            onMouseEnter={(e) => { e.stopPropagation(); setActiveTooltip({ content: `Règles des ${board.speciesId} dans la documentation`, rect: e.currentTarget.getBoundingClientRect() }); }}>
+                                            <DocumentationIcon size={13} />
+                                        </button>
+                                    )}
                                 </div>
                                 {board.speciesId === AlienBoardType.OUMUAMUA && (
                                     <div 
@@ -705,7 +750,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                             </div>
                         </div>
                     )}
-                    {board.isDiscovered && species && (
+                    {revealed && species && (
                         <SpeciesCardArea 
                             species={species}
                             interactionState={interactionState}
@@ -713,7 +758,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                             setActiveTooltip={setActiveTooltip}
                         />
                     )}
-                    {board.isDiscovered && (
+                    {revealed && (
                         <div className="alien-tracks-container">
                             <div className="alien-track-column-wrapper">
                                 {board.isDiscovered && species && renderSpeciesTrack(LifeTraceType.RED)}
@@ -731,7 +776,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                             <AlienTriangleSlot color="red"
                                 traces={board.lifeTraces.filter(t => t.type === LifeTraceType.RED && (t.location === LifeTraceLocation.TRIANGLE || t.location === undefined))}
                                 game={game}
-                                isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && (interactionState.color === LifeTraceType.RED || interactionState.color === LifeTraceType.ANY) && isBoardAllowed}
+                                isClickable={isPlacingColor(LifeTraceType.RED)}
                                 onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.RED, LifeTraceLocation.TRIANGLE)}
                                 onMouseEnter={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
@@ -744,7 +789,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                             <AlienTriangleSlot color="yellow"
                                 traces={board.lifeTraces.filter(t => t.type === LifeTraceType.YELLOW && (t.location === LifeTraceLocation.TRIANGLE || t.location === undefined))}
                                 game={game}
-                                isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && (interactionState.color === LifeTraceType.YELLOW || interactionState.color === LifeTraceType.ANY) && isBoardAllowed}
+                                isClickable={isPlacingColor(LifeTraceType.YELLOW)}
                                 onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.YELLOW, LifeTraceLocation.TRIANGLE)}
                                 onMouseEnter={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
@@ -757,7 +802,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                             <AlienTriangleSlot color="blue"
                                 traces={board.lifeTraces.filter(t => t.type === LifeTraceType.BLUE && (t.location === LifeTraceLocation.TRIANGLE || t.location === undefined))}
                                 game={game}
-                                isClickable={interactionState.type === 'PLACING_LIFE_TRACE' && (interactionState.color === LifeTraceType.BLUE || interactionState.color === LifeTraceType.ANY) && isBoardAllowed}
+                                isClickable={isPlacingColor(LifeTraceType.BLUE)}
                                 onClick={() => onPlaceLifeTrace(boardIndex, LifeTraceType.BLUE, LifeTraceLocation.TRIANGLE)}
                                 onMouseEnter={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();

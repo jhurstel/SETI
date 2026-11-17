@@ -71,7 +71,7 @@ describe('ProbeSystem', () => {
     game.players[0].credits = 0;
     const result = ProbeSystem.canLaunchProbe(game, 'p1');
     expect(result.canLaunch).toBe(false);
-    expect(result.reason).toContain('Crédits insuffisants');
+    expect(result.reason).toBe('Nécessite 2 crédits');
   });
 
   test('launchProbe should deduct credits and add probe to solar system', () => {

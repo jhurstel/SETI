@@ -328,6 +328,7 @@ export class GameSession {
     const result = new GameEngine(game).executeAction(action);
     if (!result.success || !result.updatedState) refuse(result.error || 'Action impossible');
     outcome.add(markMainAction(action.historyEntries));
+    outcome.notify(action.notification);
     return InteractionQueue.enqueue(result.updatedState!, action.newPendingInteractions, action.historyEntries[0]?.sequenceId, undefined, forceStacking);
   }
 
@@ -372,6 +373,7 @@ export class GameSession {
 
     if (result.error) refuse(result.error);
     outcome.add(result.historyEntries, active.sequenceId);
+    outcome.notify(result.notification);
     let updated = InteractionQueue.enqueue(result.updatedGame, result.newPendingInteractions, active.sequenceId);
     if (result.nextInteraction) updated = InteractionQueue.pushFront(updated, result.nextInteraction);
     return updated;

@@ -1,10 +1,8 @@
-import { Game, ActionType, ValidationResult, GamePhase, HistoryEntry } from '../core/types';
-import { ScoreManager } from '../engine/ScoreManager';
+import { Game, ActionType, ValidationResult, HistoryEntry, InteractionState } from '../core/types';
 import { BaseAction } from './Action';
 import { TurnManager } from '../engine/TurnManager';
 import { CardSystem } from '../systems/CardSystem';
 import { performRotation } from '../systems/RotationSystem';
-import { ResourceSystem } from '../systems/ResourceSystem';
 import { cloneGame } from '../core/cloneGame';
 import { uniqueId } from '../core/ids';
 import { requirePlayer } from '../core/players';
@@ -86,43 +84,22 @@ export class PassAction extends BaseAction {
 
     const finished = PassAction.finishPass(updatedGame);
     this.historyEntries.push(...finished.historyEntries);
+    this.newPendingInteractions.push(...finished.pendingInteractions);
+    this.notification = finished.notification;
     return finished.updatedGame;
   }
 
-  /** Fin de la passe : joueur suivant, ou fin de manche (revenus, décompte final après la dernière). */
-  static finishPass(game: Game): { updatedGame: Game; historyEntries: HistoryEntry[] } {
-    const historyEntries: HistoryEntry[] = [];
-    // Passer au joueur suivant ou terminer la manche
-    const updatedGame = TurnManager.nextPlayer(game);
-    if (updatedGame.isRoundEnd) {
-      historyEntries.push({ message: `--- FIN DE LA MANCHE ${game.currentRound} ---`, playerId: '', sequenceId: '' });
-
-      // Log des revenus pour chaque joueur
-      updatedGame.players.forEach(player => {
-        const gains: string[] = [];
-        if (player.revenueCredits > 0) gains.push(ResourceSystem.formatResource(player.revenueCredits, 'CREDIT'));
-        if (player.revenueEnergy > 0) gains.push(ResourceSystem.formatResource(player.revenueEnergy, 'ENERGY'));
-        if (player.revenueCards > 0) gains.push(ResourceSystem.formatResource(player.revenueCards, 'CARD'));
-        if (gains.length > 0) historyEntries.push({ message: `perçoit ses revenus : ${gains.join(', ')}`, playerId: player.id, sequenceId: '' });
-      });
-
-      if (updatedGame.phase === GamePhase.FINAL_SCORING && updatedGame.finalScores) {
-        // Dernière manche terminée : décompte final
-        historyEntries.push(...ScoreManager.describeFinalScores(updatedGame, updatedGame.finalScores).map(e => ({ ...e, sequenceId: '' })));
-        return { updatedGame, historyEntries };
-      }
-
-      // Log du changement de premier joueur
-      historyEntries.push({ message: `devient le Premier Joueur`, playerId: updatedGame.players[updatedGame.firstPlayerIndex].id, sequenceId: '' });
-
-      const firstPlayer = updatedGame.players[updatedGame.firstPlayerIndex];
-      historyEntries.push({ message: `--- Manche ${updatedGame.currentRound} / ${updatedGame.maxRounds} ---`, playerId: '', sequenceId: '' });
-      historyEntries.push({ message: `--- Tour de ${firstPlayer.name} ---`, playerId: firstPlayer.id, sequenceId: '' });
-    } else {
-      const nextPlayer = updatedGame.players[updatedGame.currentPlayerIndex];
-      historyEntries.push({ message: `--- Tour de ${nextPlayer.name} ---`, playerId: nextPlayer.id, sequenceId: '' });
+  /**
+   * Fin de la passe = fin du tour du joueur : paliers de score vérifiés (comme « Fin du tour »), puis joueur suivant
+   * ou fin de manche. Si un palier demande un choix (marqueur d'objectif…), le tour reste ouvert : les choix sont
+   * renvoyés (`pendingInteractions`) et `endingTurn` laisse la session finir le tour une fois la file vide.
+   */
+  static finishPass(game: Game): { updatedGame: Game; historyEntries: HistoryEntry[]; pendingInteractions: InteractionState[]; notification?: string } {
+    const turn = TurnManager.finishTurn(game);
+    const notification = turn.discoveryNotification?.message;
+    if (!turn.turnEnded) {
+      return { updatedGame: { ...turn.updatedGame, endingTurn: true }, historyEntries: turn.milestoneEntries, pendingInteractions: turn.pendingInteractions || [], notification };
     }
-
-    return { updatedGame, historyEntries };
+    return { updatedGame: turn.updatedGame, historyEntries: [...turn.milestoneEntries, ...turn.turnEntries], pendingInteractions: [], notification };
   }
 }

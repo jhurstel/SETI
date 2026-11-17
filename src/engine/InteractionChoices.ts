@@ -22,6 +22,8 @@ export interface ChoiceResult {
   newPendingInteractions: InteractionState[];
   /** Même interaction à poursuivre (placements ou déplacements restants), après les interactions déclenchées */
   nextInteraction?: InteractionState;
+  /** Annonce à afficher (palier atteint en finissant son tour par la carte de fin de manche…) */
+  notification?: string;
   error?: string;
 }
 
@@ -335,7 +337,7 @@ export class InteractionChoices {
     requirePlayer(updatedGame, playerId).cards.push(card);
     const message = `prend ${privateText(playerId, `"${card.name}"`, 'une carte')} de la pile de fin de manche`;
     const finished = PassAction.finishPass(updatedGame);
-    return { updatedGame: finished.updatedGame, historyEntries: [{ message, playerId, sequenceId: interaction.sequenceId || '' }, ...finished.historyEntries], newPendingInteractions: [] };
+    return { updatedGame: finished.updatedGame, historyEntries: [{ message, playerId, sequenceId: interaction.sequenceId || '' }, ...finished.historyEntries], newPendingInteractions: finished.pendingInteractions, notification: finished.notification };
   }
 
   /**

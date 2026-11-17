@@ -4,7 +4,7 @@ Adaptation numérique du jeu de société **SETI** (Iello) en TypeScript + React
 
 - Dépôt GitHub : https://github.com/jhurstel/SETI (remote `origin`, **public**), branche unique `main`. **Toujours faire `git pull` avant d'analyser ou de modifier le code** (le travail se fait sur plusieurs machines). `gh` CLI n'est pas installé ; Git utilise HTTPS.
 - Règles officielles : `public/docs/seti-rules-fr.pdf`, FAQ : `public/docs/SETI-FAQ-FR.pdf` (référence pour toute question de règle ; agent `regles-seti`).
-- Documentation du jeu : `public/docs/documentation.md` (bouton 📖) : la tenir à jour quand une règle, une action, une interaction ou un poids des robots change (glossaire des symboles : `.claude/rules/docs.md`).
+- Documentation du jeu : `public/docs/documentation.md` (bouton 📖) : la tenir à jour quand une règle, une action, une fenêtre de choix ou un symbole change (plan et glossaire : `.claude/rules/docs.md`) ; interactions, poids des robots, architecture et protocole en ligne n'y sont plus : `.claude/rules/`.
 
 ## Où trouver le détail
 
@@ -50,7 +50,7 @@ src/actions/       # Une classe par action principale
 src/engine/        # Orchestration : GameEngine, GameFactory, TurnManager, InteractionResolver, InteractionChoices, ScoreManager
 src/session/       # GameSession.dispatch (point d'entrée unique), file d'interactions, journal, salles, protocole, vues filtrées
 src/ai/            # Robots : AITurn, AIController, AIEvaluator, AIBehavior, CardValue, Determinize
-src/tutorial/      # Tutoriel (TS pur) : chapitres, préparation des positions, étapes, guidage, aides au contexte ; textes dans public/docs/tutoriel.md
+src/tutorial/      # Tutoriel (TS pur) : chapitres (dont un par espèce, speciesChapters), préparation des positions, étapes et ellipses, guidage, aides au contexte, déblocage des espèces et masquage de leurs règles (unlock, docMask) ; textes dans public/docs/tutoriel.md
 src/ui/            # React : BoardUI et plateaux mémoïsés, hooks, fenêtres
 server/            # Serveur WebSocket du jeu en ligne (GameServer, RobotPool)
 test/, e2e/        # Jest (une vraie partie : createTestGame) ; Playwright

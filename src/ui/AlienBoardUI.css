@@ -228,6 +228,34 @@
     font-weight: bold;
 }
 
+/* Bouton Documentation de l'espèce : en exposant, en haut à droite du nom */
+.seti-root .alien-species-doc-btn {
+    display: inline-flex;
+    vertical-align: super;
+    margin-left: 3px;
+    padding: 0;
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+}
+
+.seti-root .alien-species-doc-btn:hover {
+    color: #fff;
+}
+
+/* Espèce masquée (chapitre du tutoriel) : à la place des pistes et des cartes */
+.alien-masked-note {
+    margin: 8px 12px;
+    padding: 10px;
+    border: 1px dashed #556;
+    border-radius: 6px;
+    color: #aab;
+    font-size: 0.85em;
+    font-style: italic;
+    text-align: center;
+}
+
 .alien-oumuamua-token {
     cursor: help;
     display: flex;

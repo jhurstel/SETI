@@ -18,10 +18,10 @@ export class PlayCardAction extends BaseAction {
         // Coût en énergie (cartes Centauriens…) ou en crédits : même vérification que CardSystem.canPlayCard
         if (card.costType === CostType.ENERGY) {
             if (player.energy < card.cost) {
-                return { valid: false, errors: [{ code: 'INSUFFICIENT_ENERGY', message: `Énergie insuffisante (Requis: ${card.cost})` }], warnings: [] };
+                return { valid: false, errors: [{ code: 'INSUFFICIENT_ENERGY', message: `Nécessite ${card.cost} énergie${card.cost > 1 ? 's' : ''}` }], warnings: [] };
             }
         } else if (player.credits < card.cost) {
-            return { valid: false, errors: [{ code: 'INSUFFICIENT_CREDITS', message: `Crédits insuffisants (Requis: ${card.cost})` }], warnings: [] };
+            return { valid: false, errors: [{ code: 'INSUFFICIENT_CREDITS', message: `Nécessite ${card.cost} crédit${card.cost > 1 ? 's' : ''}` }], warnings: [] };
         }
         return { valid: true, errors: [], warnings: [] };
     }

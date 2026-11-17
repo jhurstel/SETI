@@ -27,8 +27,16 @@ describe('renderMarkdown (documentation du jeu)', () => {
     expect(html).toContain('<pre><code>x &lt; y</code></pre>');
   });
 
+  test('sommaire : chapitres et sections seulement ; une sous-section garde son ancre sans entrée', () => {
+    const { html, toc } = renderMarkdown(['## 1. Interface', '### 1.1 Accueil', '#### Nouvelle partie', 'Texte.'].join('\n'));
+    expect(toc.map(t => t.id)).toEqual(['1-interface', '1-1-accueil']);
+    expect(html).toContain('<h4 id="nouvelle-partie">');
+  });
+
   test('une ligne {{nom}} devient un emplacement de composant', () => {
     expect(renderMarkdown('Avant\n\n{{glossaire}}\n\nAprès').html).toBe('<p>Avant</p>\n<div data-doc-component="glossaire"></div>\n<p>Après</p>');
+    // Avec un argument (symboles d'une espèce)
+    expect(renderMarkdown('{{symboles-espece:Mascamites}}').html).toBe('<div data-doc-component="symboles-espece" data-doc-arg="Mascamites"></div>');
   });
 
   test('une image devient une capture résolue depuis la base, sans devenir un lien', () => {
@@ -43,7 +51,7 @@ describe('renderMarkdown (documentation du jeu)', () => {
   test('la documentation du jeu se lit et lie les règles et la FAQ, présentes dans public/docs', () => {
     const docs = path.join(__dirname, '..', 'public', 'docs');
     const { html, toc } = renderMarkdown(fs.readFileSync(path.join(docs, 'documentation.md'), 'utf-8'));
-    expect(toc.length).toBeGreaterThan(20);
+    expect(toc.length).toBeGreaterThan(15);
     expect(new Set(toc.map(t => t.id)).size).toBe(toc.length);
     ['seti-rules-fr.pdf', 'SETI-FAQ-FR.pdf'].forEach(file => {
       expect(html).toContain(`docs/${file}`);
@@ -51,7 +59,8 @@ describe('renderMarkdown (documentation du jeu)', () => {
     });
     // Chaque capture d'écran citée existe
     const images = [...html.matchAll(/<img [^>]*src="([^"]+)"/g)].map(m => m[1]);
-    expect(images.length).toBeGreaterThan(10);
+    // Écrans d'accueil et de jeu, exemples des deux sortes de fenêtres de choix
+    expect(images.length).toBeGreaterThanOrEqual(4);
     images.forEach(src => expect(fs.existsSync(path.join(docs, '..', src))).toBe(true));
     expect(slugify('3.6 Exertiens')).toBe('3-6-exertiens');
   });

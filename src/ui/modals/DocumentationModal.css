@@ -192,3 +192,43 @@
 }
 /* Captures d'écran (fenêtres de choix) : taille réelle au plus, jamais plus larges que le texte */
 .seti-doc-body .seti-doc-image { display: block; max-width: min(100%, 560px); height: auto; margin: 10px 0 14px; border: 1px solid #3a3d4a; border-radius: 6px; }
+
+/* Action gratuite : dépense → gain */
+.seti-glossary-conversion {
+    align-items: center;
+}
+
+.seti-glossary-arrow {
+    color: #ffd700;
+    font-weight: bold;
+    margin: 0 1px;
+}
+
+/* Objectifs : symbole de tuile plus large */
+.seti-glossary-grid--wide {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+}
+
+/* Espèce encore inconnue */
+.seti-glossary-locked {
+    opacity: 0.7;
+}
+
+/* Fermer : une croix, à droite des liens vers les PDF */
+.seti-doc-modal .seti-doc-close {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 1px solid rgba(120, 160, 255, 0.4);
+    border-radius: 50%;
+    background: transparent;
+    color: #c8d4f0;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.seti-doc-modal .seti-doc-close:hover {
+    border-color: #ffd76a;
+    color: #ffd76a;
+}

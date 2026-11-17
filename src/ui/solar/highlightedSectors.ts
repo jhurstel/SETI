@@ -1,6 +1,7 @@
 import { Game, GamePhase, InteractionState, SectorType } from '../../core/types';
 import { calculateAbsolutePosition, createRotationState, getObjectPosition } from '../../core/SolarSystemPosition';
 import { ScanSystem } from '../../systems/ScanSystem';
+import { anomalySectors } from '../../core/anomalies';
 
 /**
  * Secteurs à mettre en surbrillance (flash vert) : ceux où le joueur peut marquer le signal demandé, ou, au début du
@@ -41,18 +42,9 @@ export function highlightedSectors(game: Game, interactionState: InteractionStat
         sectors.push(`sector_${absPos.absoluteSector}`);
       } 
     } else if (interactionState.color === SectorType.ANOMALY) {
-      const anomalies = (game.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly');
-      const anomalySectors = new Set<number>();
-      anomalies.forEach(a => {
-          const rotationState = createRotationState(
-            game.board.solarSystem.rotationAngleLevel1 || 0,
-            game.board.solarSystem.rotationAngleLevel2 || 0,
-            game.board.solarSystem.rotationAngleLevel3 || 0
-          );
-          const aPos = calculateAbsolutePosition(a, rotationState, game.board.solarSystem.extraCelestialObjects);
-          anomalySectors.add(aPos.absoluteSector);
-      });
-      sectors = game.board.sectors.filter(s => anomalySectors.has(parseInt(s.id.split('_')[1]))).map(s => s.id);
+      // Secteurs qui contiennent une anomalie, quelle que soit leur couleur
+      const withAnomaly = anomalySectors(game);
+      sectors = game.board.sectors.filter(s => withAnomaly.has(parseInt(s.id.split('_')[1]))).map(s => s.id);
     } else {
       sectors = game.board.sectors.filter(s => s.color === interactionState.color).map(s => s.id);
     }

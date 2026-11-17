@@ -1,6 +1,6 @@
 import { serializeGame, deserializeGame, SAVE_VERSION, SaveVersionError } from '../src/core/GamePersistence';
 import { cloneGame } from '../src/core/cloneGame';
-import { Game, HistoryEntry } from '../src/core/types';
+import { Game, HistoryEntry, SectorType } from '../src/core/types';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 import { CardSystem } from '../src/systems/CardSystem';
 
@@ -64,6 +64,18 @@ describe('GamePersistence', () => {
     expect(techs.some(t => t.bonus.card)).toBe(false);
     expect(techs.filter(t => t.bonus.anycard)).toHaveLength(techs.length / 4);
     expect(getPlayer(restored, 'player_0').technologies[0].bonus).toEqual({ anycard: 1, pv: 2 });
+  });
+
+  test('format 4 : le signal d\'ET.14 vise la prochaine anomalie', () => {
+    const saved = JSON.parse(JSON.stringify({ ...serializeGame(game, []), saveVersion: 4 }));
+    // Ancien format : signal dans le secteur d'une anomalie au choix
+    const card = { id: 'ET.14', name: 'Ecoute Attentive', immediateEffects: [{ type: 'ACTION', target: 'SIGNAL', value: { amount: 1, scope: SectorType.ANOMALY } }, { type: 'GAIN', target: 'SCAN', value: 1 }] };
+    saved.players[0].cards.push(card);
+
+    const { game: restored } = deserializeGame(JSON.stringify(saved));
+    const migrated = getPlayer(restored, 'player_0').cards.find(c => c.id === 'ET.14')!;
+    expect(migrated.immediateEffects).toEqual([{ type: 'ACTION', target: 'SIGNAL', value: { amount: 1, scope: SectorType.NEXT_ANOMALY } }, { type: 'GAIN', target: 'SCAN', value: 1 }]);
+    expect(card.immediateEffects[0].value).toEqual({ amount: 1, scope: SectorType.ANOMALY });
   });
 
   test('retire l\'historique d\'annulation du moteur des anciennes sauvegardes', () => {

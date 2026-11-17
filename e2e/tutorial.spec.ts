@@ -21,6 +21,13 @@ async function clickInBubble(page: Page, name: string) {
   await bubble(page).getByRole('button', { name }).click();
 }
 
+/** Progression du tutoriel où ces espèces sont débloquées (proposition du premier lancement refusée) */
+async function unlockAllSpecies(page: Page, species = ['Mascamites', 'Anomalies', 'Oumuamua', 'Centauriens', 'Exertiens']) {
+  await page.addInitScript(names => {
+    localStorage.setItem('seti_tutorial', JSON.stringify({ done: [], dismissed: true, hintsShown: [], contextHelp: false, species: names }));
+  }, species);
+}
+
 /** Accueil → menu du tutoriel → chapitre */
 async function openChapter(page: Page, chapterId: string) {
   await page.getByRole('button', { name: /Tutoriel/ }).first().click();
@@ -63,8 +70,9 @@ test('chapitre « L\'écran et le tour » joué jusqu\'au bout, puis coché dans
 });
 
 test('chaque chapitre préparé démarre avec sa bulle, et toutes les zones qu\'il décrit sont à l\'écran', async ({ page }) => {
+  // Toutes les espèces débloquées : les chapitres d'espèce sont jouables
+  await unlockAllSpecies(page);
   await page.goto('/');
-  await page.getByRole('button', { name: 'Plus tard' }).click();
   for (const chapter of TUTORIAL_CHAPTERS.filter(c => c.seed !== undefined)) {
     await openChapter(page, chapter.id);
     for (const target of new Set(chapter.steps.map(s => s.target).filter((t): t is string => !!t))) {
@@ -98,7 +106,7 @@ test('un chapitre ne touche pas la partie sauvegardée ; un rechargement en plei
   await openChapter(page, 'scanner');
   await clickInBubble(page, 'Quitter');
   expect(await page.evaluate(() => localStorage.getItem('seti_autosave'))).toBe(saved);
-  await page.getByText('Continuer la partie').click();
+  await page.getByText('Continuer', { exact: true }).click();
   await expect(bubble(page)).toHaveCount(0);
 });
 
@@ -115,4 +123,72 @@ test('« Première vraie partie » : une vraie partie contre un robot Débutant,
   await reserveIfAsked(page);
   await expect(bubble(page)).toContainText(text['premiere-partie'].steps.bienvenue.title, { timeout: 30_000 });
   await expect(page.locator('.seti-player-kind').filter({ has: page.locator('.seti-level-strength') }).first()).toBeVisible();
+});
+
+test("chapitres d'espèce verrouillés et règles des espèces masquées, puis débloqués", async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Plus tard' }).click();
+  await page.getByRole('button', { name: /Tutoriel/ }).first().click();
+  const menu = page.getByRole('dialog', { name: 'Tutoriel' });
+  await expect(menu.getByRole('button', { name: 'Espèce inconnue (chapitre verrouillé)' })).toHaveCount(5);
+  await expect(menu).not.toContainText('Anomalies');
+  // Pas de bouton Fermer : Échap ramène à l'accueil
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Documentation' }).click();
+  const doc = page.getByRole('dialog', { name: 'Documentation' });
+  await expect(doc).toContainText('Espèces encore inconnues');
+  await expect(doc.locator('h3, h4', { hasText: 'Anomalies' })).toHaveCount(0);
+
+  // Les Anomalies rencontrées en partie (progression enregistrée) : leur chapitre et leurs règles apparaissent
+  await page.evaluate(() => {
+    const progress = JSON.parse(localStorage.getItem('seti_tutorial') ?? '{}');
+    localStorage.setItem('seti_tutorial', JSON.stringify({ ...progress, species: ['Anomalies'] }));
+  });
+  await page.reload();
+  await page.getByRole('button', { name: /Tutoriel/ }).first().click();
+  await expect(menu.getByRole('button', { name: 'Espèce inconnue (chapitre verrouillé)' })).toHaveCount(4);
+  await expect(menu.getByRole('button', { name: new RegExp(`^${text.anomalies.title}`) })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Documentation' }).click();
+  await expect(doc.locator('h3, h4', { hasText: 'Anomalies' })).toHaveCount(1);
+});
+
+test('chapitre Anomalies : découverte, ellipse, puis la rotation amène la Terre sur une anomalie', async ({ page }) => {
+  await unlockAllSpecies(page, ['Anomalies']);
+  await page.goto('/');
+  await openChapter(page, 'anomalies');
+  await dismissAnnouncement(page);
+  await clickInBubble(page, 'Suivant');
+  await expect(bubble(page)).toContainText(text.anomalies.steps.analyser.title);
+  await availableAction(page, 'Analyser les données').click();
+  // Trace bleue sur le triangle de la première espèce : découverte
+  await page.locator('.alien-triangle-slot.clickable').first().click();
+  await dismissAnnouncement(page);
+  await expect(bubble(page)).toContainText(text.anomalies.steps.decouverte.title, { timeout: 15_000 });
+  await clickInBubble(page, 'Suivant');
+  await expect(bubble(page)).toContainText(text.anomalies.steps.jetons.title);
+  await clickInBubble(page, 'Suivant');
+  await expect(bubble(page)).toContainText(text.anomalies.steps.ellipse.title);
+  await clickInBubble(page, 'Suivant');
+  await expect(bubble(page)).toContainText(text.anomalies.steps.rechercher.title);
+  await expect(page.locator('[data-tutorial="history"]')).toContainText('Quelques tours plus tard');
+  await availableAction(page, 'Rechercher une tech').click();
+  // La rotation a amené la Terre sur l'anomalie : récompense gagnée (l'historique le raconte), technologie à choisir
+  await expect(page.locator('[data-tutorial="history"]')).toContainText('activée', { timeout: 15_000 });
+});
+
+test("« Traces de vie et espèces » sans espèce rencontrée : l'espèce découverte reste anonyme", async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Plus tard' }).click();
+  await openChapter(page, 'especes');
+  await dismissAnnouncement(page);
+  await clickInBubble(page, 'Suivant');
+  // Deux données dans l'ordinateur, analyse, trace bleue sur le triangle de la première espèce
+  for (let i = 0; i < 2; i++) await page.locator('.computer-slot.can-fill').first().click();
+  await availableAction(page, 'Analyser les données').click();
+  await page.locator('.alien-triangle-slot.clickable').first().click();
+  await dismissAnnouncement(page);
+  await expect(bubble(page)).toContainText(text.especes.steps.decouverte.title, { timeout: 15_000 });
+  await expect(page.locator('.alien-board-container.left')).toContainText('Espèce découverte');
+  await expect(page.locator('body')).not.toContainText('Anomalies');
 });

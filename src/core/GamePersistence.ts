@@ -1,4 +1,4 @@
-import { Game, GameLogEntry, HistoryEntry } from './types';
+import { Game, GameLogEntry, HistoryEntry, SectorType } from './types';
 import { findTurnUndoPoint } from './TurnUndo';
 
 /**
@@ -9,7 +9,7 @@ import { findTurnUndoPoint } from './TurnUndo';
  * - 3 : effets des cartes Oumuamua à jetons et à signal (ET.21, ET.22, ET.24, ET.25, ET.28) lus comme effets de la carte
  * - 4 : bonus de carte des tuiles Technologie au choix (rangée ou pioche : `anycard`), et non plus une pioche (`card`)
  */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 /** Effets des cartes Oumuamua relus en version 3 (anciens effets permanents jamais traités) */
 const OUMUAMUA_CARD_EFFECTS: Record<string, { type: string; target: string; value: string | number }> = {
@@ -22,7 +22,7 @@ const OUMUAMUA_CARD_EFFECTS: Record<string, { type: string; target: string; valu
 const OLD_OUMUAMUA_EFFECTS = ['GAIN_ON_OUMUAMUA_SIGNAL', 'GAIN_ON_TOKEN', 'GAIN_ON_TOKEN_AND_LAND'];
 
 type RawEffect = { type: string };
-type RawCard = { id?: unknown; bonus?: Record<string, unknown>; passiveEffects?: RawEffect[]; permanentEffects?: RawEffect[]; requirements?: RawEffect[]; permanentBuffs?: RawEffect[] };
+type RawCard = { id?: unknown; bonus?: Record<string, unknown>; immediateEffects?: RawEffect[]; passiveEffects?: RawEffect[]; permanentEffects?: RawEffect[]; requirements?: RawEffect[]; permanentBuffs?: RawEffect[] };
 
 /** Parcourt tout l'état (mains, pioches, missions, cartes d'espèce…) et applique `visit` à chaque objet */
 function visitObjects(value: unknown, visit: (obj: RawCard) => void): void {
@@ -75,6 +75,16 @@ const MIGRATIONS: Record<number, (state: RawState) => void> = {
         const { card, ...rest } = obj.bonus;
         obj.bonus = { ...rest, anycard: card };
       }
+    });
+  },
+  // ET.14 (Écoute Attentive) : le signal va dans le secteur de la prochaine anomalie, pas dans celui d'une anomalie au choix
+  4: state => {
+    visitObjects(state, obj => {
+      if (obj.id !== 'ET.14' || !obj.immediateEffects) return;
+      obj.immediateEffects = obj.immediateEffects.map(effect => {
+        const value = (effect as { value?: { scope?: string } }).value;
+        return value?.scope === SectorType.ANOMALY ? { ...effect, value: { ...value, scope: SectorType.NEXT_ANOMALY } } : effect;
+      });
     });
   },
 };

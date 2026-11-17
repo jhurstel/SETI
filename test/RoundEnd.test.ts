@@ -33,4 +33,37 @@ describe('fin de manche par la dernière passe', () => {
     const launched = GameSession.dispatch(chosen.game, 'player_0', { type: 'LAUNCH_PROBE' });
     expect(launched.error).toBeUndefined();
   });
+
+  test('régression : un palier doré atteint avant de passer se déclenche à la passe, avant la fin de la manche', async () => {
+    const game = await createTestGame();
+    game.phase = GamePhase.PLAYING;
+    game.currentRound = 2;
+    // Bob a déjà passé ; Alice, à 26 PV, passe à son tour
+    game.currentPlayerIndex = 0;
+    getPlayer(game, 'player_1').hasPassed = true;
+    const alice = getPlayer(game, 'player_0');
+    alice.score = 26;
+    const before = JSON.stringify(game);
+
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const passed = GameSession.dispatch(game, 'player_0', { type: 'PASS', cardsToKeep: CardSystem.getHandCards(alice).slice(0, 4).map(c => c.id) });
+    const chosen = GameSession.dispatch(passed.game, 'player_0', { type: 'CHOOSE', choice: { kind: 'CARD', cardId: game.decks.roundDecks[2][0].id } });
+    logSpy.mockRestore();
+
+    expect(JSON.stringify(game)).toBe(before);
+    expect(chosen.error).toBeUndefined();
+    // Le palier 25 attend son marqueur : la manche n'est pas encore finie
+    expect(chosen.game.interaction).toEqual(expect.objectContaining({ type: 'PLACING_OBJECTIVE_MARKER', milestone: 25 }));
+    expect(chosen.game.currentRound).toBe(2);
+
+    const tile = chosen.game.board.objectiveTiles[0];
+    const placed = GameSession.dispatch(chosen.game, 'player_0', { type: 'CHOOSE', choice: { kind: 'OBJECTIVE', tileId: tile.id } });
+    expect(placed.error).toBeUndefined();
+    expect(placed.game.board.objectiveTiles[0].markers).toContain('player_0');
+    expect(getPlayer(placed.game, 'player_0').claimedGoldenMilestones).toContain(25);
+    // Puis la manche se termine
+    expect(placed.game.currentRound).toBe(3);
+    expect(placed.game.endingTurn).toBe(false);
+    expect(placed.entries.map(e => e.message)).toContain('--- FIN DE LA MANCHE 2 ---');
+  });
 });

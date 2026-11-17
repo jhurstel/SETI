@@ -1,8 +1,8 @@
 /** @jest-environment jsdom */
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { HistoryList } from '../../src/ui/HistoryBoardUI';
 import { playerText } from '../../src/core/historyText';
-import { Game } from '../../src/core/types';
+import { Game, Technology, TechnologyCategory } from '../../src/core/types';
 
 describe('HistoryList', () => {
   // Partie réduite à ce que lit l'historique (pas de fetch sous jsdom pour charger les vraies cartes)
@@ -34,5 +34,44 @@ describe('HistoryList', () => {
     expect(names[1][1]).not.toBe(names[2][1]);
     // Un nom non marqué, ailleurs que dans la liste, reste en texte simple
     expect([...items[1].querySelectorAll('.seti-history-text strong')].map(s => s.textContent?.trim())).toEqual(['Alice']);
+  });
+});
+
+describe('HistoryList : technologies citées', () => {
+  // Deux technologies de même niveau dans deux catégories : la catégorie fait la différence
+  const tech = (id: string, type: TechnologyCategory, description: string) =>
+    ({ id, name: 'I', type, description, shorttext: '', effects: [], bonus: { pv: 3 } }) as unknown as Technology;
+  const exploration = tech('exploration-1-1', TechnologyCategory.EXPLORATION, 'Deux sondes dans le système solaire');
+  const observation = tech('observation-1-1', TechnologyCategory.OBSERVATION, 'Scan d\'un secteur adjacent à la Terre');
+  const game = {
+    players: [{ id: 'player_0', name: 'Alice', color: '#4a90e2', type: 'human', cards: [], reservedCards: [], playedCards: [], technologies: [observation] }],
+    decks: { cards: [], cardRow: [], discardPile: [], roundDecks: {} },
+    board: { technologyBoard: { available: [], categorySlots: [{ category: TechnologyCategory.EXPLORATION, technologies: [exploration] }] } },
+    species: [],
+  } as unknown as Game;
+
+  test('« Observation I » est un lien vers l\'infobulle de la technologie, comme une carte', () => {
+    const setActiveTooltip = jest.fn();
+    const { container } = render(
+      <HistoryList game={game} setActiveTooltip={setActiveTooltip}
+        historyLog={[{ id: '1', playerId: 'player_0', sequenceId: 's', message: 'acquiert technologie "Observation I" et gagne 3 PV' }]} />,
+    );
+    const link = container.querySelector('.seti-history-card-ref')!;
+    expect(link.textContent).toBe('"Observation I"');
+    fireEvent.mouseEnter(link);
+    const tooltip = render(<>{setActiveTooltip.mock.calls.at(-1)[0].content}</>);
+    expect(tooltip.container.textContent).toContain('Scan d\'un secteur adjacent à la Terre');
+    expect(tooltip.container.textContent).not.toContain('Deux sondes');
+  });
+
+  test('une technologie du plateau est trouvée aussi ; un nom inconnu reste du texte', () => {
+    const { container } = render(
+      <HistoryList game={game} setActiveTooltip={() => {}}
+        historyLog={[
+          { id: '1', playerId: 'player_0', sequenceId: 's', message: 'acquiert technologie "Exploration I"' },
+          { id: '2', playerId: 'player_0', sequenceId: 't', message: 'acquiert technologie "Informatique IV"' },
+        ]} />,
+    );
+    expect([...container.querySelectorAll('.seti-history-card-ref')].map(e => e.textContent)).toEqual(['"Exploration I"']);
   });
 });

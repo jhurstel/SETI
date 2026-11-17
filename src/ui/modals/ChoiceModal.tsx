@@ -5,9 +5,11 @@ import { HoverTooltip } from '../components/HoverTooltip';
  * Fenêtre de choix commune (fin de manche, réservation, messages Centauriens, paliers Exertiens, bonus…) :
  * titre, explication, options, et bouton « Voir le plateau » pour masquer la fenêtre le temps de regarder le jeu.
  */
-export const ChoiceModal = ({ title, subtitle, children, footer, wide = false }: {
+export const ChoiceModal = ({ title, subtitle, status, children, footer, wide = false }: {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
+  /** Ligne d'état au-dessus des options (ex : « Sélectionnées : 1 / 2 ») */
+  status?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
   /** Fenêtre large (choix de cartes) */
@@ -24,6 +26,7 @@ export const ChoiceModal = ({ title, subtitle, children, footer, wide = false }:
           <div className={`seti-choice-modal ${wide ? 'wide' : ''}`}>
             <div className="seti-choice-modal-title">{title}</div>
             {subtitle && <div className="seti-choice-modal-subtitle">{subtitle}</div>}
+            {status && <div className="seti-choice-modal-status">{status}</div>}
             <div className="seti-choice-modal-options">{children}</div>
             {footer && <div className="seti-choice-modal-footer">{footer}</div>}
           </div>

@@ -30,6 +30,6 @@ Les parties sont longues : lancer les commandes en arrière-plan et ne lire que 
 
 1. Ajouter le résultat daté dans [resultats.md](resultats.md) (appliqué ou non, et pourquoi).
 2. Poids retenus : `WEIGHTS_BY_PLAYER_COUNT` dans `src/ai/AIEvaluator.ts` (un jeu par nombre de joueurs).
-3. Écart entre niveaux modifié : tableau de la section 5.1 de `public/docs/documentation.md`.
+3. Écart entre niveaux modifié : tableau (arrondi) de la section 1.1 (Nouvelle partie) de `public/docs/documentation.md`.
 4. Comportement des robots modifié : `openspec/specs/robots/spec.md` (par un changement OpenSpec si c'est une évolution notable).
 5. `npm run check`.

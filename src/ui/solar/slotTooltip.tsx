@@ -1,11 +1,14 @@
 import React from 'react';
-import { Bonus, Game, InteractionState, LifeTraceType, Player, Probe, ProbeState, Satellite } from '../../core/types';
+import { Bonus, GAME_CONSTANTS, Game, InteractionState, LifeTraceType, Player, Probe, ProbeState, Satellite } from '../../core/types';
 import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../../core/SolarSystemPosition';
 import { ProbeSystem } from '../../systems/ProbeSystem';
 import { BonusIcons } from '../components/BonusIcons';
 import { SlotTooltip } from '../components/SlotTooltip';
 import { SLOT_COLORS } from '../styles/slotColors';
 import { findPlanet } from './planets';
+
+/** Quantité d'une ressource en toutes lettres, comme dans les messages des emplacements (« 2 crédits ») */
+const amount = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`;
 
 /** Emplacement survolé : orbite ou atterrissage, planète (ou lune) et numéro de case */
 export interface HoveredSlot {
@@ -75,7 +78,11 @@ export const SlotTooltipContent: React.FC<{ game: Game; interactionState: Intera
       } else {
         const check = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id);
         canOrbit = check.canOrbit;
-        orbitReason = check.reason || "Impossible";
+        // Ressources insuffisantes : le coût suffit comme raison (comme pour la Terre)
+        const lacksResources = currentPlayer.credits < GAME_CONSTANTS.ORBIT_COST_CREDITS || currentPlayer.energy < GAME_CONSTANTS.ORBIT_COST_ENERGY;
+        orbitReason = !canOrbit && lacksResources
+          ? `Nécessite ${amount(GAME_CONSTANTS.ORBIT_COST_CREDITS, 'crédit')} et ${amount(GAME_CONSTANTS.ORBIT_COST_ENERGY, 'énergie')}`
+          : check.reason || "Impossible";
       }
     } else {
       orbitReason = "Nécessite une sonde sur la planète";
@@ -87,8 +94,11 @@ export const SlotTooltipContent: React.FC<{ game: Game; interactionState: Intera
     } else {
       isClickable = isNextAvailable && canOrbit && actions.orbit;
     }
+    // Orbite possible, mais pas sur cette case : les orbiteurs prennent les cases dans l'ordre
+    if (canOrbit && !isNextAvailable) orbitReason = "Nécessite l'emplacement précédent";
 
-    return renderTooltipContent(isOccupied, isClickable, player!, bonusText, orbitReason, "Cliquez pour mettre en orbite (Coût: 1 Crédit, 1 Énergie)", interactionState.type === 'REMOVING_ORBITER', 'orbiter');
+    const orbitCost: Bonus = { credits: GAME_CONSTANTS.ORBIT_COST_CREDITS, energy: GAME_CONSTANTS.ORBIT_COST_ENERGY };
+    return renderTooltipContent(isOccupied, isClickable, player!, bonusText, orbitReason, "Cliquez pour mettre en orbite", interactionState.type === 'REMOVING_ORBITER', 'orbiter', orbitCost);
   }
 
   if (type === 'lander') {
@@ -129,7 +139,11 @@ export const SlotTooltipContent: React.FC<{ game: Game; interactionState: Intera
         const check = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !(interactionState.type === 'LANDING_PROBE'));
         canLand = check.canLand;
         landEnergyCost = check.energyCost || 0;
-        landReason = check.reason || "Impossible";
+        // Énergie insuffisante : le coût suffit comme raison (comme pour la Terre)
+        const needed = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id).landCost;
+        landReason = !canLand && needed !== undefined && currentPlayer.energy < needed
+          ? `Nécessite ${amount(needed, 'énergie')}`
+          : check.reason || "Impossible";
       }
     } else {
       landReason = "Nécessite une sonde sur la planète";
@@ -149,20 +163,24 @@ export const SlotTooltipContent: React.FC<{ game: Game; interactionState: Intera
     } else {
         isClickable = slotOpen && (canLand || interactionState.type === 'LANDING_PROBE') && actions.land;
     }
+    // Atterrissage possible, mais pas sur cette case : les atterrisseurs prennent les cases dans l'ordre
+    if (canLand && !slotOpen) landReason = "Nécessite l'emplacement précédent";
 
-    const actionTextSuccess = interactionState.type === 'LANDING_PROBE'
-      ? "Cliquez pour atterrir (Bonus)"
-      : `Cliquez pour atterrir (Coût: ${landEnergyCost} Énergie)`;
+    // Atterrissage d'une action principale : son coût sur la ligne du bonus ; atterrissage gagné en bonus : gratuit
+    const isBonusLanding = interactionState.type === 'LANDING_PROBE';
+    const actionTextSuccess = isBonusLanding ? "Cliquez pour atterrir (bonus)" : "Cliquez pour atterrir";
+    const landCost: Bonus | undefined = !isBonusLanding && landEnergyCost > 0 ? { energy: landEnergyCost } : undefined;
 
-    return renderTooltipContent(isOccupied, isClickable, player!, bonusText, landReason, actionTextSuccess, interactionState.type === 'REMOVING_LANDER', 'lander');
+    return renderTooltipContent(isOccupied, isClickable, player!, bonusText, landReason, actionTextSuccess, interactionState.type === 'REMOVING_LANDER', 'lander', landCost);
   }
   return null;
 };
 
-function renderTooltipContent(isOccupied: boolean, isClickable: boolean, player: Player | null, bonusText: React.ReactNode, reason: string, actionTextSuccess: string, isRemovingMode: boolean, removalType?: 'orbiter' | 'lander') {
+function renderTooltipContent(isOccupied: boolean, isClickable: boolean, player: Player | null, bonusText: React.ReactNode, reason: string, actionTextSuccess: string, isRemovingMode: boolean, removalType?: 'orbiter' | 'lander', cost?: Bonus) {
   let statusText = isOccupied && player ? `Occupé par ${player.name}` : (isClickable ? "Disponible" : "Indisponible");
   let statusColor = isOccupied && player ? (player.color || "#ccc") : (isClickable ? SLOT_COLORS.available : SLOT_COLORS.unavailable);
-  let actionText: string | null = isClickable ? actionTextSuccess : reason;
+  // Case occupée : son occupant suffit, sans raison d'indisponibilité
+  let actionText: string | null = isClickable ? actionTextSuccess : isOccupied ? null : reason;
 
   if (isOccupied && isClickable && isRemovingMode) {
     statusText = "Cliquez pour retirer";
@@ -187,6 +205,8 @@ function renderTooltipContent(isOccupied: boolean, isClickable: boolean, player:
       value={isRemovingMode && isClickable ? removalBonusText : bonusText}
       note={actionText}
       noteColor={isClickable ? SLOT_COLORS.available : SLOT_COLORS.unavailable}
+      // Emplacement à prendre : coût de l'action sur la ligne du bonus
+      cost={isClickable && !isRemovingMode && cost ? <BonusIcons bonus={cost} /> : undefined}
     />
   );
 }

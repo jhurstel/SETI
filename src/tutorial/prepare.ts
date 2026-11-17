@@ -7,7 +7,7 @@ import { AITurn } from '../ai/AITurn';
 import { GameSession } from '../session/GameSession';
 import { GameSetup } from '../session/GameSetup';
 import { answerInteraction } from './scenario';
-import type { TutorialChapter, TutorialCommand } from './types';
+import type { ChapterOptions, TutorialChapter, TutorialCommand } from './types';
 
 /** Nom de l'adversaire passif des chapitres */
 export const TUTORIAL_OPPONENT_NAME = 'Robot passif';
@@ -61,7 +61,7 @@ export function applyTutorialCommand(game: Game, humanId: string, command: Tutor
  * de préparation (leurs choix éventuels reçoivent la réponse par défaut, `answerInteraction`).
  * Toujours la même position pour la même version du jeu.
  */
-export async function prepareChapter(chapter: TutorialChapter, humanName: string): Promise<PreparedChapter> {
+export async function prepareChapter(chapter: TutorialChapter, humanName: string, options: ChapterOptions = { unlockedSpecies: [] }): Promise<PreparedChapter> {
   if (chapter.seed === undefined) throw new Error(`Tutoriel : le chapitre ${chapter.id} n'a pas de position préparée`);
   const created = await GameSetup.newGame(
     [{ name: humanName, type: 'human' }, { name: TUTORIAL_OPPONENT_NAME, type: 'robot', aiDifficulty: 'IDLE' }],
@@ -78,7 +78,7 @@ export async function prepareChapter(chapter: TutorialChapter, humanName: string
   game = reserved.game;
   entries.push(...reserved.entries);
 
-  if (chapter.adjust) game = chapter.adjust(cloneGame(game), humanId);
+  if (chapter.adjust) game = chapter.adjust(cloneGame(game), humanId, options);
 
   for (const command of chapter.prepare) {
     const step = applyTutorialCommand(game, humanId, command);

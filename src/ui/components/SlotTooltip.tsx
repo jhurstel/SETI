@@ -24,7 +24,7 @@ export const SlotTooltip: React.FC<SlotTooltipProps> = ({ status, statusColor, l
     <div style={{ fontWeight: 'bold', marginBottom: '4px', color: statusColor }}>{status}</div>
     {value !== undefined && value !== null && value !== '' ? (
       <div className="slot-tooltip-line">
-        {cost && <>Coût :<span style={{ color: SLOT_COLORS.unavailable, display: 'inline-flex', alignItems: 'center', marginRight: '6px' }}>{cost}</span></>}
+        {cost && <>Coût :<span className="slot-tooltip-cost" style={{ color: SLOT_COLORS.unavailable, display: 'inline-flex', alignItems: 'center', marginRight: '6px' }}>{cost}</span></>}
         {label} :<span style={{ color: SLOT_COLORS.bonus, display: 'inline-flex', alignItems: 'center' }}>{value}</span>
       </div>
     ) : label === 'Bonus' && value !== undefined ? (
