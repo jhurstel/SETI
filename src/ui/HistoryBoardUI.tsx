@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useTutorialPanel } from './tutorialFocus';
 import { Card, Game, Technology, TechnologyCategory, CardType, Bonus, HistoryEntry, SectorType } from '../core/types';
 import { CardTooltip } from '../ui/components/CardTooltip';
 import './HistoryBoardUI.css';
@@ -377,6 +378,8 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
 
 const HistoryBoardUIView: React.FC<HistoryBoardUIProps> = ({ historyLog, game, onUndo, onUndoTurn, setActiveTooltip }) => {
     const [isHistoryOpen, setIsHistoryOpen] = useState(true);
+    // Tutoriel : l'historique est réduit, sauf quand l'étape le décrit
+    useTutorialPanel('history', setIsHistoryOpen);
     const historyContentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -386,7 +389,7 @@ const HistoryBoardUIView: React.FC<HistoryBoardUIProps> = ({ historyLog, game, o
     }, [historyLog]);
 
     return (
-        <div className="seti-history-wrapper">
+        <div className="seti-history-wrapper" data-tutorial="history">
             <div className={`seti-foldable-container seti-history-container seti-icon-panel ${isHistoryOpen ? 'open' : 'collapsed'}`}>
                 <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
                     <span className="panel-icon">📜</span>

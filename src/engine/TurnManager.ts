@@ -175,4 +175,14 @@ export class TurnManager {
     const passedCount = game.players.filter(p => p.hasPassed).length;
     return passedCount === 1;
   }
+
+  /**
+   * Joueur qui a commencé une manche passée ou en cours : le premier joueur tourne d'une place à chaque fin de manche
+   * (endRound), y compris après la dernière, une fois la partie au décompte final.
+   */
+  static roundFirstPlayer(game: Game, round: number): Player {
+    const count = game.players.length;
+    const roundsSince = game.currentRound - round + (game.phase === GamePhase.FINAL_SCORING ? 1 : 0);
+    return game.players[(((game.firstPlayerIndex - roundsSince) % count) + count) % count];
+  }
 }

@@ -430,10 +430,16 @@ export class AIController {
         CHOOSING_EXERTIEN_CARD: (c, interaction) => {
             // Simule chaque carte (et le renoncement) : la position évaluée compte les PV promis
             // selon l'avancement de la condition et la pénalité de danger attendue
-            const res = AIController.bestExertienCard(c.updatedGame, c.player.id, interaction.milestone);
-            c.updatedGame = res.updatedGame;
-            // Même séquence que le message du palier (sous lequel le choix s'écrit)
-            c.historyEntries.push(...res.historyEntries.map(e => ({ ...e, sequenceId: interaction.sequenceId || c.sequenceId })));
+            // À la découverte, une carte par marqueur de découverte (count) : chaque carte est choisie à son tour
+            for (let i = 0; i < (interaction.count ?? 1); i++) {
+                const before = requirePlayer(c.updatedGame, c.player.id).playedCards.length;
+                const res = AIController.bestExertienCard(c.updatedGame, c.player.id, interaction.milestone);
+                c.updatedGame = res.updatedGame;
+                // Même séquence que le message du palier (sous lequel le choix s'écrit)
+                c.historyEntries.push(...res.historyEntries.map(e => ({ ...e, sequenceId: interaction.sequenceId || c.sequenceId })));
+                // Renoncement, ou plus de carte Exertien : le choix s'arrête
+                if (requirePlayer(c.updatedGame, c.player.id).playedCards.length === before) break;
+            }
         },
         CHOOSING_OBS3_ACTION: (c, interaction) => {
             // Même règle que le joueur humain (accepter, puis défausser 1 carte) ; le robot défausse sa première carte

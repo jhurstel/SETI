@@ -128,8 +128,8 @@ export const MissionRequirementModal = ({ game, interactionState, onChoice }: { 
   );
 };
 
-export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: Game, interactionState: InteractionState, onChoice: (cardId?: string) => void }) => {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: Game, interactionState: InteractionState, onChoice: (cardIds: string[]) => void }) => {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeTooltip, setActiveTooltip] = useState<{ content: React.ReactNode, rect: DOMRect } | null>(null);
   useCloseTooltipOnClick(() => setActiveTooltip(null));
   if (interactionState.type !== 'CHOOSING_EXERTIEN_CARD') return null;
@@ -138,19 +138,28 @@ export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: 
   const player = game.players.find(p => p.id === interactionState.playerId) ?? game.players[game.currentPlayerIndex];
   const cards = player.cards.filter(c => CardSystem.isExertienCard(c));
   const cost = SpeciesSystem.exertienCardCost(game, interactionState.milestone);
-  const canPay = player.credits >= cost;
-  const choose = (cardId?: string) => { setSelectedId(null); setActiveTooltip(null); onChoice(cardId); };
+  // Découverte : une carte par marqueur de découverte du joueur (count), sinon une seule
+  const count = interactionState.count ?? 1;
+  const canPay = player.credits >= cost * Math.max(1, selectedIds.length);
+  const choose = (cardIds: string[]) => { setSelectedIds([]); setActiveTooltip(null); onChoice(cardIds); };
+  const toggle = (cardId: string) => setSelectedIds(current => (current.includes(cardId)
+    ? current.filter(id => id !== cardId)
+    : count === 1 ? [cardId] : current.length < count ? [...current, cardId] : current));
 
   return (
     <>
       <ChoiceModal
         title={interactionState.milestone === 0 ? 'Découverte des Exertiens' : `Palier Exertien atteint (${interactionState.milestone} PV)`}
-        subtitle={`Vous pouvez jouer une de vos cartes Exertiens face cachée${cost > 0 ? `, pour ${cost} crédit` : ''}. Son DANGER s'ajoute au vôtre (actuellement ${player.danger || 0}).`}
+        subtitle={count > 1
+          ? `Vous avez ${count} marqueurs de découverte : vous pouvez jouer jusqu'à ${count} cartes Exertiens face cachée. Leur DANGER s'ajoute au vôtre (actuellement ${player.danger || 0}).`
+          : `Vous pouvez jouer une de vos cartes Exertiens face cachée${cost > 0 ? `, pour ${cost} crédit` : ''}. Son DANGER s'ajoute au vôtre (actuellement ${player.danger || 0}).`}
         footer={
           <>
-            <ChoiceFooterButton secondary onClick={() => choose(undefined)}>Ne pas jouer de carte</ChoiceFooterButton>
-            <ChoiceFooterButton onClick={() => selectedId && choose(selectedId)} disabled={!selectedId || !canPay}
-              icon={cost > 0 ? <ResourceIcon kind="credit" amount={-cost} size={20} /> : undefined}>Jouer la carte</ChoiceFooterButton>
+            <ChoiceFooterButton secondary onClick={() => choose([])}>Ne pas jouer de carte</ChoiceFooterButton>
+            <ChoiceFooterButton onClick={() => selectedIds.length > 0 && choose(selectedIds)} disabled={selectedIds.length === 0 || !canPay}
+              icon={cost > 0 ? <ResourceIcon kind="credit" amount={-cost} size={20} /> : undefined}>
+              {selectedIds.length > 1 ? `Jouer les ${selectedIds.length} cartes` : count > 1 ? `Jouer la carte (${selectedIds.length}/${count})` : 'Jouer la carte'}
+            </ChoiceFooterButton>
           </>
         }
         wide
@@ -159,9 +168,9 @@ export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: 
           <ChoiceCardTile
             key={card.id}
             card={card}
-            selected={selectedId === card.id}
+            selected={selectedIds.includes(card.id)}
             highlightedAttribute="freeAction"
-            onClick={() => setSelectedId(selectedId === card.id ? null : card.id)}
+            onClick={() => toggle(card.id)}
             onHover={setActiveTooltip}
           />
         ))}

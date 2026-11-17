@@ -163,3 +163,13 @@
 .seti-board-tooltip-steps .seti-board-tooltip-symbols {
   vertical-align: middle;
 }
+
+/* Plusieurs ressources dans un coût ou un bonus (orbite : crédit et énergie ; scan…) : leurs symboles ont une marge
+   transparente dans leur carré, on les rapproche comme les symboles du bonus de la recherche (environ 5 px d'écart) */
+.seti-board-tooltip-symbols .bonus-icons {
+  gap: 0;
+}
+
+.seti-board-tooltip-symbols .bonus-icons > .symbol-help + .symbol-help {
+  margin-left: -6px;
+}

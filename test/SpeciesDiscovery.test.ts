@@ -49,13 +49,14 @@ describe('découverte d\'une espèce', () => {
     expect(viewFor(game, P2).species.map(s => s.name)).toContain(AlienBoardType.EXERTIENS);
   });
 
-  test('Exertiens : chaque joueur qui a un marqueur de découverte peut jouer tout de suite une carte (palier 0)', () => {
+  test('Exertiens : chaque joueur qui a des marqueurs de découverte peut jouer tout de suite une carte par marqueur (palier 0)', () => {
     exertienBoard(game);
     const res = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE);
     expect(exertienCount(res.updatedGame, P1)).toBeGreaterThanOrEqual(3);
+    // P1 a posé deux marqueurs (dont la trace bleue qui fait découvrir l'espèce), P2 un seul
     expect(res.newPendingInteractions.filter(i => i.type === 'CHOOSING_EXERTIEN_CARD')).toEqual([
-      { type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, playerId: P1 },
-      { type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, playerId: P2 },
+      { type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, count: 2, playerId: P1 },
+      { type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, count: 1, playerId: P2 },
     ]);
   });
 
@@ -151,8 +152,8 @@ describe('découverte d\'une espèce', () => {
     expect(ended.notifications).toContain(discoveryNotice('Exertiens'));
     expect(ended.notifications).not.toContain(DISCOVERY_NOTICE);
     // Le choix d'Alice (en tête de file) attend ; celui du robot Bob suit, puis le tour se termine
-    expect(ended.game.interaction).toEqual({ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, playerId: P1 });
-    expect(ended.game.pendingInteractions).toEqual([{ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, playerId: P2 }]);
+    expect(ended.game.interaction).toEqual({ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, count: 1, playerId: P1 });
+    expect(ended.game.pendingInteractions).toEqual([{ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, count: 1, playerId: P2 }]);
     expect(ended.game.currentPlayerIndex).toBe(0);
 
     const chosen = GameSession.dispatch(ended.game, P1, { type: 'CHOOSE', choice: { kind: 'EXERTIEN' } });

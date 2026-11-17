@@ -338,11 +338,21 @@ export class InteractionChoices {
     return { updatedGame: finished.updatedGame, historyEntries: [{ message, playerId, sequenceId: interaction.sequenceId || '' }, ...finished.historyEntries], newPendingInteractions: [] };
   }
 
-  /** Carte Exertien jouée à un palier (cardId absent : le joueur renonce). */
+  /**
+   * Carte Exertien jouée à un palier (cardId absent : le joueur renonce, à toutes les cartes restantes de ce choix).
+   * À la découverte, une carte par marqueur de découverte : tant qu'il en reste à jouer, le choix revient (nextInteraction).
+   */
   static playExertienCard(game: Game, playerId: string, interaction: Interaction<'CHOOSING_EXERTIEN_CARD'>, cardId?: string): ChoiceResult {
     const res = SpeciesSystem.playExertienCard(game, playerId, interaction.milestone, cardId);
     if (res.error) return refused(game, res.error);
-    return { updatedGame: res.updatedGame, historyEntries: res.historyEntries, newPendingInteractions: [] };
+    const remaining = (interaction.count ?? 1) - 1;
+    const hasCard = requirePlayer(res.updatedGame, playerId).cards.some(c => CardSystem.isExertienCard(c));
+    return {
+      updatedGame: res.updatedGame,
+      historyEntries: res.historyEntries,
+      newPendingInteractions: [],
+      nextInteraction: cardId && remaining > 0 && hasCard ? { ...interaction, count: remaining } : undefined,
+    };
   }
 
   /**

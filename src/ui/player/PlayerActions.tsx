@@ -9,6 +9,7 @@ import { requirePlayer } from '../../core/players';
 import { ActionHexIcon, ActionIconKind, EndTurnIcon } from '../components/GameIcons';
 import { ActionTooltip, ResourceSymbols, PieceSymbol, ScanSymbol, BlueTraceSymbol, CardCostSymbol, TechSymbol } from '../components/BoardTooltips';
 import { TrackSlot } from './PlayerTracks';
+import type { TutorialAction } from '../../tutorial/types';
 
 /** Section Actions du plateau joueur (joueur humain) : les 8 actions principales en hexagones, puis la fin du tour */
 export const PlayerActions: React.FC<{
@@ -21,12 +22,14 @@ export const PlayerActions: React.FC<{
   onNextPlayer: () => void;
   handleTooltipHover: (e: React.MouseEvent, content: React.ReactNode) => void;
   handleTooltipLeave: () => void;
-}> = ({ game, playerId, interactionState, isInteractiveMode, onAction, onNextPlayer, handleTooltipHover, handleTooltipLeave }) => {
+  /** Tutoriel : raison pour laquelle l'étape en cours refuse une action (null : permise) */
+  tutorialBlock?: (action: TutorialAction) => string | null;
+}> = ({ game, playerId, interactionState, isInteractiveMode, onAction, onNextPlayer, handleTooltipHover, handleTooltipLeave, tutorialBlock }) => {
   const currentPlayer = requirePlayer(game, playerId);
   const isCurrentTurn = game.players[game.currentPlayerIndex].id === currentPlayer.id;
   const hasPerformedMainAction = currentPlayer.hasPerformedMainAction;
 
-  const actionAvailability: Record<ActionType, boolean> = {
+  const ruleAvailability: Record<ActionType, boolean> = {
     [ActionType.LAUNCH_PROBE]: isCurrentTurn && !hasPerformedMainAction && ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch,
     [ActionType.ORBIT]: isCurrentTurn && !hasPerformedMainAction && currentPlayer.probes.some(probe => ProbeSystem.canOrbit(game, currentPlayer.id, probe.id).canOrbit),
     [ActionType.LAND]: isCurrentTurn && !hasPerformedMainAction && currentPlayer.probes.some(probe => ProbeSystem.canLand(game, currentPlayer.id, probe.id).canLand),
@@ -42,6 +45,11 @@ export const PlayerActions: React.FC<{
     [ActionType.BUY_CARD]: false,
     [ActionType.TRADE_RESOURCES]: false,
   };
+  // Tutoriel : une action permise par les règles mais pas par l'étape en cours est désactivée, avec sa raison
+  const tutorialReason = (action: TutorialAction) => tutorialBlock?.(action) ?? null;
+  const actionAvailability = Object.fromEntries(
+    Object.entries(ruleAvailability).map(([action, ok]) => [action, ok && !tutorialReason(action as ActionType)]),
+  ) as Record<ActionType, boolean>;
 
   // Infobulle d'une action principale : coût, bonus, puis action possible ou raison de l'indisponibilité
   const getActionTooltip = (actionType: ActionType, available: boolean): React.ReactNode => {
@@ -143,6 +151,7 @@ export const PlayerActions: React.FC<{
     // Les raisons générales passent avant celles propres à l'action
     if (!isCurrentTurn) reason = "Ce n'est pas votre tour";
     else if (hasPerformedMainAction) reason = 'Action principale déjà effectuée';
+    else if (!reason && tutorialReason(actionType)) reason = tutorialReason(actionType)!;
     else if (!reason && !available) reason = "Terminez d'abord l'action en cours";
 
     return <ActionTooltip title={actionType} cost={cost} bonus={bonus} bonusLabel={bonusLabel} available={available} hint={available ? action : reason} />;
@@ -150,10 +159,11 @@ export const PlayerActions: React.FC<{
 
   // Une interaction obligatoire en cours (ex : technologie à choisir) empêche de finir le tour ou de passer
   const interactionBlocks = isInteractiveMode || TurnManager.blocksEndOfTurn(interactionState);
-  const canEndTurn = isCurrentTurn && hasPerformedMainAction && !interactionBlocks;
+  const canEndTurn = isCurrentTurn && hasPerformedMainAction && !interactionBlocks && !tutorialReason('END_TURN');
   let endTurnReason = "Terminez d'abord l'action en cours";
   if (!isCurrentTurn) endTurnReason = "Ce n'est pas votre tour";
   else if (!hasPerformedMainAction) endTurnReason = "Effectuez d'abord une action principale";
+  else if (tutorialReason('END_TURN')) endTurnReason = tutorialReason('END_TURN')!;
   const endTurnTooltip = <ActionTooltip title="Fin du tour" bonusLabel="Effet" bonus="Les paliers de score sont vérifiés"
     available={canEndTurn} hint={canEndTurn ? 'Cliquez pour terminer votre tour' : endTurnReason} />;
   const canPass = actionAvailability[ActionType.PASS] && !interactionBlocks;
@@ -162,7 +172,7 @@ export const PlayerActions: React.FC<{
     ['analyze', ActionType.ANALYZE_DATA], ['card', ActionType.PLAY_CARD], ['research', ActionType.RESEARCH_TECH], ['pass', ActionType.PASS],
   ];
   return (
-    <div className="seti-player-section">
+    <div className="seti-player-section" data-tutorial="actions">
       <div className="seti-player-section-title">Actions</div>
       <div className="seti-main-actions-row">
       <div className="seti-main-actions">
@@ -175,7 +185,7 @@ export const PlayerActions: React.FC<{
         );
       })}
       </div>
-      <div className="seti-main-actions">
+      <div className="seti-main-actions" data-tutorial="end-turn">
         <TrackSlot icon={<EndTurnIcon size={42} />} hex label="Prochain joueur" tooltip={endTurnTooltip} clickable={canEndTurn} flash={canEndTurn}
           onClick={() => onNextPlayer && onNextPlayer()} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
       </div>

@@ -77,7 +77,7 @@ type InteractionStateVariant =
   /** Le joueur doit cliquer sur un token Mascamite pour le consulter (et gagner son bonus sans le retirer). */
   | { type: 'CONSULTING_SPECIMEN', planetId?: string, sequenceId?: string, anyPlanet?: boolean } // anyPlanet : Jupiter ou Saturne au choix, sans sonde (ET.8 à ET.10)
   /** Le joueur a atteint un palier Exertien : il peut jouer une de ses cartes Exertiens face cachée (ou y renoncer). */
-  | { type: 'CHOOSING_EXERTIEN_CARD', milestone: number, sequenceId?: string }
+  | { type: 'CHOOSING_EXERTIEN_CARD', milestone: number, count?: number, sequenceId?: string } // count : cartes encore jouables à ce choix (découverte : une par marqueur de découverte ; absent : 1)
   /** Carte de la pile de fin de manche `round`, choisie après avoir passé (la pile est cachée jusque-là) */
   | { type: 'CHOOSING_ROUND_CARD', round: number, playerId: string, sequenceId?: string }
   /** Défausser 1 Token pour le gain d'une carte (ET.24, ET.25, ET.28) : `repeat` tant qu'il reste des tokens, `then` gagné en arrêtant */
@@ -206,7 +206,7 @@ export const INTERACTIONS = {
   CHOOSING_EXERTIEN_CARD: {
     ...choice('EXERTIEN'),
     label: s => (s.milestone === 0
-      ? 'Découverte des Exertiens : vous pouvez jouer une carte Exertien.'
+      ? `Découverte des Exertiens : vous pouvez jouer ${(s.count ?? 1) > 1 ? `${s.count} cartes Exertiens` : 'une carte Exertien'}.`
       : `Palier Exertien (${s.milestone} PV) : vous pouvez jouer une carte Exertien.`),
   },
   CHOOSING_ROUND_CARD: { ...choice('CARD'), label: s => `Choisissez une carte de fin de manche ${s.round}.` },

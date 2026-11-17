@@ -6,7 +6,7 @@
 // Le contrôle échoue si un autre cycle apparaît, ou si un module rejoint ce groupe : la géométrie,
 // le modèle (core/), l'IA, la session et l'interface doivent rester hors de tout cycle.
 //
-// Couches (de bas en haut) : core (modèle) < systems (règles) < actions, engine (orchestration) < ai < session < ui.
+// Couches (de bas en haut) : core (modèle) < systems (règles) < actions, engine (orchestration) < ai < session < tutorial < ui.
 // Une couche n'importe jamais une couche au-dessus d'elle (FORBIDDEN) ; server/ et tools/ sont au sommet.
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { dirname, join, normalize, relative, sep } from 'node:path';
@@ -29,12 +29,13 @@ const ALLOWED_CYCLE = new Set([
 
 /** Dossiers qu'une couche de src/ ne doit pas importer (imports exécutés) */
 const FORBIDDEN = {
-  core: ['systems', 'actions', 'engine', 'ai', 'session', 'ui'],
-  systems: ['actions', 'engine', 'ai', 'session', 'ui'],
-  actions: ['ai', 'session', 'ui'],
-  engine: ['ai', 'session', 'ui'],
-  ai: ['session', 'ui'],
-  session: ['ui'],
+  core: ['systems', 'actions', 'engine', 'ai', 'session', 'tutorial', 'ui'],
+  systems: ['actions', 'engine', 'ai', 'session', 'tutorial', 'ui'],
+  actions: ['ai', 'session', 'tutorial', 'ui'],
+  engine: ['ai', 'session', 'tutorial', 'ui'],
+  ai: ['session', 'tutorial', 'ui'],
+  session: ['tutorial', 'ui'],
+  tutorial: ['ui'],
 };
 
 const rel = file => relative(ROOT, file).split(sep).join('/');

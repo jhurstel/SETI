@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { hasExtraTechPv } from './techBonus';
+import { tutorialAllows, useTutorialFocus, useTutorialPanel } from './tutorialFocus';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { TechTileIcon, VictoryPointsIcon } from './components/GameIcons';
 import { BonusIcons } from './components/BonusIcons';
 import { HoverTooltip } from './components/HoverTooltip';
 import { AnyTechIcon, TechCategoryIcon } from './components/ObjectiveSymbol';
-import { Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
+import { ActionType, Game, Technology, TechnologyCategory, Bonus, InteractionState, GAME_CONSTANTS } from '../core/types';
 import { TECHNOLOGY_STYLES } from './styles/celestialStyles';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import './TechnologyBoardUI.css';
@@ -23,7 +25,10 @@ const TechnologyBoardUIView: React.FC<TechnologyBoardUIProps> = ({ game, interac
   const isAcquiringTech = interactionState.type === 'ACQUIRING_TECH';
   const [isOpen, setIsOpen] = useState(isAcquiringTech);
 
-  const canResearch = !currentPlayer.hasPerformedMainAction && interactionState.type === 'IDLE' && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA;
+  // Tutoriel : le panneau ne clignote que si l'étape en cours permet la recherche
+  const tutorialFocus = useTutorialFocus();
+  const canResearch = !currentPlayer.hasPerformedMainAction && interactionState.type === 'IDLE' && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA
+    && tutorialAllows(tutorialFocus, ActionType.RESEARCH_TECH);
   const researchCategories = isAcquiringTech ? interactionState.categories : undefined;
   const sharedTechOnly = isAcquiringTech ? interactionState.sharedOnly : false;
 
@@ -31,6 +36,7 @@ const TechnologyBoardUIView: React.FC<TechnologyBoardUIProps> = ({ game, interac
     setIsOpen(isAcquiringTech);
   }, [isAcquiringTech]);
   const panelRef = useRef<HTMLDivElement>(null);
+  useTutorialPanel('tech-board', setIsOpen, isAcquiringTech);
   useCloseOnOutsideClick(panelRef, isOpen, () => setIsOpen(false), !isAcquiringTech);
 
   // Technologies que le joueur peut prendre : même liste que pour les robots (catégories, piles déjà prises, partagées)
@@ -66,7 +72,7 @@ const TechnologyBoardUIView: React.FC<TechnologyBoardUIProps> = ({ game, interac
   };
 
   return (
-    <div ref={panelRef} className={`seti-foldable-container seti-icon-panel ${isOpen ? 'open' : 'collapsed'} ${canResearch && !isOpen ? 'seti-flash-green' : ''}`}
+    <div ref={panelRef} data-tutorial="tech-board" className={`seti-foldable-container seti-icon-panel ${isOpen ? 'open' : 'collapsed'} ${canResearch && !isOpen ? 'seti-flash-green' : ''}`}
       style={{
         pointerEvents: 'auto',
         ...(isAcquiringTech ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
@@ -110,7 +116,7 @@ const TechnologyBoardUIView: React.FC<TechnologyBoardUIProps> = ({ game, interac
                   const isClickable = (isAcquiringTech || canResearch) && acquirableIds.has(topCard.id);
 
                   // Détection du bonus supplémentaire de 2 PV (logique basée sur les valeurs initiales)
-                  const hasExtraPv = (topCard.bonus.pv === 5) || (topCard.bonus.pv === 2 && !!(topCard.bonus.media || topCard.bonus.card || topCard.bonus.energy));
+                  const hasExtraPv = hasExtraTechPv(topCard.bonus);
                   
                   // Construction des classes CSS
                   let cardClass = 'seti-tech-card';

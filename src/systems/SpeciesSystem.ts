@@ -75,7 +75,9 @@ export class SpeciesSystem {
             }
         }
 
-        player.claimedExertienMilestones = [...(player.claimedExertienMilestones || []), milestone];
+        if (!(player.claimedExertienMilestones || []).includes(milestone)) {
+            player.claimedExertienMilestones = [...(player.claimedExertienMilestones || []), milestone];
+        }
 
         if (!card) {
             return { updatedGame, historyEntries: [{ message: `renonce à jouer une carte Exertien (${label})`, playerId }] };
@@ -574,13 +576,13 @@ export class SpeciesSystem {
             updatedGame.exertienMilestones.push(score + 20);
             updatedGame.exertienMilestones.push(score + 40);
             logs.push("Deux nouveaux paliers à +20 PV et +40 PV apparaissent permettant d'utiliser la technologie des Exertiens.");
-            // Joueurs qui ont un marqueur de découverte : une carte Exertien jouée tout de suite (ou non)
+            // Joueurs qui ont un marqueur de découverte : une carte Exertien jouée tout de suite (ou non) par marqueur
             const owners = [...new Set(board.lifeTraces.map(t => t.playerId).filter(id => id !== 'neutral'))];
             owners.forEach(playerId => {
                 const player = requirePlayer(updatedGame, playerId);
-                if (player.cards.some(c => CardSystem.isExertienCard(c))) {
-                    interactions.push({ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, playerId });
-                }
+                const markers = board.lifeTraces.filter(t => t.playerId === playerId).length;
+                const count = Math.min(markers, player.cards.filter(c => CardSystem.isExertienCard(c)).length);
+                if (count > 0) interactions.push({ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, count, playerId });
             });
         }
 

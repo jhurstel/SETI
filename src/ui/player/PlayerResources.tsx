@@ -98,6 +98,7 @@ export const PlayerResources: React.FC<{
     <div
       key={flash ? `${key}-${flash.id}` : `${key}-static`}
       className={`seti-stat-tile ${tooltip ? 'has-actions' : ''} ${flashClass(flash)}`}
+      data-tutorial={key === 'score' ? 'score' : undefined}
       onMouseEnter={tooltip ? (e) => showInteractiveTooltip(e, tooltip) : undefined}
       onMouseLeave={tooltip ? scheduleTooltipClose : undefined}
     >
@@ -106,7 +107,7 @@ export const PlayerResources: React.FC<{
     </div>
   );
   return (
-    <div className="seti-player-section">
+    <div className="seti-player-section" data-tutorial="resources">
     <div className="seti-player-section-title">Ressources</div>
     <div className="seti-stats-row">
     {tile('score', scoreFlash, <VictoryPointsIcon amount={currentPlayer.score} size={32} />, null)}

@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { TurnManager } from '../engine/TurnManager';
+import { useTutorialPanel } from './tutorialFocus';
 import { VictoryPointsIcon, CentaurienMessageIcon } from './components/GameIcons';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { Game, GamePhase, InteractionState, GOLDEN_MILESTONES, NEUTRAL_MILESTONES } from '../core/types';
@@ -21,6 +23,7 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
         setIsObjectivesOpen(isInitiallyOpen);
     }, [isInitiallyOpen]);
     const panelRef = useRef<HTMLDivElement>(null);
+    useTutorialPanel('objectives', setIsObjectivesOpen, isInitiallyOpen);
     useCloseOnOutsideClick(panelRef, isObjectivesOpen, () => setIsObjectivesOpen(false), !isInitiallyOpen);
 
     const maxScore = Math.max(...game.players.map(p => p.score));
@@ -40,7 +43,7 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
     };
 
     return (
-        <div ref={panelRef} className={`seti-foldable-container seti-icon-panel seti-objective-container ${isObjectivesOpen ? 'open' : 'collapsed'}`}>
+        <div ref={panelRef} data-tutorial="objectives" className={`seti-foldable-container seti-icon-panel seti-objective-container ${isObjectivesOpen ? 'open' : 'collapsed'}`}>
             <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
                 <span className="panel-icon"><VictoryPointsIcon size={24} /></span>
                 <span className="panel-title">Objectifs</span>
@@ -51,7 +54,18 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
                     <span className="seti-round-label">Manche</span>
                     {Array.from({ length: game.maxRounds }, (_, i) => i + 1).map(round => {
                         const status = round < game.currentRound || game.phase === GamePhase.FINAL_SCORING ? 'done' : round === game.currentRound ? 'current' : 'upcoming';
-                        return <span key={round} className={`seti-round-pill ${status}`}>{round}</span>;
+                        if (status === 'upcoming') return <span key={round} className={`seti-round-pill ${status}`}>{round}</span>;
+                        // Manche passée ou en cours : le joueur qui l'a commencée, à sa couleur
+                        const first = TurnManager.roundFirstPlayer(game, round);
+                        return (
+                            <span key={round} className={`seti-round-pill ${status} help-cursor`}
+                                onMouseEnter={(e) => setActiveTooltip({
+                                    content: <div className="objective-tooltip"><div style={{ fontWeight: 'bold' }}>Manche {round}{status === 'current' ? ' (en cours)' : ''}</div>
+                                        <div className="tooltip-caption">Commencée par <span style={{ color: first.color, fontWeight: 'bold' }}>{first.name}</span></div></div>,
+                                    rect: e.currentTarget.getBoundingClientRect(),
+                                })}
+                                onMouseLeave={() => setActiveTooltip(null)}>{round}</span>
+                        );
                     })}
                     <span className="seti-round-passed">
                         {game.players.filter(p => p.hasPassed).length > 0
@@ -192,12 +206,12 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
                                         statusText = "Déjà validé";
                                         statusColor = SLOT_COLORS.neutral;
                                     } else if (idx === tile.markers.length) {
-                                        // Premier emplacement libre : il se prend au prochain palier de score
+                                        // Premier emplacement libre : il ne se prend qu'en franchissant le prochain palier de score
                                         const nextMilestone = GOLDEN_MILESTONES.find(m => !currentPlayer.claimedGoldenMilestones.includes(m));
                                         if (nextMilestone) {
-                                            statusText = "Disponible";
-                                            statusColor = SLOT_COLORS.available;
-                                            note = `Atteindre ${nextMilestone} PV pour placer un marqueur`;
+                                            statusText = "Indisponible";
+                                            statusColor = SLOT_COLORS.unavailable;
+                                            note = `Nécessite d'atteindre le prochain palier (${nextMilestone} PV)`;
                                         } else {
                                             statusText = "Indisponible";
                                             statusColor = SLOT_COLORS.unavailable;
@@ -209,11 +223,13 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
                                         note = "Nécessite l'emplacement précédent";
                                     }
 
-                                    const tooltipContent = <SlotTooltip status={statusText} statusColor={statusColor} value={`${pv} PV`} note={note} />;
+                                    const tooltipContent = <SlotTooltip status={statusText} statusColor={statusColor} value={<VictoryPointsIcon amount={pv} size={18} />} note={note} />;
 
                                     let markerClass = 'seti-objective-marker';
                                     if (player) markerClass += ' occupied';
                                     else if (isNextAvailable) markerClass += ' available';
+                                    // Emplacement qui attend le précédent : grisé (le premier libre reste clair)
+                                    else if (idx > tile.markers.length) markerClass += ' default requires-previous';
                                     else markerClass += ' default';
 
                                     return (

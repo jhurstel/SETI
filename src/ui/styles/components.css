@@ -417,3 +417,35 @@
   font-size: 22px;
   line-height: 1;
 }
+
+/* Emplacement à cliquer (orbite, atterrissage, signal) : même effet que les emplacements de trace de vie des
+   plateaux Alien, un halo de la couleur de l'emplacement (--slot-glow) qui pulse doucement */
+.seti-slot-highlight {
+  filter: drop-shadow(0 0 1.5px var(--slot-glow, #ffffff)) drop-shadow(0 0 4px var(--slot-glow, #ffffff));
+  animation: seti-slot-highlight 1.5s ease-in-out infinite;
+}
+
+@keyframes seti-slot-highlight {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seti-slot-highlight { animation: none; }
+}
+
+/* Emplacements d'orbite et d'atterrissage libres mais indisponibles pendant un choix : grisés */
+.seti-slot-dimmed {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+}
+
+/* Coût ou bonus à plusieurs ressources dans l'infobulle d'un emplacement : symboles rapprochés, comme dans les
+   infobulles des actions (BoardTooltips.css) */
+.slot-tooltip-line .bonus-icons {
+  gap: 0;
+}
+
+.slot-tooltip-line .bonus-icons > * + * {
+  margin-left: -6px;
+}

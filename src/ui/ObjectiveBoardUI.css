@@ -214,3 +214,9 @@
   max-width: 240px;
   text-align: center;
 }
+
+/* Emplacement qui attend que le précédent soit pris : grisé (le premier libre reste clair) */
+.seti-objective-marker.requires-previous {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+}

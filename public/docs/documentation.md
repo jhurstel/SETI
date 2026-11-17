@@ -13,6 +13,7 @@ Ce document décrit comment jouer, les règles telles qu'elles sont appliquées,
 ### 1.1 Lancer une partie
 
 - **Accueil** : au lancement (et par ⚙️ en cours de partie), l'écran d'accueil propose de continuer la partie sauvegardée (sa barre de progression montre où elle en est : un trait gris par manche, un trait de la couleur du joueur par tour, l'action principale du tour au survol), d'en commencer une nouvelle, de jouer en ligne, ainsi que la documentation, les règles et la FAQ.
+- **Tutoriel** : voir 1.11. Au tout premier lancement (ni partie sauvegardée, ni tutoriel commencé), l'accueil le propose ; « Plus tard » ne le propose plus.
 - **Nouvelle partie** : votre nom (gardé pour la partie suivante, en solo comme en ligne), puis les places comme pour une salle en ligne : la vôtre et 1 à 3 robots, chacun à sa couleur et avec son propre niveau (Débutant, Avancé, Expert : 1 à 3 barres ; « + Ajouter un robot », ✕ pour en retirer un). Le premier joueur est tiré au hasard au démarrage et annoncé par un radar : les joueurs sont des signaux autour d'un radiotélescope, le faisceau tourne, ralentit et se verrouille sur le premier joueur (onde à sa couleur, « X commence ! ») ; un clic le ferme, de même en ligne. La fenêtre garde le fond de l'accueil, même ouverte pendant une partie.
 - La partie se joue en **5 manches**. Chaque joueur commence avec 4 crédits, 3 énergies, 4 Médias et 5 cartes, puis **réserve** une carte sous son plateau (mise en place).
 - **Sauvegarde automatique** : l'état est enregistré dans le navigateur après chaque action (et quand la page est quittée). En rouvrant la page, la partie reprend où elle s'était arrêtée.
@@ -179,6 +180,14 @@ Une action, une carte ou un secteur peut rapporter plusieurs gains qui demandent
 - **Fin de partie** : le décompte de chaque joueur par catégorie, le vainqueur et l'historique complet de la partie (voir 2.8). **Voir le plateau** cache le résumé le temps de regarder le plateau final ; **Revoir le résumé** le rouvre.
 - **Piste d'espèce indisponible** : quand une trace de vie est à placer et que la piste des espèces découvertes ne peut pas la recevoir (emplacements occupés, ou coût en tokens ou données impayable), un avertissement rappelle qu'il reste les emplacements de découverte et excédentaires (triangles) ; **Annuler** ou **Continuer quand même** le ferment, puis on pose la trace sur un triangle.
 
+### 1.11 Tutoriel
+
+Le tutoriel (carte **Tutoriel** de l'accueil) apprend le jeu en chapitres courts, joués sur le vrai plateau et dans n'importe quel ordre : l'écran et le tour, sondes, atterrir et Médias, scanner, ordinateur et analyse, cartes et missions, technologies, traces de vie et espèces, passer et fin de manche, paliers et fin de partie, puis une première vraie partie.
+
+- Chaque chapitre part toujours de la même position préparée (votre adversaire, un robot passif, ne fait que passer). Une bulle explique chaque étape et met en avant la zone de l'écran concernée : « Suivant » pour une explication ; pour une action, à vous de jouer. Les actions principales sans rapport avec l'étape sont désactivées (leur infobulle dit pourquoi) ; les infobulles, les actions gratuites, l'annulation et la documentation restent libres. « En savoir plus » ouvre la documentation à la bonne section.
+- Un chapitre n'est jamais sauvegardé et ne remplace pas votre partie sauvegardée ; recharger la page ramène à l'accueil. Les chapitres terminés sont cochés dans le menu (mémorisé par le navigateur).
+- **Première vraie partie** : une partie normale contre un robot Débutant (sauvegardée comme les autres), avec des **conseils en partie** affichés une fois chacun quand une situation clé se présente (analyse possible, réserve de données pleine, palier en vue, espèce découverte, dernière manche). Case « Conseils en partie » de l'accueil pour les couper ou les remettre.
+
 ## 2. Règles appliquées
 
 ### 2.1 Système solaire
@@ -206,7 +215,7 @@ Une action, une carte ou un secteur peut rapporter plusieurs gains qui demandent
 | Observation | Scan d'un secteur adjacent à la Terre | 1 Média : signal sur Mercure | Défausse : signal de la couleur de la carte | 1 énergie : sonde, ou 1 déplacement |
 | Informatique | 2 PV + 1 crédit | 2 PV + 1 carte | 2 PV + 1 énergie | 2 PV + 2 Médias |
 
-Chaque pile a 4 exemplaires ; le premier pris rapporte 3 PV, les suivants 1 Média, 1 carte ou 1 énergie.
+Chaque pile a 4 exemplaires, chacun avec son gain immédiat (3 PV, 1 Média, 1 énergie ou une carte au choix, mélangés à la mise en place) ; l'exemplaire du dessus rapporte en plus 2 PV (badge en haut de la tuile) : le premier à prendre une pile les gagne.
 
 ### 2.5 Cartes
 
@@ -301,7 +310,7 @@ Les emplacements de découverte et excédentaires (triangles) acceptent toujours
 ### 3.6 Exertiens
 
 - À la découverte, chaque joueur reçoit 3 cartes Exertiens (en plus des cartes des premiers marqueurs). Elles ne sont pas en main : ni défaussées, ni réservées, ni jouées normalement.
-- Chaque joueur qui a un marqueur sur les emplacements de découverte peut **jouer tout de suite** une carte Exertien face cachée (ou y renoncer).
+- Chaque joueur qui a des marqueurs sur les emplacements de découverte peut **jouer tout de suite** une carte Exertien face cachée **par marqueur** (deux marqueurs : deux cartes, choisies dans la même fenêtre), ou y renoncer.
 - Les cartes Exertiens des adversaires restent cachées : leur nom n'apparaît pas dans l'historique quand ils les reçoivent (pas plus que les cartes qu'ils piochent face cachée), et l'infobulle du danger montre seulement leur nombre, de dos (à jouer, et jouées face cachée).
 - Des **paliers Exertiens** apparaissent au meilleur score + 20 et + 40. À chaque palier, chaque joueur peut jouer une carte Exertien face cachée (une par palier) ; au **2e palier**, jouer sa carte coûte **1 crédit**. Sans crédit, « Prochain joueur » demande confirmation : le palier serait perdu.
 - **Cartes cachées** : les cartes Exertiens des adversaires (en main ou jouées) restent face cachée jusqu'au décompte final, sur leur plateau comme dans l'infobulle ☣️ du plateau des Exertiens ; leur danger n'y montre que celui de leurs marqueurs sur la piste, suivi de « + ? » s'ils ont joué une carte. Votre propre danger est complet.
@@ -349,6 +358,7 @@ Les trois niveaux jouent de la même façon : ils simulent chaque action princip
 - **Expert (EXPERT)**, température 0 : joue toujours l'action la mieux évaluée, après avoir joué plusieurs suites possibles de ses meilleures actions (voir plus bas).
 - **Avancé (MEDIUM)**, température 2 : joue le plus souvent la meilleure action, parfois une action presque aussi bonne.
 - **Débutant (EASY)**, température 12 : hésite beaucoup entre ses bonnes actions.
+- **Robot passif** (tutoriel seulement, jamais proposé en partie) : passe à chacun de ses tours, sans rien faire d'autre.
 
 Une action moins bien notée de *d* points que la meilleure est tirée exp(−*d* / température) fois moins souvent ; une action à plus de 3 températures de la meilleure n'est jamais jouée : un robot hésite entre de bons coups, il ne joue pas un coup absurde. Le même tirage choisit les actions gratuites.
 
@@ -464,7 +474,7 @@ Les robots ont un jeu de poids par nombre de joueurs (`WEIGHTS_BY_PLAYER_COUNT`)
 - `systems/` : règles métier (sondes, cartes, scan, ressources, ordinateur, technologies, espèces).
 - `session/` : la partie comme session (point d'entrée unique des commandes).
 - `ai/` : robots (actions possibles, évaluation, interactions, tour).
-- Couches, de bas en haut : `core` < `systems` < `actions`, `engine` < `ai` < `session` < `ui`. Une couche n'importe jamais une couche au-dessus ; seuls les systèmes de règles, mutuellement récursifs, forment un cycle (`npm run check:cycles`).
+- Couches, de bas en haut : `core` < `systems` < `actions`, `engine` < `ai` < `session` < `tutorial` < `ui`. Une couche n'importe jamais une couche au-dessus ; seuls les systèmes de règles, mutuellement récursifs, forment un cycle (`npm run check:cycles`).
 - `ui/` : React ; affiche la partie et envoie des commandes, sans aucune règle.
 
 ### 6.2 Session et commandes

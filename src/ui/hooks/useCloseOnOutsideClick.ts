@@ -1,7 +1,8 @@
 import { RefObject, useEffect } from 'react';
 
 /**
- * Ferme un panneau ouvert quand on clique en dehors (les infobulles, affichées hors du panneau, ne comptent pas).
+ * Ferme un panneau ouvert quand on clique en dehors (les infobulles, affichées hors du panneau, et la bulle du
+ * tutoriel ne comptent pas).
  * Désactivé quand le jeu force le panneau ouvert (ex : technologie à choisir, trace de vie à placer).
  */
 export function useCloseOnOutsideClick(ref: RefObject<HTMLElement | null>, isOpen: boolean, close: () => void, enabled: boolean = true) {
@@ -9,7 +10,8 @@ export function useCloseOnOutsideClick(ref: RefObject<HTMLElement | null>, isOpe
     if (!isOpen || !enabled) return;
     const handlePointerDown = (e: PointerEvent) => {
       const target = e.target as Element | null;
-      if (!target || ref.current?.contains(target) || target.closest('.seti-tooltip')) return;
+      // Les infobulles et la bulle du tutoriel (« Suivant »…) ne comptent pas comme un clic ailleurs
+      if (!target || ref.current?.contains(target) || target.closest('.seti-tooltip, .seti-tutorial-bubble')) return;
       close();
     };
     document.addEventListener('pointerdown', handlePointerDown);

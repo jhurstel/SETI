@@ -76,5 +76,13 @@ export function useGameSession() {
 
   const canUndoTurn = (playerId: string | undefined) => !!playerId && !!findTurnUndoPoint(historyLog, playerId);
 
-  return { game, gameRef, historyLog, dispatch, applyRobotStep, load, replace, undo, undoTurn, canUndoTurn };
+  /** Plus de partie affichée (fin d'un chapitre du tutoriel : retour à l'accueil, sauvegarde intacte) */
+  const clear = useCallback(() => {
+    gameRef.current = null;
+    logRef.current = [];
+    setGameState(null);
+    setHistoryLog([]);
+  }, []);
+
+  return { game, gameRef, historyLog, dispatch, applyRobotStep, load, replace, undo, undoTurn, canUndoTurn, clear };
 }

@@ -63,6 +63,9 @@ export class AITurn {
       return this.reserveForSetup(game, player);
     }
 
+    // Adversaire passif du tutoriel : il passe aussitôt, sans action gratuite ni tirage au hasard
+    if (AIBehavior.isIdle(player)) return player.hasPerformedMainAction ? { kind: 'END_TURN' } : this.pass(player);
+
     const strategic = AIBehavior.isStrategic(player);
 
     // Actions gratuites (avant ou après l'action principale)

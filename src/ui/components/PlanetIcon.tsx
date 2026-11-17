@@ -1,5 +1,7 @@
 import React from 'react';
-import { Game, Planet, ProbeState, InteractionState } from '../../core/types';
+import { SLOT_COLORS } from '../styles/slotColors';
+import { ActionType, Game, Planet, ProbeState, InteractionState } from '../../core/types';
+import { tutorialAllows, useTutorialFocus } from '../tutorialFocus';
 import { ProbeSystem } from '../../systems/ProbeSystem';
 import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../../core/SolarSystemPosition';
 import { polarToCartesian } from '../solarGeometry';
@@ -54,10 +56,12 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
     p.solarPosition.level === targetObj.level
   );
 
+  // Tutoriel : seul l'emplacement de l'action permise par l'étape en cours est proposé
+  const tutorialFocus = useTutorialFocus();
   let canOrbit = false;
   if (playerProbe) {
     if (!currentPlayer.hasPerformedMainAction && !isRobot) {
-      canOrbit = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id).canOrbit;
+      canOrbit = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id).canOrbit && tutorialAllows(tutorialFocus, ActionType.ORBIT);
     }
   }
 
@@ -65,9 +69,17 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
   if (playerProbe) {
     const isBonusLanding = interactionState.type === 'LANDING_PROBE';
     if ((!currentPlayer.hasPerformedMainAction || isBonusLanding) && !isRobot) {
-      canLand = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !isBonusLanding).canLand;
+      // Un atterrissage bonus est un choix en cours : jamais filtré par le tutoriel
+      canLand = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id, !isBonusLanding).canLand
+        && (isBonusLanding || tutorialAllows(tutorialFocus, ActionType.LAND));
     }
   }
+
+  // Choix d'un emplacement en cours sur cette planète : l'emplacement à prendre est mis en avant (halo qui pulse),
+  // les emplacements libres indisponibles sont grisés (les occupés restent à la couleur de leur joueur) ;
+  // sinon, tous gardent leur aspect normal
+  const choosingSlot = canOrbit || canLand || interactionState.type === 'REMOVING_ORBITER' || interactionState.type === 'REMOVING_LANDER';
+  const slotClass = (clickable: boolean, occupied: boolean) => (clickable ? 'seti-slot-highlight' : choosingSlot && !occupied ? 'seti-slot-dimmed' : undefined);
 
   const renderSatellites = () => {
     if (!planetData || !planetData.satellites || planetData.satellites.length === 0) return null;
@@ -125,16 +137,16 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
           </div>
 
           <svg width="100%" height="100%" viewBox="0 0 40 40" className="svg-visible">
-            <g transform="translate(20, 20)" style={{ cursor: isSatClickable ? 'pointer' : 'help', pointerEvents: 'auto' }} onClick={(e) => {
+            <g transform="translate(20, 20)" className={slotClass(isSatClickable, !!player)}
+              style={{ cursor: isSatClickable ? 'pointer' : 'help', pointerEvents: 'auto', '--slot-glow': SLOT_COLORS.available } as React.CSSProperties} onClick={(e) => {
               if (removingLander) handleSlotClick(e, isSatClickable, onLand, satellite.id, 0, 'lander');
-              else if (isSatClickable && onLand) { e.stopPropagation(); onLand(satellite.id, 0); }
+              else if (isSatClickable && onLand) { e.stopPropagation(); setHoveredSlot(null); onLand(satellite.id, 0); }
             }}
               onMouseEnter={(e) => {
                 setHoveredSlot({ type: 'lander', planetId: satellite.id, index: 0, rect: e.currentTarget.getBoundingClientRect() });
               }}
               onMouseLeave={() => setHoveredSlot(null)}
             >
-              {isSatClickable && <circle r="13" fill="none" stroke="#00ff00" strokeWidth="3" opacity="0.8" />}
               <circle r="10" fill={player?.color || 'rgba(0,0,0,0.5)'} stroke="rgba(255,255,255,0.9)" strokeWidth="1.5" />
               {!player && (
                 <g transform="scale(0.8)">
@@ -327,7 +339,8 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                   const showFullToken = isFirst || !!player;
 
                   return (
-                    <g key={`orb-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: isClickable ? 'pointer' : 'help', pointerEvents: 'auto' }}
+                    <g key={`orb-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} className={slotClass(isClickable && !removingItem, isOccupied)}
+                      style={{ cursor: isClickable ? 'pointer' : 'help', pointerEvents: 'auto', '--slot-glow': SLOT_COLORS.available } as React.CSSProperties}
                       onClick={(e) => handleSlotClick(e, isClickable, onOrbit, planetData.id, i, interactionState.type === 'REMOVING_ORBITER' ? 'orbiter' : undefined)}
                       onMouseEnter={(e) => {
                         if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); // Garde le tooltip principal ouvert
@@ -335,7 +348,6 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                       }}
                       onMouseLeave={() => setHoveredSlot(null)}
                     >
-                      {isClickable && !removingItem && <circle r={orbiterCircleRadius + 6} fill="none" stroke="#00ff00" strokeWidth="3" opacity="0.6" />}
                       {showFullToken ? (
                         <>
                           <circle
@@ -395,7 +407,8 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                   const showFullToken = isFullSlot || !!player;
 
                   return (
-                    <g key={`land-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} style={{ cursor: isClickable ? 'pointer' : 'help', pointerEvents: 'auto' }}
+                    <g key={`land-slot-${i}`} transform={`translate(${pos.x}, ${pos.y})`} className={slotClass(isClickable && !removingItem, isOccupied)}
+                      style={{ cursor: isClickable ? 'pointer' : 'help', pointerEvents: 'auto', '--slot-glow': SLOT_COLORS.available } as React.CSSProperties}
                       onClick={(e) => handleSlotClick(e, isClickable, onLand, planetData.id, interactionState.type === 'REMOVING_LANDER' ? i : landTarget ?? i, interactionState.type === 'REMOVING_LANDER' ? 'lander' : undefined)}
                       onMouseEnter={(e) => {
                         if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current); // Garde le tooltip principal ouvert
@@ -403,7 +416,6 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
                       }}
                       onMouseLeave={() => setHoveredSlot(null)}
                     >
-                      {isClickable && !removingItem && <circle r={landerCircleRadius + 6} fill="none" stroke="#00ff00" strokeWidth="3" opacity="0.6" />}
                       {showFullToken ? (
                         <>
                           <circle

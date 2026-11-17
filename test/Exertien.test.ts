@@ -6,6 +6,8 @@ import { AITurn } from '../src/ai/AITurn';
 import { PassAction } from '../src/actions/PassAction';
 import { AlienBoardType, Card, CardType, Game, GamePhase, Technology, TechnologyCategory } from '../src/core/types';
 import { GameSession } from '../src/session/GameSession';
+import { InteractionChoices } from '../src/engine/InteractionChoices';
+import { LifeTraceLocation, LifeTraceType } from '../src/core/types';
 import { AIEvaluator, DEFAULT_WEIGHTS } from '../src/ai/AIEvaluator';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
 
@@ -40,6 +42,49 @@ describe('Exertiens', () => {
         expect(p.cards.filter(c => c.type === CardType.EXERTIEN)).toHaveLength(3);
       });
       expect(updatedGame.species.find(s => s.name === AlienBoardType.EXERTIENS)!.cards).toHaveLength(deckSize - 6);
+    });
+  });
+
+  describe('découverte : une carte Exertien par marqueur de découverte', () => {
+    const discover = () => {
+      const board = game.board.alienBoards[0];
+      board.speciesId = AlienBoardType.EXERTIENS;
+      // P1 a posé deux marqueurs de découverte (rouge et jaune), P2 un seul (bleu)
+      board.lifeTraces = [
+        { id: 't1', type: LifeTraceType.RED, playerId: P1, location: LifeTraceLocation.TRIANGLE },
+        { id: 't2', type: LifeTraceType.YELLOW, playerId: P1, location: LifeTraceLocation.TRIANGLE },
+        { id: 't3', type: LifeTraceType.BLUE, playerId: P2, location: LifeTraceLocation.TRIANGLE },
+      ];
+      return SpeciesSystem['discoverSpecies'](game, 0);
+    };
+
+    test('le choix porte sur autant de cartes que de marqueurs du joueur', () => {
+      const { interactions } = discover();
+      const choices = interactions.filter(i => i.type === 'CHOOSING_EXERTIEN_CARD');
+      expect(choices).toEqual(expect.arrayContaining([
+        expect.objectContaining({ playerId: P1, milestone: 0, count: 2 }),
+        expect.objectContaining({ playerId: P2, milestone: 0, count: 1 }),
+      ]));
+    });
+
+    test("une carte jouée laisse le choix de la suivante ; renoncer arrête ; le palier 0 n'est noté qu'une fois", () => {
+      getPlayer(game, P1).cards.push(exertien('e1', 2), exertien('e2', 3), exertien('e3', 1));
+      const interaction = { type: 'CHOOSING_EXERTIEN_CARD' as const, milestone: 0, count: 2, playerId: P1 };
+      const first = InteractionChoices.playExertienCard(game, P1, interaction, 'e1');
+      expect(first.nextInteraction).toEqual({ ...interaction, count: 1 });
+      expect(getPlayer(game, P1).playedCards).toEqual([]);
+      const second = InteractionChoices.playExertienCard(first.updatedGame, P1, first.nextInteraction as typeof interaction, 'e2');
+      expect(second.nextInteraction).toBeUndefined();
+      expect(getPlayer(second.updatedGame, P1).playedCards.map(c => c.id)).toEqual(['e1', 'e2']);
+      expect(getPlayer(second.updatedGame, P1).claimedExertienMilestones).toEqual([0]);
+      // Renoncer dès la première carte : pas de suite
+      expect(InteractionChoices.playExertienCard(game, P1, interaction, undefined).nextInteraction).toBeUndefined();
+    });
+
+    test('plus de carte Exertien à jouer : pas de suite', () => {
+      getPlayer(game, P1).cards.push(exertien('e1', 2));
+      const res = InteractionChoices.playExertienCard(game, P1, { type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, count: 2, playerId: P1 }, 'e1');
+      expect(res.nextInteraction).toBeUndefined();
     });
   });
 
@@ -168,6 +213,18 @@ describe('Exertiens', () => {
 
       expect(getPlayer(res.updatedGame, P1).playedCards.map(c => c.id)).toEqual(['e2']);
       expect(getPlayer(game, P1).playedCards.map(c => c.id)).toEqual([]);
+    });
+
+    test('découverte avec deux marqueurs : le robot choisit ses deux cartes, une à une', () => {
+      const player = getPlayer(game, P1);
+      game.currentRound = 3;
+      player.score = 40;
+      giveTechs(game, P1, TechnologyCategory.EXPLORATION, 3);
+      player.cards.push(withCondition('e1', 1, 'exploration', 3, 20), withCondition('e2', 1, 'exploration', 3, 25), withCondition('e3', 6, 'computing', 9, 2));
+
+      const res = AIController.processInteractionQueue(game, [{ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, count: 2, playerId: P1 }], 'seq', player);
+
+      expect(getPlayer(res.updatedGame, P1).playedCards.map(c => c.id).sort()).toEqual(['e1', 'e2']);
     });
 
     test("AIController renonce quand aucune condition n'est engagée : le danger coûterait la pénalité", () => {

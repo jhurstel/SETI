@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTutorialFocus } from '../tutorialFocus';
 import { Mission, Game } from '../../core/types';
 import { CardSystem } from '../../systems/CardSystem';
 
@@ -27,6 +28,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
   handleTooltipHover,
   handleTooltipLeave
 }) => {
+  const tutorialFocus = useTutorialFocus();
   const missionRequirementStrings = mission.description.split('Mission:').slice(1).filter(s => s.trim() !== '');
   const displayCount = Math.max(missionRequirementStrings.length, mission.requirements.length);
   const displayItems = Array.from({ length: displayCount });
@@ -93,12 +95,14 @@ export const MissionCard: React.FC<MissionCardProps> = ({
           const isFulfillable = !!requirement?.id && CardSystem.isRequirementClaimable(game, playerId, mission, requirement.id);
 
           const canClick = !isCompleted && isFulfillable && isCurrentTurn && !isRobot && !isInteractiveMode;
+          // Tutoriel : le cercle ne clignote que si l'étape en cours décrit les missions (il reste cliquable)
+          const missionsInFocus = !tutorialFocus.active || tutorialFocus.target === 'missions';
           const isHighlighted = isCompleted || canClick;
 
           return (
             <div
               key={index}
-              className={`seti-mission-requirement-indicator ${canClick ? 'seti-flash-green' : ''}`}
+              className={`seti-mission-requirement-indicator ${canClick && missionsInFocus ? 'seti-flash-green' : ''}`}
               style={{
                 width: '12px',
                 height: '12px',

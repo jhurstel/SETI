@@ -4,7 +4,8 @@ import { HoverTooltip } from './HoverTooltip';
 import './PlayerKindIcon.css';
 
 /** Niveaux des robots : nom affiché et force (1 à 3 barres), comme dans la fenêtre Nouvelle partie */
-const ROBOT_LEVELS: Record<'EASY' | 'MEDIUM' | 'EXPERT', { name: string; strength: number }> = {
+const ROBOT_LEVELS: Record<'IDLE' | 'EASY' | 'MEDIUM' | 'EXPERT', { name: string; strength: number }> = {
+  IDLE: { name: 'passif (tutoriel)', strength: 0 },
   EASY: { name: 'Débutant', strength: 1 },
   MEDIUM: { name: 'Avancé', strength: 2 },
   EXPERT: { name: 'Expert', strength: 3 },

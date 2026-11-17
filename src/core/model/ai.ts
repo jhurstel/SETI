@@ -9,4 +9,8 @@ export type AIDecision =
   | { action: ActionType.PASS; data: { cardsToKeep: string[] } }
   | { action: ActionType.LAUNCH_PROBE | ActionType.SCAN_SECTOR | ActionType.ANALYZE_DATA; data?: undefined };
 
-export type AIDifficulty = 'PASS' | 'EASY' | 'MEDIUM' | 'EXPERT';
+/**
+ * Niveaux des robots. PASS : niveau des tests (actions gratuites au hasard, puis passe) ;
+ * IDLE : adversaire passif du tutoriel (passe aussitôt, sans hasard), jamais proposé pour une partie.
+ */
+export type AIDifficulty = 'PASS' | 'IDLE' | 'EASY' | 'MEDIUM' | 'EXPERT';

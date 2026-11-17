@@ -11,19 +11,19 @@ import { random } from '../core/random';
  * le niveau ne fixe que leur hésitation entre les bonnes actions (AIBehavior.pickWithNoise).
  * Réglée pour atteindre des écarts cibles entre niveaux (npm run tune:ai -- levels, docs : 5.1).
  */
-export const LEVEL_TEMPERATURE: Record<AIDifficulty, number> = { PASS: 0, EASY: 12, MEDIUM: 2, EXPERT: 0 };
+export const LEVEL_TEMPERATURE: Record<AIDifficulty, number> = { PASS: 0, IDLE: 0, EASY: 12, MEDIUM: 2, EXPERT: 0 };
 /** Les options à plus de NOISE_WINDOW températures de la meilleure ne sont jamais choisies */
 export const NOISE_WINDOW = 3;
 /**
  * Anticipation de chaque niveau : nombre de meilleures actions principales départagées par la réponse simulée
  * de l'adversaire suivant (AITurn.withOpponentReply) ; 0 : aucune anticipation.
  */
-export const LEVEL_LOOKAHEAD: Record<AIDifficulty, number> = { PASS: 0, EASY: 0, MEDIUM: 0, EXPERT: 3 };
+export const LEVEL_LOOKAHEAD: Record<AIDifficulty, number> = { PASS: 0, IDLE: 0, EASY: 0, MEDIUM: 0, EXPERT: 3 };
 /**
  * Suites jouées (rollouts) pour chacune de ces actions : 0, réponse du seul adversaire suivant ; sinon, autant de
  * suites jusqu'à la prochaine action principale du robot, cartes cachées redistribuées (AITurn.rolloutValue).
  */
-export const LEVEL_ROLLOUTS: Record<AIDifficulty, number> = { PASS: 0, EASY: 0, MEDIUM: 0, EXPERT: 4 };
+export const LEVEL_ROLLOUTS: Record<AIDifficulty, number> = { PASS: 0, IDLE: 0, EASY: 0, MEDIUM: 0, EXPERT: 4 };
 
 export class AIBehavior {
 
@@ -34,10 +34,19 @@ export class AIBehavior {
 
     /**
      * Le robot choisit ses coups en simulant et en évaluant les positions (voir AITurn) : tous les niveaux,
-     * avec la même évaluation ; seul le niveau PASS des tests ne le fait pas.
+     * avec la même évaluation ; seuls le niveau PASS des tests et l'adversaire passif du tutoriel (IDLE) ne le font pas.
      */
     static isStrategic(player: Player): boolean {
-        return this.getDifficulty(player) !== 'PASS';
+        const level = this.getDifficulty(player);
+        return level !== 'PASS' && level !== 'IDLE';
+    }
+
+    /**
+     * Adversaire passif du tutoriel : il passe à chacun de ses tours, sans action gratuite ni tirage au hasard,
+     * et ses choix (cartes gardées, réservée, carte de fin de manche) suivent l'ordre des cartes.
+     */
+    static isIdle(player: Player): boolean {
+        return this.getDifficulty(player) === 'IDLE';
     }
 
     /** Nombre de tirages comparés pour un choix aléatoire (secteur, technologie, carte…) */
@@ -144,14 +153,17 @@ export class AIBehavior {
     }
 
     /**
-     * Crée une décision de passer : le robot garde les cartes qu'il pourra jouer (au hasard pour le niveau PASS des tests)
+     * Crée une décision de passer : le robot garde les cartes qu'il pourra jouer (au hasard pour le niveau PASS des tests,
+     * les premières de sa main pour l'adversaire passif du tutoriel)
      */
     static createPassDecision(player: Player): AIDecision {
         const hand = CardSystem.getHandCards(player);
         const keepCount = Math.min(hand.length, GAME_CONSTANTS.HAND_SIZE_AFTER_PASS);
-        const ordered = this.getDifficulty(player) !== 'PASS'
-            ? [...hand].sort((a, b) => this.cardKeepValue(player, b) - this.cardKeepValue(player, a))
-            : [...hand].sort(() => 0.5 - random());
+        const level = this.getDifficulty(player);
+        const ordered = level === 'IDLE' ? hand
+            : level !== 'PASS'
+                ? [...hand].sort((a, b) => this.cardKeepValue(player, b) - this.cardKeepValue(player, a))
+                : [...hand].sort(() => 0.5 - random());
         return {
             action: ActionType.PASS,
             data: { cardsToKeep: ordered.slice(0, keepCount).map(c => c.id) }
@@ -179,6 +191,7 @@ export class AIBehavior {
             };
             return [...hand].sort((a, b) => rank(a) - rank(b))[0].id;
         }
+        if (this.isIdle(player)) return hand[0].id;
         return hand[Math.floor(random() * hand.length)].id;
     }
 }

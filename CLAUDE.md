@@ -31,6 +31,7 @@ npm run check:cycles # cycles d'import (tools/check-cycles.mjs) : seuls les syst
 npm run bench:ai -- 3 2  # performance des robots : 3 parties de 2 Experts (tools/bench/aiBench.ts), temps par étape et empreinte des résultats
                      # tools/bench/midGameSave.ts : sauvegarde de milieu de partie à graine fixe (comparer l'affichage avant/après une modification de l'interface)
 npm run tune:ai -- tune 3 140 # réglage SPSA des poids des robots à 3 joueurs (tools/spsa/README.md) ; compare <joueurs> <a.json|default> <b.json|default> <graines> pour valider, levels <joueurs> <graines> [A] [B] : écart entre deux niveaux (Expert contre Avancé par défaut)
+npm run tutorial:seed # vérifie la graine de chaque chapitre du tutoriel ; -- <chapitre> [graine] [essais] : en cherche une qui convient
 npm run build        # typecheck puis vite build (→ dist/)
 npm run server       # serveur du jeu à distance : server:build (esbuild → server/build) puis server:start (PORT=8787, SETI_DATA_DIR=server/data, ALLOWED_ORIGINS, ROBOT_THREADS=2, CLIENT_IP_HEADER)
 openspec list        # changements OpenSpec en cours (--specs : capacités) ; openspec validate --specs
@@ -49,10 +50,11 @@ src/actions/       # Une classe par action principale
 src/engine/        # Orchestration : GameEngine, GameFactory, TurnManager, InteractionResolver, InteractionChoices, ScoreManager
 src/session/       # GameSession.dispatch (point d'entrée unique), file d'interactions, journal, salles, protocole, vues filtrées
 src/ai/            # Robots : AITurn, AIController, AIEvaluator, AIBehavior, CardValue, Determinize
+src/tutorial/      # Tutoriel (TS pur) : chapitres, préparation des positions, étapes, guidage, aides au contexte ; textes dans public/docs/tutoriel.md
 src/ui/            # React : BoardUI et plateaux mémoïsés, hooks, fenêtres
 server/            # Serveur WebSocket du jeu en ligne (GameServer, RobotPool)
 test/, e2e/        # Jest (une vraie partie : createTestGame) ; Playwright
-tools/             # check-cycles, bench/ (performance des robots), spsa/ (réglage des poids)
+tools/             # check-cycles, bench/ (performance des robots), spsa/ (réglage des poids), tutorial/ (graines des chapitres)
 openspec/          # Specs et changements (OpenSpec)
 docs/              # etat-des-lieux-cartes.md (audit des cartes) ; archive/ obsolète
 ```
@@ -69,7 +71,7 @@ Détail fichier par fichier : en tête de `.claude/rules/engine.md`, `robots.md`
 
 ## Architecture en bref
 
-- **Couches** (de bas en haut) : `core` (modèle) < `systems` (règles) < `actions`, `engine` (orchestration) < `ai` < `session` < `ui` ; une couche n'importe jamais une couche au-dessus (imports de type exceptés).
+- **Couches** (de bas en haut) : `core` (modèle) < `systems` (règles) < `actions`, `engine` (orchestration) < `ai` < `session` < `tutorial` < `ui` ; une couche n'importe jamais une couche au-dessus (imports de type exceptés).
 - **Toute modification de la partie passe par `GameSession.dispatch(game, playerId, command)`** (UI : `run(command)` dans `BoardUI`, asynchrone en ligne ; robots : `GameSession.applyRobotStep`).
 - **État immuable** : une opération du moteur rend `{ updatedGame, historyEntries, ... }` sans modifier la partie reçue (`cloneGame`) ; cartes, technologies et autres données figées sont partagées entre les copies et ne se modifient jamais sur place.
 - **Hasard** : jamais `Math.random()` dans le moteur ni `ai/`, toujours `random()` de `core/random.ts` (graine dans `game.seed`, état dans `game.rngState`).

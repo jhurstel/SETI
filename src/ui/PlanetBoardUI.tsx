@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
+import { tutorialAllows, useTutorialFocus, useTutorialPanel } from './tutorialFocus';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
-import { Game, InteractionState, Planet, ProbeState, AlienBoardType, Player, Satellite, Bonus, Probe, LifeTraceType } from '../core/types';
+import { ActionType, Game, InteractionState, Planet, ProbeState, AlienBoardType, Player, Satellite, Bonus, Probe, LifeTraceType } from '../core/types';
 import { ProbeSystem } from '../systems/ProbeSystem';
 import { PlanetIcon } from './components/PlanetIcon';
 import { Tooltip } from './Tooltip';
@@ -26,8 +27,15 @@ const PLANET_IDS = ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', '
 // Main component for the planet panel
 const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionState, onOrbit, onLand, setActiveTooltip }) => {
     const [isOpen, setIsOpen] = useState(false);
+    // Ouvert par un clic sur le bandeau titre : il reste ouvert quand la souris sort du panneau (un clic ailleurs le referme)
+    const [isPinned, setIsPinned] = useState(false);
+    // Lu par les infobulles des planètes (fermetures créées au survol) : toujours la valeur à jour
+    const pinnedRef = useRef(false);
+    pinnedRef.current = isPinned;
     const panelRef = useRef<HTMLDivElement>(null);
-    useCloseOnOutsideClick(panelRef, isOpen, () => setIsOpen(false));
+    const tutorialFocus = useTutorialFocus();
+    const tutorialPinned = useTutorialPanel('planets', setIsOpen);
+    useCloseOnOutsideClick(panelRef, isOpen, () => { setIsOpen(false); setIsPinned(false); });
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const panelHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [removingItem, setRemovingItem] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number } | null>(null);
@@ -232,6 +240,8 @@ const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionStat
 
         if (isClickable && actionFn) {
             e.stopPropagation();
+            // La fenêtre de la planète se ferme avant que la souris ne quitte l'emplacement : son infobulle aussi
+            setHoveredSlot(null);
             if (removalType) {
                 processingRef.current = true;
                 setRemovingItem({ type: removalType, planetId, index });
@@ -255,6 +265,7 @@ const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionStat
     };
 
     const handlePanelMouseLeave = () => {
+        if (pinnedRef.current || tutorialPinned) return;
         panelHoverTimeoutRef.current = setTimeout(() => {
             setIsOpen(false);
         }, 300);
@@ -324,19 +335,21 @@ const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionStat
     const actingPlayer = game.players[game.currentPlayerIndex];
     const canOrbitOrLand = actingPlayer.type === 'human' && !actingPlayer.hasPerformedMainAction && interactionState.type === 'IDLE'
         && actingPlayer.probes.some(p => p.state === ProbeState.IN_SOLAR_SYSTEM
-            && (ProbeSystem.canOrbit(game, actingPlayer.id, p.id).canOrbit || ProbeSystem.canLand(game, actingPlayer.id, p.id).canLand));
+            && ((ProbeSystem.canOrbit(game, actingPlayer.id, p.id).canOrbit && tutorialAllows(tutorialFocus, ActionType.ORBIT))
+                || (ProbeSystem.canLand(game, actingPlayer.id, p.id).canLand && tutorialAllows(tutorialFocus, ActionType.LAND))));
     // Planète concernée (celle où se trouve la sonde), mise en surbrillance dans le panneau
     const actionPlanetId = canOrbitOrLand ? ProbeSystem.probeOnPlanetInfo(game, actingPlayer.id).planetId : null;
 
     return (
-        <div 
+        <div
             ref={panelRef}
+            data-tutorial="planets"
             className={`seti-foldable-container seti-icon-panel seti-planet-board ${isOpen ? 'open' : 'collapsed'} ${canOrbitOrLand && !isOpen ? 'seti-flash-green' : ''} pointer-auto`}
             onMouseEnter={handlePanelMouseEnter}
             onMouseLeave={handlePanelMouseLeave}
            
         >
-            <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
+            <div className="seti-foldable-header" onClick={() => { const pin = !isPinned; setIsPinned(pin); setIsOpen(pin); }}>
                 <span className={`panel-icon ${canOrbitOrLand ? 'seti-flash-green-icon' : ''}`}><OrbiterOrLanderIcon size={24} /></span>
                 <span className="panel-title">Planètes</span>
             </div>

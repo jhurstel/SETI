@@ -1,5 +1,7 @@
 import React from 'react';
-import { Game, DISK_NAMES, GAME_CONSTANTS, InteractionState, AlienBoardType } from '../../core/types';
+import { signalSlotState } from '../components/signalSlotState';
+import { ActionType, Game, DISK_NAMES, GAME_CONSTANTS, InteractionState, AlienBoardType } from '../../core/types';
+import { tutorialAllows, useTutorialFocus } from '../tutorialFocus';
 import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, sectorToIndex } from '../../core/SolarSystemPosition';
 import { polarToCartesian, describeArc } from '../solarGeometry';
 import { BonusIcons } from '../components/BonusIcons';
@@ -21,6 +23,8 @@ export const OumuamuaSignals: React.FC<{
   onSectorClick: (sectorId: string) => void;
   setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }> = ({ game, interactionState, rotationAngle1, onSectorClick, setActiveTooltip }) => {
+    // Tutoriel : les cases ne clignotent que si l'étape en cours demande un scan
+    const tutorialFocus = useTutorialFocus();
     const oumuamua = [...FIXED_OBJECTS, ...INITIAL_ROTATING_LEVEL1_OBJECTS, ...INITIAL_ROTATING_LEVEL2_OBJECTS, ...INITIAL_ROTATING_LEVEL3_OBJECTS, ...(game.board.solarSystem.extraCelestialObjects || [])].find(o => o.id === 'oumuamua');
     if (!oumuamua) return null;
 
@@ -98,42 +102,22 @@ export const OumuamuaSignals: React.FC<{
           // 1 Donnée par signal, plus le bonus imprimé sur l'emplacement
           const gains = <BonusIcons bonus={{ ...signal.bonus, data: (signal.bonus?.data || 0) + 1 }} />;
 
-          let stateText = "Disponible";
-          let stateColor = SLOT_COLORS.available;
-          let actionText = null;
-
-          if (signal.marked) {
-            const markerPlayer = game.players.find(p => p.id === signal.markedBy);
-            stateText = `Marqué par ${markerPlayer?.name || 'Inconnu'}`;
-            stateColor = markerPlayer?.color || "#ccc";
-          } else if (isDisabled) {
-            stateText = "Indisponible";
-            stateColor = SLOT_COLORS.unavailable;
-            actionText = "Nécessite le signal précédent";
-          } else if (isClickable && !canAffordScan && interactionState.type === 'IDLE') {
-            stateText = "Ressources insuffisantes";
-            stateColor = SLOT_COLORS.unavailable;
-            actionText = `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit et ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergies`;
-          } else {
-            actionText = "Cliquez pour marquer le signal";
-          }
-
-          const slotTooltipContent = <SlotTooltip status={stateText} statusColor={stateColor} value={gains} note={actionText} />;
+          // Même message que les cases des secteurs
+          // Case qu'un scan marquerait maintenant (celle qui pulse hors choix d'un secteur)
+          const scannable = isFlashing && canAffordScan && interactionState.type === 'IDLE' && tutorialAllows(tutorialFocus, ActionType.SCAN_SECTOR);
+          // Case à cliquer : scan permis (tour du joueur, étape du tutoriel) ou choix d'un secteur en cours
+          const highlighted = scannable || (isFlashing && interactionState.type === 'SELECTING_SCAN_SECTOR');
+          const state = signalSlotState(game, interactionState, signal, isDisabled, isClickable, scannable);
+          const slotTooltipContent = <SlotTooltip status={state.status} statusColor={state.color} value={gains} note={state.note}
+            cost={state.cost ? <BonusIcons bonus={state.cost} /> : undefined} />;
 
           return (
-            <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`} style={{ opacity, cursor: isClickable ? 'pointer' : 'help' }}
+            <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`} className={highlighted ? 'seti-slot-highlight' : undefined}
+              style={{ opacity, cursor: isClickable ? 'pointer' : 'help', '--slot-glow': SLOT_COLORS.available } as React.CSSProperties}
               onClick={(e) => { if (isClickable) { e.stopPropagation(); onSectorClick(sector.id); } }}
               onMouseEnter={(e) => setActiveTooltip({ content: slotTooltipContent, rect: e.currentTarget.getBoundingClientRect() })}
               onMouseLeave={() => setActiveTooltip(null)}
             >
-              {isFlashing && (
-                ((canAffordScan && interactionState.type === 'IDLE') || interactionState.type === 'SELECTING_SCAN_SECTOR') && (
-                  <>
-                    <circle r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" />
-                    <circle className="seti-pulse-green-svg" r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" />
-                  </>
-                )
-              )}
               <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" />
               {/* 1 Donnée par signal, dans la case (comme les secteurs) */}
               {!player && (

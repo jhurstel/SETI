@@ -22,7 +22,9 @@ src/ui/
     ├── solar/               # Parties du plateau du système solaire : slotTooltip (infobulle d'un emplacement d'orbite ou d'atterrissage), highlightedSectors, OumuamuaSignals (secteur d'Oumuamua), pieces et cellPieces (sondes et capsules d'une case), useProbeSelection (sonde sélectionnée, cases accessibles), planets
     ├── player/              # Parties du plateau joueur : PlayerTabs (onglets), PlayerResources (ressources, actions gratuites, revenus), PlayerActions (actions principales, fin du tour), PlayerTracks (pistes Exploration et Observation), useResourceFlash
     ├── components/          # HandCard, MissionCard, CardTooltip, PlayerComputer, PlanetIcon, SvgBonus, SectorDetails…
-    ├── modals/              # Settings (écran d'accueil : continuer, nouvelle partie, en ligne, documentation), NewGame, Online, Documentation (public/docs/documentation.md + PDF), Pass, GameModals
+    ├── tutorialProgress.ts  # Progression du tutoriel (localStorage['seti_tutorial'] : chapitres terminés, refus, conseils vus, réglage des conseils)
+    ├── hooks/useTutorial.ts, components/TutorialOverlay (bulle et surbrillance des éléments [data-tutorial]), components/TutorialMenu (chapitres)
+    ├── modals/              # Settings (écran d'accueil : continuer, nouvelle partie, tutoriel et proposition du premier lancement, en ligne, documentation), NewGame, Online, Documentation (public/docs/documentation.md + PDF), Pass, GameModals
     └── styles/celestialStyles.ts
 ```
 

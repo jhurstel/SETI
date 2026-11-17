@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, ProbeState, GAME_CONSTANTS, InteractionState, CelestialObject, GamePhase, LifeTraceType } from '../core/types';
+import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, ProbeState, GAME_CONSTANTS, InteractionState, CelestialObject, GamePhase, LifeTraceType, ActionType } from '../core/types';
+import { tutorialAllows, useTutorialFocus } from './tutorialFocus';
 import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, sectorToIndex } from '../core/SolarSystemPosition';
 import { polarToCartesian, calculateObjectPosition } from './solarGeometry';
 import { ProbeSystem } from '../systems/ProbeSystem';
@@ -45,6 +46,8 @@ const OUTER_RING_RATIO = 0.88;
 const MIN_BOARD_RENDER_SIZE = 700;
 
 const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, interactionState, onProbeMove, onPlanetClick, onOrbit, onLand, onBackgroundClick, onSectorClick, setActiveTooltip, onMascamiteClick, planetFocus }) => {
+  // Tutoriel : seules les actions permises par l'étape en cours font clignoter la Terre ou une planète
+  const tutorialFocus = useTutorialFocus();
 
   const planetRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -72,6 +75,8 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
 
     if (isClickable && actionFn) {
       e.stopPropagation();
+      // La fenêtre de la planète se ferme avant que la souris ne quitte l'emplacement : son infobulle aussi
+      setHoveredSlot(null);
       if (removalType) {
         processingRef.current = true;
         setRemovingItem({ type: removalType, planetId, index });
@@ -472,10 +477,10 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
       canInteract = bodies.includes(obj.id) || !!planetData?.satellites?.some(s => bodies.includes(s.id));
     } else if (!currentPlayer.hasPerformedMainAction && !isRobot && game.phase !== GamePhase.SETUP) {
       if (obj.id === 'earth') {
-        canInteract = ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch;
+        canInteract = ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch && tutorialAllows(tutorialFocus, ActionType.LAUNCH_PROBE);
       } else if (playerProbe) {
-        const canOrbit = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id).canOrbit;
-        const canLand = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id).canLand;
+        const canOrbit = ProbeSystem.canOrbit(game, currentPlayer.id, playerProbe.id).canOrbit && tutorialAllows(tutorialFocus, ActionType.ORBIT);
+        const canLand = ProbeSystem.canLand(game, currentPlayer.id, playerProbe.id).canLand && tutorialAllows(tutorialFocus, ActionType.LAND);
         canInteract = canOrbit || canLand;
       }
     }
@@ -821,7 +826,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
 
   return (
     <>
-      <div className="seti-panel seti-solar-system-container">
+      <div className="seti-panel seti-solar-system-container" data-tutorial="solar-system">
 
         {/* Conteneur pour positionner les éléments directement dans le panel */}
         <div

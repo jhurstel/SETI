@@ -76,7 +76,11 @@ Un déclencheur de mission SHALL proposer tous les cercles non recouverts qu'il 
 - **THEN** l'autre cercle de ce déclencheur n'est plus réalisable, mais ceux d'un autre déclencheur le restent
 
 ### Requirement: Cartes Exertiens
-Les cartes Exertiens SHALL rester hors de la main : elles ne comptent pas dans la limite de cartes et ne peuvent être ni défaussées, ni réservées, ni jouées normalement ; chacune se joue face cachée à un palier Exertien, une fois par joueur et par palier (au 2e palier pour 1 crédit). À la découverte des Exertiens, chaque joueur qui a un marqueur de découverte peut en jouer une aussitôt.
+Les cartes Exertiens SHALL rester hors de la main : elles ne comptent pas dans la limite de cartes et ne peuvent être ni défaussées, ni réservées, ni jouées normalement ; chacune se joue face cachée à un palier Exertien, une fois par joueur et par palier (au 2e palier pour 1 crédit). À la découverte des Exertiens, chaque joueur qui a des marqueurs de découverte peut en jouer une aussitôt par marqueur.
+
+#### Scenario: Deux marqueurs de découverte
+- **WHEN** les Exertiens sont découverts et qu'un joueur a posé deux de leurs trois marqueurs de découverte
+- **THEN** il peut jouer aussitôt jusqu'à deux cartes Exertiens, choisies dans la même fenêtre
 
 #### Scenario: Défausse de fin de manche
 - **WHEN** un joueur doit défausser jusqu'à la limite de cartes

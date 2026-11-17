@@ -39,6 +39,17 @@ import { SettingsModal } from './modals/SettingsModal';
 import { PlanetBoardUI } from './PlanetBoardUI';
 import './BoardUI.css';
 import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
+import { useTutorial } from './hooks/useTutorial';
+import { setTutorialFocus } from './tutorialFocus';
+import { TutorialOverlay } from './components/TutorialOverlay';
+import { TutorialMenu } from './components/TutorialMenu';
+import { TUTORIAL_CHAPTERS, chapterById } from '../tutorial/chapters';
+import { tutorialCommandBlockReason } from '../tutorial/guidance';
+import { prepareChapter } from '../tutorial/prepare';
+import { GameSetup } from '../session/GameSetup';
+import { readPlayerName } from './playerName';
+import { markHintShown, setContextHelp, tutorialProgress } from './tutorialProgress';
+import { CONTEXT_HINTS_TEXT_ID, nextContextHint } from '../tutorial/contextHints';
 
 // Fenêtres chargées à la demande (morceaux séparés du bundle), montées seulement quand elles sont ouvertes
 const OnlineModal = lazy(() => import('./modals/OnlineModal').then(m => ({ default: m.OnlineModal })));
@@ -147,8 +158,26 @@ export const BoardUI: React.FC = () => {
   const reservingPlayer = game && interactionState.type === 'RESERVING_CARD' ? actingPlayer(game) : undefined;
   const isReservationModalActive = !!reservingPlayer && reservingPlayer.type === 'human';
 
-  // Sauvegarde automatique à chaque modification de la partie locale (une partie en ligne est gardée par le serveur)
-  useAutosave(session.game, session.historyLog);
+  // Tutoriel : chapitre en cours sur la partie locale, étape courante déduite de la partie
+  const tutorial = useTutorial(isOnline ? null : session.game);
+  const [tutorialMenuVisible, setTutorialMenuVisible] = useState(false);
+  // Étape vue par les plateaux mémoïsés : seules les actions permises clignotent, le panneau décrit s'ouvre
+  useEffect(() => {
+    setTutorialFocus({ active: !!tutorial.active && (!tutorial.finished || !!tutorial.lockReason), block: tutorial.block, target: tutorial.step?.target, duringChoice: tutorial.duringChoice });
+  }, [tutorial.active, tutorial.finished, tutorial.lockReason, tutorial.block, tutorial.step, tutorial.duringChoice]);
+  const [docSection, setDocSection] = useState<string | undefined>(undefined);
+  // Conseils en partie (« Première vraie partie ») : une fois chacun, désactivables dans l'accueil
+  const [contextHelp, setContextHelpState] = useState(() => tutorialProgress().contextHelp);
+  const [hintsShown, setHintsShown] = useState(() => tutorialProgress().hintsShown);
+  const changeContextHelp = (enabled: boolean) => setContextHelpState(setContextHelp(enabled).contextHelp);
+  const { ensureText } = tutorial;
+  useEffect(() => { if (contextHelp) ensureText(); }, [contextHelp, ensureText]);
+  /** Chapitre à position préparée en cours : la partie ne se sauvegarde pas */
+  const isTutorialGame = !!tutorial.active && tutorial.active.chapter.seed !== undefined;
+
+  // Sauvegarde automatique à chaque modification de la partie locale (une partie en ligne est gardée par le serveur ;
+  // un chapitre du tutoriel n'est jamais sauvegardé et ne remplace pas la partie sauvegardée)
+  useAutosave(isTutorialGame ? null : session.game, session.historyLog);
 
 
 
@@ -168,6 +197,12 @@ export const BoardUI: React.FC = () => {
     // Pendant le tour d'un robot, le plateau reste consultable : un clic ne joue jamais à sa place
     if (current.players.find(p => p.id === actor)?.type === 'robot') {
       setToast({ message: "Ce n'est pas votre tour.", visible: true });
+      return false;
+    }
+    // Tutoriel : chapitre terminé (plus aucune commande), sinon guidage souple (action principale hors sujet refusée)
+    const tutorialReason = tutorial.lockReason ?? (current.interaction ? null : tutorialCommandBlockReason(tutorial.step, command));
+    if (tutorialReason) {
+      setToast({ message: tutorialReason, visible: true });
       return false;
     }
     const result = session.dispatch(actor, command);
@@ -494,8 +529,20 @@ export const BoardUI: React.FC = () => {
     if (interactionState.type === 'CHOOSING_CENTAURIEN_REWARD') choose({ kind: 'CENTAURIEN', tokenIndex });
   };
 
-  const handleExertienCardChoice = (cardId?: string) => {
-    if (interactionState.type === 'CHOOSING_EXERTIEN_CARD') choose({ kind: 'EXERTIEN', cardId });
+  /** Cartes Exertiens jouées (une par marqueur de découverte) : un choix par carte, aucune pour renoncer */
+  const handleExertienCardChoice = async (cardIds: string[]) => {
+    if (interactionState.type !== 'CHOOSING_EXERTIEN_CARD') return;
+    if (cardIds.length === 0) {
+      await choose({ kind: 'EXERTIEN', cardId: undefined });
+      return;
+    }
+    for (const cardId of cardIds) {
+      if (!(await choose({ kind: 'EXERTIEN', cardId }))) return;
+    }
+    // Moins de cartes choisies que de cartes jouables : le joueur renonce aux autres
+    if (cardIds.length < (interactionState.count ?? 1) && gameRef.current?.interaction?.type === 'CHOOSING_EXERTIEN_CARD') {
+      await choose({ kind: 'EXERTIEN', cardId: undefined });
+    }
   };
 
   const handleMissionRequirementChoice = (missionId?: string, requirementId?: string) => {
@@ -536,6 +583,58 @@ export const BoardUI: React.FC = () => {
     showNotifications(session.load(loaded, log).notifications);
   };
 
+  // --- Tutoriel ---
+
+  /** Démarre un chapitre : position préparée (jamais sauvegardée), ou vraie partie contre un robot Débutant */
+  const startChapter = async (chapterId: string) => {
+    const chapter = chapterById(chapterId);
+    if (!chapter) return;
+    setTutorialMenuVisible(false);
+    setSettingsVisible(false);
+    const name = readPlayerName() || 'Vous';
+    try {
+      if (chapter.seed !== undefined) {
+        const prepared = await prepareChapter(chapter, name);
+        handleLoadGame(prepared.game, prepared.entries);
+        tutorial.begin(chapter, session.gameRef.current ?? prepared.game, prepared.humanId);
+      } else {
+        // « Première vraie partie » : partie normale (sauvegardée), avec l'aide au contexte
+        const { game: created, entries } = await GameSetup.newGame(
+          [{ name, type: 'human' }, { name: 'HAL 9000', type: 'robot', aiDifficulty: 'EASY' }], { firstPlayer: 'random' });
+        changeContextHelp(true);
+        handleLoadGame(created, entries);
+        const loaded = session.gameRef.current ?? created;
+        tutorial.begin(chapter, loaded, loaded.players[0].id);
+      }
+    } catch (error) {
+      console.error(error);
+      setToast({ message: 'Impossible de préparer ce chapitre du tutoriel.', visible: true });
+    }
+  };
+
+  /** Quitte le chapitre : un chapitre préparé disparaît (la partie sauvegardée reste intacte) */
+  const leaveTutorial = (openMenu: boolean) => {
+    const prepared = isTutorialGame;
+    tutorial.end();
+    if (prepared) {
+      session.clear();
+      resetInterface();
+    }
+    tutorial.refreshProgress();
+    if (openMenu) {
+      tutorial.ensureText();
+      setTutorialMenuVisible(true);
+    } else if (prepared) {
+      setSettingsVisible(true);
+    }
+  };
+
+  const openTutorialMenu = () => {
+    tutorial.ensureText();
+    tutorial.refreshProgress();
+    setTutorialMenuVisible(true);
+  };
+
   const resumeOnline = () => {
     setOnlineVisible(true);
     online.resume().catch((e: Error) => setToast({ message: e.message, visible: true }));
@@ -548,7 +647,7 @@ export const BoardUI: React.FC = () => {
       setVisible={setSettingsVisible}
       game={session.game}
       historyLog={session.historyLog}
-      onLoadGame={handleLoadGame}
+      onLoadGame={(loaded, log) => { tutorial.end(); handleLoadGame(loaded, log); }}
       setToast={setToast}
       showDebug={showDebug}
       setShowDebug={setShowDebug}
@@ -556,8 +655,19 @@ export const BoardUI: React.FC = () => {
       onOnline={online.available ? () => { if (isOnline) online.leave(); setOnlineVisible(true); } : undefined}
       onResumeOnline={online.available && online.storedSeat && !isOnline ? resumeOnline : undefined}
       onLeaveOnline={isOnline ? () => { online.leave(true); setSettingsVisible(true); } : undefined}
-      onDocumentation={() => setDocVisible(true)}
+      onDocumentation={() => { setDocSection(undefined); setDocVisible(true); }}
+      onTutorial={openTutorialMenu}
+      onStartTutorial={() => startChapter(TUTORIAL_CHAPTERS[0].id)}
+      isTutorial={isTutorialGame}
+      contextHelp={contextHelp}
+      onContextHelpChange={changeContextHelp}
     />
+  );
+
+  // Menu des chapitres (accueil, fin d'un chapitre)
+  const tutorialMenu = tutorialMenuVisible && (
+    <TutorialMenu chapters={TUTORIAL_CHAPTERS} text={tutorial.text} done={tutorial.done} onStart={startChapter}
+      onClose={() => { setTutorialMenuVisible(false); if (!game) setSettingsVisible(true); }} />
   );
 
   // Si le jeu n'est pas initialisé (ou dans le salon d'une partie en ligne), afficher uniquement les modales de démarrage
@@ -611,6 +721,7 @@ export const BoardUI: React.FC = () => {
       <div className="seti-root">
         {settingsModal}
         {onlineVisible && <SpaceBackdrop />}
+        {tutorialMenu && <><SpaceBackdrop />{tutorialMenu}</>}
         <Suspense fallback={null}>
           {onlineVisible && <OnlineModal visible online={online} onBack={() => { setOnlineVisible(false); setSettingsVisible(true); }} />}
           {docVisible && <DocumentationModal visible onClose={() => setDocVisible(false)} />}
@@ -620,6 +731,8 @@ export const BoardUI: React.FC = () => {
   }
 
   const currentPlayer = game.players[game.currentPlayerIndex];
+  // Conseil en partie à montrer (partie locale hors chapitre préparé, conseils activés)
+  const contextHint = !isOnline && contextHelp && !isTutorialGame && me && tutorial.text ? nextContextHint(game, me, hintsShown) : null;
   const currentPlayerIdToDisplay = viewedPlayerId || me || currentPlayer.id;
   // Tour d'un robot, ou en ligne d'un autre joueur (ou interaction qu'il doit résoudre) : l'écran attend
   const realCurrent = realGame!.players[realGame!.currentPlayerIndex];
@@ -858,9 +971,51 @@ export const BoardUI: React.FC = () => {
 
       {docVisible && (
         <Suspense fallback={null}>
-          <DocumentationModal visible onClose={() => setDocVisible(false)} />
+          <DocumentationModal visible onClose={() => setDocVisible(false)} section={docSection} />
         </Suspense>
       )}
+
+      {/* Tutoriel : bulle de l'étape en cours (sous les fenêtres de choix), menu des chapitres */}
+      {tutorial.active && !tutorial.choicePending && !settingsVisible && !docVisible && !drawing && (
+        <TutorialOverlay
+          chapterTitle={tutorial.text?.[tutorial.active.chapter.id]?.title ?? ''}
+          text={tutorial.step ? tutorial.text?.[tutorial.active.chapter.id]?.steps[tutorial.step.id] : undefined}
+          stepNumber={tutorial.stepIndex + 1}
+          stepCount={tutorial.active.chapter.steps.length}
+          target={tutorial.step?.target}
+          isExplanation={!tutorial.step?.done}
+          finished={tutorial.finished}
+          hasDocLink={!!tutorial.step?.docLink}
+          nextChapterTitle={tutorial.nextChapter ? tutorial.text?.[tutorial.nextChapter.id]?.title ?? tutorial.nextChapter.id : undefined}
+          aboveModals={game.phase === GamePhase.FINAL_SCORING}
+          onNext={tutorial.next}
+          onDocLink={() => { setDocSection(tutorial.step?.docLink); setDocVisible(true); }}
+          onQuit={() => leaveTutorial(false)}
+          onNextChapter={() => { if (tutorial.nextChapter) startChapter(tutorial.nextChapter.id); }}
+          onMenu={() => leaveTutorial(true)}
+        />
+      )}
+      {/* Conseil en partie : situation clé rencontrée pour la première fois */}
+      {contextHint && !tutorial.active && !settingsVisible && !docVisible && !drawing && (
+        <TutorialOverlay
+          chapterTitle="Conseil"
+          text={tutorial.text?.[CONTEXT_HINTS_TEXT_ID]?.steps[contextHint.id]}
+          stepNumber={1}
+          stepCount={1}
+          hideCount
+          isExplanation
+          finished={false}
+          hasDocLink={!!contextHint.docLink}
+          nextLabel="Compris"
+          quitLabel="Ne plus afficher les conseils"
+          onNext={() => setHintsShown(markHintShown(contextHint.id).hintsShown)}
+          onDocLink={() => { setDocSection(contextHint.docLink); setDocVisible(true); }}
+          onQuit={() => changeContextHelp(false)}
+          onNextChapter={() => {}}
+          onMenu={() => {}}
+        />
+      )}
+      {tutorialMenu}
 
       {/* Ecran de fin de partie */}
       {game.phase === GamePhase.FINAL_SCORING && <EndGameModal game={realGame!} historyLog={historyLog} setActiveTooltip={setActiveTooltip} />}
@@ -890,6 +1045,7 @@ export const BoardUI: React.FC = () => {
               remoteHumanIds={remoteHumanIds}
               onMissionClick={h.handleMissionClick}
               onConfirmAction={h.confirmAction}
+              tutorialBlock={tutorial.block}
             />
           </div>
         </div>

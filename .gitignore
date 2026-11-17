@@ -35,6 +35,7 @@ coverage/
 tools/spsa/build*/
 tools/spsa/out/
 tools/bench/build/
+tools/tutorial/build/
 server/build/
 server/data/
 

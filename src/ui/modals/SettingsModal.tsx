@@ -10,6 +10,8 @@ import { SpaceBackdrop } from '../components/SpaceBackdrop';
 import { GameSetup, SeatConfig } from '../../session/GameSetup';
 import { historyTimeline } from '../../core/historyTimeline';
 import { HistoryProgressBar } from '../components/HistoryProgressBar';
+import { dismissTutorial, shouldProposeTutorial } from '../tutorialProgress';
+import '../components/TutorialOverlay.css';
 
 /** API File System Access (Chrome, Edge) : absente des types DOM standards */
 type WindowWithSavePicker = Window & {
@@ -40,6 +42,15 @@ interface SettingsModalProps {
   canClose?: boolean;
   /** Ouvre la documentation du jeu */
   onDocumentation?: () => void;
+  /** Ouvre le menu des chapitres du tutoriel */
+  onTutorial?: () => void;
+  /** Démarre le premier chapitre (proposition du premier lancement) */
+  onStartTutorial?: () => void;
+  /** La partie affichée est un chapitre du tutoriel : elle ne se sauvegarde pas */
+  isTutorial?: boolean;
+  /** Réglage « Conseils du tutoriel en partie » (absent : réglage non proposé) */
+  contextHelp?: boolean;
+  onContextHelpChange?: (enabled: boolean) => void;
 }
 
 /** Résumé de la partie sauvegardée pour la carte « Continuer » : barre de progression des manches et des tours */
@@ -68,6 +79,7 @@ const ICONS = {
   resume: 'M4 12a8 8 0 1 0 2.4-5.7L4 8.5M4 4v4.5h4.5M12 8v4l3 2',
   leave: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
   back: 'M10 6l-6 6 6 6M4 12h16',
+  book: 'M4 5.5c2.5-1 5-1 8 1 3-2 5.5-2 8-1v13c-2.5-1-5-1-8 1-3-2-5.5-2-8-1zM12 6.5v13',
 };
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -84,17 +96,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onLeaveOnline,
   canClose,
   onDocumentation,
+  onTutorial,
+  onStartTutorial,
+  isTutorial,
+  contextHelp,
+  onContextHelpChange,
 }) => {
   const [newGameModalVisible, setNewGameModalVisible] = useState(false);
   const [hasAutosave, setHasAutosave] = useState(false);
   const [savedSummary, setSavedSummary] = useState<React.ReactNode>(null);
+  const [proposeTutorial, setProposeTutorial] = useState(false);
 
   // Vérifier s'il y a une sauvegarde automatique au démarrage ou à l'ouverture
   useEffect(() => {
     const autosave = readAutosave();
     setHasAutosave(!!autosave);
     setSavedSummary(autosaveSummary(autosave));
-  }, [visible]);
+    // Premier lancement (ni sauvegarde, ni progression, ni refus) : le tutoriel est proposé
+    setProposeTutorial(!!onStartTutorial && shouldProposeTutorial(!!autosave));
+  }, [visible, onStartTutorial]);
+
+  const dismissProposal = () => {
+    dismissTutorial();
+    setProposeTutorial(false);
+  };
 
   // Restaure une partie sauvegardée (fichier ou sauvegarde automatique)
   const applySavedGame = (json: string) => {
@@ -252,9 +277,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <p className="seti-home-tagline">À la recherche d'une vie extraterrestre</p>
             </div>
 
+            {proposeTutorial && onStartTutorial && (
+              <div className="seti-tutorial-proposal" role="note">
+                <span className="seti-tutorial-proposal-text"><strong>Nouveau sur SETI ?</strong> Le tutoriel vous apprend les règles et l'écran, pas à pas.</span>
+                <button className="seti-modal-btn primary" onClick={() => { setProposeTutorial(false); onStartTutorial(); }}>Commencer le tutoriel</button>
+                <button className="seti-modal-btn secondary" onClick={dismissProposal}>Plus tard</button>
+              </div>
+            )}
             <div className="seti-home-actions">
               {hasAutosave && card('continue', 'play', 'Continuer la partie', savedSummary || 'Reprendre la partie sauvegardée', handleContinue, true)}
               {card('new', 'rocket', 'Nouvelle partie', 'Jouer en solo contre des bots', handleNewGameRequest, !hasAutosave)}
+              {onTutorial && card('tutorial', 'book', 'Tutoriel', 'Apprendre à jouer, chapitre par chapitre', () => { setVisible(false); onTutorial(); })}
               {onResumeOnline && card('resume-online', 'resume', 'Reprendre en ligne', 'Retrouver votre place dans la salle', () => { setVisible(false); onResumeOnline(); })}
               {onOnline && card('online', 'online', 'Partie en ligne', 'Créer une salle et jouer avec des amis', () => { setVisible(false); onOnline(); })}
               {onLeaveOnline && card('leave-online', 'leave', 'Quitter la partie en ligne', 'Votre place reste reprenable', onLeaveOnline)}
@@ -262,10 +295,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
             <div className="seti-home-footer">
               <button className="seti-home-link" onClick={handleLoadGame}>Restaurer une sauvegarde</button>
-              {game && <button className="seti-home-link" onClick={handleSaveGame}>Sauvegarder la partie</button>}
+              {game && !isTutorial && <button className="seti-home-link" onClick={handleSaveGame}>Sauvegarder la partie</button>}
               {onDocumentation && <button className="seti-home-link" onClick={onDocumentation}>Documentation</button>}
               <a className="seti-home-link" href="docs/seti-rules-fr.pdf" target="_blank" rel="noopener noreferrer">Règles (PDF)</a>
               <a className="seti-home-link" href="docs/SETI-FAQ-FR.pdf" target="_blank" rel="noopener noreferrer">FAQ (PDF)</a>
+              {onContextHelpChange && (
+                <label className="seti-home-option">
+                  <input type="checkbox" checked={!!contextHelp} onChange={e => onContextHelpChange(e.target.checked)} />
+                  Conseils en partie
+                </label>
+              )}
               {DEBUG_AVAILABLE && (
                 <label className="seti-home-option">
                   <input type="checkbox" checked={showDebug} onChange={e => setShowDebug(e.target.checked)} />

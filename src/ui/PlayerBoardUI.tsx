@@ -1,3 +1,4 @@
+import type { TutorialAction } from '../tutorial/types';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Game, GamePhase, ActionType, GAME_CONSTANTS, Card, Mission, InteractionState, CardType } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
@@ -36,11 +37,13 @@ interface PlayerBoardUIProps {
   onConfirmAction: (message: string, onConfirm: () => void) => void;
   /** Partie en ligne : joueurs humains joués sur un autre écran (affichés comme robots pour bloquer les actions) */
   remoteHumanIds?: string[];
+  /** Tutoriel : raison pour laquelle l'étape en cours refuse une action principale ou la fin du tour */
+  tutorialBlock?: (action: TutorialAction) => string | null;
   /** Action « Jouer une carte » choisie : met en avant les cartes jouables de la main */
   highlightPlayableCards?: boolean;
 }
 
-const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onTransferData, onComputerSlotSelect, onNextPlayer, onDirectTradeAction, setActiveTooltip, onSettingsClick, onDocumentationClick, onMissionClick, onConfirmAction, highlightPlayableCards = false, remoteHumanIds = [] }) => {
+const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onTransferData, onComputerSlotSelect, onNextPlayer, onDirectTradeAction, setActiveTooltip, onSettingsClick, onDocumentationClick, onMissionClick, onConfirmAction, highlightPlayableCards = false, remoteHumanIds = [], tutorialBlock }) => {
   const currentPlayer = playerId 
     ? (game.players.find(p => p.id === playerId) || game.players[game.currentPlayerIndex])
     : game.players[game.currentPlayerIndex];
@@ -165,7 +168,7 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
 
       {/* Plateau du joueur */}
       {/* Contour à la couleur du joueur dont le plateau est affiché (celle du joueur qui a la main sinon, BoardUI.css) */}
-      <div className="seti-player-panel" style={{ '--board-color': currentPlayer.color } as React.CSSProperties}>
+      <div className="seti-player-panel" data-tutorial="player-board" style={{ '--board-color': currentPlayer.color } as React.CSSProperties}>
         <div className="seti-player-layout-container seti-thin-scroll">
           {/* Sections Ressources (tuiles symbole + valeur, revenus) et Actions (actions principales, fin du tour) */}
           <div className="seti-stats-bar">
@@ -176,7 +179,8 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
             {/* Les 8 actions principales en hexagones, puis la fin du tour dans son propre cadre */}
             {!isRobot && (
               <PlayerActions game={game} playerId={currentPlayer.id} interactionState={interactionState} isInteractiveMode={isInteractiveMode}
-                onAction={onAction} onNextPlayer={onNextPlayer} handleTooltipHover={handleTooltipHover} handleTooltipLeave={handleTooltipLeave} />
+                onAction={onAction} onNextPlayer={onNextPlayer} handleTooltipHover={handleTooltipHover} handleTooltipLeave={handleTooltipLeave}
+                tutorialBlock={tutorialBlock} />
             )}
           </div>
 
@@ -202,7 +206,7 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
           </div>
 
           {/* Informatique (ordinateur de données) */}
-          <div className="seti-player-section">
+          <div className="seti-player-section" data-tutorial="computer">
             <div className="seti-player-section-title">Informatique</div>
             <div className="seti-player-list seti-computer-list">
               <PlayerComputer 
@@ -219,7 +223,7 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
           </div>
 
           {/* Cartes */}
-          <div className="seti-player-section">
+          <div className="seti-player-section" data-tutorial="hand">
             <div className="seti-player-section-title">Main</div>
             <div className="seti-player-list seti-cards-list seti-thin-scroll" ref={cardsListRef}>
               {!isRobot ? (
@@ -282,7 +286,7 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
           </div>
 
           {/* Missions */}
-          <div className="seti-player-section">
+          <div className="seti-player-section" data-tutorial="missions">
             <div className="seti-player-section-title">Mission</div>
             {/*isSelectingMission && !isRobot && (
               <div className="seti-cards-warning">

@@ -1,0 +1,186 @@
+/* Tutoriel : surbrillance de l'élément décrit et bulle de l'étape.
+   Au-dessus des plateaux (1500), sous les fenêtres de choix (2000) et les infobulles (20000). */
+
+.seti-tutorial-highlight {
+  position: fixed;
+  z-index: 1900;
+  pointer-events: none;
+  border: 2px solid #ffd76a;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(5, 8, 20, 0.35), 0 0 18px rgba(255, 215, 106, 0.8);
+  animation: seti-tutorial-pulse 1.6s ease-in-out infinite;
+  transition: top 0.25s, left 0.25s, width 0.25s, height 0.25s;
+}
+
+@keyframes seti-tutorial-pulse {
+  0%, 100% { box-shadow: 0 0 0 9999px rgba(5, 8, 20, 0.35), 0 0 10px rgba(255, 215, 106, 0.5); }
+  50% { box-shadow: 0 0 0 9999px rgba(5, 8, 20, 0.35), 0 0 22px rgba(255, 215, 106, 0.95); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seti-tutorial-highlight { animation: none; transition: none; }
+}
+
+.seti-tutorial-bubble {
+  position: fixed;
+  z-index: 1950;
+  width: 340px;
+  max-height: calc(100vh - 28px);
+  overflow-y: auto;
+  background: rgba(20, 25, 40, 0.97);
+  border: 1px solid #ffd76a;
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6), 0 0 14px rgba(255, 215, 106, 0.25);
+  color: #e6e6e6;
+  padding: 14px 16px;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.seti-tutorial-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.78rem;
+  color: #9fb2da;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.seti-tutorial-title {
+  font-size: 1.08rem;
+  font-weight: 600;
+  color: #ffd76a;
+  margin-bottom: 6px;
+}
+
+.seti-tutorial-body p {
+  margin: 0 0 8px;
+}
+
+.seti-tutorial-hint {
+  font-size: 0.85rem;
+  color: #8fe3a2;
+  margin-bottom: 8px;
+}
+
+.seti-tutorial-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.seti-tutorial-buttons .seti-modal-btn {
+  padding: 6px 12px;
+  font-size: 0.88rem;
+}
+
+.seti-modal-btn.seti-tutorial-quit {
+  margin-left: auto;
+}
+
+/* Menu des chapitres (accueil) */
+.seti-tutorial-menu {
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: rgba(20, 25, 40, 0.97);
+  border: 1px solid #78a0ff;
+  border-radius: 10px;
+  padding: 20px;
+  color: #e6e6e6;
+}
+
+.seti-tutorial-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.seti-tutorial-menu-item {
+  display: flex;
+  min-width: 0;
+  gap: 12px;
+  align-items: flex-start;
+  text-align: left;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid #3a4560;
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.seti-tutorial-menu-item:hover {
+  border-color: #ffd76a;
+  background: rgba(255, 215, 106, 0.08);
+}
+
+.seti-tutorial-menu-number {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #78a0ff;
+  color: #78a0ff;
+  font-weight: 600;
+}
+
+.seti-tutorial-menu-item.done .seti-tutorial-menu-number {
+  border-color: #8fe3a2;
+  color: #8fe3a2;
+  font-size: 0.8rem;
+}
+
+.seti-tutorial-menu-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.seti-tutorial-menu-title {
+  display: block;
+  font-weight: 600;
+  color: #fff;
+}
+
+.seti-tutorial-menu-summary {
+  display: block;
+  font-size: 0.85rem;
+  color: #9fb2da;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.seti-tutorial-menu-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Proposition du premier lancement (accueil) */
+.seti-tutorial-proposal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  border: 1px solid #ffd76a;
+  border-radius: 10px;
+  background: rgba(255, 215, 106, 0.08);
+}
+
+.seti-tutorial-proposal-text {
+  flex: 1 1 220px;
+}
+
+.seti-tutorial-bubble.above-modals {
+  z-index: 3000;
+}

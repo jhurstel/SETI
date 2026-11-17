@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTutorialPanel } from './tutorialFocus';
 import { Game, GamePhase, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType, LifeTrace } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { BonusIcons } from './components/BonusIcons';
@@ -306,6 +307,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
     // Infobulles où la souris peut entrer (danger Exertien, paliers Centauriens) : le plateau reste ouvert tant qu'elles sont affichées
     const [isPinnedTooltipOpen, setIsPinnedTooltipOpen] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
+    useTutorialPanel('species', setIsOpen, isPlacingTrace || !!forceOpen);
     useCloseOnOutsideClick(panelRef, !!isOpen, () => setIsOpen(false), !isPlacingTrace && !forceOpen);
 
     useEffect(() => {
@@ -602,7 +604,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
     };
 
     return (
-        <div className={`alien-board-container ${side}`}>
+        <div className={`alien-board-container ${side}`} data-tutorial="species">
             <div ref={panelRef} className={`seti-foldable-container seti-icon-panel alien-foldable-container ${isOpen || isPinnedTooltipOpen ? 'open' : 'collapsed'}`}>
                 <div className="seti-foldable-content alien-foldable-content">
                     {board.isDiscovered && (

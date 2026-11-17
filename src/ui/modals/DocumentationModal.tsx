@@ -11,10 +11,12 @@ const BASE_URL = '';
 interface DocumentationModalProps {
   visible: boolean;
   onClose: () => void;
+  /** Identifiant d'un titre à afficher à l'ouverture (« En savoir plus » du tutoriel) */
+  section?: string;
 }
 
 /** Documentation du jeu (public/docs/documentation.md), avec sommaire et accès aux règles et à la FAQ en PDF */
-export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible, onClose }) => {
+export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible, onClose, section }) => {
   const [source, setSource] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -41,6 +43,12 @@ export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible,
   useLayoutEffect(() => {
     setGlossarySlots(visible && doc ? [...(bodyRef.current?.querySelectorAll('[data-doc-component="glossaire"]') || [])] : []);
   }, [doc, visible]);
+
+  // Section demandée : affichée dès que le texte est rendu
+  useLayoutEffect(() => {
+    // Identifiants des titres : slugs (lettres, chiffres, tirets), sans échappement nécessaire
+    if (visible && doc && section) bodyRef.current?.querySelector(`[id="${section}"]`)?.scrollIntoView({ block: 'start' });
+  }, [doc, visible, section]);
 
   if (!visible) return null;
 

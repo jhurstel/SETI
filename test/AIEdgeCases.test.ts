@@ -72,7 +72,7 @@ describe('Robots : cas limites', () => {
 
     const res = AIController.processInteractionQueue(game, [{ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.RED }], 'seq', player);
 
-    expect(res.newPendingInteractions).toEqual([{ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, playerId: P2, sequenceId: 'seq' }]);
+    expect(res.newPendingInteractions).toEqual([{ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, count: 1, playerId: P2, sequenceId: 'seq' }]);
   });
 
   test('mise en place : un robot sans carte attend', () => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTutorialPanel } from './tutorialFocus';
 import { RowCardIcon } from './components/GameIcons';
 import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import { useInteractiveTooltip, ActiveTooltip } from './hooks/useInteractiveTooltip';
@@ -23,6 +24,8 @@ const CardRowUIView: React.FC<CardRowUIProps> = ({ game, interactionState, onCar
         setIsOpen(isInitiallyOpen);
     }, [isInitiallyOpen]);
     const panelRef = useRef<HTMLDivElement>(null);
+    // Tutoriel : la rangée s'ouvre quand l'étape la décrit
+    useTutorialPanel('card-row', setIsOpen, isActive);
     useCloseOnOutsideClick(panelRef, isOpen, () => setIsOpen(false), !isActive);
 
     const currentPlayer = game.players[game.currentPlayerIndex];
@@ -31,7 +34,7 @@ const CardRowUIView: React.FC<CardRowUIProps> = ({ game, interactionState, onCar
     const { show: handleTooltipHover, scheduleClose: handleTooltipLeave } = useInteractiveTooltip(setActiveTooltip);
 
     return (
-        <div ref={panelRef} className={`seti-foldable-container seti-icon-panel seti-card-row-container ${isOpen ? 'open' : 'collapsed'} ${isActive ? 'active' : ''}`}
+        <div ref={panelRef} data-tutorial="card-row" className={`seti-foldable-container seti-icon-panel seti-card-row-container ${isOpen ? 'open' : 'collapsed'} ${isActive ? 'active' : ''}`}
         >
             <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
                 <span className="panel-icon"><RowCardIcon size={24} /></span>

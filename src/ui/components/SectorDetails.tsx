@@ -1,7 +1,8 @@
 import React from 'react';
+import { signalSlotState } from './signalSlotState';
+import { tutorialAllows, useTutorialFocus } from '../tutorialFocus';
 import { SlotTooltip } from './SlotTooltip';
-import { SLOT_COLORS } from '../styles/slotColors';
-import { Game, InteractionState, SignalType, GAME_CONSTANTS, Sector, Player } from '../../core/types';
+import { ActionType, Game, InteractionState, SignalType, GAME_CONSTANTS, Sector, Player } from '../../core/types';
 import { describeArc, polarToCartesian } from '../solarGeometry';
 import { BonusIcons } from './BonusIcons';
 import { SvgBonus } from './SvgBonus';
@@ -53,6 +54,8 @@ export const SectorTooltip: React.FC<{ sector: Sector, color: string, coveredBy:
 };
 
 export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionState, highlightedSectorSlots, onSectorClick, setActiveTooltip }) => {
+  // Tutoriel : la case du secteur de la Terre ne clignote que si l'étape en cours demande un scan
+  const tutorialFocus = useTutorialFocus();
   if (!game.board.sectors) return null;
   const currentPlayer = game.players[game.currentPlayerIndex];
 
@@ -128,32 +131,20 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
           // 1 Donnée par signal (sauf emplacement blanc), plus le bonus imprimé sur l'emplacement
           const gains = <BonusIcons bonus={{ ...signal.bonus, data: (signal.bonus?.data || 0) + (isWhiteSlot ? 0 : 1) }} />;
 
-          let stateText = "Disponible";
-          let stateColor = SLOT_COLORS.available;
-          let actionText = null;
-
-          if (signal.marked) {
-            const markerPlayer = game.players.find(p => p.id === signal.markedBy);
-            stateText = `Marqué par ${markerPlayer?.name || 'Inconnu'}`;
-            stateColor = markerPlayer?.color || "#ccc";
-          } else if (isDisabled) {
-            stateText = "Indisponible";
-            stateColor = SLOT_COLORS.unavailable;
-            actionText = "Nécessite le signal précédent";
-          } else if (isSectorClickable && !canAffordScan) {
-            stateText = "Ressources insuffisantes";
-            stateColor = SLOT_COLORS.unavailable;
-            actionText = `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit et ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergies (vous avez ${currentPlayer.credits} crédit(s) et ${currentPlayer.energy} énergie(s))`;
-          } else {
-            actionText = "Scannez pour récupérer le bonus (coût: 1 Crédit et 2 Energie)";
-          }
-
-          const slotTooltipContent = <SlotTooltip status={stateText} statusColor={stateColor} value={gains} note={actionText} />;
+          // Case qu'un scan marquerait maintenant (celle qui pulse hors choix d'un secteur)
+          const scannable = isFlashing && canAffordScan && interactionState.type === 'IDLE' && tutorialAllows(tutorialFocus, ActionType.SCAN_SECTOR);
+          // Case à cliquer : scan permis (tour du joueur, étape du tutoriel) ou choix d'un secteur en cours
+          const highlighted = scannable || (isFlashing && interactionState.type === 'SELECTING_SCAN_SECTOR');
+          const state = signalSlotState(game, interactionState, signal, isDisabled, isSectorClickable, scannable);
+          const slotTooltipContent = <SlotTooltip status={state.status} statusColor={state.color} value={gains} note={state.note}
+            cost={state.cost ? <BonusIcons bonus={state.cost} /> : undefined} />;
 
           const cursorStyle = isSectorClickable && !isDisabled ? 'pointer' : 'help';
 
           return (
-            <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`} style={{ opacity, cursor: cursorStyle, pointerEvents: 'auto' }}
+            <g key={signal.id} transform={`translate(${pos.x}, ${pos.y})`}
+              className={highlighted ? 'seti-slot-highlight' : undefined}
+              style={{ opacity, cursor: cursorStyle, pointerEvents: 'auto', '--slot-glow': strokeColor } as React.CSSProperties}
               onClick={(e) => {
                 if (isSectorClickable && onSectorClick && !isDisabled) {
                   e.stopPropagation();
@@ -166,14 +157,6 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
               onMouseLeave={() => setActiveTooltip(null)}
             >
               <circle r="4" fill="transparent" stroke="none" />
-              {isFlashing && (
-                ((canAffordScan && interactionState.type === 'IDLE') || interactionState.type === 'SELECTING_SCAN_SECTOR') && (
-                  <>
-                    <circle r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" />
-                    <circle className="seti-pulse-green-svg" r="3.8" fill="none" stroke="#4caf50" strokeWidth="0.5" />
-                  </>
-                )
-              )}
               <circle r="2.5" fill={fillColor} stroke={strokeColor} strokeWidth="0.5" strokeDasharray={isLastSlot ? "1 1" : undefined} />
               {/* 1 Donnée par signal (sauf emplacement blanc), dans la case */}
               {!player && !isWhiteSlot && (
