@@ -1,0 +1,438 @@
+/* Face d'une carte (CardFace) : disposition des vraies cartes (livret p. 7, photos de la FAQ).
+   La face remplit son conteneur (.seti-common-card en taille compacte, bloc libre en grande taille). */
+
+.card-face {
+  --face-band: #4a5263;          /* bandeau du nom (teinte de l'espèce pour une carte Alien) */
+  --face-panel: #e3e8ef;         /* panneau de mission */
+  --face-sector: #8a93a6;
+  --face-revenue: #4a5263;       /* liseré et coin du revenu */
+  --cost-width: 30px;            /* place du badge de coût dans le bandeau du nom */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  color: #1f2633;
+  border-radius: 8px;
+  box-sizing: border-box;
+  text-align: center;
+  line-height: 1.2;
+}
+.card-face.compact { position: absolute; inset: 0; font-size: 9px; }
+.card-face.large { position: relative; width: 210px; height: 300px; box-sizing: border-box; font-size: 11.5px; border: 1px solid #c9cfd8; --cost-width: 42px; }
+
+/* Teintes : secteur (triangle), espèce (bandeau et panneau), revenu (liseré et coin) */
+.card-face.sector-red { --face-sector: #e0413a; }
+.card-face.sector-yellow { --face-sector: #f2b705; }
+.card-face.sector-blue { --face-sector: #2f7fd6; }
+.card-face.sector-black { --face-sector: #23252b; }
+.card-face.species-mascamites { --face-band: #7a5a1e; --face-panel: #efe4c8; }
+.card-face.species-anomalies { --face-band: #1d8aa0; --face-panel: #d6edf1; }
+.card-face.species-oumuamua { --face-band: #6a4aa0; --face-panel: #e5dcf3; }
+.card-face.species-centauriens { --face-band: #2a9a5c; --face-panel: #d5efe0; }
+.card-face.species-exertiens { --face-band: #8e2b2b; --face-panel: #f3dada; }
+.card-face.revenue-credit { --face-revenue: #b8961e; }
+.card-face.revenue-energy { --face-revenue: #3a9d48; }
+.card-face.revenue-card { --face-revenue: #3b3f48; }
+.card-face.revenue-media { --face-revenue: #d23a32; }
+.card-face.revenue-data { --face-revenue: #2f6fc1; }
+
+/* Illustration : fond spatial (pas d'image), action gratuite, triangle de secteur, numéro */
+.card-face-art {
+  position: relative;
+  flex: none;
+  height: 30%;
+  background:
+    radial-gradient(circle at 70% 35%, rgba(120, 160, 255, 0.35), transparent 55%),
+    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.12), transparent 40%),
+    #16213a;
+}
+.card-face.large .card-face-art { height: 96px; }
+/* Action gratuite : symbole seul, détaché du fond par un halo clair */
+.card-face-free-action {
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  display: inline-flex;
+  align-items: center;
+  filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.95)) drop-shadow(0 1px 2px rgba(0, 0, 0, 0.9));
+}
+.card-face.large .card-face-free-action { left: 5px; top: 5px; }
+.card-face-sector {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 20%;
+  aspect-ratio: 1;
+  background: var(--face-sector);
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+.card-face-signal { position: absolute; right: 8%; top: 8%; width: 38%; fill: #fff; }
+.card-face-number {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  font-size: 6.5px;
+  color: rgba(255, 255, 255, 0.7);
+}
+.card-face.large .card-face-number { font-size: 8px; }
+
+/* Bandeau du nom : une seule ligne ; la police suit la longueur du nom (même règle pour toutes les cartes) */
+.card-face-name-band {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 1.55em;
+  background: var(--face-band);
+  color: #f2f4f8;
+  container-type: inline-size;
+}
+.card-face-name {
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px 0 calc(var(--cost-width) + 2px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+  /* Taille commune, réduite seulement pour un nom long (plancher lisible, puis points de suspension) */
+  font-size: clamp(var(--name-min), calc((100cqw - var(--cost-width) - 8px) / (var(--name-chars) * 0.56)), var(--name-max));
+  --name-min: 6px;
+  --name-max: 7.5px;
+}
+.card-face.large .card-face-name { --name-min: 7.5px; --name-max: 10px; }
+.card-face.exertien .card-face-name { padding-left: calc(var(--cost-width) - 6px); }
+/* Coût : badge cranté étroit (doré : crédits, vert : énergie), aligné sur le bas du bandeau et plus haut que lui (il dépasse au-dessus) */
+.card-face-cost, .card-face-danger {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px 2px 3px;
+  clip-path: polygon(0 0, 78% 0, 100% 50%, 78% 100%, 0 100%);
+  background: #b8961e;
+  z-index: 1;
+}
+.card-face-cost.energy { background: #3a9d48; }
+.card-face-danger { background: #b33a3a; color: #fff; font-weight: 700; padding-left: 5px; }
+
+/* Zone blanche : symboles centrés, texte propre à la carte, panneaux */
+.card-face-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 6px;
+  padding: 3px 4px 10px;
+}
+.card-face.large .card-face-body { padding-bottom: 14px; gap: 10px; }
+/* Moitié haute : gains et texte de la carte ; moitié basse : panneau. Sans gain, le panneau centré prend la moitié de la zone */
+.card-face-top, .card-face-bottom { display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+.card-face-top { gap: 4px; }
+.card-face-body.has-top.has-panel > .card-face-top, .card-face-body.has-top.has-panel > .card-face-bottom { flex: 1 1 0; }
+/* Avec des gains : le bandeau remonte en haut de la moitié basse, sans descendre sous le coin du revenu */
+.card-face-body.has-top.has-panel > .card-face-bottom { justify-content: flex-start; }
+.card-face-body.has-top.has-panel > .card-face-bottom > .card-face-panel.mission { flex: none; }
+.card-face.compact .card-face-body.has-top.has-panel { padding-bottom: 17px; }
+.card-face.large .card-face-body.has-top.has-panel { padding-bottom: 28px; }
+.card-face-body.has-panel:not(.has-top) > .card-face-bottom { flex: 0 0 55%; }
+.card-face-bottom > .card-face-panel.mission { flex: 1; justify-content: center; }
+.card-face-effects { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 5px; }
+.card-face-segment { display: inline-flex; align-items: center; gap: 2px; }
+.card-face-conditional { padding: 0 3px; border-radius: 4px; background: #eef1f6; }
+.card-face-text-segment { padding: 0 3px; border-radius: 4px; background: #fff3c4; color: #5a4300; font-style: italic; }
+/* En grande taille, le texte propre de la carte dit déjà ce que ce morceau résume */
+.card-face.large .card-face-text-segment { display: none; }
+.card-face-arrow { color: #7a8396; }
+.card-face-text { color: #333a47; }
+.card-face-label { padding: 0 3px; border-radius: 3px; background: #fff; color: #333a47; }
+.card-face-label.color-red, .card-face-tab.color-red { background: #e0413a; color: #fff; }
+.card-face-label.color-yellow, .card-face-tab.color-yellow { background: #f2b705; color: #3a2e00; }
+.card-face-label.color-blue, .card-face-tab.color-blue { background: #2f7fd6; color: #fff; }
+.card-face-label.color-black, .card-face-tab.color-black { background: #23252b; color: #fff; }
+
+/* Panneaux (FAQ) : mission grisée, fin de partie dorée, réception */
+.card-face-panel { container-type: inline-size; margin: 0 7%; border-radius: 5px; padding: 3px 4px; background: var(--face-panel); display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
+.card-face.compact .card-face-panel { margin: 0 3%; }
+/* Textes des panneaux : police ajustée à leur longueur pour tenir sur deux lignes tant que possible (--chars posé par CardFace,
+   --text-width : largeur disponible), entre un plancher lisible et la taille normale */
+.card-face-panel-intro, .card-face-condition-text {
+  --text-width: calc(100cqw - 8px);
+  --text-min: 7px;
+  --text-max: 0.9em;
+  font-size: clamp(var(--text-min), calc(2 * var(--text-width) / (var(--chars) * 0.5)), var(--text-max));
+  line-height: 1.15;
+}
+.card-face.compact .card-face-panel-intro, .card-face.compact .card-face-condition-text { --text-min: 5.5px; --text-max: 7px; }
+.card-face-panel-intro { color: #333a47; }
+.card-face-condition-row .card-face-condition-text { --text-width: calc(50cqw - 14px); }
+.card-face-panel.endGame .card-face-condition-text, .card-face-panel.reception .card-face-condition-text { --text-width: calc(50cqw - 14px); }
+.card-face-condition { flex: 1; min-width: 0; text-align: left; color: #333a47; font-size: 0.9em; }
+.card-face-panel.endGame { flex-direction: row; align-items: center; background: linear-gradient(135deg, #ecd892, #c9a740); }
+.card-face-panel.endGame .card-face-condition { color: #3a2e00; }
+.card-face-panel.reception { flex-direction: row; align-items: center; }
+/* Mission conditionnelle (FAQ) : deux parties bien séparées, la condition en relief à gauche, la récompense dans un carré en creux
+   à droite */
+.card-face-panel.conditional { gap: 4px; padding: 4px; }
+.card-face-condition-row { display: flex; align-items: stretch; gap: 4px; }
+.card-face-condition-row > .card-face-condition {
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.card-face-slot {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 2.9em;
+  min-height: 2.5em;
+  padding: 2px 4px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  box-shadow: inset 1px 2px 3px rgba(0, 0, 0, 0.35), inset -1px -1px 1px rgba(255, 255, 255, 0.7);
+}
+.card-face-slot.fulfillable { cursor: pointer; }
+.card-face-slot.completed > :not(.card-face-marker) { opacity: 0.35; }
+/* Mission réalisable : le cercle ou le carré clignote (le clic le recouvre) */
+.card-face-circle.seti-flash-green { animation: card-face-blink 1.2s ease-in-out infinite; }
+.card-face-slot.seti-flash-green { animation: card-face-blink-slot 1.2s ease-in-out infinite; }
+@keyframes card-face-blink {
+  0%, 100% { border-color: #4caf50; box-shadow: 0 0 2px 1px rgba(76, 175, 80, 0.4); }
+  50% { border-color: #81c784; box-shadow: 0 0 10px 4px rgba(76, 175, 80, 0.95); }
+}
+@keyframes card-face-blink-slot {
+  0%, 100% { box-shadow: inset 1px 2px 3px rgba(0, 0, 0, 0.35), 0 0 2px 1px rgba(76, 175, 80, 0.4); }
+  50% { box-shadow: inset 1px 2px 3px rgba(0, 0, 0, 0.35), 0 0 10px 4px rgba(76, 175, 80, 0.95); }
+}
+/* Condition dessinée : symboles et mots sur une ligne (retour à la ligne si besoin) */
+.card-face-condition-symbols { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 3px; }
+.card-face-words { font-size: 0.9em; }
+.card-face-count { font-weight: 700; font-size: 0.9em; }
+.card-face-panel.endGame .card-face-condition-symbols, .card-face-condition-row .card-face-condition-symbols { justify-content: center; }
+
+/* Mission déclenchable : intitulé à gauche (au-dessus s'il y a plus de deux cercles) ; onglet du critère au-dessus de chaque
+   cercle, qui dépasse du haut du bandeau gris (FAQ) */
+.card-face-panel.triggered { margin-top: 0.9em; padding-top: 0; }
+.card-face-panel.triggered.intro-side { flex-direction: row; align-items: center; }
+.card-face-panel.triggered.intro-side .card-face-panel-intro { flex: 0 0 40%; text-align: left; --text-width: calc(40cqw - 4px); }
+.card-face-circles { display: flex; justify-content: space-evenly; align-items: flex-end; gap: 4px; flex: 1; min-width: 0; margin-top: -0.9em; }
+.card-face-circle-column { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; flex: 1 1 0; }
+.card-face-tab {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 1px 3px;
+  border: 1px solid #c3cad6;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  background: #fff;
+  color: #333a47;
+  font-size: 0.85em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.card-face-circle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  /* Même taille pour tous les cercles ; un gain à plusieurs symboles les réduit (CardFace) */
+  width: 2.7em;
+  height: 2.7em;
+  padding: 1px;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 2px solid #9aa6ba;
+  background: #fff;
+  box-sizing: border-box;
+}
+.card-face-circle.fulfillable { border-color: #4caf50; cursor: pointer; box-shadow: 0 0 6px rgba(76, 175, 80, 0.8); }
+.card-face-circle.completed > :not(.card-face-marker) { opacity: 0.35; }
+.card-face-marker { position: absolute; inset: 18%; border-radius: 999px; background: #888; box-shadow: 0 0 0 1px #fff; }
+.card-face-reward-text { font-size: 0.85em; color: #5a4300; }
+
+/* Taille compacte : intitulé masqué (les onglets suffisent), condition sur trois lignes au plus */
+
+.card-face.compact .card-face-panel.triggered.intro-side { flex-direction: column; }
+/* Intitulé au-dessus des cercles (trois cercles, ou taille compacte) : visible dans la zone grise, au-dessus des onglets */
+.card-face-panel.triggered.intro-top, .card-face.compact .card-face-panel.triggered.intro-side { margin-top: 0; padding-top: 3px; }
+.card-face-panel.triggered.intro-top .card-face-circles, .card-face.compact .card-face-panel.triggered.intro-side .card-face-circles { margin-top: 0; }
+.card-face.compact .card-face-circles { gap: 2px; }
+.card-face.compact .card-face-tab { font-size: 7px; }
+.card-face.compact .card-face-condition { font-size: 7px; overflow: hidden; }
+/* Texte d'une condition en taille compacte : trois lignes au plus */
+.card-face.compact .card-face-condition-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.card-face.compact .card-face-circle { width: 2.5em; height: 2.5em; }
+
+/* Revenu : liseré à sa couleur en bas, et son symbole en grand dans un coin qui dépasse au-dessus du liseré */
+.card-face-footer { flex: none; height: 4px; background: var(--face-revenue); }
+.card-face.large .card-face-footer { height: 6px; }
+.card-face-revenue {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 3px 1px 8px;
+  background: var(--face-revenue);
+  clip-path: polygon(7px 0, 100% 0, 100% 100%, 0 100%);
+  border-top-left-radius: 3px;
+}
+.card-face.large .card-face-revenue { padding: 3px 5px 2px 11px; clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%); }
+
+/* Élément utile au choix en cours (fenêtres de réservation, de scan, de défausse) */
+.card-face .highlighted { outline: 2px solid #ffd700; outline-offset: -2px; box-shadow: 0 0 8px rgba(255, 215, 0, 0.9); z-index: 2; }
+.card-face-sector.highlighted { width: 34%; outline: none; filter: drop-shadow(0 0 4px #ffd700); }
+.card-face-free-action.highlighted { outline: none; box-shadow: none; filter: drop-shadow(0 0 3px #ffd700) drop-shadow(0 0 3px #ffd700); }
+.card-face-revenue.highlighted { outline: none; clip-path: none; box-shadow: 0 0 0 2px #ffd700, 0 0 8px rgba(255, 215, 0, 0.9); border-radius: 4px 0 0 0; }
+
+/* Signal dans le secteur d'une planète ou d'une étoile : « sur Saturne », « sur Sirius A » à côté du symbole */
+.card-face-caption { font-size: 0.8em; color: #333a47; white-space: normal; text-align: left; line-height: 1.15; min-width: 0; }
+
+/* Bandeaux des missions conditionnelles (gris) et des fins de partie (doré) : toujours de la même taille, coupés au milieu ;
+   la condition centrée à gauche (deux lignes au plus tant que possible), la récompense centrée à droite */
+.card-face { --slot-height: 46px; }
+.card-face.compact { --slot-height: 28px; }
+.card-face-condition-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: var(--slot-height);
+}
+.card-face-condition-row > .card-face-condition { justify-content: center; text-align: center; min-width: 0; overflow: hidden; }
+.card-face-condition-row > .card-face-slot { width: 100%; height: 100%; min-width: 0; }
+.card-face-panel.endGame, .card-face-panel.reception {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  justify-items: center;
+  height: var(--slot-height);
+  box-sizing: content-box;
+}
+.card-face-panel.endGame > .card-face-condition, .card-face-panel.reception > .card-face-condition {
+  display: flex;
+  justify-content: center;
+  text-align: center;
+  min-width: 0;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+/* Fin de partie : les PV d'abord, puis la condition, le tout centré (bandeau de taille fixe) */
+.card-face-panel.endGame { display: flex; justify-content: center; align-items: center; gap: 6px; }
+.card-face-panel.endGame > .card-face-condition { flex: 0 1 auto; }
+.card-face-panel.endGame .card-face-condition-text { --text-width: calc(68cqw - 14px); }
+
+/* Texte qui précise le seul gain : à droite de son symbole (carte 12) */
+.card-face-top.inline { flex-direction: row; align-items: center; justify-content: center; gap: 6px; }
+.card-face-top.inline .card-face-text { text-align: left; }
+
+/* Retour à la ligne dans une condition (« (lunes comprises) »), précision sous une récompense, « / » entre deux choix */
+.card-face-break { flex-basis: 100%; height: 0; }
+.card-face-slot { flex-direction: column; }
+.card-face-reward-caption { font-size: 0.75em; line-height: 1.1; color: #333a47; text-align: center; }
+.card-face.compact .card-face-reward-caption { font-size: 6px; }
+.card-face-or { font-weight: 700; color: #7a8396; font-size: 1.2em; }
+
+/* Mots d'une condition dessinée : police ajustée à la plus longue ligne (--chars posé par CardFace) pour que chaque ligne tienne */
+.card-face-condition-row .card-face-condition-symbols, .card-face-panel.endGame .card-face-condition-symbols {
+  --text-width: calc(50cqw - 14px);
+  --text-min: 6px;
+  --text-max: 0.9em;
+}
+.card-face-panel.endGame .card-face-condition-symbols { --text-width: calc(68cqw - 14px); }
+.card-face.compact .card-face-condition-symbols { --text-min: 5px; --text-max: 7px; }
+.card-face-condition-row .card-face-condition-symbols .card-face-words,
+.card-face-panel.endGame .card-face-condition-symbols .card-face-words {
+  font-size: clamp(var(--text-min), calc(var(--lines, 1) * var(--text-width) / (var(--chars) * 0.5)), var(--text-max));
+}
+
+/* Carte 12 : la précision du gain reste dans le cadre du bandeau doré (mêmes marges), en plus petit */
+.card-face-top.inline { margin: 0 7%; }
+.card-face-top.inline .card-face-text { font-size: 0.82em; line-height: 1.2; }
+
+/* Miniature : la carte de l'infobulle, mise à l'échelle de son emplacement (CardMini) et centrée */
+.card-face-mini { position: absolute; inset: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.card-face-mini-inner { flex: none; width: 210px; height: 300px; transform-origin: center; }
+
+/* Gain avec sa légende (« dans un secteur où se trouve l'une de vos sondes ») : reste dans le cadre */
+.card-face-segment { max-width: 100%; }
+.card-face-effects { padding: 0 6%; }
+
+/* Texte écrit avec ses symboles */
+.card-face-rich { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1px 3px; }
+.card-face-text.card-face-rich { display: flex; }
+.card-face-top.inline .card-face-text.card-face-rich { justify-content: flex-start; }
+.card-face-condition-text.card-face-rich { display: flex; justify-content: center; }
+
+/* Jeton Mascamite résolu : coche verte en bas à droite */
+.card-face-specimen-resolved { position: relative; display: inline-flex; flex: none; }
+.card-face-specimen-check { position: absolute; right: -2px; bottom: -2px; width: 45%; height: 45%; }
+
+/* Récompense dessinée dans le carré en creux (spécimen résolu, consultation d'un spécimen) : réduite pour tenir */
+.card-face-reward-symbols {
+  display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1px 2px; text-align: center;
+  font-size: clamp(6px, calc(46cqw / (var(--chars) * 0.42)), 0.85em); line-height: 1.1;
+}
+.card-face-slot { overflow: hidden; }
+
+/* Texte avec symboles : un seul paragraphe, les symboles en ligne dans la phrase (pas de bloc par morceau) */
+.card-face-rich, .card-face-text.card-face-rich, .card-face-condition-text.card-face-rich { display: block; text-align: center; }
+.card-face-top.inline .card-face-text.card-face-rich { text-align: left; }
+.card-face-rich > * { vertical-align: middle; }
+.card-face-rich > .bonus-icons, .card-face-rich > svg, .card-face-rich > span:not(.card-face-words) { display: inline-flex; margin: 0 2px; }
+.card-face-rich .card-face-words { display: inline; }
+
+/* Précision d'un gain à droite de ses symboles, dans les mêmes marges que le bandeau doré (cartes 12, 81, ET.2, ET.6) */
+.card-face-effects.with-detail { flex-wrap: nowrap; justify-content: flex-start; padding: 0 7%; gap: 6px; }
+.card-face-effects.with-detail .card-face-detail { flex: 1; min-width: 0; text-align: left; font-size: 0.82em; line-height: 1.2; }
+.card-face-reward-symbols.long { display: block; font-size: 5.6px; line-height: 1.2; }
+.card-face-reward-symbols.long > * { display: inline; vertical-align: middle; }
+.card-face-reward-symbols.long svg { display: inline-block; vertical-align: middle; }
+/* Fin de partie écrite (Congrès Solvay) : trois lignes au besoin, police plus grande */
+.card-face-panel.endGame .card-face-condition-text { --text-width: calc(1.5 * (68cqw - 14px)); }
+.card-face-panel.endGame .card-face-condition-text { --text-width: calc(1.6 * (100cqw - 16px)); }
+/* Condition écrite d'une mission conditionnelle (87, 95…) : jusqu'à trois lignes dans sa moitié */
+.card-face-condition-row .card-face-condition-text { --text-width: calc(1.5 * (50cqw - 14px)); }
+.card-face-condition-row .card-face-condition-text { --text-width: calc(1.8 * (50cqw - 14px)); }
+
+/* Fin de partie : les PV débutent la phrase de la condition, alignés sur sa première ligne (flux en ligne, centré) */
+.card-face-panel.endGame .card-face-condition-symbols { display: block; text-align: center; }
+.card-face-panel.endGame .card-face-condition-symbols > *, .card-face-panel.endGame .card-face-condition-text > * { vertical-align: middle; }
+.card-face-panel.endGame .card-face-condition-symbols > .bonus-icons,
+.card-face-panel.endGame .card-face-condition-symbols > svg,
+.card-face-panel.endGame .card-face-condition-symbols > span:not(.card-face-words):not(.card-face-break) { display: inline-flex; margin: 0 2px; }
+.card-face-panel.endGame .card-face-condition-symbols .card-face-words { display: inline; }
+.card-face-panel.endGame .card-face-condition-symbols > .card-face-break { display: block; }
+.card-face-panel.endGame .card-face-condition > * > .bonus-icons:first-child { margin-left: 0; }
+/* Les PV étant dans la phrase, la condition dispose de toute la largeur du bandeau doré */
+.card-face-panel.endGame .card-face-condition-symbols { --text-width: calc(100cqw - 16px); }
+.card-face-panel.endGame > .card-face-condition { flex: 1 1 auto; }
+
+/* Texte du haut : marges à gauche et à droite, pour qu'il ne touche pas les bords de la carte */
+.card-face-top > .card-face-text { margin: 0 6%; }
+
+/* Retour à la ligne dans un texte en flux (« gagnez » de la carte 22, parenthèse de la carte 25) */
+.card-face-rich > span.card-face-break { display: block; height: 0; margin: 0; }
+/* Carré en creux d'une mission Mascamite : deux récompenses côte à côte (gain et spécimen résolu) */
+.card-face-slot.rewards-row { flex-direction: row; gap: 4px; }
+/* Texte long (ET.5) : marges réduites et police un peu plus petite */
+.card-face-top > .card-face-text.long { margin: 0 3%; font-size: 0.92em; line-height: 1.15; }

@@ -163,7 +163,7 @@ Le chapitre « Traces de vie et espèces » va jusqu'à la découverte.
 Trois sortes de missions, une défausse.
 
 ## Votre main {#intro}
-Vos **cartes en main** s'affichent sur votre plateau. Une carte se joue en payant son coût (en haut à gauche) ; son coin indique son action gratuite et sa couleur de scan. Cliquez sur une carte pour faire apparaître ses deux boutons : **jouer** (bleu) et **défausser** (rouge). Nous vous avons donné trois cartes : **ISS**, **Télescope Lovell** et **Mars Science Laboratory**.
+Vos **cartes en main** s'affichent sur votre plateau. Elles se lisent comme les vraies cartes : l'action gratuite en haut à gauche, la couleur de scan dans le triangle en haut à droite, le coût dans le badge à gauche du nom, l'effet en symboles au centre et le revenu dans le bandeau du bas. Une carte se joue en payant son coût. Cliquez sur une carte pour faire apparaître ses deux boutons : **jouer** (bleu) et **défausser** (rouge). Nous vous avons donné trois cartes : **ISS**, **Télescope Lovell** et **Mars Science Laboratory**.
 
 ## Jouez ISS {#jouer}
 Cliquez sur la carte **ISS**, puis sur son bouton bleu pour la jouer (2 crédits). Vous gagnez 1 média, et la carte reste devant vous comme **mission déclenchée**.
@@ -172,7 +172,7 @@ Cliquez sur la carte **ISS**, puis sur son bouton bleu pour la jouer (2 crédits
 Une mission déclenchée a des **cercles** : chacun peut être recouvert quand son déclencheur se produit, ici le lancement d'une sonde. Chaque cercle recouvert donne sa récompense.
 
 ## Défaussez une carte {#defausser}
-Toute carte de la main peut être **défaussée pour son action gratuite**, indiquée dans son coin : 1 déplacement, 1 donnée ou 1 média. Cliquez sur une carte que vous ne jouerez pas (pas l'une des deux autres cartes données), puis sur son bouton rouge. Une carte dont l'action gratuite est un déplacement demande une sonde dans le système solaire : vous n'en avez pas encore, choisissez-en une autre (l'infobulle du bouton dit pourquoi il est grisé). C'est une action gratuite : elle ne compte pas comme votre action principale.
+Toute carte de la main peut être **défaussée pour son action gratuite**, indiquée dans son coin supérieur gauche : 1 déplacement, 1 donnée ou 1 média. Cliquez sur une carte que vous ne jouerez pas (pas l'une des deux autres cartes données), puis sur son bouton rouge. Une carte dont l'action gratuite est un déplacement demande une sonde dans le système solaire : vous n'en avez pas encore, choisissez-en une autre (l'infobulle du bouton dit pourquoi il est grisé). C'est une action gratuite : elle ne compte pas comme votre action principale.
 
 ## Terminez votre tour {#fin-du-tour}
 Jouer ISS était votre action principale. Cliquez sur **Fin du tour**.

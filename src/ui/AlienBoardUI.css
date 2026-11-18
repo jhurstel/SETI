@@ -414,6 +414,7 @@
 
 /* Cartes de la rangée d'une espèce : contenu des cartes des joueurs (120 × 160) réduit à 100 × 133 */
 .alien-card-content {
+    position: relative; /* la face (CardFace compacte) remplit ce cadre */
     display: flex;
     flex-direction: column;
     gap: 2px;

@@ -2,6 +2,8 @@ import React from 'react';
 import { useTutorialFocus } from '../tutorialFocus';
 import { Mission, Game } from '../../core/types';
 import { CardSystem } from '../../systems/CardSystem';
+import { CardFace, MissionCircleState } from './CardFace';
+import { CardTooltip } from './CardTooltip';
 
 interface MissionCardProps {
   mission: Mission;
@@ -16,6 +18,10 @@ interface MissionCardProps {
   handleTooltipLeave: () => void;
 }
 
+/**
+ * Mission jouée : face de sa carte, cercles recouverts du marqueur du joueur ; un cercle réalisable (déclenché ou condition
+ * remplie, même règle que l'avertissement de fin de tour) se clique pour le recouvrir.
+ */
 export const MissionCard: React.FC<MissionCardProps> = ({
   mission,
   game,
@@ -29,111 +35,31 @@ export const MissionCard: React.FC<MissionCardProps> = ({
   handleTooltipLeave
 }) => {
   const tutorialFocus = useTutorialFocus();
-  const missionRequirementStrings = mission.description.split('Mission:').slice(1).filter(s => s.trim() !== '');
-  const displayCount = Math.max(missionRequirementStrings.length, mission.requirements.length);
-  const displayItems = Array.from({ length: displayCount });
+  // Tutoriel : un cercle ne clignote que si l'étape en cours décrit les missions (il reste cliquable)
+  const missionsInFocus = !tutorialFocus.active || tutorialFocus.target === 'missions';
 
-  const renderTooltipContent = () => (
-    <div className="seti-card-tooltip">
-      <div className="seti-card-tooltip-title">{mission.name}</div>
-      <div className="seti-card-tooltip-desc">
-        {displayItems.map((_, index) => {
-          const requirement = mission.requirements[index];
-          const isCompleted = requirement && requirement.id ? (mission.completedRequirementIds || []).includes(requirement.id) : false;
-          const text = missionRequirementStrings[index] || (requirement ? `Condition ${index + 1}` : `Mission ${index + 1}`);
+  const circleStates: MissionCircleState[] = mission.requirements.map(requirement => {
+    const completed = !!requirement.id && mission.completedRequirementIds.includes(requirement.id);
+    const claimable = !!requirement.id && CardSystem.isRequirementClaimable(game, playerId, mission, requirement.id);
+    const canClick = !completed && claimable && isCurrentTurn && !isRobot && !isInteractiveMode;
+    return {
+      completed,
+      fulfillable: canClick,
+      flash: canClick && missionsInFocus,
+      markerColor: currentPlayerColor,
+      onClick: canClick && requirement.id ? () => onMissionClick(mission.id, requirement.id!) : undefined,
+    };
+  });
 
-          const isConditional = requirement && requirement.type.startsWith('GAIN_IF_');
-          const icon = isCompleted ? '✅' : (isConditional ? '⬜' : '⚪');
-
-          return (
-            <div key={index} className="mission-requirement-line">
-              <span style={{ marginRight: '8px', color: isCompleted ? '#4caf50' : '#aaa', fontSize: '1.2em', lineHeight: '1' }}>
-                {icon}
-              </span>
-              <span>
-                <span className="mission-label">Mission:</span> {text.trim()}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      {mission.completed && (
-        <div className="seti-card-tooltip-stats mission-complete">
-          MISSION ACCOMPLIE
-        </div>
-      )}
-    </div>
-  );
-
+  const card = mission.originalCard;
   return (
     <div
       className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''} help-cursor`}
-     
-      onMouseEnter={e => { handleTooltipHover(e, renderTooltipContent()); }}
+      onMouseEnter={e => { if (card) handleTooltipHover(e, <CardTooltip card={card} circleStates={circleStates} />); }}
       onMouseLeave={handleTooltipLeave}
     >
-      <div className="seti-mission-header">
-        <div className="seti-mission-title">{mission.name}</div>
-        <span className="seti-played-card-tag">MIS</span>
-        {mission.completed && <span className="seti-mission-check">✓</span>}
-      </div>
-
-      {mission.description && (
-        <div className="seti-mission-desc">
-          {mission.description}
-        </div>
-      )}
-
-      <div className="seti-mission-requirements-row mission-rewards">
-        {displayItems.map((_, index) => {
-          const requirement = mission.requirements[index];
-          const isCompleted = requirement && requirement.id ? (mission.completedRequirementIds || []).includes(requirement.id) : false;
-          const text = missionRequirementStrings[index] || (requirement ? `Condition ${index + 1}` : `Mission ${index + 1}`);
-
-          // Cercle déclenché ou condition remplie : même règle que l'avertissement de fin de tour (CardSystem)
-          const isConditional = !!requirement?.type.startsWith('GAIN_IF_');
-          const isFulfillable = !!requirement?.id && CardSystem.isRequirementClaimable(game, playerId, mission, requirement.id);
-
-          const canClick = !isCompleted && isFulfillable && isCurrentTurn && !isRobot && !isInteractiveMode;
-          // Tutoriel : le cercle ne clignote que si l'étape en cours décrit les missions (il reste cliquable)
-          const missionsInFocus = !tutorialFocus.active || tutorialFocus.target === 'missions';
-          const isHighlighted = isCompleted || canClick;
-
-          return (
-            <div
-              key={index}
-              className={`seti-mission-requirement-indicator ${canClick && missionsInFocus ? 'seti-flash-green' : ''}`}
-              style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: isConditional ? '2px' : '50%',
-                border: `1px solid ${currentPlayerColor}`,
-                backgroundColor: isCompleted ? currentPlayerColor : 'transparent',
-                cursor: canClick ? 'pointer' : 'help',
-                zIndex: canClick ? 20 : 10,
-                opacity: isHighlighted ? 1 : 0.3,
-                boxShadow: isCompleted ? `0 0 5px ${currentPlayerColor}` : undefined,
-                transform: canClick ? 'scale(1.3)' : 'scale(1)',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.stopPropagation();
-                handleTooltipHover(e, <div className="mission-requirement-tooltip">{text.trim()}</div>);
-              }}
-              onMouseLeave={(e) => {
-                e.stopPropagation();
-                handleTooltipLeave();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (canClick && onMissionClick && requirement?.id) {
-                  onMissionClick(mission.id, requirement.id);
-                }
-              }}
-            />
-          );
-        })}
-      </div>
+      {card ? <CardFace card={card} compact circleStates={circleStates} /> : <div className="seti-mission-title">{mission.name}</div>}
+      {mission.completed && <span className="seti-mission-check">✓</span>}
     </div>
   );
 };

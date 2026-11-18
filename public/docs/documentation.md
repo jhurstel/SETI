@@ -90,7 +90,7 @@ Le plateau du joueur est à gauche, le système solaire occupe le reste de l'éc
 - Les onglets en haut affichent le plateau de chaque joueur (devant le nom : silhouette pour un humain, barres de niveau pour un robot ; 👑 pour le premier joueur) ; le contour du plateau prend la couleur du joueur affiché. Seul le plateau défile, sous les onglets.
 - **Ressources** : score, crédits, énergie, cartes en main, Médias et données, puis les revenus ; la limite d'une ressource est écrite sous son symbole (cartes : « Fin de tour : 4 », gardées en passant ; Médias : « (max 10) » ; données : « (max 6) »). L'infobulle d'une ressource montre ses actions gratuites (échanges, achat d'une carte), en boutons à icônes. La tuile des revenus montre les cartes réservées et les revenus de chaque manche ; son infobulle liste les cartes réservées.
 - **Actions** : les 8 actions principales en hexagones (lancer, orbite, atterrir, scanner, analyser, jouer une carte, rechercher, passer) et, dans son propre cadre, la fin du tour ; leur infobulle donne le coût et le bonus sur une même ligne.
-- Dessous : les emplacements des technologies Exploration, les étapes du scan et les technologies Observation, l'ordinateur de données, les cartes en main (celles d'un robot qu'on n'a pas vues sont montrées de dos ; une carte Alien porte au dos le symbole de son espèce), les missions et les cartes jouées.
+- Dessous : les emplacements des technologies Exploration, les étapes du scan et les technologies Observation, l'ordinateur de données, les cartes en main (celles d'un robot qu'on n'a pas vues sont montrées de dos ; une carte Alien porte au dos le symbole de son espèce), les missions et les cartes jouées. Une carte se lit comme la vraie : action gratuite en haut à gauche, couleur de secteur dans le triangle en haut à droite, numéro en petit en bas à droite de l'illustration, coût dans le badge à gauche du nom (doré : crédits, vert : énergie), effet en symboles au centre (en jaune, la partie qui n'a pas encore de symbole), panneau de mission (déclenchable : un onglet au-dessus de chaque cercle de récompense ; conditionnelle : la condition à gauche, la récompense à droite ; cercle recouvert du marqueur du joueur) ou de fin de partie (doré), et revenu en grand dans le coin inférieur droit, sur un liseré à sa couleur ; l'infobulle la montre en grand avec le texte propre à la carte (ce que les symboles ne disent pas). Toutes les cartes sont dans le glossaire (3.2).
 
 #### Actions et tour
 
@@ -300,7 +300,7 @@ Ce chapitre franchit un palier de score, pose un marqueur sur une tuile objectif
 
 ### 3.2 Cartes
 
-La description de chaque carte viendra ici (en attendant, l'infobulle d'une carte donne son texte, son coût, son revenu et son action gratuite).
+{{cartes}}
 
 ### 3.3 Technologies
 
@@ -315,80 +315,45 @@ La description de chaque carte viendra ici (en attendant, l'infobulle d'une cart
 <!-- espece:Mascamites -->
 #### Mascamites
 
-**Plateau**
-
-- 7 jetons spécimen, mélangés à la découverte : 3 face cachée sur Jupiter, 3 sur Saturne, et le 7e face visible sur la 3e case de la piste bleue : sa récompense est le gain de cette case, gagné en y posant une trace.
-- Récompenses des 7 spécimens :
-
-| Spécimen | Récompense |
-|---|---|
-| 1 | 2 crédits |
-| 2 | 2 énergies |
-| 3 | 3 Médias |
-| 4 | 2 données |
-| 5 | 2 cartes |
-| 6 | 3 PV + 1 carte au choix |
-| 7 | 7 PV |
-
-- Une capsule ramenée à destination pose son spécimen sur la première case libre (sans bonus ni trace) de la piste bleue des Mascamites : sa récompense devient le gain de cette case. Une case de la piste bleue qui attend encore son spécimen est indisponible : on ne peut pas y poser de trace.
-- Pas d'emplacement infini.
-
-**Cartes**
-
-- Certaines cartes permettent de **prélever un spécimen** sur Jupiter, Saturne ou leurs lunes : une fenêtre montre les spécimens restants de la planète et leur récompense, que le joueur voit ensuite seul dans l'infobulle des jetons (les autres joueurs ne les voient pas) ; le jeton choisi part dans une **capsule**, qui se déplace et se comporte comme une sonde : énergie ou déplacements gratuits (défausse d'une carte Déplacement, Observation IV…), coût de sortie d'un champ d'astéroïdes, Médias des cases, visites et missions déclenchées par un déplacement, signaux « dans un secteur où se trouve l'une de vos sondes » (carte 27…). Le spécimen d'une capsule n'est visible que par son propriétaire. Elle ne compte pas dans la limite de sondes et ne peut ni se mettre en orbite ni atterrir. Les robots simulent chaque spécimen et gardent la meilleure récompense.
-- Une capsule arrivée sur la Terre (ou sur Mars pour ET.4) se réclame comme une mission : récompense de la carte plus celle du spécimen. L'historique annonce son arrivée (« déclenche une mission à recouvrir »), comme les autres missions.
-- D'autres cartes permettent de **consulter** un spécimen (gagner son bonus sans le retirer), choisi dans la même fenêtre.
-
-**Symboles**
+- **R1** 7 jetons spécimen, mélangés à la découverte : 3 face cachée sur Jupiter, 3 sur Saturne, et le 7e face visible sur la 3e case de la piste bleue : sa récompense est le gain de cette case, gagné en y posant une trace.
+- **R2** Certaines cartes permettent de **prélever un spécimen** sur Jupiter, Saturne ou leurs lunes : une fenêtre montre les spécimens restants de la planète et leur récompense, que le joueur voit ensuite seul dans l'infobulle des jetons (les autres joueurs ne les voient pas) ; le jeton choisi part dans une **capsule**, qui se déplace et se comporte comme une sonde : énergie ou déplacements gratuits (défausse d'une carte Déplacement, Observation IV…), coût de sortie d'un champ d'astéroïdes, Médias des cases, visites et missions déclenchées par un déplacement, signaux « dans un secteur où se trouve l'une de vos sondes » (carte 27…). Le spécimen d'une capsule n'est visible que par son propriétaire. Elle ne compte pas dans la limite de sondes et ne peut ni se mettre en orbite ni atterrir. Les robots simulent chaque spécimen et gardent la meilleure récompense.
+- **R3** Une capsule arrivée sur la Terre (ou sur Mars pour ET.4) se réclame comme une mission : récompense de la carte plus celle du spécimen. L'historique annonce son arrivée (« déclenche une mission à recouvrir »), comme les autres missions.
+- **R4** Une capsule ramenée à destination pose son spécimen sur la première case libre (sans bonus ni trace) de la piste bleue des Mascamites : sa récompense devient le gain de cette case. Une case de la piste bleue qui attend encore son spécimen est indisponible : on ne peut pas y poser de trace.
+- **R5** D'autres cartes permettent de **consulter** un spécimen (gagner son bonus sans le retirer), choisi dans la même fenêtre.
+- **R6** Pas d'emplacement infini.
 
 {{symboles-espece:Mascamites}}
 
-- Le symbole Spécimen marque aussi les spécimens sur Jupiter et Saturne (« ? » s'ils sont face cachée pour vous ; infobulle : récompense en symboles, ou « Spécimen inconnu (face cachée) ») et, estompé, les cases de la piste bleue qui recevront les spécimens ramenés.
+{{cartes-espece:Mascamites}}
 
 <!-- espece:Anomalies -->
 #### Anomalies
 
-**Plateau**
-
-- 3 anomalies sont posées sur le disque D : dans le secteur de la Terre et à 3 secteurs de chaque côté.
-- Quand une rotation amène la Terre sur une anomalie, le joueur dont le marqueur est le plus haut sur la piste de la couleur de l'anomalie reçoit sa récompense (affichée au centre du jeton). Si personne n'a de marqueur sur cette piste, personne ne gagne ; l'historique l'indique.
-- Jetons (une face tirée au hasard) : rouge 1 crédit ou 4 PV, jaune 2 Médias ou 1 carte au choix, bleu 1 donnée ou 1 énergie.
-- Emplacement infini : 2 PV.
-
-**Cartes**
-
-- *Écoute Attentive* (ET.14) : 1 scan, puis 1 signal dans le secteur de la **prochaine anomalie qui sera déclenchée** : la première après la Terre dans le sens des secteurs (celle du secteur de la Terre, qui vient de l'être, compte en dernier). Le signal est posé directement, sans choix.
-- Un signal « dans le secteur d'une anomalie » va dans n'importe quel secteur qui contient une anomalie : seule la position compte, ni la couleur du secteur ni celle de l'anomalie.
-- *Signes de Vie* (ET.11) : 1 déplacement en plus si la Terre est dans le secteur d'une anomalie ; *Incertitudes et Stupéfaction* (ET.20) : 1 PV par signal du joueur dans les secteurs des anomalies ; *Sommes-Nous Observés ?* (ET.17) : la récompense de la prochaine anomalie qui sera déclenchée.
-
-**Symboles**
+- **R1** 3 anomalies sont posées sur le disque D : dans le secteur de la Terre et à 3 secteurs de chaque côté. Chaque jeton montre une des deux faces de sa couleur, tirée au hasard.
+- **R2** Quand une rotation amène la Terre sur une anomalie, le joueur dont le marqueur est le plus haut sur la piste de la couleur de l'anomalie reçoit sa récompense (affichée au centre du jeton). Si personne n'a de marqueur sur cette piste, personne ne gagne ; l'historique l'indique.
+- **R3** Emplacement infini : 2 PV.
 
 {{symboles-espece:Anomalies}}
+
+{{cartes-espece:Anomalies}}
 
 <!-- espece:Oumuamua -->
 #### Oumuamua
 
-**Plateau**
-
-- L'astéroïde entre dans le système solaire : c'est une **planète** (orbite et atterrissage possibles) avec son propre secteur de 3 signaux (1 PV, rien, 2 PV).
-- Couvrir son secteur rapporte des **jetons** Oumuamua, dépensés sur la piste (25 PV pour 4 jetons sur la 1re case).
-- Emplacement infini : 6 PV pour 1 jeton.
-
-**Cartes**
-
-- Cartes qui défaussent des jetons : une fenêtre propose « Défausser 1 Token » ou d'y renoncer. *Échantillons d'Exofossiles* : 1 Donnée ; *Cartographie du Terrain* : 1 signal dans n'importe quel secteur ; *Adaptation des Sondes* : 2 Déplacements, autant de fois que voulu, puis 1 Atterrissage (en arrêtant, ou quand il n'y a plus de jeton). Les robots simulent la défausse et le renoncement et gardent le meilleur.
-- *Visiteur Céleste* (2 PV par signal) et *Modification de Trajectoire* (1 jeton au premier signal) ne comptent que les signaux marqués sur Oumuamua pendant l'action de la carte.
-
-**Symboles**
+- **R1** L'astéroïde entre dans le système solaire : c'est une **planète** (orbite et atterrissage possibles) avec son propre secteur de 3 signaux (1 PV, rien, 2 PV).
+- **R2** Couvrir son secteur rapporte des **jetons** Oumuamua, dépensés sur la piste (25 PV pour 4 jetons sur la 1re case).
+- **R3** Cartes qui défaussent des jetons : une fenêtre propose « Défausser 1 Token » ou d'y renoncer. *Échantillons d'Exofossiles* : 1 Donnée ; *Cartographie du Terrain* : 1 signal dans n'importe quel secteur ; *Adaptation des Sondes* : 2 Déplacements, autant de fois que voulu, puis 1 Atterrissage (en arrêtant, ou quand il n'y a plus de jeton). Les robots simulent la défausse et le renoncement et gardent le meilleur.
+- **R4** *Visiteur Céleste* (2 PV par signal) et *Modification de Trajectoire* (1 jeton au premier signal) ne comptent que les signaux marqués sur Oumuamua pendant l'action de la carte.
+- **R5** Emplacement infini : 6 PV pour 1 jeton.
 
 {{symboles-espece:Oumuamua}}
+
+{{cartes-espece:Oumuamua}}
 
 <!-- espece:Centauriens -->
 #### Centauriens
 
-**Plateau**
-
-- À la découverte, chaque joueur pose un palier à son score + 15 PV : en l'atteignant, il choisit une **tuile Message** encore disponible (chaque tuile n'est prise qu'une fois ; s'il n'en reste plus, rien) :
+- **R1** À la découverte, chaque joueur pose un palier à son score + 15 PV : en l'atteignant, il choisit une **tuile Message** encore disponible (chaque tuile n'est prise qu'une fois ; s'il n'en reste plus, rien) :
 
 | Tuile Message | Récompense |
 |---|---|
@@ -397,34 +362,24 @@ La description de chaque carte viendra ici (en attendant, l'infobulle d'une cart
 | 3 | 3 Médias |
 | 4 | 8 PV |
 
-- Piste : 15 PV pour 3 données ; emplacement infini : 6 PV pour 1 donnée (il faut avoir ces données pour y poser la trace ; l'infobulle de l'emplacement affiche « Coût » avant « Bonus »).
-
-**Cartes**
-
-- Les cartes Centauriens posent aussi un palier : en l'atteignant, l'effet **Réception** de la carte s'applique. Il n'y a rien à cliquer : la carte jouée reste devant le joueur, son étoile grise jusqu'au palier (son infobulle en donne le score). Une fois reçue, une carte « augmentez vos revenus » passe sous les revenus ; les autres sont défaussées (ce ne sont pas des missions).
-
-**Symboles**
+- **R2** Les cartes Centauriens posent aussi un palier : en l'atteignant, l'effet **Réception** de la carte s'applique. Il n'y a rien à cliquer : la carte jouée reste devant le joueur, son étoile grise jusqu'au palier (son infobulle en donne le score). Une fois reçue, une carte « augmentez vos revenus » passe sous les revenus ; les autres sont défaussées (ce ne sont pas des missions).
+- **R3** Piste : 15 PV pour 3 données ; emplacement infini : 6 PV pour 1 donnée (il faut avoir ces données pour y poser la trace ; l'infobulle de l'emplacement affiche « Coût » avant « Bonus »).
 
 {{symboles-espece:Centauriens}}
 
-- Le symbole Message, à côté du nom de l'espèce, montre au survol, en symboles, les paliers de chaque joueur (PV, tuile Message ou carte, coche une fois pris) et les 4 tuiles Message sur une ligne (une tuile prise est grisée, bordée de la couleur du joueur) ; la souris peut entrer dans l'infobulle pour voir l'état et la récompense de chaque tuile.
+{{cartes-espece:Centauriens}}
 
 <!-- espece:Exertiens -->
 #### Exertiens
 
-**Plateau**
-
-- À la découverte, chaque joueur reçoit 3 cartes Exertiens (en plus des cartes des premiers marqueurs).
-- Chaque joueur qui a des marqueurs sur les emplacements de découverte peut **jouer tout de suite** une carte Exertien face cachée **par marqueur** (deux marqueurs : deux cartes, choisies dans la même fenêtre), ou y renoncer.
-- Des **paliers Exertiens** apparaissent au meilleur score + 20 et + 40. À chaque palier, chaque joueur peut jouer une carte Exertien face cachée (une par palier) ; au **2e palier**, jouer sa carte coûte **1 crédit**. Sans crédit, « Prochain joueur » demande confirmation : le palier serait perdu.
-- Les cases de la piste rapportent PV et ressources, mais ajoutent du **danger** (3, 3, 2, 2, 1). Pas d'emplacement infini.
-- Fin de partie : les conditions des cartes jouées sont révélées (PV si remplies). Le joueur le plus exposé (somme du danger de ses cartes et de ses cases, ex aequo compris) perd **10 %** de son total, arrondi à l'inférieur. Aucune pénalité si personne n'a de danger.
-
-**Cartes**
-
-- Les cartes Exertiens ne sont pas en main : ni défaussées, ni réservées, ni jouées normalement. Chacune porte un DANGER et une condition de fin de partie.
-- **Cartes cachées** : les cartes Exertiens des adversaires (en main ou jouées) restent face cachée jusqu'au décompte final, sur leur plateau comme dans l'infobulle ☣️ du plateau des Exertiens ; leur nom n'apparaît pas dans l'historique quand ils les reçoivent. Leur danger n'y montre que celui de leurs marqueurs sur la piste, suivi de « + ? » s'ils ont joué une carte. Votre propre danger est complet.
-
-**Symboles**
+- **R1** À la découverte, chaque joueur reçoit 3 cartes Exertiens (en plus des cartes des premiers marqueurs).
+- **R2** Les cartes Exertiens ne sont pas en main : ni défaussées, ni réservées, ni jouées normalement. Chacune porte un DANGER et une condition de fin de partie.
+- **R3** Chaque joueur qui a des marqueurs sur les emplacements de découverte peut **jouer tout de suite** une carte Exertien face cachée **par marqueur** (deux marqueurs : deux cartes, choisies dans la même fenêtre), ou y renoncer.
+- **R4** Des **paliers Exertiens** apparaissent au meilleur score + 20 et + 40. À chaque palier, chaque joueur peut jouer une carte Exertien face cachée (une par palier) ; au **2e palier**, jouer sa carte coûte **1 crédit**. Sans crédit, « Prochain joueur » demande confirmation : le palier serait perdu.
+- **R5** **Cartes cachées** : les cartes Exertiens des adversaires (en main ou jouées) restent face cachée jusqu'au décompte final, sur leur plateau comme dans l'infobulle ☣️ du plateau des Exertiens ; leur nom n'apparaît pas dans l'historique quand ils les reçoivent. Leur danger n'y montre que celui de leurs marqueurs sur la piste, suivi de « + ? » s'ils ont joué une carte. Votre propre danger est complet.
+- **R6** Les cases de la piste rapportent PV et ressources, mais ajoutent du **danger** (3, 3, 2, 2, 1). Pas d'emplacement infini.
+- **R7** Fin de partie : les conditions des cartes jouées sont révélées (PV si remplies). Le joueur le plus exposé (somme du danger de ses cartes et de ses cases, ex aequo compris) perd **10 %** de son total, arrondi à l'inférieur. Aucune pénalité si personne n'a de danger.
 
 {{symboles-espece:Exertiens}}
+
+{{cartes-espece:Exertiens}}

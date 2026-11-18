@@ -68,7 +68,7 @@ export const interactionSymbol = (state: InteractionState): React.ReactNode => {
     case 'TRADING_CARD': {
       // Cartes données, puis le gain de l'échange
       const gain = TRADE_GAINS.find(k => k === state.targetGain.toLowerCase());
-      return <><ResourceIcon kind="card" amount={state.count} size={SIZE - 4} />{gain && <ResourceIcon kind={gain} size={SIZE - 4} />}</>;
+      return <><ResourceIcon kind="card" amount={state.count} size={SIZE - 4} />{gain && <ResourceIcon kind={gain === 'card' ? 'anyCard' : gain} size={SIZE - 4} />}</>;
     }
     default: return null;
   }

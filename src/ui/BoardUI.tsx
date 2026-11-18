@@ -67,7 +67,8 @@ type LocalMode = Extract<InteractionState, { type: 'DISCARDING_CARD' | 'TRADING_
 const TRADE_GAINS: ResourceIconKind[] = ['credit', 'energy', 'card'];
 const tradeGainIcon = (targetGain: string) => {
   const kind = TRADE_GAINS.find(k => k === targetGain.toLowerCase());
-  return kind ? <ResourceIcon kind={kind} amount={1} size={22} /> : undefined;
+  // Carte gagnée par l'échange : rangée ou pioche, au choix
+  return kind ? <ResourceIcon kind={kind === 'card' ? 'anyCard' : kind} amount={1} size={22} /> : undefined;
 };
 
 

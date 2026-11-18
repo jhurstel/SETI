@@ -1,87 +1,19 @@
 import React from 'react';
-import { Bonus, Card, Game, InteractionState, CostType, CardType, RevenueType } from '../../core/types';
+import { Bonus, Card, Game, InteractionState, CostType } from '../../core/types';
 import { CardSystem } from '../../systems/CardSystem';
 import { CardTooltip } from './CardTooltip';
 import { ActionTooltip, DiscardSymbol, ResourceSymbols } from './BoardTooltips';
-import { ResourceIcon, ActionHexIcon, DiscardCardIcon } from './GameIcons';
-import { BonusIcons, SectorSignalIcon } from './BonusIcons';
-import { freeActionBonus, revenueBonus } from './cardBonus';
-import { FREE_ACTION_STYLES, SECTOR_STYLES, REVENUE_STYLES } from '../styles/celestialStyles';
+import { ActionHexIcon, DiscardCardIcon } from './GameIcons';
+import { freeActionBonus } from './cardBonus';
+import { CardFace } from './CardFace';
 
-/** Contenu d'une carte (main, rangée, fenêtres de choix) : l'attribut utile au choix en cours est mis en surbrillance. */
-export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue' | 'scan' | 'freeAction' }> = ({ card, highlightedAttribute }) => {
-  let bottomLabel = '';
-  let bottomValue: React.ReactNode = '';
-  let bottomStyle = { color: '#fff', borderColor: '#fff', bgColor: 'rgba(255, 255, 255, 0.1)' };
-  let details: React.ReactNode = null;
-
-  if (card.type === CardType.EXERTIEN) {
-    // Carte Exertien : ni réservée, ni défaussée, ni jouée normalement ; seul son danger compte
-    bottomLabel = 'Danger';
-    bottomValue = String(card.danger ?? 0);
-    bottomStyle = { color: '#ff6b6b', borderColor: '#b33a3a', bgColor: 'rgba(179, 58, 58, 0.18)' };
-  } else if (highlightedAttribute === 'revenue') {
-    bottomLabel = 'Réservation';
-    bottomValue = card.revenue && (
-      <BonusIcons bonus={revenueBonus(card.revenue)} size={20} empty={card.revenue} />
-    );
-    if (card.revenue && REVENUE_STYLES[card.revenue]) bottomStyle = REVENUE_STYLES[card.revenue];
-    details = (
-      <>
-        {card.freeAction && <div className="card-attribute">Action:<BonusIcons bonus={freeActionBonus(card.freeAction)} size={12} empty={card.freeAction} /></div>}
-        {card.scanSector && <div className="card-attribute">Signal:<SectorSignalIcon sector={card.scanSector} size={13} /></div>}
-      </>
-    );
-  } else if (highlightedAttribute === 'scan') {
-    bottomLabel = 'Signal';
-    bottomValue = card.scanSector && (
-      <SectorSignalIcon sector={card.scanSector} size={22} />
-    );
-    if (card.scanSector && SECTOR_STYLES[card.scanSector]) bottomStyle = SECTOR_STYLES[card.scanSector];
-    details = (
-      <>
-        {card.freeAction && <div className="card-attribute">Action:<BonusIcons bonus={freeActionBonus(card.freeAction)} size={12} empty={card.freeAction} /></div>}
-        {card.revenue && <div className="card-attribute">Revenu:<BonusIcons bonus={revenueBonus(card.revenue)} size={12} empty={card.revenue} /></div>}
-      </>
-    );
-  } else {
-    bottomLabel = 'Action gratuite';
-    bottomValue = card.freeAction && (
-      <BonusIcons bonus={freeActionBonus(card.freeAction)} size={20} empty={card.freeAction} />
-    );
-    if (card.freeAction && FREE_ACTION_STYLES[card.freeAction]) bottomStyle = FREE_ACTION_STYLES[card.freeAction];
-    details = (
-      <>
-        {card.revenue && <div className="card-attribute">Revenu:<BonusIcons bonus={revenueBonus(card.revenue)} size={12} empty={card.revenue} /></div>}
-        {card.scanSector && <div className="card-attribute">Signal:<SectorSignalIcon sector={card.scanSector} size={13} /></div>}
-      </>
-    );
-  }
-
-  const { color, borderColor, bgColor } = bottomStyle;
-
-  return (
-    <>
-      <div className="seti-card-name hand-card-name"><span>{card.name}</span></div>
-      <div className="hand-card-meta">
-        {/* Une carte Exertien se joue gratuitement à un palier : pas de coût */}
-        {card.type === CardType.EXERTIEN ? <span /> : <span className="hand-card-cost">Coût: <span style={{ color: card.costType === CostType.ENERGY ? '#4caf50' : '#ffd700', display: 'inline-flex', alignItems: 'center', gap: '2px', verticalAlign: 'middle' }}><ResourceIcon kind={card.costType === CostType.ENERGY ? 'energy' : 'credit'} amount={card.cost} size={14} /></span></span>}
-        <span className="hand-card-type">{card.type === CardType.ACTION ? 'ACT' : card.type === CardType.END_GAME ? 'FIN' : card.type === CardType.EXERTIEN ? 'EXE' : 'MIS'}</span>
-      </div>
-      {card.description && <div className="seti-card-description hand-card-description">{card.description}</div>}
-      {details && (
-        <div className="seti-card-details hand-card-details">
-          {details}
-        </div>
-      )}
-
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', border: `2px solid ${borderColor}`, borderRadius: '8px', backgroundColor: bgColor, margin: '4px 0', padding: '4px' }}>
-        <div style={{ fontSize: '0.7em', textTransform: 'uppercase', color: (highlightedAttribute === 'revenue' && card.revenue === RevenueType.CARD) ? '#333' : '#ddd', marginBottom: '2px' }}>{bottomLabel}</div>
-        <div style={{ fontSize: '1.1em', fontWeight: 'bold', color: color, textAlign: 'center' }}>{bottomValue || 'Aucun'}</div>
-      </div>
-    </>
-  );
-};
+/**
+ * Contenu d'une carte (main, rangée, fenêtres de choix) : miniature de la carte, sans mise en avant (le coin utile se lit
+ * sur la carte elle-même) ; `highlightedAttribute` reste accepté par les appelants
+ */
+export const CardContent: React.FC<{ card: Card, highlightedAttribute: 'revenue' | 'scan' | 'freeAction' }> = ({ card }) => (
+  <CardFace card={card} compact />
+);
 
 export const HandCard: React.FC<{
   card: Card;

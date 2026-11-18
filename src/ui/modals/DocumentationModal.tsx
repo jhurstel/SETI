@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { SymbolGlossary, TechnologyGlossary, ObjectiveGlossary, SpeciesSymbols } from '../components/SymbolGlossary';
+import { CardGlossary, SpeciesCardGlossary } from '../components/CardGlossary';
 import { renderMarkdown } from '../components/markdown';
 import { versionLabel } from '../version';
 import { tutorialProgress } from '../tutorialProgress';
@@ -46,7 +47,7 @@ export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible,
     [source, unlockedSpecies],
   );
 
-  // Emplacements {{glossaire}}, {{technologies}}, {{objectifs}}, {{symboles-espece:Nom}} du texte :
+  // Emplacements {{glossaire}}, {{technologies}}, {{objectifs}}, {{symboles-espece:Nom}}, {{cartes}}, {{cartes-espece:Nom}} du texte :
   // le composant y est inséré (vraies icônes du jeu)
   const [componentSlots, setComponentSlots] = useState<Element[]>([]);
   useLayoutEffect(() => {
@@ -58,6 +59,8 @@ export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible,
       case 'technologies': return <TechnologyGlossary />;
       case 'objectifs': return <ObjectiveGlossary />;
       case 'symboles-espece': return <SpeciesSymbols species={slot.getAttribute('data-doc-arg') ?? ''} />;
+      case 'cartes': return <CardGlossary />;
+      case 'cartes-espece': return <SpeciesCardGlossary species={slot.getAttribute('data-doc-arg') ?? ''} />;
       default: return null;
     }
   };
@@ -72,8 +75,9 @@ export const DocumentationModal: React.FC<DocumentationModalProps> = ({ visible,
 
   if (!visible) return null;
 
+  // Lien du sommaire : saut direct à la section (sans défilement animé à travers les planches de cartes)
   const goTo = (id: string) => {
-    bodyRef.current?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    bodyRef.current?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView({ block: 'start' });
   };
 
   return (

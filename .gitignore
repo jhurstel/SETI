@@ -36,6 +36,7 @@ tools/spsa/build*/
 tools/spsa/out/
 tools/bench/build/
 tools/tutorial/build/
+tools/cards/build/
 server/build/
 server/data/
 

@@ -176,7 +176,7 @@ const oumuamua: TutorialChapter = {
 // --- Mascamites : spécimen prélevé, capsule ramenée sur Terre ---
 
 /** Premier Contact : 1 Déplacement et 1 Atterrissage, puis prélèvement d'un spécimen ; mission : le ramener sur Terre */
-const SPECIMEN_CARD = 'ET.2';
+const SPECIMEN_CARD = 'ET.1';
 const capsuleOf = (game: Game, humanId: string) => freeProbe(game, humanId, ProbeState.CAPSULE);
 const specimenMission = ({ game, humanId }: TutorialContext) => humanOf(game, humanId).missions.find(m => m.cardId === SPECIMEN_CARD);
 const specimenDelivered = (c: TutorialContext) => (specimenMission(c)?.completedRequirementIds.length ?? 0) > 0;

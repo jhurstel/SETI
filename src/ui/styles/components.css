@@ -161,41 +161,6 @@
   display: block;
 }
 
-.mission-requirement-tooltip {
-  padding: 4px;
-  max-width: 200px;
-}
-
-/* Posée avec .seti-mission-requirements-row : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
-.seti-mission-requirements-row.mission-rewards {
-  display: flex;
-  width: 100%;
-  padding: 8px 0 4px 0;
-  margin-top: auto;
-  justify-content: space-evenly;
-}
-
-/* Posée avec .seti-card-tooltip-stats : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
-.seti-card-tooltip-stats.mission-complete {
-  grid-column: 1 / -1;
-  text-align: center;
-  color: #4caf50;
-  font-weight: bold;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid #555;
-}
-
-.mission-label {
-  font-weight: bold;
-}
-
-.mission-requirement-line {
-  display: flex;
-  align-items: flex-start;
-  margin-bottom: 4px;
-}
-
 .svg-visible {
   overflow: visible;
 }
@@ -210,15 +175,6 @@
   font-weight: bold;
   text-shadow: 0 0 3px #000;
   pointer-events: none;
-}
-
-/* Posée avec .seti-mission-requirements-row : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
-.seti-mission-requirements-row.played-mission-rewards {
-  display: flex;
-  width: 100%;
-  padding: 4px 0;
-  margin-top: auto;
-  justify-content: center;
 }
 
 .sector-marker-dot {
@@ -328,88 +284,6 @@
 /* Posée avec .seti-modal-overlay : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
 .seti-modal-overlay.seti-modal-overlay--online {
   z-index: 2000;
-}
-
-/* Posée avec .seti-card-details : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
-.seti-card-details.hand-card-details {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  margin-top: auto;
-  font-size: 0.7em;
-  background-color: rgba(0,0,0,0.2);
-  padding: 2px;
-  border-radius: 4px;
-  justify-content: space-between;
-}
-
-/* Posée avec .seti-card-description : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
-.seti-card-description.hand-card-description {
-  font-size: 0.7em;
-  color: #ccc;
-  font-style: italic;
-  line-height: 1.2;
-  flex: 1;
-  margin: 4px 0;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  text-overflow: ellipsis;
-}
-
-.hand-card-type {
-  color: #aaa;
-  font-size: 0.9em;
-}
-
-.hand-card-cost {
-  background-color: rgba(0,0,0,0.3);
-  padding: 0 4px;
-  border-radius: 4px;
-}
-
-.hand-card-meta {
-  font-size: 0.75em;
-  margin-top: 2px;
-  display: flex;
-  justify-content: space-between;
-}
-
-/* Posée avec .seti-card-name : sélecteur composé, pour l'emporter quel que soit l'ordre des feuilles */
-.seti-card-name.hand-card-name {
-  font-size: 0.75rem;
-  line-height: 1.1;
-  margin-bottom: 4px;
-  height: 2.2em;
-  overflow: hidden;
-}
-
-.card-attribute {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  white-space: nowrap;
-}
-
-.card-tooltip-attribute {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.card-tooltip-value {
-  color: #aaffaa;
-}
-
-.card-tooltip-danger {
-  color: #ff6b6b;
-  font-weight: bold;
-}
-
-.card-tooltip-empty {
-  font-style: italic;
-  color: #aaa;
 }
 
 /* Glossaire : symbole qui est un emoji de l'interface (danger Exertiens, premier joueur) */

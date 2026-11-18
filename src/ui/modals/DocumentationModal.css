@@ -150,6 +150,35 @@
     color: #9fb8ff;
 }
 
+/* Planches de cartes (glossaire 3.2, sections des espèces) : faces en grande taille réduites */
+.seti-card-plate {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    zoom: 0.8;
+}
+
+/* Planche d'une espèce : séparée des symboles qui la précèdent */
+[data-doc-component="cartes-espece"] {
+    margin-top: 20px;
+}
+
+/* Jeton spécimen Mascamite du glossaire : disque doré, récompense dedans (deux ressources l'une au-dessus de l'autre) */
+.seti-specimen-token {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid #6e5212;
+    background: radial-gradient(circle at 38% 32%, #fbf0a4, #d9b546 55%, #8f6b1a);
+    box-sizing: border-box;
+    flex: none;
+}
+.seti-specimen-token .bonus-icons { display: inline-flex; align-items: center; justify-content: center; gap: 1px; }
+.seti-specimen-token.stacked .bonus-icons { flex-direction: column; gap: 0; line-height: 1; }
+
 .seti-glossary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -232,3 +261,6 @@
     border-color: #ffd76a;
     color: #ffd76a;
 }
+
+/* Les 7 jetons spécimen, sous le texte de « Récompense d'un spécimen » */
+.seti-specimen-tokens { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }

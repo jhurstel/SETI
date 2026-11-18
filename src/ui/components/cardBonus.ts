@@ -10,7 +10,7 @@ export const revenueBonus = (revenue: RevenueType | undefined): Bonus | null => 
   switch (revenue) {
     case RevenueType.CREDIT: return { credits: 1 };
     case RevenueType.ENERGY: return { energy: 1 };
-    case RevenueType.CARD: return { anycard: 1 };
+    case RevenueType.CARD: return { card: 1 }; // carte piochée (pas de choix dans la rangée)
     case RevenueType.DATA: return { data: 1 };
     case RevenueType.MEDIA: return { media: 1 };
     default: return null;

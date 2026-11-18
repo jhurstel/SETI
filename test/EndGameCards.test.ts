@@ -34,7 +34,7 @@ describe('Décompte final : cartes Fin de partie', () => {
     expect(missionEndGame(game)).toBe(2);
   });
 
-  test('126 Télescope Spatial Euclide : 2 PV par technologie Informatique', () => {
+  test('126 Télescope Spatial Euclid : 2 PV par technologie Informatique', () => {
     playEndGameCard(game, '126');
     const techs = game.board.technologyBoard.available;
     const computing = techs.filter(t => t.type === TechnologyCategory.COMPUTING).slice(0, 2);

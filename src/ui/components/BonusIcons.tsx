@@ -12,7 +12,10 @@ const LIFE_TRACE_ICON: Partial<Record<LifeTraceType, LifeTraceColor>> = {
   [LifeTraceType.BLUE]: 'blue',
 };
 
-/** Signal selon le secteur visé : disque coloré (secteur d'une couleur) ou gris avec un badge (Terre, planète, rangée, pioche, sonde) */
+/**
+ * Signal selon le secteur visé : disque coloré (secteur d'une couleur) ou gris avec un badge (Terre, rangée, pioche) ;
+ * le secteur d'une planète, d'une sonde ou d'une anomalie prend le signal quelconque, précisé par écrit (« dans le secteur de Mars »)
+ */
 const SIGNAL_SCOPES: Partial<Record<SectorType, { color?: string; badge?: SignalBadge }>> = {
   [SectorType.RED]: { color: LIFE_TRACE_COLORS.red },
   [SectorType.YELLOW]: { color: LIFE_TRACE_COLORS.yellow },
@@ -21,16 +24,16 @@ const SIGNAL_SCOPES: Partial<Record<SectorType, { color?: string; badge?: Signal
   [SectorType.ANY]: {},
   [SectorType.ROW]: { badge: 'card' },
   [SectorType.DECK]: { badge: 'deck' },
-  [SectorType.PROBE]: { badge: 'probe' },
+  [SectorType.PROBE]: {},
   [SectorType.EARTH]: { badge: 'earth' },
-  [SectorType.MERCURY]: { badge: 'mercury' },
-  [SectorType.VENUS]: { badge: 'venus' },
-  [SectorType.MARS]: { badge: 'mars' },
-  [SectorType.JUPITER]: { badge: 'jupiter' },
-  [SectorType.SATURN]: { badge: 'saturn' },
+  [SectorType.MERCURY]: {},
+  [SectorType.VENUS]: {},
+  [SectorType.MARS]: {},
+  [SectorType.JUPITER]: {},
+  [SectorType.SATURN]: {},
   [SectorType.OUMUAMUA]: { badge: 'oumuamua' },
-  [SectorType.ANOMALY]: { badge: 'anomaly' },
-  [SectorType.NEXT_ANOMALY]: { badge: 'nextAnomaly' },
+  [SectorType.ANOMALY]: {},
+  [SectorType.NEXT_ANOMALY]: {},
 };
 
 /** Symbole du signal d'une carte (coin de scan) : disque à la couleur du secteur ; à défaut, le nom du secteur */
@@ -101,10 +104,9 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
     if (bonus.credits) add('credits', <ResourceIcon kind="credit" amount={bonus.credits} size={size} />, amountLabel(bonus.credits, 'Crédit'));
     if (bonus.energy) add('energy', <ResourceIcon kind="energy" amount={bonus.energy} size={size} />, amountLabel(bonus.energy, 'Énergie'));
     if (bonus.media) add('media', <ResourceIcon kind="media" amount={bonus.media} size={size} />, amountLabel(bonus.media, 'Média'));
-    if (bonus.card || bonus.anycard) {
-      const cards = (bonus.card || 0) + (bonus.anycard || 0);
-      add('card', <ResourceIcon kind="card" amount={cards} size={size} />, amountLabel(cards, 'Carte'));
-    }
+    // Pioche (« ? ») et carte au choix, de la rangée ou de la pioche (sans « ? »)
+    if (bonus.card) add('card', <ResourceIcon kind="card" amount={bonus.card} size={size} />, amountLabel(bonus.card, 'Pioche'));
+    if (bonus.anycard) add('anycard', <ResourceIcon kind="anyCard" amount={bonus.anycard} size={size} />, `${amountLabel(bonus.anycard, 'Carte')} (rangée ou pioche)`);
     if (bonus.speciesCard) add('speciesCard', <ResourceIcon kind="alienCard" amount={bonus.speciesCard} size={size} />, amountLabel(bonus.speciesCard, 'Carte Alien', 'Cartes Alien'));
     if (bonus.token && bonus.token > 0) add('token', <ResourceIcon kind="token" amount={bonus.token} size={size} />, amountLabel(bonus.token, 'Jeton Oumuamua', 'Jetons Oumuamua'));
     if (bonus.data) add('data', <ResourceIcon kind="data" amount={bonus.data} size={size} />, amountLabel(bonus.data, 'Donnée'));

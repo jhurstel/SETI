@@ -44,6 +44,10 @@ describe('renderMarkdown (documentation du jeu)', () => {
       .toBe('<p><img class="seti-doc-image" src="./docs/images/menus/recompenses.png" alt="Menu des récompenses" loading="lazy"></p>');
   });
 
+  test('italique : le nom d\'une carte, sans toucher au gras', () => {
+    expect(renderMarkdown('*Écoute Attentive* (ET.14) et **gras**').html).toBe('<p><em>Écoute Attentive</em> (ET.14) et <strong>gras</strong></p>');
+  });
+
   test('le texte est échappé', () => {
     expect(renderMarkdown('<script>alert(1)</script>').html).toBe('<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>');
   });

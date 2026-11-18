@@ -252,13 +252,6 @@
   background-color: rgba(76, 175, 80, 0.1);
 }
 
-.seti-mission-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 4px;
-}
-
 .seti-mission-title {
   font-weight: bold;
   color: #fff;
@@ -272,26 +265,31 @@
   font-weight: bold;
 }
 
-.seti-mission-desc {
-  font-size: 0.7em;
-  color: #ccc;
-  font-style: italic;
-  flex: 1;
-  overflow: hidden;
+/* Coche d'une carte posée accomplie : par-dessus sa face, en haut au centre */
+.seti-mission-card > .seti-mission-check,
+.seti-played-card > .seti-mission-check {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  text-shadow: 0 0 3px #000;
 }
+
+/* Réception d'une carte Centaurien : étoile dans le coin inférieur gauche, dorée une fois reçue */
+.seti-played-card-reception {
+  position: absolute;
+  left: 4px;
+  bottom: 1px;
+  z-index: 2;
+  cursor: help;
+}
+.seti-played-card-star { font-size: 14px; color: #ddd; text-shadow: 0 0 2px #000; }
+.seti-played-card-star.received { color: #ffd700; text-shadow: 0 0 5px #ffd700; }
 
 .seti-played-card {
   border-left: 3px solid #ffd700;
   background-color: rgba(30, 30, 40, 0.9);
-}
-
-.seti-played-card-tag {
-  font-size: 0.6em;
-  color: #ffd700;
-  font-weight: bold;
-  border: 1px solid #ffd700;
-  border-radius: 3px;
-  padding: 0 2px;
 }
 
 /* Tooltip content styles */
@@ -316,44 +314,9 @@
   color: #ff6b6b;
 }
 
-/* Card Tooltip */
+/* Infobulle d'une carte : sa face en grande taille (CardFace) */
 .seti-card-tooltip {
-  width: 240px;
-  text-align: left;
-}
-.seti-card-tooltip-title {
-  font-weight: bold;
-  color: #4a9eff;
-  font-size: 1.1rem;
-  margin-bottom: 6px;
-  border-bottom: 1px solid #444;
-  padding-bottom: 4px;
-}
-.seti-card-tooltip-desc {
-  font-size: 0.95em;
-  color: #fff;
-  margin-bottom: 10px;
-  line-height: 1.4;
-}
-.seti-card-tooltip-mission {
-  margin-top: 6px;
-  border-top: 1px dashed #555;
-  padding-top: 4px;
-}
-.seti-card-tooltip-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  font-size: 0.85em;
-  background-color: rgba(255,255,255,0.05);
-  padding: 8px;
-  border-radius: 4px;
-}
-.seti-card-tooltip-scan {
-  grid-column: 1 / -1;
-  margin-top: 4px;
-  padding-top: 4px;
-  border-top: 1px solid rgba(255,255,255,0.1);
+  width: max-content;
 }
 
 /* Action Button */

@@ -162,14 +162,14 @@ describe('Cartes corrigées', () => {
     expect(getPlayer(CardSystem.playCard(game, P1, 'ET.26').updatedGame, P1).tokens).toBe(tokens + 1);
   });
 
-  test("ET.1 Exploration en Rover : l'atterrissage sur une lune de Jupiter propose un spécimen", async () => {
-    const game = await gameWithCard('ET.1');
-    expect(card('ET.1').passiveEffects.map(e => e.type)).toContain('GAIN_SATELLITE_LANDING_AND_SPECIMEN');
-    const played = CardSystem.playCard(game, P1, 'ET.1');
+  test("ET.2 Exploration en Rover : l'atterrissage sur une lune de Jupiter propose un spécimen", async () => {
+    const game = await gameWithCard('ET.2');
+    expect(card('ET.2').passiveEffects.map(e => e.type)).toContain('GAIN_SATELLITE_LANDING_AND_SPECIMEN');
+    const played = CardSystem.playCard(game, P1, 'ET.2');
     expect(played.newPendingInteractions).toContainEqual(expect.objectContaining({ type: 'LANDING_PROBE', ignoreSatelliteLimit: true }));
     const moonId = game.board.planets.find(p => p.id === 'jupiter')!.satellites![0].id;
     played.updatedGame.board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens = [{ bonus: { pv: 3 } }];
-    expect(ProbeSystem.shouldCollectSpecimen(played.updatedGame, moonId, 'ET.1')).toBe(true);
+    expect(ProbeSystem.shouldCollectSpecimen(played.updatedGame, moonId, 'ET.2')).toBe(true);
   });
 
   describe('missions conditionnelles des espèces', () => {

@@ -27,6 +27,8 @@ const inline = (text: string, baseUrl: string) =>
   escapeHtml(text)
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    // Italique (nom d'une carte : *Écoute Attentive*), après le gras
+    .replace(/\*([^*\s][^*]*)\*/g, '<em>$1</em>')
     .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, alt: string, src: string) =>
       `<img class="seti-doc-image" src="${resolve(src, baseUrl)}" alt="${alt}" loading="lazy">`)
     .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, label: string, href: string) =>

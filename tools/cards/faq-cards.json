@@ -1,0 +1,486 @@
+{
+  "source": "public/docs/SETI-FAQ-FR.pdf",
+  "version": "BGG 12.2025",
+  "cards": [
+    {
+      "id": "1",
+      "name": "Mission Pioneer 11",
+      "page": 15
+    },
+    {
+      "id": "2",
+      "name": "Mission Mariner 10",
+      "page": 15
+    },
+    {
+      "id": "3",
+      "name": "Mission Voyager 2",
+      "page": 15
+    },
+    {
+      "id": "4",
+      "name": "Mission Galileo",
+      "page": 15
+    },
+    {
+      "id": "9",
+      "name": "Falcon Heavy",
+      "page": 15
+    },
+    {
+      "id": "11",
+      "name": "Subventions",
+      "page": 15
+    },
+    {
+      "id": "15",
+      "name": "Rentrée Atmosphérique",
+      "page": 15
+    },
+    {
+      "id": "16",
+      "name": "Dragonfly",
+      "page": 16
+    },
+    {
+      "id": "17",
+      "name": "OSIRIS-REx",
+      "page": 16
+    },
+    {
+      "id": "19",
+      "name": "Assistance Gravitationnelle",
+      "page": 16
+    },
+    {
+      "id": "20",
+      "name": "Survol de Mercure",
+      "page": 16
+    },
+    {
+      "id": "21",
+      "name": "Survol de Vénus",
+      "page": 16
+    },
+    {
+      "id": "22",
+      "name": "Survol de Mars",
+      "page": 16
+    },
+    {
+      "id": "23",
+      "name": "Survol de Jupiter",
+      "page": 16
+    },
+    {
+      "id": "24",
+      "name": "Survol de Saturne",
+      "page": 16
+    },
+    {
+      "id": "25",
+      "name": "Voile Solaire",
+      "page": 17
+    },
+    {
+      "id": "26",
+      "name": "À Travers la Ceinture d’Astéroïdes",
+      "page": 17
+    },
+    {
+      "id": "27",
+      "name": "Télescope Spatial Hubble",
+      "page": 17
+    },
+    {
+      "id": "28",
+      "name": "Télescope Spatial Kepler",
+      "page": 17
+    },
+    {
+      "id": "29",
+      "name": "Télescope Spatial James Webb",
+      "page": 17
+    },
+    {
+      "id": "30",
+      "name": "Programme des Grands Observatoires",
+      "page": 17
+    },
+    {
+      "id": "45",
+      "name": "Allen Telescope Array",
+      "page": 18
+    },
+    {
+      "id": "46",
+      "name": "Observatoire ALMA",
+      "page": 18
+    },
+    {
+      "id": "47",
+      "name": "Very Large Array",
+      "page": 18
+    },
+    {
+      "id": "50",
+      "name": "Square Kilometre Array",
+      "page": 18
+    },
+    {
+      "id": "51",
+      "name": "Télescope Lovell",
+      "page": 18
+    },
+    {
+      "id": "52",
+      "name": "Observatoire de Parkes",
+      "page": 18
+    },
+    {
+      "id": "53",
+      "name": "Deep Synoptic Array",
+      "page": 18
+    },
+    {
+      "id": "54",
+      "name": "Télescopes VERITAS",
+      "page": 18
+    },
+    {
+      "id": "55",
+      "name": "Radiotélescope d’Arecibo",
+      "page": 18
+    },
+    {
+      "id": "58",
+      "name": "Orbiteur et Sonde d’Uranus",
+      "page": 18
+    },
+    {
+      "id": "60",
+      "name": "Sonde Trident",
+      "page": 19
+    },
+    {
+      "id": "65",
+      "name": "Radiotélescope FAST",
+      "page": 19
+    },
+    {
+      "id": "67",
+      "name": "Radiotélescope d’Eupatoria",
+      "page": 19
+    },
+    {
+      "id": "73",
+      "name": "Initiative Clean Space",
+      "page": 19
+    },
+    {
+      "id": "78",
+      "name": "Institut SETI",
+      "page": 19
+    },
+    {
+      "id": "79",
+      "name": "ISS",
+      "page": 19
+    },
+    {
+      "id": "80",
+      "name": "Base de lancement du KSC",
+      "page": 19
+    },
+    {
+      "id": "81",
+      "name": "Collaboration Internationale",
+      "page": 20
+    },
+    {
+      "id": "84",
+      "name": "Retour d’Échantillons",
+      "page": 20
+    },
+    {
+      "id": "88",
+      "name": "Observatoire Spatial Chandra",
+      "page": 20
+    },
+    {
+      "id": "89",
+      "name": "Programme NIAC",
+      "page": 20
+    },
+    {
+      "id": "91",
+      "name": "Réacteur à Fusion",
+      "page": 20
+    },
+    {
+      "id": "92",
+      "name": "Photo du Jour de la NASA",
+      "page": 20
+    },
+    {
+      "id": "93",
+      "name": "Financement Public",
+      "page": 20
+    },
+    {
+      "id": "98",
+      "name": "Spectrographe Coronal",
+      "page": 21
+    },
+    {
+      "id": "99",
+      "name": "Microscope Électronique",
+      "page": 21
+    },
+    {
+      "id": "100",
+      "name": "Supercalculateur Exascale",
+      "page": 21
+    },
+    {
+      "id": "101",
+      "name": "Temps de Télescope",
+      "page": 21
+    },
+    {
+      "id": "103",
+      "name": "Radiotélescope de Synthèse de Westerbork",
+      "page": 21
+    },
+    {
+      "id": "106",
+      "name": "Planification Stratégique",
+      "page": 21
+    },
+    {
+      "id": "107",
+      "name": "Première Photo d’un Trou Noir",
+      "page": 21
+    },
+    {
+      "id": "112",
+      "name": "Cartographie Géologique Planétaire",
+      "page": 22
+    },
+    {
+      "id": "113",
+      "name": "Congrès Solvay",
+      "page": 22
+    },
+    {
+      "id": "114",
+      "name": "Chasseurs de Planètes",
+      "page": 22
+    },
+    {
+      "id": "116",
+      "name": "Centre de Contrôle",
+      "page": 22
+    },
+    {
+      "id": "117",
+      "name": "Station Lunar Gateway",
+      "page": 22
+    },
+    {
+      "id": "118",
+      "name": "PLATO",
+      "page": 23
+    },
+    {
+      "id": "119",
+      "name": "PIXL",
+      "page": 23
+    },
+    {
+      "id": "120",
+      "name": "Orbite aux Points de Lagrange",
+      "page": 23
+    },
+    {
+      "id": "122",
+      "name": "Astronomes Amateurs",
+      "page": 23
+    },
+    {
+      "id": "123",
+      "name": "Survol d’Astéroïdes",
+      "page": 23
+    },
+    {
+      "id": "124",
+      "name": "Rencontre avec une Comète",
+      "page": 24
+    },
+    {
+      "id": "125",
+      "name": "Correction de Trajectoire",
+      "page": 24
+    },
+    {
+      "id": "126",
+      "name": "Télescope Spatial Euclid",
+      "page": 24
+    },
+    {
+      "id": "127",
+      "name": "NEAR Shoemaker",
+      "page": 24
+    },
+    {
+      "id": "128",
+      "name": "Système de Navigation Avancé",
+      "page": 24
+    },
+    {
+      "id": "129",
+      "name": "Recherche d’Astéroïdes",
+      "page": 25
+    },
+    {
+      "id": "133",
+      "name": "Fenêtre de Lancement Optimale",
+      "page": 25
+    },
+    {
+      "id": "134",
+      "name": "Télescope Spatial Herschel",
+      "page": 25
+    },
+    {
+      "id": "135",
+      "name": "Radiotélescope de Noto",
+      "page": 25
+    },
+    {
+      "id": "136",
+      "name": "Radiotélescope d’Algonquin",
+      "page": 26
+    },
+    {
+      "id": "138",
+      "name": "Université Cornell",
+      "page": 26
+    },
+    {
+      "id": "ET.1",
+      "name": "Premier Contact",
+      "page": 26
+    },
+    {
+      "id": "ET.2",
+      "name": "Exploration en Rover",
+      "page": 26
+    },
+    {
+      "id": "ET.3",
+      "name": "Prélèvement de Spécimens à Grande Échelle",
+      "page": 26
+    },
+    {
+      "id": "ET.4",
+      "name": "Laboratoire Martien de Quarantaine",
+      "page": 26
+    },
+    {
+      "id": "ET.5",
+      "name": "Étude de l’Écosystème",
+      "page": 26
+    },
+    {
+      "id": "ET.6",
+      "name": "La Reine",
+      "page": 27
+    },
+    {
+      "id": "ET.7",
+      "name": "Prélèvement de Reproducteurs",
+      "page": 27
+    },
+    {
+      "id": "ET.13",
+      "name": "Populations Inquiètes",
+      "page": 27
+    },
+    {
+      "id": "ET.14",
+      "name": "Écoute Attentive",
+      "page": 27
+    },
+    {
+      "id": "ET.15",
+      "name": "Vie Quotidienne",
+      "page": 27
+    },
+    {
+      "id": "ET.20",
+      "name": "Incertitudes et Stupéfaction",
+      "page": 28
+    },
+    {
+      "id": "ET.21",
+      "name": "Visiteur Céleste",
+      "page": 28
+    },
+    {
+      "id": "ET.22",
+      "name": "Modification de Trajectoire",
+      "page": 28
+    },
+    {
+      "id": "ET.23",
+      "name": "Découverte d’Exofossiles",
+      "page": 28
+    },
+    {
+      "id": "ET.27",
+      "name": "Synchronisation Parfaite",
+      "page": 28
+    },
+    {
+      "id": "ET.29",
+      "name": "Analyse Comparative",
+      "page": 29
+    },
+    {
+      "id": "ET.31",
+      "name": "Conception d’Engins Spatiaux",
+      "page": 29
+    },
+    {
+      "id": "ET.32",
+      "name": "Exo-ordinateurs",
+      "page": 29
+    },
+    {
+      "id": "ET.33",
+      "name": "Graphémie",
+      "page": 29
+    },
+    {
+      "id": "ET.38",
+      "name": "Concept de l’Esprit de Ruche",
+      "page": 29
+    },
+    {
+      "id": "ET.39",
+      "name": "Plans de Télescope",
+      "page": 29
+    },
+    {
+      "id": "ET.40",
+      "name": "Signal à Amplification Exponentielle",
+      "page": 29
+    },
+    {
+      "id": "SE FR 01",
+      "name": "Planète naine depuis 2006",
+      "page": 30
+    }
+  ]
+}

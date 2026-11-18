@@ -348,20 +348,6 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   flex-shrink: 0;
 }
 
-/* --- Gestion des cartes en main --- */
-.seti-card-name {
-  font-weight: bold;
-  color: #78a0ff;
-  margin-bottom: 2px;
-  font-size: 0.75rem;
-}
-
-.seti-card-description {
-  font-size: 0.65rem;
-  color: #aaa;
-  margin-top: 2px;
-}
-
 .seti-card-wrapper {
   transition: all 0.2s ease;
   position: relative;

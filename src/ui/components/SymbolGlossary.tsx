@@ -1,15 +1,20 @@
 import React from 'react';
-import { AlienBoardType, ObjectiveCategory, ObjectiveTile, TechnologyCategory } from '../../core/types';
+import { AlienBoardType, Bonus, ObjectiveCategory, ObjectiveTile, TechnologyCategory } from '../../core/types';
 import { AnomalyIcon, MascamiteIcon, TrophyIcon, ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS, MissionCompleteIcon, RefuseIcon, TransferDataIcon, TechTileIcon } from './GameIcons';
 import { ReservationIcon, TechCategoryIcon, AnyTechIcon, OrbiterOrLanderIcon, OrbiterIcon, LanderIcon, CoveredSectorIcon, ObjectiveSymbol } from './ObjectiveSymbol';
 import { LIFE_TRACE_COLORS } from '../styles/lifeTraceColors';
 import { ANOMALY_COLORS } from '../styles/anomalyColors';
 import { HumanIcon, LevelStrength } from './PlayerKindIcon';
+import { ResolvedSpecimenIcon } from './CardFace';
+import { BonusIcons } from './BonusIcons';
+import { HoverTooltip } from './HoverTooltip';
 
 interface Entry {
   icon: React.ReactNode;
   name: string;
   text: string;
+  /** Contenu dessiné sous le texte (jetons des spécimens) */
+  extra?: React.ReactNode;
 }
 
 /** Couleur des secteurs noirs (signaux et secteurs couverts) */
@@ -20,22 +25,57 @@ const Conversion: React.FC<{ from: React.ReactNode; to: React.ReactNode }> = ({ 
   <span className="seti-glossary-icons seti-glossary-conversion">{from}<span className="seti-glossary-arrow">→</span>{to}</span>
 );
 
+/** Récompenses des 7 spécimens Mascamites (GameFactory : jetons `specimen` du plateau de l'espèce) */
+const SPECIMEN_REWARDS: { bonus: Bonus; text: string }[] = [
+  { bonus: { credits: 2 }, text: '2 crédits.' },
+  { bonus: { energy: 2 }, text: '2 énergies.' },
+  { bonus: { media: 3 }, text: '3 Médias.' },
+  { bonus: { data: 2 }, text: '2 données.' },
+  { bonus: { card: 2 }, text: '2 cartes piochées.' },
+  { bonus: { pv: 3, anycard: 1 }, text: '3 PV et 1 carte au choix (rangée ou pioche).' },
+  { bonus: { pv: 7 }, text: '7 PV.' },
+];
+
+/** Jeton spécimen, récompense dessinée dedans ; deux ressources différentes : l'une au-dessus de l'autre, plus petites */
+const SpecimenToken: React.FC<{ bonus: Bonus }> = ({ bonus }) => {
+  const kinds = Object.keys(bonus).length;
+  return (
+    <span className={`seti-specimen-token${kinds > 1 ? ' stacked' : ''}`}>
+      <BonusIcons bonus={bonus} size={kinds > 1 ? 13 : 18} />
+    </span>
+  );
+};
+
+/** Jetons Anomalie : deux faces par couleur, une tirée au hasard (GameFactory : `anomalie` du plateau de l'espèce) */
+const ANOMALY_TOKENS: { color: keyof typeof ANOMALY_COLORS; name: string; faces: [Bonus, Bonus]; text: string }[] = [
+  { color: 'red', name: 'Anomalie rouge', faces: [{ credits: 1 }, { pv: 4 }], text: '1 crédit ou 4 PV, selon la face tirée.' },
+  { color: 'yellow', name: 'Anomalie jaune', faces: [{ media: 2 }, { anycard: 1 }], text: '2 Médias ou 1 carte au choix, selon la face tirée.' },
+  { color: 'blue', name: 'Anomalie bleue', faces: [{ data: 1 }, { energy: 1 }], text: '1 donnée ou 1 énergie, selon la face tirée.' },
+];
+
 /** Symboles propres à chaque espèce (glossaire des symboles une fois l'espèce rencontrée, et section de l'espèce) */
 const SPECIES_SYMBOLS: Record<AlienBoardType, Entry[]> = {
   [AlienBoardType.MASCAMITES]: [
-    { icon: <MascamiteIcon size={26} />, name: 'Spécimen Mascamite', text: 'À côté du nom des Mascamites : son infobulle montre les spécimens restants sur Jupiter et Saturne (récompense si vous les avez vus, sinon « ? »). Sur les planètes : un spécimen à prélever ou étudier.' },
+    { icon: <MascamiteIcon size={26} />, name: 'Spécimen Mascamite', text: 'À côté du nom des Mascamites : son infobulle montre les spécimens restants sur Jupiter et Saturne (récompense si vous les avez vus, sinon « ? »). Sur les planètes : un spécimen à prélever ou étudier (« ? » s\'il est face cachée pour vous). Estompé : une case de la piste bleue qui recevra un spécimen ramené.' },
+    { icon: <ResolvedSpecimenIcon size={26} />, name: 'Récompense d\'un spécimen', text: 'Sur une carte : vous gagnez la récompense du spécimen (jeton ramené ou consulté). Le jeton d\'un spécimen ramené est placé sur la piste bleue des Mascamites : sa récompense se gagne en y posant une trace de vie bleue. Les 7 jetons :',
+      // Les 7 jetons, sous le texte
+      extra: <span className="seti-specimen-tokens">{SPECIMEN_REWARDS.map(({ bonus, text }, i) => (
+        <HoverTooltip key={i} content={`Spécimen ${i + 1} : ${text}`} nested><SpecimenToken bonus={bonus} /></HoverTooltip>
+      ))}</span> },
   ],
   [AlienBoardType.ANOMALIES]: [
-    { icon: <span className="seti-glossary-icons">{Object.values(ANOMALY_COLORS).map(color => <AnomalyIcon key={color} color={color} size={24} />)}</span>, name: 'Anomalies', text: 'Jetons Anomalie du système solaire, à la couleur de leur trace de vie : quand une rotation amène la Terre sur l\'une d\'elles, sa récompense (au centre du jeton) va au joueur le plus haut sur la piste de sa couleur.' },
-    { icon: <SignalGainIcon badge="anomaly" size={26} />, name: 'Signal d\'une anomalie', text: 'Dans un secteur qui contient une anomalie, au choix (la couleur du secteur et celle de l\'anomalie ne comptent pas).' },
-    { icon: <SignalGainIcon badge="nextAnomaly" size={26} />, name: 'Signal de la prochaine anomalie', text: 'Dans le secteur de la prochaine anomalie qui sera déclenchée (la première après la Terre dans le sens des secteurs), sans choix.' },
+    // Une anomalie par couleur, avec ses deux récompenses possibles (au centre du jeton, pour le joueur le plus haut sur la piste)
+    ...ANOMALY_TOKENS.map(({ color, name, faces, text }) => ({
+      icon: <span className="seti-glossary-icons"><AnomalyIcon color={ANOMALY_COLORS[color]} size={24} /><BonusIcons bonus={faces[0]} size={18} />/<BonusIcons bonus={faces[1]} size={18} /></span>,
+      name, text,
+    })),
   ],
   [AlienBoardType.OUMUAMUA]: [
     { icon: <ResourceIcon kind="token" size={28} />, name: 'Jeton Oumuamua', text: 'Gagné en couvrant le secteur d\'Oumuamua ; dépensé sur la piste de l\'espèce ou par ses cartes.' },
     { icon: <SignalGainIcon badge="oumuamua" size={26} />, name: 'Signal Oumuamua', text: 'Sur la tuile d\'Oumuamua, ou dans le secteur où il se trouve.' },
   ],
   [AlienBoardType.CENTAURIENS]: [
-    { icon: <CentaurienMessageIcon size={28} />, name: 'Message centaurien', text: 'Palier des Centauriens : une tuile Message à choisir, ou l\'effet Réception d\'une carte. Sur le plateau de l\'espèce, son infobulle liste les paliers et les tuiles Message.' },
+    { icon: <CentaurienMessageIcon size={28} />, name: 'Message centaurien', text: 'Palier des Centauriens : une tuile Message à choisir, ou l\'effet Réception d\'une carte. À côté du nom de l\'espèce, son infobulle montre les paliers de chaque joueur et les 4 tuiles Message (grisée une fois prise).' },
   ],
   [AlienBoardType.EXERTIENS]: [
     { icon: <span className="seti-glossary-emoji">☣️</span>, name: 'Danger Exertiens', text: 'À côté du nom des Exertiens : son infobulle donne le danger de chaque joueur et ses cartes Exertiens (celles des adversaires de dos).' },
@@ -63,7 +103,8 @@ const sections = (unlockedSpecies: string[]): { title: string; entries: Entry[] 
       { icon: <ResourceIcon kind="energy" size={28} />, name: 'Énergie', text: 'Paie les déplacements, les atterrissages, les scans et l\'analyse.' },
       { icon: <ResourceIcon kind="media" size={28} />, name: 'Média', text: 'Couverture médiatique (10 au plus) : technologies, achat de cartes.' },
       { icon: <ResourceIcon kind="data" size={28} />, name: 'Donnée', text: 'Réserve de 6 au plus, à transférer dans l\'ordinateur.' },
-      { icon: <ResourceIcon kind="card" size={28} />, name: 'Carte', text: 'Une carte piochée (ou prise dans la rangée si le gain le permet).' },
+      { icon: <ResourceIcon kind="card" size={28} />, name: 'Pioche', text: 'La carte du dessus de la pioche.' },
+      { icon: <ResourceIcon kind="anyCard" size={28} />, name: 'Carte', text: 'Une carte au choix : prise dans la rangée ou piochée.' },
       { icon: <ResourceIcon kind="alienCard" size={28} />, name: 'Carte Alien', text: 'Une carte de l\'espèce (pioche ou rangée de l\'espèce).' },
       { icon: <ResourceIcon kind="movement" size={28} />, name: 'Déplacement', text: 'Un déplacement gratuit de sonde (sans énergie).' },
       { icon: <ResourceIcon kind="credit" amount={1} size={28} />, name: 'Quantité', text: 'Un nombre devant le symbole : la quantité gagnée (négative : dépensée).' },
@@ -87,7 +128,7 @@ const sections = (unlockedSpecies: string[]): { title: string; entries: Entry[] 
     title: 'Actions gratuites',
     entries: [
       { icon: <Conversion from={<ResourceIcon kind="energy" amount={1} size={24} />} to={<ResourceIcon kind="movement" amount={1} size={24} />} />, name: 'Acheter un déplacement', text: '1 énergie par case : la sonde avance d\'une case (ou un déplacement gratuit reçu).' },
-      { icon: <Conversion from={<ResourceIcon kind="media" amount={3} size={24} />} to={<ResourceIcon kind="card" amount={1} size={24} />} />, name: 'Acheter une carte', text: '3 Médias : une carte de la rangée ou de la pioche (infobulle des Médias).' },
+      { icon: <Conversion from={<ResourceIcon kind="media" amount={3} size={24} />} to={<ResourceIcon kind="anyCard" amount={1} size={24} />} />, name: 'Acheter une carte', text: '3 Médias : une carte de la rangée ou de la pioche (infobulle des Médias).' },
       { icon: <Conversion from={<ResourceIcon kind="credit" amount={2} size={24} />} to={<ResourceIcon kind="energy" amount={1} size={24} />} />, name: 'Échanger des ressources', text: '2 crédits, 2 énergies ou 2 cartes contre 1 crédit, 1 énergie ou 1 carte (infobulle de la ressource dépensée).' },
       { icon: <DiscardCardIcon size={28} />, name: 'Défausser une carte', text: 'Une carte de la main pour l\'action gratuite de son coin (Média, donnée, déplacement…).' },
       { icon: <TransferDataIcon size={30} />, name: 'Transférer une donnée', text: 'Une donnée de la réserve dans l\'ordinateur (clic sur une case libre) : l\'ordinateur monte d\'un cran, certaines cases rapportent un bonus.' },
@@ -131,8 +172,6 @@ const sections = (unlockedSpecies: string[]): { title: string; entries: Entry[] 
       { icon: <SignalGainIcon badge="earth" size={26} />, name: 'Signal sur la Terre', text: 'Dans le secteur où se trouve la Terre.' },
       { icon: <SignalGainIcon badge="card" size={26} />, name: 'Signal de la rangée', text: 'Dans le secteur d\'une carte de la rangée (la carte est défaussée).' },
       { icon: <SignalGainIcon badge="deck" size={26} />, name: 'Signal de la pioche', text: 'Dans le secteur de la carte révélée en haut de la pioche.' },
-      { icon: <SignalGainIcon badge="probe" size={26} />, name: 'Signal d\'une sonde', text: 'Dans le secteur d\'une de vos sondes.' },
-      { icon: <span className="seti-glossary-icons"><SignalGainIcon badge="mercury" size={26} /><SignalGainIcon badge="mars" size={26} /><SignalGainIcon badge="jupiter" size={26} /></span>, name: 'Signal d\'une planète', text: 'Dans le secteur de cette planète.' },
       { icon: <RowCardIcon size={24} />, name: 'Carte de la rangée', text: 'Une des 3 cartes face visible.' },
       { icon: <span className="seti-glossary-icons"><CoveredSectorIcon color={LIFE_TRACE_COLORS.red} size={24} /><CoveredSectorIcon color={LIFE_TRACE_COLORS.yellow} size={24} /><CoveredSectorIcon color={LIFE_TRACE_COLORS.blue} size={24} /><CoveredSectorIcon color={BLACK_SECTOR} size={24} /></span>, name: 'Secteur couvert d\'une couleur', text: 'Un secteur de cette couleur couvert (rouge, jaune, bleu, noir) : missions, objectifs.' },
       { icon: <CoveredSectorIcon size={26} />, name: 'Secteur couvert', text: 'Un secteur couvert, de n\'importe quelle couleur.' },
@@ -156,6 +195,7 @@ const EntryGrid: React.FC<{ entries: Entry[] }> = ({ entries }) => (
         <span>
           <strong>{entry.name}</strong>
           <span className="seti-glossary-text">{entry.text}</span>
+          {entry.extra}
         </span>
       </div>
     ))}

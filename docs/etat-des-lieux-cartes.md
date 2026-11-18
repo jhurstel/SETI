@@ -16,7 +16,7 @@ Dernière mise à jour : octobre 2026. Ce document résume l'audit de toutes les
 | 108 SETI@home | Effet `GAIN_LIFETRACE_IF_MEDIA` jamais lu | Trace Rouge si le joueur a au moins 8 Médias |
 | ET.16 Saturation de l'Espace Médiatique | Aucun effet codé dans le CSV | Nouvel effet `TAKE_CARD_ROW` : les cartes de la rangée vont en main |
 | ET.26, ET.29 | Gain « 1 Token » non lu | Lecture des gains en Tokens |
-| ET.1, ET.3, ET.5, ET.6 (Mascamites) | Effets `GAIN_SATELLITE_LANDING_AND_SPECIMEN`, `GAIN_ORBIT_OR_LAND_AND_SPECIMEN`, `GAIN_SPECIMEN_BONUS` traités par le moteur mais jamais lus dans le CSV ; la carte jouée (devenue mission) n'était pas retrouvée pour proposer le spécimen | Lecture des effets ; recherche de la carte source dans les missions |
+| ET.2, ET.3, ET.5, ET.6 (Mascamites) | Effets `GAIN_SATELLITE_LANDING_AND_SPECIMEN`, `GAIN_ORBIT_OR_LAND_AND_SPECIMEN`, `GAIN_SPECIMEN_BONUS` traités par le moteur mais jamais lus dans le CSV ; la carte jouée (devenue mission) n'était pas retrouvée pour proposer le spécimen | Lecture des effets ; recherche de la carte source dans les missions |
 | ET.21, ET.22, ET.23, ET.27 (Oumuamua) | Conditions de mission `GAIN_IF_PAY_FOR_LIFETRACE`, `GAIN_IF_LANDER`, `GAIN_IF_3_TOKEN`, `GAIN_IF_SIGNAL` non traitées | Conditions implémentées ; le coût en Tokens d'ET.23 est payé (avant : 11 PV gratuits) |
 | ET.30 Rover d'Excavation | `GAIN_ON_LAND:oumuamua:pv:3` non lu ; seconde mission absente du CSV | Lecture du format à 4 éléments (limité à Oumuamua) ; ajout de `GAIN_IF_LIFETRACES_ALL_COLORS:oumuamua:token:1` |
 | ET.13 Populations Inquiètes | Ses 3 missions (« après avoir acquis une technologie ») absentes du CSV : 3 cercles jamais réalisables | `GAIN_ON_TECH:any:…` (`GAIN_ON_ANY_TECH`) : toute technologie acquise les déclenche |
@@ -59,3 +59,75 @@ Ces cartes n'ont pas d'effet visible lors du test automatique, faute de contexte
 
 - **Robots** : les trois niveaux simulent et évaluent les cartes de la même façon ; seul leur choix final est plus ou moins hésitant (température).
 - **Fiches des espèces** : les règles des espèces viennent des CSV, des règles et de la FAQ. Une règle propre à une fiche Espèce qui n'y figure pas serait à signaler.
+
+<!-- cards:audit:start -->
+## Visuel des cartes
+
+Section générée par `npm run cards:audit` (`tools/cards/cardAudit.ts`) à partir des CSV et du relevé de la FAQ (`tools/cards/faq-cards.json`, FAQ BGG 12.2025) ; `test/CardAudit.test.ts` vérifie qu'elle est à jour. Ne pas la modifier à la main.
+
+### Effets sans symbole (38 cartes)
+
+Parties d'effet que la face d'une carte (`ui/components/CardFace`) écrit en texte faute de symbole (tables `EFFECT_SYMBOLS` et `TEXT_EFFECTS` de `cardFaceModel.ts`).
+
+| Carte | Nom | En texte |
+|---|---|---|
+| 9 | Falcon Heavy | Limite de sondes ignorée |
+| 12 | Europa Clipper | Lune sans technologie |
+| 15 | Rentrée Atmosphérique | Retirez un orbiteur |
+| 17 | OSIRIS-REx | Gains des astéroïdes |
+| 19 | Assistance Gravitationnelle | Média ou déplacement |
+| 26 | A Travers la Ceinture d'Astéroïdes | Sortie des astéroïdes gratuite |
+| 50 | Square Kilometre Array | 2 PV par secteur différent |
+| 52 | Observatoire de Parkes | 2 PV par signal rouge |
+| 53 | Deep Synoptic Array | 2 PV par signal jaune |
+| 54 | Télescope VERITAS | 2 PV par signal bleu |
+| 67 | Radiotélescope d'Eupatoria | Défaussez jusqu'à 1 carte pour leur signal |
+| 71 | Recherche Ciblée | 2 PV par type de technologie |
+| 73 | Initiative Clean Space | Rangée défaussée : actions gratuites |
+| 74 | Essais de Prélancement | Cartes Déplacement révélées |
+| 75 | Etude sur les Extrêmophiles | PV selon la couleur de la trace |
+| 81 | Collaboration Internationale | Technologie déjà prise, sans bonus |
+| 84 | Retour d'Echantillons | Retirez un atterrisseur |
+| 87 | Projet Longshot | condition « Avoir une sonde à au moins 5 cases de la Terre » |
+| 90 | Réservoirs d'Ergols | Énergie par revenu énergie |
+| 91 | Réacteur à Fusion | Énergie par revenu énergie, carte réservée |
+| 92 | Photo du Jour de la NASA | Média par revenu carte, carte réservée |
+| 93 | Financement Public | PV par revenu crédit, carte réservée |
+| 95 | Etude des Astéroïdes Géocroiseurs | condition « Avoir une sonde sur un champ d'astéroïdes adjacent à la Terre » |
+| 104 | Sonde Rosetta | condition « Avoir une sonde sur une comète » |
+| 113 | Congrès Solvay | fin de partie « Résolvez la case la plus à droite d'une tuile Score dorée sur laquelle vous n'avez pas placé de marqueur » ; décompte sans symbole |
+| 114 | Chasseurs de Planètes | Défaussez jusqu'à 3 cartes pour leur signal |
+| 118 | PLATO | Sans donnée |
+| 119 | PIXL | 1 PV par Média |
+| 120 | Orbite aux Points de Lagrange | Gardez la carte si elle est seule |
+| 133 | Fenêtre de Lancement Optimale | Fenêtre de lancement |
+| 136 | Radiotélescope d'Algonquin | Sans donnée |
+| ET.5 | Etude de l'Ecosystème | Consultez un spécimen |
+| ET.11 | Signes de Vie | Déplacement si Terre sur une anomalie |
+| ET.12 | Vue Rapprochée | Sans Média |
+| ET.15 | Vie Quotidienne | Cartes piochées : action et revenu |
+| ET.16 | Saturation de l'Espace Médiatique | Prenez la rangée |
+| ET.17 | Sommes-Nous Observés ? | Récompense de la prochaine anomalie |
+| ET.20 | Incertitudes et Stupéfaction | 1 PV par signal sur une anomalie |
+
+### Cartes sans photo dans la FAQ (98 sur 193)
+
+Aucune image de référence dans la FAQ pour vérifier leur visuel (comparer à une vraie carte) :
+
+- Paquet de base : 5-8, 10, 12-14, 18, 31-44, 48, 49, 56, 57, 59, 61-64, 66, 68-72, 74-77, 82, 83, 85-87, 90, 94-97, 102, 104, 105, 108-111, 115, 121, 130-132, 137
+- Cartes d'espèce : ET.8-ET.12, ET.16-ET.19, ET.24-ET.26, ET.28, ET.30, ET.34-ET.37, ET.41-ET.55
+
+### Cartes de la FAQ absentes du jeu (1)
+
+| Carte | Nom | Page de la FAQ |
+|---|---|---|
+| SE FR 01 | Planète naine depuis 2006 | 30 |
+
+### Écarts de nom entre la FAQ et le jeu (3)
+
+| Carte | FAQ | Jeu |
+|---|---|---|
+| 27 | Télescope Spatial Hubble | Télescope Spatial Huble |
+| 54 | Télescopes VERITAS | Télescope VERITAS |
+| ET.38 | Concept de l’Esprit de Ruche | Concept de l'Esprit Ruche |
+<!-- cards:audit:end -->

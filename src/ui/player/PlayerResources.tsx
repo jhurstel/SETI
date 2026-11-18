@@ -43,6 +43,8 @@ export const PlayerResources: React.FC<{
   type TradeKind = 'credit' | 'energy' | 'card' | 'media';
   const TRADE_BONUS: Record<TradeKind, keyof Bonus> = { credit: 'credits', energy: 'energy', card: 'card', media: 'media' };
   const tradeBonus = (kind: TradeKind, amount: number): Bonus => ({ [TRADE_BONUS[kind]]: amount });
+  // Carte gagnée (échange, achat) : rangée ou pioche, au choix
+  const gainBonus = (kind: TradeKind, amount: number): Bonus => (kind === 'card' ? { anycard: amount } : tradeBonus(kind, amount));
   const freeActionReason = (lacking: string) => !isCurrentTurn ? "Ce n'est pas votre tour" : isInteractiveMode ? "Terminez d'abord l'action en cours" : lacking;
   const trade = (spend: 'credit' | 'energy', gain: 'credit' | 'energy' | 'card'): FreeAction => {
     const have = spend === 'credit' ? currentPlayer.credits : currentPlayer.energy;
@@ -71,7 +73,7 @@ export const PlayerResources: React.FC<{
             {actions.map(action => (
               <HoverTooltip key={action.key} nested content={
                 <ActionTooltip title={action.title} cost={<ResourceSymbols bonus={tradeBonus(action.spend, action.spendAmount)} />}
-                  bonus={<ResourceSymbols bonus={tradeBonus(action.gain, action.gainAmount)} note={action.note} />}
+                  bonus={<ResourceSymbols bonus={gainBonus(action.gain, action.gainAmount)} note={action.note} />}
                   available={action.available} hint={action.available ? (action.key === 'buy-card' ? 'Cliquez pour acheter' : 'Cliquez pour échanger') : freeActionReason(action.lacking)} />
               }>
                 <button
@@ -83,7 +85,7 @@ export const PlayerResources: React.FC<{
                 >
                   <ResourceIcon kind={action.spend} amount={action.spendAmount} size={18} />
                   <span aria-hidden="true">→</span>
-                  <ResourceIcon kind={action.gain} amount={action.gainAmount} size={18} />
+                  <ResourceIcon kind={action.gain === 'card' ? 'anyCard' : action.gain} amount={action.gainAmount} size={18} />
                 </button>
               </HoverTooltip>
             ))}

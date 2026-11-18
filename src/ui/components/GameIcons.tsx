@@ -301,7 +301,7 @@ export const EndTurnIcon: React.FC<{ size?: number }> = ({ size = 28 }) => {
 /* Signal (livret p. 12) : disque gris à barres sonores */
 /* ---------------------------------------------------- */
 
-export type SignalBadge = 'earth' | 'card' | 'mercury' | 'discard' | 'deck' | 'probe' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'oumuamua' | 'anomaly' | 'nextAnomaly';
+export type SignalBadge = 'earth' | 'card' | 'mercury' | 'discard' | 'deck' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'oumuamua';
 
 /** Planète simple (badge de signal) : disque coloré, bandes pour Jupiter, anneau pour Saturne */
 const PlanetBadge: React.FC<{ fill: string; bands?: boolean; ring?: boolean }> = ({ fill, bands, ring }) => (
@@ -352,14 +352,6 @@ const signalBadge = (badge: SignalBadge): React.ReactNode => {
           <text y={7} textAnchor="middle" fontSize={20} fontWeight={900} fill="#fff" fontFamily="Arial Black, Arial, sans-serif">?</text>
         </g>
       );
-    case 'probe':
-      // Sonde : pastille orange de lancement, fusée blanche
-      return (
-        <g transform="translate(20 20)">
-          <circle r={14} fill="#f28c1e" stroke="#0b0f1e" strokeWidth={1.5} />
-          <path d="M0 -10 C3 -7 4 -3 4 2 V6 L6.5 9 H-6.5 L-4 6 V2 C-4 -3 -3 -7 0 -10 Z" fill="#fff" />
-        </g>
-      );
     case 'venus':
       return <PlanetBadge fill="#e8c27a" />;
     case 'mars':
@@ -374,26 +366,6 @@ const signalBadge = (badge: SignalBadge): React.ReactNode => {
         <g transform="translate(20 20) rotate(-35)">
           <ellipse rx={17} ry={6} fill="#6d4c41" stroke="#0b0f1e" strokeWidth={1.5} />
           <ellipse cx={-4} cy={-1.5} rx={6} ry={2} fill="#8d6e63" />
-        </g>
-      );
-    case 'anomaly':
-      // Secteur d'une anomalie : jeton Anomalie (centre sombre, anneau de distorsion violet pointillé)
-      return (
-        <g transform="translate(20 20)">
-          <circle r={14} fill="#0b1026" stroke="#0b0f1e" strokeWidth={1.5} />
-          <circle r={11} fill="none" stroke="#b07cff" strokeWidth={3} strokeDasharray="4 2.5" />
-          <circle r={5} fill="#05060f" stroke="#e0ccff" strokeWidth={1.2} />
-        </g>
-      );
-    case 'nextAnomaly':
-      // Prochaine anomalie déclenchée : jeton Anomalie et flèche dorée qui en fait le tour (sens des secteurs)
-      return (
-        <g transform="translate(20 20)">
-          <circle r={14} fill="#0b1026" stroke="#0b0f1e" strokeWidth={1.5} />
-          <circle r={8} fill="none" stroke="#b07cff" strokeWidth={2.6} strokeDasharray="3.5 2" />
-          <circle r={3.6} fill="#05060f" stroke="#e0ccff" strokeWidth={1} />
-          <path d="M-9 -10 A13.5 13.5 0 0 1 12.5 -4" fill="none" stroke="#ffd700" strokeWidth={2.6} strokeLinecap="round" />
-          <path d="M8.6 -6.4 L15.6 -2.2 L15.2 -10 Z" fill="#ffd700" />
         </g>
       );
     case 'discard':
@@ -568,15 +540,16 @@ export const TechTileIcon: React.FC<{ techId: string; width?: number; height?: n
 /* Ressources (livret p. 6, 14, 23, 28) : pastilles du matériel   */
 /* ------------------------------------------------------------- */
 
-export type ResourceIconKind = 'credit' | 'energy' | 'media' | 'card' | 'alienCard' | 'data' | 'token' | 'movement' | 'revenue';
+export type ResourceIconKind = 'credit' | 'energy' | 'media' | 'card' | 'anyCard' | 'alienCard' | 'data' | 'token' | 'movement' | 'revenue';
 /** Pastilles fléchées du matériel */
-type ArrowKind = 'credit' | 'energy' | 'media' | 'card' | 'alienCard';
+type ArrowKind = 'credit' | 'energy' | 'media' | 'card' | 'anyCard' | 'alienCard';
 
 const RESOURCE_COLORS: Record<ArrowKind, string> = {
   credit: '#b8901c',
   energy: '#3daa3a',
   media: '#e8452a',
   card: '#2b2b2b',
+  anyCard: '#2b2b2b',
   alienCard: '#6b3fa0',
 };
 
@@ -611,6 +584,13 @@ const resourceGlyph = (kind: ArrowKind): React.ReactNode => {
           <text y={6} textAnchor="middle" fontSize={16} fontWeight={900} fill="#2b2b2b" fontFamily="Arial Black, Arial, sans-serif">?</text>
         </g>
       );
+    case 'anyCard':
+      // Carte blanche inclinée sans « ? » (livret p. 11) : carte prise dans la rangée ou piochée, au choix
+      return (
+        <g transform="rotate(8)">
+          <rect x={-7} y={-11} width={14} height={21} rx={2} fill="#fff" />
+        </g>
+      );
     case 'media':
       // Micro sur son pied
       return (
@@ -630,7 +610,7 @@ const ArrowResource: React.FC<{ kind: ArrowKind; amount?: number | string }> = (
   return (
     <>
       <path d="M-10 -16 H12 L24 0 L12 16 H-10 Q-14 16 -14 12 V-12 Q-14 -16 -10 -16 Z" fill={color}
-        stroke={kind === 'card' ? '#e8e8e8' : undefined} strokeWidth={kind === 'card' ? 2.5 : undefined} strokeLinejoin="round" />
+        stroke={kind === 'card' || kind === 'anyCard' ? '#e8e8e8' : undefined} strokeWidth={kind === 'card' || kind === 'anyCard' ? 2.5 : undefined} strokeLinejoin="round" />
       <g transform={amount !== undefined ? 'translate(6 0)' : 'translate(2 0)'}>{resourceGlyph(kind)}</g>
       {amount !== undefined && (
         <text x={-12} y={10} textAnchor="middle" fontSize={30} fontWeight={900} fill="#fff" stroke={color} strokeWidth={3} paintOrder="stroke" fontFamily="Arial Black, Arial, sans-serif">{amount}</text>
