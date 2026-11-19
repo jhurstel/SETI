@@ -88,6 +88,12 @@ describe('texte propre à la carte', () => {
     expect(describeCard(card('5')).text).toBe('');
     // Carte Exertien : « DANGER 6 » n'est pas répété
     expect(describeCard(card('ET.41')).text).toBe('');
+    // « Marquez également 1 Signal dans n'importe quel secteur » : déjà dessiné (signal quelconque), pas répété (55)
+    const arecibo = describeCard(card('55'));
+    expect(arecibo.text).toBe('');
+    expect(arecibo.effects).toContainEqual(expect.objectContaining({ kind: 'bonus', bonus: { signals: [expect.objectContaining({ amount: 1 })] } }));
+    // « Marquez 1 Trace de Vie … pour une espèce pour laquelle… » : la condition reste écrite (98-100)
+    expect(describeCard(card('98')).text).toMatch(/^Marquez 1 Trace de Vie/);
   });
 
   test('condition d\'une fin de partie écrite comme sur la carte, PV lus dans le texte faute d\'effet', () => {

@@ -531,11 +531,14 @@ const pvOfText = (chunk: string): Bonus => {
 
 /** Qualificatifs d'un gain que ses symboles disent déjà (secteur du signal, catégorie ou couleur au choix) */
 const DRAWN_QUALIFIERS = /\s*(dans (?:un|le|les|n'importe quel) secteurs?(?: [^,]*)?|de n'importe quelle (?:couleur|catégorie))/gi;
-/** Phrase qui ne fait que lister des gains (« Gagnez 2 sondes et 1 Média », « Piochez 1 Carte », « DANGER 6 ») */
+/**
+ * Phrase qui ne fait que lister des gains (« Gagnez 2 sondes et 1 Média », « Piochez 1 Carte », « DANGER 6 »,
+ * « Marquez également 1 Signal dans n'importe quel secteur » : 55 ; pas « Marquez 1 Trace de Vie … pour une espèce… » : 98-100)
+ */
 const isGainsOnly = (sentence: string): boolean => {
   const bare = sentence.replace(/^Puis,?\s+/i, '').replace(DRAWN_QUALIFIERS, '').trim();
   if (/^DANGER \d+$/i.test(bare)) return true;
-  if (!/^(Gagn?e?z|Gagez|Piochez)\s+(\d+|un|une)\s/i.test(bare)) return false;
+  if (!/^(Gagn?e?z|Gagez|Piochez|Marquez également)\s+(\d+|un|une)\s/i.test(bare)) return false;
   return !/\b(si|sur|même|pour chaque|chaque fois|lorsque|quand|après|puis|où|que|qui|ce tour|sans|grâce)\b|qu'/i.test(bare);
 };
 
