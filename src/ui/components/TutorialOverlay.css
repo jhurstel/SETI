@@ -105,6 +105,11 @@
   border: none;
 }
 
+/* Coche d'un chapitre terminé, après son titre */
+.seti-tutorial-menu-check {
+  color: #8fe3a2;
+}
+
 .seti-tutorial-menu-intro {
   margin: 4px 0 0;
   font-size: 0.8rem;
@@ -169,14 +174,10 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
-.seti-tutorial-menu-item.locked .seti-tutorial-menu-number {
-  font-size: 0.8rem;
-}
 
 .seti-tutorial-menu-item.done .seti-tutorial-menu-number {
   border-color: #8fe3a2;
   color: #8fe3a2;
-  font-size: 0.8rem;
 }
 
 .seti-tutorial-menu-text {

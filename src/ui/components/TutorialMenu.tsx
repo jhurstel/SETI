@@ -32,7 +32,7 @@ export const TutorialMenu: React.FC<TutorialMenuProps> = ({ chapters, text, done
         {/* Titre et explication en petit dessous : la place reste aux chapitres */}
         <div className="seti-tutorial-menu-header">
           <h2 className="seti-modal-title">Tutoriel</h2>
-          <p className="seti-tutorial-menu-intro">Apprenez SETI pas à pas, sur le vrai plateau. Les chapitres se jouent dans n'importe quel ordre ; ceux des espèces Alien se débloquent quand vous les découvrez en partie.</p>
+          <p className="seti-tutorial-menu-intro">Apprenez SETI pas à pas, sur le vrai plateau, dans l'ordre de votre choix.</p>
         </div>
         <div className="seti-tutorial-menu-list">
           {chapters.map((chapter, index) => {
@@ -40,9 +40,9 @@ export const TutorialMenu: React.FC<TutorialMenuProps> = ({ chapters, text, done
             if (!isChapterUnlocked(chapter, unlockedSpecies)) {
               return (
                 <button key={chapter.id} className="seti-tutorial-menu-item locked" aria-disabled="true" aria-label="Espèce inconnue (chapitre verrouillé)">
-                  <span className="seti-tutorial-menu-number" aria-hidden="true">🔒</span>
+                  <span className="seti-tutorial-menu-number" aria-hidden="true">{index + 1}</span>
                   <span className="seti-tutorial-menu-text">
-                    <span className="seti-tutorial-menu-title">Espèce inconnue</span>
+                    <span className="seti-tutorial-menu-title"><span aria-hidden="true">🔒 </span>Espèce inconnue</span>
                     <span className="seti-tutorial-menu-summary">Découvrez-la en partie pour la débloquer.</span>
                   </span>
                 </button>
@@ -51,9 +51,9 @@ export const TutorialMenu: React.FC<TutorialMenuProps> = ({ chapters, text, done
             return (
               <button key={chapter.id} className={`seti-tutorial-menu-item ${isDone ? 'done' : ''}`} onClick={() => onStart(chapter.id)}
                 aria-label={`${text?.[chapter.id]?.title ?? chapter.id}${isDone ? ' (terminé)' : ''}`}>
-                <span className="seti-tutorial-menu-number">{isDone ? '✓' : index + 1}</span>
+                <span className="seti-tutorial-menu-number">{index + 1}</span>
                 <span className="seti-tutorial-menu-text">
-                  <span className="seti-tutorial-menu-title">{text?.[chapter.id]?.title ?? chapter.id}</span>
+                  <span className="seti-tutorial-menu-title">{text?.[chapter.id]?.title ?? chapter.id}{isDone && <span className="seti-tutorial-menu-check" aria-hidden="true"> ✓</span>}</span>
                   <span className="seti-tutorial-menu-summary">{text?.[chapter.id]?.summary ?? ''}</span>
                 </span>
               </button>
