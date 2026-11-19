@@ -44,9 +44,10 @@ export interface DispatchResult {
 /** Cartes dont les gains se résolvent dans l'ordre de la carte, sans menu de choix */
 const FORCE_STACKING_CARDS = ['27', '28', '29', '30'];
 
-/** Marque la première entrée (hors séparateur) d'une action principale */
+/** Marque l'entrée de l'action principale (celle dont le moteur a noté le type, sinon la première hors séparateur) */
 const markMainAction = (entries: HistoryEntry[]): HistoryEntry[] => {
-  const index = entries.findIndex(e => !e.message.startsWith('---'));
+  const typed = entries.findIndex(e => e.mainActionType);
+  const index = typed >= 0 ? typed : entries.findIndex(e => !e.message.startsWith('---'));
   return entries.map((e, i) => (i === index ? { ...e, mainAction: true } : e));
 };
 

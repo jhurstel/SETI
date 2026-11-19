@@ -86,7 +86,7 @@ describe('chapitre Mascamites : la capsule ramenée sur Terre', () => {
     expect(stepAt(game)).toBe('ramener');
     const stranded = cloneGame(game);
     stranded.players.find(p => p.id === humanId)!.energy = 0;
-    expect(stepAt(stranded)).toBe('annuler');
+    expect(stepAt(stranded)).toBe('annuler-capsule');
     for (const command of chapter.solution.slice(3, 5)) game = answerAll(applyTutorialCommand(game, humanId, command).game, humanId, chapter);
     expect(stepAt(game)).toBe('mission');
   });

@@ -4,7 +4,7 @@ import { cloneGame } from '../../core/cloneGame';
 import { chapterById, TUTORIAL_CHAPTERS } from '../../tutorial/chapters';
 import { tutorialBlockReason, tutorialFinishedReason } from '../../tutorial/guidance';
 import { parseTutorialText, TutorialChapterText } from '../../tutorial/tutorialText';
-import { TutorialRunner } from '../../tutorial/TutorialRunner';
+import { deadEndStep, TutorialRunner } from '../../tutorial/TutorialRunner';
 import { isChapterUnlocked } from '../../tutorial/unlock';
 import type { TutorialAction, TutorialChapter, TutorialState, TutorialStep } from '../../tutorial/types';
 import { markChapterDone, tutorialProgress } from '../tutorialProgress';
@@ -66,7 +66,10 @@ export function useTutorial(game: Game | null, onEllipsis?: (advanced: Game) => 
    * étape faite pour être lue pendant ce choix (duringChoice)
    */
   const choicePendingRaw = !!active && !!game?.interaction;
-  const step: TutorialStep | null = active ? active.chapter.steps[stepIndex] ?? null : null;
+  /** Impasse : le chapitre ne peut plus se terminer, l'étape d'impasse (mode annulation) remplace l'étape courante */
+  const deadEnd = active && context ? TutorialRunner.deadEnd(active.chapter, active.state, context) : null;
+  const deadEndShown = useMemo(() => (deadEnd ? deadEndStep(deadEnd) : null), [deadEnd]);
+  const step: TutorialStep | null = active ? deadEndShown ?? active.chapter.steps[stepIndex] ?? null : null;
   const duringChoice = !!game && TutorialRunner.shownDuringChoice(step, game);
   const choicePending = choicePendingRaw && !duringChoice;
   const finished = !!active && !!context && stepIndex >= active.chapter.steps.length;

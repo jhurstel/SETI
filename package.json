@@ -26,7 +26,8 @@
     "bench:ai": "esbuild tools/bench/aiBench.ts tools/bench/stateSize.ts --bundle --platform=node --target=node20 --outdir=tools/bench/build --log-level=warning && node tools/bench/build/aiBench.js",
     "tutorial:seed": "esbuild tools/tutorial/findSeed.ts --bundle --platform=node --target=node20 --outdir=tools/tutorial/build --log-level=warning && node tools/tutorial/build/findSeed.js",
     "cards:audit": "esbuild tools/cards/cardAudit.ts --bundle --platform=node --target=node20 --outdir=tools/cards/build --log-level=warning && node tools/cards/build/cardAudit.js",
-    "check": "npm run typecheck && npm run lint && npm run check:cycles && npm test && vite build"
+    "check": "npm run typecheck && npm run lint && npm run check:cycles && npm test && vite build",
+    "tutorial:dead-ends": "esbuild tools/tutorial/deadEnds.ts --bundle --platform=node --target=node20 --outdir=tools/tutorial/build --log-level=warning && node tools/tutorial/build/deadEnds.js"
   },
   "keywords": [
     "seti",

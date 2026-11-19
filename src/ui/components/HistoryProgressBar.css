@@ -119,8 +119,8 @@ button.seti-progress-hit:focus-visible > span {
 .seti-progress-round-turns {
   flex: 1;
   display: grid;
-  gap: 2px;
-  height: 14px;
+  gap: 3px;
+  height: 26px;
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.04);
 }
@@ -135,5 +135,16 @@ button.seti-progress-hit:focus-visible > span {
 }
 
 .seti-progress-chip .seti-progress-hit > span {
-  border-radius: 2px;
+  /* Case du tour : couleur du joueur, hexagone de l'action principale au centre */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.seti-progress-chip .seti-progress-hit > span > svg {
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.8));
 }

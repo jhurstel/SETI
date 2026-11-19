@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { TUTORIAL_CHAPTERS } from '../src/tutorial/chapters';
+import { deadEndStep } from '../src/tutorial/TutorialRunner';
 import { parseTutorialText } from '../src/tutorial/tutorialText';
 import { slugify } from '../src/ui/components/markdown';
 import { CONTEXT_HINTS, CONTEXT_HINTS_TEXT_ID } from '../src/tutorial/contextHints';
@@ -23,8 +24,10 @@ describe('textes du tutoriel (public/docs/tutoriel.md)', () => {
 
   test.each(TUTORIAL_CHAPTERS.map(c => [c.id, c] as const))('%s : chaque étape a sa section non vide, et inversement', (_id, chapter) => {
     const sections = text[chapter.id].steps;
-    expect(Object.keys(sections).sort()).toEqual(chapter.steps.map(s => s.id).sort());
-    chapter.steps.forEach(step => expect([step.id, sections[step.id].body.length > 0]).toEqual([step.id, true]));
+    // Étapes et impasses (mode annulation) : une section chacune
+    const ids = [...chapter.steps.map(s => s.id), ...(chapter.deadEnds ?? []).map(d => d.id)];
+    expect(Object.keys(sections).sort()).toEqual(ids.sort());
+    ids.forEach(id => expect([id, sections[id].body.length > 0]).toEqual([id, true]));
   });
 
   test('chaque aide au contexte a sa section non vide, et inversement', () => {
@@ -35,7 +38,7 @@ describe('textes du tutoriel (public/docs/tutoriel.md)', () => {
 
   test('chaque lien « En savoir plus » pointe vers un titre de la documentation', () => {
     const links = [
-      ...TUTORIAL_CHAPTERS.flatMap(c => c.steps.filter(s => s.docLink).map(s => `${c.id}/${s.id} -> ${s.docLink}`)),
+      ...TUTORIAL_CHAPTERS.flatMap(c => [...c.steps, ...(c.deadEnds ?? []).map(deadEndStep)].filter(s => s.docLink).map(s => `${c.id}/${s.id} -> ${s.docLink}`)),
       ...CONTEXT_HINTS.filter(h => h.docLink).map(h => `aide/${h.id} -> ${h.docLink}`),
     ];
     expect(links.length).toBeGreaterThan(0);

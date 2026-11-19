@@ -4,6 +4,10 @@ import type { TutorialAction, TutorialChapter, TutorialStep } from './types';
 
 /** Raison affichée sur une action que l'étape en cours ne permet pas */
 export const TUTORIAL_BLOCK_REASON = "Tutoriel : suivez l'étape en cours (bulle d'aide)";
+/** Raison affichée en mode annulation (impasse) : l'erreur doit rester annulable, le tour ne se termine pas */
+export const TUTORIAL_UNDO_REASON = "Tutoriel : annulez l'erreur signalée dans la bulle (ou recommencez le chapitre)";
+/** Raison affichée quand l'étape demande de jouer une autre carte */
+export const TUTORIAL_CARD_REASON = "Tutoriel : jouez la carte demandée par l'étape en cours (bulle d'aide)";
 /** Raison affichée pendant une étape d'explication */
 export const TUTORIAL_READ_REASON = 'Tutoriel : lisez l\'étape puis cliquez sur « Suivant »';
 
@@ -25,11 +29,12 @@ export function commandAction(command: Command): TutorialAction | null {
 
 /**
  * Guidage souple : raison pour laquelle l'étape en cours refuse une action principale (ou la fin du tour),
- * null si elle est permise. Les actions gratuites, les choix d'une interaction en cours et l'annulation ne sont
+ * null si elle est permise. En mode annulation, toute action principale et la fin du tour sont refusées. Les actions gratuites, les choix d'une interaction en cours et l'annulation ne sont
  * jamais filtrés ; sans étape (chapitre terminé, partie normale), tout est permis.
  */
 export function tutorialBlockReason(step: TutorialStep | null, action: TutorialAction): string | null {
   if (!step) return null;
+  if (step.deadEnd) return TUTORIAL_UNDO_REASON;
   if (!step.done) return TUTORIAL_READ_REASON;
   return step.allowedActions?.includes(action) ? null : TUTORIAL_BLOCK_REASON;
 }
@@ -37,7 +42,10 @@ export function tutorialBlockReason(step: TutorialStep | null, action: TutorialA
 /** Raison pour laquelle l'étape refuse une commande, null si elle passe */
 export function tutorialCommandBlockReason(step: TutorialStep | null, command: Command): string | null {
   const action = commandAction(command);
-  return action === null ? null : tutorialBlockReason(step, action);
+  if (action === null) return null;
+  const reason = tutorialBlockReason(step, action);
+  if (reason || command.type !== 'PLAY_CARD' || !step?.allowedCards) return reason;
+  return step.allowedCards.includes(command.cardId) ? null : TUTORIAL_CARD_REASON;
 }
 
 /** Raison affichée quand le chapitre est terminé : seules les options de la bulle restent possibles */

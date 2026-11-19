@@ -27,6 +27,8 @@ export interface TutorialStep {
   done?: (context: TutorialContext) => boolean;
   /** Actions principales (et fin du tour) permises pendant l'étape ; les actions gratuites le sont toujours */
   allowedActions?: TutorialAction[];
+  /** Cartes que l'étape permet de jouer (absent : toute carte) : une autre carte gâcherait l'action principale du tour */
+  allowedCards?: string[];
   /** Identifiant d'un titre de public/docs/documentation.md (« En savoir plus ») */
   docLink?: string;
   /**
@@ -35,15 +37,27 @@ export interface TutorialStep {
    */
   duringChoice?: InteractionState['type'];
   /**
-   * Étape de secours : affichée seulement quand ce prédicat est vrai (ex. : sonde qui ne peut plus rejoindre sa
-   * planète, à annuler), passée sinon. Elle n'est pas « déjà faite au départ » et peut revenir à tout moment.
-   */
-  onlyIf?: (context: TutorialContext) => boolean;
-  /**
    * Ellipse d'une étape d'explication : la partie avance d'un coup quand le joueur clique sur « Suivant »
    * (« deux tours plus tard… », expliqué par le texte de l'étape). Fonction pure qui n'appelle que des opérations du moteur.
    */
   ellipsis?: (game: Game, humanId: string) => Game;
+  /** Étape d'impasse (mode annulation) : construite par TutorialRunner à partir d'une impasse du chapitre */
+  deadEnd?: boolean;
+}
+
+/**
+ * Impasse d'un chapitre : la partie ne permet plus de le terminer (énergie dépensée loin de l'objectif, trace posée
+ * ailleurs, carte perdue…). Tant qu'elle est vraie, le tutoriel passe en mode annulation, quelle que soit l'étape.
+ * La condition porte sur l'état créé par l'erreur, pour être vraie dès l'action fautive (encore annulable).
+ */
+export interface TutorialDeadEnd {
+  /** Identifiant de la section de texte dans public/docs/tutoriel.md (« annuler-<cause> ») */
+  id: string;
+  when: (context: TutorialContext) => boolean;
+  /** Élément mis en avant (par défaut : l'historique, où se trouve l'annulation) */
+  target?: string;
+  /** Section de la documentation (par défaut : l'historique) */
+  docLink?: string;
 }
 
 /** Ce que la préparation d'un chapitre peut savoir du joueur : les espèces qu'il a déjà rencontrées en partie */
@@ -68,6 +82,8 @@ export interface TutorialChapter {
   /** Commandes du joueur humain jouées avant qu'il prenne la main (tours des adversaires passifs joués entre elles) */
   prepare: TutorialCommand[];
   steps: TutorialStep[];
+  /** Impasses du chapitre (mode annulation), vérifiées avant l'étape courante */
+  deadEnds?: TutorialDeadEnd[];
   /** Commandes qui terminent toutes les étapes, dans l'ordre (tests) */
   solution: TutorialCommand[];
   /**
@@ -75,6 +91,11 @@ export interface TutorialChapter {
    * piste d'une espèce, secteur d'Oumuamua…) ; undefined : réponse par défaut
    */
   answer?: (game: Game, humanId: string) => Command | undefined;
+  /**
+   * Écarts que l'explorateur (tutorial/explore.ts) ne doit pas signaler, avec leur raison : faux positifs connus
+   * (écart rattrapable autrement que par la suite de la solution)
+   */
+  explorerAllows?: { deviation: RegExp; stepId?: string; reason: string }[];
 }
 
 /** Où en est le joueur dans un chapitre : étapes d'explication validées par « Suivant » */

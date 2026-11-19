@@ -58,6 +58,11 @@ Votre action principale est faite : cliquez sur **Fin du tour**. Avant de finir,
 ## Bravo ! {#conclusion}
 Vous connaissez l'écran et le déroulement d'un tour. Le chapitre suivant vous emmène sur Mars.
 
+## Annulez l'échange {#annuler-credits}
+Vos **crédits** ne suffisent plus pour lancer une sonde (2 crédits) : un échange les a dépensés. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
 # Sondes {#sondes}
 Lancez une sonde et mettez-la en orbite.
 
@@ -67,10 +72,10 @@ Les sondes explorent le système solaire. Arrivées sur une planète, elles peuv
 ## Lancez une sonde {#lancer}
 Cliquez sur l'hexagone **Lancer une sonde**, ou sur la **Terre** dans le système solaire : la sonde part de la Terre. Vous ne pouvez avoir qu'une sonde à la fois dans le système solaire (deux avec la technologie Exploration I).
 
-## Annulez vos déplacements {#annuler}
-Votre sonde est trop loin : votre énergie ne suffit plus pour rejoindre **Mars** puis payer la mise en orbite (1 énergie). Pas de panique, un déplacement s'annule.
+## Annulez vos déplacements {#annuler-energie}
+Votre **énergie** ne suffit plus pour rejoindre **Mars** puis payer la mise en orbite (1 énergie) : la sonde est partie trop loin, ou un échange a dépensé l'énergie. Pas de panique, un déplacement (ou un échange) s'annule.
 
-Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action. Recommencez jusqu'à ce que la sonde puisse de nouveau atteindre Mars : l'énergie dépensée vous est rendue.
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action. Recommencez jusqu'à ce que cette bulle disparaisse : l'énergie dépensée vous est rendue. Vous pouvez aussi **recommencer le chapitre**.
 
 ## Déplacez-la jusqu'à Mars {#deplacer}
 Déplacer une sonde est une **action gratuite** : 1 énergie par case. Cliquez sur votre sonde, puis sur une case voisine en direction de **Mars**. Mars est à deux cases de la Terre.
@@ -85,6 +90,11 @@ Votre sonde devient un orbiteur et vous recevez les gains de la case. À Mars, l
 
 ## Bien joué ! {#conclusion}
 Le **panneau des planètes** montre vos orbiteurs et atterrisseurs. Un orbiteur rend aussi l'atterrissage moins cher : c'est le sujet du chapitre suivant.
+
+## Annulez l'échange {#annuler-credits}
+Vos **crédits** ne suffisent plus pour lancer la sonde (2 crédits) puis la mettre en orbite (1 crédit) : un échange les a dépensés. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
 
 # Atterrir et médias {#atterrir}
 Atterrissez sur Mars, achetez une carte.
@@ -108,6 +118,16 @@ Ouvrez l'infobulle de vos **médias** et achetez une carte (3 médias) : prenez-
 
 ## Parfait ! {#conclusion}
 Orbiter, atterrir, gagner des médias et des cartes : vous maîtrisez l'exploration. Place à l'observation du ciel.
+
+## Annulez vos déplacements {#annuler-energie}
+Votre **énergie** ne suffit plus pour ramener la sonde sur **Mars** et y atterrir (2 énergies grâce à votre orbiteur) : elle est partie trop loin, ou un échange a dépensé l'énergie. Un déplacement s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez l'échange {#annuler-medias}
+Vos **médias** ne suffisent plus pour acheter une carte (3 médias), et les cartes déjà achetées ont quitté votre main. Un achat ou un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
 
 # Scanner {#scanner}
 Posez des signaux, gagnez des données.
@@ -137,6 +157,11 @@ Certaines cases de signal rapportent une **donnée** : elle s'ajoute à votre r�
 ## C'est noté {#conclusion}
 Scanner régulièrement vous rapproche des majorités dans les secteurs. Les technologies Observation ajoutent des signaux à chaque scan.
 
+## Annulez l'échange {#annuler-energie}
+Votre **énergie** ne suffit plus pour scanner (2 énergies) : un échange l'a dépensée. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
 # Ordinateur et analyse {#ordinateur}
 Remplissez l'ordinateur, puis analysez.
 
@@ -158,6 +183,11 @@ Posez votre trace : cliquez sur l'emplacement **bleu** d'une espèce Alien (les 
 La **première** trace d'une couleur posée sur une espèce rapporte son **bonus de découverte** (affiché sur l'emplacement, survolez-le) ; les suivantes, un bonus plus petit. Quand les trois emplacements de l'espèce sont occupés, elle est **découverte** : le joueur qui a posé la première trace d'une couleur reçoit en plus une **carte de cette espèce**.
 
 Le chapitre « Traces de vie et espèces » va jusqu'à la découverte.
+
+## Annulez l'échange {#annuler-energie}
+Votre **énergie** ne suffit plus pour analyser les données (1 énergie) : un échange l'a dépensée. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
 
 # Cartes et missions {#cartes}
 Trois sortes de missions, une défausse.
@@ -204,6 +234,21 @@ Jouez **Mars Science Laboratory** (2 crédits) : vous gagnez tout de suite 1 mé
 ## Le décompte final {#decompte}
 Une carte **Fin de jeu** rapporte ses points au décompte final, d'après l'état du plateau à ce moment : ici, 4 PV pour chacun de vos orbiteurs et atterrisseurs sur Mars. Pensez-y dans vos prochaines actions.
 
+## Reprenez la carte {#annuler-carte}
+Une carte du chapitre (**ISS**, **Télescope Lovell** ou **Mars Science Laboratory**) a quitté votre main sans être jouée : la suite du chapitre en a besoin. Une défausse s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez la dépense {#annuler-credits}
+Vos **crédits** ne suffisent plus pour jouer les cartes du chapitre et lancer la sonde : un échange les a dépensés. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez l'achat {#annuler-medias}
+Le **Télescope Lovell** demande au moins **8 médias** : un achat de carte les a fait descendre en dessous. Un achat s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
 # Technologies {#technologies}
 Recherchez une technologie.
 
@@ -231,6 +276,11 @@ Cliquez sur une tuile du plateau des technologies. Selon son gain, le jeu vous d
 ## Son effet {#effet}
 Votre technologie apparaît sur votre plateau. Son infobulle rappelle son effet, actif pour le reste de la partie.
 
+## Annulez l'achat {#annuler-medias}
+La recherche coûte **6 médias** : un achat de carte les a fait descendre en dessous. Un achat s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
 # Traces de vie et espèces {#especes}
 Découvrez une espèce Alien.
 
@@ -243,10 +293,10 @@ Placez vos deux données dans l'ordinateur pour en remplir la ligne du haut.
 ## Analysez {#analyser}
 Cliquez sur **Analyser les données** (1 énergie) : l'ordinateur se vide et vous gagnez une **trace de vie bleue**.
 
-## Annulez la trace {#annuler}
+## Annulez la trace {#annuler-trace-bleue}
 Votre trace bleue est sur la **mauvaise espèce** : la première ne sera pas découverte. Un placement s'annule.
 
-Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler la pose (relancez l'analyse si elle est annulée avec). Posez ensuite la trace sur l'emplacement **bleu** de la première espèce.
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler la pose (relancez l'analyse si elle est annulée avec). Posez ensuite la trace sur l'emplacement **bleu** de la première espèce. Vous pouvez aussi **recommencer le chapitre**.
 
 ## Posez la trace bleue {#poser}
 Cliquez sur l'emplacement **bleu** de la première espèce, celle où vos traces rouge et jaune sont déjà posées : ses trois emplacements seront alors occupés.
@@ -266,6 +316,11 @@ Ce marqueur n'appartient à personne : il occupe le bonus de découverte de sa c
 
 ## À vous de chercher {#conclusion}
 Chaque espèce a ses propres règles. Découvrez-les en partie : chaque espèce rencontrée débloque son chapitre du tutoriel et ses règles dans la documentation.
+
+## Annulez l'échange {#annuler-energie}
+Votre **énergie** ne suffit plus pour analyser les données (1 énergie) : un échange l'a dépensée. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
 
 # Passer et fin de manche {#manche}
 Passez et recevez vos revenus.
@@ -330,10 +385,10 @@ Votre sonde est sur Jupiter. Jouez la carte **Premier Contact** : elle fait atte
 ## La capsule {#capsule}
 Le spécimen part dans une **capsule**, posée sur Jupiter. Elle se déplace comme une sonde (énergie ou déplacements gratuits), mais ne compte pas dans votre limite de sondes et ne peut ni se mettre en orbite ni atterrir. Vous seul voyez le spécimen qu'elle transporte.
 
-## Annulez vos déplacements {#annuler}
+## Annulez vos déplacements {#annuler-capsule}
 Votre capsule est trop loin : votre énergie ne suffit plus pour la ramener sur la **Terre**. Un déplacement s'annule.
 
-Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernier déplacement. Recommencez jusqu'à ce que la capsule puisse de nouveau atteindre la Terre : l'énergie dépensée vous est rendue.
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernier déplacement. Recommencez jusqu'à ce que la capsule puisse de nouveau atteindre la Terre : l'énergie dépensée vous est rendue. Vous pouvez aussi **recommencer le chapitre**.
 
 ## Ramenez-la sur Terre {#ramener}
 Déplacez la capsule jusqu'à la **Terre** : cliquez dessus, puis sur une case voisine, comme pour une sonde.
@@ -343,6 +398,31 @@ La capsule est arrivée : la mission de **Premier Contact** est réalisable. Cli
 
 ## Bien rapporté ! {#conclusion}
 D'autres cartes Mascamites permettent d'**étudier** un spécimen (gagner sa récompense sans le prélever) ou de le ramener sur Mars. La documentation détaille toutes les règles de l'espèce.
+
+## Annulez la trace {#annuler-trace-bleue}
+Votre trace bleue est sur l'**autre plateau Alien** : les Mascamites ne seront pas découvertes. Une pose s'annule (relancez l'analyse si elle est annulée avec).
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez vos déplacements {#annuler-sonde}
+Votre **énergie** ne suffit plus pour analyser, ramener la sonde sur **Jupiter**, puis ramener la capsule sur la Terre. Un déplacement s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Reprenez la carte {#annuler-carte}
+**Premier Contact** a quitté votre main sans être jouée : la suite du chapitre en a besoin. Une défausse s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez la carte {#annuler-prelevement}
+**Premier Contact** est jouée, mais aucun spécimen n'a été prélevé (atterrissage ou prélèvement refusé) : la mission ne pourra pas être remplie. Une carte jouée s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez l'échange {#annuler-credits}
+Vos **crédits** ne suffisent plus pour jouer **Premier Contact** : un échange les a dépensés. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
 
 # Anomalies {#anomalies}
 La Terre rencontre une anomalie.
@@ -379,6 +459,26 @@ L'anomalie a été activée : vous étiez le plus haut sur la piste de sa couleu
 ## Bien vu ! {#conclusion}
 Surveillez la position de la Terre et des anomalies : monter sur une piste avant la bonne rotation rapporte. La documentation détaille toutes les règles de l'espèce.
 
+## Annulez la trace {#annuler-trace-bleue}
+Votre trace bleue est sur l'**autre plateau Alien** : les Anomalies ne seront pas découvertes. Une pose s'annule (relancez l'analyse si elle est annulée avec).
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez l'échange {#annuler-energie}
+Votre **énergie** ne suffit plus pour analyser les données (1 énergie) : un échange l'a dépensée. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez la recherche {#annuler-recherche}
+La recherche a fait tourner le système solaire, mais aucune technologie n'a été prise. Une recherche s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez l'achat {#annuler-medias}
+La recherche coûte **6 médias** : un achat de carte les a fait descendre en dessous. Un achat s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
 # Oumuamua {#oumuamua}
 Couvrez son secteur, gagnez ses jetons.
 
@@ -403,16 +503,31 @@ L'astéroïde **Oumuamua** est entré dans le système solaire : c'est une plan�
 ## Scannez Oumuamua {#scanner}
 Cliquez sur **Scanner** : après le signal du secteur de la Terre, choisissez la première carte de la rangée : sa couleur est celle du secteur où se trouve Oumuamua. Cliquez alors sur le **secteur d'Oumuamua** pour y poser le dernier signal : le secteur est couvert.
 
-## Annulez le scan {#annuler}
+## Annulez le scan {#annuler-scan}
 Ce n'est pas la bonne carte (ou le signal n'est pas sur Oumuamua) : le secteur d'Oumuamua ne sera pas couvert. Un scan s'annule.
 
-Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler le scan. Recommencez en choisissant la **première carte** de la rangée, puis le **secteur d'Oumuamua**.
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler le scan. Recommencez en choisissant la **première carte** de la rangée, puis le **secteur d'Oumuamua**. Vous pouvez aussi **recommencer le chapitre**.
 
 ## Les jetons {#jetons}
 Couvrir le secteur d'Oumuamua rapporte des **jetons**, au lieu de médias. Ils paient les cases de sa piste (25 PV pour 4 jetons sur la première case) et certaines cartes Oumuamua en défaussent pour un gain.
 
 ## Bien couvert ! {#conclusion}
 Oumuamua tourne avec son anneau : surveillez la couleur de son secteur pour vos scans. La documentation détaille toutes les règles de l'espèce.
+
+## Annulez la trace {#annuler-trace-bleue}
+Votre trace bleue est sur l'**autre plateau Alien** : Oumuamua ne sera pas découverte. Une pose s'annule (relancez l'analyse si elle est annulée avec).
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez l'échange {#annuler-credits}
+Vos **crédits** ne suffisent plus pour scanner (1 crédit) : un échange les a dépensés. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez l'échange {#annuler-energie}
+Votre **énergie** ne suffit plus pour analyser (1 énergie) puis scanner (2 énergies) : un échange l'a dépensée. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
 
 # Centauriens {#centauriens}
 Atteignez votre palier de message.
@@ -450,6 +565,31 @@ Choisissez une **tuile Message** : chacune ne se prend qu'une fois. Survolez-les
 ## Message reçu ! {#conclusion}
 Les cartes Centauriens posent aussi un palier : en l'atteignant, leur effet **Réception** s'applique. La documentation détaille toutes les règles de l'espèce.
 
+## Annulez la trace {#annuler-trace-bleue}
+Votre trace bleue est sur l'**autre plateau Alien** : les Centauriens ne seront pas découverts. Une pose s'annule (relancez l'analyse si elle est annulée avec).
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez la trace rouge {#annuler-trace-rouge}
+Votre trace rouge n'est pas sur l'emplacement à **15 PV** de la piste des Centauriens : le palier de message ne sera pas franchi. Une pose s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez l'échange {#annuler-credits}
+Vos **crédits** ne suffisent plus pour scanner (1 crédit) : un échange les a dépensés. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez l'échange {#annuler-energie}
+Votre **énergie** ne suffit plus pour analyser (1 énergie) puis scanner (2 énergies) : un échange l'a dépensée. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Reprenez vos données {#annuler-donnees}
+L'emplacement à 15 PV coûte **3 données** : vous en avez placé dans l'ordinateur. Un placement s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
 # Exertiens {#exertiens}
 Jouez une carte Exertien face cachée.
 
@@ -465,10 +605,10 @@ Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses tro
 ## Terminez votre tour {#reveler}
 Les trois emplacements sont occupés, mais une découverte se résout **à la fin du tour**, après les éventuels paliers. Cliquez sur **Fin du tour** : l'espèce est révélée.
 
-## Annulez le refus {#annuler}
+## Annulez le refus {#annuler-refus}
 Vous avez renoncé à jouer une carte Exertien : ce chapitre a besoin que vous en jouiez une. Un choix s'annule.
 
-Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler le refus : la fenêtre des cartes Exertiens revient. Choisissez-en au moins une.
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler le refus : la fenêtre des cartes Exertiens revient. Choisissez-en au moins une. Vous pouvez aussi **recommencer le chapitre**.
 
 ## Jouez une carte Exertien {#jouer}
 La fin du tour a révélé les **Exertiens** ! Chaque joueur reçoit 3 **cartes Exertiens**, en plus de vos cartes de découverte : elles ne sont pas dans votre main (on ne les défausse pas, on ne les réserve pas).
@@ -483,6 +623,16 @@ Deux **paliers** sont apparus sur la piste de score, au meilleur score + 20 et +
 
 ## Attention au danger ! {#conclusion}
 En fin de partie, le joueur le plus exposé (le plus de danger) perd 10 % de son total. La documentation détaille toutes les règles de l'espèce.
+
+## Annulez la trace {#annuler-trace-bleue}
+Votre trace bleue est sur l'**autre plateau Alien** : les Exertiens ne seront pas découverts. Une pose s'annule (relancez l'analyse si elle est annulée avec).
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
+
+## Annulez l'échange {#annuler-energie}
+Votre **énergie** ne suffit plus pour analyser les données (1 énergie) : un échange l'a dépensée. Un échange s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler votre dernière action ; recommencez jusqu'à ce que cette bulle disparaisse. Vous pouvez aussi **recommencer le chapitre**.
 
 # Première vraie partie {#premiere-partie}
 Contre un robot Débutant, avec conseils.

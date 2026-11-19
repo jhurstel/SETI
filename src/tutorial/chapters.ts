@@ -3,7 +3,7 @@
  * Les textes sont dans public/docs/tutoriel.md (une section par étape, même identifiant) ;
  * test/TutorialChapters.test.ts vérifie que chaque chapitre se prépare et se termine par sa solution.
  */
-import { ActionType, AlienBoardType, Game, GamePhase, LifeTraceLocation, LifeTraceType, SignalType } from '../core/types';
+import { ActionType, AlienBoardType, GAME_CONSTANTS, Game, GamePhase, LifeTraceLocation, LifeTraceType, SignalType } from '../core/types';
 import { getObjectPosition } from '../core/SolarSystemPosition';
 import { requirePlayer } from '../core/players';
 import { CardSystem } from '../systems/CardSystem';
@@ -11,7 +11,7 @@ import { SpeciesSystem } from '../systems/SpeciesSystem';
 import type { TutorialChapter, TutorialContext } from './types';
 import { SPECIES_CHAPTERS } from './speciesChapters';
 import {
-  cannotReachOrbit, fillComputer, filledTopSlots, freshTurn, giveCardToHand, handSize, hasLander, hasOrbiter, humanOf, lifeTracesOf,
+  blueTraceElsewhere, cannotReachOrbit, cannotReachWith, cardGone, fillComputer, landCost, movesBetween, resourceDeadEnds, filledTopSlots, freshTurn, giveCardToHand, hasLander, hasOrbiter, humanOf, lifeTracesOf,
   opponentsPassed, probeOnPlanet, signalsOf, speciesOnFirstBoard, stepTowards,
 } from './scenario';
 
@@ -23,6 +23,8 @@ const ISS_CARD = '79';
 const LOVELL_CARD = '51';
 /** Carte Mars Science Laboratory (Fin de jeu : 4 PV par orbiteur ou atterrisseur sur Mars) */
 const MSL_CARD = '14';
+/** Médias demandés par la mission du Télescope Lovell */
+const LOVELL_MEDIA = 8;
 /** Cartes données au chapitre Cartes et missions (la défausse demandée porte sur une autre carte de la main) */
 const GIVEN_CARDS = [ISS_CARD, LOVELL_CARD, MSL_CARD];
 
@@ -53,9 +55,6 @@ const fillEarthSector = (game: Game, humanId: string): Game => {
 const tracePlaced = (c: TutorialContext) => lifeTracesOf(c.game, c.humanId) > lifeTracesOf(c.start, c.humanId);
 /** L'analyse est lancée : l'ordinateur est vidé (la trace bleue reste à poser), ou la trace est déjà posée */
 const analysisDone = (c: TutorialContext) => filledTopSlots(c.game, c.humanId) < filledTopSlots(c.start, c.humanId) || tracePlaced(c);
-/** Trace bleue du joueur posée sur un autre plateau Alien que le premier (celui à découvrir) */
-const blueTraceElsewhere = ({ game, humanId }: TutorialContext) => game.board.alienBoards.some((board, index) =>
-  index > 0 && board.lifeTraces.some(t => t.playerId === humanId && t.type === LifeTraceType.BLUE));
 const missionOf = ({ game, humanId }: TutorialContext, cardId = ISS_CARD) => humanOf(game, humanId).missions.find(m => m.cardId === cardId);
 /** Au moins un cercle ou carré de la mission de cette carte recouvert */
 const missionClaimed = (c: TutorialContext, cardId: string) => (missionOf(c, cardId)?.completedRequirementIds.length ?? 0) > 0;
@@ -92,6 +91,8 @@ const ecran: TutorialChapter = {
     { id: 'fin-du-tour', target: 'end-turn', done: c => launched(c) && freshTurn(c.game, c.humanId), allowedActions: ['END_TURN'], docLink: 'actions-et-tour' },
     { id: 'conclusion' },
   ],
+  // Crédits échangés avant le lancement (2 crédits)
+  deadEnds: resourceDeadEnds({ credits: c => (launched(c) ? 0 : GAME_CONSTANTS.PROBE_LAUNCH_COST) }),
   solution: [{ type: 'LAUNCH_PROBE' }, { type: 'END_TURN' }],
 };
 
@@ -108,14 +109,28 @@ const sondes: TutorialChapter = {
   steps: [
     { id: 'intro', target: 'solar-system' },
     { id: 'lancer', target: 'actions', done: launched, allowedActions: [ActionType.LAUNCH_PROBE] },
-    // Sonde partie trop loin de Mars (plus assez d'énergie pour la rejoindre et s'y mettre en orbite) : annuler
-    { id: 'annuler', target: 'history', onlyIf: marsOutOfReach, done: c => !marsOutOfReach(c), docLink: 'historique' },
     { id: 'deplacer', target: 'solar-system', done: c => reachedMars(c), docLink: '2-1-sondes' },
     { id: 'fin-du-tour', target: 'end-turn', done: c => reachedMars(c) && (freshTurn(c.game, c.humanId) || hasOrbiter(c.game, c.humanId, 'mars')), allowedActions: ['END_TURN'] },
     { id: 'orbite', target: 'actions', done: c => hasOrbiter(c.game, c.humanId, 'mars'), allowedActions: [ActionType.ORBIT], docLink: '2-1-sondes' },
     { id: 'conclusion', target: 'planets' },
   ],
+  deadEnds: [
+    // Plus assez d'énergie pour rejoindre Mars et s'y mettre en orbite : sonde partie trop loin, ou énergie échangée
+    // (avant le lancement : le chemin de la Terre à Mars)
+    {
+      id: 'annuler-energie',
+      when: c => (launched(c) ? marsOutOfReach(c) : humanOf(c.game, c.humanId).energy < movesBetween(c.game, 'earth', 'mars') + GAME_CONSTANTS.ORBIT_COST_ENERGY),
+    },
+    // Crédits du lancement et de l'orbite échangés
+    ...resourceDeadEnds({ credits: c => (launched(c) ? 0 : GAME_CONSTANTS.PROBE_LAUNCH_COST) + (hasOrbiter(c.game, c.humanId, 'mars') ? 0 : GAME_CONSTANTS.ORBIT_COST_CREDITS) }),
+  ],
   solution: [{ type: 'LAUNCH_PROBE' }, stepTowards('mars'), stepTowards('mars'), { type: 'END_TURN' }, { type: 'ORBIT', planetId: 'mars' }],
+};
+
+/** Une carte de la main n'y était pas au départ : achetée (la main peut aussi avoir perdu des cartes, défaussées) */
+const newCardInHand = ({ game, humanId, start }: TutorialContext) => {
+  const startHand = humanOf(start, humanId).cards.map(card => card.id);
+  return humanOf(game, humanId).cards.some(card => !startHand.includes(card.id));
 };
 
 const atterrir: TutorialChapter = {
@@ -141,11 +156,21 @@ const atterrir: TutorialChapter = {
     // Affichée pendant le placement de la trace : « À vous de jouer » pour la poser
     { id: 'trace-jaune', target: 'species', duringChoice: 'PLACING_LIFE_TRACE', done: tracePlaced, docLink: '2-7-traces-de-vie-et-especes' },
     { id: 'medias', target: 'resources' },
-    { id: 'acheter', target: 'resources', done: c => handSize(c.game, c.humanId) > handSize(c.start, c.humanId), docLink: '2-2-atterrir-et-medias' },
+    { id: 'acheter', target: 'resources', done: newCardInHand, docLink: '2-2-atterrir-et-medias' },
     { id: 'conclusion' },
   ],
+  // Sonde éloignée de Mars (ou énergie échangée) : plus assez d'énergie pour y revenir et atterrir
+  deadEnds: [{
+    id: 'annuler-energie',
+    when: c => !hasLander(c.game, c.humanId, 'mars') && cannotReachWith(c.game, c.humanId, 'mars', landCost(c.game, 'mars')),
+  },
+  // Médias de l'achat dépensés (cartes achetées puis échangées ou défaussées)
+  ...resourceDeadEnds({ mediaCoverage: c => (newCardInHand(c) ? 0 : GAME_CONSTANTS.BUY_CARD_COST_MEDIA) })],
   solution: [{ type: 'LAND', planetId: 'mars' }, { type: 'BUY_CARD' }],
 };
+
+/** Scan fait : un signal de plus, ou la trace de vie du secteur couvert (vidé de ses signaux) */
+const scanned = (c: TutorialContext) => signalsOf(c.game, c.humanId) > signalsOf(c.start, c.humanId) || lifeTracesOf(c.game, c.humanId) > lifeTracesOf(c.start, c.humanId);
 
 const scanner: TutorialChapter = {
   id: 'scanner',
@@ -161,7 +186,7 @@ const scanner: TutorialChapter = {
   steps: [
     { id: 'intro', target: 'solar-system', docLink: '2-3-scanner' },
     // Le secteur couvert est vidé de ses signaux : la trace de vie gagnée prouve que le scan est fait
-    { id: 'scanner', target: 'actions', done: c => signalsOf(c.game, c.humanId) > signalsOf(c.start, c.humanId) || lifeTracesOf(c.game, c.humanId) > lifeTracesOf(c.start, c.humanId), allowedActions: [ActionType.SCAN_SECTOR] },
+    { id: 'scanner', target: 'actions', done: scanned, allowedActions: [ActionType.SCAN_SECTOR] },
     { id: 'trace-rouge', target: 'species', duringChoice: 'PLACING_LIFE_TRACE', done: tracePlaced, docLink: '2-7-traces-de-vie-et-especes' },
     // Secteur couvert : chaque joueur présent gagne 1 média, le second y garde un marqueur
     { id: 'couverture', target: 'solar-system', docLink: '2-3-scanner' },
@@ -169,6 +194,8 @@ const scanner: TutorialChapter = {
     { id: 'donnees', target: 'resources' },
     { id: 'conclusion', docLink: '2-3-scanner' },
   ],
+  // Énergie du scan échangée (les 5 crédits ne descendent pas sous 1 par des échanges : pas d'impasse)
+  deadEnds: resourceDeadEnds({ energy: c => (scanned(c) ? 0 : GAME_CONSTANTS.SCAN_COST_ENERGY) }),
   solution: [{ type: 'SCAN' }],
 };
 
@@ -192,6 +219,8 @@ const ordinateur: TutorialChapter = {
     { id: 'analyser', target: 'actions', done: analysisDone, allowedActions: [ActionType.ANALYZE_DATA] },
     { id: 'trace-bleue', target: 'species', duringChoice: 'PLACING_LIFE_TRACE', done: tracePlaced, docLink: '2-7-traces-de-vie-et-especes' },
   ],
+  // Énergie de l'analyse échangée
+  deadEnds: resourceDeadEnds({ energy: c => (analysisDone(c) ? 0 : GAME_CONSTANTS.ANALYZE_COST_ENERGY) }),
   solution: [{ type: 'TRANSFER_DATA', slotId: '5a' }, { type: 'TRANSFER_DATA', slotId: '6a' }, { type: 'ANALYZE' }],
 };
 
@@ -212,7 +241,7 @@ const cartes: TutorialChapter = {
   steps: [
     { id: 'intro', target: 'hand', docLink: '2-5-cartes-et-missions' },
     // Tour 1 : mission déclenchée, puis défausse d'une carte pour son action gratuite
-    { id: 'jouer', target: 'hand', done: c => !!missionOf(c), allowedActions: [ActionType.PLAY_CARD] },
+    { id: 'jouer', target: 'hand', done: c => !!missionOf(c), allowedActions: [ActionType.PLAY_CARD], allowedCards: [ISS_CARD] },
     { id: 'mission', target: 'missions' },
     { id: 'defausser', target: 'hand', done: discardedFromHand, docLink: '2-5-cartes-et-missions' },
     { id: 'fin-du-tour', target: 'end-turn', done: c => !!missionOf(c) && (freshTurn(c.game, c.humanId) || launched(c)), allowedActions: ['END_TURN'] },
@@ -222,12 +251,25 @@ const cartes: TutorialChapter = {
     { id: 'fin-du-tour-2', target: 'end-turn', done: c => missionClaimed(c, ISS_CARD) && (freshTurn(c.game, c.humanId) || !!missionOf(c, LOVELL_CARD)), allowedActions: ['END_TURN'] },
     // Tour 3 : mission conditionnelle, condition déjà remplie : le joueur la réclame quand il le décide
     { id: 'conditionnelle', target: 'hand' },
-    { id: 'jouer-conditionnelle', target: 'hand', done: c => !!missionOf(c, LOVELL_CARD), allowedActions: [ActionType.PLAY_CARD] },
+    { id: 'jouer-conditionnelle', target: 'hand', done: c => !!missionOf(c, LOVELL_CARD), allowedActions: [ActionType.PLAY_CARD], allowedCards: [LOVELL_CARD] },
     { id: 'carre', target: 'missions', done: c => missionClaimed(c, LOVELL_CARD) },
     { id: 'fin-du-tour-3', target: 'end-turn', done: c => missionClaimed(c, LOVELL_CARD) && (freshTurn(c.game, c.humanId) || endGameCardPlayed(c)), allowedActions: ['END_TURN'] },
     // Tour 4 : carte Fin de jeu, décomptée à la fin de la partie
-    { id: 'fin-de-jeu', target: 'hand', done: endGameCardPlayed, allowedActions: [ActionType.PLAY_CARD] },
+    { id: 'fin-de-jeu', target: 'hand', done: endGameCardPlayed, allowedActions: [ActionType.PLAY_CARD], allowedCards: [MSL_CARD] },
     { id: 'decompte', target: 'missions', docLink: '2-9-paliers-et-fin-de-partie' },
+  ],
+  deadEnds: [
+    // Carte du chapitre défaussée (action gratuite, échange) avant d'être jouée
+    { id: 'annuler-carte', when: c => GIVEN_CARDS.some(cardId => cardGone(c.game, c.humanId, cardId)) },
+    ...resourceDeadEnds({
+      // Coût des cartes du chapitre encore en main, et du lancement du tour 2 (sans les gains à venir)
+      credits: c => {
+        const hand = humanOf(c.game, c.humanId).cards.filter(card => GIVEN_CARDS.includes(card.id));
+        return hand.reduce((sum, card) => sum + card.cost, 0) + (launched(c) ? 0 : GAME_CONSTANTS.PROBE_LAUNCH_COST);
+      },
+      // Condition du Télescope Lovell (8 médias), ISS en rapporte 1 en étant jouée
+      mediaCoverage: c => (missionClaimed(c, LOVELL_CARD) ? 0 : missionOf(c) ? LOVELL_MEDIA : LOVELL_MEDIA - 1),
+    }),
   ],
   solution: [
     { type: 'PLAY_CARD', cardId: ISS_CARD },
@@ -256,6 +298,8 @@ const technologies: TutorialChapter = {
     { id: 'choisir', target: 'tech-board', done: techAcquired },
     { id: 'effet', target: 'player-board' },
   ],
+  // Médias de la recherche (6) dépensés à acheter une carte
+  deadEnds: resourceDeadEnds({ mediaCoverage: c => (rotated(c) || techAcquired(c) ? 0 : GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) }),
   solution: [{ type: 'RESEARCH_TECH' }],
 };
 
@@ -279,8 +323,6 @@ const especes: TutorialChapter = {
     { id: 'intro', target: 'species', docLink: '2-7-traces-de-vie-et-especes' },
     { id: 'remplir', target: 'computer', done: c => filledTopSlots(c.game, c.humanId) >= 6 || analysisDone(c) },
     { id: 'analyser', target: 'actions', done: analysisDone, allowedActions: [ActionType.ANALYZE_DATA] },
-    // Trace bleue posée sur une autre espèce : la première ne sera pas découverte, annuler
-    { id: 'annuler', target: 'history', onlyIf: blueTraceElsewhere, done: c => !blueTraceElsewhere(c), docLink: 'historique' },
     // Troisième trace posée : l'espèce attend la fin du tour, qui la révèle (règles, p. 20)
     { id: 'poser', target: 'species', duringChoice: 'PLACING_LIFE_TRACE', done: c => c.game.board.alienBoards[0].isDiscovered || SpeciesSystem.isDiscoveryPending(c.game, 0) },
     { id: 'reveler', target: 'end-turn', done: c => c.game.board.alienBoards[0].isDiscovered, allowedActions: ['END_TURN'], docLink: '2-7-traces-de-vie-et-especes' },
@@ -288,6 +330,12 @@ const especes: TutorialChapter = {
     // Explication : paliers neutres des parties à 2 ou 3 joueurs
     { id: 'paliers-neutres', target: 'score' },
     { id: 'conclusion', docLink: '3-5-aliens' },
+  ],
+  // Trace bleue posée sur une autre espèce : la première ne sera pas découverte
+  deadEnds: [
+    { id: 'annuler-trace-bleue', when: c => blueTraceElsewhere(c.game, c.humanId) },
+    // Énergie de l'analyse échangée
+    ...resourceDeadEnds({ energy: c => (analysisDone(c) ? 0 : GAME_CONSTANTS.ANALYZE_COST_ENERGY) }),
   ],
   solution: [{ type: 'TRANSFER_DATA', slotId: '5a' }, { type: 'TRANSFER_DATA', slotId: '6a' }, { type: 'ANALYZE' }, { type: 'END_TURN' }],
 };

@@ -1,6 +1,8 @@
 import React from 'react';
-import { TimelineRound } from '../../core/historyTimeline';
+import { TimelineRound, TimelineTurn } from '../../core/historyTimeline';
 import { revealText } from '../../core/historyText';
+import { ActionType } from '../../core/types';
+import { ActionHexIcon, ActionIconKind } from './GameIcons';
 import { HoverTooltip } from './HoverTooltip';
 import './HistoryProgressBar.css';
 
@@ -19,6 +21,29 @@ interface Props {
 /** Message d'action lisible dans une infobulle (passages privés du jeu local, balises retirées) */
 const actionText = (message: string) => revealText(message).replace(/<\/?strong>/g, '');
 
+/** Hexagone de chaque action principale */
+const ACTION_KINDS: Partial<Record<ActionType, ActionIconKind>> = {
+  [ActionType.LAUNCH_PROBE]: 'launch', [ActionType.ORBIT]: 'orbit', [ActionType.LAND]: 'land', [ActionType.SCAN_SECTOR]: 'scan',
+  [ActionType.ANALYZE_DATA]: 'analyze', [ActionType.PLAY_CARD]: 'card', [ActionType.RESEARCH_TECH]: 'research', [ActionType.PASS]: 'pass',
+};
+
+/** Action principale du tour en quelques mots, avec sa cible (planète, carte, secteur, technologie) */
+const actionPhrase = (turn: TimelineTurn): string | undefined => {
+  const target = turn.target && actionText(turn.target);
+  switch (turn.actionType) {
+    case ActionType.LAUNCH_PROBE: return 'lance une sonde';
+    case ActionType.ORBIT: return target ? `met une sonde en orbite autour de ${target}` : 'met une sonde en orbite';
+    case ActionType.LAND: return target ? `pose une sonde sur ${target}` : 'pose une sonde';
+    case ActionType.SCAN_SECTOR: return target ? `scanne le secteur ${target}` : 'scanne un secteur';
+    case ActionType.ANALYZE_DATA: return 'analyse ses données';
+    case ActionType.PLAY_CARD: return target ? `joue la carte « ${target} »` : 'joue une carte';
+    case ActionType.RESEARCH_TECH: return target ? `recherche la technologie ${target}` : 'recherche une technologie';
+    case ActionType.PASS: return 'passe';
+    // Sauvegarde d'avant le type des actions : le message du moteur
+    default: return turn.action && `: ${actionText(turn.action)}`;
+  }
+};
+
 /**
  * Résumé de la partie : un trait plein de la couleur du joueur par tour, tous de même longueur.
  * Compact (accueil) : une barre, un trait gris au début de chaque manche ; la manche en cours et les manches
@@ -29,19 +54,25 @@ export const HistoryProgressBar: React.FC<Props> = ({ rounds, maxRounds, players
   const finished = rounds.filter(r => r.complete && r.turns.length > 0);
   const expectedTurns = finished.length > 0 ? finished.reduce((sum, r) => sum + r.turns.length, 0) / finished.length : players.length * 4;
 
-  const turnTooltip = (turn: TimelineRound['turns'][number]) => {
+  // « Chouchou met une sonde en orbite autour de Mars » ; tour sans action principale : le nom seul
+  const turnTooltip = (turn: TimelineTurn) => {
     const player = players.find(p => p.id === turn.playerId);
+    const phrase = actionPhrase(turn);
     return (
       <span>
         <strong style={{ color: player?.color }}>{player?.name ?? 'Joueur'}</strong>
-        {turn.action ? ` : ${actionText(turn.action)}` : ''}
+        {phrase ? `${phrase.startsWith(':') ? '' : ' '}${phrase}` : ''}
       </span>
     );
   };
   const colorOf = (playerId: string) => players.find(p => p.id === playerId)?.color ?? '#888';
-  const hit = (entryIndex: number, color: string | undefined, label?: string) => onSelect
-    ? <button type="button" className="seti-progress-hit" onClick={e => { e.stopPropagation(); onSelect(entryIndex); }} aria-label={label}><span style={{ background: color }} /></button>
-    : <span className="seti-progress-hit"><span style={{ background: color }} /></span>;
+  // Case du tour, à la couleur du joueur ; en fin de partie, l'hexagone de l'action principale dedans
+  const hit = (entryIndex: number, color: string | undefined, label?: string, kind?: ActionIconKind) => {
+    const box = <span style={{ background: color }}>{kind && <ActionHexIcon kind={kind} size={20} />}</span>;
+    return onSelect
+      ? <button type="button" className="seti-progress-hit" onClick={e => { e.stopPropagation(); onSelect(entryIndex); }} aria-label={label}>{box}</button>
+      : <span className="seti-progress-hit">{box}</span>;
+  };
 
   if (!compact) {
     const roundCount = Math.max(maxRounds, rounds.length, 1);
@@ -55,10 +86,10 @@ export const HistoryProgressBar: React.FC<Props> = ({ rounds, maxRounds, players
               {round && onSelect
                 ? <button type="button" className="seti-progress-round-label" onClick={e => { e.stopPropagation(); onSelect(round.entryIndex); }}>Manche {r + 1}</button>
                 : <span className="seti-progress-round-label">Manche {r + 1}</span>}
-              <div className="seti-progress-round-turns" style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}>
+              <div className="seti-progress-round-turns" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 64px))` }}>
                 {round?.turns.map(turn => (
                   <HoverTooltip key={turn.entryIndex} content={turnTooltip(turn)} className="seti-progress-chip">
-                    {hit(turn.entryIndex, colorOf(turn.playerId))}
+                    {hit(turn.entryIndex, colorOf(turn.playerId), undefined, turn.actionType && ACTION_KINDS[turn.actionType])}
                   </HoverTooltip>
                 ))}
               </div>

@@ -29,6 +29,7 @@ L'écran d'accueil s'ouvre au lancement, et par ⚙️ en cours de partie. Il pr
 - Le tutoriel apprend le jeu en chapitres courts, joués sur le vrai plateau et dans n'importe quel ordre : l'écran et le tour, puis un chapitre par partie des règles (chapitre 2 de cette documentation), puis une première vraie partie. Au tout premier lancement (ni partie sauvegardée, ni tutoriel commencé), l'accueil le propose ; « Plus tard » ne le propose plus.
 - **Chapitres des espèces** : un par espèce Alien, verrouillé (« Espèce inconnue ») tant que vous ne l'avez pas rencontrée. Une espèce se débloque dès qu'elle est découverte dans une vraie partie de ce navigateur (locale, en ligne ou reprise, quel que soit le joueur qui la découvre) ; un message annonce le nouveau chapitre, et le glossaire montre alors l'espèce. Les découvertes faites dans le tutoriel ne débloquent rien : dans « Traces de vie et espèces », l'espèce découverte reste anonyme si vous ne l'avez jamais rencontrée.
 - Chaque chapitre part toujours de la même position préparée (votre adversaire, un robot passif, ne fait que passer). Une bulle explique chaque étape et met en avant la zone de l'écran concernée : « Suivant » pour une explication (parfois un saut dans le temps : « quelques tours plus tard ») ; pour une action, à vous de jouer. Les actions principales sans rapport avec l'étape sont désactivées (leur infobulle dit pourquoi) ; les infobulles, les actions gratuites, l'annulation et la documentation restent libres. « En savoir plus » ouvre la documentation à la bonne section.
+- **Mode annulation** : si une action rend le chapitre impossible à terminer (énergie dépensée loin de l'objectif, trace posée sur la mauvaise espèce, carte du chapitre défaussée, médias dépensés avant une recherche…), la bulle le signale aussitôt et met en avant l'historique : annulez l'action fautive (flèche ↩), ou cliquez sur « Recommencer le chapitre ». En attendant, les actions principales et la fin du tour sont désactivées, pour que l'erreur reste annulable.
 - Un chapitre n'est jamais sauvegardé et ne remplace pas votre partie sauvegardée ; recharger la page ramène à l'accueil. Les chapitres terminés sont cochés dans le menu (mémorisé par le navigateur).
 - **Première vraie partie** : une partie normale contre un robot Débutant (sauvegardée comme les autres), avec des **conseils en partie** affichés une fois chacun quand une situation clé se présente (analyse possible, réserve de données pleine, palier en vue, espèce découverte, dernière manche). La case « Conseils en partie » de l'accueil les coupe ou les remet.
 
@@ -199,6 +200,21 @@ Une tuile par bonus possible, toutes de même taille sur une ligne. Même fenêt
 - **Piste d'espèce indisponible** : quand une trace de vie est à placer et que la piste des espèces découvertes ne peut pas la recevoir (emplacements occupés, ou coût impayable), un avertissement rappelle qu'il reste les emplacements de découverte et excédentaires (triangles).
 - **Bonus perdu** : jouer une carte dont un effet ne peut pas s'appliquer (aucune sonde à retirer…) demande confirmation.
 
+### 1.4 Écran de fin de partie
+
+![Écran de fin de partie](docs/images/ecrans/fin-de-partie.png)
+
+À la fin de la 5ᵉ manche, après le décompte final, l'écran de fin remplace le plateau.
+
+- **Scores** : une ligne par joueur, du meilleur au moins bon. Devant chaque nom, une silhouette pour un humain ou la force d'un robot (barres) ; un trophée suit le nom du ou des vainqueurs. Les colonnes donnent le score avant le décompte (**Base**), les tuiles objectif (**Obj.**), les cartes Fin de partie (**Fin**), les espèces (**Esp.** : cartes Exertiens, moins la pénalité de danger, en rouge) et le **Total**. Le survol d'un nombre en donne le détail.
+- **Résumé de la partie** : sous le titre de l'historique, une ligne par manche et une case par tour, à la couleur du joueur, dans l'ordre du jeu. Chaque case porte l'hexagone de l'action principale du tour (lancer une sonde, mise en orbite, atterrissage, scan, analyse, carte, technologie, passe) ; les actions gratuites n'y figurent pas.
+- Le survol d'une case nomme le joueur, son action principale et sa cible : la planète d'une mise en orbite ou d'un atterrissage, la carte jouée, le secteur scanné, la technologie acquise (« Alice joue la carte « Observatoire de Vega » »).
+
+![Résumé de la partie](docs/images/ecrans/fin-de-partie-resume.png)
+
+- Un clic sur une case ou sur le nom d'une manche fait défiler l'historique complet, dessous, jusqu'à ce tour ou cette manche.
+- **Voir le plateau** cache l'écran le temps de regarder le plateau final ; **Revoir le résumé** le rouvre. **Nouvelle partie** ramène à l'accueil.
+
 ## 2. Tutoriel et Règles
 
 Les exigences (**R**) décrivent les règles telles que le jeu les applique ; la partie se joue en **5 manches**, chaque joueur commençant avec 4 crédits, 3 énergies, 4 Médias et 5 cartes, puis **réserve** une carte sous son plateau.
@@ -303,7 +319,7 @@ Ce chapitre franchit un palier de score, pose un marqueur sur une tuile objectif
 - **R3** **Paliers neutres** à 20 et 30 PV (moins de 4 joueurs) : un marqueur neutre est posé ; sur le triangle d'un plateau Alien, il occupe le bonus de découverte de sa couleur (la trace suivante de cette couleur prend le bonus suivant).
 - **R4** Les tuiles objectif rapportent leurs points au décompte final selon le rang du marqueur sur la tuile, pour chaque série ou paire (détail : 3.4).
 - **R5** À la fin de la 5ᵉ manche, le décompte final ajoute les points des tuiles objectif et des cartes Fin de partie.
-- **R6** L'écran de fin montre le détail de chaque joueur par catégorie (devant chaque nom : silhouette ou force du robot ; un trophée après le nom du ou des vainqueurs) et l'historique complet de la partie ; sous son titre, une ligne par manche et un trait par tour (action principale au survol) font défiler l'historique jusqu'à ce tour ou cette manche. **Voir le plateau** cache le résumé le temps de regarder le plateau final ; **Revoir le résumé** le rouvre.
+- **R6** L'écran de fin montre le détail des scores de chaque joueur par catégorie, le ou les vainqueurs, le résumé de la partie (action principale de chaque tour) et l'historique complet (voir 1.4).
 
 ## 3. Glossaire
 

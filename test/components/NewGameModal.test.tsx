@@ -55,11 +55,11 @@ describe('NewGameModal', () => {
     const onConfirm = jest.fn();
     render(<NewGameModal visible onConfirm={onConfirm} onCancel={() => {}} />);
     expect((screen.getByLabelText('Votre nom') as HTMLInputElement).value).toBe('Ada');
-    expect(screen.getByText(/Ada et 1 robot \(Expert\)/)).toBeTruthy();
+    expect(screen.queryByText(/premier joueur tiré au hasard/)).toBeNull();
 
     fireEvent.change(screen.getByLabelText('Votre nom'), { target: { value: '  Grace  ' } });
     fireEvent.click(screen.getByText('+ Ajouter un robot'));
-    expect(screen.getByText(/Grace et 2 robots \(Expert, Expert\)/)).toBeTruthy();
+    expect(screen.getByText(/Places · 3 joueurs/)).toBeTruthy();
 
     fireEvent.click(screen.getByText('Commencer'));
     expect(onConfirm).toHaveBeenCalledWith('Grace', ['EXPERT', 'EXPERT']);

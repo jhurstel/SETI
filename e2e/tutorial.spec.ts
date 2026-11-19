@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { TUTORIAL_CHAPTERS } from '../src/tutorial/chapters';
 import { parseTutorialText } from '../src/tutorial/tutorialText';
-import { availableAction, dismissFirstPlayerDraw, reserveIfAsked, startLocalGame } from './helpers';
+import { availableAction, dismissFirstPlayerDraw, reserveIfAsked, startLocalGame, undoLastButton } from './helpers';
 
 const text = parseTutorialText(fs.readFileSync(path.resolve(__dirname, '../public/docs/tutoriel.md'), 'utf-8'));
 const bubble = (page: Page) => page.locator('.seti-tutorial-bubble');
@@ -67,6 +67,41 @@ test('chapitre « L\'écran et le tour » joué jusqu\'au bout, puis coché dans
 
   await clickInBubble(page, 'Menu des chapitres');
   await expect(page.getByRole('button', { name: `${text.ecran.title} (terminé)` })).toBeVisible();
+});
+
+/** Échange 2 crédits contre 1 énergie (infobulle de la tuile des crédits) */
+async function tradeCredits(page: Page) {
+  await page.locator('.seti-stat-tile.has-actions').first().hover();
+  await page.locator('.seti-resource-tooltip').getByRole('button', { name: 'Échanger' }).first().click();
+  await page.mouse.move(1, 1);
+}
+
+test("impasse : crédits échangés, mode annulation ; l'annulation rend l'étape, « Recommencer » le chapitre", async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Plus tard' }).click();
+  await openChapter(page, 'ecran');
+  await dismissAnnouncement(page);
+  for (let i = 0; i < 10; i++) await clickInBubble(page, 'Suivant');
+  await expect(bubble(page)).toContainText(text.ecran.steps.lancer.title);
+
+  // 4 crédits : deux échanges n'en laissent plus pour lancer une sonde
+  await tradeCredits(page);
+  await expect(bubble(page)).toContainText(text.ecran.steps.lancer.title);
+  await tradeCredits(page);
+  await expect(bubble(page)).toContainText(text.ecran.steps['annuler-credits'].title);
+  await expect(bubble(page)).toContainText('Annulez, ou recommencez le chapitre');
+  await expect(availableAction(page, 'Lancer une sonde')).toHaveCount(0);
+
+  // Annulation du dernier échange : l'étape « Lancez une sonde » revient
+  await undoLastButton(page).click();
+  await expect(bubble(page)).toContainText(text.ecran.steps.lancer.title);
+
+  // De nouveau dans l'impasse, puis « Recommencer le chapitre » : retour à la première étape
+  await tradeCredits(page);
+  await expect(bubble(page)).toContainText(text.ecran.steps['annuler-credits'].title);
+  await clickInBubble(page, 'Recommencer le chapitre');
+  await dismissAnnouncement(page);
+  await expect(bubble(page)).toContainText(text.ecran.steps.bienvenue.title);
 });
 
 test('chaque chapitre préparé démarre avec sa bulle, et toutes les zones qu\'il décrit sont à l\'écran', async ({ page }) => {
@@ -161,8 +196,10 @@ test('chapitre Anomalies : découverte, ellipse, puis la rotation amène la Terr
   await clickInBubble(page, 'Suivant');
   await expect(bubble(page)).toContainText(text.anomalies.steps.analyser.title);
   await availableAction(page, 'Analyser les données').click();
-  // Trace bleue sur le triangle de la première espèce : découverte
+  // Trace bleue sur le triangle de la première espèce : la découverte se résout à la fin du tour
   await page.locator('.alien-triangle-slot.clickable').first().click();
+  await expect(bubble(page)).toContainText(text.anomalies.steps.reveler.title);
+  await availableAction(page, 'Prochain joueur').click();
   await dismissAnnouncement(page);
   await expect(bubble(page)).toContainText(text.anomalies.steps.decouverte.title, { timeout: 15_000 });
   await clickInBubble(page, 'Suivant');
@@ -187,6 +224,9 @@ test("« Traces de vie et espèces » sans espèce rencontrée : l'espèce déco
   for (let i = 0; i < 2; i++) await page.locator('.computer-slot.can-fill').first().click();
   await availableAction(page, 'Analyser les données').click();
   await page.locator('.alien-triangle-slot.clickable').first().click();
+  // La découverte se résout à la fin du tour
+  await expect(bubble(page)).toContainText(text.especes.steps.reveler.title);
+  await availableAction(page, 'Prochain joueur').click();
   await dismissAnnouncement(page);
   await expect(bubble(page)).toContainText(text.especes.steps.decouverte.title, { timeout: 15_000 });
   await expect(page.locator('.alien-board-container.left')).toContainText('Espèce découverte');

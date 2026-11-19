@@ -46,7 +46,7 @@ export function readExplanations(chapter: TutorialChapter, state: TutorialState,
 
 /**
  * Joue la solution d'un chapitre depuis sa position préparée : explications validées, chaque commande permise par
- * l'étape en cours, choix répondus par défaut, étape courante jamais en recul. Renvoie l'erreur rencontrée, ou null
+ * l'étape en cours, choix répondus par défaut, étape courante jamais en recul, aucune impasse rencontrée. Renvoie l'erreur rencontrée, ou null
  * si le chapitre est terminé (tests et outil tools/tutorial/findSeed.ts).
  */
 export function checkSolution(chapter: TutorialChapter, prepared: PreparedChapter): string | null {
@@ -54,8 +54,10 @@ export function checkSolution(chapter: TutorialChapter, prepared: PreparedChapte
   const start = prepared.game;
   try {
     if (start.players[start.currentPlayerIndex].id !== humanId || start.interaction) return 'le joueur n\'a pas la main au départ';
-    const firstAction = chapter.steps.find(s => s.done && !s.onlyIf);
+    const firstAction = chapter.steps.find(s => s.done);
     if (firstAction?.done?.({ game: start, humanId, start })) return `l'étape ${firstAction.id} est déjà faite au départ`;
+    const initialDeadEnd = TutorialRunner.deadEnd(chapter, TutorialRunner.start(chapter), { game: start, humanId, start });
+    if (initialDeadEnd) return `impasse ${initialDeadEnd.id} dès le départ`;
     let game = start;
     let state = TutorialRunner.start(chapter);
     let index = 0;
@@ -66,6 +68,8 @@ export function checkSolution(chapter: TutorialChapter, prepared: PreparedChapte
       const blocked = tutorialCommandBlockReason(step, resolved);
       if (blocked) return `commande ${resolved.type} refusée à l'étape ${step?.id} : ${blocked}`;
       game = answerAll(applyTutorialCommand(game, humanId, resolved).game, humanId, chapter);
+      const deadEnd = TutorialRunner.deadEnd(chapter, state, { game, humanId, start });
+      if (deadEnd) return `impasse ${deadEnd.id} sur le chemin de la solution, après ${resolved.type}`;
       const next = TutorialRunner.currentIndex(chapter, state, { game, humanId, start });
       if (next < index) return `l'étape ${chapter.steps[next].id} redevient à faire après ${resolved.type}`;
       index = next;

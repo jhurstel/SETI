@@ -144,6 +144,23 @@ describe('bulle du tutoriel', () => {
     expect(screen.getByText('À vous de jouer')).toBeTruthy();
   });
 
+  test("mode annulation : sans numéro d'étape, « Recommencer le chapitre » secondaire tant qu'on peut annuler", () => {
+    const onRestart = jest.fn();
+    const { unmount } = render(<TutorialOverlay {...base} text={{ title: 'Annulez', body: 'Trop loin.' }} isExplanation={false} hasDocLink deadEnd canUndo onRestart={onRestart} />);
+    expect(screen.queryByText('À vous de jouer')).toBeNull();
+    expect(screen.getByText('Annulez, ou recommencez le chapitre')).toBeTruthy();
+    expect(screen.queryByText(/\d+ \/ \d+/)).toBeNull();
+    const restart = screen.getByText('Recommencer le chapitre');
+    expect(restart.className).toContain('secondary');
+    fireEvent.click(restart);
+    expect(onRestart).toHaveBeenCalled();
+    unmount();
+    // Plus rien d'annulable : recommencer est la seule issue
+    render(<TutorialOverlay {...base} text={{ title: 'Annulez', body: 'Trop loin.' }} isExplanation={false} hasDocLink deadEnd canUndo={false} onRestart={onRestart} />);
+    expect(screen.getByText('Plus rien à annuler : recommencez le chapitre')).toBeTruthy();
+    expect(screen.getByText('Recommencer le chapitre').className).toContain('primary');
+  });
+
   test('chapitre terminé : chapitre suivant ou menu', () => {
     const props = { ...base, onNextChapter: jest.fn(), onMenu: jest.fn() };
     render(<TutorialOverlay {...props} isExplanation finished nextChapterTitle="Atterrir" />);

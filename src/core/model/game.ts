@@ -1,7 +1,7 @@
 /** Partie : état complet, pioches, historique, validation, décompte final, événements, vérifications de règle */
 import type { Board } from './board';
 import type { Card } from './cards';
-import { EventType, GamePhase } from './enums';
+import { ActionType, EventType, GamePhase } from './enums';
 import type { InteractionState } from './interactions';
 import type { Player } from './player';
 import type { Species } from './species';
@@ -14,6 +14,8 @@ export interface GameLogEntry {
   sequenceId?: string;
   /** Première entrée de l'action principale du tour (barre de progression de l'historique) */
   mainAction?: boolean;
+  /** Action principale dont l'entrée est la première (posé par le moteur ; résumé de la partie de l'écran de fin) */
+  mainActionType?: ActionType;
   previousState?: Game;
 }
 
@@ -71,6 +73,8 @@ export interface HistoryEntry {
   sequenceId?: string;
   /** Première entrée de l'action principale du tour (barre de progression de l'historique) */
   mainAction?: boolean;
+  /** Action principale dont l'entrée est la première (posé par le moteur ; résumé de la partie de l'écran de fin) */
+  mainActionType?: ActionType;
 }
 
 export interface ValidationResult {

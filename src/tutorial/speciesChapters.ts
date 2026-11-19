@@ -4,16 +4,16 @@
  * mécanique principale. Textes dans public/docs/tutoriel.md ; solutions vérifiées par test/TutorialChapters.test.ts.
  */
 import {
-  ActionType, AlienBoardType, Game, LifeTraceLocation, LifeTraceType, ProbeState, SignalType,
+  ActionType, AlienBoardType, GAME_CONSTANTS, Game, LifeTraceLocation, LifeTraceType, ProbeState, SignalType,
 } from '../core/types';
 import { calculateAbsolutePosition, createRotationState, getObjectPosition } from '../core/SolarSystemPosition';
 import { requirePlayer } from '../core/players';
 import { CardSystem } from '../systems/CardSystem';
 import { performRotation } from '../systems/RotationSystem';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
-import type { TutorialChapter, TutorialContext, TutorialStep } from './types';
+import type { TutorialChapter, TutorialContext, TutorialDeadEnd, TutorialStep } from './types';
 import {
-  cannotReachWithCapsule, freeProbe, giveSpeciesCardToHand, humanOf, opponentsPassed, probeOnPlanet, readyToDiscover, stepTowards,
+  blueTraceElsewhere, cannotReachWithCapsule, cardGone, movesBetween, movesTo, resourceDeadEnds, freeProbe, giveSpeciesCardToHand, humanOf, opponentsPassed, probeOnPlanet, readyToDiscover, stepTowards,
 } from './scenario';
 
 /** Graine des chapitres (celle des autres chapitres : Mars et Jupiter à 2 déplacements de la Terre) */
@@ -54,6 +54,18 @@ function discoverySteps(species: AlienBoardType, revealedWhen: (c: TutorialConte
   ];
 }
 
+/** Impasse commune : trace bleue de l'analyse posée sur l'autre plateau Alien, l'espèce ne sera pas découverte */
+const BLUE_TRACE_DEAD_END: TutorialDeadEnd = { id: 'annuler-trace-bleue', when: c => blueTraceElsewhere(c.game, c.humanId) };
+
+/** Énergie de l'analyse qui découvre l'espèce, tant qu'elle n'est pas faite */
+const analysisEnergy = (c: TutorialContext) => (analysisDone(c) ? 0 : GAME_CONSTANTS.ANALYZE_COST_ENERGY);
+
+/** Crédits et énergie d'un scan (et de l'analyse qui le précède), tant que `done` n'est pas vrai */
+const scanDeadEnds = (done: (c: TutorialContext) => boolean) => resourceDeadEnds({
+  credits: c => (done(c) ? 0 : GAME_CONSTANTS.SCAN_COST_CREDITS),
+  energy: c => (done(c) ? 0 : GAME_CONSTANTS.SCAN_COST_ENERGY + analysisEnergy(c)),
+});
+
 /** Marque au nom du joueur toutes les cases de données du secteur de la Terre, sauf la dernière (son scan le couvre) */
 function fillEarthSector(game: Game, humanId: string): Game {
   const s = game.board.solarSystem;
@@ -80,13 +92,13 @@ const exertiens: TutorialChapter = {
   steps: [
     // La fin du tour révèle les Exertiens et ouvre le choix des cartes : l'étape qui le présente s'affiche pendant ce choix
     ...discoverySteps(AlienBoardType.EXERTIENS, c => discovered(c) || c.game.interaction?.type === 'CHOOSING_EXERTIEN_CARD').filter(step => step.id !== 'decouverte'),
-    // Renoncé à jouer une carte : annuler pour retrouver le choix
-    { id: 'annuler', target: 'history', onlyIf: exertienRefused, done: c => !exertienRefused(c), docLink: 'historique' },
     { id: 'jouer', target: 'species', duringChoice: 'CHOOSING_EXERTIEN_CARD', done: exertienPlayed, docLink: SPECIES_DOC[AlienBoardType.EXERTIENS] },
     { id: 'danger', target: 'species' },
     { id: 'paliers', target: 'score' },
     { id: 'conclusion', docLink: SPECIES_DOC[AlienBoardType.EXERTIENS] },
   ],
+  // Renoncé à jouer une carte : annuler pour retrouver le choix
+  deadEnds: [BLUE_TRACE_DEAD_END, ...resourceDeadEnds({ energy: analysisEnergy }), { id: 'annuler-refus', when: exertienRefused }],
   solution: [{ type: 'ANALYZE' }, { type: 'END_TURN' }],
 };
 
@@ -94,9 +106,19 @@ const exertiens: TutorialChapter = {
 
 /** Emplacement de la piste des Centauriens qui rapporte 15 PV contre 3 données */
 const CENTAURIEN_15PV_SLOT = 3;
+/** Données que coûte cet emplacement */
+const CENTAURIEN_15PV_DATA = 3;
 
 const messageClaimed = ({ game, humanId }: TutorialContext) =>
   !!game.species.find(s => s.name === AlienBoardType.CENTAURIENS)?.message?.some(tile => tile.claimedBy === humanId);
+
+/** Traces rouges du joueur (tous plateaux) */
+const redTraces = ({ game, humanId }: TutorialContext) =>
+  game.board.alienBoards.reduce((n, board) => n + board.lifeTraces.filter(t => t.playerId === humanId && t.type === LifeTraceType.RED).length, 0);
+/** Trace rouge du scan posée ailleurs que sur l'emplacement à 15 PV de la piste : le palier de message ne sera pas franchi */
+const redTraceMisplaced = (c: TutorialContext) => redTraces(c) > redTraces({ ...c, game: c.start })
+  && !c.game.board.alienBoards[0].lifeTraces.some(t => t.playerId === c.humanId && t.type === LifeTraceType.RED
+    && t.location === LifeTraceLocation.SPECIES && t.slotIndex === CENTAURIEN_15PV_SLOT);
 
 const centauriens: TutorialChapter = {
   id: 'centauriens',
@@ -129,6 +151,13 @@ const centauriens: TutorialChapter = {
     { id: 'fin-du-tour-2', target: 'end-turn', done: c => messageClaimed(c) || c.game.interaction?.type === 'CHOOSING_CENTAURIEN_REWARD', allowedActions: ['END_TURN'] },
     { id: 'message', target: 'species', duringChoice: 'CHOOSING_CENTAURIEN_REWARD', done: messageClaimed },
     { id: 'conclusion', docLink: SPECIES_DOC[AlienBoardType.CENTAURIENS] },
+  ],
+  deadEnds: [
+    BLUE_TRACE_DEAD_END,
+    { id: 'annuler-trace-rouge', when: redTraceMisplaced },
+    ...scanDeadEnds(c => onTrack(c, LifeTraceType.RED) || redTraceMisplaced(c) || c.game.board.sectors.some(s => s.isCovered && !c.start.board.sectors.find(o => o.id === s.id)!.isCovered)),
+    // Données de l'emplacement à 15 PV (3), placées dans l'ordinateur avant de poser la trace rouge
+    ...resourceDeadEnds({ data: c => (onTrack(c, LifeTraceType.RED) || redTraceMisplaced(c) ? 0 : CENTAURIEN_15PV_DATA) }),
   ],
   solution: [{ type: 'ANALYZE' }, { type: 'END_TURN' }, { type: 'SCAN' }, { type: 'END_TURN' }],
   // Trace rouge du scan : l'emplacement à 15 PV (3 données) de la piste des Centauriens
@@ -186,12 +215,12 @@ const oumuamua: TutorialChapter = {
   steps: [
     ...discoverySteps(AlienBoardType.OUMUAMUA),
     { id: 'planete', target: 'solar-system' },
-    // Mauvaise carte de la rangée (ou signal posé hors d'Oumuamua) : annuler
-    { id: 'annuler', target: 'history', onlyIf: wrongScanCard, done: c => !wrongScanCard(c), docLink: 'historique' },
     { id: 'scanner', target: 'actions', done: c => tokensOf(c) > 0, allowedActions: [ActionType.SCAN_SECTOR] },
     { id: 'jetons', target: 'species' },
     { id: 'conclusion', docLink: SPECIES_DOC[AlienBoardType.OUMUAMUA] },
   ],
+  // Mauvaise carte de la rangée (ou signal posé hors d'Oumuamua)
+  deadEnds: [BLUE_TRACE_DEAD_END, { id: 'annuler-scan', when: wrongScanCard }, ...scanDeadEnds(c => tokensOf(c) > 0)],
   solution: [{ type: 'ANALYZE' }, { type: 'END_TURN' }, { type: 'SCAN' }],
   // Second signal du scan : sur Oumuamua
   answer: game => (game.interaction?.type === 'SELECTING_SCAN_SECTOR' ? { type: 'CHOOSE', choice: { kind: 'SECTOR', sectorId: 'oumuamua' } } : undefined),
@@ -206,6 +235,18 @@ const specimenMission = ({ game, humanId }: TutorialContext) => humanOf(game, hu
 const specimenDelivered = (c: TutorialContext) => (specimenMission(c)?.completedRequirementIds.length ?? 0) > 0;
 const earthOutOfReach = ({ game, humanId }: TutorialContext) => cannotReachWithCapsule(game, humanId, 'earth');
 const collected = (c: TutorialContext) => !!capsuleOf(c.game, c.humanId) || specimenDelivered(c);
+/**
+ * Énergie de la sonde : l'analyse, rejoindre Jupiter, puis ramener la capsule sur Terre (le déplacement gratuit de
+ * Premier Contact n'est pas compté : il ne sert pas à la capsule)
+ */
+const probeShortOfEnergy = (c: TutorialContext) => {
+  const moves = movesTo(c.game, c.humanId, 'jupiter');
+  return moves !== undefined && humanOf(c.game, c.humanId).energy < analysisEnergy(c) + moves + movesBetween(c.game, 'jupiter', 'earth');
+};
+/** Premier Contact jouée sans prélever de spécimen (atterrissage ou prélèvement refusé) */
+const specimenMissed = (c: TutorialContext) => !!specimenMission(c) && !collected(c);
+/** Coût de Premier Contact (en main) */
+const specimenCardCost = ({ game, humanId }: TutorialContext) => humanOf(game, humanId).cards.find(card => card.id === SPECIMEN_CARD)?.cost ?? 0;
 
 const mascamites: TutorialChapter = {
   id: 'mascamites',
@@ -223,13 +264,22 @@ const mascamites: TutorialChapter = {
   steps: [
     ...discoverySteps(AlienBoardType.MASCAMITES),
     { id: 'specimens', target: 'solar-system' },
-    { id: 'prelever', target: 'hand', done: collected, allowedActions: [ActionType.PLAY_CARD] },
+    { id: 'prelever', target: 'hand', done: collected, allowedActions: [ActionType.PLAY_CARD], allowedCards: [SPECIMEN_CARD] },
     { id: 'capsule', target: 'solar-system' },
-    // Capsule partie trop loin (plus assez d'énergie pour rejoindre la Terre) : annuler ses déplacements
-    { id: 'annuler', target: 'history', onlyIf: earthOutOfReach, done: c => !earthOutOfReach(c), docLink: 'historique' },
     { id: 'ramener', target: 'solar-system', done: c => probeOnPlanet(c.game, c.humanId, 'earth', ProbeState.CAPSULE) || specimenDelivered(c) },
     { id: 'mission', target: 'missions', done: specimenDelivered },
     { id: 'conclusion', target: 'species', docLink: SPECIES_DOC[AlienBoardType.MASCAMITES] },
+  ],
+  // Capsule partie trop loin (plus assez d'énergie pour rejoindre la Terre)
+  deadEnds: [
+    BLUE_TRACE_DEAD_END,
+    // Avant Premier Contact : la sonde doit rejoindre Jupiter (la carte donne 1 déplacement), puis la capsule la Terre
+    { id: 'annuler-sonde', when: c => !collected(c) && probeShortOfEnergy(c) },
+    { id: 'annuler-carte', when: c => !collected(c) && cardGone(c.game, c.humanId, SPECIMEN_CARD) },
+    { id: 'annuler-prelevement', when: specimenMissed },
+    { id: 'annuler-capsule', when: earthOutOfReach },
+    // Coût de Premier Contact
+    ...resourceDeadEnds({ credits: c => (collected(c) ? 0 : specimenCardCost(c)) }),
   ],
   solution: [
     { type: 'ANALYZE' }, { type: 'END_TURN' }, { type: 'PLAY_CARD', cardId: SPECIMEN_CARD },
@@ -297,6 +347,14 @@ const anomalies: TutorialChapter = {
     { id: 'rechercher', target: 'actions', done: c => earthOnAnomaly(c) && techAcquired(c) && !c.game.interaction, allowedActions: [ActionType.RESEARCH_TECH] },
     { id: 'recompense', target: 'history' },
     { id: 'conclusion', docLink: SPECIES_DOC[AlienBoardType.ANOMALIES] },
+  ],
+  deadEnds: [
+    BLUE_TRACE_DEAD_END,
+    ...resourceDeadEnds({ energy: analysisEnergy }),
+    // Recherche lancée (troisième rotation) sans prendre de technologie
+    { id: 'annuler-recherche', when: c => rotations(c) >= 3 && !techAcquired(c) },
+    // Après l'ellipse (deux rotations), médias de la recherche (6) dépensés à acheter une carte
+    ...resourceDeadEnds({ mediaCoverage: c => (rotations(c) === 2 && !techAcquired(c) ? GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA : 0) }),
   ],
   solution: [{ type: 'ANALYZE' }, { type: 'END_TURN' }, { type: 'RESEARCH_TECH' }],
 };

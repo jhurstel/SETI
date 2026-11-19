@@ -54,6 +54,11 @@ export class GameEngine {
       if (isMainAction && this.state.currentPlayerIndex === previousPlayerIndex && this.state.currentRound === previousRound) {
         this.state.players[previousPlayerIndex].hasPerformedMainAction = true;
       }
+      // La première entrée de l'action principale porte son type (résumé de la partie de l'écran de fin)
+      if (isMainAction) {
+        const first = action.historyEntries.findIndex(e => !e.message.startsWith('---'));
+        if (first >= 0) action.historyEntries = action.historyEntries.map((e, i) => (i === first ? { ...e, mainActionType: action.type } : e));
+      }
 
       return {
         success: true,

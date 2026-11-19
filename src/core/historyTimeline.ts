@@ -1,12 +1,16 @@
-import { HistoryEntry } from './types';
+import { ActionType, HistoryEntry } from './types';
 
 /** Tour d'un joueur dans l'historique : entrée « --- Tour de … --- » et première entrée de son action principale */
 export interface TimelineTurn {
   playerId: string;
   /** Indice du séparateur du tour dans l'historique */
   entryIndex: number;
-  /** Message de l'action principale (à défaut, la première action du joueur pendant le tour) */
+  /** Message de l'action principale du tour (absent : tour sans action principale marquée) */
   action?: string;
+  /** Type de l'action principale (absent dans les sauvegardes d'avant son ajout) */
+  actionType?: ActionType;
+  /** Cible de l'action : planète (orbite, atterrissage), carte jouée, secteur scanné, technologie acquise */
+  target?: string;
 }
 
 /** Manche de l'historique et ses tours, dans l'ordre */
@@ -19,7 +23,19 @@ export interface TimelineRound {
   complete: boolean;
 }
 
-type TimelineEntry = Pick<HistoryEntry, 'message' | 'playerId' | 'mainAction'>;
+type TimelineEntry = Pick<HistoryEntry, 'message' | 'playerId' | 'mainAction' | 'mainActionType' | 'sequenceId'>;
+
+/**
+ * Cible d'une action principale lue dans les messages du moteur : dans le message de l'action (planète, carte),
+ * ou dans une conséquence de la même séquence (premier secteur scanné, technologie acquise).
+ */
+const TARGET_PATTERNS: Partial<Record<ActionType, { inAction: boolean; pattern: RegExp }>> = {
+  [ActionType.ORBIT]: { inAction: true, pattern: /autour de (.+?)(?: \(|$)/ },
+  [ActionType.LAND]: { inAction: true, pattern: / sur (.+?)(?: \(|$)/ },
+  [ActionType.PLAY_CARD]: { inAction: true, pattern: /jouer "([^"]+)"/ },
+  [ActionType.SCAN_SECTOR]: { inAction: false, pattern: /dans le secteur (.+?)(?:,|$)/ },
+  [ActionType.RESEARCH_TECH]: { inAction: false, pattern: /acquiert technologie "([^"]+)"/ },
+};
 
 /**
  * Découpe l'historique en manches et en tours (barre de progression de l'historique et de l'accueil).
@@ -28,8 +44,8 @@ type TimelineEntry = Pick<HistoryEntry, 'message' | 'playerId' | 'mainAction'>;
 export function historyTimeline(entries: TimelineEntry[]): TimelineRound[] {
   const rounds: TimelineRound[] = [];
   let turn: TimelineTurn | undefined;
-  // L'action principale marquée du tour a été trouvée (elle remplace la première action notée)
-  let marked = false;
+  // Séquence de l'action principale du tour, tant que sa cible reste à trouver dans ses conséquences
+  let targetSequence: string | undefined;
 
   entries.forEach((entry, index) => {
     // Historique sans en-tête de la première manche (partie commencée sans mise en place) : le premier tour l'ouvre
@@ -48,18 +64,32 @@ export function historyTimeline(entries: TimelineEntry[]): TimelineRound[] {
       return;
     }
     if (entry.message.startsWith('--- Tour de')) {
+      targetSequence = undefined;
       turn = { playerId: entry.playerId, entryIndex: index };
-      marked = false;
       round.turns.push(turn);
       return;
     }
-    if (!turn || entry.message.startsWith('---') || entry.playerId !== turn.playerId) return;
-    if (entry.mainAction && !marked) {
-      turn.action = entry.message;
-      marked = true;
-    } else if (!turn.action) {
-      turn.action = entry.message;
+    if (!turn) return;
+    const target = turn.actionType && TARGET_PATTERNS[turn.actionType];
+    if (target && targetSequence !== undefined && entry.sequenceId === targetSequence) {
+      const found = entry.message.match(target.pattern);
+      if (found) {
+        turn.target = found[1];
+        targetSequence = undefined;
+      }
+      return;
     }
+    // Seule l'action principale du tour compte (pas les actions gratuites ni leurs conséquences)
+    if (turn.action || !entry.mainAction || entry.playerId !== turn.playerId) return;
+    turn.action = entry.message;
+    targetSequence = undefined;
+    if (!entry.mainActionType) return;
+    turn.actionType = entry.mainActionType;
+    const pattern = TARGET_PATTERNS[entry.mainActionType];
+    if (!pattern) return;
+    const found = pattern.inAction ? entry.message.match(pattern.pattern) : null;
+    if (found) turn.target = found[1];
+    else if (!pattern.inAction) targetSequence = entry.sequenceId;
   });
 
   return rounds;

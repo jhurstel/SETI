@@ -23,6 +23,11 @@ interface TutorialOverlayProps {
   hideCount?: boolean;
   /** Au-dessus des fenêtres (écran de fin de partie, étape affichée pendant une fenêtre de choix) */
   aboveModals?: boolean;
+  /** Mode annulation (impasse) : le chapitre ne peut plus se terminer, il faut annuler ou recommencer */
+  deadEnd?: boolean;
+  /** Mode annulation : l'historique permet encore d'annuler (sinon, recommencer est la seule issue) */
+  canUndo?: boolean;
+  onRestart?: () => void;
   onNext: () => void;
   onDocLink: () => void;
   onQuit: () => void;
@@ -120,7 +125,7 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = props => {
       <div ref={bubbleRef} className={`seti-tutorial-bubble${props.aboveModals ? ' above-modals' : ''}`} role="dialog" aria-label="Tutoriel" style={bubblePosition(rect, bubbleHeight)}>
         <div className="seti-tutorial-header">
           <span className="seti-tutorial-chapter">{props.chapterTitle}</span>
-          {!finished && !props.hideCount && <span className="seti-tutorial-count">{props.stepNumber} / {props.stepCount}</span>}
+          {!finished && !props.hideCount && !props.deadEnd && <span className="seti-tutorial-count">{props.stepNumber} / {props.stepCount}</span>}
         </div>
         {finished ? (
           <>
@@ -136,9 +141,16 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = props => {
           <>
             <div className="seti-tutorial-title">{text?.title ?? '…'}</div>
             <div className="seti-tutorial-body" dangerouslySetInnerHTML={{ __html: body }} />
-            {!props.isExplanation && <div className="seti-tutorial-hint">À vous de jouer</div>}
+            {props.deadEnd ? (
+              <div className="seti-tutorial-hint">
+                {props.canUndo ? 'Annulez, ou recommencez le chapitre' : "Plus rien à annuler : recommencez le chapitre"}
+              </div>
+            ) : !props.isExplanation && <div className="seti-tutorial-hint">À vous de jouer</div>}
             <div className="seti-tutorial-buttons">
               {props.isExplanation && <button className="seti-modal-btn primary" onClick={props.onNext}>{props.nextLabel ?? 'Suivant'}</button>}
+              {props.deadEnd && (
+                <button className={`seti-modal-btn ${props.canUndo ? 'secondary' : 'primary'}`} onClick={props.onRestart}>Recommencer le chapitre</button>
+              )}
               {props.hasDocLink && <button className="seti-modal-btn secondary" onClick={props.onDocLink}>En savoir plus</button>}
               <button className="seti-modal-btn secondary seti-tutorial-quit" onClick={props.onQuit}>{props.quitLabel ?? 'Quitter'}</button>
             </div>

@@ -1036,6 +1036,9 @@ export const BoardUI: React.FC = () => {
           hasDocLink={!!tutorial.step?.docLink}
           nextChapterTitle={tutorial.nextChapter ? tutorial.text?.[tutorial.nextChapter.id]?.title ?? tutorial.nextChapter.id : undefined}
           aboveModals={game.phase === GamePhase.FINAL_SCORING || tutorial.duringChoice}
+          deadEnd={!!tutorial.step?.deadEnd}
+          canUndo={!!onUndo || !!onUndoTurn}
+          onRestart={() => startChapter(tutorial.active!.chapter.id)}
           onNext={tutorial.next}
           onDocLink={() => { setDocSection(tutorial.step?.docLink); setDocVisible(true); }}
           onQuit={() => leaveTutorial(false)}

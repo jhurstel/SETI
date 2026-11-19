@@ -9,6 +9,7 @@ import { CardSystem } from '../systems/CardSystem';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TechnologySystem } from '../systems/TechnologySystem';
 import type { Command } from '../session/commands';
+import type { TutorialContext, TutorialDeadEnd } from './types';
 
 export const humanOf = (game: Game, humanId: string): Player => requirePlayer(game, humanId);
 
@@ -107,15 +108,31 @@ export function probeCell(game: Game, humanId: string, state: ProbeState = Probe
   return `${probe.solarPosition.disk}${getAbsoluteSectorForProbe(probe.solarPosition, rotationOf(game))}`;
 }
 
-/** Plus court chemin (déplacements, sorties d'astéroïde comprises) de la sonde libre du joueur vers une planète */
+/** Plus court chemin (déplacements, sorties d'astéroïde comprises) d'une case (« B8 ») vers une planète */
+function pathFrom(game: Game, cell: string, planetId: string) {
+  const target = planetCell(game, planetId);
+  if (!target) return undefined;
+  const reachable = calculateReachableCells(cell[0] as never, Number(cell.slice(1)) as never, 8, rotationOf(game), false, undefined, game.board.solarSystem.extraCelestialObjects);
+  // Toute planète est à moins de 8 cases d'une autre case du système solaire
+  return reachable.get(target)!;
+}
+
+/** Plus court chemin de la sonde libre du joueur vers une planète */
 function pathTo(game: Game, humanId: string, planetId: string, state: ProbeState = ProbeState.IN_SOLAR_SYSTEM) {
   const probe = freeProbe(game, humanId, state);
-  const target = planetCell(game, planetId);
-  if (!probe || !target) return undefined;
-  const start = getAbsoluteSectorForProbe(probe.solarPosition, rotationOf(game));
-  const reachable = calculateReachableCells(probe.solarPosition.disk, start, 8, rotationOf(game), false, undefined, game.board.solarSystem.extraCelestialObjects);
-  // Toute planète est à moins de 8 cases d'une autre case du système solaire
-  return { probe, ...reachable.get(target)! };
+  const cell = probeCell(game, humanId, state);
+  const path = cell ? pathFrom(game, cell, planetId) : undefined;
+  return probe && path ? { probe, ...path } : undefined;
+}
+
+/** Déplacements de la sonde libre du joueur (ou de sa capsule) jusqu'à une planète ; undefined sans sonde libre */
+export function movesTo(game: Game, humanId: string, planetId: string, state: ProbeState = ProbeState.IN_SOLAR_SYSTEM): number | undefined {
+  return pathTo(game, humanId, planetId, state)?.movements;
+}
+
+/** Déplacements entre deux planètes (plus court chemin) */
+export function movesBetween(game: Game, fromPlanetId: string, toPlanetId: string): number {
+  return pathFrom(game, planetCell(game, fromPlanetId)!, toPlanetId)!.movements;
 }
 
 /** Commande : un pas de la sonde libre du joueur vers une planète (plus court chemin) */
@@ -142,15 +159,58 @@ export const hasLander = (game: Game, humanId: string, planetId: string) =>
  * pour la rejoindre puis payer l'orbite (sans orbiteur déjà posé, ni sonde libre : faux)
  */
 export function cannotReachOrbit(game: Game, humanId: string, planetId: string): boolean {
-  if (hasOrbiter(game, humanId, planetId)) return false;
-  const path = pathTo(game, humanId, planetId);
-  return !!path && humanOf(game, humanId).energy < path.movements + GAME_CONSTANTS.ORBIT_COST_ENERGY;
+  return !hasOrbiter(game, humanId, planetId) && cannotReachWith(game, humanId, planetId, GAME_CONSTANTS.ORBIT_COST_ENERGY);
 }
 /** La capsule du joueur ne peut plus rejoindre une planète : son énergie ne suffit plus (sans capsule : faux) */
 export function cannotReachWithCapsule(game: Game, humanId: string, planetId: string): boolean {
-  const path = pathTo(game, humanId, planetId, ProbeState.CAPSULE);
-  return !!path && humanOf(game, humanId).energy < path.movements;
+  return cannotReachWith(game, humanId, planetId, 0, ProbeState.CAPSULE);
 }
+/**
+ * La sonde libre du joueur ne peut plus rejoindre une planète puis dépenser encore `extra` énergies (atterrissage,
+ * retour d'une capsule…) : son énergie ne suffit plus (sans sonde libre : faux)
+ */
+export function cannotReachWith(game: Game, humanId: string, planetId: string, extra: number, state: ProbeState = ProbeState.IN_SOLAR_SYSTEM): boolean {
+  const path = pathTo(game, humanId, planetId, state);
+  return !!path && humanOf(game, humanId).energy < path.movements + extra;
+}
+/** Énergie d'un atterrissage sur une planète (réduite par un orbiteur ; les chapitres n'ont pas la technologie d'exploration) */
+export function landCost(game: Game, planetId: string): number {
+  const hasOrbiter = game.board.planets.find(p => p.id === planetId)!.orbiters.length > 0;
+  return hasOrbiter ? GAME_CONSTANTS.LAND_COST_ENERGY_WITH_ORBITER : GAME_CONSTANTS.LAND_COST_ENERGY;
+}
+/** Trace bleue du joueur posée sur un autre plateau Alien que celui de l'espèce à découvrir (encore à découvrir) */
+export function blueTraceElsewhere(game: Game, humanId: string, boardIndex = 0): boolean {
+  const target = game.board.alienBoards[boardIndex];
+  if (target.isDiscovered || SpeciesSystem.isDiscoveryPending(game, boardIndex)) return false;
+  return game.board.alienBoards.some((board, index) =>
+    index !== boardIndex && board.lifeTraces.some(t => t.playerId === humanId && t.type === LifeTraceType.BLUE));
+}
+/** Carte du joueur ni en main ni jouée (missions et cartes jouées) : défaussée ou échangée */
+export function cardGone(game: Game, humanId: string, cardId: string): boolean {
+  const player = humanOf(game, humanId);
+  return !player.cards.some(c => c.id === cardId) && !player.playedCards.some(c => c.id === cardId) && !player.missions.some(m => m.cardId === cardId);
+}
+
+// --- Impasses communes ---
+
+/** Ressource dont une étape restante a besoin */
+export type TutorialResource = 'credits' | 'energy' | 'mediaCoverage' | 'data';
+/** Section de texte de l'impasse de chaque ressource (dans la section du chapitre de public/docs/tutoriel.md) */
+export const RESOURCE_DEAD_END_IDS: Record<TutorialResource, string> = {
+  credits: 'annuler-credits', energy: 'annuler-energie', mediaCoverage: 'annuler-medias', data: 'annuler-donnees',
+};
+/**
+ * Impasses de ressources : pour chaque ressource, le besoin des étapes restantes (selon l'avancement) ; impasse quand le
+ * joueur en a moins (dépensée par un échange, un achat, une case de l'ordinateur…). Une ressource que les étapes restantes
+ * rapporteraient n'est pas comptée : le besoin se calcule sans les gains à venir.
+ */
+export function resourceDeadEnds(needs: Partial<Record<TutorialResource, (context: TutorialContext) => number>>): TutorialDeadEnd[] {
+  return (Object.keys(needs) as TutorialResource[]).map(resource => ({
+    id: RESOURCE_DEAD_END_IDS[resource],
+    when: (context: TutorialContext) => humanOf(context.game, context.humanId)[resource] < needs[resource]!(context),
+  }));
+}
+
 export const handSize = (game: Game, humanId: string) => CardSystem.getHandCards(humanOf(game, humanId)).length;
 export const signalsOf = (game: Game, humanId: string) =>
   game.board.sectors.reduce((n, sector) => n + sector.signals.filter(s => s.markedBy === humanId).length, 0);
@@ -207,4 +267,63 @@ export function answerInteraction(game: Game, humanId: string): Command {
     default:
       return { type: 'SKIP' };
   }
+}
+
+/**
+ * Toutes les réponses possibles à l'interaction en cours (explorateur des écarts) : chaque carte, technologie,
+ * emplacement de trace, secteur, carte Exertien, tuile ou bonus proposé, et le renoncement. Une réponse que le moteur
+ * refuse est simplement écartée par l'appelant ; sans choix énuméré, la réponse par défaut.
+ */
+export function interactionAnswers(game: Game, humanId: string): Command[] {
+  const interaction = game.interaction;
+  if (!interaction) return [];
+  const choose = (choice: Extract<Command, { type: 'CHOOSE' }>['choice']): Command => ({ type: 'CHOOSE', choice });
+  const player = humanOf(game, humanId);
+  const answers: Command[] = [];
+  switch (interaction.type) {
+    case 'SELECTING_SCAN_CARD':
+    case 'ACQUIRING_CARD':
+      answers.push(...game.decks.cardRow.map(card => choose({ kind: 'CARD', cardId: card.id })));
+      break;
+    case 'ACQUIRING_TECH':
+      answers.push(...TechnologySystem.acquirableTechs(game, humanId, interaction).map(tech => choose({ kind: 'TECH', techId: tech.id })));
+      break;
+    case 'PLACING_LIFE_TRACE':
+      answers.push(...SpeciesSystem.lifeTraceOptions(game, interaction.color)
+        .filter(o => !interaction.boardIndices || interaction.boardIndices.includes(o.boardIndex))
+        .map(o => choose({ kind: 'LIFE_TRACE', boardIndex: o.boardIndex, color: o.color, slotType: o.location, slotIndex: o.slotIndex })));
+      break;
+    case 'SELECTING_SCAN_SECTOR':
+      answers.push(...[...game.board.sectors.map(sector => sector.id), 'oumuamua'].map(sectorId => choose({ kind: 'SECTOR', sectorId })));
+      break;
+    case 'CHOOSING_EXERTIEN_CARD':
+      answers.push(...player.cards.filter(c => CardSystem.isExertienCard(c)).map(c => choose({ kind: 'EXERTIEN', cardId: c.id })), choose({ kind: 'EXERTIEN', cardId: undefined }));
+      break;
+    case 'CHOOSING_CENTAURIEN_REWARD':
+      game.species.find(s => s.name === AlienBoardType.CENTAURIENS)!.message!
+        .forEach((tile, tokenIndex) => { if (tile.isAvailable) answers.push(choose({ kind: 'CENTAURIEN', tokenIndex })); });
+      break;
+    case 'PLACING_OBJECTIVE_MARKER':
+      answers.push(...game.board.objectiveTiles.map(tile => choose({ kind: 'OBJECTIVE', tileId: tile.id })));
+      break;
+    case 'CHOOSING_BONUS_ACTION':
+      interaction.choices.forEach((choice, index) => { if (!choice.done) answers.push(choose({ kind: 'MENU', index })); });
+      break;
+    default:
+      answers.push(answerInteraction(game, humanId));
+  }
+  return [...answers, { type: 'SKIP' }];
+}
+
+/** Sondes libres et capsules du joueur, avec leur case (« B8 ») */
+export function freeProbeCells(game: Game, humanId: string): { probeId: string; cell: string }[] {
+  return humanOf(game, humanId).probes
+    .filter(p => p.state === ProbeState.IN_SOLAR_SYSTEM || p.state === ProbeState.CAPSULE)
+    .map(p => ({ probeId: p.id, cell: `${p.solarPosition.disk}${getAbsoluteSectorForProbe(p.solarPosition, rotationOf(game))}` }));
+}
+
+/** Cases voisines d'une case (un pas ; sortir d'un champ d'astéroïdes coûte 2 déplacements) */
+export function neighbourCells(game: Game, cell: string): string[] {
+  const reachable = calculateReachableCells(cell[0] as never, Number(cell.slice(1)) as never, 2, rotationOf(game), false, undefined, game.board.solarSystem.extraCelestialObjects);
+  return [...reachable.entries()].filter(([, value]) => value.path.length === 2).map(([key]) => key);
 }

@@ -1,6 +1,7 @@
 import { ActionType, Game, GamePhase, LifeTraceType, ProbeState } from '../src/core/types';
-import { TutorialRunner } from '../src/tutorial/TutorialRunner';
-import { commandAction, tutorialBlockReason, tutorialCommandBlockReason, tutorialFinishedReason, TUTORIAL_BLOCK_REASON, TUTORIAL_FINISHED_REASON, TUTORIAL_READ_REASON } from '../src/tutorial/guidance';
+import { deadEndStep, TutorialRunner } from '../src/tutorial/TutorialRunner';
+import { commandAction, tutorialBlockReason, tutorialCommandBlockReason, tutorialFinishedReason, TUTORIAL_BLOCK_REASON, TUTORIAL_FINISHED_REASON, TUTORIAL_READ_REASON, TUTORIAL_UNDO_REASON } from '../src/tutorial/guidance';
+import { checkSolution } from '../src/tutorial/solve';
 import { applyTutorialCommand, playRobots, prepareChapter, resolveCommand } from '../src/tutorial/prepare';
 import { parseTutorialText } from '../src/tutorial/tutorialText';
 import { TutorialChapter } from '../src/tutorial/types';
@@ -145,6 +146,58 @@ describe('déroulement des étapes', () => {
     const next = TutorialRunner.next(chapter, state, { game, humanId, start: game });
     expect(state.explained).toEqual([]);
     expect(next.explained).toEqual(['intro']);
+  });
+});
+
+describe('impasses (mode annulation)', () => {
+  /** Impasse d'essai : moins de 8 crédits (dépensés par le lancement de la sonde) */
+  const poor = { id: 'annuler-credits', when: ({ game, humanId }: { game: Game; humanId: string }) => game.players.find(p => p.id === humanId)!.credits < 8 };
+  const withDeadEnd: TutorialChapter = { ...chapter, deadEnds: [poor] };
+
+  test("l'impasse passe avant l'étape courante, quelle qu'elle soit, et disparaît après l'annulation", async () => {
+    const { game, humanId } = await prepare();
+    const state = TutorialRunner.start(withDeadEnd);
+    expect(TutorialRunner.deadEnd(withDeadEnd, state, { game, humanId, start: game })).toBeNull();
+    // Crédits dépensés pendant l'étape d'explication (avant l'étape qui en aurait besoin)
+    const spent = { ...game, players: game.players.map(p => (p.id === humanId ? { ...p, credits: 2 } : p)) };
+    const step = TutorialRunner.currentStep(withDeadEnd, state, { game: spent, humanId, start: game });
+    expect(step).toMatchObject({ id: 'annuler-credits', target: 'history', docLink: 'historique', deadEnd: true, allowedActions: [] });
+    expect(step!.done!({ game: spent, humanId, start: game })).toBe(false);
+    // « Suivant » ne fait rien en mode annulation ; l'index de progression reste celui des étapes
+    expect(TutorialRunner.next(withDeadEnd, state, { game: spent, humanId, start: game })).toBe(state);
+    expect(TutorialRunner.currentIndex(withDeadEnd, state, { game: spent, humanId, start: game })).toBe(0);
+    // Annulation : retour à la partie d'avant, l'étape d'explication revient
+    expect(TutorialRunner.currentStep(withDeadEnd, state, { game, humanId, start: game })?.id).toBe('intro');
+    expect(game.players.find(p => p.id === humanId)!.credits).toBe(9);
+  });
+
+  test("différée pendant un choix en cours, ignorée une fois le chapitre terminé", async () => {
+    const { game, humanId } = await prepare();
+    const spent = { ...game, players: game.players.map(p => (p.id === humanId ? { ...p, credits: 2 } : p)) };
+    const state = TutorialRunner.start(withDeadEnd);
+    expect(TutorialRunner.deadEnd(withDeadEnd, state, { game: { ...spent, interaction: { type: 'SELECTING_SCAN_CARD' } }, humanId, start: game })).toBeNull();
+    const finished: TutorialChapter = { ...withDeadEnd, steps: [{ id: 'x', done: () => true }] };
+    expect(TutorialRunner.deadEnd(finished, state, { game: spent, humanId, start: game })).toBeNull();
+    expect(TutorialRunner.deadEnd(chapter, state, { game: spent, humanId, start: game })).toBeNull();
+  });
+
+  test('cible et section de documentation propres à une impasse', () => {
+    expect(deadEndStep({ id: 'a', when: () => true, target: 'solar-system', docLink: '2-1-sondes' })).toMatchObject({ target: 'solar-system', docLink: '2-1-sondes' });
+  });
+
+  test('en mode annulation, actions principales et fin du tour refusées ; actions gratuites et choix permis', () => {
+    const step = deadEndStep(poor);
+    expect(tutorialBlockReason(step, ActionType.LAUNCH_PROBE)).toBe(TUTORIAL_UNDO_REASON);
+    expect(tutorialBlockReason(step, 'END_TURN')).toBe(TUTORIAL_UNDO_REASON);
+    expect(tutorialCommandBlockReason(step, { type: 'BUY_CARD' })).toBeNull();
+    expect(tutorialCommandBlockReason(step, { type: 'SKIP' })).toBeNull();
+  });
+
+  test('une impasse sur le chemin de la solution, ou dès le départ, est signalée', async () => {
+    const prepared = await prepare();
+    expect(checkSolution(withDeadEnd, prepared)).toMatch(/impasse annuler-credits sur le chemin de la solution, après LAUNCH_PROBE/);
+    expect(checkSolution({ ...chapter, deadEnds: [{ id: 'toujours', when: () => true }] }, prepared)).toMatch(/impasse toujours dès le départ/);
+    expect(checkSolution(chapter, prepared)).toBeNull();
   });
 });
 

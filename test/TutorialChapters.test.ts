@@ -134,8 +134,9 @@ describe('étapes de secours et scénarios', () => {
     expect(stepAt(launched)).toBe('deplacer');
     const short = cloneGame(launched);
     humanOf(short, humanId).energy = 2;
-    expect(stepAt(short)).toBe('annuler');
-    expect(tutorialBlockReason(chapter.steps.find(s => s.id === 'annuler')!, ActionType.ORBIT)).not.toBeNull();
+    expect(stepAt(short)).toBe('annuler-energie');
+    const context = { game: short, humanId, start };
+    expect(tutorialBlockReason(TutorialRunner.currentStep(chapter, TutorialRunner.start(chapter), context), ActionType.ORBIT)).not.toBeNull();
     // Avant le lancement (pas de sonde), l'étape n'a pas lieu d'être
     const noProbe = cloneGame(start);
     humanOf(noProbe, humanId).energy = 0;
@@ -173,7 +174,7 @@ test('espèces : trace bleue posée sur le second plateau Alien, l\'étape « an
       type: 'CHOOSE', choice: { kind: 'LIFE_TRACE', boardIndex: 1, color: option.color, slotType: option.location, slotIndex: option.slotIndex },
     }).game, humanId);
     const context = { game, humanId, start };
-    expect(TutorialRunner.currentStep(chapter, readExplanations(chapter, TutorialRunner.start(chapter), context), context)?.id).toBe('annuler');
+    expect(TutorialRunner.currentStep(chapter, readExplanations(chapter, TutorialRunner.start(chapter), context), context)?.id).toBe('annuler-trace-bleue');
   } finally {
     fetchSpy.mockRestore();
   }
@@ -200,7 +201,7 @@ test('oumuamua : rangée de 3 cartes ; une autre carte que la première prise au
       const context = { game: g, humanId, start };
       return TutorialRunner.currentStep(chapter, readExplanations(chapter, TutorialRunner.start(chapter), context), context)?.id;
     };
-    expect(stepAt(game)).toBe('annuler');
+    expect(stepAt(game)).toBe('annuler-scan');
     // Avec la bonne carte, pas d'étape de secours pendant le choix du secteur
     const right = applyTutorialCommand(before, humanId, { type: 'CHOOSE', choice: { kind: 'CARD', cardId: rightCardId } }).game;
     expect(stepAt(right)).toBe('scanner');
@@ -227,7 +228,7 @@ test('exertiens : renoncer à jouer une carte à la découverte, l\'étape « an
     expect(stepAt(game)).toBe('jouer');
     const refused = applyTutorialCommand(game, humanId, { type: 'CHOOSE', choice: { kind: 'EXERTIEN', cardId: undefined } }).game;
     expect(refused.interaction?.type).not.toBe('CHOOSING_EXERTIEN_CARD');
-    expect(stepAt(refused)).toBe('annuler');
+    expect(stepAt(refused)).toBe('annuler-refus');
   } finally {
     fetchSpy.mockRestore();
   }

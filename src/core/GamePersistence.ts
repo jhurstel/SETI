@@ -134,6 +134,7 @@ export function serializeGame(game: Game, historyLog: HistoryEntry[], undoStates
         playerId: entry.playerId,
         sequenceId: entry.sequenceId,
         ...(entry.mainAction ? { mainAction: true } : {}),
+        ...(entry.mainActionType ? { mainActionType: entry.mainActionType } : {}),
         previousState: keepState ? (stripForSave(entry.previousState!) as Game) : undefined,
       };
     }),
@@ -166,6 +167,7 @@ export function deserializeGame(json: string): { game: Game; historyLog: History
     previousPendingInteractions: [],
     sequenceId: log.sequenceId,
     ...(log.mainAction ? { mainAction: true } : {}),
+    ...(log.mainActionType ? { mainActionType: log.mainActionType } : {}),
     previousState: log.previousState,
   }));
   // Le journal (états d'annulation compris) est rendu à part : laissé dans la partie, il était recopié à chaque

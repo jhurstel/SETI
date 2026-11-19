@@ -297,3 +297,59 @@ test('capture : partie en ligne (créer, rejoindre, salon)', async ({ page }) =>
   await expect(page.locator('.seti-online-code')).toBeVisible({ timeout: 60_000 });
   await shoot(page, '.seti-online-modal', 'en-ligne-salon');
 });
+
+/** Partie terminée entre trois robots Débutants (graine fixe), rendue à Alice : écran de fin de partie */
+async function finishedGame(): Promise<string> {
+  DataLoader.setReader(file => fs.promises.readFile(path.join(PUBLIC_DIR, file), 'utf-8'));
+  const log = console.log;
+  console.log = () => {};
+  try {
+    let game: Game = await GameFactory.createGame(['Alice', 'HAL', 'Chouchou'], true, 777);
+    game.players.forEach(p => { p.type = 'robot'; p.aiDifficulty = 'EASY'; });
+    game = GameFactory.initializeGame(game);
+    const entries: HistoryEntry[] = [];
+    for (let i = 0; i < 9000 && game.phase !== GamePhase.FINAL_SCORING; i++) {
+      game = CardSystem.refillCardRow(game);
+      const step = AITurn.playStep(game);
+      if (step.kind === 'SETUP_RESERVED') game = TurnManager.advanceSetup(step.updatedGame).updatedGame;
+      else if (step.kind === 'END_TURN') {
+        // Entrées de fin de tour gardées (séparateurs « Tour de … », manches) : résumé de la partie complet
+        const ended = AITurn.endTurn(game);
+        game = ended.updatedGame;
+        entries.push(...ended.historyEntries);
+      }
+      else if (step.kind === 'UPDATED' || step.kind === 'PASS') {
+        const result = GameSession.applyRobotStep(game, step);
+        if (result.error) throw new Error(result.error);
+        game = result.game;
+        entries.push(...result.entries);
+      } else throw new Error('Robot bloqué');
+    }
+    expect(game.phase).toBe(GamePhase.FINAL_SCORING);
+    game.players[0].type = 'human';
+    delete game.players[0].aiDifficulty;
+    return JSON.stringify(serializeGame(game, entries));
+  } finally {
+    console.log = log;
+  }
+}
+
+test('capture : écran de fin de partie', async ({ page }) => {
+  fs.mkdirSync(SCREENS_DIR, { recursive: true });
+  const save = await finishedGame();
+  await page.addInitScript(json => { localStorage.setItem('seti_autosave', json); }, save);
+  await page.goto('/', { timeout: 300_000 });
+  await page.getByText('Continuer', { exact: true }).click();
+  const endGame = page.locator('.seti-endgame-modal');
+  await expect(endGame).toBeVisible({ timeout: 30_000 });
+  await page.mouse.move(1, 1);
+  await page.waitForTimeout(800);
+  await endGame.screenshot({ path: path.join(SCREENS_DIR, 'fin-de-partie.png') });
+
+  // Résumé de la partie : infobulle d'un tour de la manche 3 (action principale et sa cible)
+  await endGame.locator('.seti-progress-round').nth(2).locator('.seti-progress-chip').nth(4).hover();
+  await expect(page.locator('.seti-tooltip').first()).toBeVisible();
+  await page.waitForTimeout(400);
+  const area = await endGame.locator('.seti-endgame-history-title').boundingBox();
+  await page.screenshot({ path: path.join(SCREENS_DIR, 'fin-de-partie-resume.png'), clip: { x: area!.x - 8, y: area!.y - 60, width: area!.width + 16, height: area!.height + 68 } });
+});

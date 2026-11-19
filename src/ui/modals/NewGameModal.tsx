@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AIDifficulty } from '../../core/types';
 import { readPlayerName, writePlayerName } from '../playerName';
-import { PlayerNameField, ROBOT_LEVELS, SeatChoice, SeatList } from './SetupFields';
+import { PlayerNameField, SeatChoice, SeatList } from './SetupFields';
 import './SettingsModal.css';
 import './NewGameModal.css';
 
@@ -43,9 +43,6 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({ visible, onConfirm, 
 
   if (!visible) return null;
 
-  // Résumé : « Jerome et 2 robots (Expert, Débutant) »
-  const levels = robots.map(r => ROBOT_LEVELS.find(l => l.id === r)?.name).join(', ');
-
   return (
     <div className="seti-modal-overlay seti-modal-overlay--newgame" onClick={onCancel}>
       <div className="seti-modal-content seti-newgame-modal" role="dialog" aria-modal="true" aria-labelledby="seti-newgame-title" onClick={e => e.stopPropagation()}>
@@ -60,10 +57,6 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({ visible, onConfirm, 
           <h3>Places · {robots.length + 1} joueurs</h3>
           <SeatList hostName={name.trim() || DEFAULT_NAME} seats={robots} onChange={setRobots} />
         </section>
-
-        <p className="seti-newgame-summary">
-          {name.trim() || DEFAULT_NAME} et {robots.length} robot{robots.length > 1 ? 's' : ''} ({levels}) · premier joueur tiré au hasard
-        </p>
 
         <div className="seti-newgame-actions">
           <button type="button" onClick={onCancel} className="seti-newgame-btn secondary">Annuler</button>
