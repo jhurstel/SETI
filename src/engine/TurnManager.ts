@@ -1,6 +1,7 @@
 import { Game, GamePhase, Player, HistoryEntry, InteractionState, GAME_CONSTANTS } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { ScoreManager } from './ScoreManager';
+import { SpeciesSystem, discoveryNotice } from '../systems/SpeciesSystem';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { cloneGame } from '../core/cloneGame';
 
@@ -67,8 +68,20 @@ export class TurnManager {
       return { ...base, updatedGame: milestone.updatedGame, turnEntries: [], pendingInteractions: [milestone.newInteraction, ...(milestone.moreInteractions || [])], turnEnded: false };
     }
 
-    const advanced = this.advance(milestone.updatedGame);
-    return { ...base, updatedGame: { ...advanced.updatedGame, endingTurn: false }, turnEntries: advanced.historyEntries, turnEnded: true };
+    // Espèces complétées pendant le tour : découvertes maintenant, après les paliers (règles, p. 20)
+    const discovery = SpeciesSystem.resolvePendingDiscoveries(milestone.updatedGame, currentPlayer.id);
+    const withDiscovery = {
+      milestoneEntries: [...milestone.historyEntries, ...discovery.historyEntries],
+      // Annonce nommée de l'espèce révélée (la générique a été faite à la pose de la dernière trace)
+      discoveryNotification: discovery.revealed.length > 0 ? { message: discoveryNotice(discovery.revealed.join(' et ')) } : milestone.discoveryNotification,
+    };
+    if (discovery.interactions.length > 0) {
+      // Choix ouverts par la découverte (cartes Exertiens) : le tour se termine une fois qu'ils sont faits
+      return { ...withDiscovery, updatedGame: discovery.updatedGame, turnEntries: [], pendingInteractions: discovery.interactions, turnEnded: false };
+    }
+
+    const advanced = this.advance(discovery.updatedGame);
+    return { ...withDiscovery, updatedGame: { ...advanced.updatedGame, endingTurn: false }, turnEntries: advanced.historyEntries, turnEnded: true };
   }
 
   /**

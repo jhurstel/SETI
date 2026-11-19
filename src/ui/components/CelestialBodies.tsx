@@ -308,6 +308,63 @@ const AsteroidFieldSvgBase: React.FC<{ width: number; height: number; count: num
   );
 };
 
+/**
+ * Oumuamua : astéroïde en forme de cigare (repère -50..50 × -16..16), contour irrégulier, roche brun rougeâtre,
+ * cratères comme Mercure, éclairé depuis le haut à gauche. Dessiné à l'horizontale : le parent le fait pivoter.
+ */
+const OumuamuaSvgBase: React.FC<{ width: number; height: number }> = ({ width, height }) => {
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
+  // Contour : cigare aux bosses irrégulières (points fixes, pas de hasard au rendu)
+  const outline = 'M-48 -1 C-47 -7 -40 -11 -30 -12.5 C-20 -14.5 -8 -13 2 -14 C14 -15 26 -12.5 36 -10.5 C44 -8.5 49 -4 48.5 1 C48 6 42 9.5 33 11 C22 13 12 12 0 13.5 C-12 14.5 -24 12.5 -34 11 C-43 9.5 -49 5 -48 -1 Z';
+  return (
+    <svg width={width} height={height} viewBox="-50 -16 100 32" preserveAspectRatio="none" className="icon-block-visible">
+      <defs>
+        <radialGradient id={`oum-body-${uid}`} cx="38%" cy="25%" r="80%">
+          <stop offset="0%" stopColor="#c99a7c" />
+          <stop offset="45%" stopColor="#8a5a42" />
+          <stop offset="100%" stopColor="#3a2218" />
+        </radialGradient>
+        <linearGradient id={`oum-shade-${uid}`} x1="0" y1="0" x2="0.35" y2="1">
+          <stop offset="30%" stopColor="#000" stopOpacity={0} />
+          <stop offset="75%" stopColor="#000" stopOpacity={0.35} />
+          <stop offset="100%" stopColor="#000" stopOpacity={0.7} />
+        </linearGradient>
+        <linearGradient id={`oum-rim-${uid}`} x1="0" y1="0" x2="0.3" y2="1">
+          <stop offset="0%" stopColor="#f0d4bc" stopOpacity={0.8} />
+          <stop offset="40%" stopColor="#f0d4bc" stopOpacity={0} />
+        </linearGradient>
+        <filter id={`oum-soft-${uid}`} x="-10%" y="-20%" width="120%" height="140%">
+          <feGaussianBlur stdDeviation={0.6} />
+        </filter>
+        <filter id={`oum-grain-${uid}`} x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency={0.12} numOctaves={3} seed={7} result="noise" />
+          <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.4 1" />
+        </filter>
+        <clipPath id={`oum-clip-${uid}`}><path d={outline} /></clipPath>
+      </defs>
+      <path d={outline} fill={`url(#oum-body-${uid})`} />
+      <g clipPath={`url(#oum-clip-${uid})`}>
+        <g filter={`url(#oum-soft-${uid})`}>
+          {/* Zones plus sombres (régolithe) */}
+          <path d="M-30 -4 C-22 -10 -8 -8 -4 -2 C0 4 -12 8 -22 7 C-30 6 -36 2 -30 -4 Z" fill="rgba(50, 28, 18, 0.3)" />
+          <path d="M14 2 C22 -2 34 0 36 6 C30 11 18 11 14 7 Z" fill="rgba(50, 28, 18, 0.25)" />
+          <CraterDefs />
+          {[[-26, -3, 5], [-8, 4, 4], [10, -6, 4.5], [28, 2, 5.5], [-40, 2, 3], [40, -4, 2.5], [0, -8, 2.5], [18, 8, 2.5], [-16, -9, 2]].map(([x, y, r], i) => (
+            <Crater key={i} x={x} y={y} r={r} />
+          ))}
+          {[[-34, -6], [-18, 6], [4, 6], [22, -9], [34, 8], [-2, -2], [-44, -3], [44, 3]].map(([x, y], i) => (
+            <circle key={`p-${i}`} cx={x} cy={y} r={0.8} fill="rgba(30, 18, 10, 0.5)" />
+          ))}
+        </g>
+        <rect x={-50} y={-16} width={100} height={32} filter={`url(#oum-grain-${uid})`} opacity={0.22} />
+        <rect x={-50} y={-16} width={100} height={32} fill={`url(#oum-shade-${uid})`} />
+      </g>
+      <path d={outline} fill="none" stroke={`url(#oum-rim-${uid})`} strokeWidth={1} />
+      <path d={outline} fill="none" stroke="rgba(0, 0, 0, 0.55)" strokeWidth={0.5} />
+    </svg>
+  );
+};
+
 /** Soleil : photosphère granuleuse assombrie au bord, facules, protubérances et couronne diffuse */
 const SunSvgBase: React.FC = () => {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
@@ -448,6 +505,9 @@ export const CometSvg = React.memo(CometSvgBase);
 
 /** Dessin coûteux, sans état : redessiné seulement si ses props changent */
 export const AsteroidFieldSvg = React.memo(AsteroidFieldSvgBase);
+
+/** Dessin coûteux, sans état : redessiné seulement si ses props changent */
+export const OumuamuaSvg = React.memo(OumuamuaSvgBase);
 
 /** Dessin coûteux, sans état : redessiné seulement si ses props changent */
 export const SunSvg = React.memo(SunSvgBase);

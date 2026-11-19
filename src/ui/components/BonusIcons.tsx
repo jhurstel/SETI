@@ -100,6 +100,13 @@ export const BonusIcons: React.FC<{ bonus?: Bonus | null; size?: number; empty?:
   );
   if (bonus) {
     const rest: Bonus = { ...bonus };
+    // Jetons à défausser (ET.23 : 2 jetons contre 11 PV) : en premier, croix rouge en bas à droite (comme les coûts du plateau Oumuamua)
+    if (bonus.token && bonus.token < 0) add('spent-token', (
+      <span className="bonus-spent">
+        <ResourceIcon kind="token" amount={-bonus.token} size={size} />
+        <svg className="bonus-spent-cross" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2 L8 8 M8 2 L2 8" /></svg>
+      </span>
+    ), `${amountLabel(-bonus.token, 'Jeton Oumuamua', 'Jetons Oumuamua')} à défausser`);
     if (bonus.pv) add('pv', <VictoryPointsIcon amount={bonus.pv} size={size + 2} />, amountLabel(bonus.pv, 'PV', 'PVs'));
     if (bonus.credits) add('credits', <ResourceIcon kind="credit" amount={bonus.credits} size={size} />, amountLabel(bonus.credits, 'Crédit'));
     if (bonus.energy) add('energy', <ResourceIcon kind="energy" amount={bonus.energy} size={size} />, amountLabel(bonus.energy, 'Énergie'));

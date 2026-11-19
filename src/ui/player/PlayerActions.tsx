@@ -164,7 +164,7 @@ export const PlayerActions: React.FC<{
   if (!isCurrentTurn) endTurnReason = "Ce n'est pas votre tour";
   else if (!hasPerformedMainAction) endTurnReason = "Effectuez d'abord une action principale";
   else if (tutorialReason('END_TURN')) endTurnReason = tutorialReason('END_TURN')!;
-  const endTurnTooltip = <ActionTooltip title="Fin du tour" bonusLabel="Effet" bonus="Les paliers de score sont vérifiés"
+  const endTurnTooltip = <ActionTooltip title="Fin du tour" bonusLabel="Effet" bonus="Les paliers de score atteints s'appliquent, puis les espèces dont le triangle de découverte est complet sont révélées"
     available={canEndTurn} hint={canEndTurn ? 'Cliquez pour terminer votre tour' : endTurnReason} />;
   const canPass = actionAvailability[ActionType.PASS] && !interactionBlocks;
   const mainActions: [ActionIconKind, ActionType][] = [

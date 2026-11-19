@@ -24,6 +24,8 @@ L'écran d'accueil s'ouvre au lancement, et par ⚙️ en cours de partie. Il pr
 
 #### Tutoriel
 
+![Menu du tutoriel](docs/images/ecrans/accueil-tutoriel.png)
+
 - Le tutoriel apprend le jeu en chapitres courts, joués sur le vrai plateau et dans n'importe quel ordre : l'écran et le tour, puis un chapitre par partie des règles (chapitre 2 de cette documentation), puis une première vraie partie. Au tout premier lancement (ni partie sauvegardée, ni tutoriel commencé), l'accueil le propose ; « Plus tard » ne le propose plus.
 - **Chapitres des espèces** : un par espèce Alien, verrouillé (« Espèce inconnue ») tant que vous ne l'avez pas rencontrée. Une espèce se débloque dès qu'elle est découverte dans une vraie partie de ce navigateur (locale, en ligne ou reprise, quel que soit le joueur qui la découvre) ; un message annonce le nouveau chapitre, et le glossaire montre alors l'espèce. Les découvertes faites dans le tutoriel ne débloquent rien : dans « Traces de vie et espèces », l'espèce découverte reste anonyme si vous ne l'avez jamais rencontrée.
 - Chaque chapitre part toujours de la même position préparée (votre adversaire, un robot passif, ne fait que passer). Une bulle explique chaque étape et met en avant la zone de l'écran concernée : « Suivant » pour une explication (parfois un saut dans le temps : « quelques tours plus tard ») ; pour une action, à vous de jouer. Les actions principales sans rapport avec l'étape sont désactivées (leur infobulle dit pourquoi) ; les infobulles, les actions gratuites, l'annulation et la documentation restent libres. « En savoir plus » ouvre la documentation à la bonne section.
@@ -32,9 +34,13 @@ L'écran d'accueil s'ouvre au lancement, et par ⚙️ en cours de partie. Il pr
 
 #### Nouvelle partie
 
+![Nouvelle partie](docs/images/ecrans/accueil-nouvelle-partie.png)
+
 - Votre nom (gardé pour la partie suivante, en solo comme en ligne), puis les places : la vôtre et 1 à 3 robots, chacun à sa couleur et avec son propre niveau (« + Ajouter un robot », ✕ pour en retirer un).
-- Le premier joueur est tiré au hasard au démarrage et annoncé par un radar : les joueurs sont des signaux autour d'un radiotélescope, le faisceau tourne, ralentit et se verrouille sur le premier joueur (« X commence ! ») ; un clic le ferme.
+- Le premier joueur est tiré au hasard au démarrage et annoncé par un radar, qui couvre tout l'écran avant que le plateau n'apparaisse : les joueurs sont des signaux autour d'un radiotélescope, le faisceau tourne, ralentit et se verrouille sur le premier joueur (« X commence ! ») ; un clic le ferme.
 - La fenêtre garde le fond de l'accueil, même ouverte pendant une partie.
+
+![Tirage du premier joueur](docs/images/ecrans/accueil-tirage.png)
 
 **Niveaux des robots.** Les robots jouent avec les mêmes règles et les mêmes opérations que le joueur humain, sans jamais lire les cartes cachées. Les trois niveaux simulent chaque action avec le vrai moteur et notent la position obtenue de la même façon ; seule change leur hésitation entre les bonnes actions :
 
@@ -54,9 +60,16 @@ Un robot joue une étape toutes les 1,5 s ; son calcul ne fige pas l'interface.
 
 #### Partie en ligne
 
+![Partie en ligne : créer une salle](docs/images/ecrans/accueil-en-ligne-creer.png)
+
 - Bouton présent quand un serveur est configuré.
 - **Créer une salle** : même présentation que Nouvelle partie. Votre nom, puis les places, chacune à sa couleur : la vôtre et les autres (Humain avec sa silhouette, ou robot avec ses barres de niveau), de 2 à 4 joueurs en tout ; le premier joueur est tiré au hasard au démarrage. Le jeu donne un **code de 5 lettres** à transmettre aux autres joueurs.
 - **Rejoindre** : votre nom et le code de la salle, ou **Rejoindre** sur une des salles qui attendent des joueurs (liste relue toutes les 5 s : code, places à leurs couleurs, places libres). Les parties en cours sont listées dessous (joueurs, manche). Un salon resté vide plus d'un jour n'est plus listé. La partie commence dès que toutes les places humaines sont prises.
+
+![Partie en ligne : rejoindre une salle](docs/images/ecrans/accueil-en-ligne-rejoindre.png)
+
+![Salon](docs/images/ecrans/accueil-en-ligne-salon.png)
+
 - Pendant le tour d'un autre joueur, le message au-dessus du plateau l'indique (« Tour de Bob », « En attente de Bob » s'il doit faire un choix) et le plateau reste consultable. Les robots jouent sur le serveur.
 - Chacun ne voit que ce qu'il a le droit de voir : la main des autres et les cartes qu'ils piochent restent cachées.
 - **Reprendre en ligne** : en cas de coupure, le jeu se reconnecte tout seul (pendant 2 minutes), et tout de suite au retour du réseau ou quand la page redevient visible (sortie de veille) ; une connexion restée ouverte mais muette est détectée en moins d'une minute. Après un rechargement de la page, la carte **Reprendre en ligne** retrouve votre place ; **Quitter la partie en ligne** la laisse reprenable. Le serveur gratuit s'endort après 15 min sans joueurs et met environ une minute à se réveiller ; un redémarrage du serveur efface les salles en cours.
@@ -90,7 +103,7 @@ Le plateau du joueur est à gauche, le système solaire occupe le reste de l'éc
 - Les onglets en haut affichent le plateau de chaque joueur (devant le nom : silhouette pour un humain, barres de niveau pour un robot ; 👑 pour le premier joueur) ; le contour du plateau prend la couleur du joueur affiché. Seul le plateau défile, sous les onglets.
 - **Ressources** : score, crédits, énergie, cartes en main, Médias et données, puis les revenus ; la limite d'une ressource est écrite sous son symbole (cartes : « Fin de tour : 4 », gardées en passant ; Médias : « (max 10) » ; données : « (max 6) »). L'infobulle d'une ressource montre ses actions gratuites (échanges, achat d'une carte), en boutons à icônes. La tuile des revenus montre les cartes réservées et les revenus de chaque manche ; son infobulle liste les cartes réservées.
 - **Actions** : les 8 actions principales en hexagones (lancer, orbite, atterrir, scanner, analyser, jouer une carte, rechercher, passer) et, dans son propre cadre, la fin du tour ; leur infobulle donne le coût et le bonus sur une même ligne.
-- Dessous : les emplacements des technologies Exploration, les étapes du scan et les technologies Observation, l'ordinateur de données, les cartes en main (celles d'un robot qu'on n'a pas vues sont montrées de dos ; une carte Alien porte au dos le symbole de son espèce), les missions et les cartes jouées. Une carte se lit comme la vraie : action gratuite en haut à gauche, couleur de secteur dans le triangle en haut à droite, numéro en petit en bas à droite de l'illustration, coût dans le badge à gauche du nom (doré : crédits, vert : énergie), effet en symboles au centre (en jaune, la partie qui n'a pas encore de symbole), panneau de mission (déclenchable : un onglet au-dessus de chaque cercle de récompense ; conditionnelle : la condition à gauche, la récompense à droite ; cercle recouvert du marqueur du joueur) ou de fin de partie (doré), et revenu en grand dans le coin inférieur droit, sur un liseré à sa couleur ; l'infobulle la montre en grand avec le texte propre à la carte (ce que les symboles ne disent pas). Toutes les cartes sont dans le glossaire (3.2).
+- Dessous : les emplacements des technologies Exploration, les étapes du scan et les technologies Observation, l'ordinateur de données, les cartes en main (celles d'un robot qu'on n'a pas vues sont montrées de dos ; une carte Alien porte au dos le symbole de son espèce), les missions et les cartes jouées. Une carte se lit comme la vraie : action gratuite en haut à gauche, couleur de secteur dans le triangle en haut à droite, numéro en petit en bas à droite de l'illustration, coût dans le badge à gauche du nom (doré : crédits, vert : énergie), effet en symboles au centre (en jaune, la partie qui n'a pas encore de symbole), panneau de mission (déclenchable : un onglet au-dessus de chaque cercle de récompense ; conditionnelle : la condition à gauche, la récompense à droite ; cercle recouvert d'un rond à la couleur du joueur ; une mission entièrement accomplie est retournée et empilée à gauche des missions, sa face visible au survol) ou de fin de partie (doré), et revenu en grand dans le coin inférieur droit, sur un liseré à sa couleur ; l'infobulle la montre en grand avec le texte propre à la carte (ce que les symboles ne disent pas). Toutes les cartes sont dans le glossaire (3.2).
 
 #### Actions et tour
 
@@ -124,7 +137,7 @@ Le plateau du joueur est à gauche, le système solaire occupe le reste de l'éc
 
 ![Objectifs](docs/images/ecrans/plateau-objectifs.png)
 
-- Les 4 tuiles Score dorées, chacune sur sa face A ou B, avec les marqueurs posés aux paliers dorés (détail : 3.4). La piste de score montre les paliers à venir.
+- Les 4 tuiles Score dorées, chacune sur sa face A ou B, avec les marqueurs posés aux paliers dorés (détail : 3.4). La piste de score montre les paliers à venir ; plusieurs paliers sur la même case (Centauriens de plusieurs joueurs, palier doré…) sont regroupés, et leur infobulle les liste tous.
 
 #### Espèces Alien
 
@@ -267,7 +280,7 @@ Ce chapitre place une trace de vie sur un plateau d'espèce et découvre une esp
 - **R1** Une trace de vie (rouge, jaune ou bleue) se place sur le plateau d'une espèce : sur l'emplacement de découverte de sa couleur, sur la piste de l'espèce, ou sur un emplacement excédentaire.
 - **R2** Une trace « de la couleur de son choix » prend la couleur de l'emplacement choisi : elle déclenche les missions de cette couleur et celles qui portent sur n'importe quelle trace, pas celles des autres couleurs.
 - **R3** Les emplacements de découverte et excédentaires (triangles) acceptent toujours une trace : elle n'est jamais perdue, même quand la piste de l'espèce est pleine ou trop chère.
-- **R4** Deux espèces sont en jeu, face cachée ; une espèce est **découverte** quand ses trois emplacements de découverte (rouge, jaune, bleu) sont occupés : le plateau se révèle, ses règles s'appliquent et une annonce donne son nom et les joueurs qui l'ont découverte.
+- **R4** Deux espèces sont en jeu, face cachée ; une espèce est **découverte** quand ses trois emplacements de découverte (rouge, jaune, bleu) sont occupés. Une annonce le signale aussitôt, mais la découverte se résout **à la fin du tour**, après les paliers (livret, p. 20) : le plateau se révèle alors, ses règles s'appliquent, et une seconde annonce donne son nom et les joueurs qui l'ont découverte. Jusque-là, l'espèce reste face cachée : ni cartes Alien, ni piste. La première fois qu'une espèce est révélée dans une partie locale, cette annonce propose d'ouvrir son chapitre du tutoriel (la partie reste sauvegardée : « Continuer » la reprend).
 - **R5** Le joueur qui a posé la première trace d'une couleur reçoit une **carte Alien** de l'espèce ; le dos des cartes Alien porte le symbole de leur espèce.
 - **R6** Après la découverte, les traces vont sur la **piste** de l'espèce (récompenses dans l'ordre), puis sur l'**emplacement infini** quand l'espèce en a un : les traces déjà posées s'y empilent en pastilles de la couleur de leur joueur (les 3 dernières, « +n » au-delà).
 
@@ -285,7 +298,7 @@ Ce chapitre passe, prend une carte de fin de manche et reçoit les revenus.
 
 Ce chapitre franchit un palier de score, pose un marqueur sur une tuile objectif et termine la dernière manche.
 
-- **R1** Les paliers sont vérifiés à la fin du tour (passe comprise) ; s'il y a un choix à faire, il est demandé avant le joueur suivant.
+- **R1** Les paliers sont vérifiés à la fin du tour (passe comprise) ; s'il y a un choix à faire, il est demandé avant le joueur suivant. Les espèces découvertes pendant le tour sont révélées ensuite, après tous les paliers (livret, p. 20).
 - **R2** **Paliers dorés** à 25, 50 et 70 PV : le joueur qui les franchit pose un marqueur sur une tuile objectif (Technologies, Missions, Revenus, Autres).
 - **R3** **Paliers neutres** à 20 et 30 PV (moins de 4 joueurs) : un marqueur neutre est posé ; sur le triangle d'un plateau Alien, il occupe le bonus de découverte de sa couleur (la trace suivante de cette couleur prend le bonus suivant).
 - **R4** Les tuiles objectif rapportent leurs points au décompte final selon le rang du marqueur sur la tuile, pour chaque série ou paire (détail : 3.4).
@@ -362,7 +375,7 @@ Ce chapitre franchit un palier de score, pose un marqueur sur une tuile objectif
 | 3 | 3 Médias |
 | 4 | 8 PV |
 
-- **R2** Les cartes Centauriens posent aussi un palier : en l'atteignant, l'effet **Réception** de la carte s'applique. Il n'y a rien à cliquer : la carte jouée reste devant le joueur, son étoile grise jusqu'au palier (son infobulle en donne le score). Une fois reçue, une carte « augmentez vos revenus » passe sous les revenus ; les autres sont défaussées (ce ne sont pas des missions).
+- **R2** Les cartes Centauriens posent aussi un palier : en l'atteignant, l'effet **Réception** de la carte s'applique. Sur la carte, le panneau du bas indique « À réception du message » et ce qu'elle rapporte. Il n'y a rien à cliquer : la carte jouée reste devant le joueur, son étoile grise jusqu'au palier (son infobulle en donne le score). Une fois reçue, une carte « augmentez vos revenus » passe sous les revenus ; les autres sont défaussées (ce ne sont pas des missions).
 - **R3** Piste : 15 PV pour 3 données ; emplacement infini : 6 PV pour 1 donnée (il faut avoir ces données pour y poser la trace ; l'infobulle de l'emplacement affiche « Coût » avant « Bonus »).
 
 {{symboles-espece:Centauriens}}
@@ -374,9 +387,9 @@ Ce chapitre franchit un palier de score, pose un marqueur sur une tuile objectif
 
 - **R1** À la découverte, chaque joueur reçoit 3 cartes Exertiens (en plus des cartes des premiers marqueurs).
 - **R2** Les cartes Exertiens ne sont pas en main : ni défaussées, ni réservées, ni jouées normalement. Chacune porte un DANGER et une condition de fin de partie.
-- **R3** Chaque joueur qui a des marqueurs sur les emplacements de découverte peut **jouer tout de suite** une carte Exertien face cachée **par marqueur** (deux marqueurs : deux cartes, choisies dans la même fenêtre), ou y renoncer.
+- **R3** À la fin du tour qui révèle les Exertiens, chaque joueur qui a des marqueurs sur les emplacements de découverte peut **jouer tout de suite** une carte Exertien face cachée **par marqueur** (deux marqueurs : deux cartes, choisies dans la même fenêtre), ou y renoncer.
 - **R4** Des **paliers Exertiens** apparaissent au meilleur score + 20 et + 40. À chaque palier, chaque joueur peut jouer une carte Exertien face cachée (une par palier) ; au **2e palier**, jouer sa carte coûte **1 crédit**. Sans crédit, « Prochain joueur » demande confirmation : le palier serait perdu.
-- **R5** **Cartes cachées** : les cartes Exertiens des adversaires (en main ou jouées) restent face cachée jusqu'au décompte final, sur leur plateau comme dans l'infobulle ☣️ du plateau des Exertiens ; leur nom n'apparaît pas dans l'historique quand ils les reçoivent. Leur danger n'y montre que celui de leurs marqueurs sur la piste, suivi de « + ? » s'ils ont joué une carte. Votre propre danger est complet.
+- **R5** **Cartes cachées** : les cartes Exertiens des adversaires (en main ou jouées) restent face cachée jusqu'au décompte final, sur leur plateau comme dans l'infobulle ☣️ du plateau des Exertiens (deux piles par adversaire, cartes à jouer et cartes jouées, avec leur nombre ; les adversaires y sont côte à côte) ; leur nom n'apparaît pas dans l'historique quand ils les reçoivent. Leur danger n'y montre que celui de leurs marqueurs sur la piste, suivi de « + ? » s'ils ont joué une carte. Votre propre danger est complet.
 - **R6** Les cases de la piste rapportent PV et ressources, mais ajoutent du **danger** (3, 3, 2, 2, 1). Pas d'emplacement infini.
 - **R7** Fin de partie : les conditions des cartes jouées sont révélées (PV si remplies). Le joueur le plus exposé (somme du danger de ses cartes et de ses cases, ex aequo compris) perd **10 %** de son total, arrondi à l'inférieur. Aucune pénalité si personne n'a de danger.
 

@@ -619,16 +619,43 @@ const ArrowResource: React.FC<{ kind: ArrowKind; amount?: number | string }> = (
   );
 };
 
-/** Token d'Oumuamua (exofossile) : jeton rond sarcelle et fossile spiralé (pas de symbole dans le livret) */
+/**
+ * Fossile d'Oumuamua : crevette recroquevillée, segments en spirale qui s'élargissent du bout de la queue (au centre)
+ * jusqu'à la tête, pointue, avec son œil (jetons Exofossile du livret, p. 3). Calculé une fois.
+ */
+const EXOFOSSIL_SEGMENTS = Array.from({ length: 7 }, (_, k) => {
+  const radius = 1.9 + k * 1.15;
+  const from = (-110 + k * 45) * (Math.PI / 180);
+  const to = from + 38 * (Math.PI / 180);
+  const point = (a: number) => `${(1 + radius * Math.cos(a)).toFixed(2)} ${(0.8 + radius * Math.sin(a)).toFixed(2)}`;
+  return { d: `M${point(from)} A${radius.toFixed(2)} ${radius.toFixed(2)} 0 0 1 ${point(to)}`, width: 1.7 + k * 0.42 };
+});
+const EXOFOSSIL_HEAD = (() => {
+  // Tête au bout du dernier segment (à gauche), pointée dans le sens de l'enroulement
+  const radius = 1.9 + 6.6 * 1.15;
+  const a = (-110 + 7 * 45 - 6) * (Math.PI / 180);
+  const x = 1 + radius * Math.cos(a), y = 0.8 + radius * Math.sin(a);
+  const tx = -Math.sin(a), ty = Math.cos(a); // tangente (sens horaire)
+  const nx = Math.cos(a), ny = Math.sin(a); // normale vers l'extérieur
+  const pt = (u: number, v: number) => `${(x + tx * u + nx * v).toFixed(2)} ${(y + ty * u + ny * v).toFixed(2)}`;
+  return { d: `M${pt(-1.5, -2.6)} L${pt(5, 0.3)} L${pt(-1.5, 2.6)} Z`, eye: { x: x + tx * 0.6 + nx * 0.5, y: y + ty * 0.6 + ny * 0.5 } };
+})();
+
+/** Jeton Exofossile d'Oumuamua : losange violet aux coins arrondis, fossile blanc de crevette recroquevillée */
 const OumuamuaToken: React.FC<{ amount?: number | string }> = ({ amount }) => (
   <g>
     <g transform={amount !== undefined ? 'translate(8 0)' : undefined}>
-      <circle r={18} fill="#1f7f7a" stroke="#bff3ee" strokeWidth={2} />
-      <path d="M0 0 C2 -1 2 -4 0 -4 C-4 -4 -5 1 -2 3.5 C2 6.5 8 3 8 -2 C8 -8 1 -11 -4 -9.5 C-10 -7.5 -12 0 -9 6 C-6 11 2 12.5 7 9.5"
-        fill="none" stroke="#fff" strokeWidth={2.6} strokeLinecap="round" />
+      <rect x={-15} y={-15} width={30} height={30} rx={5} transform="rotate(45) scale(1 0.92)" fill="#6a2fa8" stroke="#d8c4f4" strokeWidth={1.6} />
+      <g transform="scale(1.25)">
+        <g fill="none" stroke="#fff" strokeLinecap="butt">
+          {EXOFOSSIL_SEGMENTS.map((segment, i) => <path key={i} d={segment.d} strokeWidth={segment.width} />)}
+        </g>
+        <path d={EXOFOSSIL_HEAD.d} fill="#fff" />
+        <circle cx={EXOFOSSIL_HEAD.eye.x} cy={EXOFOSSIL_HEAD.eye.y} r={0.85} fill="#6a2fa8" />
+      </g>
     </g>
     {amount !== undefined && (
-      <text x={-14} y={10} textAnchor="middle" fontSize={30} fontWeight={900} fill="#fff" stroke="#1f7f7a" strokeWidth={3} paintOrder="stroke" fontFamily="Arial Black, Arial, sans-serif">{amount}</text>
+      <text x={-14} y={10} textAnchor="middle" fontSize={30} fontWeight={900} fill="#fff" stroke="#6a2fa8" strokeWidth={3} paintOrder="stroke" fontFamily="Arial Black, Arial, sans-serif">{amount}</text>
     )}
   </g>
 );

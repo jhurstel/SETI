@@ -14,7 +14,7 @@ import { PLANET_STYLES, PLANET_SIZES } from './styles/celestialStyles';
 import { PlanetIcon } from './components/PlanetIcon';
 import { RotationDiskSector } from './components/RotationDiskSector';
 import { SectorDetails } from './components/SectorDetails';
-import { PlanetGlobe, CometSvg, AsteroidFieldSvg, SunSvg, ProbeSvg, CapsuleSvg } from './components/CelestialBodies';
+import { OumuamuaSvg, PlanetGlobe, CometSvg, AsteroidFieldSvg, SunSvg, ProbeSvg, CapsuleSvg } from './components/CelestialBodies';
 import { SectorStars } from './components/SectorStars';
 import { SlotTooltipContent } from './solar/slotTooltip';
 import { findPlanet } from './solar/planets';
@@ -501,13 +501,11 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
 
     // Handle transform separation for Oumuamua to avoid scaling slots
     let containerTransform = style.transform;
-    let bodyTransform = undefined;
     if (obj.id === 'oumuamua') {
       const pos = polarToCartesian(0, 0, 24, sectorCenterAngle + 14);
       x = pos.x;
       y = pos.y;
       containerTransform = 'translate(-50%, -50%) rotate(60deg)';
-      bodyTransform = 'translate(-50%, -50%) scale(2.8, 0.6)';
     }
 
     return (
@@ -548,17 +546,9 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
           </>
         )}
         {obj.id === 'oumuamua' ? (
-          <div className="seti-planet-body"
-            style={{
-              width: `${size - 4}px`,
-              height: `${size - 4}px`,
-              background: style.background,
-              border: style.border,
-              boxShadow: style.boxShadow,
-              borderRadius: style.borderRadius || '50%',
-              transform: bodyTransform,
-            }}
-          />
+          <div className="seti-planet-globe">
+            <OumuamuaSvg width={(size - 4) * 2.8} height={(size - 4) * 0.6} />
+          </div>
         ) : (
           <div className="seti-planet-globe">
             <PlanetGlobe id={obj.id} size={size - 4} />

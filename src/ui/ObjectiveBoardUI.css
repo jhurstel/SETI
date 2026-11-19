@@ -220,3 +220,46 @@
   opacity: 0.4;
   filter: grayscale(0.7);
 }
+
+/* Paliers d'une même case : symboles côte à côte, une seule étiquette, infobulle qui les liste tous */
+.score-milestone-group {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  cursor: help;
+}
+.score-milestone-item {
+  display: block;
+  line-height: 0;
+}
+.score-milestone-centaurien-icon {
+  display: block;
+}
+.score-milestone-centaurien-label {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7em;
+  color: #aaa;
+  background: rgba(30, 30, 30, 0.8);
+  padding: 0 3px;
+  border-radius: 2px;
+}
+.score-milestone-centaurien-label.resolved {
+  color: #7fff7f;
+}
+.score-milestone-tooltip-item + .score-milestone-tooltip-item {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid #333;
+}
+.score-milestone-tooltip-effect {
+  font-size: 0.8em;
+  margin-top: 4px;
+  font-style: italic;
+}

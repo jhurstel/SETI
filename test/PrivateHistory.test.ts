@@ -1,4 +1,4 @@
-import { privateText, revealText, textFor } from '../src/core/historyText';
+import { playerText, privateText, revealText, textFor } from '../src/core/historyText';
 import { viewEntries } from '../src/session/PlayerView';
 import { CardSystem } from '../src/systems/CardSystem';
 import { ResourceSystem } from '../src/systems/ResourceSystem';
@@ -103,9 +103,11 @@ describe('les cartes piochées face cachée ne sont nommées que pour leur propr
     const { updatedGame, logs } = SpeciesSystem['distributeDiscoveryCards'](game, 0);
     [P1, P2].forEach(owner => {
       const other = owner === P1 ? P2 : P1;
-      const message = logs.find(log => log.startsWith(getPlayer(game, owner).name))!;
+      // Nom du joueur balisé (couleur du joueur dans l'historique)
+      const name = playerText(owner, getPlayer(game, owner).name);
+      const message = logs.find(log => log.startsWith(name))!;
       expectPrivate(message, owner, other, drawnCards(before, updatedGame, owner));
-      expect(textFor(message, other)).toBe(`${getPlayer(game, owner).name} pioche 3 cartes Alien (Découverte)`);
+      expect(textFor(message, other)).toBe(`${name} pioche 3 cartes Alien (Découverte)`);
     });
   });
 });

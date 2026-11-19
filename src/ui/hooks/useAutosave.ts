@@ -36,7 +36,12 @@ export function useAutosave(game: Game | null, historyLog: HistoryEntry[]): void
   const latest = useRef<{ game: Game; historyLog: HistoryEntry[] } | null>(null);
 
   useEffect(() => {
-    if (!game) return;
+    if (!game) {
+      // Partie remplacée par un chapitre du tutoriel : l'écriture différée a été annulée, l'écrire maintenant
+      if (latest.current) writeAutosave(latest.current.game, latest.current.historyLog);
+      latest.current = null;
+      return;
+    }
     latest.current = { game, historyLog };
     const timer = setTimeout(() => {
       writeAutosave(game, historyLog);

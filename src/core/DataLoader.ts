@@ -174,6 +174,7 @@ export class DataLoader {
         else if (lower.includes('sirius')) scope = SectorType.SIRIUS;
         else if (lower.includes('véga')) scope = SectorType.VEGA;
         else if (lower.includes('pictoris')) scope = SectorType.PICTORIS;
+        else if (lower.includes('oumuamua')) scope = SectorType.OUMUAMUA;
         else if (lower.includes('anomalie suivante') || lower.includes('prochaine anomalie')) scope = SectorType.NEXT_ANOMALY;
         else if (lower.includes('anomalie')) scope = SectorType.ANOMALY;
         effects.push({ type: 'ACTION', target: 'SIGNAL', value: { amount, scope } });

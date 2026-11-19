@@ -5,8 +5,8 @@ import { tutorialAllows, useTutorialFocus } from '../tutorialFocus';
 import { ProbeSystem } from '../../systems/ProbeSystem';
 import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS } from '../../core/SolarSystemPosition';
 import { polarToCartesian } from '../solarGeometry';
-import { PLANET_STYLES, SATELLITE_STYLES } from '../styles/celestialStyles';
-import { PlanetGlobe } from './CelestialBodies';
+import { SATELLITE_STYLES } from '../styles/celestialStyles';
+import { OumuamuaSvg, PlanetGlobe } from './CelestialBodies';
 import { SvgBonus, SvgExtraGains, SvgSlotBonus } from './SvgBonus';
 import { hasExtraGains, atAngle, splitSlotBonuses } from './bonusLayout';
 import { BonusIcons } from './BonusIcons';
@@ -27,19 +27,6 @@ interface PlanetIconProps {
 }
 
 export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, game, interactionState, onOrbit, onLand, handleSlotClick, removingItem, hoverTimeoutRef, setHoveredSlot, isInteractive = true }) => {
-  const style = PLANET_STYLES[id] || {
-    background: 'radial-gradient(circle, #888, #555)',
-    border: '2px solid #aaa',
-    boxShadow: '0 0 3px rgba(136, 136, 136, 0.8)',
-  };
-
-
-  // Custom transform for Oumuamua in tooltip
-  let customTransform = style.transform;
-  if (id === 'oumuamua') {
-    customTransform = 'translate(-40px, -40px) rotate(-30deg) scale(3.5, 0.8)';
-  }
-
   // Logique d'interaction (Orbite / Atterrissage)
   const currentPlayer = game.players[game.currentPlayerIndex];
   const isRobot = currentPlayer.type === 'robot';
@@ -171,18 +158,12 @@ export const PlanetIcon: React.FC<PlanetIconProps> = ({ id, size, planetData, ga
   return (
     <div style={{ width: `${size}px`, height: `${size}px`, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       {id === 'oumuamua' ? (
-        <div
-          className="seti-planet-icon-body"
-          style={{
-            width: `${size - 4}px`,
-            height: `${size - 4}px`,
-            background: style.background,
-            border: style.border,
-            boxShadow: style.boxShadow,
-            borderRadius: style.borderRadius || '50%',
-            transform: customTransform,
-          }}
-        />
+        // Astéroïde allongé en diagonale ; dans la fenêtre de la planète, il s'étire entre ses emplacements
+        <div className="seti-planet-icon-body oumuamua-icon-body" style={{ width: `${size - 4}px`, height: `${size - 4}px` }}>
+          <div className="oumuamua-body">
+            <OumuamuaSvg width={isInteractive ? (size - 4) * 3.4 : size * 1.5} height={isInteractive ? (size - 4) * 0.8 : size * 0.48} />
+          </div>
+        </div>
       ) : (
         <div className="seti-planet-icon-body" style={{ width: `${size - 4}px`, height: `${size - 4}px`, overflow: 'visible', borderRadius: 0 }}>
           <PlanetGlobe id={id} size={size - 4} />

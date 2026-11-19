@@ -1,7 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { GameFactory } from '../../src/engine/GameFactory';
-import { Game, GamePhase, Player, Card, CardType, CostType, FreeActionType, RevenueType, SectorType } from '../../src/core/types';
+import { Game, GamePhase, Player, Card, CardType, CostType, FreeActionType, RevenueType, SectorType, LifeTraceType, LifeTraceLocation } from '../../src/core/types';
+import { SpeciesSystem } from '../../src/systems/SpeciesSystem';
 
 const PUBLIC_DIR = path.resolve(__dirname, '../../public');
 
@@ -87,4 +88,19 @@ export function giveCard(game: Game, playerId: string, cardId: string): Card {
   if (!card) throw new Error(`Carte ${cardId} introuvable`);
   getPlayer(game, playerId).cards.push(card);
   return card;
+}
+
+/**
+ * Trace de vie posée puis, comme à la fin du tour, découverte des espèces complétées (règles, p. 20) : historique et choix
+ * de la pose suivis de ceux de la découverte. Sans découverte en attente, identique à `SpeciesSystem.placeLifeTrace`.
+ */
+export function placeAndReveal(game: Game, boardIndex: number, color: LifeTraceType, playerId: string, sequenceId: string, location: LifeTraceLocation, slotIndex?: number) {
+  const placed = SpeciesSystem.placeLifeTrace(game, boardIndex, color, playerId, sequenceId, location, slotIndex);
+  const revealed = SpeciesSystem.resolvePendingDiscoveries(placed.updatedGame, playerId);
+  return {
+    ...placed,
+    updatedGame: revealed.updatedGame,
+    historyEntries: [...placed.historyEntries, ...revealed.historyEntries],
+    newPendingInteractions: [...placed.newPendingInteractions, ...revealed.interactions],
+  };
 }

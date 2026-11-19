@@ -171,6 +171,23 @@ describe('conditions et décomptes', () => {
     expect(richText(parkes)).toContainEqual({ kind: 'signal', color: 'red', count: undefined });
     expect(describeCard(card('74')).text).toMatch(/^1 Déplacement pour chaque carte/);
     expect(describeCard(card('134')).text).toBe("1 Signal dans un secteur où se trouve l'une de vos sondes.");
+    // Oumuamua : sans « Gagnez 1 Scan et » (ET.21), « chaque » + signal ; secteur d'Oumuamua et « Avoir au moins » (ET.23) ;
+    // « Puis » + atterrissage (ET.25) ; précision de l'atterrissage à droite du symbole (ET.30)
+    const visitor = describeCard(card('ET.21')).text;
+    expect(visitor).toBe('Gagnez 2 PV pour chaque signal que vous marquez sur Oumuamua.');
+    expect(richText(visitor)).toEqual(expect.arrayContaining([{ kind: 'text', text: 'pour chaque' }, { kind: 'signal', count: undefined }]));
+    const exofossils = describeCard(card('ET.23'));
+    expect(exofossils.effects[0]).toEqual(expect.objectContaining({ caption: "dans le secteur d'Oumuamua" }));
+    expect(exofossils.mission!.circles[0].symbols[0]).toEqual({ kind: 'text', text: 'Avoir au moins' });
+    const adaptation = describeCard(card('ET.25'));
+    expect(adaptation.text).toMatch(/à chaque fois\.$/);
+    expect([adaptation.textGainsLead, adaptation.textGains]).toEqual(['Puis', [{ landing: 1 }]]);
+    expect(richText('Puis 1 Atterrissage.')).toContainEqual({ kind: 'bonus', bonus: { landing: 1 } });
+    // Exertiens : 4 atterrisseurs puis la précision (ET.49), nombre incrusté dans la trace (ET.52), 5 missions accomplies (ET.55)
+    expect(describeCard(card('ET.49')).scorePanel!.symbols).toEqual([{ kind: 'lander', count: 4, repeat: true }, { kind: 'break' }, { kind: 'text', text: '(lunes comprises)' }]);
+    expect(describeCard(card('ET.52')).scorePanel!.symbols[0]).toEqual({ kind: 'lifetrace', count: 6, embedded: true });
+    expect(describeCard(card('ET.55')).scorePanel!.symbols).toEqual([{ kind: 'missionDone', count: 5 }]);
+    expect(describeCard(card('ET.30')).inlineText).toBe('Si vous posez une sonde sur Oumuamua grâce à cette action, gagnez 3 PV.');
     // Signal là où se trouve une sonde : pas de symbole à part, signal quelconque dans la phrase
     const kepler = describeCard(card('28'));
     expect(kepler.effects).toEqual([{ kind: 'bonus', bonus: { movements: 1 } }]);
@@ -211,7 +228,17 @@ describe('panneaux', () => {
   });
 
   test('carte Centaurien : panneau de réception', () => {
-    expect(describeCard(card('ET.31')).scorePanel).toEqual(expect.objectContaining({ kind: 'reception' }));
+    // Revenu : « À réception du message. » à gauche, à droite la phrase autour du seul symbole du revenu (pas la ressource
+    // gagnée en réservant la carte)
+    expect(describeCard(card('ET.31')).scorePanel).toEqual({
+      kind: 'reception', text: 'À réception du message.', symbols: [], reward: { revenue: 1 },
+      rewardSentence: { before: 'Augmentez vos', after: 'grâce à cette carte.' },
+    });
+    // Autres gains : le même texte à gauche, les gains en symboles à droite
+    const trace = describeCard(card('ET.34')).scorePanel!;
+    expect(trace.text).toBe('À réception du message.');
+    expect(trace.rewardSentence).toBeUndefined();
+    expect(trace.reward).not.toEqual({});
   });
 });
 

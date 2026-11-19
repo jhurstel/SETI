@@ -3,7 +3,7 @@ import { GameSession } from '../src/session/GameSession';
 import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { AlienBoardType, CardType, Game, GamePhase, LifeTraceLocation, LifeTraceType } from '../src/core/types';
 import { viewFor } from '../src/session/PlayerView';
-import { createTestGame, getPlayer } from './helpers/gameFixture';
+import { createTestGame, getPlayer, placeAndReveal } from './helpers/gameFixture';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
@@ -37,7 +37,7 @@ describe('découverte d\'une espèce', () => {
 
   test('l\'espèce est marquée découverte (plateau et espèce), et visible dans la vue d\'un joueur', () => {
     exertienBoard(game);
-    const res = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE);
+    const res = placeAndReveal(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE);
     expect(res.updatedGame.board.alienBoards[0].isDiscovered).toBe(true);
     expect(res.updatedGame.species.find(s => s.name === AlienBoardType.EXERTIENS)!.discovered).toBe(true);
     expect(viewFor(res.updatedGame, P2).species.map(s => s.name)).toContain(AlienBoardType.EXERTIENS);
@@ -51,7 +51,7 @@ describe('découverte d\'une espèce', () => {
 
   test('Exertiens : chaque joueur qui a des marqueurs de découverte peut jouer tout de suite une carte par marqueur (palier 0)', () => {
     exertienBoard(game);
-    const res = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE);
+    const res = placeAndReveal(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE);
     expect(exertienCount(res.updatedGame, P1)).toBeGreaterThanOrEqual(3);
     // P1 a posé deux marqueurs (dont la trace bleue qui fait découvrir l'espèce), P2 un seul
     expect(res.newPendingInteractions.filter(i => i.type === 'CHOOSING_EXERTIEN_CARD')).toEqual([
@@ -66,13 +66,13 @@ describe('découverte d\'une espèce', () => {
     game.currentPlayerIndex = 0;
     const board = exertienBoard(game);
     board.lifeTraces[1].playerId = 'neutral';
-    const res = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE);
+    const res = placeAndReveal(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE);
     expect(res.newPendingInteractions.filter(i => i.type === 'CHOOSING_EXERTIEN_CARD').map(i => i.playerId)).toEqual([P1]);
   });
 
   test('la carte jouée à la découverte est gratuite et consigne « découverte des Exertiens »', () => {
     exertienBoard(game);
-    const discovered = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
+    const discovered = placeAndReveal(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
     const card = getPlayer(discovered, P2).cards.find(c => c.type === CardType.EXERTIEN)!;
     const credits = getPlayer(discovered, P2).credits;
     const played = InteractionChoices.playExertienCard(discovered, P2, { type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, playerId: P2 }, card.id);
@@ -84,7 +84,7 @@ describe('découverte d\'une espèce', () => {
 
   test('2e palier Exertien : jouer sa carte coûte 1 crédit ; sans crédit, refusé', () => {
     exertienBoard(game);
-    const discovered = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
+    const discovered = placeAndReveal(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
     const [first, second] = discovered.exertienMilestones!;
     expect(SpeciesSystem.exertienCardCost(discovered, first)).toBe(0);
     expect(SpeciesSystem.exertienCardCost(discovered, second)).toBe(1);
@@ -105,7 +105,7 @@ describe('découverte d\'une espèce', () => {
 
   test('2e palier sans crédit : pas de choix, le palier est consommé', () => {
     exertienBoard(game);
-    const discovered = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
+    const discovered = placeAndReveal(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
     const [first, second] = discovered.exertienMilestones!;
     const player = getPlayer(discovered, P1);
     player.claimedExertienMilestones = [first];
@@ -121,20 +121,33 @@ describe('découverte d\'une espèce', () => {
     expect(getPlayer(turn.game, P1).claimedExertienMilestones).toContain(second);
   });
 
-  test("découverte par une trace placée par le joueur (commande) : annonce nommée et historique dans l'ordre", () => {
+  test("découverte par une trace placée par le joueur (commande) : annonce générique, puis l'espèce révélée à la fin du tour", () => {
     exertienBoard(game);
     game.currentPlayerIndex = 0;
+    getPlayer(game, P1).hasPerformedMainAction = true;
     game.interaction = { type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE, sequenceId: 'trace' };
     game.pendingInteractions = [];
 
     const res = GameSession.dispatch(game, P1, { type: 'CHOOSE', choice: { kind: 'LIFE_TRACE', boardIndex: 0, color: LifeTraceType.BLUE, slotType: LifeTraceLocation.TRIANGLE } });
 
     expect(res.error).toBeUndefined();
-    expect(res.notifications).toContain(discoveryNotice('Exertiens'));
+    // Pendant le tour : annonce générique, espèce encore face cachée, aucune carte Exertien distribuée
+    expect(res.notifications).toContain(DISCOVERY_NOTICE);
+    expect(res.notifications).not.toContain(discoveryNotice('Exertiens'));
     const messages = res.entries.map(e => e.message);
     expect(messages[0]).toMatch(/^place une trace de vie Bleu/);
     expect(messages[1]).toBe(DISCOVERY_MESSAGE);
+    expect(res.game.board.alienBoards[0].isDiscovered).toBe(false);
+    expect(res.game.pendingDiscoveries).toEqual([0]);
     expect(game.board.alienBoards[0].isDiscovered).toBe(false);
+
+    // Fin du tour : l'espèce est révélée et nommée, ses choix (cartes Exertiens) s'ouvrent avant le joueur suivant
+    const ended = GameSession.dispatch(res.game, P1, { type: 'END_TURN' });
+    expect(ended.error).toBeUndefined();
+    expect(ended.notifications).toContain(discoveryNotice('Exertiens'));
+    expect(ended.game.board.alienBoards[0].isDiscovered).toBe(true);
+    expect(ended.game.pendingDiscoveries).toEqual([]);
+    expect(ended.entries.map(e => e.message)).toContain("révèle l'espèce découverte : Exertiens !");
   });
 
   test('régression : une découverte par un palier neutre ouvre la fenêtre « Découverte » et les choix Exertiens', () => {
@@ -167,7 +180,7 @@ describe('découverte d\'une espèce', () => {
     const discoverMascamites = () => {
       const board = exertienBoard(game);
       board.speciesId = AlienBoardType.MASCAMITES;
-      return SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
+      return placeAndReveal(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
     };
     const key = (bonus: object) => JSON.stringify(bonus);
 
@@ -198,15 +211,15 @@ describe('découverte d\'une espèce', () => {
       expect(SpeciesSystem.freeSpeciesSlotIndices(g, 0, LifeTraceType.BLUE)).toEqual([0, 1, 2]);
       expect(SpeciesSystem.lifeTraceOptions(g, LifeTraceType.BLUE).some(o => o.location === LifeTraceLocation.SPECIES && o.slotIndex === 3)).toBe(false);
 
-      const refused = SpeciesSystem.placeLifeTrace(g, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.SPECIES, 3);
+      const refused = placeAndReveal(g, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.SPECIES, 3);
       expect(refused.updatedGame).toBe(g);
       expect(refused.historyEntries[0].message).toMatch(/indisponible/);
-      expect(SpeciesSystem.placeLifeTrace(g, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.SPECIES, 2).updatedGame).not.toBe(g);
+      expect(placeAndReveal(g, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.SPECIES, 2).updatedGame).not.toBe(g);
 
       // Un spécimen ramené à destination remplit la case 3, qui devient disponible
       expect(SpeciesSystem.placeSpecimenOnTrack(g, { bonus: { pv: 3 } })).toBe(3);
       expect(SpeciesSystem.freeSpeciesSlotIndices(g, 0, LifeTraceType.BLUE)).toEqual([0, 1, 2, 3]);
-      expect(SpeciesSystem.placeLifeTrace(g, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.SPECIES, 3).updatedGame).not.toBe(g);
+      expect(placeAndReveal(g, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.SPECIES, 3).updatedGame).not.toBe(g);
     });
   });
 });

@@ -49,10 +49,10 @@ describe('CardFace', () => {
     expect(q(container, '.card-face-cost')).toBeNull();
     // En taille compacte, la condition de fin de partie reste visible : c'est toute la carte
     const compact = render(<CardFace card={card('ET.41')} compact />);
-    // Les PV débutent la phrase, puis la condition en symboles : 3 technologies Exploration
-    const condition = compact.container.querySelector('.card-face-panel.endGame .card-face-condition-symbols')!;
-    expect(condition.firstElementChild!.classList.contains('bonus-icons')).toBe(true);
-    expect([...condition.querySelectorAll('svg')].filter(svg => !svg.closest('.bonus-icons'))).toHaveLength(3);
+    // La condition (3 technologies Exploration), un chevron, puis les PV : condition ▸ conséquence
+    const panel = compact.container.querySelector('.card-face-panel.endGame.consequence')!;
+    expect([...panel.children].map(child => child.className)).toEqual(['card-face-condition', 'card-face-chevron', 'bonus-icons']);
+    expect(panel.querySelectorAll('.card-face-condition-symbols svg')).toHaveLength(3);
   });
 
   test('élément mis en avant : pied (revenu) ou triangle (secteur)', () => {

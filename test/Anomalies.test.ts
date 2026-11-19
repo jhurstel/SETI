@@ -1,8 +1,7 @@
-import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { createRotationState, getObjectPosition, calculateAbsolutePosition } from '../src/core/SolarSystemPosition';
 import { performRotation } from '../src/systems/RotationSystem';
 import { AlienBoardType, CelestialObject, Game, LifeTraceLocation, LifeTraceType, SectorNumber } from '../src/core/types';
-import { createTestGame, getPlayer } from './helpers/gameFixture';
+import { createTestGame, getPlayer, placeAndReveal } from './helpers/gameFixture';
 import { withRandomState } from '../src/core/random';
 
 const P1 = 'player_0';
@@ -33,7 +32,7 @@ describe('Anomalies', () => {
     anomalyBoard(game);
     let g = game;
     for (const color of [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE]) {
-      g = SpeciesSystem.placeLifeTrace(g, 0, color, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
+      g = placeAndReveal(g, 0, color, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
     }
 
     expect(g.board.alienBoards[0].isDiscovered).toBe(true);
@@ -127,7 +126,7 @@ describe('Anomalies : mise en place au hasard', () => {
       const { result: g } = withRandomState(state * 7919, () => {
         let current = base;
         for (const color of [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE]) {
-          current = SpeciesSystem.placeLifeTrace(current, 0, color, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
+          current = placeAndReveal(current, 0, color, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
         }
         return current;
       });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from 'react';
 import { Game, ActionType, DiskName, SectorNumber, GAME_CONSTANTS, Bonus, Technology, LifeTraceType, InteractionState, GamePhase, SignalType, getInteractionLabel, LifeTraceLocation } from '../core/types';
 import { ConfirmModal, MediaOrMoveModal, Observation2Modal, TokenDiscardModal, Observation3Modal, Observation4Modal, BonusChoiceModal, EndGameModal, LifeTraceTrackWarning, CentaurienRewardModal, ExertienCardModal, MissionRequirementModal, SpecimenModal } from './modals/GameModals';
 import { SolarSystemBoardUI } from './SolarSystemBoardUI';
@@ -100,8 +100,15 @@ export const BoardUI: React.FC = () => {
   // États de l'interface
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
   const showMessage = useCallback((message: string) => setToast({ message, visible: true }), []);
+  // Espèces débloquées pour la première fois dans une partie locale : la bande de leur découverte (fin du tour) propose
+  // leur chapitre du tutoriel (ouvert par startChapter, défini plus bas)
+  const [newChapterSpecies, setNewChapterSpecies] = useState<string[]>([]);
+  const openSpeciesChapter = useRef<(species: string) => void>(() => {});
+  const chapterOffer = useMemo(() => ({ species: newChapterSpecies, open: (species: string) => openSpeciesChapter.current(species) }), [newChapterSpecies]);
   // Annonces au centre de l'écran (début de tour, découverte d'une espèce, tirage du premier joueur)
-  const { announcement, onAnnouncementDone, drawing, endDrawing, showNotifications } = useAnnouncements({ game: realGame, historyLog, me, onMessage: showMessage });
+  const { announcement, onAnnouncementDone, drawing, endDrawing, showNotifications } = useAnnouncements({ game: realGame, historyLog, me, onMessage: showMessage, chapterOffer });
+  const shownDiscoveryRef = useRef<string | undefined>(undefined);
+  shownDiscoveryRef.current = announcement?.key.startsWith('discovery') ? announcement.title : undefined;
   const [showDebug, setShowDebug] = useDebugSetting();
   const [localMode, setLocalMode] = useState<LocalMode | null>(null);
   // Cartes sélectionnées pour l'interaction en cours (réservation, défausse pour signaux)
@@ -200,8 +207,11 @@ export const BoardUI: React.FC = () => {
   const { refreshProgress: refreshTutorialProgress } = tutorial;
   useSpeciesUnlock(realGame, isTutorialGame, useCallback((species: string[]) => {
     refreshTutorialProgress();
-    showMessage(`Nouveau chapitre du tutoriel : ${species.join(', ')}`);
-  }, [refreshTutorialProgress, showMessage]));
+    // Partie locale : la bande de la découverte propose le chapitre ; en ligne (quitter abandonnerait la salle), ou sans
+    // bande de découverte affichée pour l'espèce (partie reprise), un message le signale
+    if (!isOnline) setNewChapterSpecies(previous => [...previous, ...species.filter(name => !previous.includes(name))]);
+    if (isOnline || !species.every(name => name === shownDiscoveryRef.current)) showMessage(`Nouveau chapitre du tutoriel : ${species.join(', ')}`);
+  }, [refreshTutorialProgress, showMessage, isOnline]));
 
   // Sauvegarde automatique à chaque modification de la partie locale (une partie en ligne est gardée par le serveur ;
   // un chapitre du tutoriel n'est jamais sauvegardé et ne remplace pas la partie sauvegardée)
@@ -614,6 +624,13 @@ export const BoardUI: React.FC = () => {
   // --- Tutoriel ---
 
   /** Démarre un chapitre : position préparée (jamais sauvegardée), ou vraie partie contre un robot Débutant */
+  // Chapitre de l'espèce proposé par la bande de sa découverte : la partie en cours reste sauvegardée (« Continuer »)
+  openSpeciesChapter.current = (species: string) => {
+    const chapter = TUTORIAL_CHAPTERS.find(c => c.species === species);
+    setNewChapterSpecies(previous => previous.filter(name => name !== species));
+    if (chapter) void startChapter(chapter.id);
+  };
+
   const startChapter = async (chapterId: string) => {
     const chapter = chapterById(chapterId);
     if (!chapter || !isChapterUnlocked(chapter, tutorialProgress().species)) return;
@@ -1018,7 +1035,7 @@ export const BoardUI: React.FC = () => {
           finished={tutorial.finished}
           hasDocLink={!!tutorial.step?.docLink}
           nextChapterTitle={tutorial.nextChapter ? tutorial.text?.[tutorial.nextChapter.id]?.title ?? tutorial.nextChapter.id : undefined}
-          aboveModals={game.phase === GamePhase.FINAL_SCORING}
+          aboveModals={game.phase === GamePhase.FINAL_SCORING || tutorial.duringChoice}
           onNext={tutorial.next}
           onDocLink={() => { setDocSection(tutorial.step?.docLink); setDocVisible(true); }}
           onQuit={() => leaveTutorial(false)}

@@ -1,10 +1,9 @@
 import { ResourceSystem } from '../src/systems/ResourceSystem';
-import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { TechnologySystem } from '../src/systems/TechnologySystem';
 import { ScoreManager } from '../src/engine/ScoreManager';
 import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { AlienBoardType, Bonus, CardType, Game, GAME_CONSTANTS, getInteractionLabel, InteractionState, LifeTraceLocation, LifeTraceType, Mission, ObjectiveCategory, Probe, ProbeState, SectorType, TechnologyCategory } from '../src/core/types';
-import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
+import { createTestGame, getPlayer, makeCard, placeAndReveal } from './helpers/gameFixture';
 
 const P1 = 'player_0';
 const P2 = 'player_1';
@@ -153,14 +152,14 @@ describe('Règles du moteur peu couvertes', () => {
 
   describe('SpeciesSystem.placeLifeTrace', () => {
     test('piste d\'espèce avant la découverte, ou emplacement déjà occupé : refusé', () => {
-      const before = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.SPECIES, 0);
+      const before = placeAndReveal(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.SPECIES, 0);
       expect(before.updatedGame).toBe(game);
       expect(before.historyEntries[0].message).toContain('avant sa découverte');
 
       game.board.alienBoards[0].isDiscovered = true;
       game.board.alienBoards[0].speciesId = AlienBoardType.ANOMALIES;
-      const first = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.SPECIES, 0).updatedGame;
-      const again = SpeciesSystem.placeLifeTrace(first, 0, LifeTraceType.RED, P2, 's', LifeTraceLocation.SPECIES, 0);
+      const first = placeAndReveal(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.SPECIES, 0).updatedGame;
+      const again = placeAndReveal(first, 0, LifeTraceType.RED, P2, 's', LifeTraceLocation.SPECIES, 0);
       expect(again.updatedGame).toBe(first);
       expect(again.historyEntries[0].message).toBe('Emplacement déjà occupé.');
     });
@@ -169,7 +168,7 @@ describe('Règles du moteur peu couvertes', () => {
       game.board.alienBoards[0].speciesId = species;
       let g = game;
       for (const color of [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE]) {
-        g = SpeciesSystem.placeLifeTrace(g, 0, color, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
+        g = placeAndReveal(g, 0, color, P1, 's', LifeTraceLocation.TRIANGLE).updatedGame;
       }
       return g;
     };
@@ -196,7 +195,7 @@ describe('Règles du moteur peu couvertes', () => {
       [LifeTraceType.BLUE, 'GAIN_ON_BLUE_LIFETRACE'],
     ])('mission « trace de vie %s » : signalée comme à recouvrir', (color, buffType) => {
       addTriggeredMission(game, buffType);
-      const res = SpeciesSystem.placeLifeTrace(game, 0, color, P1, 's', LifeTraceLocation.TRIANGLE);
+      const res = placeAndReveal(game, 0, color, P1, 's', LifeTraceLocation.TRIANGLE);
       expect(res.historyEntries.some(e => e.message === 'déclenche une mission à recouvrir')).toBe(true);
     });
   });

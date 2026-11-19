@@ -13,7 +13,7 @@ import { performRotation } from '../systems/RotationSystem';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import type { TutorialChapter, TutorialContext, TutorialStep } from './types';
 import {
-  cannotReachWithCapsule, freeProbe, freshTurn, giveSpeciesCardToHand, humanOf, opponentsPassed, probeOnPlanet, readyToDiscover, stepTowards,
+  cannotReachWithCapsule, freeProbe, giveSpeciesCardToHand, humanOf, opponentsPassed, probeOnPlanet, readyToDiscover, stepTowards,
 } from './scenario';
 
 /** Graine des chapitres (celle des autres chapitres : Mars et Jupiter à 2 déplacements de la Terre) */
@@ -31,26 +31,28 @@ export const SPECIES_DOC: Record<AlienBoardType, string> = {
 // --- Prédicats communs ---
 
 const discovered = ({ game }: TutorialContext) => game.board.alienBoards[0].isDiscovered;
+/** Troisième trace posée : l'espèce attend sa découverte (fin du tour, règles p. 20), ou elle est déjà révélée */
+const completed = (c: TutorialContext) => discovered(c) || SpeciesSystem.isDiscoveryPending(c.game, 0);
 /** L'analyse est lancée : l'ordinateur est vidé, ou l'espèce déjà découverte */
 const analysisDone = (c: TutorialContext) => !humanOf(c.game, c.humanId).dataComputer.slots['6a']?.filled || discovered(c);
 /** Trace du joueur sur la piste d'une couleur de l'espèce du premier plateau */
 const onTrack = ({ game, humanId }: TutorialContext, color: LifeTraceType) =>
   game.board.alienBoards[0].lifeTraces.some(t => t.playerId === humanId && t.type === color && t.location === LifeTraceLocation.SPECIES);
 
-/** Étapes communes : présentation, analyse (trace bleue), pose de la trace qui découvre l'espèce, découverte */
-function discoverySteps(species: AlienBoardType): TutorialStep[] {
+/**
+ * Étapes communes : présentation, analyse (trace bleue), pose de la troisième trace, fin du tour qui révèle l'espèce
+ * (la découverte se résout à la fin du tour, règles p. 20), présentation de l'espèce révélée. `revealedWhen` : étape
+ * « reveler » terminée aussi quand la fin du tour ouvre un choix de la découverte (cartes Exertiens)
+ */
+function discoverySteps(species: AlienBoardType, revealedWhen: (c: TutorialContext) => boolean = discovered): TutorialStep[] {
   return [
     { id: 'intro', target: 'species' },
     { id: 'analyser', target: 'actions', done: analysisDone, allowedActions: [ActionType.ANALYZE_DATA] },
-    { id: 'poser', target: 'species', duringChoice: 'PLACING_LIFE_TRACE', done: discovered },
+    { id: 'poser', target: 'species', duringChoice: 'PLACING_LIFE_TRACE', done: completed },
+    { id: 'reveler', target: 'end-turn', done: revealedWhen, allowedActions: ['END_TURN'], docLink: SPECIES_DOC[species] },
     { id: 'decouverte', target: 'species', docLink: SPECIES_DOC[species] },
   ];
 }
-
-/** Fin du tour après la découverte (analyse = action principale du tour) : nouveau tour, ou l'étape suivante déjà faite */
-const endTurnAfterDiscovery = (next: (c: TutorialContext) => boolean): TutorialStep => ({
-  id: 'fin-du-tour', target: 'end-turn', done: c => discovered(c) && (freshTurn(c.game, c.humanId) || next(c)), allowedActions: ['END_TURN'],
-});
 
 /** Marque au nom du joueur toutes les cases de données du secteur de la Terre, sauf la dernière (son scan le couvre) */
 function fillEarthSector(game: Game, humanId: string): Game {
@@ -66,6 +68,8 @@ function fillEarthSector(game: Game, humanId: string): Game {
 // --- Exertiens : cartes hors de la main, jouées face cachée ---
 
 const exertienPlayed = ({ game, humanId }: TutorialContext) => humanOf(game, humanId).playedCards.some(card => CardSystem.isExertienCard(card));
+/** Choix des cartes Exertiens refusé à la découverte : aucune carte jouée, le chapitre ne peut plus avancer */
+const exertienRefused = (c: TutorialContext) => discovered(c) && c.game.interaction?.type !== 'CHOOSING_EXERTIEN_CARD' && !exertienPlayed(c);
 
 const exertiens: TutorialChapter = {
   id: 'exertiens',
@@ -74,14 +78,16 @@ const exertiens: TutorialChapter = {
   adjust: (game, humanId) => readyToDiscover(opponentsPassed(game, humanId), humanId, AlienBoardType.EXERTIENS),
   prepare: [],
   steps: [
-    // La découverte ouvre aussitôt le choix des cartes Exertiens : l'étape qui la présente s'affiche pendant ce choix
-    ...discoverySteps(AlienBoardType.EXERTIENS).filter(step => step.id !== 'decouverte'),
+    // La fin du tour révèle les Exertiens et ouvre le choix des cartes : l'étape qui le présente s'affiche pendant ce choix
+    ...discoverySteps(AlienBoardType.EXERTIENS, c => discovered(c) || c.game.interaction?.type === 'CHOOSING_EXERTIEN_CARD').filter(step => step.id !== 'decouverte'),
+    // Renoncé à jouer une carte : annuler pour retrouver le choix
+    { id: 'annuler', target: 'history', onlyIf: exertienRefused, done: c => !exertienRefused(c), docLink: 'historique' },
     { id: 'jouer', target: 'species', duringChoice: 'CHOOSING_EXERTIEN_CARD', done: exertienPlayed, docLink: SPECIES_DOC[AlienBoardType.EXERTIENS] },
     { id: 'danger', target: 'species' },
     { id: 'paliers', target: 'score' },
     { id: 'conclusion', docLink: SPECIES_DOC[AlienBoardType.EXERTIENS] },
   ],
-  solution: [{ type: 'ANALYZE' }],
+  solution: [{ type: 'ANALYZE' }, { type: 'END_TURN' }],
 };
 
 // --- Centauriens : palier de message à + 15 PV, tuile Message ---
@@ -113,7 +119,6 @@ const centauriens: TutorialChapter = {
   steps: [
     ...discoverySteps(AlienBoardType.CENTAURIENS),
     { id: 'palier', target: 'score' },
-    endTurnAfterDiscovery(c => onTrack(c, LifeTraceType.RED) || (discovered(c) && c.game.interaction?.type === 'PLACING_LIFE_TRACE')),
     // Scan fait : la trace rouge du secteur couvert est à poser (l'étape suivante s'affiche pendant ce choix), ou posée
     {
       id: 'scanner', target: 'actions', allowedActions: [ActionType.SCAN_SECTOR],
@@ -135,6 +140,20 @@ const centauriens: TutorialChapter = {
 // --- Oumuamua : nouvelle planète, son secteur, jetons ---
 
 const tokensOf = ({ game, humanId }: TutorialContext) => humanOf(game, humanId).tokens ?? 0;
+/** Carte de la rangée qui mène à Oumuamua (première au départ du chapitre) */
+const oumuamuaCardId = ({ start }: TutorialContext) => start.decks.cardRow[0]?.id;
+/**
+ * Scan engagé sans pouvoir couvrir Oumuamua : une autre carte de la rangée a été prise, ou la bonne carte a servi à
+ * poser le signal ailleurs (rangée changée, aucun jeton, et pas de choix de secteur en cours avec la bonne carte)
+ */
+const wrongScanCard = (c: TutorialContext) => {
+  if (tokensOf(c) > 0) return false;
+  const rowIds = c.game.decks.cardRow.map(card => card.id);
+  const rowChanged = c.start.decks.cardRow.some(card => !rowIds.includes(card.id));
+  const interaction = c.game.interaction;
+  const choosingWithRightCard = interaction?.type === 'SELECTING_SCAN_SECTOR' && interaction.cardId === oumuamuaCardId(c);
+  return rowChanged && !choosingWithRightCard;
+};
 
 const oumuamua: TutorialChapter = {
   id: 'oumuamua',
@@ -151,9 +170,13 @@ const oumuamua: TutorialChapter = {
     const rotation = createRotationState(s.rotationAngleLevel1, s.rotationAngleLevel2, s.rotationAngleLevel3);
     const sectorNumber = calculateAbsolutePosition({ id: 'oumuamua', type: 'planet', name: 'Oumuamua', position: { disk: 'C', sector: 3, x: 0, y: 0 }, level: 1 }, rotation, []).absoluteSector;
     const color = updated.board.sectors[sectorNumber - 1].color;
+    // La carte de la bonne couleur prend la première place de la rangée (qui garde 3 cartes) ; celle qu'elle
+    // remplace retourne dans la pioche, à sa place
     const index = updated.decks.cards.findIndex(card => card.scanSector === color);
     const [card] = updated.decks.cards.splice(index, 1);
-    updated.decks.cardRow = [card, ...updated.decks.cardRow];
+    const [replaced, ...rest] = updated.decks.cardRow;
+    updated.decks.cardRow = [card, ...rest];
+    if (replaced) updated.decks.cards.splice(index, 0, replaced);
     const human = requirePlayer(updated, humanId);
     human.credits = Math.max(human.credits, 3);
     human.energy = 4;
@@ -163,7 +186,8 @@ const oumuamua: TutorialChapter = {
   steps: [
     ...discoverySteps(AlienBoardType.OUMUAMUA),
     { id: 'planete', target: 'solar-system' },
-    endTurnAfterDiscovery(c => tokensOf(c) > 0),
+    // Mauvaise carte de la rangée (ou signal posé hors d'Oumuamua) : annuler
+    { id: 'annuler', target: 'history', onlyIf: wrongScanCard, done: c => !wrongScanCard(c), docLink: 'historique' },
     { id: 'scanner', target: 'actions', done: c => tokensOf(c) > 0, allowedActions: [ActionType.SCAN_SECTOR] },
     { id: 'jetons', target: 'species' },
     { id: 'conclusion', docLink: SPECIES_DOC[AlienBoardType.OUMUAMUA] },
@@ -199,7 +223,6 @@ const mascamites: TutorialChapter = {
   steps: [
     ...discoverySteps(AlienBoardType.MASCAMITES),
     { id: 'specimens', target: 'solar-system' },
-    endTurnAfterDiscovery(collected),
     { id: 'prelever', target: 'hand', done: collected, allowedActions: [ActionType.PLAY_CARD] },
     { id: 'capsule', target: 'solar-system' },
     // Capsule partie trop loin (plus assez d'énergie pour rejoindre la Terre) : annuler ses déplacements
@@ -275,7 +298,7 @@ const anomalies: TutorialChapter = {
     { id: 'recompense', target: 'history' },
     { id: 'conclusion', docLink: SPECIES_DOC[AlienBoardType.ANOMALIES] },
   ],
-  solution: [{ type: 'ANALYZE' }, { type: 'RESEARCH_TECH' }],
+  solution: [{ type: 'ANALYZE' }, { type: 'END_TURN' }, { type: 'RESEARCH_TECH' }],
 };
 
 /** Chapitres d'espèce, dans l'ordre du menu */

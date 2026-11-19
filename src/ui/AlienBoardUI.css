@@ -755,3 +755,54 @@
 .alien-danger-card.held {
   opacity: 0.55;
 }
+
+/* Infobulle du danger, vos cartes Exertiens : bandeau « À jouer » (estompée, en main) ou « Jouée » (son danger compte) */
+.alien-danger-card.played { box-shadow: 0 0 0 2px #b33a3a; }
+.alien-danger-card-state {
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.alien-danger-card-state.held { background: rgba(20, 24, 36, 0.9); color: #cfd6e6; border: 1px solid #6b7690; }
+.alien-danger-card-state.played { background: #b33a3a; color: #fff; }
+
+/* Infobulle du danger, adversaires : côte à côte, cartes Exertiens face cachée en deux piles comptées */
+.alien-danger-opponents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+.alien-danger-player.alien-danger-opponent {
+  flex: 0 0 auto;
+  border-bottom: none;
+}
+.alien-danger-piles {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+.alien-danger-pile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.alien-danger-pile-label {
+  font-size: 0.75em;
+  color: #bbb;
+}
+.seti-deck-pile.alien-danger-card.held:not(.empty) {
+  opacity: 0.6;
+}
+/* Cartes jouées (leur danger compte) : bord rouge ; l'ombre reste celle de la pile */
+.seti-deck-pile.alien-danger-card.played-pile:not(.empty) {
+  border-color: #b33a3a;
+}

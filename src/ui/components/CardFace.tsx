@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Bonus, Card, RevenueType } from '../../core/types';
 import { cardSpecies } from '../cardSpecies';
 import { BonusIcons } from './BonusIcons';
-import { ActionHexIcon, AnyLifeTraceIcon, LifeTraceIcon, MascamiteIcon, ResourceIcon, SignalGainIcon } from './GameIcons';
+import { ActionHexIcon, AnyLifeTraceIcon, LifeTraceIcon, MascamiteIcon, MissionCompleteIcon, ResourceIcon, SignalGainIcon } from './GameIcons';
 import { AnyTechIcon, CoveredSectorIcon, LanderIcon, OrbiterIcon, OrbiterOrLanderIcon, TechCategoryIcon } from './ObjectiveSymbol';
 import { LIFE_TRACE_COLORS } from '../styles/lifeTraceColors';
 import { CardFaceModel, ConditionSymbol, describeCard, EffectSegment, FaceColor, MissionCircle, MissionPanel, richText } from './cardFaceModel';
@@ -37,21 +37,27 @@ const SYMBOL_COLORS: Record<FaceColor, string> = {
 };
 
 /** Symbole répété (2 ou 3 exemplaires), ou précédé de son nombre au-delà */
-const Counted: React.FC<{ count?: number; children: React.ReactNode }> = ({ count, children }) => {
+const Counted: React.FC<{ count?: number; repeat?: boolean; children: React.ReactNode }> = ({ count, repeat = false, children }) => {
   if (!count || count === 1) return <>{children}</>;
-  if (count <= 3) return <>{Array.from({ length: count }, (_, i) => <React.Fragment key={i}>{children}</React.Fragment>)}</>;
+  if (count <= 3 || repeat) return <>{Array.from({ length: count }, (_, i) => <React.Fragment key={i}>{children}</React.Fragment>)}</>;
   return <><span className="card-face-count">{count}×</span>{children}</>;
 };
 
 const ConditionIcon: React.FC<{ symbol: ConditionSymbol; size: number }> = ({ symbol, size }) => {
   switch (symbol.kind) {
     case 'text': return <span className="card-face-words">{symbol.text}</span>;
-    case 'lifetrace': return <Counted count={symbol.count}>{symbol.color ? <LifeTraceIcon color={symbol.color} size={size} /> : <AnyLifeTraceIcon size={size} />}</Counted>;
+    case 'lifetrace': {
+      const icon = symbol.color ? <LifeTraceIcon color={symbol.color} size={size + (symbol.embedded ? 4 : 0)} /> : <AnyLifeTraceIcon size={size + (symbol.embedded ? 4 : 0)} />;
+      // Nombre incrusté dans la trace, comme pour les ressources (ET.52 à ET.54)
+      if (symbol.embedded && symbol.count && symbol.count > 1) return <span className="card-face-embedded">{icon}<span className="card-face-embedded-count">{symbol.count}</span></span>;
+      return <Counted count={symbol.count}>{icon}</Counted>;
+    }
+    case 'missionDone': return <Counted count={symbol.count} repeat><MissionCompleteIcon size={size} /></Counted>;
     case 'signal': return <Counted count={symbol.count}><SignalGainIcon color={symbol.color ? SYMBOL_COLORS[symbol.color] : undefined} size={size + 2} /></Counted>;
     case 'action': return <ActionHexIcon kind={symbol.action} size={size + 2} />;
     case 'orbiterOrLander': return <Counted count={symbol.count}><OrbiterOrLanderIcon size={size + 2} /></Counted>;
     case 'orbiter': return <Counted count={symbol.count}><OrbiterIcon size={size + 2} /></Counted>;
-    case 'lander': return <Counted count={symbol.count}><LanderIcon size={size + 2} /></Counted>;
+    case 'lander': return <Counted count={symbol.count} repeat={symbol.repeat}><LanderIcon size={size + 2} /></Counted>;
     case 'tech': return <Counted count={symbol.count}>{symbol.category ? <TechCategoryIcon category={symbol.category} size={size + 2} /> : <AnyTechIcon size={size + 2} />}</Counted>;
     case 'covered': return <Counted count={symbol.count}><CoveredSectorIcon color={symbol.color ? SYMBOL_COLORS[symbol.color] : undefined} size={size + 4} /></Counted>;
     case 'bonus': return <Gains bonus={symbol.bonus} size={size} />;
@@ -168,6 +174,12 @@ const Circle: React.FC<{ circle: MissionCircle; size: number; state?: MissionCir
   );
 };
 
+/** Taille des symboles de la condition d'une carte Exertien : plus grands si elle n'a que 4 symboles au plus, sans texte */
+const exertienSymbolSize = (symbols: ConditionSymbol[], panelSize: number): number => {
+  const icons = symbols.reduce((n, s) => n + (s.kind === 'text' || s.kind === 'break' ? 0 : ('count' in s && s.count && s.count <= 3) || ('repeat' in s && s.repeat) || s.kind === 'missionDone' ? (s as { count?: number }).count ?? 1 : 1), 0);
+  return symbols.some(s => s.kind === 'text') || icons > 4 ? panelSize + 2 : panelSize + 6;
+};
+
 /** Nombre de symboles d'un gain : un cercle de taille fixe réduit ses symboles quand il en porte plusieurs */
 const gainCount = (bonus: Bonus): number => Object.values(bonus).reduce<number>((total, value) =>
   total + (Array.isArray(value) ? value.length : value ? 1 : 0), 0);
@@ -274,6 +286,8 @@ const FullCardFace: React.FC<{
   const showText = !!face.text;
   const hasTop = face.effects.length > 0 || showText;
   const hasPanel = !!face.mission || !!face.scorePanel;
+  // Trois signaux ou plus, seuls sur la ligne d'effet (ET.24) : plus petits, pour laisser la place au texte
+  const signalsOnly = face.effects.length >= 3 && face.effects.every(s => s.kind === 'bonus' && Object.keys(s.bonus).every(key => key === 'signals'));
 
   return (
     <div className={classes.join(' ')} data-card-id={card.id}>
@@ -300,7 +314,8 @@ const FullCardFace: React.FC<{
             <ResourceIcon kind={face.cost.kind} amount={face.cost.amount} size={22} />
           </span>
         )}
-        {face.danger !== undefined && <span className="card-face-danger" aria-label={`Danger ${face.danger}`}>{face.danger}</span>}
+        {/* Danger : badge de la taille du coût des autres cartes */}
+        {face.danger !== undefined && <span className="card-face-danger" aria-label={`Danger ${face.danger}`}><span className="card-face-danger-value">{face.danger}</span></span>}
         <span className="card-face-name">{face.name}</span>
       </div>
       {/* Zone blanche : gains de la carte (et son texte) dans la moitié haute, panneau dans la moitié basse ;
@@ -311,14 +326,19 @@ const FullCardFace: React.FC<{
             {/* Précision d'un gain (« sur une planète ou une lune… ») : à droite de ses symboles ; le reste du texte dessous */}
             {face.effects.length > 0 && (
               <div className={`card-face-effects${face.inlineText ? ' with-detail' : ''}`}>
-                {face.effects.map((segment, i) => <Segment key={i} segment={segment} size={iconSize} />)}
+                {face.effects.map((segment, i) => <Segment key={i} segment={segment} size={signalsOnly ? iconSize - 8 : iconSize} />)}
                 {face.inlineText && <RichText text={face.inlineText} size={panelSize} className="card-face-text card-face-detail" />}
               </div>
             )}
             {/* Une phrase par ligne (carte 17) */}
-            {/* Texte long (ET.5) : un peu plus petit et plus large, pour tenir sur quatre lignes */}
-            {showText && face.text.split(/(?<=\.)\s+(?=[A-ZÀ-Ý])/).map((sentence, i) => <RichText key={i} text={sentence} size={panelSize} className={`card-face-text${face.text.length > 140 ? ' long' : ''}`} />)}
-            {face.textGains && <div className="card-face-effects card-face-text-gains">{face.textGains.map((bonus, i) => <Gains key={i} bonus={bonus} size={iconSize} />)}</div>}
+            {/* Texte long (ET.5 ; ET.24 au-dessus de son panneau) : un peu plus petit et plus large, pour tenir en moins de lignes */}
+            {showText && face.text.split(/(?<=\.)\s+(?=[A-ZÀ-Ý])/).map((sentence, i) => <RichText key={i} text={sentence} size={panelSize} className={`card-face-text${face.text.length > 140 || (hasPanel && face.text.length > 80) ? ' long' : ''}`} />)}
+            {face.textGains && (
+              <div className="card-face-effects card-face-text-gains">
+                {face.textGainsLead && <span className="card-face-text">{face.textGainsLead}</span>}
+                {face.textGains.map((bonus, i) => <Gains key={i} bonus={bonus} size={iconSize} />)}
+              </div>
+            )}
           </div>
         )}
         {hasPanel && (
@@ -326,16 +346,30 @@ const FullCardFace: React.FC<{
             {face.mission && <MissionPanelView mission={face.mission} size={panelSize} states={circleStates} />}
             {face.scorePanel?.kind === 'endGame' && (
               // Fin de partie : les PV d'abord, puis la condition (« Pour chaque… »), le tout centré
-              <div className="card-face-panel endGame">
-                {/* Les PV débutent la phrase de la condition, sur sa première ligne */}
-                <span className="card-face-condition"><Condition symbols={face.scorePanel.symbols} text={face.scorePanel.text} size={panelSize}
-                  lead={<Gains bonus={face.scorePanel.reward} size={panelSize + 4} />} /></span>
-              </div>
+              face.danger !== undefined ? (
+                // Exertien : la condition, un chevron, puis les PV qu'elle rapporte (condition ▸ conséquence)
+                <div className="card-face-panel endGame consequence">
+                  {/* Symboles plus grands que sur les autres panneaux quand la condition n'en compte que quelques-uns, sans texte (ET.41 à ET.48) */}
+                  <span className="card-face-condition"><Condition symbols={face.scorePanel.symbols} text={face.scorePanel.text} size={exertienSymbolSize(face.scorePanel.symbols, panelSize)} /></span>
+                  <span className="card-face-chevron" aria-hidden="true">▸</span>
+                  <Gains bonus={face.scorePanel.reward} size={panelSize + 4} />
+                </div>
+              ) : (
+                <div className="card-face-panel endGame">
+                  {/* Les PV débutent la phrase de la condition, sur sa première ligne */}
+                  <span className="card-face-condition"><Condition symbols={face.scorePanel.symbols} text={face.scorePanel.text} size={panelSize}
+                    lead={<Gains bonus={face.scorePanel.reward} size={panelSize + 4} />} /></span>
+                </div>
+              )
             )}
             {face.scorePanel?.kind === 'reception' && (
               <div className="card-face-panel reception">
                 <span className="card-face-condition"><Condition symbols={face.scorePanel.symbols} text={face.scorePanel.text} size={panelSize} /></span>
-                <Gains bonus={face.scorePanel.reward} size={panelSize + 2} />
+                {face.scorePanel.rewardSentence ? (
+                  <span className="card-face-reward-sentence">
+                    {face.scorePanel.rewardSentence.before} <Gains bonus={face.scorePanel.reward} size={panelSize} /> {face.scorePanel.rewardSentence.after}
+                  </span>
+                ) : <Gains bonus={face.scorePanel.reward} size={panelSize + 2} />}
               </div>
             )}
           </div>

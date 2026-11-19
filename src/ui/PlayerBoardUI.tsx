@@ -9,6 +9,7 @@ import { cardSpecies } from './cardSpecies';
 import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { SlotTooltip } from './components/SlotTooltip';
+import { CardTooltip } from './components/CardTooltip';
 import { PlayerTabs } from './player/PlayerTabs';
 import { PlayerResources } from './player/PlayerResources';
 import { PlayerActions } from './player/PlayerActions';
@@ -314,8 +315,22 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
             <div className="seti-player-list seti-cards-list seti-thin-scroll">
               {((currentPlayer.missions && currentPlayer.missions.length > 0) || (currentPlayer.playedCards && currentPlayer.playedCards.length > 0)) ? (
                 <>
-                {/* Mission conditionnelle et Mission déclenchable */}
-                {(currentPlayer.missions || []).map((mission: Mission) => (
+                {/* Missions accomplies : retournées et empilées à gauche (la face s'affiche au survol) */}
+                {(currentPlayer.missions || []).some(mission => mission.completed) && (
+                  <div className="seti-mission-pile" aria-label="Missions accomplies">
+                    {(currentPlayer.missions || []).filter(mission => mission.completed).map((mission: Mission) => (
+                      <CardBack key={mission.id} className="seti-mission-pile-card" species={mission.originalCard ? backSpecies(mission.originalCard) : undefined}
+                        onMouseEnter={e => handleTooltipHover(e, mission.originalCard
+                          ? <CardTooltip card={mission.originalCard} />
+                          : <SlotTooltip status="Mission accomplie" statusColor="#8fe3a2" note={mission.name} />)}
+                        onMouseLeave={handleTooltipLeave} />
+                    ))}
+                    {/* Nombre de missions accomplies, sur la carte du dessus (comme une pioche) */}
+                    <span className="seti-deck-pile-count seti-mission-pile-count">{(currentPlayer.missions || []).filter(mission => mission.completed).length}</span>
+                  </div>
+                )}
+                {/* Mission conditionnelle et Mission déclenchable en cours */}
+                {(currentPlayer.missions || []).filter(mission => !mission.completed).map((mission: Mission) => (
                   <MissionCard
                     key={mission.id}
                     mission={mission}

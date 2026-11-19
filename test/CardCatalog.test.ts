@@ -5,7 +5,7 @@ import { CardSystem } from '../src/systems/CardSystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { AIController } from '../src/ai/AIController';
 import { InteractionResolver } from '../src/engine/InteractionResolver';
-import { AlienBoardType, Card, CardType, Game, INTERACTIONS, InteractionState, LifeTraceLocation, LifeTraceType, ObjectiveCategory, ProbeState, Technology, TechnologyCategory } from '../src/core/types';
+import { AlienBoardType, Card, CardType, Game, INTERACTIONS, InteractionState, LifeTraceLocation, LifeTraceType, ObjectiveCategory, ProbeState, SectorType, Technology, TechnologyCategory } from '../src/core/types';
 import { ScoreManager } from '../src/engine/ScoreManager';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { TechnologySystem } from '../src/systems/TechnologySystem';
@@ -190,6 +190,13 @@ describe('Cartes corrigées', () => {
       const claimed = claim(res.updatedGame, 'ET.23');
       expect(getPlayer(claimed.updatedGame, P1).tokens).toBe(1);
       expect(getPlayer(claimed.updatedGame, P1).missions.find(m => m.cardId === 'ET.23')!.completed).toBe(true);
+    });
+
+    test("ET.23 : le signal se marque dans le secteur d'Oumuamua (régression : n'importe quel secteur)", async () => {
+      const start = await gameWithCard('ET.23');
+      const res = CardSystem.playCard(start, P1, 'ET.23');
+      expect(res.newPendingInteractions).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'SELECTING_SCAN_SECTOR', color: SectorType.OUMUAMUA })]));
+      expect(getPlayer(start, P1).cards.some(c => c.id === 'ET.23')).toBe(true);
     });
 
     test("ET.23 Découverte d'Exofossiles : avec 3 Tokens, en défausse 2 et gagne 11 PV", async () => {

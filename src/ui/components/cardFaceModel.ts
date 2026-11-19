@@ -29,10 +29,14 @@ export type EffectSegment =
  */
 export type ConditionSymbol =
   | { kind: 'text'; text: string }
-  | { kind: 'lifetrace'; color?: 'red' | 'yellow' | 'blue'; count?: number }
+  /** `embedded` : le nombre est incrusté dans le symbole, comme pour les ressources (ET.52 à ET.54) */
+  | { kind: 'lifetrace'; color?: 'red' | 'yellow' | 'blue'; count?: number; embedded?: boolean }
   | { kind: 'signal'; color?: FaceColor; count?: number }
   | { kind: 'action'; action: 'launch' | 'orbit' | 'land' | 'scan' }
-  | { kind: 'orbiterOrLander' | 'orbiter' | 'lander'; count?: number }
+  /** `repeat` : le symbole est répété autant de fois que le nombre, même au-delà de 3 (ET.49) */
+  | { kind: 'orbiterOrLander' | 'orbiter' | 'lander'; count?: number; repeat?: boolean }
+  /** Mission accomplie, répétée `count` fois (ET.55) */
+  | { kind: 'missionDone'; count: number }
   | { kind: 'tech'; category?: TechnologyCategory; count?: number }
   | { kind: 'covered'; color?: FaceColor; count?: number }
   | { kind: 'bonus'; bonus: Bonus }
@@ -73,6 +77,8 @@ export interface ScorePanel {
   /** Condition dessinée ; vide : `text` écrit */
   symbols: ConditionSymbol[];
   reward: Bonus;
+  /** Récompense écrite en phrase autour de son symbole (Centauriens : « Augmentez vos [revenu] grâce à cette carte. ») */
+  rewardSentence?: { before: string; after: string };
 }
 
 export interface CardFaceModel {
@@ -100,6 +106,8 @@ export interface CardFaceModel {
   inlineText?: string;
   /** Gains annoncés à la fin du texte (« … pour gagner : »), dessinés en grand à la ligne, sans virgule (carte 15) */
   textGains?: Bonus[];
+  /** Mot écrit devant ces gains (« Puis », ET.25) */
+  textGainsLead?: string;
 }
 
 const SECTOR_COLORS: Partial<Record<SectorType, FaceColor>> = {
@@ -178,7 +186,7 @@ function immediateSegment(effect: CardEffect): EffectSegment {
     const star = STAR_SECTORS[scope];
     if (star) return { kind: 'bonus', bonus: { signals: [{ amount, scope: star.color }] }, caption: `sur ${star.name}` };
     const planet = PLANET_SECTORS[scope];
-    if (planet) return { kind: 'bonus', bonus: { signals: [{ amount, scope }] }, caption: `dans le secteur de ${planet}` };
+    if (planet) return { kind: 'bonus', bonus: { signals: [{ amount, scope }] }, caption: `dans le secteur ${/^[AEIOUÉ]/.test(planet) ? 'd\'' : 'de '}${planet}` };
   }
   const toBonus = IMMEDIATE[key];
   return toBonus ? { kind: 'bonus', bonus: toBonus(effect) } : { kind: 'text', text: key, effectType: key };
@@ -246,6 +254,9 @@ export const TEXT_EFFECTS: Partial<Record<string, SegmentOf>> = {
   SCORE_PER_ANOMALY: (e) => ({ kind: 'text', text: `${effectNumber(e)} PV par signal sur une anomalie`, effectType: 'SCORE_PER_ANOMALY' }),
 };
 
+/** Texte du panneau de réception des cartes Centauriens */
+export const RECEPTION_TEXT = 'À réception du message.';
+
 /** Effets lus dans le panneau de fin de partie ou de réception, pas dans la ligne d'effet (PV : valeur du décompte) */
 const SCORE_EFFECTS: Partial<Record<string, (effect: CardEffect) => Bonus>> = {
   SCORE_PER_ORBITER_LANDER: e => ({ pv: effectNumber(e) }),
@@ -260,7 +271,8 @@ const SCORE_EFFECTS: Partial<Record<string, (effect: CardEffect) => Bonus>> = {
 };
 const RECEPTION_EFFECTS: Partial<Record<string, (effect: CardEffect, card: Card) => Bonus>> = {
   RECEPTION: e => rewardsOf(effectString(e)),
-  RECEPTION_REVENUE: (_e, card) => ({ revenue: 1, ...(revenueBonus(card.revenue) ?? {}) }),
+  // Seul le symbole du revenu : la ressource gagnée en réservant la carte ne fait pas partie de la réception
+  RECEPTION_REVENUE: () => ({ revenue: 1 }),
 };
 
 // --- Missions : un cercle par prérequis (ordre de mission.requirements = ordre de card.permanentEffects) ---
@@ -338,7 +350,7 @@ function conditionSymbols(type: string, target: string | undefined, chunk: strin
     case 'GAIN_IF_50_PV': return { symbols: [words('Avoir au moins'), { kind: 'bonus', bonus: { pv: 50 } }] };
     case 'GAIN_IF_EMPTY_HAND': return { symbols: [words('Aucune carte en main')] };
     case 'GAIN_IF_3_TECH_OBS': return { symbols: [{ kind: 'tech', category: TechnologyCategory.OBSERVATION, count: 3 }] };
-    case 'GAIN_IF_3_TOKEN': return { symbols: [{ kind: 'bonus', bonus: { token: 3 } }] };
+    case 'GAIN_IF_3_TOKEN': return { symbols: [words('Avoir au moins'), { kind: 'bonus', bonus: { token: 3 } }] };
     case 'GAIN_IF_PAY_FOR_LIFETRACE': return { symbols: [{ kind: 'lifetrace' }, words('payée en jetons')] };
     case 'GAIN_IF_SIGNAL': return { symbols: [{ kind: 'signal' }, ...onPlace(target, chunk)] };
     case 'GAIN_IF_SPECIMEN': return { symbols: [words('Amener le'), { kind: 'specimen' }, ...onPlace(target, chunk)] };
@@ -369,12 +381,14 @@ function scoreSymbols(effect: CardEffect, chunk: string): ConditionSymbol[] | nu
         case 'TECH': return [{ kind: 'tech', category: TECH_CATEGORIES[param], count: n }];
         case 'COVERED': return [{ kind: 'covered', color: COLOR_NAMES[param]?.color, count: n }];
         case 'ORBITERS': return [{ kind: 'orbiter', count: n }];
-        case 'LANDERS': return [{ kind: 'lander', count: n }, words('(lunes comprises)')];
-        case 'SAME_PLANET': return [{ kind: 'orbiterOrLander', count: n }, words('sur une même planète')];
+        // Les atterrisseurs sur une ligne, la précision dessous (ET.49)
+        case 'LANDERS': return [{ kind: 'lander', count: n, repeat: true }, { kind: 'break' }, words('(lunes comprises)')];
+        // ET.50 : deux lignes au plus, de longueurs proches (les symboles et « sur une même », puis « planète (lunes comprises) »)
+        case 'SAME_PLANET': return [{ kind: 'orbiterOrLander', count: n }, words('sur une même'), { kind: 'break' }, words('planète (lunes comprises)')];
         case 'RESERVED': return [words(`${n} cartes réservées`)];
-        case 'MISSIONS': return [words(`${n} missions accomplies`)];
-        case 'TRACES_SAME_COLOR': return [{ kind: 'lifetrace', count: n }, words('de la même couleur')];
-        case 'TRACES_SPECIES': return [{ kind: 'lifetrace', count: n }, words(param === 'this' ? 'pour cette espèce' : 'pour les autres espèces')];
+        case 'MISSIONS': return [{ kind: 'missionDone', count: n ?? 1 }];
+        case 'TRACES_SAME_COLOR': return [{ kind: 'lifetrace', count: n, embedded: true }, words('de la même couleur')];
+        case 'TRACES_SPECIES': return [{ kind: 'lifetrace', count: n, embedded: true }, words(param === 'this' ? 'pour cette espèce' : 'pour les autres espèces')];
         default: return null;
       }
     }
@@ -406,7 +420,7 @@ const SIGNAL_WORD_COLORS: Partial<Record<string, FaceColor>> = { rouge: 'red', j
  * atterrisseurs et jetons Mascamites deviennent les symboles du glossaire ; le reste reste en mots
  */
 export function richText(value: string): ConditionSymbol[] {
-  const pattern = /\n|\b(\d+|une?)\s+Signa(?:l|ux)\b(?:\s+dans un secteur (Rouge|Jaune|Bleu|Noir)\b)?|(\d+)\s*(PVs?|Données?|Médias?|Crédits?|[EÉ]nergies?|Cartes?|Pioches?|Déplacements?|Tokens?)\b|(?:(\d+|une?)\s+)?Traces? de Vie(?:\s+(Rouges?|Jaunes?|Bleue?s?))?|\b(orbiteurs?|atterrisseurs?)\b|(?:jetons|spécimen|specimen)s? Mascamites?/gi;
+  const pattern = /\n|\b(\d+|une?|chaque)\s+Signa(?:l|ux)\b(?:\s+dans un secteur (Rouge|Jaune|Bleu|Noir)\b)?|(\d+)\s*(PVs?|Données?|Médias?|Crédits?|[EÉ]nergies?|Cartes?|Pioches?|Déplacements?|Atterrissages?|Tokens?)\b|(?:(\d+|une?)\s+)?Traces? de Vie(?:\s+(Rouges?|Jaunes?|Bleue?s?))?|\b(orbiteurs?|atterrisseurs?)\b|(?:jetons|spécimen|specimen)s? Mascamites?/gi;
   const symbols: ConditionSymbol[] = [];
   let last = 0;
   for (const match of value.matchAll(pattern)) {
@@ -420,13 +434,19 @@ export function richText(value: string): ConditionSymbol[] {
       // Signal dans la phrase : quelconque, ou de la couleur du secteur (« un Signal dans un secteur Rouge » : 52-54)
       const count = /^\d+$/.test(signalCount) ? Number(signalCount) : 1;
       const color = signalColor ? SIGNAL_WORD_COLORS[signalColor.toLowerCase()] : undefined;
+      // « chaque signal » (ET.21) : le mot reste, le signal est dessiné
+      if (/^chaque$/i.test(signalCount)) {
+        const previous = symbols[symbols.length - 1];
+        if (previous?.kind === 'text') symbols[symbols.length - 1] = words(`${previous.text} ${signalCount}`);
+        else symbols.push(words(signalCount));
+      }
       symbols.push({ kind: 'signal', ...(color ? { color } : {}), count: count > 1 ? count : undefined });
     } else if (resource) {
       const n = Number(amount);
       const key = resource.toLowerCase();
       const bonus: Bonus = key.startsWith('pv') ? { pv: n } : key.startsWith('donn') ? { data: n } : key.startsWith('méd') ? { media: n }
         : key.startsWith('créd') ? { credits: n } : /^[eé]ner/.test(key) ? { energy: n } : key.startsWith('pioch') ? { card: n }
-        : key.startsWith('carte') ? { anycard: n } : key.startsWith('dépl') ? { movements: n } : { token: n };
+        : key.startsWith('carte') ? { anycard: n } : key.startsWith('dépl') ? { movements: n } : key.startsWith('atter') ? { landing: n } : { token: n };
       symbols.push({ kind: 'bonus', bonus });
     } else if (piece) {
       symbols.push({ kind: piece.toLowerCase().startsWith('orbit') ? 'orbiter' : 'lander' });
@@ -533,7 +553,8 @@ function specificSentences(intro: string): { text: string; inline?: string } {
     .split(/(?<=\.)\s+/)
     .map(sentence => sentence.trim())
     // Signal là où se trouve une sonde : la phrase reste, le signal y est dessiné
-    .filter(sentence => sentence && (PROBE_SIGNAL_SENTENCE.test(sentence) || !isGainsOnly(sentence.replace(/\.$/, ''))))
+    // Atterrissage gagné après un autre effet (« Puis gagnez 1 Atterrissage », ET.25) : la phrase reste, le symbole y est dessiné
+    .filter(sentence => sentence && (PROBE_SIGNAL_SENTENCE.test(sentence) || /^Puis gagnez \d+ Atterrissage/.test(sentence) || !isGainsOnly(sentence.replace(/\.$/, ''))))
     .filter((sentence, index) => {
       // Première phrase : gain dessiné suivi de sa précision (« sur une planète… », « qu'un autre joueur possède déjà »)
       const gainThenDetail = index === 0 ? sentence.match(/^(Gagnez \d+ .+?)\s+((?:sur |qu'un ).+)$/i) : null;
@@ -564,6 +585,8 @@ const lineBreaks = (sentence: string, last: boolean): string => {
  * (88, 118, 120, 134), PV « chaque fois que » (52-54), déplacement « pour chaque » après la sonde déjà dessinée (74)
  */
 const withoutDrawnVerb = (sentence: string): string => sentence
+  .replace(/^Gagnez \d+ Scans? et gagnez /, 'Gagnez ')
+  .replace(/^Puis gagnez (?=\d+ Atterrissages?\.?$)/, 'Puis ')
   .replace(/^Gagnez \d+ Sondes? et (?=\d+ \S+ pour chaque)/, '')
   .replace(/^Gagnez (?=\d+ Signa(?:l|ux) dans un secteur où se trouve)/, '')
   .replace(/^Gagnez (?=\d+ PVs? chaque fois que)/, '');
@@ -592,7 +615,7 @@ function splitTechChoice(effects: EffectSegment[]): EffectSegment[] {
 }
 
 /** Texte propre et sa place (à droite du gain qu'il précise, ou dessous) */
-function specificTextOf(card: Card): { text: string; inlineText?: string; textGains?: Bonus[] } {
+function specificTextOf(card: Card): { text: string; inlineText?: string; textGains?: Bonus[]; textGainsLead?: string } {
   const { text, inline } = specificSentences(descriptionChunks(card.description)[0].content);
   // « … pour gagner 3 PVs, 1 Donnée, 1 Carte. » : la phrase s'arrête à « pour gagner : », les gains passent à la ligne en symboles
   const tail = text.match(/^(.*\bpour gagner)\s+([^.]+)\.?$/);
@@ -605,6 +628,12 @@ function specificTextOf(card: Card): { text: string; inlineText?: string; textGa
       return { text: `${tail[1]} :`, inlineText: inline, textGains };
     }
   }
+  // « … Puis 1 Atterrissage. » (ET.25) : « Puis » et l'atterrissage en grand, à la ligne
+  const then = text.match(/^(.*?)\s*Puis (\d+) Atterrissages?\.$/);
+  if (then) return { text: then[1], inlineText: inline, textGains: [{ landing: Number(then[2]) }], textGainsLead: 'Puis' };
+  // Carte de mission dont la seule phrase précise l'atterrissage dessiné (« Si vous posez une sonde… », ET.30) : à droite du symbole
+  const isMission = card.type === CardType.CONDITIONAL_MISSION || card.type === CardType.TRIGGERED_MISSION;
+  if (!inline && isMission && /^Si vous posez une sonde[^.]*\.$/.test(text)) return { text: '', inlineText: text };
   return { text, inlineText: inline };
 }
 
@@ -630,7 +659,13 @@ export function describeCard(card: Card): CardFaceModel {
       const header = score ? 'Fin de jeu:' : 'Réception:';
       const reward = score ? score(effect) : reception!(effect, card);
       const chunk = chunks.find(c => c.header === header)?.content ?? effect.type;
-      scorePanel ??= { kind: score ? 'endGame' : 'reception', text: score ? conditionText(chunk) : isGainsOnly(chunk.replace(/\.$/, '')) ? 'Réception' : chunk, symbols: (score && scoreSymbols(effect, chunk)) || [], reward: isEmptyBonus(reward) && score ? pvOfText(chunk) : reward };
+      // Réception (Centauriens) : à gauche toujours « À réception du message. », à droite ce qu'elle rapporte
+      scorePanel ??= score
+        ? { kind: 'endGame', text: conditionText(chunk), symbols: scoreSymbols(effect, chunk) || [], reward: isEmptyBonus(reward) ? pvOfText(chunk) : reward }
+        : {
+          kind: 'reception', text: RECEPTION_TEXT, symbols: [], reward,
+          ...(effect.type === 'RECEPTION_REVENUE' ? { rewardSentence: { before: 'Augmentez vos', after: 'grâce à cette carte.' } } : {}),
+        };
       continue;
     }
     if (SENTENCE_EFFECTS.has(effect.type)) continue;
@@ -642,7 +677,8 @@ export function describeCard(card: Card): CardFaceModel {
     const chunk = chunks.find(c => c.header === 'Fin de jeu:');
     if (chunk) scorePanel = { kind: 'endGame', text: conditionText(chunk.content), symbols: [], reward: pvOfText(chunk.content) };
   }
-  if (scorePanel?.kind === 'endGame' && !isEmptyBonus(scorePanel.reward)) scorePanel = continueAfterPv(scorePanel);
+  // Exertien : la condition débute le panneau (les PV viennent après), sa majuscule reste
+  if (scorePanel?.kind === 'endGame' && !isExertien && !isEmptyBonus(scorePanel.reward)) scorePanel = continueAfterPv(scorePanel);
 
   // Effets permanents hors mission (rares) : écrits en texte pour ne rien perdre
   const mission = missionPanel(card);

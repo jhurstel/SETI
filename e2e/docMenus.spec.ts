@@ -221,3 +221,79 @@ for (const [name, board] of Object.entries(BOARDS)) {
     await page.locator(board.panel).first().screenshot({ path: path.join(SCREENS_DIR, `plateau-${name}.png`) });
   });
 }
+
+/**
+ * Sous-écrans de l'accueil (public/docs/images/ecrans/accueil-<nom>.png) : fenêtres ouvertes depuis l'accueil,
+ * sans partie sauvegardée, nom du joueur connu, proposition du tutoriel déjà refusée
+ */
+async function openHome(page: import('@playwright/test').Page, tutorial: { done?: string[]; species?: string[] } = {}) {
+  fs.mkdirSync(SCREENS_DIR, { recursive: true });
+  await page.addInitScript(progress => {
+    localStorage.setItem('seti_player_name', 'Alice');
+    localStorage.setItem('seti_tutorial', JSON.stringify({ done: progress.done ?? [], dismissed: true, hintsShown: [], contextHelp: true, species: progress.species ?? [] }));
+  }, tutorial);
+  await page.goto('/', { timeout: 300_000 });
+  await expect(page.getByText('Nouvelle partie', { exact: true })).toBeVisible();
+}
+
+/** Capture d'une fenêtre, souris à l'écart et animation d'ouverture terminée */
+async function shoot(page: import('@playwright/test').Page, selector: string, name: string) {
+  await page.mouse.move(1, 1);
+  await page.waitForTimeout(800);
+  await page.locator(selector).first().screenshot({ path: path.join(SCREENS_DIR, `accueil-${name}.png`) });
+}
+
+test('capture : nouvelle partie et tirage du premier joueur', async ({ page }) => {
+  await openHome(page);
+  await page.getByText('Nouvelle partie', { exact: true }).click();
+  // Deux robots de niveaux différents
+  await page.getByRole('button', { name: '+ Ajouter un robot' }).click();
+  await page.getByRole('radiogroup', { name: 'Place 2' }).getByRole('radio', { name: 'Avancé' }).click();
+  await page.getByRole('radiogroup', { name: 'Place 3' }).getByRole('radio', { name: 'Expert' }).click();
+  await shoot(page, '.seti-newgame-modal', 'nouvelle-partie');
+
+  // Tirage : faisceau verrouillé sur le premier joueur, résultat affiché
+  await page.getByRole('button', { name: 'Commencer' }).click();
+  await expect(page.locator('.seti-draw-result.visible')).toBeVisible({ timeout: 30_000 });
+  await page.waitForTimeout(400);
+  await page.locator('.seti-draw-box').screenshot({ path: path.join(SCREENS_DIR, 'accueil-tirage.png') });
+});
+
+test('capture : menu du tutoriel', async ({ page }) => {
+  // Quelques chapitres terminés, une espèce débloquée (les autres chapitres d'espèce restent verrouillés)
+  await openHome(page, { done: ['ecran', 'sondes', 'atterrir'], species: ['Mascamites'] });
+  await page.getByText('Tutoriel', { exact: true }).click();
+  await expect(page.locator('.seti-tutorial-menu')).toBeVisible();
+  await shoot(page, '.seti-tutorial-menu', 'tutoriel');
+});
+
+test('capture : partie en ligne (créer, rejoindre, salon)', async ({ page }) => {
+  // Liste des salles fixe pour l'onglet Rejoindre : un salon qui attend un joueur, une partie en cours
+  await page.route('**/rooms', route => route.fulfill({
+    contentType: 'application/json',
+    headers: { 'Access-Control-Allow-Origin': '*' },
+    body: JSON.stringify([
+      { code: 'KEPLR', status: 'lobby', createdAt: Date.now(), seats: [
+        { name: 'Bob', type: 'human', claimed: true }, { name: '', type: 'human', claimed: false },
+        { name: 'HAL 9000', type: 'robot', aiDifficulty: 'MEDIUM', claimed: true },
+      ] },
+      { code: 'VEGAS', status: 'playing', createdAt: Date.now(), round: 3, seats: [
+        { name: 'Carole', type: 'human', claimed: true }, { name: 'David', type: 'human', claimed: true },
+      ] },
+    ]),
+  }));
+  await openHome(page);
+  await page.getByText('Partie en ligne', { exact: true }).click();
+  await expect(page.locator('.seti-online-modal')).toBeVisible();
+  await shoot(page, '.seti-online-modal', 'en-ligne-creer');
+
+  await page.getByRole('tab', { name: 'Rejoindre' }).click();
+  await expect(page.locator('.seti-room-row').first()).toBeVisible({ timeout: 15_000 });
+  await shoot(page, '.seti-online-modal', 'en-ligne-rejoindre');
+
+  // Salon : une salle créée sur le serveur de test, qui attend son deuxième joueur humain
+  await page.getByRole('tab', { name: 'Créer une salle' }).click();
+  await page.getByRole('button', { name: 'Créer la salle' }).click();
+  await expect(page.locator('.seti-online-code')).toBeVisible({ timeout: 60_000 });
+  await shoot(page, '.seti-online-modal', 'en-ligne-salon');
+});

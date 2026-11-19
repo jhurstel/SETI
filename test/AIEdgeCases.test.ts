@@ -70,9 +70,17 @@ describe('Robots : cas limites', () => {
     });
     game.board.alienBoards[0].speciesId = AlienBoardType.EXERTIENS;
 
+    game.currentPlayerIndex = game.players.findIndex(p => p.id === P1);
     const res = AIController.processInteractionQueue(game, [{ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.RED }], 'seq', player);
 
-    expect(res.newPendingInteractions).toEqual([{ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, count: 1, playerId: P2, sequenceId: 'seq' }]);
+    // La découverte attend la fin du tour du robot (règles, p. 20) : pas encore de choix
+    expect(res.newPendingInteractions).toEqual([]);
+    expect(res.updatedGame.pendingDiscoveries).toEqual([0]);
+    // Fin du tour du robot : l'espèce est révélée, le choix de carte du joueur humain va dans la file de la partie
+    const ended = AITurn.endTurn(res.updatedGame);
+    expect(ended.updatedGame.board.alienBoards[0].isDiscovered).toBe(true);
+    expect(ended.discoveryNotification?.message).toBe("Découverte d'une nouvelle espèce Alien : Exertiens !");
+    expect(ended.humanInteractions).toEqual([expect.objectContaining({ type: 'CHOOSING_EXERTIEN_CARD', milestone: 0, count: 1, playerId: P2 })]);
   });
 
   test('mise en place : un robot sans carte attend', () => {

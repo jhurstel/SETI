@@ -6,7 +6,7 @@ import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { revealText } from '../src/core/historyText';
 import { ScoreManager } from '../src/engine/ScoreManager';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
-import { DISCOVERY_NOTICE } from '../src/systems/SpeciesSystem';
+import { DISCOVERY_NOTICE, discoveryNotice } from '../src/systems/SpeciesSystem';
 import { CardSystem } from '../src/systems/CardSystem';
 
 const P1 = 'player_0';
@@ -318,10 +318,16 @@ describe('PassAction', () => {
 
       const res = ScoreManager.checkScoreMilestones(game, P1);
 
-      expect(res.updatedGame.board.alienBoards[0].isDiscovered).toBe(true);
-      // L'annonce est celle qui ouvre la fenêtre « Découverte » de l'interface
+      // Palier résolu : la découverte attend la fin du tour, annoncée d'abord sans nom
+      expect(res.updatedGame.board.alienBoards[0].isDiscovered).toBe(false);
+      expect(res.updatedGame.pendingDiscoveries).toEqual([0]);
       expect(res.discoveryNotification?.message).toBe(DISCOVERY_NOTICE);
       expect(res.updatedGame.isSpeciesDiscovered).toBe(false);
+
+      // Fin du tour : l'espèce est révélée après les paliers, avec l'annonce nommée
+      const turn = TurnManager.finishTurn(game);
+      expect(turn.updatedGame.board.alienBoards[0].isDiscovered).toBe(true);
+      expect(turn.discoveryNotification?.message).toBe(discoveryNotice(turn.updatedGame.board.alienBoards[0].speciesId));
     });
   });
 });

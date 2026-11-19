@@ -71,7 +71,7 @@ const SPECIES_SYMBOLS: Record<AlienBoardType, Entry[]> = {
     })),
   ],
   [AlienBoardType.OUMUAMUA]: [
-    { icon: <ResourceIcon kind="token" size={28} />, name: 'Jeton Oumuamua', text: 'Gagné en couvrant le secteur d\'Oumuamua ; dépensé sur la piste de l\'espèce ou par ses cartes.' },
+    { icon: <ResourceIcon kind="token" size={28} />, name: 'Jeton Oumuamua', text: 'Exofossile (violet, fossile de crevette recroquevillée). Gagné en couvrant le secteur d\'Oumuamua ; dépensé sur la piste de l\'espèce ou par ses cartes.' },
     { icon: <SignalGainIcon badge="oumuamua" size={26} />, name: 'Signal Oumuamua', text: 'Sur la tuile d\'Oumuamua, ou dans le secteur où il se trouve.' },
   ],
   [AlienBoardType.CENTAURIENS]: [
@@ -121,7 +121,7 @@ const sections = (unlockedSpecies: string[]): { title: string; entries: Entry[] 
       { icon: <ActionHexIcon kind="card" size={30} />, name: 'Jouer une carte', text: 'Coût de la carte : ses gains, sa mission ou son effet de fin de partie.' },
       { icon: <ActionHexIcon kind="research" size={30} />, name: 'Rechercher une technologie', text: '6 Médias : une technologie, et le système solaire tourne.' },
       { icon: <ActionHexIcon kind="pass" size={30} />, name: 'Passer', text: 'Plus de tour jusqu\'à la fin de la manche ; garder 4 cartes au plus.' },
-      { icon: <EndTurnIcon size={30} />, name: 'Fin de tour', text: 'Après l\'action principale : au joueur suivant (paliers vérifiés).' },
+      { icon: <EndTurnIcon size={30} />, name: 'Fin de tour', text: 'Après l\'action principale : les paliers atteints s\'appliquent, les espèces au triangle complet sont révélées, puis au joueur suivant.' },
     ],
   },
   {

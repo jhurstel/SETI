@@ -7,7 +7,7 @@ import { CardSystem } from './CardSystem';
 import { ProbeSystem } from './ProbeSystem';
 import { uniqueId } from '../core/ids';
 import { random } from '../core/random';
-import { privateText } from '../core/historyText';
+import { playerText, privateText } from '../core/historyText';
 import { requirePlayer } from '../core/players';
 
 /** Mascamites : case de la piste bleue où est posé le 7e spécimen, face cachée */
@@ -19,6 +19,8 @@ export const DISCOVERY_NOTICE = "Découverte d'une nouvelle espèce Alien !";
 /** Entrée d'historique d'une découverte (le joueur « découvre une nouvelle espèce Alien ! ») : la session en tire l'annonce */
 export const DISCOVERY_MESSAGE = 'découvre une nouvelle espèce Alien !';
 /** Annonce de la découverte d'une espèce nommée (fenêtre « Découverte » de l'interface) */
+/** Historique : la découverte notée pendant le tour sera résolue à sa fin */
+export const DISCOVERY_PENDING_LOG = "L'espèce sera révélée à la fin du tour.";
 export const discoveryNotice = (speciesName: string): string => `Découverte d'une nouvelle espèce Alien : ${speciesName} !`;
 /** Espèce annoncée par une annonce de découverte (`DISCOVERY_NOTICE` seule : chaîne vide), sinon undefined */
 export const noticedSpecies = (message: string): string | undefined =>
@@ -329,15 +331,10 @@ export class SpeciesSystem {
                     const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
                     const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
 
-                    if (hasRed && hasYellow && hasBlue && !board.isDiscovered) {
-                        const discovery = this.discoverSpecies(updatedGame, i);
-                        return {
-                            updatedGame,
-                            code: 'DISCOVERED',
-                            data: { color, speciesId: board.speciesId, boardIndex: i },
-                            logs: discovery.logs,
-                            interactions: discovery.interactions,
-                        };
+                    if (hasRed && hasYellow && hasBlue && !board.isDiscovered && !this.isDiscoveryPending(updatedGame, i)) {
+                        // Découverte notée : elle se résout à la fin du tour, après les paliers (resolvePendingDiscoveries)
+                        this.queueDiscovery(updatedGame, i);
+                        return { updatedGame, code: 'DISCOVERED', data: { color, speciesId: board.speciesId, boardIndex: i } };
                     }
 
                     return { updatedGame, code: 'PLACED', data: { color, boardIndex: i } };
@@ -463,12 +460,9 @@ export class SpeciesSystem {
         const hasYellow = traces.some(t => t.type === LifeTraceType.YELLOW);
         const hasBlue = traces.some(t => t.type === LifeTraceType.BLUE);
 
-        let discoveryLogs: string[] = [];
-        let discoveryInteractions: InteractionState[] = [];
-        const discoveredNow = hasRed && hasYellow && hasBlue && !board.isDiscovered;
-        if (discoveredNow) {
-            ({ logs: discoveryLogs, interactions: discoveryInteractions } = this.discoverSpecies(updatedGame, boardIndex));
-        }
+        // Dernier emplacement Découverte occupé : l'espèce reste face cachée, découverte à la fin du tour (règles, p. 20)
+        const discoveredNow = hasRed && hasYellow && hasBlue && !board.isDiscovered && !this.isDiscoveryPending(updatedGame, boardIndex);
+        if (discoveredNow) this.queueDiscovery(updatedGame, boardIndex);
 
         // Traitement des missions conditionnelles (GAIN_ON_TECH)
         const hasFulfillable = CardSystem.processMissionBuffs(player, buff => {
@@ -486,9 +480,9 @@ export class SpeciesSystem {
         if (res.logs.length > 0) {
             mainLog += ` et ${res.logs.join(' et ')}`;
         }
-        // Dans l'ordre : trace placée, découverte de l'espèce (et sa mise en jeu), cartes Alien distribuées
+        // Trace placée, puis découverte annoncée (l'espèce sera révélée à la fin du tour)
         const discoveryEntries = discoveredNow
-            ?[{ message: DISCOVERY_MESSAGE, playerId, sequenceId }, ...discoveryLogs.map(message => ({ message, playerId, sequenceId }))]
+            ? [{ message: DISCOVERY_MESSAGE, playerId, sequenceId }, { message: DISCOVERY_PENDING_LOG, playerId, sequenceId }]
             : [];
         res.historyEntries.unshift({ message: mainLog, playerId, sequenceId }, ...discoveryEntries);
 
@@ -519,7 +513,7 @@ export class SpeciesSystem {
         return {
             updatedGame,
             historyEntries: res.historyEntries,
-            newPendingInteractions: [...res.newPendingInteractions, ...discoveryInteractions]
+            newPendingInteractions: res.newPendingInteractions
         };
     }
 
@@ -529,6 +523,40 @@ export class SpeciesSystem {
      * et les choix qu'elle ouvre : Exertiens, chaque joueur qui a un marqueur de découverte peut jouer tout de suite
      * une carte Exertien (palier 0).
      */
+    /** Plateau complété pendant ce tour, en attente de sa découverte */
+    static isDiscoveryPending(game: Game, boardIndex: number): boolean {
+        return (game.pendingDiscoveries || []).includes(boardIndex);
+    }
+
+    /** Note une découverte pour la fin du tour (partie déjà copiée, modifiée sur place) */
+    private static queueDiscovery(updatedGame: Game, boardIndex: number): void {
+        updatedGame.pendingDiscoveries = [...(updatedGame.pendingDiscoveries || []), boardIndex];
+    }
+
+    /**
+     * Fin du tour, après les paliers (règles, p. 20) : découvre chaque espèce en attente, dans l'ordre où ses emplacements
+     * Découverte se sont remplis. Renvoie l'historique (au nom de `playerId`), les choix ouverts (cartes Exertiens) et les
+     * espèces révélées ; la liste d'attente est vidée. La partie reçue n'est pas modifiée.
+     */
+    static resolvePendingDiscoveries(game: Game, playerId: string): { updatedGame: Game; historyEntries: HistoryEntry[]; interactions: InteractionState[]; revealed: string[] } {
+        const pending = game.pendingDiscoveries || [];
+        if (pending.length === 0) return { updatedGame: game, historyEntries: [], interactions: [], revealed: [] };
+        const updatedGame = cloneGame(game);
+        updatedGame.pendingDiscoveries = [];
+        const historyEntries: HistoryEntry[] = [];
+        const interactions: InteractionState[] = [];
+        const revealed: string[] = [];
+        for (const boardIndex of pending) {
+            const sequenceId = `discovery-${uniqueId()}`;
+            const discovery = this.discoverSpecies(updatedGame, boardIndex);
+            const speciesId = updatedGame.board.alienBoards[boardIndex].speciesId;
+            revealed.push(speciesId);
+            historyEntries.push({ message: `révèle l'espèce découverte : ${speciesId} !`, playerId, sequenceId }, ...discovery.logs.map(message => ({ message, playerId, sequenceId })));
+            interactions.push(...discovery.interactions);
+        }
+        return { updatedGame, historyEntries, interactions, revealed };
+    }
+
     private static discoverSpecies(updatedGame: Game, boardIndex: number): { logs: string[]; interactions: InteractionState[] } {
         const board = updatedGame.board.alienBoards[boardIndex];
         board.isDiscovered = true;
@@ -667,7 +695,7 @@ export class SpeciesSystem {
                 }
                 if (drawnCount > 0) {
                     const cardsStr = drawnCardNames.map(name => `"${name}"`).join(', ');
-                    logs.push(`${player.name} pioche ${drawnCount} carte${drawnCount > 1 ? 's' : ''} Alien ${privateText(player.id, cardsStr)} (Découverte)`);
+                    logs.push(`${playerText(player.id, player.name)} pioche ${drawnCount} carte${drawnCount > 1 ? 's' : ''} Alien ${privateText(player.id, cardsStr)} (Découverte)`);
                 }
             }
         }

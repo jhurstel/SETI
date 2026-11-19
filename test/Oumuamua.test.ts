@@ -114,5 +114,17 @@ describe('Oumuamua', () => {
       const probe = probeOnOumuamua(game);
       expect(ScanSystem.validateScanSectorSelection(game, P1, interaction, 'oumuamua')).toEqual({ valid: true, usedProbeId: probe.id });
     });
+
+    test("« secteur d'une sonde » (carte 88) : une sonde ailleurs dans le secteur d'Oumuamua permet de signaler sur Oumuamua", () => {
+      const interaction = { type: 'SELECTING_SCAN_SECTOR' as const, color: SectorType.PROBE, onlyProbes: true };
+      const probe = probeOnOumuamua(game);
+      // Même secteur absolu (3), autre disque, hors des anneaux tournants
+      probe.solarPosition = { disk: 'E', sector: 3, level: 0 };
+      expect(ScanSystem.validateScanSectorSelection(game, P1, interaction, 'oumuamua')).toEqual({ valid: true, usedProbeId: probe.id });
+      expect(ScanSystem.validateScanSectorSelection(game, P1, interaction, 'sector_3').valid).toBe(true);
+      // Sonde dans un autre secteur : ni le secteur 3, ni Oumuamua
+      probe.solarPosition = { disk: 'E', sector: 5, level: 0 };
+      expect(ScanSystem.validateScanSectorSelection(game, P1, interaction, 'oumuamua').valid).toBe(false);
+    });
   });
 });

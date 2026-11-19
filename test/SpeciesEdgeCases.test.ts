@@ -1,7 +1,7 @@
 import { ResourceSystem } from '../src/systems/ResourceSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { AlienBoardType, Game, LifeTraceLocation, LifeTraceType } from '../src/core/types';
-import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
+import { createTestGame, getPlayer, makeCard, placeAndReveal } from './helpers/gameFixture';
 
 const P1 = 'player_0';
 
@@ -61,7 +61,7 @@ describe('SpeciesSystem : cas limites', () => {
 
     test("sur la piste sans emplacement précisé : après les traces de la couleur déjà posées (régression : enregistrée sur l'emplacement 0)", () => {
       const board = discoveredBoard(game, AlienBoardType.ANOMALIES);
-      const res = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.YELLOW, P1, 's', LifeTraceLocation.SPECIES);
+      const res = placeAndReveal(game, 0, LifeTraceType.YELLOW, P1, 's', LifeTraceLocation.SPECIES);
       expect(res.updatedGame.board.alienBoards[0].lifeTraces).toEqual([expect.objectContaining({ type: LifeTraceType.YELLOW, slotIndex: 0 })]);
 
       // Après les traces de cette couleur déjà posées (celles des autres couleurs ne comptent pas)
@@ -69,14 +69,14 @@ describe('SpeciesSystem : cas limites', () => {
         { id: 'y', type: LifeTraceType.YELLOW, playerId: P1, location: LifeTraceLocation.SPECIES, slotIndex: 0 },
         { id: 'r', type: LifeTraceType.RED, playerId: P1, location: LifeTraceLocation.SPECIES, slotIndex: 1 },
       ];
-      const next = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.YELLOW, P1, 's', LifeTraceLocation.SPECIES);
+      const next = placeAndReveal(game, 0, LifeTraceType.YELLOW, P1, 's', LifeTraceLocation.SPECIES);
       expect(next.updatedGame.board.alienBoards[0].lifeTraces[2]).toEqual(expect.objectContaining({ type: LifeTraceType.YELLOW, slotIndex: 1 }));
     });
 
     test('piste Exertiens : le danger de l\'emplacement s\'ajoute à celui du joueur', () => {
       discoveredBoard(game, AlienBoardType.EXERTIENS);
       getPlayer(game, P1).danger = 1;
-      const res = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.SPECIES, 0);
+      const res = placeAndReveal(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.SPECIES, 0);
       const slotDanger = game.species.find(s => s.name === AlienBoardType.EXERTIENS)!.fixedSlots.redlifetrace[0].danger!;
       expect(getPlayer(res.updatedGame, P1).danger).toBe(1 + Math.abs(slotDanger));
     });
@@ -90,7 +90,7 @@ describe('SpeciesSystem : cas limites', () => {
         { id: 'y', type: LifeTraceType.YELLOW, playerId: P1, location: LifeTraceLocation.TRIANGLE },
       ];
       const hand = getPlayer(game, P1).cards.length;
-      const res = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE);
+      const res = placeAndReveal(game, 0, LifeTraceType.BLUE, P1, 's', LifeTraceLocation.TRIANGLE);
       expect(res.updatedGame.board.alienBoards[0].isDiscovered).toBe(true);
       expect(getPlayer(res.updatedGame, P1).cards).toHaveLength(hand);
     });
@@ -118,7 +118,7 @@ describe('SpeciesSystem : cas limites', () => {
       // Plusieurs traces de suite sur le triangle : toutes acceptées (bonus de découverte puis bonus suivant)
       let current = game;
       for (let i = 0; i < 3; i++) {
-        const placed = SpeciesSystem.placeLifeTrace(current, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.TRIANGLE);
+        const placed = placeAndReveal(current, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.TRIANGLE);
         expect(placed.updatedGame).not.toBe(current);
         current = placed.updatedGame;
       }
@@ -161,13 +161,13 @@ describe('SpeciesSystem : cas limites', () => {
       const player = getPlayer(game, P1);
       player.data = cost - 1;
 
-      const refused = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.SPECIES, slotIndex);
+      const refused = placeAndReveal(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.SPECIES, slotIndex);
       expect(refused.updatedGame).toBe(game);
       expect(refused.historyEntries[0].message).toMatch(/Pas assez de données/);
 
       player.data = cost;
       const score = player.score;
-      const placed = SpeciesSystem.placeLifeTrace(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.SPECIES, slotIndex);
+      const placed = placeAndReveal(game, 0, LifeTraceType.RED, P1, 's', LifeTraceLocation.SPECIES, slotIndex);
       expect(getPlayer(placed.updatedGame, P1).data).toBe(0);
       expect(getPlayer(placed.updatedGame, P1).score).toBe(score + slots[slotIndex].pv!);
       expect(player.data).toBe(cost);

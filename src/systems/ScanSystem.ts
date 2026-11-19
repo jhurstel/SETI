@@ -587,13 +587,9 @@ export class ScanSystem {
     // Une capsule de spécimen (Mascamites) compte comme une sonde : elle se déplace et se comporte comme une sonde
     const validProbes = candidateProbes.filter(p => {
       if (!ScanSystem.isSignalPiece(p)) return false;
-      if (sector.id === 'oumuamua') {
-        return !!oumuamua &&
-          p.solarPosition.disk === oumuamua.position.disk &&
-          p.solarPosition.sector === oumuamua.position.sector &&
-          (p.solarPosition.level || 0) === (oumuamua.level || 0);
-      }
-      return getAbsoluteSectorForProbe(p.solarPosition, rotationState) === sectorNumber;
+      // Oumuamua fait partie du secteur où il se trouve : une sonde de ce secteur (sur sa case ou non) compte
+      // (numéro absolu : une case d'anneau tourné ne se compare pas à la position relative d'Oumuamua)
+      return sectorNumber !== undefined && getAbsoluteSectorForProbe(p.solarPosition, rotationState) === sectorNumber;
     });
     // Carte 30 (sondes de tous les joueurs) : une sonde ne sert qu'une fois dans la même séquence
     const availableProbes = validProbes.filter(p => !(interaction.usedProbeIds || []).includes(p.id));

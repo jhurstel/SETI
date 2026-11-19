@@ -80,7 +80,8 @@ describe('Robots : une découverte d\'espèce ne fait pas perdre la valeur des 1
 
     const res = AIController.processInteractionQueue(game, [{ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE, sequenceId: 's' }], 's', getPlayer(game, P1));
 
-    expect(res.updatedGame.board.alienBoards[0].isDiscovered).toBe(true);
+    // Espèce complétée (révélée à la fin du tour, règles p. 20) : la valeur des 1res traces reste comptée
+    expect(res.updatedGame.pendingDiscoveries).toEqual([0]);
     expect(getPlayer(res.updatedGame, P1).score - scoreBefore).toBe(5);
     expect(AIEvaluator.evaluate(res.updatedGame, P1)).toBeGreaterThan(evalBefore);
     expect(JSON.stringify(game)).toBe(before);

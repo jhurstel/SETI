@@ -43,7 +43,6 @@ const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionStat
     const [hoveredSlot, setHoveredSlot] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number, rect: DOMRect } | null>(null);
     useCloseTooltipOnClick(() => setHoveredSlot(null));
 
-    const planets = PLANET_IDS.map(id => game.board.planets.find(p => p.id === id)).filter(p => p) as Planet[];
 
     // Helper pour récupérer les données d'une planète (y compris Oumuamua)
     const getPlanetData = (planetId: string) => {
@@ -54,6 +53,10 @@ const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionStat
         }
         return planet;
     };
+
+    // Planètes du plateau, puis Oumuamua une fois découvert (posé sur le plateau du système solaire)
+    const oumuamuaOnBoard = (game.board.solarSystem.extraCelestialObjects || []).some(o => o.id === 'oumuamua');
+    const planets = [...PLANET_IDS, ...(oumuamuaOnBoard ? ['oumuamua'] : [])].map(getPlanetData).filter(p => p) as Planet[];
 
     const renderTooltipContent = (isOccupied: boolean, isClickable: boolean, player: Player | null, bonusText: React.ReactNode, reason: string, actionTextSuccess: string, isRemovingMode: boolean, removalType?: 'orbiter' | 'lander') => {
         let statusText = isOccupied && player ? `Occupé par ${player.name}` : (isClickable ? "Disponible" : "Indisponible");

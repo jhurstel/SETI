@@ -8,13 +8,15 @@ import type { AnnouncementContent } from '../components/Announcement';
  * premier joueur au démarrage d'une partie. `showNotifications` répartit les annonces de la partie : une découverte
  * devient la bande « Nouvelle espèce », le reste un message (`onMessage`).
  */
-export function useAnnouncements({ game, historyLog, me, onMessage }: {
+export function useAnnouncements({ game, historyLog, me, onMessage, chapterOffer }: {
   /** Partie avec les vrais types de joueurs (realGame) */
   game: Game | null;
   historyLog: HistoryEntry[];
   /** Joueur de cet écran */
   me: string | undefined;
   onMessage: (message: string) => void;
+  /** Espèces débloquées pour la première fois dans ce navigateur, et ouverture de leur chapitre du tutoriel */
+  chapterOffer?: { species: string[]; open: (species: string) => void };
 }) {
   const [discovery, setDiscovery] = useState<{ species: string; key: number } | null>(null);
   const [turnAnnouncement, setTurnAnnouncement] = useState<AnnouncementContent | null>(null);
@@ -46,11 +48,14 @@ export function useAnnouncements({ game, historyLog, me, onMessage }: {
   const [drawing, setDrawing] = useState(false);
   const gameKey = historyLog[0]?.id;
   const atStart = !!game && game.phase === GamePhase.SETUP && game.players.every(p => p.reservedCards.length === 0);
+  // Tirage dû mais pas encore lancé : compté dès le premier rendu de la partie, pour que la roue couvre l'écran
+  // avant toute image du plateau (l'effet ne passe qu'après ce rendu)
+  const drawDue = atStart && !!gameKey && gameKey !== drawShownFor;
   useEffect(() => {
-    if (!atStart || !gameKey || gameKey === drawShownFor) return;
-    setDrawShownFor(gameKey);
+    if (!drawDue) return;
+    setDrawShownFor(gameKey!);
     setDrawing(true);
-  }, [atStart, gameKey, drawShownFor]);
+  }, [drawDue, gameKey]);
   const endDrawing = useCallback(() => setDrawing(false), []);
 
   /** Annonces de la partie (découverte d'une espèce…) */
@@ -67,6 +72,7 @@ export function useAnnouncements({ game, historyLog, me, onMessage }: {
   const discoverers = [...new Set((discoveryBoard?.lifeTraces || []).map(t => t.playerId))]
     .map(id => game?.players.find(p => p.id === id)?.name)
     .filter((name): name is string => !!name);
+  const offered = !!discovery?.species && !!chapterOffer?.species.includes(discovery.species);
   const announcement: AnnouncementContent | null = discovery
     ? {
         key: `discovery-${discovery.key}`,
@@ -75,8 +81,11 @@ export function useAnnouncements({ game, historyLog, me, onMessage }: {
         subtitle: discoverers.length > 0 ? `découverte par ${discoverers.join(', ').replace(/, ([^,]*)$/, ' et $1')}` : undefined,
         color: '#3ddc84',
         size: 'large',
-        duration: 3500,
+        // Avec le bouton du chapitre : plus longtemps, le temps de lire et de choisir (le survol la garde aussi)
+        duration: offered ? 9000 : 3500,
         icon: '👽',
+        // Fin du tour qui révèle une espèce rencontrée pour la première fois : son chapitre du tutoriel est proposé
+        action: offered ? { label: 'Voir le chapitre du tutoriel', onClick: () => chapterOffer!.open(discovery.species) } : undefined,
       }
     : turnAnnouncement;
   const closeDiscovery = useCallback(() => setDiscovery(null), []);
@@ -87,7 +96,7 @@ export function useAnnouncements({ game, historyLog, me, onMessage }: {
     /** Fin de l'annonce affichée (la découverte, sinon l'annonce de tour) */
     onAnnouncementDone: discovery ? closeDiscovery : closeTurnAnnouncement,
     /** Tirage du premier joueur en cours d'animation */
-    drawing,
+    drawing: drawing || drawDue,
     endDrawing,
     showNotifications,
   };

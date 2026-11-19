@@ -323,3 +323,39 @@
 .slot-tooltip-cost .bonus-icons > * + * {
   margin-left: -6px;
 }
+
+/* Ressource dépensée dans une récompense (jetons défaussés, ET.23) : croix rouge en bas à droite du symbole */
+.bonus-spent { position: relative; display: inline-flex; }
+.bonus-spent-cross {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 55%;
+  height: 55%;
+  pointer-events: none;
+  overflow: visible;
+}
+.bonus-spent-cross path {
+  stroke: #ff1f1f;
+  stroke-width: 2.4px;
+  stroke-linecap: round;
+  fill: none;
+  filter: drop-shadow(0 0 1px #000);
+}
+
+/* Oumuamua dans la fenêtre de la planète et le panneau Planètes : astéroïde centré, en diagonale */
+.seti-planet-icon-body.oumuamua-icon-body {
+  overflow: visible;
+  border-radius: 0;
+}
+.oumuamua-body {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  pointer-events: none;
+  filter: drop-shadow(2px 3px 3px rgba(0, 0, 0, 0.6));
+}
+.oumuamua-body > svg {
+  display: block;
+}

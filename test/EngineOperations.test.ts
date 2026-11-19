@@ -2,7 +2,7 @@ import { CardSystem } from '../src/systems/CardSystem';
 import { ResourceSystem } from '../src/systems/ResourceSystem';
 import { ProbeSystem } from '../src/systems/ProbeSystem';
 import { ComputerSystem } from '../src/systems/ComputerSystem';
-import { FreeActionType, Game, LifeTraceType, ProbeState, RevenueType } from '../src/core/types';
+import { FreeActionType, Game, LifeTraceType, ProbeState, RevenueType, SectorNumber } from '../src/core/types';
 import { AnalyzeDataAction } from '../src/actions/AnalyzeDataAction';
 import { getObjectPosition } from '../src/core/SolarSystemPosition';
 import { createTestGame, getPlayer, makeCard } from './helpers/gameFixture';
@@ -185,6 +185,24 @@ describe('Opérations du moteur utilisées par l\'interface', () => {
       const plain = ProbeSystem.moveProbe(game, P1, 'p', mars.disk, mars.absoluteSector, 2, 'seq');
       expect(plain.newPendingInteractions.some(i => i.type === 'CHOOSING_MEDIA_OR_MOVE')).toBe(false);
       expect(plain.historyEntries[0].message).toBe('déplace une sonde gratuitement et gagne 1 média (Visite de Mars) (1 mouvement gratuit restant)');
+    });
+
+    test('carte 125 (Correction de Trajectoire) : ses PV et son Média sont annoncés avec la carte, la visite ne compte que son propre Média', () => {
+      const solar = game.board.solarSystem;
+      const mars = getObjectPosition('mars', solar.rotationAngleLevel1, solar.rotationAngleLevel2, solar.rotationAngleLevel3, solar.extraCelestialObjects)!;
+      const from = (mars.absoluteSector === 8 ? 1 : mars.absoluteSector + 1) as SectorNumber;
+      const probe = { id: 'p', ownerId: P1, position: { x: 0, y: 0 }, solarPosition: { disk: mars.disk, sector: from, level: 0 as const }, state: ProbeState.IN_SOLAR_SYSTEM, isOrbiter: false, isLander: false };
+      const player = getPlayer(game, P1);
+      player.probes = [probe];
+      solar.probes = [structuredClone(probe)];
+      player.activeBuffs = [{ type: 'SAME_DISK_MOVE', value: { pv: 3, media: 1 }, source: 'Correction de Trajectoire' }];
+      const media = player.mediaCoverage;
+      const before = JSON.stringify(game);
+      const res = ProbeSystem.moveProbe(game, P1, 'p', mars.disk, mars.absoluteSector, 1, 'seq');
+      expect(res.historyEntries[0].message).toBe('déplace une sonde gratuitement et gagne 3 PV, 1 Média ("Correction de Trajectoire") et gagne 1 média (Visite de Mars)');
+      // 1 Média de la carte + 1 de la visite, comptés une seule fois
+      expect(getPlayer(res.updatedGame, P1).mediaCoverage).toBe(Math.min(media + 2, 10));
+      expect(JSON.stringify(game)).toBe(before);
     });
 
     test("analyse de données : l'action paie, vide l'ordinateur et donne une trace de vie Bleue", () => {

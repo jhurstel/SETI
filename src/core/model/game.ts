@@ -46,6 +46,11 @@ export interface Game {
   /** Décompte final, renseigné quand la partie passe en FINAL_SCORING */
   finalScores?: FinalScore[];
   isSpeciesDiscovered: boolean;
+  /**
+   * Plateaux Alien dont les 3 emplacements Découverte se sont remplis pendant le tour en cours (indices, dans l'ordre) :
+   * l'espèce reste face cachée jusqu'à la fin du tour, où elle est découverte après les paliers (règles, p. 20)
+   */
+  pendingDiscoveries?: number[];
   /** Session (session/GameSession) : interaction en cours (absente : aucune) et file des suivantes */
   interaction?: InteractionState;
   pendingInteractions?: InteractionState[];

@@ -330,9 +330,10 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
 
 /* Style commun pour toutes les cartes (Main, Missions, Rangée, Pioche) */
 .seti-common-card {
-  width: 120px;
+  /* Proportions d'une carte (210 × 300) : la face remplit le cadre, sans bande vide à gauche ni à droite */
+  width: 112px;
   height: 160px;
-  min-width: 120px;
+  min-width: 112px;
   min-height: 160px;
   border-radius: 8px;
   display: flex;
@@ -437,4 +438,11 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   text-align: left;
   white-space: pre-line;
   transition: opacity 0.1s ease-in-out;
+}
+
+/* Cadre d'une face de carte (main, missions, rangée, réservation) : sans fond ni marge, la face le remplit jusqu'à sa
+   bordure (gardée : sélection et modes de choix la colorent) */
+.seti-common-card:has(> .card-face-mini) {
+  padding: 0;
+  background: transparent;
 }

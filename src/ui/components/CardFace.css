@@ -436,3 +436,44 @@
 .card-face-slot.rewards-row { flex-direction: row; gap: 4px; }
 /* Texte long (ET.5) : marges réduites et police un peu plus petite */
 .card-face-top > .card-face-text.long { margin: 0 3%; font-size: 0.92em; line-height: 1.15; }
+
+/* Mission accomplie : le cercle est recouvert d'un rond plein à la couleur du joueur (son marqueur), par-dessus la récompense */
+.card-face-circle .card-face-marker {
+  inset: -1px;
+  z-index: 1;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55), 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+/* Exertien : danger dans un badge de la taille du coût (symbole de 22 px) */
+.card-face-danger-value {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; font-size: 17px; font-weight: 900; line-height: 1;
+}
+/* Exertien : condition ▸ PV (condition et conséquence), le tout centré */
+.card-face-panel.endGame.consequence { gap: 4px; }
+.card-face-panel.endGame.consequence > .card-face-condition { flex: 0 1 auto; }
+.card-face-chevron { flex: none; color: #6b5300; font-size: 1.3em; line-height: 1; }
+
+/* Nombre incrusté dans une trace de vie (ET.52 à ET.54) : blanc détouré, à gauche du symbole qu'il chevauche, comme sur les
+   pastilles des ressources */
+.card-face-embedded { position: relative; display: inline-flex; align-items: center; justify-content: center; padding-left: 0.45em; }
+.card-face-embedded-count {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  font-weight: 900;
+  font-size: 1.15em;
+  color: #fff;
+  -webkit-text-stroke: 2px #2b2b2b;
+  paint-order: stroke fill;
+  pointer-events: none;
+}
+
+/* Exertien : la condition partage le bandeau avec le chevron et les PV ; sa police se calcule sur la place qui lui reste */
+.card-face-panel.endGame.consequence .card-face-condition-symbols { --text-width: calc(100cqw - 64px); }
+/* Réception d'un revenu (Centauriens) : phrase autour du symbole du revenu */
+.card-face-reward-sentence { color: #333a47; font-size: 0.85em; line-height: 1.15; text-align: center; padding: 0 2px; }
+.card-face-reward-sentence > * { vertical-align: middle; }

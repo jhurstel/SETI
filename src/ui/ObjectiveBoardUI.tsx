@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TurnManager } from '../engine/TurnManager';
 import { useTutorialPanel } from './tutorialFocus';
 import { VictoryPointsIcon, CentaurienMessageIcon } from './components/GameIcons';
@@ -15,6 +16,27 @@ interface ObjectiveBoardUIProps {
     onObjectiveClick: (tileId: string) => void;
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
+
+/** Palier de la piste de score : symbole, étiquette au-dessus, infobulle (titre, effet) */
+interface ScoreMilestone {
+    key: string;
+    score: number;
+    icon: React.ReactNode;
+    label: React.ReactNode;
+    title: string;
+    effect: string;
+    titleColor?: string;
+    effectColor?: string;
+    /** Palier déjà atteint (Centaurien) : estompé */
+    dim?: boolean;
+}
+
+/** Paliers regroupés par case (même score), dans l'ordre de la piste */
+const groupByScore = (milestones: ScoreMilestone[]): ScoreMilestone[][] => {
+    const groups = new Map<number, ScoreMilestone[]>();
+    milestones.forEach(m => groups.set(m.score, [...(groups.get(m.score) ?? []), m]));
+    return [...groups.values()].sort((a, b) => a[0].score - b[0].score);
+};
 
 const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interactionState, onObjectiveClick, setActiveTooltip }) => {
     const isInitiallyOpen = interactionState.type === 'PLACING_OBJECTIVE_MARKER';
@@ -41,6 +63,39 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
             ? `Chaque joueur qui l'atteint place une trace de vie neutre sur un emplacement libre des plateaux Alien (${left} restante${left > 1 ? 's' : ''})`
             : 'Plus aucune trace de vie neutre à placer';
     };
+
+    // Paliers de la piste de score, avec leur infobulle (titre, effet)
+    const milestones: ScoreMilestone[] = [
+        ...(game.players.length < 4 ? NEUTRAL_MILESTONES.map(m => ({
+            key: `neutral-${m}`, score: m, title: `Palier neutre : ${m} PV`, effect: neutralEffect(m),
+            icon: <svg width="14" height="14" viewBox="0 0 24 24" className="score-milestone-neutral-icon"><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg>,
+            label: <div className="score-milestone-neutral-label">{m}</div>,
+        })) : []),
+        ...GOLDEN_MILESTONES.map(m => ({
+            key: `golden-${m}`, score: m, title: `Palier objectif : ${m} PV`,
+            effect: "Chaque joueur qui l'atteint place, à la fin de son tour, un marqueur sur une tuile objectif où il n'en a pas encore : ses PV sont comptés en fin de partie",
+            icon: <svg width="16" height="16" viewBox="0 0 24 24" className="score-milestone-golden-icon"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>,
+            label: <div className="score-milestone-golden-label">{m}</div>,
+        })),
+        // Les paliers Centauriens restent sur la piste une fois atteints, avec ce qu'ils ont rapporté (en vert)
+        ...game.players.flatMap(p => p.centaurienMilestones.map(m => ({
+            key: m.id, score: m.score, title: `Palier Centaurien (${p.name}) : ${m.score} PV`, titleColor: p.color,
+            effect: m.resolved ?? (m.cardName ? `Effet de réception de « ${m.cardName} » à l'arrivée sur ce palier` : "Choix d'une tuile Message à l'arrivée sur ce palier"),
+            effectColor: m.resolved ? '#7fff7f' : '#aaa', dim: !!m.resolved,
+            icon: <span className="score-milestone-centaurien-icon" style={{ filter: `drop-shadow(0 0 2px ${p.color})` }}><CentaurienMessageIcon size={16} /></span>,
+            label: <div className={`score-milestone-centaurien-label ${m.resolved ? 'resolved' : ''}`}>{m.resolved ? '✓' : m.score}</div>,
+        }))),
+        ...(game.exertienMilestones ?? []).map(m => {
+            // Coût de la carte jouée à ce palier (moteur) : 1 crédit au 2e palier
+            const cost = SpeciesSystem.exertienCardCost(game, m);
+            return {
+                key: `exertien-${m}`, score: m, title: `Palier Exertien : ${m} PV`,
+                effect: `Chaque joueur qui l'atteint peut jouer une de ses cartes Exertien${cost > 0 ? ` : jouer une carte coûte ${cost} crédit${cost > 1 ? 's' : ''}` : ''}`,
+                icon: <span className="score-milestone-exertien-icon">☣️</span>,
+                label: <div className="score-milestone-exertien-label">{m}</div>,
+            };
+        }),
+    ];
 
     return (
         <div ref={panelRef} data-tutorial="objectives" className={`seti-foldable-container seti-icon-panel seti-objective-container ${isObjectivesOpen ? 'open' : 'collapsed'}`}>
@@ -87,50 +142,26 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
                             );
                         })}
 
-                        {/* Paliers Neutres */}
-                        {game.players.length < 4 && NEUTRAL_MILESTONES.map(m => (
-                            <div key={`neutral-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
-                                onMouseEnter={(e) => showInfoTooltip(e, `Palier neutre : ${m} PV`, neutralEffect(m))}
+                        {/* Paliers (neutres, objectifs, Centauriens, Exertiens) : ceux d'une même case sont regroupés, leur infobulle les liste tous */}
+                        {groupByScore(milestones).map(group => (
+                            <div key={`milestones-${group[0].score}`} className="score-milestone-group" style={{ left: `${getPosition(group[0].score)}%` }}
+                                onMouseEnter={(e) => setActiveTooltip({
+                                    content: (
+                                        <div className="objective-tooltip score-milestone-tooltip">
+                                            {group.map(m => (
+                                                <div key={m.key} className="score-milestone-tooltip-item">
+                                                    <div style={{ fontWeight: 'bold', color: m.titleColor }}>{m.title}</div>
+                                                    <div className="score-milestone-tooltip-effect" style={{ color: m.effectColor ?? '#aaa' }}>{m.effect}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ),
+                                    rect: e.currentTarget.getBoundingClientRect(),
+                                })}
                                 onMouseLeave={() => setActiveTooltip(null)}
                             >
-                                <svg width="14" height="14" viewBox="0 0 24 24" className="score-milestone-neutral-icon"><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg>
-                                <div className="score-milestone-neutral-label">{m}</div>
-                            </div>
-                        ))}
-                        {/* Paliers Objectifs */}
-                        {GOLDEN_MILESTONES.map(m => (
-                            <div key={`golden-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
-                                onMouseEnter={(e) => showInfoTooltip(e, `Palier objectif : ${m} PV`, "Chaque joueur qui l'atteint place, à la fin de son tour, un marqueur sur une tuile objectif où il n'en a pas encore : ses PV sont comptés en fin de partie")}
-                                onMouseLeave={() => setActiveTooltip(null)}
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" className="score-milestone-golden-icon"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-                                <div className="score-milestone-golden-label">{m}</div>
-                            </div>
-                        ))}
-                        {/* Paliers Centauriens */}
-                        {game.players.map(p => {
-                            // Les paliers restent sur la piste une fois atteints, avec ce qu'ils ont rapporté
-                            return (p.centaurienMilestones || []).map(m => (
-                                <div key={m.id} style={{ position: 'absolute', left: `${getPosition(m.score)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help', opacity: m.resolved ? 0.6 : 1 }}
-                                    // Même format que les autres paliers, titre à la couleur du joueur ; une fois atteint, ce qu'il a rapporté (en vert)
-                                    onMouseEnter={(e) => showInfoTooltip(e, `Palier Centaurien (${p.name}) : ${m.score} PV`,
-                                        m.resolved ?? (m.cardName ? `Effet de réception de « ${m.cardName} » à l'arrivée sur ce palier` : "Choix d'une tuile Message à l'arrivée sur ce palier"),
-                                        p.color, m.resolved ? '#7fff7f' : '#aaa')}
-                                    onMouseLeave={() => setActiveTooltip(null)}
-                                >
-                                    <span style={{ display: 'block', filter: `drop-shadow(0 0 2px ${p.color})` }}><CentaurienMessageIcon size={16} /></span>
-                                    <div style={{ position: 'absolute', top: '-20px', left: '50%', transform: 'translateX(-50%)', fontSize: '0.7em', color: m.resolved ? '#7fff7f' : '#aaa', background: 'rgba(30,30,30,0.8)', padding: '0 3px', borderRadius: '2px' }}>{m.resolved ? '✓' : m.score}</div>
-                                </div>
-                            ));
-                        })}
-                        {/* Paliers Exertiens */}
-                        {game.exertienMilestones?.map(m => (
-                            <div key={`exertien-${m}`} style={{ position: 'absolute', left: `${getPosition(m)}%`, top: '50%', transform: 'translate(-50%, -50%)', zIndex: 1, cursor: 'help' }}
-                                onMouseEnter={(e) => showInfoTooltip(e, `Palier Exertien : ${m} PV`, "Chaque joueur qui l'atteint peut jouer une de ses cartes Exertien")}
-                                onMouseLeave={() => setActiveTooltip(null)}
-                            >
-                                <span className="score-milestone-exertien-icon">☣️</span>
-                                <div className="score-milestone-exertien-label">{m}</div>
+                                {group.map(m => <span key={m.key} className="score-milestone-item" style={{ opacity: m.dim ? 0.6 : 1 }}>{m.icon}</span>)}
+                                {group[0].label}
                             </div>
                         ))}
                         {/* Joueurs */}

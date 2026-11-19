@@ -7,10 +7,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(3, 4, 11, 0.94);
-  backdrop-filter: blur(3px);
+  /* Fond opaque dès la première image : le plateau n'apparaît qu'une fois le tirage terminé */
+  background: #03040b;
   cursor: pointer;
-  animation: seti-draw-fade 0.3s ease-out;
 }
 
 @keyframes seti-draw-fade {
@@ -25,6 +24,7 @@
   gap: 12px;
   padding: 20px 28px;
   max-width: calc(100vw - 32px);
+  animation: seti-draw-fade 0.3s ease-out;
 }
 
 .seti-draw-title {
@@ -102,7 +102,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .seti-draw-overlay,
+  .seti-draw-box,
   .seti-draw-ping {
     animation: none;
   }

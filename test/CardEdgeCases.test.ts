@@ -221,9 +221,16 @@ describe('Cartes : cas limites et refus', () => {
 
     test('le marqueur neutre fait découvrir les Anomalies : elles apparaissent', () => {
       almostDiscovered(AlienBoardType.ANOMALIES);
-      const res = SpeciesSystem.placeNeutralMilestone(game, milestone());
+      const placed = SpeciesSystem.placeNeutralMilestone(game, milestone());
+      // Découverte notée pendant le tour, résolue à sa fin (règles, p. 20)
+      expect(placed.code).toBe('DISCOVERED');
+      expect(placed.updatedGame.board.alienBoards[0].isDiscovered).toBe(false);
+      expect(placed.updatedGame.pendingDiscoveries).toEqual([0]);
+      const res = SpeciesSystem.resolvePendingDiscoveries(placed.updatedGame, P1);
+      expect(res.revealed).toEqual([AlienBoardType.ANOMALIES]);
       expect(res.updatedGame.board.alienBoards[0].isDiscovered).toBe(true);
       expect((res.updatedGame.board.solarSystem.extraCelestialObjects || []).filter(o => o.type === 'anomaly')).toHaveLength(3);
+      expect(placed.updatedGame.board.alienBoards[0].isDiscovered).toBe(false);
     });
 
     test('palier neutre atteint sans emplacement libre : aucune trace, le palier est noté dans l\'historique', () => {
@@ -241,7 +248,9 @@ describe('Cartes : cas limites et refus', () => {
     test('le marqueur neutre fait découvrir les Exertiens : deux paliers apparaissent', () => {
       almostDiscovered(AlienBoardType.EXERTIENS);
       const best = Math.max(...game.players.map(p => p.score));
-      const res = SpeciesSystem.placeNeutralMilestone(game, milestone());
+      const placed = SpeciesSystem.placeNeutralMilestone(game, milestone());
+      expect(placed.updatedGame.exertienMilestones ?? []).toEqual([]);
+      const res = SpeciesSystem.resolvePendingDiscoveries(placed.updatedGame, P1);
       expect(res.updatedGame.exertienMilestones).toEqual([best + 20, best + 40]);
     });
   });

@@ -435,6 +435,8 @@ export class ProbeSystem {
     if (hasNoMediaBuff) {
       bonus.media = 0;
     }
+    // Médias de la visite elle-même : ceux des cartes (Correction de Trajectoire…) sont annoncés avec leur carte
+    const visitMedia = bonus.media ?? 0;
 
     // Construction du message
     let message = "";
@@ -528,8 +530,8 @@ export class ProbeSystem {
       }
     }
 
-    if (bonus.media && bonus.media > 0) {
-      message += ` et gagne ${bonus.media} média (${objectName})`;
+    if (visitMedia > 0) {
+      message += ` et gagne ${visitMedia} média (${objectName})`;
     }
 
     // Traitement des missions conditionnelles (GAIN_ON_VISIT)

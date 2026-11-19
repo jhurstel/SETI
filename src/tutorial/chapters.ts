@@ -281,11 +281,15 @@ const especes: TutorialChapter = {
     { id: 'analyser', target: 'actions', done: analysisDone, allowedActions: [ActionType.ANALYZE_DATA] },
     // Trace bleue posée sur une autre espèce : la première ne sera pas découverte, annuler
     { id: 'annuler', target: 'history', onlyIf: blueTraceElsewhere, done: c => !blueTraceElsewhere(c), docLink: 'historique' },
-    { id: 'poser', target: 'species', duringChoice: 'PLACING_LIFE_TRACE', done: c => c.game.board.alienBoards[0].isDiscovered },
+    // Troisième trace posée : l'espèce attend la fin du tour, qui la révèle (règles, p. 20)
+    { id: 'poser', target: 'species', duringChoice: 'PLACING_LIFE_TRACE', done: c => c.game.board.alienBoards[0].isDiscovered || SpeciesSystem.isDiscoveryPending(c.game, 0) },
+    { id: 'reveler', target: 'end-turn', done: c => c.game.board.alienBoards[0].isDiscovered, allowedActions: ['END_TURN'], docLink: '2-7-traces-de-vie-et-especes' },
     { id: 'decouverte', target: 'species', docLink: '2-7-traces-de-vie-et-especes' },
+    // Explication : paliers neutres des parties à 2 ou 3 joueurs
+    { id: 'paliers-neutres', target: 'score' },
     { id: 'conclusion', docLink: '3-5-aliens' },
   ],
-  solution: [{ type: 'TRANSFER_DATA', slotId: '5a' }, { type: 'TRANSFER_DATA', slotId: '6a' }, { type: 'ANALYZE' }],
+  solution: [{ type: 'TRANSFER_DATA', slotId: '5a' }, { type: 'TRANSFER_DATA', slotId: '6a' }, { type: 'ANALYZE' }, { type: 'END_TURN' }],
 };
 
 const manche: TutorialChapter = {

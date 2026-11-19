@@ -21,7 +21,7 @@ interface TutorialOverlayProps {
   quitLabel?: string;
   /** Sans numéro d'étape (conseil en partie) */
   hideCount?: boolean;
-  /** Au-dessus des fenêtres (écran de fin de partie) */
+  /** Au-dessus des fenêtres (écran de fin de partie, étape affichée pendant une fenêtre de choix) */
   aboveModals?: boolean;
   onNext: () => void;
   onDocLink: () => void;

@@ -82,3 +82,7 @@
   .seti-announcement { animation: none; }
   .seti-announcement-icon { animation: none; }
 }
+
+/* Bande avec un bouton (découverte : chapitre du tutoriel) : elle reste affichée au survol, le bouton sous le sous-titre */
+.seti-announcement.with-action:hover { animation-play-state: paused; }
+.seti-announcement-action { margin-top: 12px; }

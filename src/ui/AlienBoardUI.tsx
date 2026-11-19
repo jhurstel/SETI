@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTutorialPanel } from './tutorialFocus';
-import { Game, GamePhase, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType, LifeTrace } from '../core/types';
+import { Game, GamePhase, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType, LifeTrace, Player } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { BonusIcons } from './components/BonusIcons';
 import { SpeciesSystem, MASCAMITE_BOARD_SPECIMEN_SLOT } from '../systems/SpeciesSystem';
 import { CardTooltip } from './components/CardTooltip';
 import { CardContent } from './components/HandCard';
-import { CardBack, DeckPile } from './components/CardBack';
+import { DeckPile } from './components/CardBack';
 import { ScoreManager } from '../engine/ScoreManager';
 import { Tooltip } from './Tooltip';
 import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon, CentaurienMessageIcon, MascamiteIcon, DocumentationIcon } from './components/GameIcons';
@@ -202,54 +202,87 @@ const ExertienDangerTooltip: React.FC<{
             onMouseLeave={onLeave}
         >
             <div className="alien-tooltip-title">Niveau de danger</div>
-            {game.players.map(p => {
+            {(() => {
                 // Joueur de cet écran : le seul humain de la partie affichée (en ligne, les autres humains y sont des robots)
                 const viewerId = game.players.find(player => player.type === 'human')?.id;
-                const visible = ScoreManager.visibleExertienDanger(game, p, viewerId);
-                const hidden = p.id !== viewerId && game.phase !== GamePhase.FINAL_SCORING;
-                const exertienCards = hidden
-                    ? []
-                    : [...(p.cards || []), ...(p.playedCards || [])].filter(c => c.type === CardType.EXERTIEN);
-                const hiddenPlayed = hidden ? p.playedCards.filter(c => c.type === CardType.EXERTIEN) : [];
-                // Cartes Exertiens d'un adversaire pas encore jouées : seulement leur nombre
-                const hiddenHeld = hidden ? p.cards.filter(c => c.type === CardType.EXERTIEN).length : 0;
-                return (
-                    <div key={p.id} className="alien-danger-player">
+                const isHidden = (p: Player) => p.id !== viewerId && game.phase !== GamePhase.FINAL_SCORING;
+                const header = (p: Player) => {
+                    const visible = ScoreManager.visibleExertienDanger(game, p, viewerId);
+                    return (
                         <div className="alien-danger-player-header">
                             <span style={{ color: p.color, fontWeight: 'bold' }}>{p.name}</span>
                             <span className="count-badge">{visible.danger}{visible.hidden ? ' + ?' : ''}</span>
                         </div>
-                        {hidden ? (
-                            <>
-                                <div className="alien-exertien-count">
-                                    {hiddenHeld > 0 ? `${hiddenHeld} carte${hiddenHeld > 1 ? 's' : ''} Exertien à jouer` : 'Aucune carte Exertien à jouer'}
-                                    {' · '}
-                                    {hiddenPlayed.length > 0 ? `${hiddenPlayed.length} jouée${hiddenPlayed.length > 1 ? 's' : ''} face cachée` : 'aucune jouée'}
+                    );
+                };
+                // Adversaires (robots, autres joueurs en ligne) : cartes face cachée, en deux piles comptées (à jouer, jouées),
+                // tous sur une même ligne
+                const opponents = game.players.filter(isHidden);
+                return (
+                    <>
+                        {game.players.filter(p => !isHidden(p)).map(p => {
+                            const exertienCards = [...p.cards, ...p.playedCards].filter(c => c.type === CardType.EXERTIEN);
+                            // Vos propres cartes : celles encore en main d'abord (à jouer aux prochains paliers), puis les jouées
+                            const heldCount = p.cards.filter(c => c.type === CardType.EXERTIEN).length;
+                            const playedCount = p.playedCards.filter(c => c.type === CardType.EXERTIEN).length;
+                            return (
+                                <div key={p.id} className="alien-danger-player">
+                                    {header(p)}
+                                    {exertienCards.length > 0 ? (
+                                        <>
+                                            <div className="alien-exertien-count">
+                                                {heldCount > 0 ? `${heldCount} carte${heldCount > 1 ? 's' : ''} Exertien à jouer` : 'Aucune carte Exertien à jouer'}
+                                                {' · '}
+                                                {playedCount > 0 ? `${playedCount} jouée${playedCount > 1 ? 's' : ''} (danger compté)` : 'aucune jouée'}
+                                            </div>
+                                            <div className="alien-danger-cards">
+                                                {exertienCards.map(card => {
+                                                    // Carte encore en main : estompée et marquée « À jouer » ; carte jouée : son danger compte
+                                                    const held = p.cards.some(c => c.id === card.id);
+                                                    return (
+                                                        <div key={card.id} className={`seti-common-card alien-danger-card ${held ? 'held' : 'played'}`}
+                                                            onMouseEnter={(e) => setHoveredCard({ card, rect: e.currentTarget.getBoundingClientRect() })}
+                                                            onMouseLeave={() => setHoveredCard(null)}
+                                                        >
+                                                            <CardContent card={card} highlightedAttribute="freeAction" />
+                                                            <span className={`alien-danger-card-state ${held ? 'held' : 'played'}`}>{held ? 'À jouer' : 'Jouée'}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="alien-empty-note">Aucune carte Exertien</div>
+                                    )}
                                 </div>
-                                {hiddenHeld + hiddenPlayed.length > 0 && (
-                                    <div className="alien-danger-cards">
-                                        {Array.from({ length: hiddenHeld }, (_, i) => <CardBack key={`held-${i}`} className="alien-danger-card held" species={AlienBoardType.EXERTIENS} />)}
-                                        {hiddenPlayed.map(card => <CardBack key={card.id} className="alien-danger-card" species={AlienBoardType.EXERTIENS} />)}
-                                    </div>
-                                )}
-                            </>
-                        ) : exertienCards.length > 0 ? (
-                            <div className="alien-danger-cards">
-                                {exertienCards.map(card => (
-                                    <div key={card.id} className="seti-common-card alien-danger-card"
-                                        onMouseEnter={(e) => setHoveredCard({ card, rect: e.currentTarget.getBoundingClientRect() })}
-                                        onMouseLeave={() => setHoveredCard(null)}
-                                    >
-                                        <CardContent card={card} highlightedAttribute="freeAction" />
-                                    </div>
-                                ))}
+                            );
+                        })}
+                        {opponents.length > 0 && (
+                            <div className="alien-danger-opponents">
+                                {opponents.map(p => {
+                                    const held = p.cards.filter(c => c.type === CardType.EXERTIEN).length;
+                                    const played = p.playedCards.filter(c => c.type === CardType.EXERTIEN).length;
+                                    return (
+                                        <div key={p.id} className="alien-danger-player alien-danger-opponent">
+                                            {header(p)}
+                                            <div className="alien-danger-piles">
+                                                <div className="alien-danger-pile">
+                                                    <DeckPile count={held} species={AlienBoardType.EXERTIENS} className="alien-danger-card held" />
+                                                    <span className="alien-danger-pile-label">à jouer</span>
+                                                </div>
+                                                <div className="alien-danger-pile">
+                                                    <DeckPile count={played} species={AlienBoardType.EXERTIENS} className="alien-danger-card played-pile" />
+                                                    <span className="alien-danger-pile-label">jouée{played > 1 ? 's' : ''}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        ) : (
-                            <div className="alien-empty-note">Aucune carte Exertien</div>
                         )}
-                    </div>
+                    </>
                 );
-            })}
+            })()}
             {hoveredCard && <Tooltip content={<CardTooltip card={hoveredCard.card} />} targetRect={hoveredCard.rect} disableCollision />}
         </div>
     );

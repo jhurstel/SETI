@@ -251,10 +251,18 @@ Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **�
 ## Posez la trace bleue {#poser}
 Cliquez sur l'emplacement **bleu** de la première espèce, celle où vos traces rouge et jaune sont déjà posées : ses trois emplacements seront alors occupés.
 
+## Terminez votre tour {#reveler}
+Les trois emplacements sont occupés, mais une découverte se résout **à la fin du tour**, après les éventuels paliers. Cliquez sur **Fin du tour** : l'espèce est révélée.
+
 ## Espèce découverte ! {#decouverte}
-L'espèce est découverte : ses règles s'appliquent désormais. Les joueurs qui ont posé une première trace d'une couleur reçoivent une **carte Alien** de l'espèce, et les traces suivantes iront sur sa **piste**.
+Le tour est fini, l'espèce est révélée : ses règles s'appliquent désormais. Les joueurs qui ont posé une première trace d'une couleur reçoivent une **carte Alien** de l'espèce, et les traces suivantes iront sur sa **piste**.
 
 Si vous n'avez encore jamais rencontré cette espèce en partie, elle reste ici anonyme : ses pistes et ses cartes sont cachées.
+
+## Les paliers neutres {#paliers-neutres}
+À **2 ou 3 joueurs**, la piste de score porte deux **paliers neutres**, à **20** et **30 PV**. Le premier joueur qui franchit l'un d'eux y pose un **marqueur neutre** (à 2 joueurs, les deux premiers) : il prend le premier emplacement libre d'un triangle de découverte (rouge, puis jaune, puis bleu, première espèce d'abord).
+
+Ce marqueur n'appartient à personne : il occupe le bonus de découverte de sa couleur, et peut même compléter un triangle et faire découvrir une espèce. À 4 joueurs, il n'y a pas de palier neutre.
 
 ## À vous de chercher {#conclusion}
 Chaque espèce a ses propres règles. Découvrez-les en partie : chaque espèce rencontrée débloque son chapitre du tutoriel et ses règles dans la documentation.
@@ -305,16 +313,16 @@ Vos traces rouge et jaune sont déjà posées sur le triangle de découverte de 
 La ligne du haut de votre ordinateur est pleine : cliquez sur **Analyser les données** (1 énergie) pour gagner une **trace de vie bleue**.
 
 ## Posez la trace bleue {#poser}
-Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte**.
+Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte à la fin du tour**.
+
+## Terminez votre tour {#reveler}
+Les trois emplacements sont occupés, mais une découverte se résout **à la fin du tour**, après les éventuels paliers. Cliquez sur **Fin du tour** : l'espèce est révélée.
 
 ## Les Mascamites {#decouverte}
-L'espèce est révélée : ses **pistes** remplacent le triangle et ses règles s'appliquent. Comme vous avez posé les trois premières traces, vous recevez trois **cartes Alien** de l'espèce.
+L'espèce est révélée : ses **pistes** remplacent le triangle et ses règles s'appliquent. Comme vous avez posé les trois premières traces, vous recevez trois **cartes Alien** de l'espèce. Votre adversaire a passé : c'est déjà à vous de rejouer.
 
 ## Les spécimens {#specimens}
 À la découverte, 7 **spécimens** sont mélangés : 3 face cachée sur **Jupiter**, 3 sur **Saturne**, et le 7e face visible sur la piste bleue. Survolez Jupiter : vous voyez des « ? », car vous ne savez pas encore ce qu'ils rapportent.
-
-## Terminez votre tour {#fin-du-tour}
-L'analyse était votre action principale. Cliquez sur **Fin du tour** : vous rejouez aussitôt.
 
 ## Prélevez un spécimen {#prelever}
 Votre sonde est sur Jupiter. Jouez la carte **Premier Contact** : elle fait atterrir votre sonde (sur Jupiter, sans la déplacer), puis vous laisse **prélever un spécimen** : une fenêtre montre les spécimens de Jupiter et leur récompense. Choisissez-en un.
@@ -346,10 +354,13 @@ Vos traces rouge et jaune sont déjà posées sur le triangle de découverte de 
 La ligne du haut de votre ordinateur est pleine : cliquez sur **Analyser les données** (1 énergie) pour gagner une **trace de vie bleue**.
 
 ## Posez la trace bleue {#poser}
-Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte**.
+Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte à la fin du tour**.
+
+## Terminez votre tour {#reveler}
+Les trois emplacements sont occupés, mais une découverte se résout **à la fin du tour**, après les éventuels paliers. Cliquez sur **Fin du tour** : l'espèce est révélée.
 
 ## Les Anomalies {#decouverte}
-L'espèce est révélée : ses **pistes** remplacent le triangle et ses règles s'appliquent. Comme vous avez posé les trois premières traces, vous recevez trois **cartes Alien** de l'espèce.
+L'espèce est révélée : ses **pistes** remplacent le triangle et ses règles s'appliquent. Comme vous avez posé les trois premières traces, vous recevez trois **cartes Alien** de l'espèce. Votre adversaire a passé : c'est déjà à vous de rejouer.
 
 ## Les jetons d'anomalie {#jetons}
 Trois **anomalies** sont apparues en bordure du système solaire : une dans le secteur de la Terre, les deux autres à trois secteurs de part et d'autre. Chacune a une couleur et une récompense (survolez-les).
@@ -378,19 +389,24 @@ Vos traces rouge et jaune sont déjà posées sur le triangle de découverte de 
 La ligne du haut de votre ordinateur est pleine : cliquez sur **Analyser les données** (1 énergie) pour gagner une **trace de vie bleue**.
 
 ## Posez la trace bleue {#poser}
-Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte**.
+Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte à la fin du tour**.
+
+## Terminez votre tour {#reveler}
+Les trois emplacements sont occupés, mais une découverte se résout **à la fin du tour**, après les éventuels paliers. Cliquez sur **Fin du tour** : l'espèce est révélée.
 
 ## Oumuamua {#decouverte}
-L'espèce est révélée : ses **pistes** remplacent le triangle et ses règles s'appliquent. Comme vous avez posé les trois premières traces, vous recevez trois **cartes Alien** de l'espèce.
+L'espèce est révélée : ses **pistes** remplacent le triangle et ses règles s'appliquent. Comme vous avez posé les trois premières traces, vous recevez trois **cartes Alien** de l'espèce. Votre adversaire a passé : c'est déjà à vous de rejouer.
 
 ## Une nouvelle planète {#planete}
 L'astéroïde **Oumuamua** est entré dans le système solaire : c'est une planète (orbite et atterrissage possibles). Il a son propre **secteur de 3 signaux**, où vous avez déjà deux signaux.
 
-## Terminez votre tour {#fin-du-tour}
-L'analyse était votre action principale. Cliquez sur **Fin du tour** : vous rejouez aussitôt.
-
 ## Scannez Oumuamua {#scanner}
 Cliquez sur **Scanner** : après le signal du secteur de la Terre, choisissez la première carte de la rangée : sa couleur est celle du secteur où se trouve Oumuamua. Cliquez alors sur le **secteur d'Oumuamua** pour y poser le dernier signal : le secteur est couvert.
+
+## Annulez le scan {#annuler}
+Ce n'est pas la bonne carte (ou le signal n'est pas sur Oumuamua) : le secteur d'Oumuamua ne sera pas couvert. Un scan s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler le scan. Recommencez en choisissant la **première carte** de la rangée, puis le **secteur d'Oumuamua**.
 
 ## Les jetons {#jetons}
 Couvrir le secteur d'Oumuamua rapporte des **jetons**, au lieu de médias. Ils paient les cases de sa piste (25 PV pour 4 jetons sur la première case) et certaines cartes Oumuamua en défaussent pour un gain.
@@ -408,16 +424,16 @@ Vos traces rouge et jaune sont déjà posées sur le triangle de découverte de 
 La ligne du haut de votre ordinateur est pleine : cliquez sur **Analyser les données** (1 énergie) pour gagner une **trace de vie bleue**.
 
 ## Posez la trace bleue {#poser}
-Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte**.
+Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte à la fin du tour**.
+
+## Terminez votre tour {#reveler}
+Les trois emplacements sont occupés, mais une découverte se résout **à la fin du tour**, après les éventuels paliers. Cliquez sur **Fin du tour** : l'espèce est révélée.
 
 ## Les Centauriens {#decouverte}
-L'espèce est révélée : ses **pistes** remplacent le triangle et ses règles s'appliquent. Comme vous avez posé les trois premières traces, vous recevez trois **cartes Alien** de l'espèce.
+L'espèce est révélée : ses **pistes** remplacent le triangle et ses règles s'appliquent. Comme vous avez posé les trois premières traces, vous recevez trois **cartes Alien** de l'espèce. Votre adversaire a passé : c'est déjà à vous de rejouer.
 
 ## Le palier de message {#palier}
 À la découverte, chaque joueur pose un **palier** à son score + 15 PV (sur la piste de score). En l'atteignant, il choisira une **tuile Message** parmi celles qui restent.
-
-## Terminez votre tour {#fin-du-tour}
-L'analyse était votre action principale. Cliquez sur **Fin du tour** : vous rejouez aussitôt.
 
 ## Scannez {#scanner}
 Vos signaux remplissent presque le secteur de la Terre. Cliquez sur **Scanner** : votre signal le couvre et vous rapporte une **trace de vie rouge**.
@@ -444,10 +460,18 @@ Vos traces rouge et jaune sont déjà posées sur le triangle de découverte de 
 La ligne du haut de votre ordinateur est pleine : cliquez sur **Analyser les données** (1 énergie) pour gagner une **trace de vie bleue**.
 
 ## Posez la trace bleue {#poser}
-Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte**.
+Cliquez sur l'emplacement **bleu** du triangle de la première espèce : ses trois emplacements seront occupés et l'espèce sera **découverte à la fin du tour**.
+
+## Terminez votre tour {#reveler}
+Les trois emplacements sont occupés, mais une découverte se résout **à la fin du tour**, après les éventuels paliers. Cliquez sur **Fin du tour** : l'espèce est révélée.
+
+## Annulez le refus {#annuler}
+Vous avez renoncé à jouer une carte Exertien : ce chapitre a besoin que vous en jouiez une. Un choix s'annule.
+
+Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **↩** de son bandeau titre pour annuler le refus : la fenêtre des cartes Exertiens revient. Choisissez-en au moins une.
 
 ## Jouez une carte Exertien {#jouer}
-Les **Exertiens** sont découverts ! Chaque joueur reçoit 3 **cartes Exertiens**, en plus de vos cartes de découverte : elles ne sont pas dans votre main (on ne les défausse pas, on ne les réserve pas).
+La fin du tour a révélé les **Exertiens** ! Chaque joueur reçoit 3 **cartes Exertiens**, en plus de vos cartes de découverte : elles ne sont pas dans votre main (on ne les défausse pas, on ne les réserve pas).
 
 Vous avez un marqueur sur chaque emplacement de découverte : vous pouvez jouer tout de suite une carte Exertien **face cachée** par marqueur. Choisissez-en au moins une : son **danger** s'ajoute au vôtre, et sa condition rapportera des PV en fin de partie si elle est remplie.
 

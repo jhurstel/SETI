@@ -5,6 +5,7 @@ Journal des mesures (déplacé de CLAUDE.md). Ajouter chaque nouvelle mesure ici
 ## Niveaux
 
 - Mesure (`npm run tune:ai -- levels <joueurs> <graines> <A> <B>`, `NIVEAU@T` pour une autre température ; environ 100 parties en miroir, novembre 2026) : Expert (avec ses suites jouées) − Avancé +17,4 / +17,6 / +12,0 PV à 2 / 3 / 4 joueurs (70 / 70 / 66 % de victoires), Avancé − Débutant +20,7 / +17,2 / +25,1 PV, Expert − Débutant +37,1 / +34,3 / +46,2 PV (tableau : documentation 1.1, Nouvelle partie).
+- Découverte d'espèce en fin de tour (changement `defer-species-discovery`, 19 novembre 2026, `levels 2 50` et `levels 3 17`, poids inchangés) : Expert − Avancé +23,5 ± 3,0 PV à 2 joueurs (79 / 20 victoires, 100 parties) et +19,3 ± 2,8 PV à 3 joueurs (75 / 25, 102 parties). L'écart ne baisse pas (avant : +17,4 / +17,6) : pas de réglage nécessaire.
 
 ## Anticipation de l'Expert
 

@@ -165,7 +165,8 @@ test('espèces : trace bleue posée sur le second plateau Alien, l\'étape « an
     const chapter = chapterById('especes')!;
     const { game: start, humanId } = await prepareChapter(chapter, 'Alice');
     let game = start;
-    for (const command of chapter.solution) game = applyTutorialCommand(game, humanId, command).game;
+    // Solution jusqu'à l'analyse (sa fin de tour révèle l'espèce : sans objet ici)
+    for (const command of chapter.solution.filter(c => typeof c === 'function' || c.type !== 'END_TURN')) game = applyTutorialCommand(game, humanId, command).game;
     expect(game.interaction?.type).toBe('PLACING_LIFE_TRACE');
     const option = SpeciesSystem.lifeTraceOptions(game, LifeTraceType.BLUE).find(o => o.boardIndex === 1)!;
     game = answerAll(applyTutorialCommand(game, humanId, {
@@ -173,6 +174,60 @@ test('espèces : trace bleue posée sur le second plateau Alien, l\'étape « an
     }).game, humanId);
     const context = { game, humanId, start };
     expect(TutorialRunner.currentStep(chapter, readExplanations(chapter, TutorialRunner.start(chapter), context), context)?.id).toBe('annuler');
+  } finally {
+    fetchSpy.mockRestore();
+  }
+});
+
+test('oumuamua : rangée de 3 cartes ; une autre carte que la première prise au scan, l\'étape « annuler » s\'affiche', async () => {
+  const fetchSpy = mockFetchFromPublic();
+  try {
+    const chapter = chapterById('oumuamua')!;
+    const { game: start, humanId } = await prepareChapter(chapter, 'Alice');
+    expect(start.decks.cardRow).toHaveLength(3);
+    const rightCardId = start.decks.cardRow[0].id;
+    let game = start;
+    for (const command of chapter.solution.slice(0, -1)) game = answerAll(applyTutorialCommand(game, humanId, command).game, humanId, chapter);
+    game = applyTutorialCommand(game, humanId, { type: 'SCAN' }).game;
+    // Signal de la Terre, puis la deuxième carte de la rangée au lieu de la première
+    for (let i = 0; i < 10 && game.interaction?.type !== 'SELECTING_SCAN_CARD'; i++) game = applyTutorialCommand(game, humanId, answerInteraction(game, humanId)).game;
+    expect(game.interaction?.type).toBe('SELECTING_SCAN_CARD');
+    const wrongCardId = game.decks.cardRow.find(c => c.id !== rightCardId)!.id;
+    const before = game;
+    game = answerAll(applyTutorialCommand(game, humanId, { type: 'CHOOSE', choice: { kind: 'CARD', cardId: wrongCardId } }).game, humanId);
+    expect(before.decks.cardRow.some(c => c.id === wrongCardId)).toBe(true);
+    const stepAt = (g: typeof start) => {
+      const context = { game: g, humanId, start };
+      return TutorialRunner.currentStep(chapter, readExplanations(chapter, TutorialRunner.start(chapter), context), context)?.id;
+    };
+    expect(stepAt(game)).toBe('annuler');
+    // Avec la bonne carte, pas d'étape de secours pendant le choix du secteur
+    const right = applyTutorialCommand(before, humanId, { type: 'CHOOSE', choice: { kind: 'CARD', cardId: rightCardId } }).game;
+    expect(stepAt(right)).toBe('scanner');
+  } finally {
+    fetchSpy.mockRestore();
+  }
+});
+
+test('exertiens : renoncer à jouer une carte à la découverte, l\'étape « annuler » s\'affiche', async () => {
+  const fetchSpy = mockFetchFromPublic();
+  try {
+    const chapter = chapterById('exertiens')!;
+    const { game: start, humanId } = await prepareChapter(chapter, 'Alice');
+    let game = start;
+    for (const command of chapter.solution) {
+      game = applyTutorialCommand(game, humanId, command).game;
+      if (game.interaction?.type !== 'CHOOSING_EXERTIEN_CARD') game = answerAll(game, humanId, chapter);
+    }
+    expect(game.interaction?.type).toBe('CHOOSING_EXERTIEN_CARD');
+    const stepAt = (g: typeof start) => {
+      const context = { game: g, humanId, start };
+      return TutorialRunner.currentStep(chapter, readExplanations(chapter, TutorialRunner.start(chapter), context), context)?.id;
+    };
+    expect(stepAt(game)).toBe('jouer');
+    const refused = applyTutorialCommand(game, humanId, { type: 'CHOOSE', choice: { kind: 'EXERTIEN', cardId: undefined } }).game;
+    expect(refused.interaction?.type).not.toBe('CHOOSING_EXERTIEN_CARD');
+    expect(stepAt(refused)).toBe('annuler');
   } finally {
     fetchSpy.mockRestore();
   }
