@@ -1,13 +1,12 @@
 import React from 'react';
-import { AlienBoardType, Bonus, ObjectiveCategory, ObjectiveTile, TechnologyCategory } from '../../core/types';
-import { AnomalyIcon, MascamiteIcon, TrophyIcon, ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS, MissionCompleteIcon, RefuseIcon, TransferDataIcon, TechTileIcon } from './GameIcons';
+import { AlienBoardType, Bonus, LifeTraceType, ObjectiveCategory, ObjectiveTile, TechnologyCategory } from '../../core/types';
+import { AnomalyIcon, MascamiteIcon, TrophyIcon, ActionHexIcon, EndTurnIcon, DiscardCardIcon, CentaurienMessageIcon, CentaurienReceptionIcon, ResourceIcon, VictoryPointsIcon, LifeTraceIcon, AnyLifeTraceIcon, SignalGainIcon, RowCardIcon, RotationChevronIcon, RotationTokenIcon, ROTATION_CHEVRON_COLORS, MissionCompleteIcon, RefuseIcon, TransferDataIcon, TechTileIcon } from './GameIcons';
 import { ReservationIcon, TechCategoryIcon, AnyTechIcon, OrbiterOrLanderIcon, OrbiterIcon, LanderIcon, CoveredSectorIcon, ObjectiveSymbol } from './ObjectiveSymbol';
 import { LIFE_TRACE_COLORS } from '../styles/lifeTraceColors';
 import { ANOMALY_COLORS } from '../styles/anomalyColors';
 import { HumanIcon, LevelStrength } from './PlayerKindIcon';
 import { ResolvedSpecimenIcon } from './CardFace';
 import { BonusIcons } from './BonusIcons';
-import { HoverTooltip } from './HoverTooltip';
 
 interface Entry {
   icon: React.ReactNode;
@@ -26,25 +25,34 @@ const Conversion: React.FC<{ from: React.ReactNode; to: React.ReactNode }> = ({ 
 );
 
 /** Récompenses des 7 spécimens Mascamites (GameFactory : jetons `specimen` du plateau de l'espèce) */
-const SPECIMEN_REWARDS: { bonus: Bonus; text: string }[] = [
-  { bonus: { credits: 2 }, text: '2 crédits.' },
-  { bonus: { energy: 2 }, text: '2 énergies.' },
-  { bonus: { media: 3 }, text: '3 Médias.' },
-  { bonus: { data: 2 }, text: '2 données.' },
-  { bonus: { card: 2 }, text: '2 cartes piochées.' },
-  { bonus: { pv: 3, anycard: 1 }, text: '3 PV et 1 carte au choix (rangée ou pioche).' },
-  { bonus: { pv: 7 }, text: '7 PV.' },
+const SPECIMEN_REWARDS: Bonus[] = [
+  { credits: 2 },
+  { energy: 2 },
+  { media: 3 },
+  { data: 2 },
+  { card: 2 },
+  { pv: 3, anycard: 1 },
+  { pv: 7 },
 ];
 
 /** Jeton spécimen, récompense dessinée dedans ; deux ressources différentes : l'une au-dessus de l'autre, plus petites */
-const SpecimenToken: React.FC<{ bonus: Bonus }> = ({ bonus }) => {
+const SpecimenToken: React.FC<{ bonus: Bonus; message?: boolean }> = ({ bonus, message }) => {
   const kinds = Object.keys(bonus).length;
+  // Infobulle sur chaque symbole de ressource (pas sur le jeton) ; `message` : tuile Message des Centauriens (sarcelle)
   return (
-    <span className={`seti-specimen-token${kinds > 1 ? ' stacked' : ''}`}>
-      <BonusIcons bonus={bonus} size={kinds > 1 ? 13 : 18} />
+    <span className={`seti-specimen-token${kinds > 1 ? ' stacked' : ''}${message ? ' message' : ''}`}>
+      <BonusIcons bonus={bonus} size={kinds > 1 ? 13 : 18} tooltips />
     </span>
   );
 };
+
+/** Récompenses des 4 tuiles Message des Centauriens (GameFactory : `message` du plateau de l'espèce) */
+const MESSAGE_REWARDS: Bonus[] = [
+  { lifetraces: [{ amount: 1, scope: LifeTraceType.ANY }] },
+  { speciesCard: 1, energy: 1 },
+  { media: 3 },
+  { pv: 8 },
+];
 
 /** Jetons Anomalie : deux faces par couleur, une tirée au hasard (GameFactory : `anomalie` du plateau de l'espèce) */
 const ANOMALY_TOKENS: { color: keyof typeof ANOMALY_COLORS; name: string; faces: [Bonus, Bonus]; text: string }[] = [
@@ -59,9 +67,7 @@ const SPECIES_SYMBOLS: Record<AlienBoardType, Entry[]> = {
     { icon: <MascamiteIcon size={26} />, name: 'Spécimen Mascamite', text: 'À côté du nom des Mascamites : son infobulle montre les spécimens restants sur Jupiter et Saturne (récompense si vous les avez vus, sinon « ? »). Sur les planètes : un spécimen à prélever ou étudier (« ? » s\'il est face cachée pour vous). Estompé : une case de la piste bleue qui recevra un spécimen ramené.' },
     { icon: <ResolvedSpecimenIcon size={26} />, name: 'Récompense d\'un spécimen', text: 'Sur une carte : vous gagnez la récompense du spécimen (jeton ramené ou consulté). Le jeton d\'un spécimen ramené est placé sur la piste bleue des Mascamites : sa récompense se gagne en y posant une trace de vie bleue. Les 7 jetons :',
       // Les 7 jetons, sous le texte
-      extra: <span className="seti-specimen-tokens">{SPECIMEN_REWARDS.map(({ bonus, text }, i) => (
-        <HoverTooltip key={i} content={`Spécimen ${i + 1} : ${text}`} nested><SpecimenToken bonus={bonus} /></HoverTooltip>
-      ))}</span> },
+      extra: <span className="seti-specimen-tokens">{SPECIMEN_REWARDS.map((bonus, i) => <SpecimenToken key={i} bonus={bonus} />)}</span> },
   ],
   [AlienBoardType.ANOMALIES]: [
     // Une anomalie par couleur, avec ses deux récompenses possibles (au centre du jeton, pour le joueur le plus haut sur la piste)
@@ -75,7 +81,16 @@ const SPECIES_SYMBOLS: Record<AlienBoardType, Entry[]> = {
     { icon: <SignalGainIcon badge="oumuamua" size={26} />, name: 'Signal Oumuamua', text: 'Sur la tuile d\'Oumuamua, ou dans le secteur où il se trouve.' },
   ],
   [AlienBoardType.CENTAURIENS]: [
-    { icon: <CentaurienMessageIcon size={28} />, name: 'Message centaurien', text: 'Palier des Centauriens : une tuile Message à choisir, ou l\'effet Réception d\'une carte. À côté du nom de l\'espèce, son infobulle montre les paliers de chaque joueur et les 4 tuiles Message (grisée une fois prise).' },
+    { icon: <CentaurienMessageIcon size={28} />, name: "Émission d'un message", text: "Un message est émis : un palier est posé à votre score + 15 PV (à côté du nom de l'espèce, son infobulle montre les paliers de chaque joueur et les tuiles Message, grisée une fois prise). Deux façons d'émettre un message :",
+      extra: (
+        <ul className="seti-glossary-list">
+          <li>à la découverte de l'espèce, pour chaque joueur : en atteignant le palier, il gagne le bonus d'une tuile Message encore disponible, au choix parmi
+            <span className="seti-specimen-tokens">{MESSAGE_REWARDS.map((bonus, i) => <SpecimenToken key={i} bonus={bonus} message />)}</span>
+          </li>
+          <li>en jouant une carte Centaurien : elle émet toujours un message (ce symbole, en tête de son effet) ; en atteignant le palier, vous recevez ce qu'indique son panneau de réception.</li>
+        </ul>
+      ) },
+    { icon: <CentaurienReceptionIcon size={28} />, name: "Réception d'un message", text: "Panneau du bas des cartes Centauriens : quand le palier du message est atteint, vous gagnez ce qui suit le chevron." },
   ],
   [AlienBoardType.EXERTIENS]: [
     { icon: <span className="seti-glossary-emoji">☣️</span>, name: 'Danger Exertiens', text: 'À côté du nom des Exertiens : son infobulle donne le danger de chaque joueur et ses cartes Exertiens (celles des adversaires de dos).' },

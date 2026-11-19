@@ -199,15 +199,38 @@ export const RefuseIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
 );
 
 /** Message des Centauriens (tuile Message, palier): tuile violette, point d'émission et ondes radio */
-export const CentaurienMessageIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
+/** Socle sarcelle des Centauriens (cylindre vu de trois quarts), centré en x = 20, dessus à `top` */
+const CentaurienBase: React.FC<{ top: number }> = ({ top }) => (
+  <g>
+    <path d={`M5 ${top} V${top + 5} A15 5 0 0 0 35 ${top + 5} V${top} Z`} fill="#17786c" stroke="#0b3f39" strokeWidth={0.8} />
+    <ellipse cx={20} cy={top} rx={15} ry={5} fill="#3fc0ad" stroke="#0b3f39" strokeWidth={0.8} />
+    <ellipse cx={17} cy={top - 1.2} rx={7} ry={1.8} fill="#9cefe2" opacity={0.55} />
+  </g>
+);
+
+/**
+ * Symbole des Centauriens (livret, cartes Centauriens) : marqueur « +15 » posé sur son socle, trois chevrons blancs
+ * côte à côte, pointés vers la droite (on avance sur la piste de score). Palier à + 15 PV : message de l'espèce, ou réception d'une carte. `value` masqué sous 20 px.
+ */
+export const CentaurienMessageIcon: React.FC<{ size?: number; value?: string | null }> = ({ size = 20, value = '+15' }) => (
   <svg width={size} height={size} viewBox="0 0 40 40" className="icon-block">
-    <rect x={3} y={3} width={34} height={34} rx={8} fill="#5b3fc4" stroke="#b9a8ff" strokeWidth={2} />
-    <circle cx={12} cy={28} r={3.4} fill="#fff" />
-    <g fill="none" stroke="#fff" strokeLinecap="round">
-      <path d="M12 19.5 A8.5 8.5 0 0 1 20.5 28" strokeWidth={2.6} />
-      <path d="M12 13 A15 15 0 0 1 27 28" strokeWidth={2.6} opacity={0.8} />
-      <path d="M12 6.5 A21.5 21.5 0 0 1 33.5 28" strokeWidth={2.6} opacity={0.55} />
+    <CentaurienBase top={31} />
+    <g fill="#ffffff" stroke="#17786c" strokeWidth={1.4} strokeLinejoin="round">
+      {[7, 15, 23].map(x => <path key={x} d={`M${x} 14 H${x + 4.5} L${x + 10} 21 L${x + 4.5} 28 H${x} L${x + 5.5} 21 Z`} />)}
     </g>
+    {value && size >= 20 && (
+      <text x={20} y={9} textAnchor="middle" fontSize={10.5} fontWeight={700} fill="#ffffff" stroke="#17786c" strokeWidth={1.2}
+        paintOrder="stroke" fontFamily="Arial, sans-serif">{value}</text>
+    )}
+  </svg>
+);
+
+/** Réception d'un message Centaurien (panneau du bas des cartes Centauriens) : le socle et une coche */
+export const CentaurienReceptionIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" className="icon-block">
+    <CentaurienBase top={24} />
+    <path d="M10 18 L17 25 L32 9" fill="none" stroke="#0b3f39" strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M10 18 L17 25 L32 9" fill="none" stroke="#ffffff" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 

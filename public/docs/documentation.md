@@ -366,16 +366,8 @@ Ce chapitre franchit un palier de score, pose un marqueur sur une tuile objectif
 <!-- espece:Centauriens -->
 #### Centauriens
 
-- **R1** À la découverte, chaque joueur pose un palier à son score + 15 PV : en l'atteignant, il choisit une **tuile Message** encore disponible (chaque tuile n'est prise qu'une fois ; s'il n'en reste plus, rien) :
-
-| Tuile Message | Récompense |
-|---|---|
-| 1 | 1 trace de vie de la couleur de son choix |
-| 2 | 1 carte Centaurien + 1 énergie |
-| 3 | 3 Médias |
-| 4 | 8 PV |
-
-- **R2** Les cartes Centauriens posent aussi un palier : en l'atteignant, l'effet **Réception** de la carte s'applique. Sur la carte, le panneau du bas indique « À réception du message » et ce qu'elle rapporte. Il n'y a rien à cliquer : la carte jouée reste devant le joueur, son étoile grise jusqu'au palier (son infobulle en donne le score). Une fois reçue, une carte « augmentez vos revenus » passe sous les revenus ; les autres sont défaussées (ce ne sont pas des missions).
+- **R1** À la découverte, chaque joueur pose un palier à son score + 15 PV : en l'atteignant, il choisit une **tuile Message** encore disponible (chaque tuile n'est prise qu'une fois ; s'il n'en reste plus, rien). Les 4 tuiles et leur récompense sont dans l'encart du symbole « Émission d'un message », plus bas.
+- **R2** Les cartes Centauriens posent aussi un palier : en l'atteignant, l'effet **Réception** de la carte s'applique. Sur la carte, le symbole **+15** (marqueur sur son socle) rappelle ce palier, gain permanent de toutes les cartes Centauriens ; le panneau du bas indique « À réception du message », un chevron, puis ce qu'elle rapporte. Il n'y a rien à cliquer : la carte jouée reste devant le joueur, son étoile grise jusqu'au palier (son infobulle en donne le score). Une fois reçue, une carte « augmentez vos revenus » passe sous les revenus ; les autres sont défaussées (ce ne sont pas des missions).
 - **R3** Piste : 15 PV pour 3 données ; emplacement infini : 6 PV pour 1 donnée (il faut avoir ces données pour y poser la trace ; l'infobulle de l'emplacement affiche « Coût » avant « Bonus »).
 
 {{symboles-espece:Centauriens}}

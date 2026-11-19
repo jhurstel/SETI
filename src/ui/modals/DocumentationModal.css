@@ -176,6 +176,11 @@
     box-sizing: border-box;
     flex: none;
 }
+/* Tuile Message des Centauriens : sarcelle, comme le symbole de l'espèce */
+.seti-specimen-token.message {
+    border-color: #0b3f39;
+    background: radial-gradient(circle at 38% 32%, #b6f3e9, #3fc0ad 55%, #17786c);
+}
 .seti-specimen-token .bonus-icons { display: inline-flex; align-items: center; justify-content: center; gap: 1px; }
 .seti-specimen-token.stacked .bonus-icons { flex-direction: column; gap: 0; line-height: 1; }
 
@@ -264,3 +269,7 @@
 
 /* Les 7 jetons spécimen, sous le texte de « Récompense d'un spécimen » */
 .seti-specimen-tokens { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+
+/* Liste sous le texte d'un symbole du glossaire (Émission d'un message : ses deux façons) */
+.seti-glossary-list { margin: 4px 0 0; padding-left: 18px; }
+.seti-glossary-list li + li { margin-top: 4px; }

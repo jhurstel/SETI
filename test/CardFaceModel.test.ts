@@ -239,6 +239,9 @@ describe('panneaux', () => {
     expect(trace.text).toBe('À réception du message.');
     expect(trace.rewardSentence).toBeUndefined();
     expect(trace.reward).not.toEqual({});
+    // Gain permanent de toutes les cartes Centauriens : le marqueur « +15 », en tête de l'effet
+    ['ET.31', 'ET.34', 'ET.40'].forEach(id => expect(describeCard(card(id)).effects[0]).toEqual({ kind: 'symbols', symbols: [{ kind: 'centaurienMarker' }] }));
+    expect(describeCard(card('ET.1')).effects.some(e => e.kind === 'symbols' && e.symbols.some(sym => sym.kind === 'centaurienMarker'))).toBe(false);
   });
 });
 

@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Bonus, Card, RevenueType } from '../../core/types';
 import { cardSpecies } from '../cardSpecies';
 import { BonusIcons } from './BonusIcons';
-import { ActionHexIcon, AnyLifeTraceIcon, LifeTraceIcon, MascamiteIcon, MissionCompleteIcon, ResourceIcon, SignalGainIcon } from './GameIcons';
+import { ActionHexIcon, AnyLifeTraceIcon, CentaurienMessageIcon, CentaurienReceptionIcon, LifeTraceIcon, MascamiteIcon, MissionCompleteIcon, ResourceIcon, SignalGainIcon } from './GameIcons';
 import { AnyTechIcon, CoveredSectorIcon, LanderIcon, OrbiterIcon, OrbiterOrLanderIcon, TechCategoryIcon } from './ObjectiveSymbol';
 import { LIFE_TRACE_COLORS } from '../styles/lifeTraceColors';
 import { CardFaceModel, ConditionSymbol, describeCard, EffectSegment, FaceColor, MissionCircle, MissionPanel, richText } from './cardFaceModel';
@@ -62,6 +62,7 @@ const ConditionIcon: React.FC<{ symbol: ConditionSymbol; size: number }> = ({ sy
     case 'covered': return <Counted count={symbol.count}><CoveredSectorIcon color={symbol.color ? SYMBOL_COLORS[symbol.color] : undefined} size={size + 4} /></Counted>;
     case 'bonus': return <Gains bonus={symbol.bonus} size={size} />;
     case 'specimen': return symbol.resolved ? <ResolvedSpecimenIcon size={size + 2} /> : <MascamiteIcon size={size + 2} />;
+    case 'centaurienMarker': return <CentaurienMessageIcon size={size + 10} />;
     case 'break': return <span className="card-face-break" aria-hidden="true" />;
   }
 };
@@ -364,7 +365,12 @@ const FullCardFace: React.FC<{
             )}
             {face.scorePanel?.kind === 'reception' && (
               <div className="card-face-panel reception">
-                <span className="card-face-condition"><Condition symbols={face.scorePanel.symbols} text={face.scorePanel.text} size={panelSize} /></span>
+                {/* À gauche le socle coché et « À réception du message. », un chevron, à droite ce qu'elle rapporte */}
+                <span className="card-face-condition card-face-reception-condition">
+                  <CentaurienReceptionIcon size={panelSize + 6} />
+                  <Condition symbols={face.scorePanel.symbols} text={face.scorePanel.text} size={panelSize} />
+                </span>
+                <span className="card-face-chevron" aria-hidden="true">▸</span>
                 {face.scorePanel.rewardSentence ? (
                   <span className="card-face-reward-sentence">
                     {face.scorePanel.rewardSentence.before} <Gains bonus={face.scorePanel.reward} size={panelSize} /> {face.scorePanel.rewardSentence.after}

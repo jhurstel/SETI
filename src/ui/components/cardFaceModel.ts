@@ -42,6 +42,8 @@ export type ConditionSymbol =
   | { kind: 'bonus'; bonus: Bonus }
   /** Jeton Mascamite ; `resolved` : coche verte, on gagne la récompense du spécimen */
   | { kind: 'specimen'; resolved?: boolean }
+  /** Marqueur « +15 » des Centauriens sur son socle : la carte pose un palier à votre score + 15 PV */
+  | { kind: 'centaurienMarker' }
   /** Retour à la ligne (« (lunes comprises) » sous « sur Saturne ») */
   | { kind: 'break' };
 
@@ -659,6 +661,8 @@ export function describeCard(card: Card): CardFaceModel {
       const header = score ? 'Fin de jeu:' : 'Réception:';
       const reward = score ? score(effect) : reception!(effect, card);
       const chunk = chunks.find(c => c.header === header)?.content ?? effect.type;
+      // Carte Centaurien : gain permanent dessiné en premier, le marqueur « +15 » (palier à votre score + 15 PV)
+      if (reception) effects.unshift({ kind: 'symbols', symbols: [{ kind: 'centaurienMarker' }] });
       // Réception (Centauriens) : à gauche toujours « À réception du message. », à droite ce qu'elle rapporte
       scorePanel ??= score
         ? { kind: 'endGame', text: conditionText(chunk), symbols: scoreSymbols(effect, chunk) || [], reward: isEmptyBonus(reward) ? pvOfText(chunk) : reward }
