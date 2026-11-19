@@ -90,7 +90,7 @@ export class TurnManager {
       const gains: string[] = [];
       if (player.revenueCredits > 0) gains.push(ResourceSystem.formatResource(player.revenueCredits, 'CREDIT'));
       if (player.revenueEnergy > 0) gains.push(ResourceSystem.formatResource(player.revenueEnergy, 'ENERGY'));
-      if (player.revenueCards > 0) gains.push(ResourceSystem.formatResource(player.revenueCards, 'CARD'));
+      if (player.revenueCards > 0) gains.push(ResourceSystem.formatResource(player.revenueCards, 'DRAW'));
       if (gains.length > 0) historyEntries.push({ message: `perçoit ses revenus : ${gains.join(', ')}`, playerId: player.id, sequenceId: '' });
     });
 

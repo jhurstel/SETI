@@ -462,7 +462,7 @@ export class CardSystem {
             const handBefore = new Set(gameAfterBonuses.players.find(p => p.id === playerId)!.cards.map(c => c.id));
             gameAfterBonuses = ResourceSystem.processBonuses(effectContext.reservation, gameAfterBonuses, playerId, cardId, sequenceId).updatedGame;
             const { reservation } = effectContext;
-            let gain = [...ResourceSystem.formatPassiveGains(reservation), ...(reservation.card ? [ResourceSystem.formatResource(reservation.card, 'CARD')] : [])].join(', ');
+            let gain = [...ResourceSystem.formatPassiveGains(reservation), ...(reservation.card ? [ResourceSystem.formatResource(reservation.card, 'DRAW')] : [])].join(', ');
             const drawn = gameAfterBonuses.players.find(p => p.id === playerId)!.cards.find(c => !handBefore.has(c.id));
             if (drawn) gain += ` ${privateText(playerId, `"${drawn.name}"`)}`;
             historyEntries.push({ message: `réserve "${card.name}" et gagne ${gain}`, playerId, sequenceId });

@@ -257,7 +257,7 @@ export class ScanSystem {
             logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'ENERGY')} (Bonus "${buff.source}")`);
           } else if (buff.target === 'draw') {
             bonuses.card = (bonuses.card || 0) + effectNumber(buff);
-            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'CARD')} (Bonus "${buff.source}")`);
+            logs.push(`gagne ${ResourceSystem.formatResource(effectNumber(buff), 'DRAW')} (Bonus "${buff.source}")`);
           } else if (buff.target === 'data') {
             bonuses.data = (bonuses.data || 0) + effectNumber(buff);
             sourcedBonuses.data = (sourcedBonuses.data || 0) + effectNumber(buff);

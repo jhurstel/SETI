@@ -1,5 +1,6 @@
 import { CardSystem } from '../src/systems/CardSystem';
 import { ScanSystem } from '../src/systems/ScanSystem';
+import { ResourceSystem } from '../src/systems/ResourceSystem';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { InteractionResolver } from '../src/engine/InteractionResolver';
@@ -13,6 +14,12 @@ describe("Messages d'historique", () => {
   const P1 = 'player_0';
   const P2 = 'player_1';
   let game: Game;
+
+  test('carte piochée : « Pioche » ; carte au choix (rangée ou pioche) : « Carte »', () => {
+    expect(ResourceSystem.formatResource(2, 'DRAW')).toBe('2 Pioches');
+    expect(ResourceSystem.formatResource(1, 'CARD')).toBe('1 Carte');
+    expect(ResourceSystem.formatBonus({ card: 1, anycard: 1 })).toEqual(['1 Pioche', '1 Carte']);
+  });
 
   beforeEach(async () => {
     game = await createTestGame(['Alice', 'Bob']);
@@ -31,8 +38,8 @@ describe("Messages d'historique", () => {
     const reservation = rest.find(e => e.message.startsWith('réserve '))!;
     expect(reservation.sequenceId).toBe(play.sequenceId);
     const drawn = getPlayer(res.updatedGame, P1).cards.at(-1)!;
-    expect(revealText(reservation.message)).toBe(`réserve "Photo du Jour de la NASA" et gagne 1 Carte "${drawn.name}"`);
-    expect(textFor(reservation.message, P2)).toBe('réserve "Photo du Jour de la NASA" et gagne 1 Carte');
+    expect(revealText(reservation.message)).toBe(`réserve "Photo du Jour de la NASA" et gagne 1 Pioche "${drawn.name}"`);
+    expect(textFor(reservation.message, P2)).toBe('réserve "Photo du Jour de la NASA" et gagne 1 Pioche');
     expect(getPlayer(res.updatedGame, P1).reservedCards.map(c => c.id)).toContain('92');
     expect(JSON.stringify(game)).toBe(before);
   });

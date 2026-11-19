@@ -35,6 +35,11 @@ export class ResourceSystem {
         label: 'Carte', plural: 'Cartes', color: '#aaffaa',
         regex: /Carte(?:s?)|carte(?:s?)/
     },
+    // Carte piochée (« 1 Pioche », comme sur les cartes) ; « Carte » : prise dans la rangée ou piochée, au choix
+    DRAW: {
+        label: 'Pioche', plural: 'Pioches', color: '#aaffaa',
+        regex: /Pioche(?:s?)/
+    },
     PV: {
         label: 'PV', plural: 'PVs', color: '#fff',
         regex: /\bPV\b/
@@ -65,6 +70,7 @@ export class ResourceSystem {
     else if (key === 'CREDIT' || key === 'CREDITS') label = `Crédit${plural}`;
     else if (key === 'ENERGY' || key === 'ENERGIE') label = `Énergie${plural}`;
     else if (key === 'CARD' || key === 'CARDS' || key === 'CARTES') label = `Carte${plural}`;
+    else if (key === 'DRAW') label = `Pioche${plural}`;
     else if (key === 'PROBE' || key === 'PROBES' || key === 'SONDE') label = `Sonde${plural}`;
     else if (key === 'LANDING' || key === 'LANDINGS') label = `Atterrissage${plural}`;
     else if (key === 'TOKEN' || key === 'TOKENS') label = `Token${plural}`;
@@ -365,7 +371,7 @@ export class ResourceSystem {
         }
       }
 
-      passiveGains.push(ResourceSystem.formatResource(bonuses.card, 'CARD'));
+      passiveGains.push(ResourceSystem.formatResource(bonuses.card, 'DRAW'));
       logs.push(`pioche${cardDetails || " aucune carte"}`);
     }
     if (bonuses.probe) {

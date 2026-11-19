@@ -14,7 +14,8 @@ import { maskText } from '../tutorial/unlock';
 import { useSpeciesMask } from './speciesMask';
 
 // Ressources dessinées avec les pastilles du livret (les autres gardent leur symbole texte)
-const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', CARD: 'card', DATA: 'data' };
+// « Pioche » : carte piochée (« ? ») ; « Carte » : carte au choix, de la rangée ou de la pioche
+const RESOURCE_ICON_KINDS: Record<string, ResourceIconKind> = { CREDIT: 'credit', ENERGY: 'energy', MEDIA: 'media', CARD: 'anyCard', DRAW: 'card', DATA: 'data' };
 // Traces de vie (« 2 Traces Jaunes », « 1 trace de vie rouge », « 1 trace de vie (Rouge) », « 1 trace de vie (quelconque) »)
 const LIFE_TRACE_PATTERN = /[Tt]races? (?:de vie )?(?:\((?:[Rr]ouges?|[Jj]aunes?|[Bb]leu(?:es?|s)?|[Qq]uelconques?)\)|[Rr]ouges?|[Jj]aunes?|[Bb]leu(?:es?|s)?)/;
 // Signal d'une couleur de secteur (« marque un signal Jaune dans le secteur … ») et anneau qui tourne (« Système Solaire (Rouge) »)
