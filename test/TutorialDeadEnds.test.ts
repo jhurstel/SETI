@@ -220,6 +220,16 @@ describe('explorateur des écarts', () => {
     expect(neighbourCells(game, 'A2').length).toBeGreaterThan(0);
   });
 
+  test('planète introuvable : pas de chemin', async () => {
+    const { game, humanId, play } = await playTo('sondes', 0);
+    expect(movesTo(play(game, { type: 'LAUNCH_PROBE' }), humanId, 'pluton')).toBeUndefined();
+  });
+
+  test('écarts enchaînés (profondeur 2) : impasses toutes déclarées', async () => {
+    const chapter = chapterById('technologies')!;
+    expect(exploreDeadEnds(chapter, await prepareChapter(chapter, 'Alice'), { depth: 2 })).toEqual([]);
+  });
+
   test('commandes lisibles', () => {
     expect(describeCommand({ type: 'END_TURN' })).toBe('END_TURN');
     expect(describeCommand({ type: 'PLAY_CARD', cardId: '79' })).toBe('PLAY_CARD {"cardId":"79"}');

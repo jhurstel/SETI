@@ -150,6 +150,42 @@ describe('découverte d\'une espèce', () => {
     expect(ended.entries.map(e => e.message)).toContain("révèle l'espèce découverte : Exertiens !");
   });
 
+  test("trace posée pendant la fin du tour : l'annonce générique devient celle de l'espèce révélée dans la même commande", () => {
+    exertienBoard(game);
+    game.currentPlayerIndex = 0;
+    getPlayer(game, P1).hasPerformedMainAction = true;
+    // Choix ouvert pendant la fin du tour (palier) : une fois fait, la session termine le tour, découverte comprise
+    game.endingTurn = true;
+    game.interaction = { type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE, sequenceId: 'trace' };
+    game.pendingInteractions = [];
+    const before = JSON.stringify(game);
+
+    const res = GameSession.dispatch(game, P1, { type: 'CHOOSE', choice: { kind: 'LIFE_TRACE', boardIndex: 0, color: LifeTraceType.BLUE, slotType: LifeTraceLocation.TRIANGLE } });
+
+    expect(res.error).toBeUndefined();
+    expect(res.entries.map(e => e.message)).toContain(DISCOVERY_MESSAGE);
+    expect(res.game.board.alienBoards[0].isDiscovered).toBe(true);
+    expect(res.notifications).toContain(discoveryNotice('Exertiens'));
+    expect(res.notifications).not.toContain(DISCOVERY_NOTICE);
+    expect(JSON.stringify(game)).toBe(before);
+  });
+
+  test("annonce générique quand une autre espèce est déjà découverte : elle reste générique jusqu'à la fin du tour", () => {
+    // Plateau droit déjà découvert ; la trace bleue complète le plateau gauche pendant le tour
+    game.board.alienBoards[1].isDiscovered = true;
+    game.species = game.species.map(s => (s.name === game.board.alienBoards[1].speciesId ? { ...s, discovered: true } : s));
+    exertienBoard(game);
+    game.currentPlayerIndex = 0;
+    getPlayer(game, P1).hasPerformedMainAction = true;
+    game.interaction = { type: 'PLACING_LIFE_TRACE', color: LifeTraceType.BLUE, sequenceId: 'trace' };
+    game.pendingInteractions = [];
+
+    const res = GameSession.dispatch(game, P1, { type: 'CHOOSE', choice: { kind: 'LIFE_TRACE', boardIndex: 0, color: LifeTraceType.BLUE, slotType: LifeTraceLocation.TRIANGLE } });
+
+    expect(res.error).toBeUndefined();
+    expect(res.notifications).toEqual([DISCOVERY_NOTICE]);
+  });
+
   test('régression : une découverte par un palier neutre ouvre la fenêtre « Découverte » et les choix Exertiens', () => {
     exertienBoard(game);
     const alice = getPlayer(game, P1);

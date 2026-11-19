@@ -65,7 +65,7 @@ export class TurnManager {
     };
 
     if (milestone.shouldStop && milestone.newInteraction) {
-      return { ...base, updatedGame: milestone.updatedGame, turnEntries: [], pendingInteractions: [milestone.newInteraction, ...(milestone.moreInteractions || [])], turnEnded: false };
+      return { ...base, updatedGame: milestone.updatedGame, turnEntries: [], pendingInteractions: [milestone.newInteraction], turnEnded: false };
     }
 
     // Espèces complétées pendant le tour : découvertes maintenant, après les paliers (règles, p. 20)

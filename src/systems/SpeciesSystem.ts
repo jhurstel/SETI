@@ -296,9 +296,6 @@ export class SpeciesSystem {
         updatedGame: Game;
         code: SpeciesDiscoveryCode;
         data?: { color: LifeTraceType; speciesId?: string; boardIndex: number };
-        logs?: string[];
-        /** Choix ouverts par une découverte (Exertiens : carte jouée tout de suite par les joueurs qui ont un marqueur) */
-        interactions?: InteractionState[];
     } {
         const updatedGame = cloneGame(game);
 

@@ -504,8 +504,6 @@ export class ScoreManager {
   static checkScoreMilestones(game: Game, playerId: string): {
     updatedGame: Game;
     newInteraction?: InteractionState;
-    /** Autres choix ouverts en même temps (découverte des Exertiens : un par joueur qui a un marqueur) */
-    moreInteractions?: InteractionState[];
     historyEntries: HistoryEntry[];
     discoveryNotification?: { message: string };
     shouldStop: boolean; // true if an interaction was triggered and we should wait for the player
@@ -549,15 +547,8 @@ export class ScoreManager {
           if (result.code === 'DISCOVERED') {
             // Même annonce qu'une découverte par une trace de vie : la fenêtre « Découverte » de l'interface
             discoveryNotification = { message: DISCOVERY_NOTICE };
+            // La découverte se résout à la fin du tour, après les paliers (TurnManager : resolvePendingDiscoveries)
             historyEntries.push({ message: `déclenche la découverte d'une nouvelle espèce Alien !`, playerId, sequenceId });
-            if (result.logs) {
-              result.logs.forEach(log => historyEntries.push({ message: log, playerId, sequenceId }));
-            }
-            // Choix ouverts par la découverte (Exertiens) : le tour attend qu'ils soient faits
-            const [first, ...more] = result.interactions || [];
-            if (first) {
-              return { updatedGame, newInteraction: first, moreInteractions: more, historyEntries, discoveryNotification, shouldStop: true };
-            }
           } else {
             discoveryNotification = { message: `Palier ${m} PV : Trace de vie ${color} placée` };
           }

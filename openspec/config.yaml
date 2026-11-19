@@ -26,7 +26,8 @@ context: |
   - Sauvegardes versionnées : un changement incompatible du modèle ajoute une migration.
 
   Capacités décrites dans openspec/specs/ : game-rules (règles appliquées par le moteur),
-  robots (niveaux, évaluation, réglage), online-play (salles, serveur, client).
+  robots (niveaux, évaluation, réglage), online-play (salles, serveur, client),
+  tutorial (chapitres, guidage, mode annulation), card-display (faces des cartes).
 
 rules:
   proposal:

@@ -155,7 +155,8 @@ const centauriens: TutorialChapter = {
   deadEnds: [
     BLUE_TRACE_DEAD_END,
     { id: 'annuler-trace-rouge', when: redTraceMisplaced },
-    ...scanDeadEnds(c => onTrack(c, LifeTraceType.RED) || redTraceMisplaced(c) || c.game.board.sectors.some(s => s.isCovered && !c.start.board.sectors.find(o => o.id === s.id)!.isCovered)),
+    // Scan fait : sa trace rouge est posée (sur la piste ou ailleurs ; pendant sa pose, les impasses attendent)
+    ...scanDeadEnds(c => onTrack(c, LifeTraceType.RED) || redTraceMisplaced(c)),
     // Données de l'emplacement à 15 PV (3), placées dans l'ordinateur avant de poser la trace rouge
     ...resourceDeadEnds({ data: c => (onTrack(c, LifeTraceType.RED) || redTraceMisplaced(c) ? 0 : CENTAURIEN_15PV_DATA) }),
   ],
@@ -169,19 +170,14 @@ const centauriens: TutorialChapter = {
 // --- Oumuamua : nouvelle planète, son secteur, jetons ---
 
 const tokensOf = ({ game, humanId }: TutorialContext) => humanOf(game, humanId).tokens ?? 0;
-/** Carte de la rangée qui mène à Oumuamua (première au départ du chapitre) */
-const oumuamuaCardId = ({ start }: TutorialContext) => start.decks.cardRow[0]?.id;
 /**
- * Scan engagé sans pouvoir couvrir Oumuamua : une autre carte de la rangée a été prise, ou la bonne carte a servi à
- * poser le signal ailleurs (rangée changée, aucun jeton, et pas de choix de secteur en cours avec la bonne carte)
+ * Scan fait sans couvrir Oumuamua : une autre carte de la rangée a été prise, ou la bonne carte a servi à poser le
+ * signal ailleurs (rangée changée, aucun jeton). Une impasse n'est évaluée qu'une fois le choix du secteur fait.
  */
 const wrongScanCard = (c: TutorialContext) => {
   if (tokensOf(c) > 0) return false;
   const rowIds = c.game.decks.cardRow.map(card => card.id);
-  const rowChanged = c.start.decks.cardRow.some(card => !rowIds.includes(card.id));
-  const interaction = c.game.interaction;
-  const choosingWithRightCard = interaction?.type === 'SELECTING_SCAN_SECTOR' && interaction.cardId === oumuamuaCardId(c);
-  return rowChanged && !choosingWithRightCard;
+  return c.start.decks.cardRow.some(card => !rowIds.includes(card.id));
 };
 
 const oumuamua: TutorialChapter = {

@@ -3,10 +3,12 @@
 Ce dossier applique le développement piloté par les spécifications avec [OpenSpec](https://github.com/Fission-AI/OpenSpec) 2.x : avant une évolution notable, on écrit ce qui doit changer, on le valide, puis on l'applique.
 
 - `config.yaml` : contexte et conventions du projet (l'ancien `project.md`), règles propres à chaque artefact, consignes pour l'application et l'archivage. OpenSpec les injecte dans ses instructions.
-- `specs/<capacité>/spec.md` : la référence, ce que le jeu fait aujourd'hui. Trois capacités pour l'instant :
+- `specs/<capacité>/spec.md` : la référence, ce que le jeu fait aujourd'hui. Cinq capacités pour l'instant :
   - `game-rules` : règles appliquées par le moteur (commandes, tours, interactions, missions, espèces, fin de partie, sauvegardes) ;
   - `robots` : niveaux, évaluation, information cachée, déterminisme, réglage ;
-  - `online-play` : salles, vues filtrées, client, annulation, versions, limites.
+  - `online-play` : salles, vues filtrées, client, annulation, versions, limites ;
+  - `tutorial` : chapitres, étapes guidées, guidage, mode annulation sur une impasse, espèces débloquées ;
+  - `card-display` : faces des cartes (coins, coût, effet en symboles, panneaux), en jeu et dans la documentation.
 - `changes/<nom>/` : une évolution en cours (`proposal.md` pourquoi et quoi, `specs/` delta `ADDED/MODIFIED/REMOVED Requirements`, `design.md` comment, `tasks.md` liste à cocher) ; `changes/archive/` : les évolutions terminées.
 
 Format d'une exigence : `### Requirement: <nom>`, texte avec SHALL/MUST (mots-clés en anglais, texte en français), au moins un `#### Scenario:` avec **WHEN** / **THEN**. Une spec décrit un comportement observable, pas des classes : le détail d'implémentation reste dans `CLAUDE.md`, `.claude/rules/` et le code.

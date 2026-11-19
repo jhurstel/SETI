@@ -3,7 +3,7 @@ import { InteractionChoices } from '../src/engine/InteractionChoices';
 import { SpeciesSystem } from '../src/systems/SpeciesSystem';
 import { CardSystem } from '../src/systems/CardSystem';
 import { AIController } from '../src/ai/AIController';
-import { DiskName, Game, Interaction, Probe, ProbeState, SectorNumber, SignalType } from '../src/core/types';
+import { DiskName, Game, Interaction, LifeTraceLocation, LifeTraceType, Probe, ProbeState, SectorNumber, SignalType } from '../src/core/types';
 import { createTestGame, getPlayer } from './helpers/gameFixture';
 import { getObjectPosition } from '../src/core/SolarSystemPosition';
 
@@ -180,6 +180,38 @@ describe('InteractionChoices : choix communs (cartes, signaux, spécimens, retra
 
     jupiter.mascamiteTokens = [];
     expect(AIController.bestSpecimen(game, player, { type: 'COLLECTING_SPECIMEN', planetId: 'jupiter', sequenceId: 's' })).toBeNull();
+  });
+
+  test('robot : la file résout le prélèvement par la même opération (capsule), sans modifier la partie reçue', () => {
+    game.board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens = [{ bonus: { media: 1 } }, { bonus: { pv: 5 } }];
+    freeze();
+    const res = AIController.processInteractionQueue(game, [{ type: 'COLLECTING_SPECIMEN', planetId: 'jupiter', sequenceId: 's' }], 's', getPlayer(game, P1));
+    const capsule = getPlayer(res.updatedGame, P1).probes.find(p => p.state === ProbeState.CAPSULE)!;
+    expect(capsule.specimen).toEqual({ bonus: { pv: 5 } });
+    expect(res.updatedGame.board.planets.find(p => p.id === 'jupiter')!.mascamiteTokens).toHaveLength(1);
+    unchanged();
+  });
+
+  test("robot de test (PASS) : trace posée sur la piste d'une espèce découverte, le choix de carte ouvert est résolu dans la même séquence", () => {
+    let discovered = game;
+    for (const color of [LifeTraceType.RED, LifeTraceType.YELLOW, LifeTraceType.BLUE]) {
+      discovered = SpeciesSystem.placeLifeTrace(discovered, 0, color, P2, '', LifeTraceLocation.TRIANGLE).updatedGame;
+    }
+    discovered = SpeciesSystem.resolvePendingDiscoveries(discovered, P2).updatedGame;
+    expect(discovered.board.alienBoards[0].isDiscovered).toBe(true);
+    const robot = getPlayer(discovered, P1);
+    robot.aiDifficulty = 'PASS';
+    const before = JSON.stringify(discovered);
+    const handSize = robot.cards.length;
+
+    const res = AIController.processInteractionQueue(discovered, [{ type: 'PLACING_LIFE_TRACE', color: LifeTraceType.RED, boardIndices: [0] }], 's', robot);
+
+    const traces = res.updatedGame.board.alienBoards[0].lifeTraces.filter(t => t.playerId === P1);
+    expect(traces).toEqual([expect.objectContaining({ type: LifeTraceType.RED, location: LifeTraceLocation.SPECIES })]);
+    // La case de la piste rapporte une carte Alien, choisie aussitôt (séquence de la trace)
+    expect(getPlayer(res.updatedGame, P1).cards.length).toBe(handSize + 1);
+    expect(res.historyEntries.every(e => e.sequenceId === 's')).toBe(true);
+    expect(JSON.stringify(discovered)).toBe(before);
   });
 
   test('removeProbe : orbiteur du joueur retiré, celui d\'un adversaire refusé', () => {

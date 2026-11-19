@@ -211,7 +211,6 @@ export function resourceDeadEnds(needs: Partial<Record<TutorialResource, (contex
   }));
 }
 
-export const handSize = (game: Game, humanId: string) => CardSystem.getHandCards(humanOf(game, humanId)).length;
 export const signalsOf = (game: Game, humanId: string) =>
   game.board.sectors.reduce((n, sector) => n + sector.signals.filter(s => s.markedBy === humanId).length, 0);
 export const lifeTracesOf = (game: Game, humanId: string) =>
