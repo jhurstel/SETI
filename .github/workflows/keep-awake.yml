@@ -1,0 +1,21 @@
+# Garde éveillé le serveur du jeu en ligne (Render, offre gratuite : il s'endort après 15 min sans trafic
+# et met environ une minute à se réveiller). Un appel à /health toutes les 10 minutes suffit.
+# Séparé de ci.yml : un serveur injoignable ne fait pas échouer la CI du code.
+# GitHub peut retarder ces exécutions : le jeu réveille aussi le serveur à son ouverture (ui/serverWake.ts).
+# Détail et solution de repli (cron-job.org) : .claude/rules/online.md, Hébergement.
+name: Keep server awake
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping /health
+        run: curl -fsS --max-time 90 --retry 2 --retry-delay 10 https://seti-server.onrender.com/health

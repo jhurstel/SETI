@@ -73,13 +73,15 @@ Un robot joue une étape toutes les 1,5 s ; son calcul ne fige pas l'interface.
 
 - Pendant le tour d'un autre joueur, le message au-dessus du plateau l'indique (« Tour de Bob », « En attente de Bob » s'il doit faire un choix) et le plateau reste consultable. Les robots jouent sur le serveur.
 - Chacun ne voit que ce qu'il a le droit de voir : la main des autres et les cartes qu'ils piochent restent cachées.
-- **Reprendre en ligne** : en cas de coupure, le jeu se reconnecte tout seul (pendant 2 minutes), et tout de suite au retour du réseau ou quand la page redevient visible (sortie de veille) ; une connexion restée ouverte mais muette est détectée en moins d'une minute. Après un rechargement de la page, la carte **Reprendre en ligne** retrouve votre place ; **Quitter la partie en ligne** la laisse reprenable. Le serveur gratuit s'endort après 15 min sans joueurs et met environ une minute à se réveiller ; un redémarrage du serveur efface les salles en cours.
+- **Reprendre en ligne** : en cas de coupure, le jeu se reconnecte tout seul (pendant 2 minutes), et tout de suite au retour du réseau ou quand la page redevient visible (sortie de veille) ; une connexion restée ouverte mais muette est détectée en moins d'une minute. Après un rechargement de la page, la carte **Reprendre en ligne** retrouve votre place ; **Quitter la partie en ligne** la laisse reprenable. Le serveur gratuit est gardé éveillé et le jeu le réveille dès son ouverture ; s'il dormait quand même, la fenêtre affiche « Réveil du serveur… » avec le temps écoulé (environ une minute), puis le déclare injoignable après deux minutes. Un redémarrage du serveur efface les salles en cours.
 - **Annuler en ligne** : seulement vos propres actions de votre tour en cours, tant que personne d'autre n'a joué depuis (fin de votre tour, choix d'un autre joueur, robot). La partie solo (sauvegarde automatique) n'est pas touchée : **Continuer** y revient.
 
 #### Sauvegardes, documentation et options
 
 - **Sauvegarder la partie** enregistre la partie dans un fichier JSON ; **Restaurer une sauvegarde** en recharge une. Une sauvegarde d'une version plus récente du jeu est refusée.
 - **Documentation** ouvre ce document (aussi par le bouton 📖 à côté de ⚙️ en cours de partie) ; son en-tête ouvre le livret officiel et la FAQ (PDF).
+- **Signaler un problème** : écrivez en quelques mots ce qui s'est passé, puis téléchargez le rapport (fichier `seti_rapport_<date>.json`) et envoyez-le au développeur par le moyen de votre choix. Il contient la version du jeu, votre navigateur, les dernières erreurs et la partie en cours (sauvegarde complète en solo ; en ligne, seulement ce que vous voyez, sans votre jeton de place). Rien n'est envoyé automatiquement.
+- **En cas d'erreur** : si une action échoue, un message « Un problème est survenu » propose **Signaler** sans interrompre la partie. Si l'écran ne peut plus s'afficher, un écran d'erreur remplace la page blanche : **Recharger** (la partie reprend par **Continuer** ; en ligne, votre place reste reprenable), **Accueil**, ou **Signaler le problème**.
 - **Conseils en partie** : affiche ou coupe les conseils de la première vraie partie.
 - **Outils de débogage** (en développement seulement, absents de la version publiée) : un panneau pour modifier les ressources, piocher une carte précise, etc.
 

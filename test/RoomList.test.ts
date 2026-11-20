@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { GameServer } from '../server/GameServer';
 import { GameRoom } from '../src/session/GameRoom';
-import { RoomSummary, roomsUrl } from '../src/session/protocol';
+import { RoomSummary, healthUrl, roomsUrl } from '../src/session/protocol';
 import { RemoteClient, RemoteState, SocketLike } from '../src/session/RemoteClient';
 import { WebSocket } from 'ws';
 import { mockFetchFromPublic, TEST_SEED } from './helpers/gameFixture';
@@ -19,6 +19,11 @@ describe('liste des salles', () => {
   test('adresse HTTP de la liste à partir de celle du serveur', () => {
     expect(roomsUrl('wss://seti.example.com')).toBe('https://seti.example.com/rooms');
     expect(roomsUrl('ws://localhost:8787/')).toBe('http://localhost:8787/rooms');
+  });
+
+  test('adresse HTTP du contrôle de santé (réveil du serveur)', () => {
+    expect(healthUrl('wss://seti.example.com/')).toBe('https://seti.example.com/health');
+    expect(healthUrl('ws://localhost:8787')).toBe('http://localhost:8787/health');
   });
 
   test("résumé d'une salle : places (libres sans nom), manche une fois lancée, rien une fois finie", async () => {

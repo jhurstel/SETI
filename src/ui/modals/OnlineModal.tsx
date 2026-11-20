@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { RoomSummary, SeatRequest, roomsUrl } from '../../session/protocol';
 import { SERVER_URL } from '../serverUrl';
+import { serverWaitText, useNow } from '../serverWake';
 import { OnlineSession } from '../hooks/useOnlineSession';
 import { readPlayerName, writePlayerName } from '../playerName';
 import { PlayerNameField, SeatChoice, SeatColor, SeatKind, SeatList } from './SetupFields';
@@ -28,10 +29,13 @@ const Frame: React.FC<{ title: string; subtitle?: React.ReactNode; onDismiss?: (
   </div>
 );
 
-/** Liste des salles du serveur, relue toutes les 5 s tant qu'elle est affichée (null : pas encore lue ou serveur injoignable) */
-function useRoomList(active: boolean): { rooms: RoomSummary[] | null; failed: boolean } {
+/**
+ * Liste des salles du serveur, relue toutes les 5 s tant qu'elle est affichée (null : pas encore lue ou serveur injoignable).
+ * `failedSince` : instant du premier échec d'une suite d'échecs (serveur qui se réveille), effacé à la première réponse.
+ */
+function useRoomList(active: boolean): { rooms: RoomSummary[] | null; failedSince: number | null } {
   const [rooms, setRooms] = useState<RoomSummary[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [failedSince, setFailedSince] = useState<number | null>(null);
   useEffect(() => {
     if (!active) return;
     let stopped = false;
@@ -39,16 +43,16 @@ function useRoomList(active: boolean): { rooms: RoomSummary[] | null; failed: bo
       try {
         const response = await fetch(roomsUrl(SERVER_URL));
         const list = (await response.json()) as RoomSummary[];
-        if (!stopped) { setRooms(list); setFailed(false); }
+        if (!stopped) { setRooms(list); setFailedSince(null); }
       } catch {
-        if (!stopped) setFailed(true);
+        if (!stopped) setFailedSince(since => since ?? Date.now());
       }
     };
     load();
     const timer = setInterval(load, 5000);
     return () => { stopped = true; clearInterval(timer); };
   }, [active]);
-  return { rooms, failed };
+  return { rooms, failedSince };
 }
 
 /** Une salle de la liste : code, places à leurs couleurs, places libres ; un salon se rejoint d'un clic */
@@ -93,6 +97,11 @@ export const OnlineModal: React.FC<OnlineModalProps> = ({ visible, online, onBac
   const room = state.room;
   const inForm = visible && !room && state.status !== 'connecting';
   const roomList = useRoomList(inForm && tab === 'join');
+  // Début de la connexion en cours (compteur d'attente du réveil du serveur)
+  const connecting = visible && state.status === 'connecting' && !room;
+  const [connectingSince, setConnectingSince] = useState<number | null>(null);
+  useEffect(() => { setConnectingSince(connecting ? Date.now() : null); }, [connecting]);
+  const now = useNow(connecting || (inForm && tab === 'join' && roomList.failedSince !== null));
   // À chaque ouverture : le dernier nom saisi (il a pu changer dans la fenêtre Nouvelle partie)
   useEffect(() => { if (visible) setName(readPlayerName()); }, [visible]);
 
@@ -143,6 +152,7 @@ export const OnlineModal: React.FC<OnlineModalProps> = ({ visible, online, onBac
         <div className="seti-online-connecting">
           <span className="seti-online-spinner" aria-hidden="true" />
           <p>Le serveur peut mettre jusqu'à une minute à se réveiller.</p>
+          {connectingSince !== null && <p className="seti-online-wait">{Math.max(0, Math.floor((now - connectingSince) / 1000))} s</p>}
         </div>
         <div className="seti-newgame-actions">
           <button type="button" className="seti-newgame-btn secondary" onClick={leave}>Annuler</button>
@@ -233,7 +243,7 @@ export const OnlineModal: React.FC<OnlineModalProps> = ({ visible, online, onBac
             <section className="seti-newgame-section">
               <h3>Salles qui attendent des joueurs</h3>
               {roomList.rooms === null
-                ? <p className="seti-room-empty">{roomList.failed ? 'Serveur injoignable pour le moment (il peut mettre une minute à se réveiller).' : 'Chargement…'}</p>
+                ? <p className="seti-room-empty">{roomList.failedSince !== null ? serverWaitText(roomList.failedSince, now).text : 'Chargement…'}</p>
                 : lobbies.length === 0
                   ? <p className="seti-room-empty">Aucune salle ouverte : créez-en une, ou entrez un code.</p>
                   : <ul className="seti-room-list">{lobbies.map(r => <RoomRow key={r.code} room={r} busy={busy} onJoin={() => { setCode(r.code); submit(r.code); }} />)}</ul>}

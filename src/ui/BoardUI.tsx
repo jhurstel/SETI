@@ -54,6 +54,12 @@ import { isChapterUnlocked, NO_SPECIES_MASK, speciesMask } from '../tutorial/unl
 import { SpeciesMaskContext } from './speciesMask';
 import { uniqueId } from '../core/ids';
 import { CONTEXT_HINTS_TEXT_ID, nextContextHint } from '../tutorial/contextHints';
+import { wakeServer } from './serverWake';
+import { listErrors } from './errorLog';
+import { ErrorNotice } from './components/ErrorNotice';
+import { browserEnv, buildBugReport } from './bugReport';
+import { readAutosave } from './hooks/useAutosave';
+import { BugReportModal } from './modals/BugReportModal';
 
 // Fenêtres chargées à la demande (morceaux séparés du bundle), montées seulement quand elles sont ouvertes
 const OnlineModal = lazy(() => import('./modals/OnlineModal').then(m => ({ default: m.OnlineModal })));
@@ -134,6 +140,12 @@ export const BoardUI: React.FC = () => {
 
   // Nouvelle interaction de la partie : sélection remise à zéro
   useEffect(() => { setSelection([]); }, [sessionInteraction]);
+
+  // Ouverture du jeu : réveille le serveur du jeu en ligne (endormi après 15 min sans trafic)
+  useEffect(() => { wakeServer(); }, []);
+
+  // Signaler un problème (accueil, message d'erreur)
+  const [reportVisible, setReportVisible] = useState(false);
 
   const focusPlayer = game?.players[game.currentPlayerIndex];
   useEffect(() => {
@@ -706,6 +718,7 @@ export const BoardUI: React.FC = () => {
       isTutorial={isTutorialGame}
       contextHelp={contextHelp}
       onContextHelpChange={changeContextHelp}
+      onReportProblem={() => setReportVisible(true)}
     />
   );
 
@@ -762,10 +775,35 @@ export const BoardUI: React.FC = () => {
     [isOnline, realGame, me],
   );
 
+  // Signaler un problème : rapport construit au téléchargement (partie affichée, sinon autosauvegarde)
+  const buildReport = (comment: string) => {
+    const seat = online.state.seat;
+    return buildBugReport({
+      comment,
+      mode: isOnline ? 'online' : isTutorialGame ? 'tutorial' : session.game ? 'solo' : 'none',
+      game: isOnline ? null : session.game,
+      historyLog: session.historyLog,
+      autosave: isOnline || session.game ? null : readAutosave(),
+      // Code et joueur seulement : le jeton de la place n'est jamais recopié
+      online: isOnline && seat ? { code: seat.code, playerId: seat.playerId, game: online.game, entries: online.state.entries } : undefined,
+      errors: listErrors(),
+      env: browserEnv(),
+    });
+  };
+  const supportUi = (
+    <>
+      {/* Erreur hors de l'affichage : message discret qui propose de signaler le problème */}
+      <ErrorNotice hidden={reportVisible} onReport={() => setReportVisible(true)} />
+      {reportVisible && <BugReportModal buildReport={buildReport} onClose={() => setReportVisible(false)} />}
+    </>
+  );
+
   if (!game) {
     return (
       <div className="seti-root">
         {settingsModal}
+      {supportUi}
+        {supportUi}
         {onlineVisible && <SpaceBackdrop />}
         {tutorialMenu && <><SpaceBackdrop />{tutorialMenu}</>}
         <Suspense fallback={null}>

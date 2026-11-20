@@ -12,14 +12,7 @@ import { historyTimeline } from '../../core/historyTimeline';
 import { HistoryProgressBar } from '../components/HistoryProgressBar';
 import { dismissTutorial, shouldProposeTutorial } from '../tutorialProgress';
 import '../components/TutorialOverlay.css';
-
-/** API File System Access (Chrome, Edge) : absente des types DOM standards */
-type WindowWithSavePicker = Window & {
-  showSaveFilePicker?: (options: {
-    suggestedName?: string;
-    types?: { description: string; accept: Record<string, string[]> }[];
-  }) => Promise<{ createWritable: () => Promise<{ write: (data: string) => Promise<void>; close: () => Promise<void> }> }>;
-};
+import { downloadJson } from '../download';
 
 interface SettingsModalProps {
   visible: boolean;
@@ -51,6 +44,8 @@ interface SettingsModalProps {
   /** Réglage « Conseils du tutoriel en partie » (absent : réglage non proposé) */
   contextHelp?: boolean;
   onContextHelpChange?: (enabled: boolean) => void;
+  /** Ouvre « Signaler un problème » (rapport à télécharger) */
+  onReportProblem?: () => void;
 }
 
 /** Résumé de la partie sauvegardée pour la carte « Continuer » : barre de progression des manches et des tours */
@@ -101,6 +96,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   isTutorial,
   contextHelp,
   onContextHelpChange,
+  onReportProblem,
 }) => {
   const [newGameModalVisible, setNewGameModalVisible] = useState(false);
   const [hasAutosave, setHasAutosave] = useState(false);
@@ -160,42 +156,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       if (!game) return;
       try {
           const gameState = JSON.stringify(serializeGame(game, historyLog), null, 2);
-
-          // Utiliser l'API File System Access si disponible pour ouvrir une boîte de dialogue "Enregistrer sous"
-          const { showSaveFilePicker } = window as WindowWithSavePicker;
-          if (showSaveFilePicker) {
-              try {
-                  const handle = await showSaveFilePicker({
-                      suggestedName: `seti_save_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`,
-                      types: [{
-                          description: 'Sauvegarde SETI',
-                          accept: { 'application/json': ['.json'] },
-                      }],
-                  });
-                  const writable = await handle.createWritable();
-                  await writable.write(gameState);
-                  await writable.close();
-                  setVisible(false);
-                  return;
-              } catch (err) {
-                  if (err instanceof Error && err.name === 'AbortError') return; // Annulation utilisateur
-                  // Sinon continuer vers le fallback
-              }
-          }
-
-          const blob = new Blob([gameState], { type: 'application/json' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `seti_save_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
-          a.style.display = 'none';
-          document.body.appendChild(a);
-          a.click();
-          setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }, 100);
-          setVisible(false);
+          const fileName = `seti_save_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+          if (await downloadJson(gameState, fileName, 'Sauvegarde SETI')) setVisible(false);
       } catch (e) {
           setToast({ message: "Erreur lors de la sauvegarde: " + e, visible: true });
       }
@@ -297,6 +259,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button className="seti-home-link" onClick={handleLoadGame}>Restaurer une sauvegarde</button>
               {game && !isTutorial && <button className="seti-home-link" onClick={handleSaveGame}>Sauvegarder la partie</button>}
               {onDocumentation && <button className="seti-home-link" onClick={onDocumentation}>Documentation</button>}
+              {onReportProblem && <button className="seti-home-link" onClick={onReportProblem}>Signaler un problème</button>}
               {onContextHelpChange && (
                 <label className="seti-home-option">
                   <input type="checkbox" checked={!!contextHelp} onChange={e => onContextHelpChange(e.target.checked)} />

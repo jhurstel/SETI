@@ -130,6 +130,12 @@
   margin: 0;
 }
 
+/* Temps d'attente écoulé (réveil du serveur) */
+.seti-online-connecting .seti-online-wait {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
 .seti-online-spinner {
   width: 36px;
   height: 36px;

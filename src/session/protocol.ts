@@ -54,9 +54,19 @@ export interface RoomSummary {
   seats: { name: string; type: 'human' | 'robot'; aiDifficulty?: AIDifficulty; claimed: boolean }[];
 }
 
+/** Adresse HTTP du serveur à partir de son adresse WebSocket (wss:// → https://, sans « / » final) */
+function httpBase(serverUrl: string): string {
+  return serverUrl.replace(/^ws(s?):\/\//, 'http$1://').replace(/\/+$/, '');
+}
+
 /** Adresse de la liste des salles (HTTP) à partir de l'adresse WebSocket du serveur */
 export function roomsUrl(serverUrl: string): string {
-  return `${serverUrl.replace(/^ws(s?):\/\//, 'http$1://').replace(/\/+$/, '')}/rooms`;
+  return `${httpBase(serverUrl)}/rooms`;
+}
+
+/** Adresse du contrôle de santé (HTTP) : appelée pour réveiller un serveur endormi */
+export function healthUrl(serverUrl: string): string {
+  return `${httpBase(serverUrl)}/health`;
 }
 
 export type ServerMessage =

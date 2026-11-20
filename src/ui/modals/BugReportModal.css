@@ -1,0 +1,154 @@
+/* Signaler un problème et écran d'erreur : styles autonomes (affichés même si le reste de l'interface a échoué).
+   Boutons en sélecteurs composés : ils l'emportent sur `.seti-root button` (styles.css) quel que soit l'ordre des feuilles. */
+
+.seti-report-overlay,
+.seti-crash {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(6, 10, 24, 0.92);
+  color: #dfe7ff;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.seti-report-panel,
+.seti-crash-panel {
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  border: 1px solid #4a9eff;
+  border-radius: 12px;
+  background: #151b30;
+  box-shadow: 0 0 40px rgba(74, 158, 255, 0.2);
+}
+
+.seti-report-panel h2,
+.seti-crash-panel h2 {
+  margin: 0 0 12px;
+  font-size: 1.3rem;
+  color: #fff;
+}
+
+.seti-report-panel p,
+.seti-crash-panel p {
+  margin: 0 0 12px;
+  line-height: 1.45;
+  font-size: 0.92rem;
+}
+
+.seti-report-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.9rem;
+}
+
+.seti-report-comment {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border: 1px solid #3a4a78;
+  border-radius: 8px;
+  background: #0d1224;
+  color: #dfe7ff;
+  font: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.seti-report-note {
+  color: #9fb2da;
+}
+
+.seti-report-error {
+  color: #ff8a8a;
+}
+
+.seti-crash-message {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #0d1224;
+  color: #ffb3b3;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.8rem;
+  word-break: break-word;
+}
+
+.seti-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.seti-report-actions button.seti-report-btn {
+  padding: 8px 16px;
+  border: 1px solid #4a6bb0;
+  border-radius: 8px;
+  background: transparent;
+  color: #dfe7ff;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.seti-report-actions button.seti-report-btn:hover {
+  background: rgba(74, 158, 255, 0.15);
+}
+
+.seti-report-actions button.seti-report-btn.primary {
+  border-color: #4a9eff;
+  background: #2f6fd6;
+  color: #fff;
+}
+
+.seti-report-actions button.seti-report-btn.primary:hover {
+  background: #3b7ff0;
+}
+
+/* Message discret d'une erreur hors de l'affichage (BoardUI) : la partie reste jouable */
+.seti-error-notice {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 10px 8px 14px;
+  border: 1px solid #c0605f;
+  border-radius: 8px;
+  background: #2a1620;
+  color: #ffd9d9;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.seti-error-notice button.seti-error-notice-report,
+.seti-error-notice button.seti-error-notice-close {
+  padding: 2px 4px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.seti-error-notice button.seti-error-notice-report {
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.seti-error-notice button.seti-error-notice-close {
+  font-size: 1.1rem;
+  line-height: 1;
+  opacity: 0.7;
+}

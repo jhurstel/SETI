@@ -27,7 +27,8 @@ context: |
 
   Capacités décrites dans openspec/specs/ : game-rules (règles appliquées par le moteur),
   robots (niveaux, évaluation, réglage), online-play (salles, serveur, client),
-  tutorial (chapitres, guidage, mode annulation), card-display (faces des cartes).
+  tutorial (chapitres, guidage, mode annulation), card-display (faces des cartes),
+  error-reporting (écran d'erreur, rapport de problème).
 
 rules:
   proposal:
