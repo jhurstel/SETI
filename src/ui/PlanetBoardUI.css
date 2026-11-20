@@ -210,3 +210,8 @@
 .seti-slot-inner-gains > span {
   flex-wrap: nowrap !important;
 }
+
+/* Aperçu au survol (classe open posée par le composant) : la flèche reste celle d'un panneau replié */
+.seti-planet-board.open:not(.kept) .seti-foldable-header::after {
+  content: '▼';
+}

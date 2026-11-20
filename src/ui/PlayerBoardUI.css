@@ -675,6 +675,13 @@
   background-color: transparent;
 }
 
+/* Action principale impossible maintenant : grisée, sans réaction au clic (l'infobulle donne la raison) */
+.seti-main-actions .obs-track-slot.hex.unavailable {
+  filter: grayscale(1);
+  opacity: 0.4;
+  cursor: help;
+}
+
 
 /* Infobulle d'une ressource : actions gratuites cliquables */
 .seti-stat-tile {
@@ -748,7 +755,7 @@
 }
 
 .seti-resource-tooltip-action[aria-disabled="true"] {
-  cursor: not-allowed;
+  cursor: help;
   border-color: rgba(255, 255, 255, 0.12);
   background: transparent;
   color: #8a93a8;

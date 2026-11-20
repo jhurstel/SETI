@@ -512,9 +512,17 @@
     border-top: 1px solid #444;
 }
 
+/* Bandeau en bas, plateau ouvert vers le haut : flèche inversée (▲ pour le garder ouvert, ▼ pour le replier) */
+.seti-foldable-container.alien-foldable-container .seti-foldable-header::after {
+    content: '▲';
+}
+.seti-foldable-container.alien-foldable-container.open .seti-foldable-header::after {
+    content: '▼';
+}
+
 /* Plateau ouvert : toute la hauteur disponible (la limite commune de 80vh faisait défiler le plateau Exertiens) */
 .seti-foldable-container.alien-foldable-container.open,
-.seti-foldable-container.alien-foldable-container:hover {
+.seti-foldable-container.alien-foldable-container:hover:not(.no-hover) {
     max-height: calc(100vh - 50px);
 }
 

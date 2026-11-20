@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { tutorialAllows, useTutorialFocus, useTutorialPanel } from './tutorialFocus';
-import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
+import { tutorialAllows, useTutorialFocus } from './tutorialFocus';
+import { useFoldablePanel } from './hooks/useFoldablePanel';
 import { SlotTooltipContent } from './solar/slotTooltip';
 import { findPlanet } from './solar/planets';
 import { ActionType, Game, InteractionState, Planet, ProbeState } from '../core/types';
@@ -24,16 +24,18 @@ const PLANET_IDS = ['mercury', 'venus', 'mars', 'jupiter', 'saturn', 'uranus', '
 
 // Main component for the planet panel
 const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionState, onOrbit, onLand, setActiveTooltip }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    // Ouvert par un clic sur le bandeau titre : il reste ouvert quand la souris sort du panneau (un clic ailleurs le referme)
-    const [isPinned, setIsPinned] = useState(false);
-    // Lu par les infobulles des planètes (fermetures créées au survol) : toujours la valeur à jour
-    const pinnedRef = useRef(false);
-    pinnedRef.current = isPinned;
     const panelRef = useRef<HTMLDivElement>(null);
+    // Gardé ouvert par un clic sur le bandeau (ou par l'étape du tutoriel) ; un clic ailleurs le referme
+    const panel = useFoldablePanel(panelRef, { tutorialTarget: 'planets' });
+    // Aperçu au survol, géré ici et non en CSS : il reste ouvert pendant que la souris est dans la fenêtre d'une planète
+    const [isPreviewing, setIsPreviewing] = useState(false);
+    // Lus par les infobulles des planètes (fermetures créées au survol) : toujours la valeur à jour
+    const keptRef = useRef(false);
+    keptRef.current = panel.isOpen || panel.tutorialHeld;
+    const noHoverRef = useRef(false);
+    noHoverRef.current = panel.noHover;
+    const isOpen = panel.isOpen || isPreviewing;
     const tutorialFocus = useTutorialFocus();
-    const tutorialPinned = useTutorialPanel('planets', setIsOpen);
-    useCloseOnOutsideClick(panelRef, isOpen, () => { setIsOpen(false); setIsPinned(false); });
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const panelHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [removingItem, setRemovingItem] = useState<{ type: 'orbiter' | 'lander', planetId: string, index: number } | null>(null);
@@ -79,14 +81,22 @@ const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionStat
             clearTimeout(panelHoverTimeoutRef.current);
             panelHoverTimeoutRef.current = null;
         }
-        setIsOpen(true);
+        // Replié au clic sous la souris : pas d'aperçu tant qu'elle n'est pas sortie du panneau
+        if (!noHoverRef.current) setIsPreviewing(true);
     };
 
     const handlePanelMouseLeave = () => {
-        if (pinnedRef.current || tutorialPinned) return;
+        panel.onMouseLeave();
+        if (keptRef.current) return;
         panelHoverTimeoutRef.current = setTimeout(() => {
-            setIsOpen(false);
+            setIsPreviewing(false);
         }, 300);
+    };
+
+    // Bandeau : garder ouvert, ou replier aussitôt (l'aperçu au survol s'arrête aussi)
+    const handleHeaderClick = () => {
+        if (panel.isOpen) setIsPreviewing(false);
+        panel.toggle();
     };
 
     const handleMouseEnter = (e: React.MouseEvent, planet: Planet) => {
@@ -162,12 +172,12 @@ const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionStat
         <div
             ref={panelRef}
             data-tutorial="planets"
-            className={`seti-foldable-container seti-icon-panel seti-planet-board ${isOpen ? 'open' : 'collapsed'} ${canOrbitOrLand && !isOpen ? 'seti-flash-green' : ''} pointer-auto`}
+            className={`seti-foldable-container seti-icon-panel seti-planet-board ${isOpen ? 'open' : 'collapsed'}${panel.isOpen ? ' kept' : ''}${panel.noHover ? ' no-hover' : ''} ${canOrbitOrLand && !isOpen ? 'seti-flash-green' : ''} pointer-auto`}
             onMouseEnter={handlePanelMouseEnter}
             onMouseLeave={handlePanelMouseLeave}
            
         >
-            <div className="seti-foldable-header" onClick={() => { const pin = !isPinned; setIsPinned(pin); setIsOpen(pin); }}>
+            <div className="seti-foldable-header" onClick={handleHeaderClick}>
                 <span className={`panel-icon ${canOrbitOrLand ? 'seti-flash-green-icon' : ''}`}><OrbiterOrLanderIcon size={24} /></span>
                 <span className="panel-title">Planètes</span>
             </div>

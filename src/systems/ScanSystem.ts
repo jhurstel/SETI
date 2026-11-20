@@ -164,6 +164,14 @@ export class ScanSystem {
   }
 
   /**
+   * Récompense de la prochaine couverture d'un secteur pour le joueur majoritaire : celle de la première couverture
+   * tant que le secteur n'a jamais été couvert, puis celle des couvertures suivantes
+   */
+  static nextCoverBonus(sector: Sector): Bonus {
+    return sector.isCovered ? sector.nextBonus : sector.firstBonus;
+  }
+
+  /**
    * Couvre un secteur
    */
   static coverSector(game: Game, playerId: string, sectorId: string): {
@@ -200,8 +208,7 @@ export class ScanSystem {
       logs.push(`couvre le secteur ${sector.name}`);
 
       // Appliquer les bonus au gagnant
-      const isFirstTime = !sector.isCovered;
-      const sectorBonus = isFirstTime ? sector.firstBonus : sector.nextBonus;
+      const sectorBonus = this.nextCoverBonus(sector);
       if (sectorBonus) {
         if (winnerId === playerId) {
           if (sectorBonus.pv) bonuses.pv = (bonuses.pv || 0) + sectorBonus.pv;

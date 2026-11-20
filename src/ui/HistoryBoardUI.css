@@ -16,7 +16,7 @@
     pointer-events: auto;
 }
 
-.seti-history-container:hover, .seti-history-container.open {
+.seti-history-container:hover:not(.no-hover), .seti-history-container.open {
     max-height: 33vh !important;
 }
 

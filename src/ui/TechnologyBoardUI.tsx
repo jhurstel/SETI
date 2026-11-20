@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { hasExtraTechPv } from './techBonus';
-import { tutorialAllows, useTutorialFocus, useTutorialPanel } from './tutorialFocus';
-import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
+import { tutorialAllows, useTutorialFocus } from './tutorialFocus';
+import { useFoldablePanel } from './hooks/useFoldablePanel';
 import { TechTileIcon, VictoryPointsIcon } from './components/GameIcons';
 import { BonusIcons } from './components/BonusIcons';
 import { TechTooltip } from './components/TechTooltip';
@@ -24,7 +24,6 @@ const TechnologyBoardUIView: React.FC<TechnologyBoardUIProps> = ({ game, interac
   const techBoard = game.board.technologyBoard;
 
   const isAcquiringTech = interactionState.type === 'ACQUIRING_TECH';
-  const [isOpen, setIsOpen] = useState(isAcquiringTech);
 
   // Tutoriel : le panneau ne clignote que si l'étape en cours permet la recherche
   const tutorialFocus = useTutorialFocus();
@@ -33,12 +32,8 @@ const TechnologyBoardUIView: React.FC<TechnologyBoardUIProps> = ({ game, interac
   const researchCategories = isAcquiringTech ? interactionState.categories : undefined;
   const sharedTechOnly = isAcquiringTech ? interactionState.sharedOnly : false;
 
-  useEffect(() => {
-    setIsOpen(isAcquiringTech);
-  }, [isAcquiringTech]);
   const panelRef = useRef<HTMLDivElement>(null);
-  useTutorialPanel('tech-board', setIsOpen, isAcquiringTech);
-  useCloseOnOutsideClick(panelRef, isOpen, () => setIsOpen(false), !isAcquiringTech);
+  const panel = useFoldablePanel(panelRef, { tutorialTarget: 'tech-board', forcedOpen: isAcquiringTech });
 
   // Technologies que le joueur peut prendre : même liste que pour les robots (catégories, piles déjà prises, partagées)
   const acquirableIds = React.useMemo(
@@ -73,13 +68,14 @@ const TechnologyBoardUIView: React.FC<TechnologyBoardUIProps> = ({ game, interac
   };
 
   return (
-    <div ref={panelRef} data-tutorial="tech-board" className={`seti-foldable-container seti-icon-panel ${isOpen ? 'open' : 'collapsed'} ${canResearch && !isOpen ? 'seti-flash-green' : ''}`}
+    <div ref={panelRef} data-tutorial="tech-board" onMouseLeave={panel.onMouseLeave}
+      className={`seti-foldable-container seti-icon-panel ${panel.stateClass} ${canResearch && !panel.isOpen ? 'seti-flash-green' : ''}`}
       style={{
         pointerEvents: 'auto',
         ...(isAcquiringTech ? { borderColor: '#4a9eff', boxShadow: '0 0 20px rgba(74, 158, 255, 0.3)' } : {})
       }}
     >
-      <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
+      <div className="seti-foldable-header" onClick={panel.toggle}>
         <span className={`panel-icon ${canResearch ? 'seti-flash-green-icon' : ''}`}><AnyTechIcon size={24} /></span>
         <span className="panel-title">Technologies</span>
       </div>

@@ -34,6 +34,22 @@ export function polarToCartesian(centerX: number, centerY: number, radius: numbe
   }
 }
 
+/** Avance d'un caractère du nom d'un secteur (capitales grasses de taille 2,5, espacement 0,5), en unités SVG */
+export const SECTOR_NAME_CHAR_ADVANCE = 2.2;
+
+/**
+ * Angles (degrés) des symboles posés avant le nom d'un secteur, centré sur `centerAngle` le long d'un arc de rayon
+ * `radius` : largeur du nom estimée d'après son nombre de caractères, puis un écart, puis les symboles côte à côte,
+ * du plus proche du nom au plus éloigné. `reversed` : nom des secteurs du bas, lu dans le sens inverse des angles.
+ */
+export function sectorNamePrefixAngles(centerAngle: number, nameLength: number, radius: number, reversed: boolean, count: number, symbolSize: number, gap = 1): number[] {
+  const toDegrees = (length: number) => length / radius * 180 / Math.PI;
+  const halfName = toDegrees(nameLength * SECTOR_NAME_CHAR_ADVANCE / 2);
+  // Le nom commence (sens de lecture) du côté des angles décroissants en haut, croissants en bas
+  const side = reversed ? 1 : -1;
+  return Array.from({ length: count }, (_, i) => centerAngle + side * (halfName + toDegrees(gap + symbolSize / 2 + i * (symbolSize + 0.4))));
+}
+
 export function describeArc(x: number, y: number, radius: number, startAngle: number, endAngle: number, reverse: boolean = false) {
   const start = polarToCartesian(x, y, radius, endAngle);
   const end = polarToCartesian(x, y, radius, startAngle);

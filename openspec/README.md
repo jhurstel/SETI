@@ -9,6 +9,7 @@ Ce dossier applique le développement piloté par les spécifications avec [Open
   - `online-play` : salles, vues filtrées, client, annulation, versions, limites ;
   - `tutorial` : chapitres, étapes guidées, guidage, mode annulation sur une impasse, espèces débloquées ;
   - `card-display` : faces des cartes (coins, coût, effet en symboles, panneaux), en jeu et dans la documentation ;
+  - `board-display` : affichage des plateaux (actions principales grisées avec leur raison, panneaux repliables, prochain gain de couverture des secteurs) ;
   - `error-reporting` : écran d'erreur, message d'erreur non bloquant, rapport « Signaler un problème ».
 - `changes/<nom>/` : une évolution en cours (`proposal.md` pourquoi et quoi, `specs/` delta `ADDED/MODIFIED/REMOVED Requirements`, `design.md` comment, `tasks.md` liste à cocher) ; `changes/archive/` : les évolutions terminées.
 

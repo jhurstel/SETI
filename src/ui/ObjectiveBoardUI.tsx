@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { SpeciesSystem } from '../systems/SpeciesSystem';
 import { TurnManager } from '../engine/TurnManager';
-import { useTutorialPanel } from './tutorialFocus';
 import { VictoryPointsIcon, CentaurienMessageIcon } from './components/GameIcons';
-import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
+import { useFoldablePanel } from './hooks/useFoldablePanel';
 import { Game, GamePhase, InteractionState, GOLDEN_MILESTONES, NEUTRAL_MILESTONES } from '../core/types';
 import { SlotTooltip } from './components/SlotTooltip';
 import { SLOT_COLORS } from './styles/slotColors';
@@ -40,13 +39,8 @@ const groupByScore = (milestones: ScoreMilestone[]): ScoreMilestone[][] => {
 
 const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interactionState, onObjectiveClick, setActiveTooltip }) => {
     const isInitiallyOpen = interactionState.type === 'PLACING_OBJECTIVE_MARKER';
-    const [isObjectivesOpen, setIsObjectivesOpen] = useState(isInitiallyOpen);
-    useEffect(() => {
-        setIsObjectivesOpen(isInitiallyOpen);
-    }, [isInitiallyOpen]);
     const panelRef = useRef<HTMLDivElement>(null);
-    useTutorialPanel('objectives', setIsObjectivesOpen, isInitiallyOpen);
-    useCloseOnOutsideClick(panelRef, isObjectivesOpen, () => setIsObjectivesOpen(false), !isInitiallyOpen);
+    const panel = useFoldablePanel(panelRef, { tutorialTarget: 'objectives', forcedOpen: isInitiallyOpen });
 
     const maxScore = Math.max(...game.players.map(p => p.score));
     const trackMax = maxScore > 100 ? Math.ceil(maxScore / 100) * 100 : 100;
@@ -98,8 +92,9 @@ const ObjectiveBoardUIView: React.FC<ObjectiveBoardUIProps> = ({ game, interacti
     ];
 
     return (
-        <div ref={panelRef} data-tutorial="objectives" className={`seti-foldable-container seti-icon-panel seti-objective-container ${isObjectivesOpen ? 'open' : 'collapsed'}`}>
-            <div className="seti-foldable-header" onClick={() => setIsObjectivesOpen(!isObjectivesOpen)}>
+        <div ref={panelRef} data-tutorial="objectives" onMouseLeave={panel.onMouseLeave}
+            className={`seti-foldable-container seti-icon-panel seti-objective-container ${panel.stateClass}`}>
+            <div className="seti-foldable-header" onClick={panel.toggle}>
                 <span className="panel-icon"><VictoryPointsIcon size={24} /></span>
                 <span className="panel-title">Objectifs</span>
             </div>

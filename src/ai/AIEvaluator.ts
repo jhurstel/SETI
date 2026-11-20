@@ -357,7 +357,7 @@ export class AIEvaluator {
       const fill = marked / sector.signals.length;
       value += fill * w.media;
       if (ScanSystem.calculateMajorities(sector)[0]?.playerId === playerId) {
-        const bonus = sector.isCovered ? sector.nextBonus : sector.firstBonus;
+        const bonus = ScanSystem.nextCoverBonus(sector);
         const lifeTraces = (bonus.lifetraces || []).reduce((n, t) => n + t.amount, 0);
         value += fill * w.sectorLead * ((bonus.pv || 0) + lifeTraces * w.sectorLifeTraceValue);
       }

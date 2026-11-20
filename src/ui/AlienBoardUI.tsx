@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useTutorialPanel } from './tutorialFocus';
+import React, { useState, useRef } from 'react';
+import { useFoldablePanel } from './hooks/useFoldablePanel';
 import { Game, GamePhase, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType, LifeTrace, Player } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
 import { BonusIcons } from './components/BonusIcons';
@@ -11,7 +11,6 @@ import { ScoreManager } from '../engine/ScoreManager';
 import { Tooltip } from './Tooltip';
 import { LifeTraceShape, LIFE_TRACE_VIEWBOX, VictoryPointsIcon, ResourceIcon, CentaurienMessageIcon, MascamiteIcon, DocumentationIcon } from './components/GameIcons';
 import { LIFE_TRACE_COLORS, LifeTraceColor } from './styles/lifeTraceColors';
-import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
 import './AlienBoardUI.css';
 import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
 import { HoverTooltip } from './components/HoverTooltip';
@@ -358,19 +357,12 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
     const isPlacingTrace = interactionState.type === 'PLACING_LIFE_TRACE';
     // Trace limitée à certains plateaux (ex: espèce où le joueur a déjà une trace de cette couleur)
     const isBoardAllowed = interactionState.type !== 'PLACING_LIFE_TRACE' || !interactionState.boardIndices || interactionState.boardIndices.includes(boardIndex);
-    const [isOpen, setIsOpen] = useState(isPlacingTrace || forceOpen);
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     // Infobulles où la souris peut entrer (danger Exertien, paliers Centauriens) : le plateau reste ouvert tant qu'elles sont affichées
     const [isPinnedTooltipOpen, setIsPinnedTooltipOpen] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
-    useTutorialPanel('species', setIsOpen, isPlacingTrace || !!forceOpen);
-    useCloseOnOutsideClick(panelRef, !!isOpen, () => setIsOpen(false), !isPlacingTrace && !forceOpen);
-
-    useEffect(() => {
-        if (isPlacingTrace || forceOpen) {
-            setIsOpen(true);
-        }
-    }, [isPlacingTrace, forceOpen]);
+    // Ouvert par une trace à placer (ou forcé), il reste ouvert après le choix : le joueur le replie
+    const panel = useFoldablePanel(panelRef, { tutorialTarget: 'species', forcedOpen: isPlacingTrace || !!forceOpen, closeWhenReleased: false });
 
     const handleMouseLeaveWithDelay = () => {
         hoverTimeoutRef.current = setTimeout(() => {
@@ -667,7 +659,8 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
 
     return (
         <div className={`alien-board-container ${side}`} data-tutorial="species">
-            <div ref={panelRef} className={`seti-foldable-container seti-icon-panel alien-foldable-container ${isOpen || isPinnedTooltipOpen ? 'open' : 'collapsed'}`}>
+            <div ref={panelRef} onMouseLeave={panel.onMouseLeave}
+                className={`seti-foldable-container seti-icon-panel alien-foldable-container ${panel.isOpen || isPinnedTooltipOpen ? 'open' : 'collapsed'}${panel.noHover ? ' no-hover' : ''}`}>
                 <div className="seti-foldable-content alien-foldable-content">
                     {masked && (
                         <>
@@ -846,7 +839,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                         </div>
                      </div>
                 </div>
-                <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
+                <div className="seti-foldable-header" onClick={() => { setIsPinnedTooltipOpen(false); panel.toggle(); }}>
                     <span className="panel-icon">👽</span>
                     <span className="panel-title">Alien</span>
                 </div>

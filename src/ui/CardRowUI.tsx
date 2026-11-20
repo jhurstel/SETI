@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useTutorialPanel } from './tutorialFocus';
+import React, { useRef } from 'react';
 import { RowCardIcon } from './components/GameIcons';
-import { useCloseOnOutsideClick } from './hooks/useCloseOnOutsideClick';
+import { useFoldablePanel } from './hooks/useFoldablePanel';
 import { useInteractiveTooltip, ActiveTooltip } from './hooks/useInteractiveTooltip';
 import { Game, InteractionState } from '../core/types';
 import { HandCard } from './components/HandCard';
@@ -18,15 +17,9 @@ interface CardRowUIProps {
 const CardRowUIView: React.FC<CardRowUIProps> = ({ game, interactionState, onCardClick, setActiveTooltip }) => {
     const isActive = interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD';
     const isInitiallyOpen = interactionState.type === 'ACQUIRING_CARD' || interactionState.type === 'SELECTING_SCAN_CARD';
-    const [isOpen, setIsOpen] = useState(isInitiallyOpen);
-
-    useEffect(() => {
-        setIsOpen(isInitiallyOpen);
-    }, [isInitiallyOpen]);
     const panelRef = useRef<HTMLDivElement>(null);
     // Tutoriel : la rangée s'ouvre quand l'étape la décrit
-    useTutorialPanel('card-row', setIsOpen, isActive);
-    useCloseOnOutsideClick(panelRef, isOpen, () => setIsOpen(false), !isActive);
+    const panel = useFoldablePanel(panelRef, { tutorialTarget: 'card-row', forcedOpen: isActive, initiallyOpen: isInitiallyOpen });
 
     const currentPlayer = game.players[game.currentPlayerIndex];
 
@@ -34,9 +27,10 @@ const CardRowUIView: React.FC<CardRowUIProps> = ({ game, interactionState, onCar
     const { show: handleTooltipHover, scheduleClose: handleTooltipLeave } = useInteractiveTooltip(setActiveTooltip);
 
     return (
-        <div ref={panelRef} data-tutorial="card-row" className={`seti-foldable-container seti-icon-panel seti-card-row-container ${isOpen ? 'open' : 'collapsed'} ${isActive ? 'active' : ''}`}
+        <div ref={panelRef} data-tutorial="card-row" className={`seti-foldable-container seti-icon-panel seti-card-row-container ${panel.stateClass} ${isActive ? 'active' : ''}`}
+            onMouseLeave={panel.onMouseLeave}
         >
-            <div className="seti-foldable-header" onClick={() => setIsOpen(!isOpen)}>
+            <div className="seti-foldable-header" onClick={panel.toggle}>
                 <span className="panel-icon"><RowCardIcon size={24} /></span>
                 <span className="panel-title">Rangée Principale</span>
             </div>

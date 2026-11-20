@@ -1,10 +1,8 @@
-import React from 'react';
-import { Game, ActionType, GAME_CONSTANTS, ProbeState, InteractionState } from '../../core/types';
+import React, { useMemo } from 'react';
+import { Game, ActionType, GAME_CONSTANTS, InteractionState } from '../../core/types';
 import { ProbeSystem } from '../../systems/ProbeSystem';
-import { ComputerSystem } from '../../systems/ComputerSystem';
-import { CardSystem } from '../../systems/CardSystem';
-import { ScanSystem } from '../../systems/ScanSystem';
 import { TurnManager } from '../../engine/TurnManager';
+import { ActionValidator, MainActionType } from '../../engine/ActionValidator';
 import { requirePlayer } from '../../core/players';
 import { ActionHexIcon, ActionIconKind, EndTurnIcon } from '../components/GameIcons';
 import { ActionTooltip, ResourceSymbols, PieceSymbol, ScanSymbol, BlueTraceSymbol, CardCostSymbol, TechSymbol } from '../components/BoardTooltips';
@@ -29,74 +27,45 @@ export const PlayerActions: React.FC<{
   const isCurrentTurn = game.players[game.currentPlayerIndex].id === currentPlayer.id;
   const hasPerformedMainAction = currentPlayer.hasPerformedMainAction;
 
-  const ruleAvailability: Record<ActionType, boolean> = {
-    [ActionType.LAUNCH_PROBE]: isCurrentTurn && !hasPerformedMainAction && ProbeSystem.canLaunchProbe(game, currentPlayer.id).canLaunch,
-    [ActionType.ORBIT]: isCurrentTurn && !hasPerformedMainAction && currentPlayer.probes.some(probe => ProbeSystem.canOrbit(game, currentPlayer.id, probe.id).canOrbit),
-    [ActionType.LAND]: isCurrentTurn && !hasPerformedMainAction && currentPlayer.probes.some(probe => ProbeSystem.canLand(game, currentPlayer.id, probe.id).canLand),
-    [ActionType.SCAN_SECTOR]: isCurrentTurn && !hasPerformedMainAction && ScanSystem.canScanSector(game, currentPlayer.id).canScan,
-    [ActionType.ANALYZE_DATA]: isCurrentTurn && !hasPerformedMainAction && ComputerSystem.canAnalyzeData(game, currentPlayer.id).canAnalyze,
-    [ActionType.PLAY_CARD]: isCurrentTurn && !hasPerformedMainAction && CardSystem.canPlayCards(game, currentPlayer.id).canPlay,
-    [ActionType.RESEARCH_TECH]: isCurrentTurn && !hasPerformedMainAction && currentPlayer.mediaCoverage >= GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA,
-    [ActionType.PASS]: isCurrentTurn && !hasPerformedMainAction,
-    [ActionType.MOVE_PROBE]: false,
-    [ActionType.TRANSFERE_DATA]: false,
-    [ActionType.DISCARD_CARD]: false,
-    [ActionType.ACCOMPLISH_MISSION]: false,
-    [ActionType.BUY_CARD]: false,
-    [ActionType.TRADE_RESOURCES]: false,
-  };
+  // Disponibilité des actions principales et raison d'un refus : calculées par le moteur
+  const engineAvailability = useMemo(() => ActionValidator.mainActionAvailability(game, playerId), [game, playerId]);
   // Tutoriel : une action permise par les règles mais pas par l'étape en cours est désactivée, avec sa raison
   const tutorialReason = (action: TutorialAction) => tutorialBlock?.(action) ?? null;
-  const actionAvailability = Object.fromEntries(
-    Object.entries(ruleAvailability).map(([action, ok]) => [action, ok && !tutorialReason(action as ActionType)]),
-  ) as Record<ActionType, boolean>;
+
+  /** Raison qui empêche une action principale : moteur, puis étape du tutoriel, puis choix en cours sur le plateau */
+  const blockReason = (actionType: MainActionType, interactionBlocks: boolean): string | null =>
+    engineAvailability[actionType].reason
+    ?? tutorialReason(actionType)
+    ?? (interactionBlocks ? "Terminez d'abord l'action en cours" : null);
 
   // Infobulle d'une action principale : coût, bonus, puis action possible ou raison de l'indisponibilité
-  const getActionTooltip = (actionType: ActionType, available: boolean): React.ReactNode => {
-    const hasProbeOnPlanetInfo = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
+  const getActionTooltip = (actionType: MainActionType, reason: string | null): React.ReactNode => {
     let cost: React.ReactNode = '';
     let bonus: React.ReactNode | undefined = '';
     let action = '';
     let bonusLabel = 'Bonus';
-    let reason: string | undefined;
 
     switch (actionType) {
-      case ActionType.LAUNCH_PROBE: {
+      case ActionType.LAUNCH_PROBE:
         cost = <ResourceSymbols bonus={{ credits: GAME_CONSTANTS.PROBE_LAUNCH_COST }} />;
         bonus = <PieceSymbol kind="probe" label="Sonde" />;
         action = 'Cliquez pour lancer une sonde depuis la Terre';
-        const launchCheck = ProbeSystem.canLaunchProbe(game, currentPlayer.id);
-        if (!launchCheck.canLaunch) reason = launchCheck.reason || 'Impossible de lancer une sonde';
         break;
-      }
 
-      case ActionType.ORBIT: {
+      case ActionType.ORBIT:
         cost = <ResourceSymbols bonus={{ credits: GAME_CONSTANTS.ORBIT_COST_CREDITS, energy: GAME_CONSTANTS.ORBIT_COST_ENERGY }} />;
         bonus = <PieceSymbol kind="orbiter" label="Orbiteur" />;
         action = 'Cliquez pour mettre une sonde en orbite';
-        const orbitProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
-        if (!orbitProbe) reason = 'Nécessite une sonde dans le système solaire';
-        else {
-          const orbitCheck = ProbeSystem.canOrbit(game, currentPlayer.id, orbitProbe.id);
-          if (!orbitCheck.canOrbit) reason = orbitCheck.reason || 'Impossible';
-        }
         break;
-      }
 
       case ActionType.LAND: {
         bonus = <PieceSymbol kind="lander" label="Atterrisseur" />;
         action = 'Cliquez pour poser une sonde sur une planète';
-        // Coût courant : celui de la planète où se trouve la sonde, sinon le coût de base (réduit par Exploration III)
+        // Coût courant (moteur) : celui de la planète où se trouve la sonde, sinon le coût de base ; réductions rappelées
+        const planetInfo = ProbeSystem.probeOnPlanetInfo(game, currentPlayer.id);
         const hasExploration3 = currentPlayer.technologies.some(t => t.id.startsWith('exploration-3'));
-        const landCost = hasProbeOnPlanetInfo.landCost ?? (hasExploration3 ? GAME_CONSTANTS.LAND_COST_ENERGY_WITH_TECHNOLOGY : GAME_CONSTANTS.LAND_COST_ENERGY);
-        const reductions = [hasProbeOnPlanetInfo.hasOrbiter && 'orbiteur présent', hasExploration3 && 'Exploration III'].filter(Boolean);
-        cost = <ResourceSymbols bonus={{ energy: landCost }} note={reductions.length > 0 ? reductions.join(', ') : undefined} />;
-        const landProbe = currentPlayer.probes.find(p => p.state === ProbeState.IN_SOLAR_SYSTEM);
-        if (!landProbe) reason = 'Nécessite une sonde dans le système solaire';
-        else {
-          const landCheck = ProbeSystem.canLand(game, currentPlayer.id, landProbe.id);
-          if (!landCheck.canLand) reason = landCheck.reason || 'Impossible';
-        }
+        const reductions = [planetInfo.hasOrbiter && 'orbiteur présent', hasExploration3 && 'Exploration III'].filter(Boolean);
+        cost = <ResourceSymbols bonus={{ energy: ProbeSystem.currentLandCost(game, currentPlayer.id) }} note={reductions.length > 0 ? reductions.join(', ') : undefined} />;
         break;
       }
 
@@ -104,15 +73,12 @@ export const PlayerActions: React.FC<{
         cost = <ResourceSymbols bonus={{ credits: GAME_CONSTANTS.SCAN_COST_CREDITS, energy: GAME_CONSTANTS.SCAN_COST_ENERGY }} />;
         bonus = <ScanSymbol />;
         action = 'Cliquez pour scanner';
-        if (currentPlayer.credits < GAME_CONSTANTS.SCAN_COST_CREDITS || currentPlayer.energy < GAME_CONSTANTS.SCAN_COST_ENERGY) reason = `Nécessite ${GAME_CONSTANTS.SCAN_COST_CREDITS} crédit${GAME_CONSTANTS.SCAN_COST_CREDITS > 1 ? 's' : ''} et ${GAME_CONSTANTS.SCAN_COST_ENERGY} énergie${GAME_CONSTANTS.SCAN_COST_ENERGY > 1 ? 's' : ''}`;
         break;
 
       case ActionType.ANALYZE_DATA:
         cost = <ResourceSymbols bonus={{ energy: GAME_CONSTANTS.ANALYZE_COST_ENERGY }} />;
         bonus = <BlueTraceSymbol />;
         action = 'Cliquez pour analyser les données';
-        if (!currentPlayer.dataComputer.canAnalyze) reason = "Nécessite une ligne d'ordinateur complète";
-        else if (currentPlayer.energy < GAME_CONSTANTS.ANALYZE_COST_ENERGY) reason = `Nécessite ${GAME_CONSTANTS.ANALYZE_COST_ENERGY} énergie`;
         break;
 
       case ActionType.RESEARCH_TECH:
@@ -120,7 +86,6 @@ export const PlayerActions: React.FC<{
         // Le Système solaire tourne avant de prendre la technologie
         bonus = <><ResourceSymbols bonus={{ rotation: 1 }} /><TechSymbol /></>;
         action = 'Cliquez pour rechercher une technologie';
-        if (currentPlayer.mediaCoverage < GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA) reason = `Nécessite ${GAME_CONSTANTS.TECH_RESEARCH_COST_MEDIA} médias`;
         break;
 
       case ActionType.PASS:
@@ -137,24 +102,15 @@ export const PlayerActions: React.FC<{
         action = 'Cliquez pour passer';
         break;
 
-      case ActionType.PLAY_CARD: {
+      case ActionType.PLAY_CARD:
         // Pas de ligne Bonus : les effets dépendent de la carte
         bonus = undefined;
         action = 'Cliquez pour jouer une carte de votre main';
         cost = <CardCostSymbol />;
-        const cardCheck = CardSystem.canPlayCards(game, currentPlayer.id);
-        if (!cardCheck.canPlay) reason = cardCheck.reason || 'Impossible';
         break;
-      }
     }
 
-    // Les raisons générales passent avant celles propres à l'action
-    if (!isCurrentTurn) reason = "Ce n'est pas votre tour";
-    else if (hasPerformedMainAction) reason = 'Action principale déjà effectuée';
-    else if (!reason && tutorialReason(actionType)) reason = tutorialReason(actionType)!;
-    else if (!reason && !available) reason = "Terminez d'abord l'action en cours";
-
-    return <ActionTooltip title={actionType} cost={cost} bonus={bonus} bonusLabel={bonusLabel} available={available} hint={available ? action : reason} />;
+    return <ActionTooltip title={actionType} cost={cost} bonus={bonus} bonusLabel={bonusLabel} available={!reason} hint={reason ?? action} />;
   };
 
   // Une interaction obligatoire en cours (ex : technologie à choisir) empêche de finir le tour ou de passer
@@ -172,8 +128,7 @@ export const PlayerActions: React.FC<{
     </ol>
   }
     available={canEndTurn} hint={canEndTurn ? 'Cliquez pour terminer votre tour' : endTurnReason} />;
-  const canPass = actionAvailability[ActionType.PASS] && !interactionBlocks;
-  const mainActions: [ActionIconKind, ActionType][] = [
+  const mainActions: [ActionIconKind, MainActionType][] = [
     ['launch', ActionType.LAUNCH_PROBE], ['orbit', ActionType.ORBIT], ['land', ActionType.LAND], ['scan', ActionType.SCAN_SECTOR],
     ['analyze', ActionType.ANALYZE_DATA], ['card', ActionType.PLAY_CARD], ['research', ActionType.RESEARCH_TECH], ['pass', ActionType.PASS],
   ];
@@ -183,16 +138,18 @@ export const PlayerActions: React.FC<{
       <div className="seti-main-actions-row">
       <div className="seti-main-actions">
       {mainActions.map(([kind, actionType]) => {
-        const available = actionType === ActionType.PASS ? canPass : actionAvailability[actionType] && !isInteractiveMode;
+        // Passer attend aussi la fin d'une interaction obligatoire ; les autres actions, la fin d'un mode de sélection
+        const reason = blockReason(actionType, actionType === ActionType.PASS ? interactionBlocks : isInteractiveMode);
+        const available = !reason;
         return (
-          <TrackSlot key={actionType} icon={<ActionHexIcon kind={kind} size={42} />} hex label={actionType} tooltip={getActionTooltip(actionType, available)}
-            clickable={available} flash={available} onClick={() => onAction(actionType)}
+          <TrackSlot key={actionType} icon={<ActionHexIcon kind={kind} size={42} />} hex label={actionType} tooltip={getActionTooltip(actionType, reason)}
+            clickable={available} flash={available} disabled={!available} onClick={() => onAction(actionType)}
             onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
         );
       })}
       </div>
       <div className="seti-main-actions" data-tutorial="end-turn">
-        <TrackSlot icon={<EndTurnIcon size={42} />} hex label="Prochain joueur" tooltip={endTurnTooltip} clickable={canEndTurn} flash={canEndTurn}
+        <TrackSlot icon={<EndTurnIcon size={42} />} hex label="Prochain joueur" tooltip={endTurnTooltip} clickable={canEndTurn} flash={canEndTurn} disabled={!canEndTurn}
           onClick={() => onNextPlayer && onNextPlayer()} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
       </div>
       </div>

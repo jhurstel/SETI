@@ -652,6 +652,17 @@ export class ProbeSystem {
   }
 
   /**
+   * Coût en énergie d'un atterrissage pour le joueur : celui de la planète où se trouve sa sonde (orbiteur présent,
+   * Exploration III), sinon le coût de base, réduit par Exploration III
+   */
+  static currentLandCost(game: Game, playerId: string): number {
+    const info = this.probeOnPlanetInfo(game, playerId);
+    if (info.landCost !== undefined) return info.landCost;
+    const hasExploration3 = requirePlayer(game, playerId).technologies.some(t => t.id.startsWith('exploration-3'));
+    return hasExploration3 ? GAME_CONSTANTS.LAND_COST_ENERGY_WITH_TECHNOLOGY : GAME_CONSTANTS.LAND_COST_ENERGY;
+  }
+
+  /**
    * Vérifie si une sonde peut être mise en orbite
    */
   static canOrbit(

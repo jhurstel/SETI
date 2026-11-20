@@ -22,17 +22,20 @@ export const TrackSlot: React.FC<{
   /** Hexagone d'action principale : pas de pastille ronde derrière */
   hex?: boolean;
   flash?: boolean;
+  /** Action impossible maintenant : grisée, l'infobulle (avec la raison) reste au survol */
+  disabled?: boolean;
   /** Nom accessible (emplacement d'action) */
   label?: string;
   onHover: (e: React.MouseEvent, content: React.ReactNode) => void;
   onLeave: () => void;
-}> = ({ icon, tooltip, clickable, onClick, tech, techFrame, frameTooltip, flash, label, hex, onHover, onLeave }) => {
+}> = ({ icon, tooltip, clickable, onClick, tech, techFrame, frameTooltip, flash, disabled, label, hex, onHover, onLeave }) => {
   let className = 'obs-track-slot';
   if (hex) className += ' hex';
   if (icon === null) className += ' ghost';
   if (tech) className += tech.acquired ? ' tech-acquired' : ' tech-locked';
   if (clickable) className += ' clickable';
   if (flash) className += ' seti-flash-green';
+  if (disabled) className += ' unavailable';
   const slot = (
     <div
       className={className}

@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useTutorialPanel } from './tutorialFocus';
+import React, { useRef, useEffect, useCallback } from 'react';
+import { useFoldablePanel } from './hooks/useFoldablePanel';
 import { Card, Game, Technology, CardType, HistoryEntry, SectorType } from '../core/types';
 import { CardTooltip } from '../ui/components/CardTooltip';
 import { TechTooltip } from './components/TechTooltip';
@@ -331,9 +331,9 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
 };
 
 const HistoryBoardUIView: React.FC<HistoryBoardUIProps> = ({ historyLog, game, onUndo, onUndoTurn, setActiveTooltip }) => {
-    const [isHistoryOpen, setIsHistoryOpen] = useState(true);
-    // Tutoriel : l'historique est réduit, sauf quand l'étape le décrit
-    useTutorialPanel('history', setIsHistoryOpen);
+    // Ouvert au départ ; un clic ailleurs ne le replie pas. Tutoriel : réduit, sauf quand l'étape le décrit
+    const panelRef = useRef<HTMLDivElement>(null);
+    const panel = useFoldablePanel(panelRef, { tutorialTarget: 'history', initiallyOpen: true, closeOnOutsideClick: false });
     const historyContentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -344,8 +344,8 @@ const HistoryBoardUIView: React.FC<HistoryBoardUIProps> = ({ historyLog, game, o
 
     return (
         <div className="seti-history-wrapper" data-tutorial="history">
-            <div className={`seti-foldable-container seti-history-container seti-icon-panel ${isHistoryOpen ? 'open' : 'collapsed'}`}>
-                <div className="seti-foldable-header" onClick={() => setIsHistoryOpen(!isHistoryOpen)}>
+            <div ref={panelRef} className={`seti-foldable-container seti-history-container seti-icon-panel ${panel.stateClass}`} onMouseLeave={panel.onMouseLeave}>
+                <div className="seti-foldable-header" onClick={panel.toggle}>
                     <span className="panel-icon">📜</span>
                     <span className="panel-title seti-history-title">Historique</span>
                     {onUndoTurn && (

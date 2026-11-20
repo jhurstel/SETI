@@ -47,7 +47,7 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   position: relative;
   z-index: 10;
 }
-.seti-foldable-container:hover, .seti-foldable-container.open {
+.seti-foldable-container:hover:not(.no-hover), .seti-foldable-container.open {
   max-height: 80vh; /* Assez grand pour le contenu */
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
   border-color: #4a9eff;
@@ -66,13 +66,13 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   min-height: 40px;
   box-sizing: border-box;
 }
+/* Flèche du bandeau : ▼ panneau replié (un clic le garde ouvert), ▲ gardé ouvert (un clic le replie) */
 .seti-foldable-header::after {
   content: '▼';
   font-size: 0.8em;
-  transition: transform 0.3s;
 }
-.seti-foldable-container:hover .seti-foldable-header::after, .seti-foldable-container.open .seti-foldable-header::after {
-  transform: rotate(180deg);
+.seti-foldable-container.open .seti-foldable-header::after {
+  content: '▲';
 }
 .seti-foldable-content {
   padding: 10px;
@@ -80,7 +80,7 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   opacity: 0;
   transition: opacity 0.2s ease;
 }
-.seti-foldable-container:hover .seti-foldable-content, .seti-foldable-container.open .seti-foldable-content {
+.seti-foldable-container:hover:not(.no-hover) .seti-foldable-content, .seti-foldable-container.open .seti-foldable-content {
   opacity: 1;
   transition: opacity 0.5s ease 0.1s;
 }
@@ -106,7 +106,7 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   width: 40px;
   border-radius: 50%;
 }
-.seti-icon-panel.collapsed:hover {
+.seti-icon-panel.collapsed:hover:not(.no-hover) {
   width: 100%;
   border-radius: 6px;
   box-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
@@ -116,7 +116,7 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   justify-content: center;
   padding: 0;
 }
-.seti-icon-panel.collapsed:hover .seti-foldable-header {
+.seti-icon-panel.collapsed:hover:not(.no-hover) .seti-foldable-header {
   justify-content: space-between;
   padding: 0 10px;
 }
@@ -124,12 +124,12 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
 .seti-icon-panel .panel-title { display: block; }
 .seti-icon-panel.collapsed .panel-icon { display: block; }
 .seti-icon-panel.collapsed .panel-title { display: none; }
-.seti-icon-panel.collapsed:hover .panel-icon { display: none; }
-.seti-icon-panel.collapsed:hover .panel-title { display: block; }
+.seti-icon-panel.collapsed:hover:not(.no-hover) .panel-icon { display: none; }
+.seti-icon-panel.collapsed:hover:not(.no-hover) .panel-title { display: block; }
 .seti-icon-panel.collapsed .seti-foldable-header::after {
   display: none;
 }
-.seti-icon-panel.collapsed:hover .seti-foldable-header::after {
+.seti-icon-panel.collapsed:hover:not(.no-hover) .seti-foldable-header::after {
   display: block;
 }
 /* Emplacement d'une tuile Technologie (composant TechSpot) : même taille sur toutes les pistes */

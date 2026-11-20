@@ -2,11 +2,13 @@ import React from 'react';
 import { signalSlotState } from './signalSlotState';
 import { tutorialAllows, useTutorialFocus } from '../tutorialFocus';
 import { SlotTooltip } from './SlotTooltip';
-import { ActionType, Game, InteractionState, SignalType, GAME_CONSTANTS, Sector, Player } from '../../core/types';
-import { describeArc, polarToCartesian } from '../solarGeometry';
+import { ActionType, Bonus, Game, InteractionState, LifeTraceType, SignalType, GAME_CONSTANTS, Sector, Player } from '../../core/types';
+import { ScanSystem } from '../../systems/ScanSystem';
+import { describeArc, polarToCartesian, sectorNamePrefixAngles } from '../solarGeometry';
 import { BonusIcons } from './BonusIcons';
 import { SvgBonus } from './SvgBonus';
-import { ResourceIcon } from './GameIcons';
+import { AnyLifeTraceIcon, LifeTraceIcon, ResourceIcon, VictoryPointsIcon } from './GameIcons';
+import { LifeTraceColor } from '../styles/lifeTraceColors';
 import { HoverTooltip } from './HoverTooltip';
 import { HumanIcon } from './PlayerKindIcon';
 import { SECTOR_STYLES } from '../styles/celestialStyles';
@@ -50,6 +52,42 @@ export const SectorTooltip: React.FC<{ sector: Sector, color: string, coveredBy:
         </div>
       </div>
     </div>
+  );
+};
+
+/** Taille (unités SVG) d'un symbole du prochain gain de couverture, à côté du nom d'un secteur */
+const NEXT_COVER_SYMBOL_SIZE = 3;
+const TRACE_COLORS: Partial<Record<LifeTraceType, LifeTraceColor>> = { [LifeTraceType.RED]: 'red', [LifeTraceType.YELLOW]: 'yellow', [LifeTraceType.BLUE]: 'blue' };
+
+/** Symboles d'une récompense de couverture, dans l'ordre de lecture : traces de vie puis PV */
+const coverSymbols = (bonus: Bonus): React.ReactNode[] => {
+  const size = NEXT_COVER_SYMBOL_SIZE;
+  const traces = (bonus.lifetraces || []).flatMap(t => Array.from({ length: t.amount }, () => {
+    const color = TRACE_COLORS[t.scope];
+    return color ? <LifeTraceIcon color={color} size={size} /> : <AnyLifeTraceIcon size={size} />;
+  }));
+  return [...traces, ...(bonus.pv ? [<VictoryPointsIcon amount={bonus.pv} size={size} />] : [])];
+};
+
+/**
+ * Prochain gain de couverture (première couverture, puis couvertures suivantes) dessiné avant le nom du secteur,
+ * sur l'arc du nom, tourné comme le texte ; rien pour une récompense vide (Oumuamua)
+ */
+const NextCoverSymbols: React.FC<{ sector: Sector, centerAngle: number, radius: number, reversed: boolean }> = ({ sector, centerAngle, radius, reversed }) => {
+  const symbols = coverSymbols(ScanSystem.nextCoverBonus(sector));
+  if (symbols.length === 0) return null;
+  // Du plus proche du nom au plus éloigné : le dernier symbole lu touche le nom
+  const angles = sectorNamePrefixAngles(centerAngle, sector.name.length, radius, reversed, symbols.length, NEXT_COVER_SYMBOL_SIZE);
+  const half = NEXT_COVER_SYMBOL_SIZE / 2;
+  return (
+    <g className="no-pointer sector-next-cover">
+      {[...symbols].reverse().map((symbol, i) => {
+        const { x, y } = polarToCartesian(100, 100, radius, angles[i]);
+        // Haut du symbole vers l'extérieur en haut du plateau, vers le centre en bas (comme les lettres du nom)
+        const rotation = angles[i] + (reversed ? -90 : 90);
+        return <g key={i} transform={`translate(${x} ${y}) rotate(${rotation}) translate(${-half} ${-half})`}>{symbol}</g>;
+      })}
+    </g>
   );
 };
 
@@ -199,6 +237,9 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
                 ))}
               </textPath>
             </text>
+
+            {/* Prochain gain de couverture, avant le nom (les pastilles des joueurs qui l'ont couvert suivent le nom) */}
+            <NextCoverSymbols sector={sector} centerAngle={(startAngle + endAngle) / 2} radius={textRadius + SECTOR_NAME_CAP_HEIGHT / 2} reversed={isBottom} />
 
             {/* Fond du couloir */}
             {/* Fond presque opaque de la piste : les slots passent devant l'étoile du secteur, qui ne dépasse qu'autour
