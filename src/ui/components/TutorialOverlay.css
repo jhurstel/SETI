@@ -37,6 +37,19 @@
   line-height: 1.45;
 }
 
+/* Téléphone : toute la largeur, calée en haut ou en bas de l'écran (TutorialOverlay), hauteur limitée pour laisser
+   voir la zone décrite ; le texte défile au besoin */
+.seti-tutorial-bubble.docked {
+  left: 8px;
+  right: 8px;
+  width: auto;
+  max-height: 42vh;
+  max-height: 42dvh;
+  padding: 10px 12px;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
 .seti-tutorial-header {
   display: flex;
   justify-content: space-between;
@@ -95,6 +108,8 @@
 
 /* En-tête : titre, explication en petit dessous, puis le trait de séparation */
 .seti-tutorial-menu-header {
+  position: relative;
+  padding-right: 40px;
   padding-bottom: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
@@ -103,6 +118,28 @@
   margin: 0;
   padding: 0;
   border: none;
+}
+
+/* Fermer : une croix en haut à droite, comme la documentation */
+.seti-tutorial-menu .seti-tutorial-menu-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba(120, 160, 255, 0.4);
+  border-radius: 50%;
+  background: transparent;
+  color: #c8d4f0;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.seti-tutorial-menu .seti-tutorial-menu-close:hover {
+  border-color: #ffd76a;
+  color: #ffd76a;
 }
 
 /* Coche d'un chapitre terminé, après son titre */

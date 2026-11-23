@@ -105,6 +105,8 @@ export const BoardUI: React.FC = () => {
 
   // États de l'interface
   const [toast, setToast] = useState<{ message: string; visible: boolean } | null>(null);
+  // Zone sous le système solaire où le plateau joueur affiche ses actions et sa main sur mobile
+  const [mobileDock, setMobileDock] = useState<HTMLDivElement | null>(null);
   const showMessage = useCallback((message: string) => setToast({ message, visible: true }), []);
   // Espèces débloquées pour la première fois dans une partie locale : la bande de leur découverte (fin du tour) propose
   // leur chapitre du tutoriel (ouvert par startChapter, défini plus bas)
@@ -158,9 +160,9 @@ export const BoardUI: React.FC = () => {
     if (interactionState.type === 'IDLE') {
       // (tour d'un autre joueur : le message d'attente remplace celui-ci à l'affichage)
       if (game?.players[game.currentPlayerIndex].hasPerformedMainAction) {
-        setToast({ message: 'Action principale effectuée. Veuillez effectuer une action gratuite ou passer au prochain joueur.', visible: true });
+        setToast({ message: 'Action faite : action gratuite ou fin du tour.', visible: true });
       } else {
-        setToast({ message: "Veuillez sélectionner une action gratuite ou votre action principale.", visible: true });
+        setToast({ message: 'Choisissez une action principale ou gratuite.', visible: true });
       }
     } else {
       setToast({ message: getInteractionLabel(interactionState), visible: true });
@@ -306,20 +308,20 @@ export const BoardUI: React.FC = () => {
       return;
     }
     showNotifications(result.notifications);
-    if (step.step.kind === 'END_TURN_DONE') setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
+    if (step.step.kind === 'END_TURN_DONE') setToast({ message: 'Au tour du joueur suivant…', visible: true });
   });
 
   // --- Tour ---
 
   const handleNextPlayer = async () => {
     if (!game || !GameSession.canEndTurn(game)) {
-      setToast({ message: "Terminez d'abord l'action en cours avant de finir votre tour.", visible: true });
+      setToast({ message: "Terminez d'abord l'action en cours.", visible: true });
       return;
     }
     const before = game.currentPlayerIndex;
     const endTurn = async () => {
       if (await run({ type: 'END_TURN' }) && gameRef.current?.currentPlayerIndex !== before) {
-        setToast({ message: "Au tour du joueur suivant. Patientez...", visible: true });
+        setToast({ message: 'Au tour du joueur suivant…', visible: true });
       }
     };
     // Objectifs de mission à valider, 2e palier Exertien atteint sans crédit pour y jouer sa carte : confirmation
@@ -415,15 +417,15 @@ export const BoardUI: React.FC = () => {
         break;
       case ActionType.ORBIT:
         setActionFocus('orbit');
-        setToast({ message: "Veuillez sélectionner un emplacement d'orbite sur une planète.", visible: true });
+        setToast({ message: "Choisissez un emplacement d'orbite.", visible: true });
         break;
       case ActionType.LAND:
         setActionFocus('land');
-        setToast({ message: "Veuillez sélectionner un emplacement d'atterrissage sur une planète.", visible: true });
+        setToast({ message: "Choisissez un emplacement d'atterrissage.", visible: true });
         break;
       case ActionType.PLAY_CARD:
         setActionFocus('card');
-        setToast({ message: "Veuillez sélectionner une carte.", visible: true });
+        setToast({ message: 'Choisissez une carte.', visible: true });
         break;
       case ActionType.RESEARCH_TECH:
         run({ type: 'RESEARCH_TECH' });
@@ -456,7 +458,7 @@ export const BoardUI: React.FC = () => {
             message: `${reminder}Passer définitivement ? Vous ne pourrez plus agir avant la prochaine manche. Vous avez ${handSize} cartes en main : vous devrez en défausser ${toDiscard} pour n'en garder que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}.`,
             onConfirm: () => {
               setLocalMode({ type: 'DISCARDING_CARD', count: toDiscard, selectedCards: [] });
-              setToast({ message: `Veuillez défausser pour ne garder que ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} cartes en main.`, visible: true });
+              setToast({ message: `Défaussez jusqu'à ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS} cartes en main.`, visible: true });
             }
           });
           return;
@@ -534,7 +536,7 @@ export const BoardUI: React.FC = () => {
     }
     const moving = gameRef.current?.interaction;
     if (moving?.type === 'MOVING_PROBE') {
-      setToast({ message: `Encore ${moving.count} déplacement${moving.count > 1 ? 's' : ''} gratuit${moving.count > 1 ? 's' : ''}. Sélectionnez une sonde à déplacer.`, visible: true });
+      setToast({ message: `Encore ${moving.count} déplacement${moving.count > 1 ? 's' : ''} gratuit${moving.count > 1 ? 's' : ''} : choisissez une sonde.`, visible: true });
     }
   };
 
@@ -1136,6 +1138,7 @@ export const BoardUI: React.FC = () => {
               onMissionClick={h.handleMissionClick}
               onConfirmAction={h.confirmAction}
               tutorialBlock={tutorial.block}
+              mobileDock={mobileDock}
             />
           </div>
         </div>
@@ -1236,6 +1239,8 @@ export const BoardUI: React.FC = () => {
             forceOpen={interactionState.type === 'ACQUIRING_ALIEN_CARD' && game.species.find(s => s.id === interactionState.speciesId)?.name === game.board.alienBoards[1].speciesId}
           />
           </div>
+          {/* Mobile : actions et main du plateau joueur, sous le système solaire (portail de PlayerBoardUI) */}
+          <div className="seti-mobile-dock" ref={setMobileDock} />
         </div>
       </div>
     </div>

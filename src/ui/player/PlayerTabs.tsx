@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CardType, Game } from '../../core/types';
-import { DocumentationIcon, SettingsIcon } from '../components/GameIcons';
+import { DocumentationIcon, FullscreenIcon, SettingsIcon } from '../components/GameIcons';
 import { PlayerKindIcon } from '../components/PlayerKindIcon';
+import { useFullscreen } from '../hooks/useFullscreen';
 
 /**
  * Onglets des joueurs (couleur du joueur affiché, premier joueur, joueur actif ; flash vert quand les ressources d'un
@@ -22,6 +23,7 @@ export const PlayerTabs: React.FC<{
   // Suivi des changements de ressources pour la notification sur les onglets
   const [tabFlashes, setTabFlashes] = useState<Record<string, boolean>>({});
   const prevResourcesRef = useRef<Record<string, { credits: number, energy: number, media: number, data: number, cards: number }>>({});
+  const fullscreen = useFullscreen();
 
   useEffect(() => {
     const newFlashes: Record<string, boolean> = {};
@@ -79,7 +81,13 @@ export const PlayerTabs: React.FC<{
          </div>
        );
     })}
-    {/* Documentation et paramètres : icônes de même taille, alignées */}
+    {/* Plein écran (si le navigateur le permet), documentation et paramètres : icônes de même taille, alignées */}
+    {fullscreen.supported && (
+      <button type="button" onClick={fullscreen.toggle} className="seti-header-icon-btn" aria-label={fullscreen.active ? 'Quitter le plein écran' : 'Plein écran'}
+          onMouseEnter={(e) => handleTooltipHover(e, <div className="seti-tooltip-content">{fullscreen.active ? 'Quitter le plein écran' : 'Plein écran'}</div>)} onMouseLeave={handleTooltipLeave}>
+          <FullscreenIcon exit={fullscreen.active} />
+      </button>
+    )}
     <button type="button" onClick={onDocumentationClick} className="seti-header-icon-btn" aria-label="Documentation"
         onMouseEnter={(e) => handleTooltipHover(e, <div className="seti-tooltip-content">Documentation</div>)} onMouseLeave={handleTooltipLeave}>
         <DocumentationIcon />

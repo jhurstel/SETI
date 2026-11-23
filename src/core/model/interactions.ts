@@ -159,8 +159,8 @@ const always = () => true;
 export const INTERACTIONS = {
   IDLE: { ...local, label: () => 'Aucune action en cours.' },
   ANALYZING: { ...local, label: () => 'Analyse en cours...' },
-  DISCARDING_CARD: { ...local, label: s => `Veuillez défausser ${s.count} carte${plural(s.count)}.` },
-  TRADING_CARD: { ...local, label: s => `Veuillez échanger ${s.count} carte${plural(s.count)} pour gagner ${s.targetGain}.` },
+  DISCARDING_CARD: { ...local, label: s => `Défaussez ${s.count} carte${plural(s.count)}.` },
+  TRADING_CARD: { ...local, label: s => `Échangez ${s.count} carte${plural(s.count)} contre ${s.targetGain}.` },
 
   RESOLVING_SECTOR: { ...automatic, label: () => 'Résolution du secteur complété...' },
   DRAW_AND_SCAN: { ...automatic, label: () => "Pioche d'une carte pour signal..." },
@@ -170,55 +170,55 @@ export const INTERACTIONS = {
     label: s => (s.effectType === 'SCORE_PER_MEDIA' ? `Gagner ${s.value} PV par niveau de Média (PIXL).` : "Appliquer l'effet de la carte."),
   },
 
-  RESERVING_CARD: { ...choice('CARDS'), label: s => `Veuillez réserver ${s.count} carte${plural(s.count)}.` },
+  RESERVING_CARD: { ...choice('CARDS'), label: s => `Réservez ${s.count} carte${plural(s.count)}.` },
   ACQUIRING_CARD: {
     ...choice('CARD'),
-    label: s => (s.isFree ? `Veuillez choisir ${s.count} carte${plural(s.count)}.` : `Veuillez acheter ${s.count} carte${plural(s.count)}.`),
+    label: s => (s.isFree ? `Choisissez ${s.count} carte${plural(s.count)}.` : `Achetez ${s.count} carte${plural(s.count)}.`),
     // Une carte gagnée en bonus doit être prise ; un achat peut être abandonné
     skippable: s => !s.isFree,
   },
-  MOVING_PROBE: { ...choice(), label: s => `Veuillez déplacer une sonde gratuitement (${s.count} déplacement${plural(s.count)}).`, skippable: always },
-  ORBITING_PROBE: { ...choice('PLANET'), label: () => 'Veuillez mettre une sonde en orbite gratuitement.' },
-  LANDING_PROBE: { ...choice('PLANET'), label: () => 'Veuillez poser une sonde gratuitement.' },
+  MOVING_PROBE: { ...choice(), label: s => `Déplacez une sonde (${s.count} déplacement${plural(s.count)} gratuit${plural(s.count)}).`, skippable: always },
+  ORBITING_PROBE: { ...choice('PLANET'), label: () => 'Mettez une sonde en orbite (gratuit).' },
+  LANDING_PROBE: { ...choice('PLANET'), label: () => 'Posez une sonde (gratuit).' },
   ACQUIRING_TECH: {
     ...choice('TECH'),
-    label: s => (s.isBonus ? `Veuillez sélectionner une technologie ${s.categories ? s.categories.join(' ou ') : ''}.` : 'Veuillez acheter une technologie.'),
+    label: s => (s.isBonus ? `Choisissez une technologie${s.categories ? ` ${s.categories.join(' ou ')}` : ''}.` : 'Achetez une technologie.'),
   },
-  SELECTING_COMPUTER_SLOT: { ...choice('COMPUTER_COLUMN'), label: s => `Veuillez sélectionner un emplacement d'ordinateur pour technologie ${s.tech.shorttext}.` },
-  PLACING_LIFE_TRACE: { ...choice('LIFE_TRACE'), label: s => `Veuillez placer trace de vie (${s.color}).` },
-  PLACING_OBJECTIVE_MARKER: { ...choice('OBJECTIVE'), label: s => `Veuillez placer un marqueur d'objectif pour avoir dépassé ${s.milestone} PV.` },
-  SELECTING_SCAN_CARD: { ...choice('CARD'), label: () => 'Veuillez sélectionner une carte de la rangée pour marquer un signal.' },
+  SELECTING_COMPUTER_SLOT: { ...choice('COMPUTER_COLUMN'), label: s => `Choisissez une colonne d'ordinateur pour ${s.tech.shorttext}.` },
+  PLACING_LIFE_TRACE: { ...choice('LIFE_TRACE'), label: s => `Placez une trace de vie (${s.color}).` },
+  PLACING_OBJECTIVE_MARKER: { ...choice('OBJECTIVE'), label: s => `Placez un marqueur d'objectif (${s.milestone} PV).` },
+  SELECTING_SCAN_CARD: { ...choice('CARD'), label: () => 'Choisissez une carte de la rangée (signal).' },
   SELECTING_SCAN_SECTOR: {
     ...choice('SECTOR'),
-    label: s => (s.adjacents ? 'Veuillez sélectionner un secteur adjacent à la Terre pour marquer un signal.' : `Veuillez sélectionner un secteur ${s.color} pour marquer un signal.`),
+    label: s => (s.adjacents ? 'Choisissez un secteur voisin de la Terre (signal).' : `Choisissez un secteur ${s.color} (signal).`),
   },
-  CHOOSING_MEDIA_OR_MOVE: { ...choice('MEDIA_OR_MOVE'), label: () => 'Veuillez sélectionner le bonus de la carte 19.' },
-  CHOOSING_OBS2_ACTION: { ...choice('ACCEPT'), label: () => 'Veuillez sélectionner le bonus de technologie Observation II.' },
-  CHOOSING_OBS3_ACTION: { ...choice('ACCEPT'), label: () => 'Veuillez sélectionner le bonus de technologie Observation III.' },
-  CHOOSING_OBS4_ACTION: { ...choice('OBS4'), label: () => 'Veuillez sélectionner le bonus de technologie Observation IV.' },
+  CHOOSING_MEDIA_OR_MOVE: { ...choice('MEDIA_OR_MOVE'), label: () => 'Choisissez le bonus de la carte 19.' },
+  CHOOSING_OBS2_ACTION: { ...choice('ACCEPT'), label: () => 'Choisissez le bonus Observation II.' },
+  CHOOSING_OBS3_ACTION: { ...choice('ACCEPT'), label: () => 'Choisissez le bonus Observation III.' },
+  CHOOSING_OBS4_ACTION: { ...choice('OBS4'), label: () => 'Choisissez le bonus Observation IV.' },
   DISCARDING_DRAWN_CARD: {
     ...choice('CARD'),
     label: s => (s.step === 'FREE_ACTION'
-      ? 'Défaussez une des cartes piochées pour son action gratuite.'
-      : 'Défaussez une autre des cartes piochées pour gagner la ressource de son revenu.'),
+      ? 'Défaussez une carte piochée (action gratuite).'
+      : 'Défaussez une autre carte piochée (revenu).'),
   },
-  DISCARDING_FOR_SIGNAL: { ...choice('CARDS'), label: s => `Veuillez défausser ${s.count} carte${plural(s.count)} pour marquer un signal.` },
-  REMOVING_ORBITER: { ...choice('PLANET'), label: () => 'Veuillez retirer un orbiteur (bonus carte 15).' },
-  REMOVING_LANDER: { ...choice('PLANET'), label: () => 'Veuillez retirer un atterrisseur (bonus carte 84).' },
-  CHOOSING_BONUS_ACTION: { ...choice('MENU'), label: () => 'Veuillez choisir la prochaine action.', skippable: always },
-  ACQUIRING_ALIEN_CARD: { ...choice('ALIEN_CARD'), label: s => `Veuillez choisir ${s.count} carte${plural(s.count)} Alien (Pioche ou Rangée).` },
-  CHOOSING_CENTAURIEN_REWARD: { ...choice('CENTAURIEN'), label: () => 'Veuillez choisir une récompense Centaurien.' },
-  COLLECTING_SPECIMEN: { ...choice('SPECIMEN'), label: () => 'Veuillez cliquer sur un spécimen Mascamite pour le prélever.' },
-  CONSULTING_SPECIMEN: { ...choice('SPECIMEN'), label: () => "Veuillez cliquer sur un spécimen Mascamite pour l'étudier." },
+  DISCARDING_FOR_SIGNAL: { ...choice('CARDS'), label: s => `Défaussez ${s.count} carte${plural(s.count)} (signal).` },
+  REMOVING_ORBITER: { ...choice('PLANET'), label: () => 'Retirez un orbiteur (carte 15).' },
+  REMOVING_LANDER: { ...choice('PLANET'), label: () => 'Retirez un atterrisseur (carte 84).' },
+  CHOOSING_BONUS_ACTION: { ...choice('MENU'), label: () => 'Choisissez la prochaine action.', skippable: always },
+  ACQUIRING_ALIEN_CARD: { ...choice('ALIEN_CARD'), label: s => `Choisissez ${s.count} carte${plural(s.count)} Alien.` },
+  CHOOSING_CENTAURIEN_REWARD: { ...choice('CENTAURIEN'), label: () => 'Choisissez une récompense Centaurien.' },
+  COLLECTING_SPECIMEN: { ...choice('SPECIMEN'), label: () => 'Choisissez un spécimen Mascamite à prélever.' },
+  CONSULTING_SPECIMEN: { ...choice('SPECIMEN'), label: () => 'Choisissez un spécimen Mascamite à étudier.' },
   CHOOSING_EXERTIEN_CARD: {
     ...choice('EXERTIEN'),
     label: s => (s.milestone === 0
-      ? `Découverte des Exertiens : vous pouvez jouer ${(s.count ?? 1) > 1 ? `${s.count} cartes Exertiens` : 'une carte Exertien'}.`
-      : `Palier Exertien (${s.milestone} PV) : vous pouvez jouer une carte Exertien.`),
+      ? `Exertiens découverts : jouez ${(s.count ?? 1) > 1 ? `${s.count} cartes` : 'une carte'} si vous voulez.`
+      : `Palier Exertien (${s.milestone} PV) : jouez une carte si vous voulez.`),
   },
   CHOOSING_ROUND_CARD: { ...choice('CARD'), label: s => `Choisissez une carte de fin de manche ${s.round}.` },
   DISCARDING_TOKEN: { ...choice('ACCEPT'), label: s => `Défausser 1 Token pour gagner ${s.rewardText} ("${s.cardName}") ?` },
-  CHOOSING_MISSION_REQUIREMENT: { ...choice('MISSION'), label: () => 'Mission déclenchée : vous pouvez recouvrir un cercle.' },
+  CHOOSING_MISSION_REQUIREMENT: { ...choice('MISSION'), label: () => 'Mission : recouvrez un cercle ?' },
 } as const satisfies { [T in InteractionType]: InteractionDescriptor<T> };
 
 /** Types d'interaction selon leur résolution */

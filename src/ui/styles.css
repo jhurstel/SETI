@@ -221,6 +221,22 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   flex-direction: column;
 }
 
+/* Plateaux, fenêtres de choix et infobulles : rien à sélectionner (sur écran tactile, un appui long sélectionnait
+   chiffres, noms des planètes et textes des cartes) ; les champs de saisie restent sélectionnables (iOS) */
+.seti-root-inner,
+.seti-modal-overlay,
+.seti-tooltip {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.seti-root-inner :is(input, textarea),
+.seti-modal-overlay :is(input, textarea) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 .seti-root-inner {
   height: 100%;
   width: 100%;
@@ -308,7 +324,6 @@ input:not([type]), input[type="text"], input[type="number"], textarea {
   border: 2px solid rgba(100, 150, 255, 0.3);
   border-radius: 8px;
   padding: 8px;
-  backdrop-filter: blur(10px);
   display: flex;
   flex-direction: column;
   overflow: hidden;

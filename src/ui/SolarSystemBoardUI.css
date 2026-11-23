@@ -395,25 +395,23 @@
     stroke-width: 1.5; /* Bordure plus épaisse */
 }
 
+/* Pas d'ombre portée sur les secteurs : un filtre par secteur ralentissait le zoom (pincement) sur mobile */
 /* Level 1 - Bleu */
 .seti-rotating-sector-svg.level-1 path {
     fill: rgba(40, 60, 100, 1);
     stroke: rgba(74, 158, 255, 0.7);
-    filter: drop-shadow(0 0 2px rgba(74, 158, 255, 0.2));
 }
 
 /* Level 2 - Rouge */
 .seti-rotating-sector-svg.level-2 path {
     fill: rgb(82, 66, 56);
     stroke: rgba(255, 71, 71, 0.7);
-    filter: drop-shadow(0 0 3px rgba(255, 71, 71, 0.2));
 }
   
 /* Level 3 - Jaune */
 .seti-rotating-sector-svg.level-3 path {
     fill: rgb(91, 121, 83);
     stroke: rgba(255, 215, 0, 0.7);
-    filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0,2));
 }
   
 .seti-planet-icon-body {

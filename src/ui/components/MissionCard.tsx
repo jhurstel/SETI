@@ -54,6 +54,7 @@ export const MissionCard: React.FC<MissionCardProps> = ({
   const card = mission.originalCard;
   return (
     <div
+      data-tap-tooltip
       className={`seti-common-card seti-mission-card ${mission.completed ? 'completed' : ''} help-cursor`}
       onMouseEnter={e => { if (card) handleTooltipHover(e, <CardTooltip card={card} circleStates={circleStates} />); }}
       onMouseLeave={handleTooltipLeave}

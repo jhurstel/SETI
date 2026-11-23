@@ -138,6 +138,7 @@ const SpeciesCardArea: React.FC<{
             {row.map(card => (
                 <div key={card.id}
                     onClick={(e) => { e.stopPropagation(); onCardClick(species.id, card.id); }}
+                    data-tap-tooltip
                     onMouseEnter={(e) => handleCardHover(e, card)}
                     onMouseLeave={scheduleClose}
                     className={`seti-common-card seti-row-card alien-small-card ${isAcquiring ? 'acquiring' : 'default'}`}
@@ -240,6 +241,7 @@ const ExertienDangerTooltip: React.FC<{
                                                     const held = p.cards.some(c => c.id === card.id);
                                                     return (
                                                         <div key={card.id} className={`seti-common-card alien-danger-card ${held ? 'held' : 'played'}`}
+                                                            data-tap-tooltip
                                                             onMouseEnter={(e) => setHoveredCard({ card, rect: e.currentTarget.getBoundingClientRect() })}
                                                             onMouseLeave={() => setHoveredCard(null)}
                                                         >

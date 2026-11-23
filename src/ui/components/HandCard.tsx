@@ -90,6 +90,7 @@ export const HandCard: React.FC<{
     return (
       <div 
         className={`seti-common-card seti-card-wrapper ${phaseClass}`}
+        data-tap-tooltip
         // Carte non sélectionnable : curseur d'aide (son infobulle reste consultable)
         style={shouldGrayOut ? { opacity: 0.7, filter: 'grayscale(0.8)', cursor: 'help'} : { cursor: isClickable ? 'pointer' : 'help'}}
         onMouseEnter={e => handleTooltipHover(e, <CardTooltip card={card} />)}

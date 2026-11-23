@@ -57,7 +57,6 @@
   max-height: none;
   background: rgba(20, 25, 40, 0.9);
   border: 2px solid rgba(100, 150, 255, 0.4);
-  backdrop-filter: blur(10px);
 }
 
 
@@ -608,18 +607,23 @@
   gap: 4px;
 }
 
-/* Mobile : ressources sur deux lignes de trois, les revenus à droite sur les deux lignes */
+/* Mobile : ressources et revenus sur une seule ligne, réduits (symboles, valeurs et légendes) ;
+   légende courte sous les cartes (« Fin : 4 ») */
 @media (max-width: 600px) {
   .seti-stats-row {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.2fr);
-    grid-auto-rows: 1fr;
+    zoom: 0.72;
+    gap: 2px;
   }
 
-  .seti-stats-row > .seti-revenue-tile {
-    grid-column: 4;
-    grid-row: 1 / span 2;
+  .seti-stats-row .seti-stat-tile {
+    padding: 2px 1px 9px;
   }
+
+  .seti-stat-caption-long { display: none; }
+}
+
+@media (min-width: 601px) {
+  .seti-stat-caption-short { display: none; }
 }
 
 /* Les 8 actions principales en hexagones, puis la fin du tour dans son cadre : toute la largeur */

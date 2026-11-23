@@ -22,6 +22,7 @@ export const PlayedMissionCard: React.FC<PlayedMissionCardProps> = ({ card, cent
 
   return (
     <div className={`seti-common-card seti-played-card ${isCompleted ? 'completed' : ''}`}
+      data-tap-tooltip
       onMouseEnter={(e) => handleTooltipHover(e, <CardTooltip card={card} />)}
       onMouseLeave={handleTooltipLeave}
     >

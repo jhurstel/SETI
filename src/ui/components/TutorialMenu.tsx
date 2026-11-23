@@ -19,7 +19,7 @@ interface TutorialMenuProps {
  * d'espèce pas encore rencontrée en partie : verrouillé, sans le nom de l'espèce
  */
 export const TutorialMenu: React.FC<TutorialMenuProps> = ({ chapters, text, done, unlockedSpecies = [], onStart, onClose }) => {
-  // Pas de bouton Fermer : Échap ou un clic hors de la fenêtre ramènent à l'accueil
+  // Bouton Fermer (comme la documentation), Échap ou un clic hors de la fenêtre ramènent à l'accueil
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -31,6 +31,7 @@ export const TutorialMenu: React.FC<TutorialMenuProps> = ({ chapters, text, done
       <div className="seti-tutorial-menu" role="dialog" aria-label="Tutoriel" onClick={e => e.stopPropagation()}>
         {/* Titre et explication en petit dessous : la place reste aux chapitres */}
         <div className="seti-tutorial-menu-header">
+          <button type="button" onClick={onClose} className="seti-tutorial-menu-close" aria-label="Fermer">✕</button>
           <h2 className="seti-modal-title">Tutoriel</h2>
           <p className="seti-tutorial-menu-intro">Apprenez SETI pas à pas, sur le vrai plateau, dans l'ordre de votre choix.</p>
         </div>

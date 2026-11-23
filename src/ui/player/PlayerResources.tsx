@@ -96,7 +96,8 @@ export const PlayerResources: React.FC<{
 
   const flashClass = (flash: { type: string } | null) => (flash ? (flash.type === 'gain' ? 'flash-gain' : 'flash-loss') : '');
   // Tuile d'une ressource : symbole et valeur, limite éventuelle en légende dessous (sans déplacer le symbole)
-  const tile = (key: string, flash: { id: number; type: string } | null, icon: React.ReactNode, tooltip: React.ReactNode, caption?: string) => (
+  // (`shortCaption` : légende sur mobile, où la tuile est étroite)
+  const tile = (key: string, flash: { id: number; type: string } | null, icon: React.ReactNode, tooltip: React.ReactNode, caption?: string, shortCaption?: string) => (
     <div
       key={flash ? `${key}-${flash.id}` : `${key}-static`}
       className={`seti-stat-tile ${tooltip ? 'has-actions' : ''} ${flashClass(flash)}`}
@@ -105,7 +106,11 @@ export const PlayerResources: React.FC<{
       onMouseLeave={tooltip ? scheduleTooltipClose : undefined}
     >
       <div className="seti-stat-main">{icon}</div>
-      {caption && <span className="seti-stat-caption">{caption}</span>}
+      {caption && !shortCaption && <span className="seti-stat-caption">{caption}</span>}
+      {caption && shortCaption && <>
+        <span className="seti-stat-caption seti-stat-caption-long">{caption}</span>
+        <span className="seti-stat-caption seti-stat-caption-short">{shortCaption}</span>
+      </>}
     </div>
   );
   return (
@@ -118,7 +123,7 @@ export const PlayerResources: React.FC<{
     {tile('energy', energyFlash, <ResourceIcon kind="energy" amount={currentPlayer.energy} size={30} />,
       resourceTooltip([trade('energy', 'credit'), trade('energy', 'card')]))}
     {tile('cards', cardsFlash, <ResourceIcon kind="card" amount={handCount} size={30} />,
-      resourceTooltip([cardTrade('credit'), cardTrade('energy')]), `Fin de tour : ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}`)}
+      resourceTooltip([cardTrade('credit'), cardTrade('energy')]), `Fin de tour : ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}`, `Fin : ${GAME_CONSTANTS.HAND_SIZE_AFTER_PASS}`)}
     {tile('media', mediaFlash, <ResourceIcon kind="media" amount={currentPlayer.mediaCoverage} size={30} />,
       resourceTooltip([buyCard]), `(max ${GAME_CONSTANTS.MAX_MEDIA_COVERAGE})`)}
     {tile('data', dataFlash, <ResourceIcon kind="data" amount={currentPlayer.data} size={30} />,

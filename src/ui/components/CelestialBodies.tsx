@@ -365,15 +365,16 @@ const OumuamuaSvgBase: React.FC<{ width: number; height: number }> = ({ width, h
   );
 };
 
+/** Granulation du Soleil : petites cellules claires réparties de façon stable (calculées une fois) */
+const SUN_GRAINS = Array.from({ length: 70 }, (_, i) => {
+  const a = seeded(i + 1) * Math.PI * 2;
+  const d = Math.sqrt(seeded(i + 101)) * 44;
+  return { x: Math.cos(a) * d, y: Math.sin(a) * d, r: 1.6 + seeded(i + 201) * 2.4 };
+});
+
 /** Soleil : photosphère granuleuse assombrie au bord, facules, protubérances et couronne diffuse */
 const SunSvgBase: React.FC = () => {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '');
-  // Granulation : petites cellules claires réparties de façon stable
-  const grains = Array.from({ length: 70 }, (_, i) => {
-    const a = seeded(i + 1) * Math.PI * 2;
-    const d = Math.sqrt(seeded(i + 101)) * 44;
-    return { x: Math.cos(a) * d, y: Math.sin(a) * d, r: 1.6 + seeded(i + 201) * 2.4 };
-  });
   // Protubérances : arcs lumineux au bord du disque
   const prominences = [20, 140, 255];
   return (
@@ -398,17 +399,20 @@ const SunSvgBase: React.FC = () => {
       </defs>
       {/* Couronne */}
       <circle r={96} fill={`url(#sun-corona-${uid})`} />
-      {prominences.map(deg => (
-        <g key={deg} transform={`rotate(${deg})`}>
-          <path d="M-6 -45 Q0 -60 6 -45" fill="none" stroke="#ff8a3d" strokeWidth={2.5} opacity={0.75} filter={`url(#sun-blur-${uid})`} />
-        </g>
-      ))}
+      {/* Un seul flou par groupe, pas un par élément (75 auparavant) : le zoom du navigateur redessine chaque filtre */}
+      <g filter={`url(#sun-blur-${uid})`}>
+        {prominences.map(deg => (
+          <path key={deg} transform={`rotate(${deg})`} d="M-6 -45 Q0 -60 6 -45" fill="none" stroke="#ff8a3d" strokeWidth={2.5} opacity={0.75} />
+        ))}
+      </g>
       <circle r={46} fill={`url(#sun-disk-${uid})`} />
       <g clipPath={`url(#sun-clip-${uid})`}>
-        {grains.map((g, i) => <circle key={i} cx={g.x} cy={g.y} r={g.r} fill="#fff4c2" opacity={0.18} filter={`url(#sun-blur-${uid})`} />)}
-        {/* Facules */}
-        <ellipse cx={-16} cy={14} rx={9} ry={4} fill="#fff6d0" opacity={0.35} filter={`url(#sun-blur-${uid})`} />
-        <ellipse cx={15} cy={-12} rx={7} ry={3} fill="#fff6d0" opacity={0.25} filter={`url(#sun-blur-${uid})`} />
+        <g filter={`url(#sun-blur-${uid})`}>
+          {SUN_GRAINS.map((g, i) => <circle key={i} cx={g.x} cy={g.y} r={g.r} fill="#fff4c2" opacity={0.18} />)}
+          {/* Facules */}
+          <ellipse cx={-16} cy={14} rx={9} ry={4} fill="#fff6d0" opacity={0.35} />
+          <ellipse cx={15} cy={-12} rx={7} ry={3} fill="#fff6d0" opacity={0.25} />
+        </g>
       </g>
     </svg>
   );

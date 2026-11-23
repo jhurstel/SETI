@@ -18,6 +18,7 @@ export const ChoiceCardTile: React.FC<{
 }> = ({ card, selected, highlightedAttribute, onClick, onHover }) => (
   <div
     onClick={onClick}
+    data-tap-tooltip
     onMouseEnter={(e) => onHover({ content: <CardTooltip card={card} />, rect: e.currentTarget.getBoundingClientRect() })}
     onMouseLeave={() => onHover(null)}
     className={`seti-common-card seti-card-wrapper seti-choice-card-tile ${selected ? 'selected' : ''}`}

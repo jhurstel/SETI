@@ -441,6 +441,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
           pointerEvents: selectedProbeId ? 'none' : 'auto',
           filter: `drop-shadow(0 0 4px ${color})`,
         }}
+        data-tap-tooltip
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
@@ -526,6 +527,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
           filter: 'drop-shadow(0 0 1px rgba(255,255,255,0.4))',
           transform: containerTransform,
         }}
+        data-tap-tooltip
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
         onClick={() => handlePlanetObjectClick(obj)}
@@ -627,6 +629,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
           zIndex,
           pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
+        data-tap-tooltip
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >
@@ -664,6 +667,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
           zIndex,
           pointerEvents: selectedProbeId ? 'none' : 'auto',
         }}
+        data-tap-tooltip
         onMouseEnter={(e) => handleMouseEnterObject(e, obj)}
         onMouseLeave={handleMouseLeaveObject}
       >

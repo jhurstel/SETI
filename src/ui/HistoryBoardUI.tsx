@@ -159,6 +159,7 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
                         <span
                             key={index}
                             className="seti-history-card-ref"
+                            data-tap-tooltip
                             onMouseEnter={(e) => {
                                 const rect = e.currentTarget.getBoundingClientRect();
                                 setActiveTooltip({ content: <CardTooltip card={card} />, rect });
@@ -176,6 +177,7 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
                         <span
                             key={index}
                             className="seti-history-card-ref"
+                            data-tap-tooltip
                             onMouseEnter={(e) => {
                                 const rect = e.currentTarget.getBoundingClientRect();
                                 setActiveTooltip({ content: <TechTooltip tech={tech} />, rect });
@@ -340,9 +342,9 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
 };
 
 const HistoryBoardUIView: React.FC<HistoryBoardUIProps> = ({ historyLog, game, onUndo, onUndoTurn, undoBlockedReason, setActiveTooltip }) => {
-    // Ouvert au départ ; un clic ailleurs ne le replie pas. Tutoriel : réduit, sauf quand l'étape le décrit
+    // Replié au départ ; un clic ailleurs le replie, comme les autres panneaux. Tutoriel : ouvert quand l'étape le décrit
     const panelRef = useRef<HTMLDivElement>(null);
-    const panel = useFoldablePanel(panelRef, { tutorialTarget: 'history', initiallyOpen: true, closeOnOutsideClick: false });
+    const panel = useFoldablePanel(panelRef, { tutorialTarget: 'history' });
     const historyContentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {

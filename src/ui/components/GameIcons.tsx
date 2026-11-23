@@ -906,6 +906,15 @@ export const SettingsIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
   </svg>
 );
 
+/** Plein écran : quatre coins tournés vers l'extérieur (vers l'intérieur pour en sortir), même gabarit */
+export const FullscreenIcon: React.FC<{ size?: number; exit?: boolean }> = ({ size = 20, exit = false }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {exit
+      ? <path d="M9 4 V9 H4 M15 4 V9 H20 M9 20 V15 H4 M15 20 V15 H20" />
+      : <path d="M4 9 V4 H9 M15 4 H20 V9 M4 15 V20 H9 M15 20 H20 V15" />}
+  </svg>
+);
+
 /** Trophée doré : vainqueur de la partie (tableau de fin de partie) */
 export const TrophyIcon: React.FC<{ size?: number }> = ({ size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">

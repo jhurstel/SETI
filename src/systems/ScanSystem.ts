@@ -602,7 +602,7 @@ export class ScanSystem {
     const availableProbes = validProbes.filter(p => !(interaction.usedProbeIds || []).includes(p.id));
     if (availableProbes.length === 0) {
       if (validProbes.length > 0) return { valid: false, error: 'Cette sonde a déjà été sélectionnée pour cette action.' };
-      return { valid: false, error: interaction.anyProbe ? 'Veuillez sélectionner un secteur contenant une sonde.' : 'Veuillez sélectionner un secteur contenant une de vos sondes.' };
+      return { valid: false, error: interaction.anyProbe ? 'Choisissez un secteur avec une sonde.' : 'Choisissez un secteur avec une de vos sondes.' };
     }
     return { valid: true, usedProbeId: availableProbes[0].id };
   }

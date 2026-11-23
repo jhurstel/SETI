@@ -52,6 +52,39 @@ function targetRect(target?: string): Rect | null {
   return { top, left, width: Math.max(...rects.map(r => r.right)) - left, height: Math.max(...rects.map(r => r.bottom)) - top };
 }
 
+/** Écran étroit (téléphone en portrait) : même seuil que la mise en page mobile (styles.css) */
+const MOBILE_QUERY = '(max-width: 600px)';
+const isMobileLayout = () => window.matchMedia?.(MOBILE_QUERY).matches ?? false;
+
+/**
+ * Téléphone : bulle sur toute la largeur, calée en haut ou en bas de l'écran, du côté opposé à la cible (le côté où
+ * il reste le plus de place) pour ne pas recouvrir ce qu'elle décrit (panneau qui s'ouvre, rangée, technologies)
+ */
+function dockedPosition(rect: Rect | null): { style: React.CSSProperties; side: 'top' | 'bottom' } {
+  const vh = window.innerHeight;
+  const side = rect && rect.top > vh - (rect.top + rect.height) ? 'top' : 'bottom';
+  return { style: side === 'top' ? { top: 8 } : { bottom: 8 }, side };
+}
+
+/** Panneau de l'écran mobile (plateau joueur ou plateau de jeu) contenant l'élément */
+function mobileScreenOf(element: Element): HTMLElement | null {
+  return element.closest<HTMLElement>('.seti-left-panel, .seti-right-panel');
+}
+
+/** Amène à l'écran la zone décrite : écran mobile qui la contient (défilement horizontal), puis la zone elle-même */
+function revealTarget(target: string) {
+  const element = [...document.querySelectorAll(`[data-tutorial="${target}"]`)]
+    .find(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
+    ?? document.querySelector(`[data-tutorial="${target}"]`);
+  if (!element) return;
+  const screen = isMobileLayout() ? mobileScreenOf(element) : null;
+  const root = screen?.parentElement;
+  if (screen && root && Math.abs(root.scrollLeft - screen.offsetLeft) > 2) {
+    root.scrollTo({ left: screen.offsetLeft, behavior: 'smooth' });
+  }
+  element.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+}
+
 /** Place la bulle du côté de la cible qui a le plus de place, dans l'écran */
 function bubblePosition(rect: Rect | null, bubbleHeight: number): React.CSSProperties {
   const vw = window.innerWidth;
@@ -86,35 +119,60 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = props => {
   const bubbleRef = useRef<HTMLDivElement>(null);
   const [rect, setRect] = useState<Rect | null>(null);
   const [bubbleHeight, setBubbleHeight] = useState(180);
+  // Mise en page mobile (relue au changement d'orientation)
+  const [mobile, setMobile] = useState(isMobileLayout);
 
   useEffect(() => {
     const update = () => {
       const next = finished ? null : targetRect(target);
       setRect(current => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
+      setMobile(isMobileLayout());
     };
     update();
     const timer = window.setInterval(update, 400);
-    window.addEventListener('resize', update);
+    // Changement d'orientation : la mise en page se refait en plusieurs temps (défilement, panneaux) ; recalage aussitôt puis peu après
+    const pending: number[] = [];
+    const onResize = () => { update(); pending.push(window.setTimeout(update, 150), window.setTimeout(update, 600)); };
+    window.addEventListener('resize', onResize);
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener('resize', update);
+      pending.forEach(id => window.clearTimeout(id));
+      window.removeEventListener('resize', onResize);
     };
   }, [target, finished]);
 
-  // Zone décrite amenée à l'écran (la main ou les missions sont en bas du plateau joueur, qui défile)
+  // Zone décrite amenée à l'écran : sur mobile, bascule vers l'écran qui la contient (plateau joueur ou plateau de
+  // jeu) ; la main ou les missions sont en bas du plateau joueur, qui défile. Rejoué après un changement
+  // d'orientation (la mise en page change, le défilement horizontal aussi), une fois le panneau décrit ouvert.
   useEffect(() => {
     if (!target || finished) return;
-    const element = document.querySelector(`[data-tutorial="${target}"]`);
-    element?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    const reveal = () => revealTarget(target);
+    reveal();
+    const timer = window.setTimeout(reveal, 350);
+    let resizeTimer = 0;
+    const onResize = () => { window.clearTimeout(resizeTimer); resizeTimer = window.setTimeout(reveal, 250); };
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(resizeTimer);
+      window.removeEventListener('resize', onResize);
+    };
   }, [target, finished]);
 
-  // Hauteur de la bulle (pour la placer au-dessus d'une cible) : mesurée à chaque changement de contenu
+  // Hauteur de la bulle (pour la placer au-dessus d'une cible) : suivie en continu (texte, largeur de l'écran)
   useLayoutEffect(() => {
-    const height = bubbleRef.current?.offsetHeight;
-    if (height) setBubbleHeight(height);
-  }, [text, finished, props.stepNumber]);
+    const bubble = bubbleRef.current;
+    if (!bubble) return;
+    const measure = () => { if (bubble.offsetHeight) setBubbleHeight(bubble.offsetHeight); };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(bubble);
+    return () => observer.disconnect();
+  }, []);
 
   const body = useMemo(() => (text?.body ? renderMarkdown(text.body).html : ''), [text]);
+  const docked = mobile ? dockedPosition(rect) : null;
 
   return (
     <>
@@ -122,7 +180,8 @@ export const TutorialOverlay: React.FC<TutorialOverlayProps> = props => {
         <div className="seti-tutorial-highlight" aria-hidden="true"
           style={{ top: rect.top - 6, left: rect.left - 6, width: rect.width + 12, height: rect.height + 12 }} />
       )}
-      <div ref={bubbleRef} className={`seti-tutorial-bubble${props.aboveModals ? ' above-modals' : ''}`} role="dialog" aria-label="Tutoriel" style={bubblePosition(rect, bubbleHeight)}>
+      <div ref={bubbleRef} className={`seti-tutorial-bubble${props.aboveModals ? ' above-modals' : ''}${docked ? ` docked docked-${docked.side}` : ''}`}
+        role="dialog" aria-label="Tutoriel" style={docked ? docked.style : bubblePosition(rect, bubbleHeight)}>
         <div className="seti-tutorial-header">
           <span className="seti-tutorial-chapter">{props.chapterTitle}</span>
           {!finished && !props.hideCount && !props.deadEnd && <span className="seti-tutorial-count">{props.stepNumber} / {props.stepCount}</span>}

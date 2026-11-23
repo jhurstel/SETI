@@ -59,7 +59,7 @@
   border: 1px solid #4a9eff;
   border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-weight: bold;
   /* Sous le voile des fenêtres de choix : grisé comme le reste tant que la fenêtre est ouverte */
   pointer-events: none;
@@ -562,4 +562,37 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
 @keyframes seti-anomaly-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* Mobile : actions et main du plateau joueur sous le système solaire (PlayerBoardUI, portail), pour jouer sans changer
+   d'écran ; le système solaire prend la hauteur qui reste. Ailleurs, la zone est vide et masquée. */
+.seti-mobile-dock {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .seti-mobile-dock {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .seti-mobile-dock:empty {
+    display: none;
+  }
+
+  .seti-mobile-dock .seti-player-section {
+    padding: 4px 6px;
+  }
+
+  /* Plateaux repliés dans les coins (objectifs, technologies, rangée, planètes, historique, Alien) : un peu plus petits */
+  .seti-right-board .seti-icon-panel.collapsed {
+    zoom: 0.8;
+  }
+
+  .seti-side-panels-container {
+    padding: 10px;
+  }
 }

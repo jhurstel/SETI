@@ -187,6 +187,7 @@ const PlanetBoardUIView: React.FC<PlanetBoardUIProps> = ({ game, interactionStat
                         <div 
                             key={planet.id} 
                             className={`planet-icon-wrapper ${planet.id === actionPlanetId ? 'seti-flash-green' : ''}`}
+                            data-tap-tooltip
                             onMouseEnter={(e) => handleMouseEnter(e, planet)}
                             onMouseLeave={handleMouseLeave}
                         >

@@ -1,5 +1,6 @@
 import type { TutorialAction } from '../tutorial/types';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Game, GamePhase, ActionType, GAME_CONSTANTS, Card, Mission, InteractionState, CardType } from '../core/types';
 import { CardSystem } from '../systems/CardSystem';
 import { PlayerComputer } from './components/PlayerComputer';
@@ -18,6 +19,7 @@ import { PlayerActions } from './player/PlayerActions';
 import { ExplorationTrack, ObservationTrack } from './player/PlayerTracks';
 import './PlayerBoardUI.css';
 import { useSpeciesMask } from './speciesMask';
+import { MOBILE_LAYOUT_QUERY, useMediaQuery } from './hooks/useMediaQuery';
 
 interface PlayerBoardUIProps {
   game: Game;
@@ -46,9 +48,14 @@ interface PlayerBoardUIProps {
   tutorialBlock?: (action: TutorialAction) => string | null;
   /** Action « Jouer une carte » choisie : met en avant les cartes jouables de la main */
   highlightPlayableCards?: boolean;
+  /** Mobile : zone sous le système solaire où s'affichent les actions et la main (jouables sans changer d'écran) */
+  mobileDock?: HTMLElement | null;
 }
 
-const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onTransferData, onComputerSlotSelect, onNextPlayer, onDirectTradeAction, setActiveTooltip, onSettingsClick, onDocumentationClick, onMissionClick, onConfirmAction, highlightPlayableCards = false, remoteHumanIds = [], tutorialBlock }) => {
+const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, interactionState, onViewPlayer, onAction, onCardClick, onDiscardCardAction, onPlayCard, onBuyCardAction, onTradeCardAction, onTransferData, onComputerSlotSelect, onNextPlayer, onDirectTradeAction, setActiveTooltip, onSettingsClick, onDocumentationClick, onMissionClick, onConfirmAction, highlightPlayableCards = false, remoteHumanIds = [], tutorialBlock, mobileDock = null }) => {
+  const isMobile = useMediaQuery(MOBILE_LAYOUT_QUERY);
+  // Mobile : actions et main sous le système solaire (portail), plus dans le plateau joueur
+  const dock = isMobile ? mobileDock : null;
   // Cartes d'une espèce masquée (chapitre « Traces de vie et espèces ») : montrées de dos
   const speciesMaskValue = useSpeciesMask();
   // Symbole d'espèce au dos d'une carte Alien, sauf pour l'espèce masquée par le chapitre du tutoriel
@@ -244,6 +251,32 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
   const showHandModal = handSnapshot !== null && handSnapshot.playerId === currentPlayer.id && handCards.length > 0
     && handSnapshot.ids.every(id => handIdSet.has(id));
 
+  // Les 8 actions principales en hexagones, puis la fin du tour dans son propre cadre (dans le plateau, ou sous le système solaire sur mobile)
+  const actionsSection = !isRobot && (
+    <PlayerActions game={game} playerId={currentPlayer.id} interactionState={interactionState} isInteractiveMode={isInteractiveMode}
+      onAction={onAction} onNextPlayer={onNextPlayer} handleTooltipHover={handleTooltipHover} handleTooltipLeave={handleTooltipLeave}
+      tutorialBlock={tutorialBlock} />
+  );
+
+  // Main (cartes réduites, bouton « main en grand ») : dans le plateau, ou sous le système solaire sur mobile
+  const handSection = (
+    <div className="seti-player-section" data-tutorial="hand">
+      <div className="seti-player-section-title seti-section-title-row">
+        Main
+        {/* Main en grand, dans une fenêtre */}
+        <button className="seti-hand-expand-btn" aria-label="Voir la main en grand" aria-disabled={handCards.length === 0}
+          onClick={() => { if (handCards.length > 0) setHandSnapshot({ playerId: currentPlayer.id, ids: handCards.map(c => c.id) }); }}
+          onMouseEnter={e => handleTooltipHover(e, <SlotTooltip status="Voir la main en grand" statusColor="#9fb2da" note={handCards.length > 0 ? 'Les cartes en grande taille, avec leurs boutons' : 'Aucune carte en main'} />)}
+          onMouseLeave={handleTooltipLeave}>
+          <ExpandIcon size={14} />
+        </button>
+      </div>
+      <div className="seti-player-list seti-cards-list seti-thin-scroll" ref={cardsListRef}>
+        {handContent}
+      </div>
+    </div>
+  );
+
   return (
     <div className="seti-player-board-container">
       {/* Onglets des joueurs */}
@@ -261,12 +294,7 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
               isInteractiveMode={isInteractiveMode} onDirectTradeAction={onDirectTradeAction} onTradeCardAction={onTradeCardAction}
               onBuyCardAction={onBuyCardAction} setActiveTooltip={setActiveTooltip} showInteractiveTooltip={showInteractiveTooltip}
               scheduleTooltipClose={scheduleTooltipClose} />
-            {/* Les 8 actions principales en hexagones, puis la fin du tour dans son propre cadre */}
-            {!isRobot && (
-              <PlayerActions game={game} playerId={currentPlayer.id} interactionState={interactionState} isInteractiveMode={isInteractiveMode}
-                onAction={onAction} onNextPlayer={onNextPlayer} handleTooltipHover={handleTooltipHover} handleTooltipLeave={handleTooltipLeave}
-                tutorialBlock={tutorialBlock} />
-            )}
+            {!dock && actionsSection}
           </div>
 
           {/* Exploration et Observation sur une ligne (l'une sous l'autre si le plateau est trop étroit) */}
@@ -308,22 +336,7 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
             </div>
           </div>
 
-          {/* Main (cartes réduites, bouton « main en grand ») */}
-          <div className="seti-player-section" data-tutorial="hand">
-            <div className="seti-player-section-title seti-section-title-row">
-              Main
-              {/* Main en grand, dans une fenêtre */}
-              <button className="seti-hand-expand-btn" aria-label="Voir la main en grand" aria-disabled={handCards.length === 0}
-                onClick={() => { if (handCards.length > 0) setHandSnapshot({ playerId: currentPlayer.id, ids: handCards.map(c => c.id) }); }}
-                onMouseEnter={e => handleTooltipHover(e, <SlotTooltip status="Voir la main en grand" statusColor="#9fb2da" note={handCards.length > 0 ? 'Les cartes en grande taille, avec leurs boutons' : 'Aucune carte en main'} />)}
-                onMouseLeave={handleTooltipLeave}>
-                <ExpandIcon size={14} />
-              </button>
-            </div>
-            <div className="seti-player-list seti-cards-list seti-thin-scroll" ref={cardsListRef}>
-              {handContent}
-            </div>
-          </div>
+          {!dock && handSection}
 
           {/* Missions */}
           <div className="seti-player-section" data-tutorial="missions">
@@ -394,6 +407,8 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
 
         </div>
       </div>
+      {/* Mobile : actions puis main, sous le système solaire */}
+      {dock && createPortal(<>{actionsSection}{handSection}</>, dock)}
       {showHandModal && (
         <HandModal title={currentPlayer.id === viewerId ? 'Votre main' : `Main de ${currentPlayer.name}`} onClose={closeHandModal}>
           {handContent}
