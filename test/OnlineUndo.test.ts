@@ -1,6 +1,8 @@
 import { GameRoom } from '../src/session/GameRoom';
 import { FirstPlayerChoice, parseClientMessage } from '../src/session/protocol';
 import { GamePhase } from '../src/core/types';
+import { REVELATION_REASON } from '../src/session/Revelation';
+import { TechnologySystem } from '../src/systems/TechnologySystem';
 import { mockFetchFromPublic, TEST_SEED } from './helpers/gameFixture';
 
 /** Salle de 2 humains (Alice, Bob) et d'un robot */
@@ -138,6 +140,48 @@ describe('GameRoom : annulation en ligne', () => {
     expect(room.command(tokenOf(room, next.id), { type: 'LAUNCH_PROBE' }).error).toBeUndefined();
     expect(room.undoFor(next.id).last).toBe(true);
     expect(room.undoFor(active.id).last).toBe(false);
+  });
+
+  test('après une révélation, les commandes suivantes restent annulables, pas la révélation', async () => {
+    const room = await playingRoom();
+    const active = current(room);
+    const token = tokenOf(room, active.id);
+    playerOf(room, active.id).credits = 10;
+    expect(room.command(token, { type: 'LAUNCH_PROBE' }).error).toBeUndefined();
+    expect(room.command(token, { type: 'TRADE', spend: 'credit', gain: 'card' }).error).toBeUndefined();
+    expect(room.command(token, { type: 'CHOOSE', choice: { kind: 'CARD' } }).error).toBeUndefined();
+    // Le lancement d'avant la pioche n'est plus annulable non plus ; la raison est donnée au joueur
+    expect(room.viewFor(token)!.undo).toEqual({ last: false, turn: false, reason: REVELATION_REASON });
+
+    const afterDraw = room.game!;
+    expect(room.command(token, { type: 'TRADE', spend: 'credit', gain: 'energy' }).error).toBeUndefined();
+    expect(room.undoFor(active.id)).toEqual({ last: true, turn: false });
+    expect(room.undo(token, 'last')).toEqual({});
+    expect(room.game).toBe(afterDraw);
+    expect(room.undoFor(active.id)).toEqual({ last: false, turn: false, reason: REVELATION_REASON });
+
+    // Tour fini : la raison disparaît
+    expect(room.command(token, { type: 'END_TURN' }).error).toBeUndefined();
+    expect(room.undoFor(active.id)).toEqual({ last: false, turn: false });
+  });
+
+  test('action en plusieurs commandes (recherche puis choix de la technologie) : annulée en entier', async () => {
+    const room = await playingRoom();
+    const active = current(room);
+    const token = tokenOf(room, active.id);
+    playerOf(room, active.id).mediaCoverage = 10;
+    expect(room.command(token, { type: 'TRADE', spend: 'credit', gain: 'energy' }).error).toBeUndefined();
+    const beforeResearch = room.game!;
+    expect(room.command(token, { type: 'RESEARCH_TECH' }).error).toBeUndefined();
+    expect(room.game!.interaction?.type).toBe('ACQUIRING_TECH');
+    // Une technologie dont la tuile ne fait pas piocher (une pioche serait une révélation)
+    const tech = TechnologySystem.acquirableTechs(room.game!, active.id).find(t => !t.bonus?.card)!;
+    expect(room.command(token, { type: 'CHOOSE', choice: { kind: 'TECH', techId: tech.id } }).error).toBeUndefined();
+    expect(room.undoFor(active.id)).toEqual({ last: true, turn: true });
+
+    expect(room.undo(token, 'last')).toEqual({});
+    expect(room.game).toBe(beforeResearch);
+    expect(room.undoFor(active.id)).toEqual({ last: true, turn: false });
   });
 
   test('une étape de robot efface les annulations', async () => {

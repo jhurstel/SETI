@@ -288,8 +288,8 @@ export const BoardUI: React.FC = () => {
   const resetInterface = () => {
     setLocalMode(null);
   };
-  const { onUndo, onUndoTurn } = useUndo({
-    isOnline, online, session, me, historyLog,
+  const { onUndo, onUndoTurn, undoBlockedReason } = useUndo({
+    isOnline, online, session, me,
     onError: showMessage,
     confirm: (message, onConfirm) => setConfirmModalState({ visible: true, cardId: null, message, onConfirm }),
     onDone: resetInterface,
@@ -1208,6 +1208,7 @@ export const BoardUI: React.FC = () => {
             game={realGame!}
             onUndo={h.onUndo}
             onUndoTurn={h.onUndoTurn}
+            undoBlockedReason={undoBlockedReason}
             setActiveTooltip={setActiveTooltip}
           />
 

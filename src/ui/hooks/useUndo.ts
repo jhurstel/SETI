@@ -1,28 +1,25 @@
-import { HistoryEntry } from '../../core/types';
 import type { OnlineSession } from './useOnlineSession';
 import type { useGameSession } from './useGameSession';
 
 /**
- * Annulation, en local (journal de la session, robots compris) ou en ligne (le serveur n'accepte que l'annulation de
- * ses propres actions de son tour en cours, tant que personne d'autre n'a joué depuis : `online.state.undo`).
+ * Annulation, en local (journal de la session, robots compris ; `SessionJournal.canUndoLast`) ou en ligne (le serveur
+ * n'accepte que l'annulation de ses propres actions de son tour en cours, tant que personne d'autre n'a joué depuis
+ * et après la dernière révélation : `online.state.undo`).
  * Le retour au début du tour demande confirmation (`confirm`) ; `onDone` remet l'interface à zéro.
  */
-export function useUndo({ isOnline, online, session, me, historyLog, onError, confirm, onDone }: {
+export function useUndo({ isOnline, online, session, me, onError, confirm, onDone }: {
   isOnline: boolean;
   online: OnlineSession;
   session: ReturnType<typeof useGameSession>;
   me: string | undefined;
-  historyLog: HistoryEntry[];
   onError: (message: string) => void;
   confirm: (message: string, onConfirm: () => void) => void;
   onDone: () => void;
 }) {
-  const lastEntry = historyLog[historyLog.length - 1];
-  const canUndoLast = isOnline
-    ? !!online.state.undo?.last
-    : !!lastEntry && !lastEntry.message.startsWith('---') && (
-      !!lastEntry.previousState || (!!lastEntry.sequenceId && historyLog.some(e => e.sequenceId === lastEntry.sequenceId && !!e.previousState)));
+  // La session décide (jeu local : SessionJournal, en ligne : le serveur)
+  const canUndoLast = isOnline ? !!online.state.undo?.last : session.canUndoLast();
   const canUndoTurn = isOnline ? !!online.state.undo?.turn : session.canUndoTurn(me);
+  const blockedReason = isOnline ? online.state.undo?.reason : session.undoBlockedReason();
 
   const undoOnline = async (scope: 'last' | 'turn') => {
     const result = await online.undo(scope);
@@ -61,5 +58,7 @@ export function useUndo({ isOnline, online, session, me, historyLog, onError, co
     onUndo: canUndoLast ? undoLast : undefined,
     /** Revenir au début du tour (absent : rien à annuler) */
     onUndoTurn: canUndoTurn ? undoTurn : undefined,
+    /** Rien d'annulable à cause d'une révélation (annulation stricte, en ligne) : raison affichée sur ↩ grisé */
+    undoBlockedReason: canUndoLast ? undefined : blockedReason,
   };
 }

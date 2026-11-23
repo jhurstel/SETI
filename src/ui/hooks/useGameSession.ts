@@ -28,8 +28,8 @@ export function useGameSession() {
     setHistoryLog(log);
   }, []);
 
-  const commit = useCallback((before: Game, result: DispatchResult) => {
-    show(result.game, SessionJournal.append(logRef.current, result.entries, before, humanIds(result.game)));
+  const commit = useCallback((before: Game, result: DispatchResult, playerId: string, robot = false) => {
+    show(result.game, SessionJournal.append(logRef.current, result.entries, before, humanIds(result.game), { after: result.game, playerId, robot }));
   }, [show]);
 
   /** Commande d'un joueur ; renvoie le résultat (erreur comprise) pour l'affichage */
@@ -37,7 +37,7 @@ export function useGameSession() {
     const current = gameRef.current;
     if (!current) return { game: current!, entries: [], notifications: [], error: 'Aucune partie en cours' };
     const result = GameSession.dispatch(current, playerId, command);
-    if (!result.error) commit(current, result);
+    if (!result.error) commit(current, result, playerId);
     return result;
   }, [commit]);
 
@@ -46,7 +46,7 @@ export function useGameSession() {
     const current = gameRef.current;
     if (!current) return null;
     const result = GameSession.applyRobotStep(current, step.step, step.rngState);
-    if (!result.error) commit(current, result);
+    if (!result.error) commit(current, result, current.players[current.currentPlayerIndex].id, true);
     return result;
   }, [commit]);
 
@@ -75,6 +75,10 @@ export function useGameSession() {
   }, [show]);
 
   const canUndoTurn = (playerId: string | undefined) => !!playerId && !!findTurnUndoPoint(historyLog, playerId);
+  /** « Annuler la dernière action » proposé (pas pendant le tour d'un robot) */
+  const canUndoLast = () => !!game && SessionJournal.canUndoLast(historyLog, game);
+  /** Raison d'une annulation bloquée par l'annulation stricte (sinon undefined) */
+  const undoBlockedReason = () => (game ? SessionJournal.undoBlockedReason(historyLog, game) : undefined);
 
   /** Plus de partie affichée (fin d'un chapitre du tutoriel : retour à l'accueil, sauvegarde intacte) */
   const clear = useCallback(() => {
@@ -84,5 +88,5 @@ export function useGameSession() {
     setHistoryLog([]);
   }, []);
 
-  return { game, gameRef, historyLog, dispatch, applyRobotStep, load, replace, undo, undoTurn, canUndoTurn, clear };
+  return { game, gameRef, historyLog, dispatch, applyRobotStep, load, replace, undo, undoTurn, canUndoTurn, canUndoLast, undoBlockedReason, clear };
 }

@@ -38,6 +38,7 @@ L'écran d'accueil s'ouvre au lancement, et par ⚙️ en cours de partie. Il pr
 ![Nouvelle partie](docs/images/ecrans/accueil-nouvelle-partie.png)
 
 - Votre nom (gardé pour la partie suivante, en solo comme en ligne), puis les places : la vôtre et 1 à 3 robots, chacun à sa couleur et avec son propre niveau (« + Ajouter un robot », ✕ pour en retirer un).
+- **Annulation stricte** (case décochée par défaut, fixée pour toute la partie) : une action qui vous révèle une information cachée (carte piochée, nouvelle carte de la rangée, pile de fin de manche, spécimen regardé…) ne s'annule plus, ni ce qui la précède, comme en ligne ; une carte montrée par un robot aussi. Sans elle, tout s'annule librement.
 - Le premier joueur est tiré au hasard au démarrage et annoncé par un radar, qui couvre tout l'écran avant que le plateau n'apparaisse : les joueurs sont des signaux autour d'un radiotélescope, le faisceau tourne, ralentit et se verrouille sur le premier joueur (« X commence ! ») ; un clic le ferme.
 - La fenêtre garde le fond de l'accueil, même ouverte pendant une partie.
 
@@ -74,7 +75,7 @@ Un robot joue une étape toutes les 1,5 s ; son calcul ne fige pas l'interface.
 - Pendant le tour d'un autre joueur, le message au-dessus du plateau l'indique (« Tour de Bob », « En attente de Bob » s'il doit faire un choix) et le plateau reste consultable. Les robots jouent sur le serveur.
 - Chacun ne voit que ce qu'il a le droit de voir : la main des autres et les cartes qu'ils piochent restent cachées.
 - **Reprendre en ligne** : en cas de coupure, le jeu se reconnecte tout seul (pendant 2 minutes), et tout de suite au retour du réseau ou quand la page redevient visible (sortie de veille) ; une connexion restée ouverte mais muette est détectée en moins d'une minute. Après un rechargement de la page, la carte **Reprendre en ligne** retrouve votre place ; **Quitter la partie en ligne** la laisse reprenable. Le serveur gratuit est gardé éveillé et le jeu le réveille dès son ouverture ; s'il dormait quand même, la fenêtre affiche « Réveil du serveur… » avec le temps écoulé (environ une minute), puis le déclare injoignable après deux minutes. Un redémarrage du serveur efface les salles en cours.
-- **Annuler en ligne** : seulement vos propres actions de votre tour en cours, tant que personne d'autre n'a joué depuis (fin de votre tour, choix d'un autre joueur, robot). La partie solo (sauvegarde automatique) n'est pas touchée : **Continuer** y revient.
+- **Annuler en ligne** : seulement vos propres actions de votre tour en cours, tant que personne d'autre n'a joué depuis (fin de votre tour, choix d'un autre joueur, robot). Une action qui a révélé une information cachée à un joueur (carte piochée, nouvelle carte de la rangée, pile de fin de manche, spécimen regardé, espèce découverte, tirage au hasard) ne s'annule plus, ni celles d'avant ; les suivantes, si. La flèche ↩ grisée en donne la raison. La partie solo (sauvegarde automatique) n'est pas touchée : **Continuer** y revient.
 
 #### Sauvegardes, documentation et options
 
@@ -162,8 +163,9 @@ Le plateau du joueur est à gauche, le système solaire occupe le reste de l'éc
 
 
 - Toutes les actions de la partie, la dernière en bas ; les conséquences d'une action sont indentées sous elle. Les noms des cartes piochées face cachée ne sont visibles que de leur propriétaire.
-- **Annuler** revient avant la dernière action (toute la séquence : l'action et ses conséquences).
-- **Revenir au début du tour** rétablit l'état d'avant la première action du tour. Juste après le tour des robots, avant d'avoir rejoué, il ramène au début du tour qu'on vient de finir (le tour des robots est annulé lui aussi).
+- **Annuler** (↩) revient avant votre dernière action, avec toute sa séquence (l'action et ses conséquences, choix compris). Ouvrir un achat sans encore choisir compte comme une action : ↩ referme la fenêtre sans toucher à l'action d'avant. Pendant le tour d'un robot, ↩ n'est pas proposé.
+- **Revenir au début du tour** (↩↩) rétablit l'état d'avant la première action du tour. Juste après le tour des robots, avant d'avoir rejoué, il ramène au début du tour qu'on vient de finir (le tour des robots est annulé lui aussi).
+- **Annulation stricte** (choisie dans Nouvelle partie) : on ne revient jamais avant une action qui a révélé une information cachée ; ↩ grisé en donne la raison. Sans elle, une pioche, une passe ou une carte vue s'annulent (on retrouve alors la même carte : le hasard est rejoué à l'identique).
 - La mémoire est bornée : l'annulation ne remonte pas plus loin que le début de l'avant-dernier tour du joueur. Après un rechargement de la page, la sauvegarde automatique garde les 8 dernières actions annulables et le début du dernier tour.
 - En ligne : voir 1.1, Partie en ligne.
 
@@ -308,7 +310,7 @@ Ce chapitre passe, prend une carte de fin de manche et reçoit les revenus.
 
 - **R1** Passer (action principale) termine la manche du joueur : il garde au plus 4 cartes en main et défausse le reste ; il ne joue plus jusqu'à la fin de la manche.
 - **R2** Le premier joueur à passer fait tourner le système solaire.
-- **R3** La pile de fin de manche reste cachée tant qu'on n'a pas passé ; une fois la passe confirmée (elle ne s'annule plus), le joueur la découvre et y prend une carte, que les autres joueurs ne connaissent pas.
+- **R3** La pile de fin de manche reste cachée tant qu'on n'a pas passé ; une fois la passe confirmée (elle ne s'annule plus en ligne ni en annulation stricte), le joueur la découvre et y prend une carte, que les autres joueurs ne connaissent pas.
 - **R4** Passer termine le tour : les paliers de score sont vérifiés comme à la fin d'un tour (voir 2.9).
 - **R5** Quand tous les joueurs ont passé, la manche se termine : chacun reçoit ses revenus (crédits, énergie, cartes) et le marqueur Premier joueur passe au joueur suivant.
 

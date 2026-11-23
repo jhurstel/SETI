@@ -19,6 +19,8 @@ export interface UndoAvailability {
   last: boolean;
   /** Revenir au plus tôt de son tour en cours (plusieurs actions) */
   turn: boolean;
+  /** Rien d'annulable parce qu'une commande de ce tour a révélé une information cachée (texte affiché) */
+  reason?: string;
 }
 
 export type ClientMessage =

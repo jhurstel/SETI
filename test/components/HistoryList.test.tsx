@@ -1,6 +1,6 @@
 /** @jest-environment jsdom */
 import { fireEvent, render } from '@testing-library/react';
-import { HistoryList } from '../../src/ui/HistoryBoardUI';
+import { HistoryBoardUI, HistoryList } from '../../src/ui/HistoryBoardUI';
 import { playerText } from '../../src/core/historyText';
 import { Game, Technology, TechnologyCategory } from '../../src/core/types';
 
@@ -73,5 +73,45 @@ describe('HistoryList : technologies citées', () => {
         ]} />,
     );
     expect([...container.querySelectorAll('.seti-history-card-ref')].map(e => e.textContent)).toEqual(['"Exploration I"']);
+  });
+});
+
+describe('Historique : annulation', () => {
+  const game = {
+    players: [{ id: 'player_0', name: 'Alice', color: '#4a90e2', type: 'human', cards: [], reservedCards: [], playedCards: [] }],
+    decks: { cards: [], cardRow: [], discardPile: [], roundDecks: {} },
+    board: { technologyBoard: { available: [], categorySlots: [] } },
+    species: [],
+  } as unknown as Game;
+
+  test("une entrée technique (commande sans message) n'est pas affichée", () => {
+    const { container } = render(
+      <HistoryList game={game} setActiveTooltip={() => {}} historyLog={[
+        { id: '1', playerId: 'player_0', sequenceId: 's', message: 'lance une sonde' },
+        { id: '2', playerId: 'player_0', sequenceId: 'buy', message: '', silent: true },
+      ]} />,
+    );
+    expect(container.querySelectorAll('.seti-history-item')).toHaveLength(1);
+    expect(render(<HistoryList game={game} setActiveTooltip={() => {}} historyLog={[{ id: '3', playerId: 'player_0', message: '', silent: true }]} />)
+      .container.textContent).toContain('Aucune action');
+  });
+
+  test('annulation bloquée : ↩ grisé, avec la raison en infobulle', () => {
+    // jsdom ne fait pas défiler : l'historique se place sur sa dernière entrée
+    Element.prototype.scrollTo = () => {};
+    const setActiveTooltip = jest.fn();
+    const { container } = render(
+      <HistoryBoardUI game={game} historyLog={[]} undoBlockedReason="Action non annulable" setActiveTooltip={setActiveTooltip} />,
+    );
+    const button = container.querySelector('.seti-history-undo-btn.disabled') as HTMLElement;
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    fireEvent.mouseEnter(button);
+    expect(setActiveTooltip).toHaveBeenCalledWith(expect.objectContaining({ content: 'Action non annulable' }));
+    // Annulation possible : la flèche normale, sans raison
+    const onUndo = jest.fn();
+    const enabled = render(<HistoryBoardUI game={game} historyLog={[]} onUndo={onUndo} undoBlockedReason="x" setActiveTooltip={() => {}} />).container;
+    expect(enabled.querySelector('.seti-history-undo-btn.disabled')).toBeNull();
+    fireEvent.click(enabled.querySelector('.seti-history-undo-btn')!);
+    expect(onUndo).toHaveBeenCalled();
   });
 });

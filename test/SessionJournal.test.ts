@@ -60,4 +60,36 @@ describe('SessionJournal', () => {
     const log = SessionJournal.append([], [entry('mise en place', H, 's')], state(1), [H]);
     expect(SessionJournal.prune(log, [H])).toBe(log);
   });
+
+  test('commande sans entrée : entrée technique silencieuse, avec la séquence de l\'interaction ouverte', () => {
+    const opened: Game = { ...state(2), interaction: { type: 'ACQUIRING_CARD', count: 1, sequenceId: 'buy' } };
+    let log = SessionJournal.append([], [entry('lance une sonde', H, 'launch')], state(1), [H]);
+    log = SessionJournal.append(log, [], state(2), [H], { after: opened, playerId: H });
+    expect(log[1]).toEqual(expect.objectContaining({ message: '', silent: true, playerId: H, sequenceId: 'buy', previousState: state(2) }));
+    expect(SessionJournal.undoLast(log)!.game).toEqual(state(2));
+    // Sans changement de la partie, ou sans commande connue : rien n'est ajouté
+    expect(SessionJournal.append(log, [], opened, [H], { after: opened, playerId: H })).toBe(log);
+    expect(SessionJournal.append(log, [], state(3), [H])).toBe(log);
+  });
+
+  test('barrière : aucun état d\'avant elle n\'est restauré', () => {
+    let log = SessionJournal.append([], [entry('--- Tour de Humain ---')], state(1), [H]);
+    log = SessionJournal.append(log, [entry('action 1', H, 's1')], state(2), [H]);
+    log = [...log, { ...entry('pioche', H, 's2'), previousState: state(3), barrier: true }];
+    expect(SessionJournal.undoLast(log)).toBeNull();
+    expect(SessionJournal.undoTurn(log, H)).toBeNull();
+    log = SessionJournal.append(log, [entry('échange', H, 's3')], state(4), [H]);
+    expect(SessionJournal.undoLast(log)!.game).toEqual(state(4));
+    expect(SessionJournal.undoTurn(log, H)!.game).toEqual(state(4));
+  });
+
+  test('raison du blocage : seulement en annulation stricte, pour une barrière du tour en cours', () => {
+    const strict: Game = { ...state(5), strictUndo: true };
+    const blocked = [{ ...entry('--- Tour de Humain ---') }, { ...entry('pioche', H, 's'), previousState: state(4), barrier: true }];
+    expect(SessionJournal.undoBlockedReason(blocked, strict)).toBeDefined();
+    expect(SessionJournal.undoBlockedReason(blocked, state(5))).toBeUndefined();
+    // Barrière d'un tour précédent : pas de raison au début du tour suivant
+    expect(SessionJournal.undoBlockedReason([...blocked, entry('--- Tour de Robot ---', R)], strict)).toBeUndefined();
+    expect(SessionJournal.undoBlockedReason([entry('--- Tour de Humain ---')], strict)).toBeUndefined();
+  });
 });

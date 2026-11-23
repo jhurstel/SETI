@@ -16,6 +16,10 @@ export interface GameLogEntry {
   mainAction?: boolean;
   /** Action principale dont l'entrée est la première (posé par le moteur ; résumé de la partie de l'écran de fin) */
   mainActionType?: ActionType;
+  /** Entrée technique d'une commande qui n'a rien écrit (voir HistoryEntry) */
+  silent?: boolean;
+  /** Annulation stricte : on ne revient jamais avant cette commande (voir HistoryEntry) */
+  barrier?: boolean;
   previousState?: Game;
 }
 
@@ -60,6 +64,8 @@ export interface Game {
   endingTurn?: boolean;
   /** État du générateur aléatoire de la partie (core/random.ts), rétabli avant chaque commande */
   rngState?: number;
+  /** Jeu local : annulation stricte choisie à la création (une révélation ne s'annule plus) ; absente = libre */
+  strictUndo?: boolean;
 }
 
 export interface HistoryEntry {
@@ -75,6 +81,10 @@ export interface HistoryEntry {
   mainAction?: boolean;
   /** Action principale dont l'entrée est la première (posé par le moteur ; résumé de la partie de l'écran de fin) */
   mainActionType?: ActionType;
+  /** Entrée technique d'une commande qui n'a rien écrit (ouverture d'un achat…) : non affichée, point d'annulation */
+  silent?: boolean;
+  /** Annulation stricte : la commande a révélé une information cachée, on ne revient jamais avant elle */
+  barrier?: boolean;
 }
 
 export interface ValidationResult {

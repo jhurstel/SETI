@@ -45,7 +45,7 @@ Les **plateaux des espèces Alien**, face cachée. Les traces de vie que vous d�
 Ce panneau s'ouvre ici tout seul. En partie, cliquez sur son **bandeau titre** pour l'ouvrir et le garder visible ; un clic ailleurs le referme.
 
 ## L'historique {#historique}
-L'**historique** raconte la partie, action par action. Vous pouvez annuler votre dernière action (et même tout votre tour) tant que le tour suivant n'est pas joué.
+L'**historique** raconte la partie, action par action. Vous pouvez annuler votre dernière action, et même revenir au début de votre tour, y compris juste après le tour des robots tant que vous n'avez pas rejoué.
 
 Pendant le tutoriel, l'historique reste réduit pour laisser voir le plateau. Cliquez sur son **bandeau titre** pour l'ouvrir et le garder visible.
 

@@ -7,8 +7,11 @@ import './NewGameModal.css';
 
 interface NewGameModalProps {
   visible: boolean;
-  /** Nom du joueur, niveau de chaque robot (dans l'ordre des places) ; le premier joueur est tiré au hasard */
-  onConfirm: (playerName: string, robots: AIDifficulty[]) => void;
+  /**
+   * Nom du joueur, niveau de chaque robot (dans l'ordre des places), annulation stricte ; le premier joueur est tiré
+   * au hasard
+   */
+  onConfirm: (playerName: string, robots: AIDifficulty[], strictUndo: boolean) => void;
   onCancel: () => void;
 }
 
@@ -20,6 +23,8 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({ visible, onConfirm, 
   const [name, setName] = useState(readPlayerName);
   // Places des robots (sans choix « Humain ») : un Expert par défaut
   const [robots, setRobots] = useState<SeatChoice[]>(['EXPERT']);
+  // Annulation stricte : désactivée par défaut, fixée pour toute la partie
+  const [strictUndo, setStrictUndo] = useState(false);
   // À chaque ouverture : le dernier nom saisi (il a pu changer dans la fenêtre Partie en ligne)
   useEffect(() => { if (visible) setName(readPlayerName()); }, [visible]);
 
@@ -27,7 +32,7 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({ visible, onConfirm, 
   const start = () => {
     const trimmed = name.trim();
     if (trimmed) writePlayerName(trimmed);
-    onConfirm(trimmed || DEFAULT_NAME, robots.filter((r): r is AIDifficulty => r !== 'human'));
+    onConfirm(trimmed || DEFAULT_NAME, robots.filter((r): r is AIDifficulty => r !== 'human'), strictUndo);
   };
 
   // Échap annule, Entrée lance la partie
@@ -56,6 +61,18 @@ export const NewGameModal: React.FC<NewGameModalProps> = ({ visible, onConfirm, 
         <section className="seti-newgame-section">
           <h3>Places · {robots.length + 1} joueurs</h3>
           <SeatList hostName={name.trim() || DEFAULT_NAME} seats={robots} onChange={setRobots} />
+        </section>
+
+        <section className="seti-newgame-section">
+          <h3>Annulation</h3>
+          <label className="seti-newgame-option">
+            <input type="checkbox" checked={strictUndo} onChange={e => setStrictUndo(e.target.checked)} />
+            Annulation stricte
+          </label>
+          <p className="seti-newgame-hint">
+            Une action qui révèle une information cachée (carte piochée, nouvelle carte de la rangée, pile de fin de manche…)
+            ne s'annule plus, comme en ligne. Réglage fixé pour toute la partie.
+          </p>
         </section>
 
         <div className="seti-newgame-actions">

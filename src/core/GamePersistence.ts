@@ -1,5 +1,5 @@
 import { Game, GameLogEntry, HistoryEntry, SectorType } from './types';
-import { findTurnUndoPoint } from './TurnUndo';
+import { findTurnUndoPoint, lastBarrierIndex } from './TurnUndo';
 
 /**
  * Version du format de sauvegarde. À incrémenter à chaque changement incompatible du modèle,
@@ -112,7 +112,9 @@ export const SAVED_UNDO_STATES = 8;
  */
 export function serializeGame(game: Game, historyLog: HistoryEntry[], undoStates: number = SAVED_UNDO_STATES): SavedGame {
   const kept = new Set<number>();
-  for (let i = historyLog.length - 1; i >= 0 && kept.size < undoStates; i--) {
+  // Annulation stricte : les états d'avant la dernière barrière ne serviront plus
+  const barrier = lastBarrierIndex(historyLog);
+  for (let i = historyLog.length - 1; i > barrier && kept.size < undoStates; i--) {
     if (historyLog[i].previousState) kept.add(i);
   }
   if (undoStates > 1) {
@@ -135,6 +137,8 @@ export function serializeGame(game: Game, historyLog: HistoryEntry[], undoStates
         sequenceId: entry.sequenceId,
         ...(entry.mainAction ? { mainAction: true } : {}),
         ...(entry.mainActionType ? { mainActionType: entry.mainActionType } : {}),
+        ...(entry.silent ? { silent: true } : {}),
+        ...(entry.barrier ? { barrier: true } : {}),
         previousState: keepState ? (stripForSave(entry.previousState!) as Game) : undefined,
       };
     }),
@@ -168,6 +172,8 @@ export function deserializeGame(json: string): { game: Game; historyLog: History
     sequenceId: log.sequenceId,
     ...(log.mainAction ? { mainAction: true } : {}),
     ...(log.mainActionType ? { mainActionType: log.mainActionType } : {}),
+    ...(log.silent ? { silent: true } : {}),
+    ...(log.barrier ? { barrier: true } : {}),
     previousState: log.previousState,
   }));
   // Le journal (états d'annulation compris) est rendu à part : laissé dans la partie, il était recopié à chaque

@@ -41,6 +41,22 @@
   color: #8fa6d6;
 }
 
+/* Case « Annulation stricte » et son explication */
+.seti-newgame-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #e8f1ff;
+  cursor: pointer;
+}
+
+.seti-newgame-hint {
+  margin: 4px 0 0 24px;
+  font-size: 0.78rem;
+  color: #9fb2da;
+}
+
 /* Pastille de couleur d'une place (SetupFields : SeatColor), partagée avec la fenêtre Partie en ligne */
 .seti-seat-color {
   display: inline-block;

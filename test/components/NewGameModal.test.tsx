@@ -62,8 +62,18 @@ describe('NewGameModal', () => {
     expect(screen.getByText(/Places · 3 joueurs/)).toBeTruthy();
 
     fireEvent.click(screen.getByText('Commencer'));
-    expect(onConfirm).toHaveBeenCalledWith('Grace', ['EXPERT', 'EXPERT']);
+    expect(onConfirm).toHaveBeenCalledWith('Grace', ['EXPERT', 'EXPERT'], false);
     expect(localStorage.getItem('seti_player_name')).toBe('Grace');
+  });
+
+  test('annulation stricte : désactivée par défaut, transmise quand elle est cochée', () => {
+    const onConfirm = jest.fn();
+    render(<NewGameModal visible onConfirm={onConfirm} onCancel={() => {}} />);
+    const strict = screen.getByLabelText('Annulation stricte') as HTMLInputElement;
+    expect(strict.checked).toBe(false);
+    fireEvent.click(strict);
+    fireEvent.click(screen.getByText('Commencer'));
+    expect(onConfirm).toHaveBeenCalledWith(expect.any(String), ['EXPERT'], true);
   });
 
   test('sans nom : « Joueur », et le nom gardé n\'est pas effacé', () => {
@@ -72,7 +82,7 @@ describe('NewGameModal', () => {
     render(<NewGameModal visible onConfirm={onConfirm} onCancel={() => {}} />);
     fireEvent.change(screen.getByLabelText('Votre nom'), { target: { value: '   ' } });
     fireEvent.keyDown(window, { key: 'Enter' });
-    expect(onConfirm).toHaveBeenCalledWith('Joueur', ['EXPERT']);
+    expect(onConfirm).toHaveBeenCalledWith('Joueur', ['EXPERT'], false);
     expect(localStorage.getItem('seti_player_name')).toBe('Ada');
   });
 

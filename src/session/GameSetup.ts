@@ -17,6 +17,8 @@ export interface NewGameOptions {
    * première : le joueur humain du jeu local ne commence pas). 0 par défaut.
    */
   firstPlayer?: number | 'random' | 'randomOther';
+  /** Jeu local : annulation stricte (une commande qui révèle une information cachée ne s'annule plus) */
+  strictUndo?: boolean;
 }
 
 /** Création d'une partie prête pour la session : joueurs, premier joueur, mise en place et journal de départ */
@@ -36,7 +38,11 @@ export class GameSetup {
       : firstPlayer === 'randomOther'
         ? (seats.length > 1 ? 1 + Math.floor(random() * (seats.length - 1)) : 0)
         : firstPlayer);
-    const game = GameFactory.initializeGame({ ...GameFactory.setFirstPlayer(created, drawn.result), rngState: drawn.rngState });
+    const game = GameFactory.initializeGame({
+      ...GameFactory.setFirstPlayer(created, drawn.result),
+      rngState: drawn.rngState,
+      ...(options.strictUndo ? { strictUndo: true } : {}),
+    });
     const entries: HistoryEntry[] = game.gameLog.map(log => ({
       id: log.id,
       message: log.message,

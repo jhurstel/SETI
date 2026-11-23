@@ -6,6 +6,7 @@ import { GameSession } from './GameSession';
 import { GameSetup, SeatConfig } from './GameSetup';
 import { Command } from './commands';
 import { viewEntries, viewFor } from './PlayerView';
+import { REVELATION_REASON, revealedTo } from './Revelation';
 import { FirstPlayerChoice, RoomInfo, RoomStatus, RoomSummary, SeatRequest, UndoAvailability } from './protocol';
 import { trace } from '../core/trace';
 
@@ -39,7 +40,10 @@ export interface RoomView {
   undo: UndoAvailability;
 }
 
-/** Point d'annulation : état d'avant une commande d'un joueur, longueur de l'historique, séquences produites */
+/**
+ * Point d'annulation : état d'avant une commande d'un joueur, longueur de l'historique, séquences de la commande
+ * (celles de ses entrées et celle de l'interaction qu'elle laisse ouverte)
+ */
 interface UndoPoint {
   playerId: string;
   state: Game;
@@ -65,8 +69,9 @@ export const ROOM_EXPIRY: Record<RoomStatus, number> = {
  * Pure : le serveur (server/) s'occupe du réseau, du rythme des robots et de l'écriture sur disque.
  * Toute modification de la partie passe par GameSession, comme dans le jeu local.
  * Annulation en ligne : un joueur ne peut revenir que sur ses propres commandes de son tour en cours, tant que
- * personne d'autre n'a joué depuis (commande d'un autre joueur, étape de robot, fin de son tour) ; les points
- * d'annulation ne sont gardés qu'en mémoire (pas dans la sauvegarde de la salle).
+ * personne d'autre n'a joué depuis (commande d'un autre joueur, étape de robot, fin de son tour), et jamais sur une
+ * commande qui a révélé une information cachée à un joueur humain, ni avant elle (barrière : `Revelation`) ; les
+ * points d'annulation ne sont gardés qu'en mémoire (pas dans la sauvegarde de la salle).
  */
 export class GameRoom {
   game?: Game;
@@ -74,6 +79,8 @@ export class GameRoom {
   log: HistoryEntry[] = [];
   /** Points d'annulation du joueur qui joue en ce moment (toujours d'un seul joueur, dans l'ordre) */
   private undoPoints: UndoPoint[] = [];
+  /** Joueur dont une commande de ce tour a révélé une information cachée (plus d'annulation avant elle) */
+  private barrierOf?: string;
   /** Dernière activité (arrivée, commande, étape de robot…), notée par le serveur avec `touch` */
   updatedAt: number;
 
@@ -177,15 +184,20 @@ export class GameRoom {
     return { notifications: result.notifications };
   }
 
-  /** Annulations possibles pour un joueur (ses propres commandes de son tour, personne n'ayant joué depuis) */
+  /**
+   * Annulations possibles pour un joueur (ses propres commandes de son tour, personne n'ayant joué depuis, après la
+   * dernière révélation) ; `reason` : rien d'annulable à cause d'une révélation
+   */
   undoFor(playerId: string): UndoAvailability {
     const mine = this.status === 'playing' && this.undoPoints.length > 0 && this.undoPoints[0].playerId === playerId;
-    return { last: mine, turn: mine && this.undoPoints.length > 1 };
+    const blocked = !mine && this.status === 'playing' && this.barrierOf === playerId;
+    return { last: mine, turn: mine && this.undoPoints.length > 1, ...(blocked ? { reason: REVELATION_REASON } : {}) };
   }
 
   /**
-   * Annule la dernière action du joueur (toute sa séquence, comme SessionJournal.undoLast) ou revient au plus tôt
-   * de son tour : partie et historique reviennent à l'état d'avant.
+   * Annule la dernière commande du joueur avec toute sa séquence (une action en plusieurs commandes s'annule en
+   * entier, comme SessionJournal.undoLast), ou revient au plus tôt de son tour (après la dernière révélation) :
+   * partie et historique reviennent à l'état d'avant.
    */
   undo(token: string, scope: 'last' | 'turn'): { error?: string } {
     const seat = this.seatOf(token);
@@ -194,10 +206,13 @@ export class GameRoom {
     if (!(scope === 'last' ? available.last : available.turn)) return { error: 'Rien à annuler' };
     let index = 0;
     if (scope === 'last') {
-      // Début de la séquence de la dernière entrée (une action en plusieurs commandes s'annule en entier)
-      const lastSequence = this.log[this.log.length - 1].sequenceId;
-      const first = lastSequence ? this.undoPoints.findIndex(point => point.sequenceIds.includes(lastSequence)) : -1;
-      index = first === -1 ? this.undoPoints.length - 1 : first;
+      // Dernière commande, puis les précédentes tant qu'elles partagent une séquence avec elle
+      index = this.undoPoints.length - 1;
+      const sequences = new Set(this.undoPoints[index].sequenceIds);
+      while (index > 0 && this.undoPoints[index - 1].sequenceIds.some(id => sequences.has(id))) {
+        index--;
+        this.undoPoints[index].sequenceIds.forEach(id => sequences.add(id));
+      }
     }
     const point = this.undoPoints[index];
     this.undoPoints = this.undoPoints.slice(0, index);
@@ -209,13 +224,22 @@ export class GameRoom {
   /**
    * Retient l'état d'avant la commande d'un joueur. Une commande d'un autre joueur efface les points précédents ;
    * la fin de son tour (ou une commande hors de son tour) aussi : on ne revient jamais sur ce qu'un autre a vu jouer.
+   * Une commande qui révèle une information cachée à un joueur humain (carte piochée, rangée, pile de fin de manche,
+   * spécimen, espèce, hasard) efface aussi les points, sans en ajouter : on ne revient jamais avant elle.
    */
   private recordUndoPoint(playerId: string, before: Game, logLength: number, entries: HistoryEntry[]) {
     const game = this.game!;
     const stillPlaying = this.status === 'playing' && game.players[game.currentPlayerIndex].id === playerId;
     if (!stillPlaying || this.undoPoints[0]?.playerId !== playerId) this.undoPoints = [];
+    if (this.barrierOf !== playerId || !stillPlaying) this.barrierOf = undefined;
     if (!stillPlaying) return;
-    const sequenceIds = [...new Set(entries.map(entry => entry.sequenceId).filter((id): id is string => !!id))];
+    const humans = this.seats.filter(seat => seat.type === 'human').map(seat => seat.playerId);
+    if (revealedTo(before, game, humans, { actorId: playerId })) {
+      this.undoPoints = [];
+      this.barrierOf = playerId;
+      return;
+    }
+    const sequenceIds = [...new Set([...entries.map(entry => entry.sequenceId), game.interaction?.sequenceId].filter((id): id is string => !!id))];
     this.undoPoints.push({ playerId, state: before, logLength, sequenceIds });
   }
 
@@ -250,7 +274,10 @@ export class GameRoom {
       return none;
     }
     // Un robot a joué : plus d'annulation possible pour le joueur précédent
-    if (result.game !== game) this.undoPoints = [];
+    if (result.game !== game) {
+      this.undoPoints = [];
+      this.barrierOf = undefined;
+    }
     this.apply(result.game, result.entries);
     return { played: result.game !== game, notifications: result.notifications };
   }

@@ -43,6 +43,8 @@ interface HistoryBoardUIProps {
     onUndo?: () => void;
     /** Retour au début du dernier tour du joueur (absent : rien à annuler) */
     onUndoTurn?: () => void;
+    /** Annulation bloquée par une révélation : ↩ grisé, avec cette raison en infobulle */
+    undoBlockedReason?: string;
     setActiveTooltip: (tooltip: { content: React.ReactNode, rect: DOMRect } | null) => void;
 }
 
@@ -256,6 +258,12 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
     // dernière passe, donc dans sa séquence, mais chaque ligne est indépendante (aucune n'est indentée)
     let inRoundEnd = false;
     historyLog.forEach(entry => {
+        // Entrée technique (commande sans message) : point d'annulation, jamais affichée
+        if (entry.silent) {
+            childFlags.push(false);
+            childParents.push(undefined);
+            return;
+        }
         if (entry.message.startsWith('---')) {
             headSequence = undefined;
             inRoundEnd = entry.message.includes('FIN DE LA MANCHE');
@@ -274,8 +282,9 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
 
     return (
         <div className="seti-history-list">
-            {historyLog.length === 0 && <div className="seti-history-empty">Aucune action</div>}
+            {!historyLog.some(entry => !entry.silent) && <div className="seti-history-empty">Aucune action</div>}
             {historyLog.map((entry, index) => {
+                if (entry.silent) return null;
                 if (entry.message.startsWith('---')) {
                     return (
                         <div key={entry.id} className="seti-history-separator" data-history-index={index}>
@@ -330,7 +339,7 @@ export const HistoryList: React.FC<Pick<HistoryBoardUIProps, 'historyLog' | 'gam
     );
 };
 
-const HistoryBoardUIView: React.FC<HistoryBoardUIProps> = ({ historyLog, game, onUndo, onUndoTurn, setActiveTooltip }) => {
+const HistoryBoardUIView: React.FC<HistoryBoardUIProps> = ({ historyLog, game, onUndo, onUndoTurn, undoBlockedReason, setActiveTooltip }) => {
     // Ouvert au départ ; un clic ailleurs ne le replie pas. Tutoriel : réduit, sauf quand l'étape le décrit
     const panelRef = useRef<HTMLDivElement>(null);
     const panel = useFoldablePanel(panelRef, { tutorialTarget: 'history', initiallyOpen: true, closeOnOutsideClick: false });
@@ -368,6 +377,18 @@ const HistoryBoardUIView: React.FC<HistoryBoardUIProps> = ({ historyLog, game, o
                             onMouseEnter={(e) => setActiveTooltip({ content: 'Annuler la dernière action', rect: e.currentTarget.getBoundingClientRect() })}
                             onMouseLeave={() => setActiveTooltip(null)}
                             onClick={(e) => { e.stopPropagation(); onUndo(); }}
+                        >
+                            ↩
+                        </button>
+                    )}
+                    {!onUndo && undoBlockedReason && (
+                        <button
+                            className="panel-title seti-history-undo-btn disabled"
+                            aria-disabled="true"
+                            aria-label={undoBlockedReason}
+                            onMouseEnter={(e) => setActiveTooltip({ content: undoBlockedReason, rect: e.currentTarget.getBoundingClientRect() })}
+                            onMouseLeave={() => setActiveTooltip(null)}
+                            onClick={(e) => e.stopPropagation()}
                         >
                             ↩
                         </button>

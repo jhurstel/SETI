@@ -35,6 +35,12 @@
     margin-right: 5px;
 }
 
+/* Annulation bloquée par une révélation : flèche grisée, la raison en infobulle */
+.seti-history-undo-btn.disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
 .seti-history-content {
     flex: 1;
     overflow-y: auto;

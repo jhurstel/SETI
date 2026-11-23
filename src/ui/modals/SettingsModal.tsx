@@ -129,7 +129,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setVisible(false);
   };
 
-  const handleNewGameConfirm = (playerName: string, robots: AIDifficulty[]) => {
+  const handleNewGameConfirm = (playerName: string, robots: AIDifficulty[], strictUndo: boolean) => {
       try {
           const robotNamesPool = ['R2-D2', 'C-3PO', 'HAL 9000', 'Wall-E', 'T-800', 'Data', 'Bender', 'Marvin', 'Bishop', 'GLaDOS', 'Auto', 'EVE'];
           const shuffledRobots = [...robotNamesPool].sort(() => 0.5 - Math.random());
@@ -139,7 +139,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             { name: playerName, type: 'human' },
             ...robots.map((aiDifficulty, index): SeatConfig => ({ name: shuffledRobots[index], type: 'robot', aiDifficulty })),
           ];
-          GameSetup.newGame(seats, { firstPlayer: 'random' }).then(({ game: newGame, entries }) => {
+          GameSetup.newGame(seats, { firstPlayer: 'random', strictUndo }).then(({ game: newGame, entries }) => {
           // Journal de départ : les entrées de mise en place écrites par la partie
           onLoadGame(newGame, entries);
 
