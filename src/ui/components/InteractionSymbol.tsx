@@ -41,7 +41,8 @@ export const interactionSymbol = (state: InteractionState): React.ReactNode => {
         ? [{ amount: 1, scope: TechnologyCategory.EXPLORATION_OR_OBSERVATION }]
         : state.categories!.map(scope => ({ amount: 1, scope })) });
     }
-    case 'ACQUIRING_CARD': return icons({ card: state.count });
+    // Carte prise dans la rangée ou piochée, au choix (gain « anycard ») : carte sans « ? »
+    case 'ACQUIRING_CARD': return icons({ anycard: state.count });
     case 'ACQUIRING_ALIEN_CARD': return icons({ speciesCard: state.count });
     case 'MOVING_PROBE': return icons({ movements: state.count });
     case 'ORBITING_PROBE': return <OrbiterIcon size={SIZE} />;

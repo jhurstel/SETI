@@ -161,7 +161,6 @@
     aspect-ratio: 1;
     pointer-events: none;
     transition: transform 0.3s ease-in-out;
-    will-change: transform;
 }
 
 .seti-rotating-level-1 { z-index: 20; }
@@ -545,4 +544,49 @@
   display: inline-flex;
   align-items: center;
   color: #ff6b6b; /* comme le coût des emplacements (SLOT_COLORS.unavailable) */
+}
+
+/* Mobile : fenêtres des planètes jouables (« Mettre en orbite », « Poser une sonde ») empilées au centre de
+   l'écran ; un appui hors de la pile annule le choix */
+.seti-tooltip.seti-planet-focus-stack {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    pointer-events: auto;
+}
+
+/* Zoom au pincement (solar/useBoardPinchZoom) : couche qui remplit le conteneur et porte la transformation ; le
+   plateau y reste centré comme avant */
+.seti-board-zoom {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transform-origin: 0 0;
+}
+
+/* Retour au plateau entier, visible tant que le plateau est zoomé */
+.seti-board-zoom-reset {
+    position: absolute;
+    left: 50%;
+    bottom: 8px;
+    transform: translateX(-50%);
+    z-index: 900;
+    padding: 4px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(120, 160, 255, 0.6);
+    background: rgba(10, 14, 26, 0.85);
+    color: #e8f1ff;
+    font: inherit;
+    font-weight: bold;
+    font-size: 0.85rem;
+    cursor: pointer;
 }

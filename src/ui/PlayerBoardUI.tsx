@@ -251,6 +251,14 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
   const showHandModal = handSnapshot !== null && handSnapshot.playerId === currentPlayer.id && handCards.length > 0
     && handSnapshot.ids.every(id => handIdSet.has(id));
 
+  // Ressources et revenus (actions gratuites dans leurs infobulles) : dans le plateau, ou sous le système solaire sur mobile
+  const resourcesSection = (
+    <PlayerResources player={currentPlayer} handCount={handCards.length} isRobot={isRobot} isCurrentTurn={isCurrentTurn}
+      isInteractiveMode={isInteractiveMode} onDirectTradeAction={onDirectTradeAction} onTradeCardAction={onTradeCardAction}
+      onBuyCardAction={onBuyCardAction} setActiveTooltip={setActiveTooltip} showInteractiveTooltip={showInteractiveTooltip}
+      scheduleTooltipClose={scheduleTooltipClose} />
+  );
+
   // Les 8 actions principales en hexagones, puis la fin du tour dans son propre cadre (dans le plateau, ou sous le système solaire sur mobile)
   const actionsSection = !isRobot && (
     <PlayerActions game={game} playerId={currentPlayer.id} interactionState={interactionState} isInteractiveMode={isInteractiveMode}
@@ -290,10 +298,7 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
         <div className="seti-player-layout-container seti-thin-scroll">
           {/* Sections Ressources (tuiles symbole + valeur, revenus) et Actions (actions principales, fin du tour) */}
           <div className="seti-stats-bar">
-            <PlayerResources player={currentPlayer} handCount={handCards.length} isRobot={isRobot} isCurrentTurn={isCurrentTurn}
-              isInteractiveMode={isInteractiveMode} onDirectTradeAction={onDirectTradeAction} onTradeCardAction={onTradeCardAction}
-              onBuyCardAction={onBuyCardAction} setActiveTooltip={setActiveTooltip} showInteractiveTooltip={showInteractiveTooltip}
-              scheduleTooltipClose={scheduleTooltipClose} />
+            {!dock && resourcesSection}
             {!dock && actionsSection}
           </div>
 
@@ -407,8 +412,8 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
 
         </div>
       </div>
-      {/* Mobile : actions puis main, sous le système solaire */}
-      {dock && createPortal(<>{actionsSection}{handSection}</>, dock)}
+      {/* Mobile : ressources, actions puis main, sous le système solaire */}
+      {dock && createPortal(<>{resourcesSection}{actionsSection}{handSection}</>, dock)}
       {showHandModal && (
         <HandModal title={currentPlayer.id === viewerId ? 'Votre main' : `Main de ${currentPlayer.name}`} onClose={closeHandModal}>
           {handContent}

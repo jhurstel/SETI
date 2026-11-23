@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Game, Probe, DiskName, SectorNumber, DISK_NAMES, RotationDisk, ProbeState, GAME_CONSTANTS, InteractionState, CelestialObject, GamePhase, LifeTraceType, ActionType, AlienBoardType } from '../core/types';
 import { tutorialAllows, useTutorialFocus } from './tutorialFocus';
 import { FIXED_OBJECTS, INITIAL_ROTATING_LEVEL1_OBJECTS, INITIAL_ROTATING_LEVEL2_OBJECTS, INITIAL_ROTATING_LEVEL3_OBJECTS, sectorToIndex } from '../core/SolarSystemPosition';
@@ -25,6 +26,8 @@ import { PiecesSummary } from './solar/pieces';
 import { piecesAt, specimenRewardText } from './solar/cellPieces';
 import './SolarSystemBoardUI.css'
 import { useCloseTooltipOnClick } from './hooks/useCloseTooltipOnClick';
+import { MOBILE_LAYOUT_QUERY, useMediaQuery } from './hooks/useMediaQuery';
+import { useBoardPinchZoom } from './solar/useBoardPinchZoom';
 
 interface SolarSystemBoardUIProps {
   game: Game;
@@ -118,6 +121,8 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
   // Clic hors du plateau (et hors des infobulles) : annule la sélection de sonde et ferme les fenêtres de planète
   // ouvertes par « Mettre en orbite » / « Poser une sonde ». Le fond du plateau est géré par ses propres calques.
   const boardInnerRef = useRef<HTMLDivElement>(null);
+  // Mobile : les fenêtres des planètes jouables (Orbite, Atterrissage) s'empilent au centre de l'écran
+  const isMobile = useMediaQuery(MOBILE_LAYOUT_QUERY);
   useEffect(() => {
     if (!selectedProbeId && !planetFocus) return;
     const handlePointerDown = (e: PointerEvent) => {
@@ -302,6 +307,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
   // Gestion du redimensionnement pour maintenir le ratio carré
   const containerRef = useRef<HTMLDivElement>(null);
   const [boardSize, setBoardSize] = useState<number>(0);
+  const { zoom, reset: resetZoom } = useBoardPinchZoom(containerRef);
 
   // Effet pour redimensionner pour maintenir le ratio carré
   useEffect(() => {
@@ -841,6 +847,9 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
           ref={containerRef}
           className="seti-board-container"
         >
+          {/* Zoom au pincement (écran tactile) : le plateau entier, autour du point entre les doigts */}
+          <div className="seti-board-zoom"
+            style={zoom.scale > 1 ? { transform: `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})` } : undefined}>
           {/* Conteneur interne pour positionner les éléments */}
           <div
             ref={boardInnerRef}
@@ -1132,6 +1141,10 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
             {/* Détails des secteurs sur le disque E (Noms + Slots) : dans le carré du plateau pour le suivre */}
             <SectorDetails game={game} interactionState={interactionState} highlightedSectorSlots={highlightedSectors(game, interactionState)} onSectorClick={onSectorClick} setActiveTooltip={setActiveTooltip} />
           </div>
+          </div>
+          {zoom.scale > 1 && (
+            <button type="button" className="seti-board-zoom-reset" onClick={resetZoom} aria-label="Revenir au plateau entier">1×</button>
+          )}
 
           {/* Fenêtres persistantes des planètes : atterrissage bonus (Dragonfly…) ou action Orbite/Atterrissage choisie */}
           {(interactionState.type === 'LANDING_PROBE' || (interactionState.type === 'IDLE' && !!planetFocus)) && (() => {
@@ -1155,7 +1168,7 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
             const planetIds = interactionState.type === 'IDLE' && planetFocus
               ? ProbeSystem.getPlayablePlanets(game, currentPlayer.id, planetFocus)
               : Array.from(planetsWithProbes);
-            return planetIds.map(planetId => {
+            const windows = planetIds.map(planetId => {
               const el = planetRefs.current.get(planetId);
               if (!el) return null;
               const rect = el.getBoundingClientRect();
@@ -1163,19 +1176,23 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
               if (!planetData) return null;
 
               const content = (
-                <div className="planet-window">
+                <div key={planetId} className="planet-window">
                   <div className="planet-window-header">
                     <div className="planet-window-title">
                       {planetData.name}
                     </div>
                   </div>
                   <div className="planet-window-body">
-                    <PlanetIcon id={planetData.id} size={planetData.id === 'oumuamua' ? 80 : 220} planetData={planetData} game={game} interactionState={interactionState} onOrbit={onOrbit} onLand={onLand} handleSlotClick={handleSlotClick} removingItem={removingItem} hoverTimeoutRef={hoverTimeoutRef} setHoveredSlot={setHoveredSlot} />
+                    <PlanetIcon id={planetData.id} size={planetData.id === 'oumuamua' ? 80 : isMobile ? 170 : 220} planetData={planetData} game={game} interactionState={interactionState} onOrbit={onOrbit} onLand={onLand} handleSlotClick={handleSlotClick} removingItem={removingItem} hoverTimeoutRef={hoverTimeoutRef} setHoveredSlot={setHoveredSlot} />
                   </div>
                 </div>
               );
-              return <Tooltip key={`landing-tooltip-${planetId}`} content={content} targetRect={rect} pointerEvents="auto" />;
+              return isMobile ? content : <Tooltip key={`landing-tooltip-${planetId}`} content={content} targetRect={rect} pointerEvents="auto" />;
             });
+            // Mobile : une pile centrée (les fenêtres placées à côté de chaque planète se décalaient hors de l'écran)
+            return isMobile
+              ? createPortal(<div className="seti-tooltip seti-planet-focus-stack seti-thin-scroll">{windows}</div>, document.body)
+              : windows;
           })()}
         </div>
       </div>

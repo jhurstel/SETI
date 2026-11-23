@@ -870,7 +870,7 @@ export const BoardUI: React.FC = () => {
           onConfirm={(cardId) => choose({ kind: 'CARD', cardId })}
           currentRound={interactionState.round}
           confirmLabel="Choisir"
-          confirmIcon={<ResourceIcon kind="card" amount={1} size={22} />}
+          confirmIcon={<ResourceIcon kind="anyCard" amount={1} size={22} />}
         />
       )}
 

@@ -160,7 +160,7 @@ export const ExertienCardModal = ({ game, interactionState, onChoice }: { game: 
           : (
             <ChoiceFooterButton onClick={() => choose(selectedIds)} disabled={!canPay}
               icon={<>
-                <ResourceIcon kind="card" amount={selectedIds.length} size={22} />
+                <ResourceIcon kind="anyCard" amount={selectedIds.length} size={22} />
                 {cost > 0 && <ResourceIcon kind="credit" amount={-cost * selectedIds.length} size={22} />}
               </>}>
               Jouer

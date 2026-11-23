@@ -102,6 +102,8 @@ export const PlayerResources: React.FC<{
       key={flash ? `${key}-${flash.id}` : `${key}-static`}
       className={`seti-stat-tile ${tooltip ? 'has-actions' : ''} ${flashClass(flash)}`}
       data-tutorial={key === 'score' ? 'score' : undefined}
+      // Écran tactile : un appui ouvre l'infobulle et ses actions gratuites (échanges, achat de carte)
+      data-tap-tooltip={tooltip ? true : undefined}
       onMouseEnter={tooltip ? (e) => showInteractiveTooltip(e, tooltip) : undefined}
       onMouseLeave={tooltip ? scheduleTooltipClose : undefined}
     >
@@ -176,6 +178,7 @@ export const PlayerResources: React.FC<{
           onMouseEnter={(e) => showInteractiveTooltip(e, tooltip)}
           onMouseLeave={scheduleTooltipClose}
           aria-label="Revenus"
+          data-tap-tooltip
         >
           <div className="seti-stat-main">
             <ReservationIcon size={26} />
