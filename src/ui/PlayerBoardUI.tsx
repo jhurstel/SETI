@@ -10,6 +10,8 @@ import { MissionCard } from './components/MissionCard';
 import { PlayedMissionCard } from './components/PlayedMissionCard';
 import { SlotTooltip } from './components/SlotTooltip';
 import { CardTooltip } from './components/CardTooltip';
+import { ExpandIcon } from './components/GameIcons';
+import { HandModal } from './modals/HandModal';
 import { PlayerTabs } from './player/PlayerTabs';
 import { PlayerResources } from './player/PlayerResources';
 import { PlayerActions } from './player/PlayerActions';
@@ -61,6 +63,9 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
   const isCurrentTurn = game.players[game.currentPlayerIndex].id === currentPlayer.id;
   const isRobot = currentPlayer.type === 'robot';
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(null);
+  // Main en grand : joueur affiché et cartes de sa main à l'ouverture (null : fenêtre fermée)
+  const [handSnapshot, setHandSnapshot] = useState<{ playerId: string, ids: string[] } | null>(null);
+  const closeHandModal = useCallback(() => setHandSnapshot(null), []);
 
   const isDiscarding = interactionState.type === 'DISCARDING_CARD';
   const isTrading = interactionState.type === 'TRADING_CARD';
@@ -169,6 +174,76 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
     );
   }, [handleTooltipHover, handleTooltipLeave]);
 
+  // Cartes de la main (plateau et fenêtre « main en grand ») : face visible, ou de dos pour une carte masquée
+  const handContent = (
+    !isRobot ? (
+      handCards.length > 0 ? (
+        handCards.map(card => speciesMaskValue.cardIds.includes(card.id) ? (
+          // Carte d'une espèce masquée (chapitre du tutoriel) : de dos, sans nom ni texte
+          <CardBack key={card.id}
+            onMouseEnter={e => handleTooltipHover(e, <SlotTooltip status="Carte Alien" statusColor="#9fb2da" note="Découvrez cette espèce en partie pour lire ses cartes" />)}
+            onMouseLeave={handleTooltipLeave} />
+        ) : (
+          <HandCard
+            key={card.id}
+            card={card}
+            game={game}
+            currentPlayerId={currentPlayer.id}
+            interactionState={interactionState}
+            highlightedCardId={highlightedCardId}
+            setHighlightedCardId={setHighlightedCardId}
+            onCardClick={onCardClick}
+            onPlayCard={onPlayCard}
+            onDiscardCardAction={onDiscardCardAction}
+            handleTooltipHover={handleTooltipHover}
+            handleTooltipLeave={handleTooltipLeave}
+            renderActionButton={renderActionButton}
+            cardOrigin="hand"
+            isPlayableFocus={playableCardIds.includes(card.id)}
+          />
+        ))
+      ) : (
+        <div className="seti-player-list-empty">Aucune carte en main</div>
+      )
+    ) : (
+      // Main d'un robot : cartes révélées face visible, les autres de dos
+      handCards.length > 0 ? (
+        <>
+          {handCards.filter(c => c.isRevealed).map(card => (
+            <HandCard
+              key={card.id}
+              card={card}
+              game={game}
+              currentPlayerId={currentPlayer.id}
+              interactionState={interactionState}
+              highlightedCardId={null}
+              setHighlightedCardId={() => {}}
+              onCardClick={() => {}}
+              onPlayCard={() => {}}
+              onDiscardCardAction={() => {}}
+              handleTooltipHover={handleTooltipHover}
+              handleTooltipLeave={handleTooltipLeave}
+              renderActionButton={() => null}
+              cardOrigin="hand"
+            />
+          ))}
+          {handCards.filter(c => !c.isRevealed).map(card => (
+            <CardBack key={card.id} species={backSpecies(card)}
+              onMouseEnter={e => handleTooltipHover(e, <SlotTooltip status="Carte masquée" statusColor="#9fb2da" note={`Main de ${currentPlayer.name}`} />)}
+              onMouseLeave={handleTooltipLeave} />
+          ))}
+        </>
+      ) : (
+        <div className="seti-player-list-empty">Aucune carte en main</div>
+      )
+    )
+  );
+
+  // Main en grand ouverte tant que le plateau affiché reste le même et qu'aucune carte n'a quitté la main (carte jouée ou défaussée)
+  const handIdSet = new Set(handCards.map(c => c.id));
+  const showHandModal = handSnapshot !== null && handSnapshot.playerId === currentPlayer.id && handCards.length > 0
+    && handSnapshot.ids.every(id => handIdSet.has(id));
+
   return (
     <div className="seti-player-board-container">
       {/* Onglets des joueurs */}
@@ -194,25 +269,26 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
             )}
           </div>
 
-          <div className="seti-player-section">
-            <div className="seti-player-section-title">Exploration</div>
-            <ExplorationTrack
-              game={game}
-              playerId={currentPlayer.id}
-              handleTooltipHover={handleTooltipHover}
-              handleTooltipLeave={handleTooltipLeave}
-            />
-          </div>
-
-          {/* Observation Track */}
-          <div className="seti-player-section">
-            <div className="seti-player-section-title">Observation</div>
-            <ObservationTrack
-              game={game}
-              playerId={currentPlayer.id}
-              handleTooltipHover={handleTooltipHover}
-              handleTooltipLeave={handleTooltipLeave}
-            />
+          {/* Exploration et Observation sur une ligne (l'une sous l'autre si le plateau est trop étroit) */}
+          <div className="seti-player-row">
+            <div className="seti-player-section seti-exploration-section">
+              <div className="seti-player-section-title">Exploration</div>
+              <ExplorationTrack
+                game={game}
+                playerId={currentPlayer.id}
+                handleTooltipHover={handleTooltipHover}
+                handleTooltipLeave={handleTooltipLeave}
+              />
+            </div>
+            <div className="seti-player-section seti-observation-section">
+              <div className="seti-player-section-title">Observation</div>
+              <ObservationTrack
+                game={game}
+                playerId={currentPlayer.id}
+                handleTooltipHover={handleTooltipHover}
+                handleTooltipLeave={handleTooltipLeave}
+              />
+            </div>
           </div>
 
           {/* Informatique (ordinateur de données) */}
@@ -232,71 +308,20 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
             </div>
           </div>
 
-          {/* Cartes */}
+          {/* Main (cartes réduites, bouton « main en grand ») */}
           <div className="seti-player-section" data-tutorial="hand">
-            <div className="seti-player-section-title">Main</div>
+            <div className="seti-player-section-title seti-section-title-row">
+              Main
+              {/* Main en grand, dans une fenêtre */}
+              <button className="seti-hand-expand-btn" aria-label="Voir la main en grand" aria-disabled={handCards.length === 0}
+                onClick={() => { if (handCards.length > 0) setHandSnapshot({ playerId: currentPlayer.id, ids: handCards.map(c => c.id) }); }}
+                onMouseEnter={e => handleTooltipHover(e, <SlotTooltip status="Voir la main en grand" statusColor="#9fb2da" note={handCards.length > 0 ? 'Les cartes en grande taille, avec leurs boutons' : 'Aucune carte en main'} />)}
+                onMouseLeave={handleTooltipLeave}>
+                <ExpandIcon size={14} />
+              </button>
+            </div>
             <div className="seti-player-list seti-cards-list seti-thin-scroll" ref={cardsListRef}>
-              {!isRobot ? (
-                handCards.length > 0 ? (
-                  handCards.map(card => speciesMaskValue.cardIds.includes(card.id) ? (
-                    // Carte d'une espèce masquée (chapitre du tutoriel) : de dos, sans nom ni texte
-                    <CardBack key={card.id}
-                      onMouseEnter={e => handleTooltipHover(e, <SlotTooltip status="Carte Alien" statusColor="#9fb2da" note="Découvrez cette espèce en partie pour lire ses cartes" />)}
-                      onMouseLeave={handleTooltipLeave} />
-                  ) : (
-                    <HandCard
-                        key={card.id}
-                        card={card}
-                        game={game}
-                        currentPlayerId={currentPlayer.id}
-                        interactionState={interactionState}
-                        highlightedCardId={highlightedCardId}
-                        setHighlightedCardId={setHighlightedCardId}
-                        onCardClick={onCardClick}
-                        onPlayCard={onPlayCard}
-                        onDiscardCardAction={onDiscardCardAction}
-                        handleTooltipHover={handleTooltipHover}
-                        handleTooltipLeave={handleTooltipLeave}
-                        renderActionButton={renderActionButton}
-                        cardOrigin="hand"
-                        isPlayableFocus={playableCardIds.includes(card.id)}
-                    />
-                  ))
-                ) : (
-                  <div className="seti-player-list-empty">Aucune carte en main</div>
-                )
-              ) : (
-                // Main d'un robot : cartes révélées face visible, les autres de dos
-                handCards.length > 0 ? (
-                  <>
-                    {handCards.filter(c => c.isRevealed).map(card => (
-                      <HandCard
-                        key={card.id}
-                        card={card}
-                        game={game}
-                        currentPlayerId={currentPlayer.id}
-                        interactionState={interactionState}
-                        highlightedCardId={null}
-                        setHighlightedCardId={() => {}}
-                        onCardClick={() => {}}
-                        onPlayCard={() => {}}
-                        onDiscardCardAction={() => {}}
-                        handleTooltipHover={handleTooltipHover}
-                        handleTooltipLeave={handleTooltipLeave}
-                        renderActionButton={() => null}
-                        cardOrigin="hand"
-                      />
-                    ))}
-                    {handCards.filter(c => !c.isRevealed).map(card => (
-                      <CardBack key={card.id} species={backSpecies(card)}
-                        onMouseEnter={e => handleTooltipHover(e, <SlotTooltip status="Carte masquée" statusColor="#9fb2da" note={`Main de ${currentPlayer.name}`} />)}
-                        onMouseLeave={handleTooltipLeave} />
-                    ))}
-                  </>
-                ) : (
-                  <div className="seti-player-list-empty">Aucune carte en main</div>
-                )
-              )}
+              {handContent}
             </div>
           </div>
 
@@ -369,6 +394,11 @@ const PlayerBoardUIView: React.FC<PlayerBoardUIProps> = ({ game, playerId, inter
 
         </div>
       </div>
+      {showHandModal && (
+        <HandModal title={currentPlayer.id === viewerId ? 'Votre main' : `Main de ${currentPlayer.name}`} onClose={closeHandModal}>
+          {handContent}
+        </HandModal>
+      )}
     </div>
   );
 };

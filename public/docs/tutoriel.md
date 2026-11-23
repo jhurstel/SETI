@@ -193,7 +193,7 @@ Ouvrez l'**historique** (il s'ouvre ici tout seul) et cliquez sur la flèche **�
 Trois sortes de missions, une défausse.
 
 ## Votre main {#intro}
-Vos **cartes en main** s'affichent sur votre plateau. Elles se lisent comme les vraies cartes : l'action gratuite en haut à gauche, la couleur de scan dans le triangle en haut à droite, le coût dans le badge à gauche du nom, l'effet en symboles au centre et le revenu dans le bandeau du bas. Une carte se joue en payant son coût. Cliquez sur une carte pour faire apparaître ses deux boutons : **jouer** (bleu) et **défausser** (rouge). Nous vous avons donné trois cartes : **ISS**, **Télescope Lovell** et **Mars Science Laboratory**.
+Vos **cartes en main** s'affichent sur votre plateau. Elles se lisent comme les vraies cartes : l'action gratuite en haut à gauche, la couleur de scan dans le triangle en haut à droite, le coût dans le badge à gauche du nom, l'effet en symboles au centre et le revenu dans le bandeau du bas. Une carte se joue en payant son coût. Cliquez sur une carte pour faire apparaître ses deux boutons : **jouer** (bleu) et **défausser** (rouge). Les cartes du plateau sont en petit : survolez-en une pour la voir en grand, ou cliquez sur l'icône à droite du titre **Main** pour afficher toute votre main en grand (mêmes boutons). Nous vous avons donné trois cartes : **ISS**, **Télescope Lovell** et **Mars Science Laboratory**.
 
 ## Jouez ISS {#jouer}
 Cliquez sur la carte **ISS**, puis sur son bouton bleu pour la jouer (2 crédits). Vous gagnez 1 média, et la carte reste devant vous comme **mission déclenchée**.
@@ -211,7 +211,7 @@ Jouer ISS était votre action principale. Cliquez sur **Fin du tour**.
 Cliquez sur **Lancer une sonde** : c'est le déclencheur de la mission ISS.
 
 ## Réclamez la récompense {#valider}
-Les cercles réalisables de la carte ISS s'allument : cliquez sur celui que vous voulez recouvrir. Un même déclencheur ne recouvre qu'un seul cercle : choisissez le plus utile, les autres attendront un prochain lancement.
+Les cercles réalisables de la carte ISS s'allument : cliquez sur celui que vous voulez recouvrir, sur la carte ou dans son infobulle, qui la montre en grand. Un même déclencheur ne recouvre qu'un seul cercle : choisissez le plus utile, les autres attendront un prochain lancement.
 
 ## Terminez votre tour {#fin-du-tour-2}
 Cliquez sur **Fin du tour** pour passer à la mission suivante.

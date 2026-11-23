@@ -190,6 +190,13 @@ export const TransferDataIcon: React.FC<{ size?: number }> = ({ size = 20 }) => 
   </svg>
 );
 
+/** Agrandir (main en grand) : quatre coins tournés vers l'extérieur */
+export const ExpandIcon: React.FC<{ size?: number }> = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 40 40" className="icon-block" fill="none" stroke="currentColor" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 16 V6 H16 M24 6 H34 V16 M34 24 V34 H24 M16 34 H6 V24" />
+  </svg>
+);
+
 /** Refuser, renoncer : cercle rouge barré */
 export const RefuseIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
   <svg width={size} height={size} viewBox="0 0 40 40" className="icon-block">

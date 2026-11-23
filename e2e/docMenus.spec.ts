@@ -222,6 +222,23 @@ for (const [name, board] of Object.entries(BOARDS)) {
   });
 }
 
+/** Fenêtre « main en grand », ouverte depuis le titre de la main du plateau joueur (public/docs/images/ecrans/plateau-main.png) */
+test('capture : main en grand', async ({ page }) => {
+  fs.mkdirSync(SCREENS_DIR, { recursive: true });
+  const save = JSON.stringify(serializeGame(base.game, base.entries));
+  await page.addInitScript(json => { localStorage.setItem('seti_autosave', json); }, save);
+  await page.goto('/', { timeout: 300_000 });
+  await page.getByText('Continuer', { exact: true }).click();
+  // Annonce de début de tour fermée
+  await page.waitForTimeout(3000);
+  await page.mouse.click(5, 5);
+  await page.getByRole('button', { name: 'Voir la main en grand' }).click();
+  // Souris hors de la fenêtre (pas d'infobulle)
+  await page.mouse.move(5, 5);
+  await page.waitForTimeout(600);
+  await page.locator('.seti-hand-modal').screenshot({ path: path.join(SCREENS_DIR, 'plateau-main.png') });
+});
+
 /**
  * Sous-écrans de l'accueil (public/docs/images/ecrans/accueil-<nom>.png) : fenêtres ouvertes depuis l'accueil,
  * sans partie sauvegardée, nom du joueur connu, proposition du tutoriel déjà refusée

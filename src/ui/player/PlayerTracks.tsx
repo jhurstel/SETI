@@ -86,9 +86,9 @@ export const ExplorationTrack: React.FC<ExplorationTrackProps> = ({ game, player
     <><ActionSymbol kind="land" label="Atterrir" /> <AmountSymbol kind="energy" amount={alone} label={`${alone} Énergies`} />,{' '}
       <PieceSymbol kind="orbiter" label="Avec un orbiteur" /> <AmountSymbol kind="energy" amount={withOrbiter} label={`${withOrbiter} Énergie${withOrbiter > 1 ? 's' : ''}`} /></>
   );
-  // Les quatre emplacements de technologie Exploration, espacés régulièrement
+  // Les quatre emplacements de technologie Exploration, compacts et espacés régulièrement
   return (
-    <div className="obs-track-container evenly">
+    <div className="obs-track-container evenly compact spaced">
       {techSlot(<><PieceSymbol kind="probe" label="Sonde" /> maximum : 1</>, <><PieceSymbol kind="probe" label="Sonde" /> maximum : 2</>, 1, 'I')}
       {techSlot(asteroids(0, 2), asteroids(1, 1), 2, 'II')}
       {techSlot(landCost(GAME_CONSTANTS.LAND_COST_ENERGY, GAME_CONSTANTS.LAND_COST_ENERGY_WITH_ORBITER),
@@ -140,18 +140,18 @@ export const ObservationTrack: React.FC<ObservationTrackProps> = ({ game, player
   // Étapes du scan (l'action est dans la section Actions), reliées par des lignes de même longueur qui s'arrêtent au bord des cadres ;
   // les technologies II à IV n'ont que leur tuile
   return (
-    <div className="obs-track-container evenly">
+    <div className="obs-track-container evenly compact">
       {/* Étape de la Terre : la pastille (sans Observation I) a l'infobulle de l'étape, le cadre celle de la technologie */}
       {(() => {
         const obs1Tooltip = obsTooltip('I', hasObs1, <><ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.EARTH }] }} /> dans le secteur de la Terre</>,
           <><ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.EARTH }] }} /> Terre ou secteur adjacent</>);
         return hasObs1
           ? <TrackSlot icon={null} tooltip={obs1Tooltip} techFrame={{ acquired: true, tile: 'observation-1' }} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />
-          : <TrackSlot icon={<SignalIcon badge="earth" size={30} />} tooltip={stepTooltip('Terre', <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.EARTH }] }} />)}
+          : <TrackSlot icon={<SignalIcon badge="earth" size={20} />} tooltip={stepTooltip('Terre', <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.EARTH }] }} />)}
               techFrame={{ acquired: false, tile: 'observation-1' }} frameTooltip={obs1Tooltip} onHover={handleTooltipHover} onLeave={handleTooltipLeave} />;
       })()}
       <div className="obs-track-connector into-left" />
-      {renderSlot(<SignalIcon badge="card" size={30} />, stepTooltip('Carte de la rangée', <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.ROW }] }} note="la carte est défaussée" />), false)}
+      {renderSlot(<SignalIcon badge="card" size={20} />, stepTooltip('Carte de la rangée', <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.ROW }] }} note="la carte est défaussée" />), false)}
       <div className="obs-track-connector into-right" />
       {renderSlot(null, obsTooltip('II', hasObs2, <>Pas de <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.MERCURY }] }} /></>,
         <><ResourceSymbols bonus={{ media: 1 }} /> : <ResourceSymbols bonus={{ signals: [{ amount: 1, scope: SectorType.MERCURY }] }} /></>), false, undefined, false, false, false, { acquired: hasObs2, tile: 'observation-2' })}

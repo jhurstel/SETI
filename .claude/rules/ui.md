@@ -20,13 +20,14 @@ src/ui/
     ├── hooks/               # useGameSession (partie + journal, dispatch), useAITurn (cadence des robots, calcul dans le Web Worker via aiWorkerClient), useAutosave (localStorage, écriture différée), useAnnouncements (début de tour, découverte, tirage du premier joueur), useUndo (annulation locale et en ligne), useStableHandlers (handlers stables pour les plateaux mémoïsés), useFoldablePanel (panneaux repliables)
     ├── SolarSystemBoardUI.tsx (~1210), PlayerBoardUI (~340), PlanetBoardUI, AlienBoardUI, TechnologyBoardUI, ObjectiveBoardUI, CardRowUI, HistoryBoardUI (tous mémoïsés : React.memo)
     ├── solar/               # Parties du plateau du système solaire : slotTooltip (infobulle d'un emplacement d'orbite ou d'atterrissage), highlightedSectors, OumuamuaSignals (secteur d'Oumuamua), pieces et cellPieces (sondes et capsules d'une case), useProbeSelection (sonde sélectionnée, cases accessibles), planets
-    ├── player/              # Parties du plateau joueur : PlayerTabs (onglets), PlayerResources (ressources, actions gratuites, revenus), PlayerActions (actions principales, fin du tour), PlayerTracks (pistes Exploration et Observation), useResourceFlash
+    ├── player/              # Parties du plateau joueur : PlayerTabs (onglets), PlayerResources (ressources, actions gratuites, revenus), PlayerActions (actions principales, fin du tour), PlayerTracks (pistes Exploration et Observation, compactes), useResourceFlash ; Exploration et Observation sont sur une rangée (.seti-player-row, qui passe à la ligne si la place manque), cartes de la main et des missions réduites (84×120)
     ├── components/          # HandCard, MissionCard, CardTooltip, PlayerComputer, PlanetIcon, SvgBonus, SectorDetails…
     │                        # CardFace (face d'une carte comme les vraies : coins, coût, effet en symboles, panneaux, pied du revenu ; compacte ou grande) + cardFaceModel.ts (description pure de la carte : EFFECT_SYMBOLS, TEXT_EFFECTS, segments texte faute de symbole) ; CardGlossary (planches de la documentation)
     ├── tutorialProgress.ts  # Progression du tutoriel (localStorage['seti_tutorial'] : chapitres terminés, refus, conseils vus, réglage des conseils, espèces débloquées)
     ├── hooks/useSpeciesUnlock.ts # Espèces découvertes dans une vraie partie (pas un chapitre) : débloquées, message « Nouveau chapitre du tutoriel »
     ├── speciesMask.ts       # Contexte de l'espèce masquée (chapitre « Traces de vie et espèces ») : plateau Alien, main, anomalies, historique, annonce
     ├── hooks/useTutorial.ts, components/TutorialOverlay (bulle et surbrillance des éléments [data-tutorial]), components/TutorialMenu (chapitres)
+    ├── modals/HandModal     # Main en grand (bouton du titre Main) : mêmes HandCard en 168×240, rendue dans document.body (le flou du plateau joueur servirait de cadre)
     ├── modals/              # Settings (écran d'accueil : continuer, nouvelle partie, tutoriel et proposition du premier lancement, en ligne, documentation), NewGame, Online, Documentation (public/docs/documentation.md + PDF), Pass, GameModals
     └── styles/celestialStyles.ts
 ```

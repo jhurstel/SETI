@@ -777,3 +777,99 @@
 .seti-mission-pile > .seti-common-card.seti-mission-pile-card + .seti-mission-pile-card {
   margin-left: -104px;
 }
+
+/* ===== Rangée Exploration | Observation : côte à côte, l'une sous l'autre si le plateau est trop étroit ===== */
+.seti-player-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.seti-player-row > .seti-player-section {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Exploration : largeur de ses quatre tuiles ; Observation : le reste */
+.seti-player-row > .seti-exploration-section { flex: 1 0 auto; }
+.seti-player-row > .seti-observation-section { flex: 2 1 200px; }
+
+/* La piste remplit sa section (même hauteur que sa voisine), emplacements centrés */
+.seti-player-row .obs-track-container {
+  flex: 1 1 auto;
+}
+
+/* Pistes compactes (Exploration, Observation) : rien ne s'y clique, les emplacements sont petits (l'ordinateur garde sa taille) */
+.obs-track-container.compact,
+.obs-track-container.compact.evenly {
+  padding: 6px;
+}
+
+.obs-track-container.compact .seti-tech-spot {
+  width: 32px;
+  height: 46px;
+  gap: 4px;
+}
+
+.obs-track-container.compact .obs-track-slot.ghost {
+  width: 30px;
+  height: 44px;
+}
+
+/* Pastilles des étapes du scan */
+.obs-track-container.compact .obs-track-slot:not(.ghost):not(.hex) {
+  width: 22px;
+  height: 22px;
+  border-width: 1px;
+}
+
+/* Tuiles Exploration séparées par un écart (pas de lignes entre elles) */
+.obs-track-container.compact.spaced {
+  gap: 8px;
+  padding: 6px 10px;
+}
+
+/* Cartes réduites de la main et des missions (75 % : la face se met à l'échelle de son cadre, l'infobulle la montre en grand) */
+.seti-player-panel .seti-cards-list .seti-common-card {
+  width: 84px;
+  height: 120px;
+  min-width: 84px;
+  min-height: 120px;
+}
+
+/* Pile des missions accomplies : chaque carte dépasse de 6 px de la précédente */
+.seti-player-panel .seti-mission-pile > .seti-common-card.seti-mission-pile-card + .seti-mission-pile-card {
+  margin-left: -78px;
+}
+
+/* Titre de section avec un bouton à droite (main en grand) ; sélecteurs composés pour l'emporter sur « .seti-root button » */
+.seti-player-section-title.seti-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.seti-player-section-title .seti-hand-expand-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: #78a0ff;
+  cursor: pointer;
+}
+
+.seti-player-section-title .seti-hand-expand-btn:hover:not([aria-disabled="true"]) {
+  color: #e8eefc;
+  background: rgba(120, 160, 255, 0.15);
+}
+
+.seti-player-section-title .seti-hand-expand-btn[aria-disabled="true"],
+.seti-player-section-title .seti-hand-expand-btn[aria-disabled="true"]:hover {
+  background: none;
+  color: #555;
+  cursor: help;
+}
