@@ -29,7 +29,8 @@ context: |
   robots (niveaux, évaluation, réglage), online-play (salles, serveur, client),
   tutorial (chapitres, guidage, mode annulation), card-display (faces des cartes),
   board-display (actions grisées, panneaux repliables, gains des secteurs),
-  error-reporting (écran d'erreur, rapport de problème).
+  error-reporting (écran d'erreur, rapport de problème),
+  undo (annulation locale et en ligne, barrière d'information, annulation stricte).
 
 rules:
   proposal:
