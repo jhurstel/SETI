@@ -21,6 +21,7 @@ let keepOnThisClick = false;
 let longPressTimer: ReturnType<typeof setTimeout> | null = null;
 let longPressStart: { x: number; y: number; target: Element } | null = null;
 let longPressFired = false;
+let hoveredSincePress = false;
 
 const isTouch = () => lastPointerType === 'touch' || lastPointerType === 'pen';
 
@@ -36,8 +37,12 @@ function simulateHover(target: Element) {
 }
 
 if (typeof document !== 'undefined') {
+  // Survol (réel ou simulé) depuis le dernier appui : sans lui, l'infobulle de l'élément touché ne s'est pas ouverte
+  document.addEventListener('mouseover', () => { hoveredSincePress = true; }, true);
+
   document.addEventListener('pointerdown', (e: PointerEvent) => {
     lastPointerType = e.pointerType;
+    hoveredSincePress = false;
     longPressFired = false;
     cancelLongPress();
     if (!isTouch() || !(e.target instanceof Element)) return;
@@ -87,6 +92,9 @@ if (typeof document !== 'undefined') {
       tapAnchor = null;
       return;
     }
+    // Le navigateur ne renvoie pas de survol quand on touche de nouveau l'élément déjà « survolé » (infobulle refermée
+    // par l'appui précédent) : on le simule pour la rouvrir
+    if (!hoveredSincePress && target) simulateHover(target);
     tapAnchor = anchor;
     keepOnThisClick = true;
   }, true);

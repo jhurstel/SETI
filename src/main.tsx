@@ -7,6 +7,7 @@ import { setTraceLevel } from './core/trace';
 import { DEBUG_AVAILABLE } from './ui/hooks/useDebugSetting';
 import { ErrorBoundary } from './ui/components/ErrorBoundary';
 import { installErrorListeners } from './ui/errorLog';
+import { RotateNotice } from './ui/components/RotateNotice';
 
 // Développement : traces des robots et du moteur dans la console (masquées en production)
 if (DEBUG_AVAILABLE) setTraceLevel('info');
@@ -21,5 +22,7 @@ root.render(
     <ErrorBoundary>
       <BoardUI/>
     </ErrorBoundary>
+    {/* Téléphone en paysage : message « Tournez votre téléphone » (pas de mode paysage) */}
+    <RotateNotice />
   </React.StrictMode>
 );

@@ -592,14 +592,46 @@ box-shadow: 0 0 15px rgba(74, 158, 255, 0.5);
     zoom: 0.8;
   }
 
+  /* Icônes à 10 px du bord du plateau, comme l'historique et les plateaux Alien (conteneur décalé de -5 px) */
   .seti-side-panels-container {
-    padding: 10px;
+    padding: 15px;
   }
 }
 
 /* Mobile : pas de bouton « main en grand » sous le système solaire (la main y est déjà à la largeur de l'écran) */
 @media (max-width: 600px) {
   .seti-mobile-dock .seti-hand-expand-btn {
+    display: none;
+  }
+}
+
+/* Mobile : un message encore trop long pour la largeur de l'écran (erreur du moteur, nom de joueur long) passe sur
+   deux lignes au lieu d'être coupé ; la barre grandit d'autant */
+@media (max-width: 600px) {
+  .seti-toast-bar {
+    flex: 0 0 auto;
+    min-height: 30px;
+  }
+
+  .seti-root-inner .seti-toast {
+    white-space: normal;
+    text-overflow: clip;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    padding: 3px 8px;
+    line-height: 1.25;
+  }
+
+  .seti-right-panel.seti-waiting .seti-toast {
+    display: flex;
+  }
+}
+
+/* Mobile : pas de titre (Ressources, Actions, Main) sous le système solaire, la place va aux plateaux */
+@media (max-width: 600px) {
+  .seti-mobile-dock .seti-player-section-title {
     display: none;
   }
 }

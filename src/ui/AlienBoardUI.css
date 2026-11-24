@@ -180,8 +180,18 @@
 
 /* Mobile : les deux plateaux Alien tiennent côte à côte, contenu réduit comme les autres panneaux */
 @media (max-width: 600px) {
+  /* À 10 px des bords, comme les autres icônes du plateau */
   .alien-board-container {
-    width: calc(50% - 20px);
+    bottom: 10px;
+    width: calc(50% - 15px);
+  }
+
+  .alien-board-container.left {
+    left: 10px;
+  }
+
+  .alien-board-container.right {
+    right: 10px;
   }
 
   .alien-board-container .seti-foldable-content {

@@ -536,7 +536,7 @@ export const BoardUI: React.FC = () => {
     }
     const moving = gameRef.current?.interaction;
     if (moving?.type === 'MOVING_PROBE') {
-      setToast({ message: `Encore ${moving.count} déplacement${moving.count > 1 ? 's' : ''} gratuit${moving.count > 1 ? 's' : ''} : choisissez une sonde.`, visible: true });
+      setToast({ message: `${moving.count} déplacement${moving.count > 1 ? 's' : ''} gratuit${moving.count > 1 ? 's' : ''} : choisissez une sonde.`, visible: true });
     }
   };
 

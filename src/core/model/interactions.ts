@@ -167,7 +167,7 @@ export const INTERACTIONS = {
   CLAIMING_MISSION_REQUIREMENT: { ...automatic, label: () => "Validation d'une mission..." },
   TRIGGER_CARD_EFFECT: {
     ...automatic,
-    label: s => (s.effectType === 'SCORE_PER_MEDIA' ? `Gagner ${s.value} PV par niveau de Média (PIXL).` : "Appliquer l'effet de la carte."),
+    label: s => (s.effectType === 'SCORE_PER_MEDIA' ? `${s.value} PV par niveau de Média (PIXL).` : "Appliquer l'effet de la carte."),
   },
 
   RESERVING_CARD: { ...choice('CARDS'), label: s => `Réservez ${s.count} carte${plural(s.count)}.` },
@@ -177,20 +177,20 @@ export const INTERACTIONS = {
     // Une carte gagnée en bonus doit être prise ; un achat peut être abandonné
     skippable: s => !s.isFree,
   },
-  MOVING_PROBE: { ...choice(), label: s => `Déplacez une sonde (${s.count} déplacement${plural(s.count)} gratuit${plural(s.count)}).`, skippable: always },
+  MOVING_PROBE: { ...choice(), label: s => `Déplacez une sonde (${s.count} gratuit${plural(s.count)}).`, skippable: always },
   ORBITING_PROBE: { ...choice('PLANET'), label: () => 'Mettez une sonde en orbite (gratuit).' },
   LANDING_PROBE: { ...choice('PLANET'), label: () => 'Posez une sonde (gratuit).' },
   ACQUIRING_TECH: {
     ...choice('TECH'),
-    label: s => (s.isBonus ? `Choisissez une technologie${s.categories ? ` ${s.categories.join(' ou ')}` : ''}.` : 'Achetez une technologie.'),
+    label: s => (s.isBonus ? `Choisissez une technologie${s.categories ? ` ${s.categories.join('/')}` : ''}.` : 'Achetez une technologie.'),
   },
-  SELECTING_COMPUTER_SLOT: { ...choice('COMPUTER_COLUMN'), label: s => `Choisissez une colonne d'ordinateur pour ${s.tech.shorttext}.` },
+  SELECTING_COMPUTER_SLOT: { ...choice('COMPUTER_COLUMN'), label: s => `Choisissez une colonne pour ${s.tech.shorttext}.` },
   PLACING_LIFE_TRACE: { ...choice('LIFE_TRACE'), label: s => `Placez une trace de vie (${s.color}).` },
   PLACING_OBJECTIVE_MARKER: { ...choice('OBJECTIVE'), label: s => `Placez un marqueur d'objectif (${s.milestone} PV).` },
   SELECTING_SCAN_CARD: { ...choice('CARD'), label: () => 'Choisissez une carte de la rangée (signal).' },
   SELECTING_SCAN_SECTOR: {
     ...choice('SECTOR'),
-    label: s => (s.adjacents ? 'Choisissez un secteur voisin de la Terre (signal).' : `Choisissez un secteur ${s.color} (signal).`),
+    label: s => (s.adjacents ? 'Choisissez un secteur près de la Terre.' : `Choisissez un secteur ${s.color} (signal).`),
   },
   CHOOSING_MEDIA_OR_MOVE: { ...choice('MEDIA_OR_MOVE'), label: () => 'Choisissez le bonus de la carte 19.' },
   CHOOSING_OBS2_ACTION: { ...choice('ACCEPT'), label: () => 'Choisissez le bonus Observation II.' },
@@ -213,11 +213,11 @@ export const INTERACTIONS = {
   CHOOSING_EXERTIEN_CARD: {
     ...choice('EXERTIEN'),
     label: s => (s.milestone === 0
-      ? `Exertiens découverts : jouez ${(s.count ?? 1) > 1 ? `${s.count} cartes` : 'une carte'} si vous voulez.`
-      : `Palier Exertien (${s.milestone} PV) : jouez une carte si vous voulez.`),
+      ? `Exertiens : jouez ${(s.count ?? 1) > 1 ? `${s.count} cartes` : 'une carte'} (facultatif).`
+      : `Palier Exertien : jouez une carte (facultatif).`),
   },
   CHOOSING_ROUND_CARD: { ...choice('CARD'), label: s => `Choisissez une carte de fin de manche ${s.round}.` },
-  DISCARDING_TOKEN: { ...choice('ACCEPT'), label: s => `Défausser 1 Token pour gagner ${s.rewardText} ("${s.cardName}") ?` },
+  DISCARDING_TOKEN: { ...choice('ACCEPT'), label: s => `Défausser 1 Token pour ${s.rewardText} ?` },
   CHOOSING_MISSION_REQUIREMENT: { ...choice('MISSION'), label: () => 'Mission : recouvrez un cercle ?' },
 } as const satisfies { [T in InteractionType]: InteractionDescriptor<T> };
 

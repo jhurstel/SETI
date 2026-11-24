@@ -359,3 +359,39 @@
 .oumuamua-body > svg {
   display: block;
 }
+
+/* Pas de mode paysage sur téléphone (components/RotateNotice) : écran tactile tenu en paysage, de faible hauteur
+   (les tablettes et les ordinateurs ne sont pas concernés) */
+.seti-rotate-notice {
+  display: none;
+}
+
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  .seti-rotate-notice {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px;
+    background: #070a14;
+    color: #e6e6e6;
+    text-align: center;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+.seti-rotate-notice-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #ffd76a;
+}
+
+.seti-rotate-notice-text {
+  font-size: 0.9rem;
+  color: #9fb2da;
+}
