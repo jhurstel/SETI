@@ -249,10 +249,17 @@ const CometSvgBase: React.FC<{ length: number }> = ({ length }) => {
           <stop offset="100%" stopColor="#8fd2ff" stopOpacity={0} />
         </radialGradient>
       </defs>
-      {/* Queue de poussière, élargie et légèrement courbée */}
-      <path d={`M${h} -2.5 Q${h * 0.1} ${-w * 0.55} ${-h} ${-w} L${-h} ${w * 0.15} Q${h * 0.1} 1.5 ${h} 2.5 Z`} fill={`url(#dust-${uid})`} filter={`url(#soft-${uid})`} />
-      {/* Queue d'ions, fine et rectiligne */}
-      <path d={`M${h} -0.8 L${-h - 2} ${w * 0.45} L${-h - 2} ${w * 0.45 + 1.8} L${h} 0.8 Z`} fill={`url(#ion-${uid})`} filter={`url(#soft-${uid})`} />
+      {/* Queues animées (classes de SolarSystemBoardUI.css) : chaque groupe animé a son origine sur le noyau */}
+      <g transform={`translate(${h} 0)`}>
+        {/* Queue de poussière, élargie et légèrement courbée */}
+        <g className="seti-comet-tail-dust">
+          <path transform={`translate(${-h} 0)`} d={`M${h} -2.5 Q${h * 0.1} ${-w * 0.55} ${-h} ${-w} L${-h} ${w * 0.15} Q${h * 0.1} 1.5 ${h} 2.5 Z`} fill={`url(#dust-${uid})`} filter={`url(#soft-${uid})`} />
+        </g>
+        {/* Queue d'ions, fine et rectiligne */}
+        <g className="seti-comet-tail-ion">
+          <path transform={`translate(${-h} 0)`} d={`M${h} -0.8 L${-h - 2} ${w * 0.45} L${-h - 2} ${w * 0.45 + 1.8} L${h} 0.8 Z`} fill={`url(#ion-${uid})`} filter={`url(#soft-${uid})`} />
+        </g>
+      </g>
       <circle cx={h} r={6.5} fill={`url(#coma-${uid})`} />
       <circle cx={h} r={2.2} fill="#fff" />
     </svg>
@@ -300,8 +307,11 @@ const AsteroidFieldSvgBase: React.FC<{ width: number; height: number; count: num
       {dust.map((p, i) => <circle key={`d${i}`} cx={p.x} cy={p.y} r={p.r} fill="#9c8f80" opacity={0.6} />)}
       {rocks.map((p, i) => (
         <g key={i} transform={`translate(${p.x} ${p.y})`}>
-          <path d={rockPath(p.r, seed + i * 13, p.rot)} fill={`url(#rock-${uid})`} stroke="rgba(0, 0, 0, 0.5)" strokeWidth={0.4} />
-          <circle cx={p.r * 0.2} cy={p.r * 0.15} r={p.r * 0.22} fill="rgba(30, 25, 20, 0.45)" />
+          {/* Dérive lente (SolarSystemBoardUI.css), sur un rythme propre à chaque rocher ; sens alterné */}
+          <g className="seti-asteroid-drift" style={{ animationDuration: `${7 + seeded(seed + i + 600) * 6}s`, animationDelay: `${-seeded(seed + i + 700) * 10}s`, animationDirection: i % 2 ? 'reverse' : 'normal' }}>
+            <path d={rockPath(p.r, seed + i * 13, p.rot)} fill={`url(#rock-${uid})`} stroke="rgba(0, 0, 0, 0.5)" strokeWidth={0.4} />
+            <circle cx={p.r * 0.2} cy={p.r * 0.15} r={p.r * 0.22} fill="rgba(30, 25, 20, 0.45)" />
+          </g>
         </g>
       ))}
     </svg>

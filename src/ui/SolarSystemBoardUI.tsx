@@ -544,7 +544,20 @@ const SolarSystemBoardUIView: React.FC<SolarSystemBoardUIProps> = ({ game, inter
               width: `${size + 15}px`,
               height: `${size + 15}px`,
             }}
-          />
+          >
+            {/* Orbiteurs : un point à la couleur du joueur par orbiteur, répartis sur l'anneau et tournant autour de la planète */}
+            <div className="seti-planet-orbiters">
+              {planetData.orbiters.map((probe, i) => {
+                const angle = (360 / planetData.orbiters.length) * i;
+                const color = game.players.find(p => p.id === probe.ownerId)?.color || '#8888ff';
+                return (
+                  <div key={probe.id} className="seti-planet-orbiter-arm" style={{ transform: `rotate(${angle}deg)` }}>
+                    <div className="seti-planet-orbiter" style={{ background: color, boxShadow: `0 0 3px ${color}` }} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
         {/* Anneau fixe et anneau qui s'agrandit, comme pour les slots de signaux */}
         {canInteract && (

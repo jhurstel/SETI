@@ -241,6 +241,70 @@
     pointer-events: none;
 }
 
+/* Orbiteurs : chaque bras part du centre de l'anneau et porte un point sur la ligne pointillée ;
+   l'ensemble tourne lentement autour de la planète */
+.seti-planet-orbiters {
+    position: absolute;
+    inset: 0;
+    animation: seti-orbit-spin 24s linear infinite;
+}
+.seti-planet-orbiter-arm {
+    position: absolute;
+    inset: 0;
+}
+.seti-planet-orbiter {
+    position: absolute;
+    top: -3.5px;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    margin-left: -3px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-sizing: border-box;
+}
+@keyframes seti-orbit-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Queues des comètes : ondulation lente, la queue d'ions sur un autre rythme que la queue de poussière.
+   Le groupe animé a son origine sur le noyau (voir CometSvg) */
+.seti-comet-tail-dust {
+    animation: seti-comet-dust 3.6s ease-in-out infinite;
+}
+.seti-comet-tail-ion {
+    animation: seti-comet-ion 2.3s ease-in-out infinite;
+}
+@keyframes seti-comet-dust {
+    0%, 100% { transform: scale(1, 1); opacity: 0.9; }
+    50% { transform: scale(1.1, 1.15); opacity: 1; }
+}
+@keyframes seti-comet-ion {
+    0%, 100% { transform: scale(1, 1) rotate(0deg); opacity: 1; }
+    35% { transform: scale(1.06, 1) rotate(-2deg); opacity: 0.75; }
+    70% { transform: scale(0.96, 1) rotate(1.5deg); opacity: 0.95; }
+}
+
+/* Astéroïdes : chaque rocher dérive et pivote légèrement autour de son centre (durée et décalage propres) */
+.seti-asteroid-drift {
+    animation: seti-asteroid-drift 9s ease-in-out infinite;
+}
+@keyframes seti-asteroid-drift {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(0.9px, -0.7px) rotate(6deg); }
+    50% { transform: translate(0.2px, 0.8px) rotate(10deg); }
+    75% { transform: translate(-0.8px, 0.2px) rotate(4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .seti-planet-orbiters,
+    .seti-comet-tail-dust,
+    .seti-comet-tail-ion,
+    .seti-asteroid-drift {
+        animation: none;
+    }
+}
+
 /* Plateau du système solaire : élément jouable (planète, slot de signal) entouré d'un anneau vert fixe
    et d'un anneau qui s'agrandit en s'effaçant */
 .seti-planet-interaction-ring {
