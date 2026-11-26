@@ -247,7 +247,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
             )}
             <div className="seti-home-actions">
-              {hasAutosave && card('continue', 'play', 'Continuer', savedSummary || 'Reprendre la partie sauvegardée', handleContinue, true)}
+              {hasAutosave && card('continue', 'play', 'Continuer', savedSummary || 'Reprendre la partie', handleContinue, true)}
               {onTutorial && card('tutorial', 'book', 'Tutoriel', 'Apprendre à jouer', () => { setVisible(false); onTutorial(); })}
               {card('new', 'rocket', 'Nouvelle partie', 'Jouer en solo', handleNewGameRequest, !hasAutosave)}
               {onResumeOnline && card('resume-online', 'resume', 'Reprendre en ligne', 'Retrouver votre place dans la salle', () => { setVisible(false); onResumeOnline(); })}
