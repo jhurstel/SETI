@@ -4,7 +4,7 @@ import { tutorialAllows, useTutorialFocus } from '../tutorialFocus';
 import { SlotTooltip } from './SlotTooltip';
 import { ActionType, Bonus, Game, InteractionState, LifeTraceType, SignalType, GAME_CONSTANTS, Sector, Player } from '../../core/types';
 import { ScanSystem } from '../../systems/ScanSystem';
-import { describeArc, polarToCartesian, sectorNamePrefixAngles } from '../solarGeometry';
+import { describeArc, polarToCartesian, sectorNamePrefixAngles, sectorMarkersLength, SECTOR_MARKER_FIRST_DX, SECTOR_MARKER_NEXT_DX } from '../solarGeometry';
 import { BonusIcons } from './BonusIcons';
 import { SvgBonus } from './SvgBonus';
 import { AnyLifeTraceIcon, LifeTraceIcon, ResourceIcon, VictoryPointsIcon } from './GameIcons';
@@ -73,11 +73,12 @@ const coverSymbols = (bonus: Bonus): React.ReactNode[] => {
  * Prochain gain de couverture (première couverture, puis couvertures suivantes) dessiné avant le nom du secteur,
  * sur l'arc du nom, tourné comme le texte ; rien pour une récompense vide (Oumuamua)
  */
-const NextCoverSymbols: React.FC<{ sector: Sector, centerAngle: number, radius: number, reversed: boolean }> = ({ sector, centerAngle, radius, reversed }) => {
+const NextCoverSymbols: React.FC<{ sector: Sector, centerAngle: number, radius: number, reversed: boolean, markers: number }> = ({ sector, centerAngle, radius, reversed, markers }) => {
   const symbols = coverSymbols(ScanSystem.nextCoverBonus(sector));
   if (symbols.length === 0) return null;
-  // Du plus proche du nom au plus éloigné : le dernier symbole lu touche le nom
-  const angles = sectorNamePrefixAngles(centerAngle, sector.name.length, radius, reversed, symbols.length, NEXT_COVER_SYMBOL_SIZE);
+  // Du plus proche du nom au plus éloigné : le dernier symbole lu touche le nom. Les marqueurs des joueurs, centrés
+  // avec le nom, en reculent le début
+  const angles = sectorNamePrefixAngles(centerAngle, sector.name.length, radius, reversed, symbols.length, NEXT_COVER_SYMBOL_SIZE, sectorMarkersLength(markers));
   const half = NEXT_COVER_SYMBOL_SIZE / 2;
   return (
     <g className="no-pointer sector-next-cover">
@@ -233,13 +234,13 @@ export const SectorDetails: React.FC<SectorDetailsProps> = ({ game, interactionS
               <textPath href={`#${textPathId}`} startOffset="50%" textAnchor="middle">
                 {sector.name.toUpperCase()}
                 {coveredByPlayers.map((p, playerIndex) => (
-                  <tspan key={playerIndex} fill={p.color} dx={playerIndex === 0 ? "2" : "0.1"} dy={playerIndex === 0 ? "0.9" : "0"} className="sector-marker-dot">●</tspan>
+                  <tspan key={playerIndex} fill={p.color} dx={playerIndex === 0 ? SECTOR_MARKER_FIRST_DX : SECTOR_MARKER_NEXT_DX} dy={playerIndex === 0 ? "0.9" : "0"} className="sector-marker-dot">●</tspan>
                 ))}
               </textPath>
             </text>
 
             {/* Prochain gain de couverture, avant le nom (les pastilles des joueurs qui l'ont couvert suivent le nom) */}
-            <NextCoverSymbols sector={sector} centerAngle={(startAngle + endAngle) / 2} radius={textRadius + SECTOR_NAME_CAP_HEIGHT / 2} reversed={isBottom} />
+            <NextCoverSymbols sector={sector} centerAngle={(startAngle + endAngle) / 2} radius={textRadius + SECTOR_NAME_CAP_HEIGHT / 2} reversed={isBottom} markers={coveredByPlayers.length} />
 
             {/* Fond du couloir */}
             {/* Fond presque opaque de la piste : les slots passent devant l'étoile du secteur, qui ne dépasse qu'autour

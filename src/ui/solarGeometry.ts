@@ -37,14 +37,26 @@ export function polarToCartesian(centerX: number, centerY: number, radius: numbe
 /** Avance d'un caractère du nom d'un secteur (capitales grasses de taille 2,5, espacement 0,5), en unités SVG */
 export const SECTOR_NAME_CHAR_ADVANCE = 2.2;
 
+/** Marqueurs des joueurs qui ont couvert un secteur (●, police 2em), écrits à la suite du nom : avance de chacun,
+ *  décalage avant le premier et entre les suivants, en unités SVG */
+export const SECTOR_MARKER_DOT_ADVANCE = 3.5;
+export const SECTOR_MARKER_FIRST_DX = 2;
+export const SECTOR_MARKER_NEXT_DX = 0.1;
+
+/** Longueur des marqueurs de couverture écrits à la suite du nom d'un secteur (0 sans marqueur) */
+export function sectorMarkersLength(count: number): number {
+  return count === 0 ? 0 : SECTOR_MARKER_FIRST_DX + count * SECTOR_MARKER_DOT_ADVANCE + (count - 1) * SECTOR_MARKER_NEXT_DX;
+}
+
 /**
  * Angles (degrés) des symboles posés avant le nom d'un secteur, centré sur `centerAngle` le long d'un arc de rayon
  * `radius` : largeur du nom estimée d'après son nombre de caractères, puis un écart, puis les symboles côte à côte,
  * du plus proche du nom au plus éloigné. `reversed` : nom des secteurs du bas, lu dans le sens inverse des angles.
+ * `trailingLength` : ce qui suit le nom dans le même texte centré (marqueurs de couverture), qui recule le début du nom.
  */
-export function sectorNamePrefixAngles(centerAngle: number, nameLength: number, radius: number, reversed: boolean, count: number, symbolSize: number, gap = 1): number[] {
+export function sectorNamePrefixAngles(centerAngle: number, nameLength: number, radius: number, reversed: boolean, count: number, symbolSize: number, trailingLength = 0, gap = 1): number[] {
   const toDegrees = (length: number) => length / radius * 180 / Math.PI;
-  const halfName = toDegrees(nameLength * SECTOR_NAME_CHAR_ADVANCE / 2);
+  const halfName = toDegrees((nameLength * SECTOR_NAME_CHAR_ADVANCE + trailingLength) / 2);
   // Le nom commence (sens de lecture) du côté des angles décroissants en haut, croissants en bas
   const side = reversed ? 1 : -1;
   return Array.from({ length: count }, (_, i) => centerAngle + side * (halfName + toDegrees(gap + symbolSize / 2 + i * (symbolSize + 0.4))));

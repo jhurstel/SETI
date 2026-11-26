@@ -5,7 +5,7 @@ import * as path from 'path';
 import { DataLoader } from '../../src/core/DataLoader';
 import { Game } from '../../src/core/types';
 import { SectorDetails } from '../../src/ui/components/SectorDetails';
-import { sectorNamePrefixAngles } from '../../src/ui/solarGeometry';
+import { sectorMarkersLength, sectorNamePrefixAngles } from '../../src/ui/solarGeometry';
 import { createTestGame } from '../helpers/gameFixture';
 
 /** Prochain gain de couverture dessiné avant le nom de chaque secteur */
@@ -57,4 +57,15 @@ test('symboles avant le nom, du côté où commence la lecture, sans toucher le 
   // En bas, le nom se lit dans l'autre sens
   const [bottom] = sectorNamePrefixAngles(90, 10, 76, true, 1, 3);
   expect(bottom).toBeGreaterThan(90 + halfName);
+});
+
+test('secteur couvert : les marqueurs des joueurs, centrés avec le nom, éloignent les symboles du centre', () => {
+  // Non-régression : les marqueurs suivent le nom dans le même texte centré, le début du nom recule d'autant
+  const [plain] = sectorNamePrefixAngles(-112.5, 10, 76, false, 1, 3);
+  const [one] = sectorNamePrefixAngles(-112.5, 10, 76, false, 1, 3, sectorMarkersLength(1));
+  const [three] = sectorNamePrefixAngles(-112.5, 10, 76, false, 1, 3, sectorMarkersLength(3));
+  const toDegrees = (length: number) => length / 76 * 180 / Math.PI;
+  expect(plain - one).toBeCloseTo(toDegrees(sectorMarkersLength(1) / 2));
+  expect(one).toBeGreaterThan(three);
+  expect(sectorMarkersLength(0)).toBe(0);
 });
