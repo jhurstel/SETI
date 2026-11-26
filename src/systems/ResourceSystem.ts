@@ -276,10 +276,11 @@ export class ResourceSystem {
     if (bonus.revenue && CardSystem.getHandCards(player).length === 0) {
       return "Vous n'avez aucune carte en main pour effectuer la réservation (bonus). Le bonus sera perdu. Voulez-vous continuer ?";
     }
-    if (bonus.data && player.data >= GAME_CONSTANTS.MAX_DATA) {
+    // Gain seulement : une donnée ou un média à payer (récompense négative) n'est pas un gain perdu
+    if ((bonus.data ?? 0) > 0 && player.data >= GAME_CONSTANTS.MAX_DATA) {
       return "Vous avez atteint la limite de données. Le gain de données sera perdu. Voulez-vous continuer ?";
     }
-    if (bonus.media && player.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
+    if ((bonus.media ?? 0) > 0 && player.mediaCoverage >= GAME_CONSTANTS.MAX_MEDIA_COVERAGE) {
       return "Vous avez atteint la limite de couverture médiatique. Le gain de médias (bonus) sera perdu. Voulez-vous continuer ?";
     }
     if (bonus.technologies?.some(t => {

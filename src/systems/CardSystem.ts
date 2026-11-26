@@ -756,6 +756,16 @@ export class CardSystem {
     }
 
     /**
+     * Récompense d'un objectif de mission (cercle à recouvrir), sans vérifier sa condition : pour avertir le joueur
+     * avant de le valider si une partie serait perdue (données au maximum…). Undefined pour un objectif inconnu.
+     */
+    static missionRequirementBonus(game: Game, playerId: string, missionId: string, requirementId: string): Bonus | undefined {
+        const requirement = requirePlayer(game, playerId).missions.find(m => m.id === missionId)?.requirements.find(r => r.id === requirementId);
+        if (!requirement) return undefined;
+        return this.evaluateMission(game, playerId, effectString(requirement), true) ?? undefined;
+    }
+
+    /**
      * Évalue une condition de mission déclenchable et retourne le bonus si la condition est remplie
      * Format attendu: CONDITION:TARGET:BONUS1:VALUE1:BONUS2:VALUE2...
      */

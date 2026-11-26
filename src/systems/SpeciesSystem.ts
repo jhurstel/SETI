@@ -343,6 +343,35 @@ export class SpeciesSystem {
     }
 
     /**
+     * Bonus de l'emplacement d'une trace de vie : triangle (bonus de découverte pour la première trace de la couleur,
+     * bonus suivant ensuite) ou piste d'espèce (case fixe, puis case infinie ; sans emplacement précisé, après les
+     * traces de la couleur déjà posées). Undefined si la piste n'est pas encore là (espèce non découverte).
+     */
+    static lifeTraceSlotBonus(game: Game, boardIndex: number, color: LifeTraceType, slotType: LifeTraceLocation, slotIndex?: number): Bonus | undefined {
+        const board = game.board.alienBoards[boardIndex];
+        if (!board) return undefined;
+        if (slotType === LifeTraceLocation.TRIANGLE) {
+            // Traces de cette couleur déjà sur le triangle, marqueur neutre compris. Hors de la piste d'espèce = sur le
+            // triangle (les marqueurs neutres des anciennes sauvegardes n'ont pas d'emplacement noté)
+            const tracesOnTriangle = board.lifeTraces.filter(t => t.type === color && t.location !== LifeTraceLocation.SPECIES).length;
+            return tracesOnTriangle === 0 ? board.firstBonus : board.nextBonus;
+        }
+        const species = game.species.find(s => s.name === board.speciesId);
+        if (!board.isDiscovered || !species) return undefined;
+        const trackIndex = slotIndex ?? board.lifeTraces.filter(t => t.type === color && t.location === LifeTraceLocation.SPECIES).length;
+        const { fixedSlots, infiniteSlots } = species;
+        const trackSlots = (color === LifeTraceType.RED) ? fixedSlots.redlifetrace : (color === LifeTraceType.YELLOW) ? fixedSlots.yellowlifetrace : fixedSlots.bluelifetrace;
+        const infiniteSlot = (color === LifeTraceType.RED) ? infiniteSlots.redlifetrace : (color === LifeTraceType.YELLOW) ? infiniteSlots.yellowlifetrace : infiniteSlots.bluelifetrace;
+        return trackIndex < trackSlots.length ? trackSlots[trackIndex] : infiniteSlot;
+    }
+
+    /** Récompense d'une tuile Message des Centauriens encore disponible (undefined sinon) */
+    static centaurienRewardBonus(game: Game, tokenIndex: number): Bonus | undefined {
+        const token = game.species.find(s => s.name === AlienBoardType.CENTAURIENS)?.message?.[tokenIndex];
+        return token?.isAvailable ? token.bonus : undefined;
+    }
+
+    /**
     * Place une trace de vie sur un plateau Alien et gère la découverte d'espèce
     */
     static placeLifeTrace(game: Game, boardIndex: number, color: LifeTraceType, playerId: string, sequenceId: string = '', slotType: LifeTraceLocation, slotIndex?: number): {
@@ -368,15 +397,7 @@ export class SpeciesSystem {
         let speciesSlotIndex: number | undefined;
 
         if (slotType === LifeTraceLocation.TRIANGLE) {
-            // Traces de cette couleur déjà sur le triangle, marqueur neutre compris : la première prend le bonus de
-            // découverte, les suivantes le bonus suivant. Hors de la piste d'espèce = sur le triangle (les marqueurs
-            // neutres des anciennes sauvegardes n'ont pas d'emplacement noté)
-            const tracesOnTriangle = board.lifeTraces.filter(t => t.type === color && t.location !== LifeTraceLocation.SPECIES).length;
-            if (tracesOnTriangle === 0) {
-                bonusToApply = board.firstBonus;
-            } else {
-                bonusToApply = board.nextBonus;
-            }
+            bonusToApply = this.lifeTraceSlotBonus(updatedGame, boardIndex, color, slotType)!;
         } else { // slotType === LifeTraceLocation.SPECIES
             if (!board.isDiscovered || !species) {
                 return { updatedGame: game, historyEntries: [{ message: "Impossible de placer sur la piste d'espèce avant sa découverte.", playerId, sequenceId }], newPendingInteractions: [] };
@@ -394,17 +415,8 @@ export class SpeciesSystem {
                 return { updatedGame: game, historyEntries: [{ message: "Emplacement indisponible : il attend un spécimen Mascamite.", playerId, sequenceId }], newPendingInteractions: [] };
             }
 
-            // Déterminer le bonus en fonction de l'index sur la piste
-            const { fixedSlots, infiniteSlots } = species;
-            const trackSlots = (color === LifeTraceType.RED) ? fixedSlots.redlifetrace : (color === LifeTraceType.YELLOW) ? fixedSlots.yellowlifetrace : fixedSlots.bluelifetrace;
-            const infiniteSlot = (color === LifeTraceType.RED) ? infiniteSlots.redlifetrace : (color === LifeTraceType.YELLOW) ? infiniteSlots.yellowlifetrace : infiniteSlots.bluelifetrace;
-            const fixedSlotCount = trackSlots.length;
-
-            if (trackIndex < fixedSlotCount) {
-                bonusToApply = trackSlots[trackIndex];
-            } else {
-                bonusToApply = infiniteSlot;
-            }
+            // Bonus selon l'index sur la piste
+            bonusToApply = this.lifeTraceSlotBonus(updatedGame, boardIndex, color, slotType, trackIndex)!;
         }
 
         // Handle costs

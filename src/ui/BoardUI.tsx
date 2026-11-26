@@ -279,11 +279,13 @@ export const BoardUI: React.FC = () => {
 
   const checkBonusAndConfirm = useCallback((bonus: Bonus, onConfirm: () => void, cardId: string | null = null): boolean => {
     if (!game) return false;
-    const warning = ResourceSystem.lostBonusWarning(game, game.players[game.currentPlayerIndex].id, bonus);
+    // Joueur qui reçoit le gain : celui de l'interaction (mission déclenchée hors de son tour…), sinon le joueur actif
+    const receiver = game.players.find(p => p.id === interactionState.playerId) ?? game.players[game.currentPlayerIndex];
+    const warning = ResourceSystem.lostBonusWarning(game, receiver.id, bonus);
     if (!warning) return false;
     setConfirmModalState({ visible: true, cardId, message: warning, onConfirm });
     return true;
-  }, [game]);
+  }, [game, interactionState.playerId]);
 
   // --- Annulation ---
 
@@ -551,7 +553,12 @@ export const BoardUI: React.FC = () => {
     if (interactionState.type === 'SELECTING_SCAN_CARD') {
       if (cardId) choose({ kind: 'CARD', cardId });
     } else if (interactionState.type === 'ACQUIRING_CARD') {
-      choose({ kind: 'CARD', cardId });
+      const pick = () => { choose({ kind: 'CARD', cardId }); };
+      // Carte révélée dont on gagne l'action gratuite (donnée, média…) : avertissement si le gain serait perdu
+      const card = interactionState.triggerFreeAction && cardId ? game?.decks.cardRow.find(c => c.id === cardId) : undefined;
+      const gain = card ? CardSystem.freeActionGain(card.freeAction) : undefined;
+      if (gain && checkBonusAndConfirm(gain, pick)) return;
+      pick();
     }
   };
 
@@ -570,7 +577,12 @@ export const BoardUI: React.FC = () => {
   };
 
   const handlePlaceLifeTrace = (boardIndex: number, color: LifeTraceType, slotType: LifeTraceLocation, slotIndex?: number) => {
-    if (interactionState.type === 'PLACING_LIFE_TRACE') choose({ kind: 'LIFE_TRACE', boardIndex, color, slotType, slotIndex });
+    if (interactionState.type !== 'PLACING_LIFE_TRACE' || !game) return;
+    const place = () => { choose({ kind: 'LIFE_TRACE', boardIndex, color, slotType, slotIndex }); };
+    // Emplacement dont le bonus serait perdu en partie (donnée de la piste bleue des Exertiens au maximum…)
+    const bonus = SpeciesSystem.lifeTraceSlotBonus(game, boardIndex, color, slotType, slotIndex);
+    if (bonus && checkBonusAndConfirm(bonus, place)) return;
+    place();
   };
 
   const handleSpeciesCardClick = (speciesId: string, cardId: string) => {
@@ -578,7 +590,11 @@ export const BoardUI: React.FC = () => {
   };
 
   const handleCentaurienRewardClick = (tokenIndex: number) => {
-    if (interactionState.type === 'CHOOSING_CENTAURIEN_REWARD') choose({ kind: 'CENTAURIEN', tokenIndex });
+    if (interactionState.type !== 'CHOOSING_CENTAURIEN_REWARD' || !game) return;
+    const claim = () => { choose({ kind: 'CENTAURIEN', tokenIndex }); };
+    const bonus = SpeciesSystem.centaurienRewardBonus(game, tokenIndex);
+    if (bonus && checkBonusAndConfirm(bonus, claim)) return;
+    claim();
   };
 
   /** Cartes Exertiens jouées (une par marqueur de découverte) : un choix par carte, aucune pour renoncer */
@@ -597,12 +613,31 @@ export const BoardUI: React.FC = () => {
     }
   };
 
+  /**
+   * Validation d'un objectif de mission (clic sur le cercle, fenêtre d'une mission déclenchée, menu des actions bonus) :
+   * avertissement si sa récompense serait perdue en partie (données ou médias au maximum…)
+   */
+  const confirmMissionReward = (missionId: string, requirementId: string, onConfirm: () => void) => {
+    if (!game) return;
+    const bonus = CardSystem.missionRequirementBonus(game, actingPlayer(game).id, missionId, requirementId);
+    if (bonus && checkBonusAndConfirm(bonus, onConfirm)) return;
+    onConfirm();
+  };
+
   const handleMissionRequirementChoice = (missionId?: string, requirementId?: string) => {
-    if (interactionState.type === 'CHOOSING_MISSION_REQUIREMENT') choose({ kind: 'MISSION', missionId, requirementId });
+    if (interactionState.type !== 'CHOOSING_MISSION_REQUIREMENT') return;
+    const pick = () => { choose({ kind: 'MISSION', missionId, requirementId }); };
+    // Sans mission choisie : le joueur renonce, rien à perdre
+    if (missionId && requirementId) confirmMissionReward(missionId, requirementId, pick);
+    else pick();
   };
 
   const handleMenuChoice = (index: number) => {
-    if (interactionState.type === 'CHOOSING_BONUS_ACTION') choose({ kind: 'MENU', index });
+    if (interactionState.type !== 'CHOOSING_BONUS_ACTION') return;
+    const pick = () => { choose({ kind: 'MENU', index }); };
+    const state = interactionState.choices[index]?.state;
+    if (state?.type === 'CLAIMING_MISSION_REQUIREMENT') confirmMissionReward(state.missionId, state.requirementId, pick);
+    else pick();
   };
 
   // --- Actions gratuites ---
@@ -624,7 +659,7 @@ export const BoardUI: React.FC = () => {
   };
 
   const handleMissionClick = (missionId: string, requirementId: string) => {
-    run({ type: 'CLAIM_MISSION', missionId, requirementId });
+    confirmMissionReward(missionId, requirementId, () => { run({ type: 'CLAIM_MISSION', missionId, requirementId }); });
   };
 
   // Partie chargée ou nouvelle partie (locale : on quitte la partie en ligne, qui reste reprenable)
