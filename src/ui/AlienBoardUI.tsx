@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useFoldablePanel } from './hooks/useFoldablePanel';
 import { Game, GamePhase, InteractionState, LifeTraceType, Species, Card, AlienBoardType, Bonus, LifeTraceLocation, CardType, LifeTrace, Player } from '../core/types';
 import { ResourceSystem } from '../systems/ResourceSystem';
@@ -378,6 +378,13 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
             clearTimeout(hoverTimeoutRef.current);
         }
     };
+
+    // Cartes de la rangée de l'espèce : leur infobulle, où la souris peut entrer (pointerEvents 'auto'), garde le plateau
+    // ouvert tant qu'elle est affichée ; elle sort du plateau, qui se replierait sinon en quittant le survol
+    const setCardTooltip = useCallback((tooltip: ActiveTooltip | null) => {
+        setIsPinnedTooltipOpen(tooltip?.pointerEvents === 'auto');
+        setActiveTooltip(tooltip);
+    }, [setActiveTooltip]);
 
     if (!board) return null;
 
@@ -783,7 +790,7 @@ const AlienBoardUIView: React.FC<AlienBoardUIProps> = ({ game, boardIndex, inter
                             species={species}
                             interactionState={interactionState}
                             onCardClick={onSpeciesCardClick}
-                            setActiveTooltip={setActiveTooltip}
+                            setActiveTooltip={setCardTooltip}
                         />
                     )}
                     {revealed && (
